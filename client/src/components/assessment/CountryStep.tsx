@@ -16,20 +16,23 @@ export function CountryStep({ data, onUpdate, onNext }: CountryStepProps) {
   const [selectedCountryId, setSelectedCountryId] = useState(data.countryId || "");
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   
-  const checkIfMobile = () => {
-    if (typeof window === 'undefined') return false;
-    const userAgent = navigator.userAgent.toLowerCase();
-    const isMobileDevice = /iphone|ipad|ipod|android|webos|blackberry|windows phone/i.test(userAgent);
-    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-    const isSmallScreen = window.innerWidth < 768;
-    return isMobileDevice || (isTouchDevice && isSmallScreen);
-  };
-  
-  const [isMobile] = useState(checkIfMobile);
+  const isMobile = typeof window !== 'undefined' && (
+    /iphone|ipad|ipod|android|webos|blackberry|windows phone/i.test(navigator.userAgent) ||
+    ('ontouchstart' in window && window.innerWidth < 1024)
+  );
 
   const { data: countries = [], isLoading: countriesLoading, error: countriesError } = useQuery<any[]>({
     queryKey: ["/api/countries"],
   });
+
+  useEffect(() => {
+    if (countriesError) {
+      console.error("Countries loading error:", countriesError);
+    }
+    if (countries) {
+      console.log("Countries loaded:", countries.length);
+    }
+  }, [countries, countriesError]);
 
   const { data: countryDetails } = useQuery<any>({
     queryKey: ["/api/countries", selectedCountryId],
@@ -51,6 +54,35 @@ export function CountryStep({ data, onUpdate, onNext }: CountryStepProps) {
           <h2 className="text-4xl font-bold mb-3">Where Are You From? 🌍</h2>
           <p className="text-lg text-muted-foreground font-body">
             Loading countries...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (countriesError) {
+    return (
+      <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="text-center mb-8">
+          <h2 className="text-4xl font-bold mb-3">Where Are You From? 🌍</h2>
+          <p className="text-lg text-destructive font-body">
+            Error loading countries. Please refresh the page.
+          </p>
+          <p className="text-sm text-muted-foreground mt-2">
+            {countriesError instanceof Error ? countriesError.message : "Unknown error"}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!countries || countries.length === 0) {
+    return (
+      <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="text-center mb-8">
+          <h2 className="text-4xl font-bold mb-3">Where Are You From? 🌍</h2>
+          <p className="text-lg text-muted-foreground font-body">
+            No countries available. Please contact support.
           </p>
         </div>
       </div>
