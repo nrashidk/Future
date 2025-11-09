@@ -18,6 +18,7 @@ function calculateCareerMatch(
   interestMatchScore: number;
   countryVisionAlignment: number;
   futureMarketDemand: number;
+  quizScore: number;
   reasoning: string;
 } {
   // Calculate subject match (0-100)
@@ -135,12 +136,22 @@ function calculateCareerMatch(
   // Future market demand (uses job trend data)
   const futureMarketDemand = jobTrend?.demandScore || 60;
 
-  // Overall weighted score
+  // Quiz score (from assessment)
+  // Default to 50 (neutral) if quiz not completed to avoid penalizing users who skip/can't take quiz
+  const quizScore = assessment.quizScore?.overall ?? 50;
+
+  // Overall weighted score with new weights:
+  // - Subjects: 25% (down from 30%)
+  // - Interests: 25% (down from 30%)
+  // - Country vision: 20% (same)
+  // - Future market demand: 15% (down from 20%)
+  // - Quiz score: 15% (NEW)
   const overallMatchScore =
-    subjectMatchScore * 0.3 +
-    interestMatchScore * 0.3 +
-    countryVisionAlignment * 0.2 +
-    futureMarketDemand * 0.2;
+    subjectMatchScore * 0.25 +
+    interestMatchScore * 0.25 +
+    countryVisionAlignment * 0.20 +
+    futureMarketDemand * 0.15 +
+    quizScore * 0.15;
 
   // Generate reasoning
   const reasons: string[] = [];
@@ -156,6 +167,9 @@ function calculateCareerMatch(
   if (futureMarketDemand > 70) {
     reasons.push(`This field is experiencing high growth and strong demand in your country's job market`);
   }
+  if (quizScore > 70) {
+    reasons.push(`Your quiz results demonstrate strong understanding of your country's vision and how this career aligns with national priorities`);
+  }
 
   const reasoning = reasons.length > 0
     ? reasons.join(". ") + "."
@@ -167,6 +181,7 @@ function calculateCareerMatch(
     interestMatchScore,
     countryVisionAlignment,
     futureMarketDemand,
+    quizScore,
     reasoning,
   };
 }
