@@ -78,7 +78,7 @@ export function PersonalityStep({ data, onUpdate, onNext }: PersonalityStepProps
           >
             <h4 className="font-semibold text-lg mb-4">{q.question}</h4>
             <RadioGroup
-              value={answers[q.id]}
+              value={answers[q.id] || ""}
               onValueChange={(value) => handleAnswerChange(q.id, value)}
               className="space-y-3"
             >

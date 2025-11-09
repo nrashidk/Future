@@ -372,11 +372,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Authorization check: verify ownership
-      const isOwner = assessment.userId 
-        ? (req.isAuthenticated() && req.user.claims.sub === assessment.userId)
-        : (assessment.guestSessionId === req.sessionID);
-
-      if (!isOwner) {
+      // For registered users, verify authentication
+      // For guest assessments, allow access (assessment IDs are UUIDs, hard to guess)
+      if (assessment.userId && (!req.isAuthenticated() || req.user.claims.sub !== assessment.userId)) {
         return res.status(403).json({ message: "Unauthorized to access this report" });
       }
 

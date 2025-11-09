@@ -97,11 +97,8 @@ export function DemographicsStep({ data, onUpdate, onNext }: DemographicsStepPro
             <SelectContent>
               <SelectItem value="male">Male</SelectItem>
               <SelectItem value="female">Female</SelectItem>
-              <SelectItem value="other">Other</SelectItem>
-              <SelectItem value="prefer-not">Prefer not to say</SelectItem>
             </SelectContent>
-          </Select>
-        </StickyNote>
+          </Select>        </StickyNote>
       </div>
 
       <div className="flex justify-center pt-8">

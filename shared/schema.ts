@@ -47,8 +47,10 @@ export const countries = pgTable("countries", {
   code: varchar("code", { length: 3 }).notNull().unique(),
   mission: text("mission").notNull(),
   vision: text("vision").notNull(),
+  visionPlan: text("vision_plan"),
   prioritySectors: text("priority_sectors").array().notNull(),
   nationalGoals: text("national_goals").array().notNull(),
+  targets: jsonb("targets"),
   flag: text("flag"),
   createdAt: timestamp("created_at").defaultNow(),
 });

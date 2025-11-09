@@ -23,10 +23,14 @@ export default function Results() {
   const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
-  const [assessmentId, setAssessmentId] = useState<string | null>(null);
+  
+  // Get assessmentId from URL query params
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlAssessmentId = urlParams.get("assessmentId");
+  const [assessmentId, setAssessmentId] = useState<string | null>(urlAssessmentId);
 
   const { data: recommendations = [], isLoading } = useQuery<any[]>({
-    queryKey: ["/api/recommendations"],
+    queryKey: urlAssessmentId ? [`/api/recommendations?assessmentId=${urlAssessmentId}`] : ["/api/recommendations"],
     enabled: true,
   });
 
@@ -66,7 +70,8 @@ export default function Results() {
 
   const handleDownloadPDF = () => {
     if (assessmentId) {
-      window.open(`/api/recommendations/pdf/${assessmentId}`, "_blank");
+      // Use location.href to maintain session cookie for guest users
+      window.location.href = `/api/recommendations/pdf/${assessmentId}`;
     }
   };
 

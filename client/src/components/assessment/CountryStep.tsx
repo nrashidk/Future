@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { StickyNote } from "@/components/StickyNote";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Globe2, Target, Eye } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Globe2, Target, Eye, ChevronDown, TrendingUp } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 interface CountryStepProps {
@@ -13,6 +14,7 @@ interface CountryStepProps {
 
 export function CountryStep({ data, onUpdate, onNext }: CountryStepProps) {
   const [selectedCountryId, setSelectedCountryId] = useState(data.countryId || "");
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
 
   const { data: countries = [] } = useQuery<any[]>({
     queryKey: ["/api/countries"],
@@ -26,6 +28,7 @@ export function CountryStep({ data, onUpdate, onNext }: CountryStepProps) {
   const handleCountryChange = (countryId: string) => {
     setSelectedCountryId(countryId);
     onUpdate("countryId", countryId);
+    setIsDetailsOpen(false);
   };
 
   const canProceed = !!selectedCountryId;
@@ -67,7 +70,14 @@ export function CountryStep({ data, onUpdate, onNext }: CountryStepProps) {
               <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                 <Target className="w-5 h-5 text-primary" />
               </div>
-              <h4 className="text-lg font-bold">National Mission</h4>
+              <div className="flex-1">
+                <h4 className="text-lg font-bold">National Mission</h4>
+                {countryDetails.visionPlan && (
+                  <span className="inline-block mt-1 px-3 py-1 bg-primary text-primary-foreground rounded-full text-xs font-medium">
+                    {countryDetails.visionPlan}
+                  </span>
+                )}
+              </div>
             </div>
             <p className="font-body text-foreground/90 leading-relaxed">
               {countryDetails.mission}
@@ -99,6 +109,71 @@ export function CountryStep({ data, onUpdate, onNext }: CountryStepProps) {
                   </span>
                 ))}
               </div>
+            </StickyNote>
+          )}
+
+          {countryDetails.targets && (
+            <StickyNote color="purple" rotation="1">
+              <Collapsible open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
+                <div className="flex items-start gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                    <TrendingUp className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-lg font-bold">2030/2050 Development Goals</h4>
+                    <p className="text-sm text-foreground/70 font-body mt-1">
+                      See how your country is working towards the future
+                    </p>
+                  </div>
+                </div>
+
+                <CollapsibleTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full mt-2 hover-elevate active-elevate-2"
+                    data-testid="button-read-more-vision"
+                  >
+                    {isDetailsOpen ? "Show less" : "Read more"}
+                    <ChevronDown className={`ml-2 w-4 h-4 transition-transform ${isDetailsOpen ? "rotate-180" : ""}`} />
+                  </Button>
+                </CollapsibleTrigger>
+
+                <CollapsibleContent className="mt-4 space-y-4">
+                  {Object.entries(countryDetails.targets).map(([category, targets]: [string, any]) => (
+                    <div key={category} className="border-l-2 border-primary/30 pl-4">
+                      <h5 className="font-bold capitalize mb-2 text-primary">
+                        {category === "tech" ? "Technology" : category === "climate" ? "Climate & Environment" : category === "economic" ? "Economy" : category}
+                      </h5>
+                      <div className="space-y-2">
+                        {(targets as any[]).map((target, idx) => (
+                          <div key={idx} className="text-sm font-body">
+                            <span className="font-semibold">{target.metric}:</span>{" "}
+                            <span className="text-foreground/90">{target.value}</span>
+                            <span className="text-xs text-foreground/60 ml-2">
+                              ({target.year}) • {target.focusArea}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {countryDetails.nationalGoals && countryDetails.nationalGoals.length > 0 && (
+                    <div className="border-t border-foreground/10 pt-4 mt-4">
+                      <h5 className="font-bold mb-2">Key National Goals</h5>
+                      <ul className="space-y-1">
+                        {countryDetails.nationalGoals.map((goal: string, index: number) => (
+                          <li key={index} className="text-sm font-body text-foreground/90 flex items-start gap-2">
+                            <span className="text-primary mt-0.5">•</span>
+                            <span>{goal}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
             </StickyNote>
           )}
         </div>
