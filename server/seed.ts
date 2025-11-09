@@ -38,8 +38,9 @@ export async function seedDatabase() {
     },
     {
       id: "uae",
-      name: "United Arab Emirates (UAE)",
+      name: "United Arab Emirates",
       code: "UAE",
+      abbreviation: "UAE",
       flag: "🇦🇪",
       mission: "To establish the UAE as having the best government, education, and economy in the world through four key pillars: future-focused government, excellent education, diversified knowledge economy, and happy cohesive society.",
       vision: "To be the best country in the world by the UAE's 100th anniversary in 2071, leading in AI, space exploration, and sustainable development.",
@@ -357,8 +358,9 @@ export async function seedDatabase() {
     },
     {
       id: "usa",
-      name: "United States (USA)",
+      name: "United States",
       code: "USA",
+      abbreviation: "USA",
       flag: "🇺🇸",
       mission: "To preserve freedom, promote prosperity, and provide security for all Americans through democratic governance and economic opportunity.",
       vision: "Maintain global leadership in innovation, technology, and economic development while ensuring equal opportunities for all citizens.",
@@ -376,8 +378,9 @@ export async function seedDatabase() {
     },
     {
       id: "uk",
-      name: "United Kingdom (UK)",
+      name: "United Kingdom",
       code: "GBR",
+      abbreviation: "UK",
       flag: "🇬🇧",
       mission: "To build a fair, prosperous, and secure nation that works for everyone, promoting innovation, education, and sustainable growth.",
       vision: "Be a global leader in science, technology, and creative industries while maintaining strong international partnerships.",

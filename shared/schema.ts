@@ -45,6 +45,7 @@ export const countries = pgTable("countries", {
   id: varchar("id").primaryKey(),
   name: text("name").notNull(),
   code: varchar("code", { length: 3 }).notNull().unique(),
+  abbreviation: text("abbreviation"), // Short name for display (UAE, USA, UK) - null means use full name
   mission: text("mission").notNull(),
   vision: text("vision").notNull(),
   visionPlan: text("vision_plan"),

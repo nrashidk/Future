@@ -19,6 +19,11 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 
+// Helper to get display name (use abbreviation for vision/mission, full name for other contexts)
+function getCountryDisplayName(country: any): string {
+  return country?.abbreviation || country?.name || "your country";
+}
+
 // Helper to map subjects to vision sectors using actual country vision data
 function mapSubjectsToVisionSectors(
   subjectScores: Record<string, { percentage: number }>,
@@ -68,7 +73,7 @@ function mapSubjectsToVisionSectors(
     ? categoriesArray[0]
     : categoriesArray[0] + " and " + categoriesArray[1];
 
-  return `Your top strengths in ${subjectsText} directly align with ${country.name}'s ${categoriesText} priorities in their national vision.`;
+  return `Your top strengths in ${subjectsText} directly align with ${getCountryDisplayName(country)}'s ${categoriesText} priorities in their national vision.`;
 }
 
 export default function Results() {
