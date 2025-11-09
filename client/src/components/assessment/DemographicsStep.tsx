@@ -74,6 +74,7 @@ export function DemographicsStep({ data, onUpdate, onNext }: DemographicsStepPro
               <SelectValue placeholder="Select your grade" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="grade8">Grade 8</SelectItem>
               <SelectItem value="grade9">Grade 9</SelectItem>
               <SelectItem value="grade10">Grade 10</SelectItem>
               <SelectItem value="grade11">Grade 11</SelectItem>
