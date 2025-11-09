@@ -15,6 +15,18 @@ interface CountryStepProps {
 export function CountryStep({ data, onUpdate, onNext }: CountryStepProps) {
   const [selectedCountryId, setSelectedCountryId] = useState(data.countryId || "");
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      const userAgent = navigator.userAgent.toLowerCase();
+      const isMobileDevice = /iphone|ipad|ipod|android|webos|blackberry|windows phone/i.test(userAgent);
+      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      setIsMobile(isMobileDevice || isTouchDevice);
+    };
+    
+    checkMobile();
+  }, []);
 
   const { data: countries = [] } = useQuery<any[]>({
     queryKey: ["/api/countries"],
@@ -49,18 +61,34 @@ export function CountryStep({ data, onUpdate, onNext }: CountryStepProps) {
           </div>
           <h3 className="text-xl font-semibold">Select Your Country</h3>
         </div>
-        <Select value={selectedCountryId} onValueChange={handleCountryChange}>
-          <SelectTrigger className="bg-background/50 border-foreground/20 text-lg" data-testid="select-country">
-            <SelectValue placeholder="Choose your country" />
-          </SelectTrigger>
-          <SelectContent position="popper" className="z-[9999] max-h-[300px]">
+        {isMobile ? (
+          <select
+            value={selectedCountryId}
+            onChange={(e) => handleCountryChange(e.target.value)}
+            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background/50 border-foreground/20 px-3 py-2 text-lg ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            data-testid="select-country"
+          >
+            <option value="">Choose your country</option>
             {countries.map((country: any) => (
-              <SelectItem key={country.id} value={country.id}>
+              <option key={country.id} value={country.id}>
                 {country.flag} {country.name}
-              </SelectItem>
+              </option>
             ))}
-          </SelectContent>
-        </Select>
+          </select>
+        ) : (
+          <Select value={selectedCountryId} onValueChange={handleCountryChange}>
+            <SelectTrigger className="bg-background/50 border-foreground/20 text-lg" data-testid="select-country">
+              <SelectValue placeholder="Choose your country" />
+            </SelectTrigger>
+            <SelectContent position="popper" className="z-[9999] max-h-[300px]">
+              {countries.map((country: any) => (
+                <SelectItem key={country.id} value={country.id}>
+                  {country.flag} {country.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </StickyNote>
 
       {countryDetails && (
