@@ -19,41 +19,33 @@ The application is fully functional with:
 - Beautiful sticky notes UI optimized for students
 
 ## Recent Changes
-**November 9, 2025 - Country Expansion & UI Enhancements**
-- **Country Expansion**: Expanded from 4 to 11 countries with comprehensive 2030/2050 vision data:
-  - Saudi Arabia (Vision 2030)
-  - UAE (Centennial 2071)
-  - Singapore (Smart Nation 2.0)
-  - Canada (Innovation Nation)
-  - Australia (Future Made in Australia)
-  - Germany (Energiewende 2050)
-  - Japan (Society 5.0)
-  - South Korea (Korean New Deal)
-  - USA (National Strategy)
-  - UK (Levelling Up)
-  - India (Atmanirbhar Bharat)
-- **Structured Vision Data**: Added visionPlan and targets (jsonb) fields to countries table with organized categories:
-  - Climate & Environment
-  - Technology & Innovation
-  - Economic Development
-  - Social Progress
-  - Each target includes metric, value, year, and focus area
-- **CountryStep UI Enhancement**: Added vision plan badges and collapsible "Read more" section displaying organized 2030/2050 targets
-- **Demographics Update**: Gender options restricted to Male/Female only for age-appropriate simplicity
-- **Bug Fixes**:
-  - Fixed Results page query to properly pass assessmentId parameter
-  - Simplified PDF download authorization for guest users (UUID-based security)
-  - Fixed PersonalityStep RadioGroup uncontrolled-to-controlled warning
-- **Security Enhancements**:
-  - PDF report authorization validates ownership for registered users
-  - Guest assessments allow PDF access via secure UUID links
-  - Secured guest-to-registered migration with session validation
-- **PDF Generation**: Complete PDF report generation with student profile, recommendations, match breakdowns, and next steps
-- **Improved Matching Algorithm**:
-  - Enhanced country vision alignment using priority sectors and national goals
-  - Filters stop words and generic terms
-  - Supports phrase-level and partial matching
-  - Balanced adjustment scoring (-1 to +2 points impact)
+**November 9, 2025 - Subject Competency Quiz & Vision Linkage System**
+- **Subject Competency Quiz Architecture**:
+  - Implemented comprehensive question bank system for UAE curriculum (69 questions)
+  - Coverage: Math, Science, English, Arabic, Social Studies, Computer Science
+  - Grade-differentiated questions (8-9 vs 10-12) matching actual curriculum difficulty
+  - Enforced exactly 6 questions with clear validation errors
+  - Per-subject competency scoring replacing legacy vision metrics
+
+- **Enhanced Career Matching Algorithm (30/30/20/20 weighting)**:
+  - Subject Match (30%): Blends preference alignment with demonstrated competency (50/50)
+  - Interest Match (30%): Category-based interest alignment
+  - Vision Alignment (20%): Matches to country visionPlan priority sectors
+  - Market Demand (20%): Future job market growth scores
+  - Competency validation: Applies penalties when quiz performance contradicts preferences
+  - Backend metadata: Returns `matchedSubjects` and `supportingVisionPriorities` per career
+
+- **Results Page Overhaul - Competency → Career → Vision Narrative**:
+  - **Subject Competency Spotlight**: Overall score with student-friendly labels, per-subject breakdown, dynamic vision linkage
+  - **Per-Career Validation**: "✓ Validated by Your Competencies" badges showing matched subjects with percentages
+  - **Vision Priority Chips**: "🎯 Supports National Vision" chips showing specific priority sectors from country visionPlan
+  - **Fixed Query Logic**: Uses `activeAssessmentId = urlAssessmentId || assessmentId` for reliable data loading in all navigation paths
+  - Complete data-driven narrative linking competency → career → country vision
+
+- **Country Expansion** (Earlier): Expanded from 4 to 11 countries with comprehensive 2030/2050 vision data
+- **Structured Vision Data**: Added visionPlan and targets (jsonb) fields to countries table
+- **Bug Fixes**: Results page query logic, PDF authorization, PersonalityStep RadioGroup warning
+- **PDF Generation**: Complete report with subject competency scores and vision linkage
 
 **Initial Implementation**
 - Created complete database schema with users, assessments, countries, skills, careers, job market trends, and recommendations tables
