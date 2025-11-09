@@ -5,6 +5,7 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertAssessmentSchema } from "@shared/schema";
 import { z } from "zod";
 import PDFDocument from "pdfkit";
+import { transformQuizQuestionForFrontend } from "./utils/quiz";
 
 // Helper to enrich assessment with subject competency scores from quiz
 async function enrichAssessmentWithCompetencies(assessment: any) {
@@ -437,10 +438,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const allQuestions = await storage.getAllQuizQuestions();
         const questions = allQuestions
           .filter(q => questionIds.includes(q.id))
-          .map((q: any) => ({
-            ...q,
-            correctAnswer: q.questionType === "rating" ? q.correctAnswer : undefined
-          }));
+          .map(transformQuizQuestionForFrontend);
         
         return res.json({ 
           quizId: existingQuiz.id, 
@@ -532,11 +530,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Return questions without correct answers for multiple_choice
-      const questionsForFrontend = selectedQuestions.map((q: any) => ({
-        ...q,
-        correctAnswer: q.questionType === "rating" ? q.correctAnswer : undefined
-      }));
+      // Transform questions for frontend (format options and hide answers)
+      const questionsForFrontend = selectedQuestions.map(transformQuizQuestionForFrontend);
       
       res.json({ quizId: quiz.id, questions: questionsForFrontend, responses: [], completed: false });
     } catch (error) {
@@ -577,10 +572,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const allQuestions = await storage.getAllQuizQuestions();
       const questions = allQuestions
         .filter(q => questionIds.includes(q.id))
-        .map((q: any) => ({
-          ...q,
-          correctAnswer: q.questionType === "rating" ? q.correctAnswer : undefined
-        }));
+        .map(transformQuizQuestionForFrontend);
       
       res.json({ 
         quizId: quiz.id, 
