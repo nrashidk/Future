@@ -138,6 +138,9 @@ export const assessments = pgTable("assessments", {
   strengths: text("strengths").array(),
   workPreferences: jsonb("work_preferences"),
   
+  // Quiz results
+  quizScore: jsonb("quiz_score"),
+  
   // Completion tracking
   currentStep: integer("current_step").notNull().default(1),
   isCompleted: boolean("is_completed").notNull().default(false),
@@ -157,6 +160,7 @@ export const assessmentsRelations = relations(assessments, ({ one, many }) => ({
     references: [countries.id],
   }),
   recommendations: many(recommendations),
+  assessmentQuizzes: many(assessmentQuizzes),
 }));
 
 // Career recommendations generated for students
@@ -191,6 +195,86 @@ export const recommendationsRelations = relations(recommendations, ({ one }) => 
   }),
 }));
 
+// Quiz questions bank
+export const quizQuestions = pgTable("quiz_questions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  question: text("question").notNull(),
+  questionType: text("question_type").notNull(), // multiple_choice, rating, scenario
+  options: jsonb("options"), // Array of answer options for multiple choice
+  correctAnswer: text("correct_answer"), // For knowledge questions
+  
+  // Metadata for adaptive selection
+  gradeBand: text("grade_band").notNull(), // 8-9 or 10-12
+  domain: text("domain").notNull(), // vision_awareness, sector_competency, personal_alignment
+  countryId: varchar("country_id").references(() => countries.id), // null = applies to all countries
+  sectorTags: text("sector_tags").array(), // Related sectors
+  interestTags: text("interest_tags").array(), // Related interests
+  cognitiveLevel: text("cognitive_level").notNull(), // knowledge, comprehension, application, analysis
+  
+  // Scoring weights
+  outcomeWeights: jsonb("outcome_weights"), // { vision: 0.3, sector: 0.4, motivation: 0.3 }
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const quizQuestionsRelations = relations(quizQuestions, ({ many, one }) => ({
+  responses: many(quizResponses),
+  country: one(countries, {
+    fields: [quizQuestions.countryId],
+    references: [countries.id],
+  }),
+}));
+
+// Assessment quiz attempts
+export const assessmentQuizzes = pgTable("assessment_quizzes", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  assessmentId: varchar("assessment_id").notNull().references(() => assessments.id),
+  
+  // Scoring results
+  totalScore: real("total_score").notNull().default(0),
+  visionScore: real("vision_score").notNull().default(0),
+  sectorScore: real("sector_score").notNull().default(0),
+  motivationScore: real("motivation_score").notNull().default(0),
+  
+  // Quiz metadata
+  questionsCount: integer("questions_count").notNull().default(12),
+  completedAt: timestamp("completed_at"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const assessmentQuizzesRelations = relations(assessmentQuizzes, ({ one, many }) => ({
+  assessment: one(assessments, {
+    fields: [assessmentQuizzes.assessmentId],
+    references: [assessments.id],
+  }),
+  responses: many(quizResponses),
+}));
+
+// Individual quiz responses
+export const quizResponses = pgTable("quiz_responses", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  assessmentQuizId: varchar("assessment_quiz_id").notNull().references(() => assessmentQuizzes.id),
+  questionId: varchar("question_id").notNull().references(() => quizQuestions.id),
+  
+  answer: text("answer").notNull(),
+  isCorrect: boolean("is_correct"),
+  score: real("score").notNull().default(0),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const quizResponsesRelations = relations(quizResponses, ({ one }) => ({
+  assessmentQuiz: one(assessmentQuizzes, {
+    fields: [quizResponses.assessmentQuizId],
+    references: [assessmentQuizzes.id],
+  }),
+  question: one(quizQuestions, {
+    fields: [quizResponses.questionId],
+    references: [quizQuestions.id],
+  }),
+}));
+
 // Type exports
 export type User = typeof users.$inferSelect;
 export type UpsertUser = typeof users.$inferInsert;
@@ -217,3 +301,24 @@ export type InsertAssessment = z.infer<typeof insertAssessmentSchema>;
 
 export type Recommendation = typeof recommendations.$inferSelect;
 export type InsertRecommendation = typeof recommendations.$inferInsert;
+
+export type QuizQuestion = typeof quizQuestions.$inferSelect;
+export const insertQuizQuestionSchema = createInsertSchema(quizQuestions).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertQuizQuestion = z.infer<typeof insertQuizQuestionSchema>;
+
+export type AssessmentQuiz = typeof assessmentQuizzes.$inferSelect;
+export const insertAssessmentQuizSchema = createInsertSchema(assessmentQuizzes).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertAssessmentQuiz = z.infer<typeof insertAssessmentQuizSchema>;
+
+export type QuizResponse = typeof quizResponses.$inferSelect;
+export const insertQuizResponseSchema = createInsertSchema(quizResponses).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertQuizResponse = z.infer<typeof insertQuizResponseSchema>;
