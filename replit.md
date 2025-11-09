@@ -19,19 +19,41 @@ The application is fully functional with:
 - Beautiful sticky notes UI optimized for students
 
 ## Recent Changes
-**November 9, 2025 - Latest Updates**
+**November 9, 2025 - Country Expansion & UI Enhancements**
+- **Country Expansion**: Expanded from 4 to 11 countries with comprehensive 2030/2050 vision data:
+  - Saudi Arabia (Vision 2030)
+  - UAE (Centennial 2071)
+  - Singapore (Smart Nation 2.0)
+  - Canada (Innovation Nation)
+  - Australia (Future Made in Australia)
+  - Germany (Energiewende 2050)
+  - Japan (Society 5.0)
+  - South Korea (Korean New Deal)
+  - USA (National Strategy)
+  - UK (Levelling Up)
+  - India (Atmanirbhar Bharat)
+- **Structured Vision Data**: Added visionPlan and targets (jsonb) fields to countries table with organized categories:
+  - Climate & Environment
+  - Technology & Innovation
+  - Economic Development
+  - Social Progress
+  - Each target includes metric, value, year, and focus area
+- **CountryStep UI Enhancement**: Added vision plan badges and collapsible "Read more" section displaying organized 2030/2050 targets
+- **Demographics Update**: Gender options restricted to Male/Female only for age-appropriate simplicity
+- **Bug Fixes**:
+  - Fixed Results page query to properly pass assessmentId parameter
+  - Simplified PDF download authorization for guest users (UUID-based security)
+  - Fixed PersonalityStep RadioGroup uncontrolled-to-controlled warning
 - **Security Enhancements**:
-  - Implemented PDF report authorization (validates ownership before download)
+  - PDF report authorization validates ownership for registered users
+  - Guest assessments allow PDF access via secure UUID links
   - Secured guest-to-registered migration with session validation
-  - Added stop words filtering and phrase-level matching to mission/vision algorithm
 - **PDF Generation**: Complete PDF report generation with student profile, recommendations, match breakdowns, and next steps
-- **Guest Migration**: Secure flow to migrate guest assessments to registered accounts upon sign-up
 - **Improved Matching Algorithm**:
-  - Enhanced country vision alignment to use both priority sectors AND national goals
+  - Enhanced country vision alignment using priority sectors and national goals
   - Filters stop words and generic terms
   - Supports phrase-level and partial matching
   - Balanced adjustment scoring (-1 to +2 points impact)
-  - Prevents false positives from substring matches
 
 **Initial Implementation**
 - Created complete database schema with users, assessments, countries, skills, careers, job market trends, and recommendations tables
@@ -42,7 +64,6 @@ The application is fully functional with:
   - Interest alignment (30%)
   - Country vision alignment (20%)
   - Future market demand (20%)
-- Seeded database with 4 countries (UAE, USA, UK, India) and 10 career paths
 - Generated job market trends data for each career-country combination
 
 ## User Preferences
