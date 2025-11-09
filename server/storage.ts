@@ -233,6 +233,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Analytics operations
+  
+  // TODO: PERFORMANCE OPTIMIZATION NEEDED - N+1 Query Pattern
+  // This function has a N+1 query issue: it fetches all assessments, then calls
+  // getCountryById() for each unique country inside the loop (line 250).
+  // RECOMMENDED FIX: Use Drizzle aggregations with JOIN to fetch country names in one query:
+  // - Use .leftJoin(countries, eq(assessments.countryId, countries.id))
+  // - Group by country and grade with COUNT() aggregation
+  // - This will reduce database round-trips from O(n) to O(1)
   async getAnalyticsOverview() {
     const allAssessments = await db.select().from(assessments);
     const totalStudents = allAssessments.length;
@@ -247,6 +255,7 @@ export class DatabaseStorage implements IStorage {
         if (existing) {
           existing.count++;
         } else {
+          // N+1 ISSUE: Calling getCountryById inside loop
           const country = await this.getCountryById(assessment.countryId);
           if (country) {
             countriesMap.set(assessment.countryId, {
@@ -271,10 +280,20 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
+  // TODO: PERFORMANCE OPTIMIZATION NEEDED - N+1 Query Pattern  
+  // This function has multiple N+1 issues:
+  // 1. Fetches ALL recommendations globally, then filters in memory (line 278-281)
+  // 2. Calls getCareerById() for each recommendation inside loop (line 288)
+  // RECOMMENDED FIX: 
+  // - Join assessments with recommendations WHERE countryId = ?
+  // - Left join with careers table to get titles
+  // - Use GROUP BY careerId with COUNT() and AVG(countryVisionAlignment)
+  // - This reduces O(n*m) complexity to O(1) with proper SQL aggregations
   async getCountryAnalytics(countryId: string) {
     const countryAssessments = await db.select().from(assessments).where(eq(assessments.countryId, countryId));
     const totalStudents = countryAssessments.length;
 
+    // N+1 ISSUE: Fetching all recommendations globally instead of filtered query with JOIN
     const allRecs = await db.select().from(recommendations);
     const countryRecs = allRecs.filter(rec => 
       countryAssessments.some(a => a.id === rec.assessmentId)
@@ -285,6 +304,7 @@ export class DatabaseStorage implements IStorage {
     
     for (const rec of countryRecs) {
       totalAlignment += rec.countryVisionAlignment;
+      // N+1 ISSUE: Calling getCareerById inside loop
       const career = await this.getCareerById(rec.careerId);
       if (career) {
         const existing = careersMap.get(rec.careerId);
@@ -320,11 +340,19 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
+  // TODO: PERFORMANCE OPTIMIZATION NEEDED - N+1 Query Pattern
+  // This function has a N+1 query issue: it fetches all recommendations, then calls
+  // getCareerById() for each recommendation inside the loop (line 348).
+  // RECOMMENDED FIX: Use Drizzle JOIN with careers table:
+  // - .leftJoin(careers, eq(recommendations.careerId, careers.id))
+  // - Group by careerId with COUNT() and AVG(overallMatchScore)
+  // - This eliminates per-recommendation queries, reducing from O(n) to O(1)
   async getCareerTrends() {
     const allRecs = await db.select().from(recommendations);
     const careersMap = new Map<string, { careerId: string; careerTitle: string; count: number; totalScore: number }>();
 
     for (const rec of allRecs) {
+      // N+1 ISSUE: Calling getCareerById inside loop
       const career = await this.getCareerById(rec.careerId);
       if (career) {
         const existing = careersMap.get(rec.careerId);
@@ -353,13 +381,25 @@ export class DatabaseStorage implements IStorage {
       .slice(0, 20);
   }
 
+  // TODO: PERFORMANCE OPTIMIZATION NEEDED - N+1 Query Pattern
+  // This function has nested loop N+1 issues:
+  // 1. Fetches all assessments and all recommendations globally (line 378-379)
+  // 2. Filters assessments and recommendations in memory for each sector (line 386-389)
+  // 3. Nested loops over countries and their sectors create O(n*m*k) complexity
+  // RECOMMENDED FIX: Use SQL-first approach:
+  // - JOIN assessments with recommendations and countries
+  // - UNNEST prioritySectors array to create one row per sector
+  // - GROUP BY sector with COUNT(DISTINCT assessments.id) and AVG(countryVisionAlignment)
+  // - This eliminates all in-memory filtering, reducing complexity to O(1) with proper indexing
   async getSectorPipeline() {
     const allCountries = await this.getAllCountries();
+    // N+1 ISSUE: Fetching all data globally then filtering in memory
     const allAssessments = await db.select().from(assessments).where(eq(assessments.isCompleted, true));
     const allRecs = await db.select().from(recommendations);
 
     const sectorsMap = new Map<string, { studentCount: number; totalAlignment: number; alignmentCount: number }>();
 
+    // N+1 ISSUE: Nested loops with in-memory filters
     for (const country of allCountries) {
       if (country.prioritySectors) {
         for (const sector of country.prioritySectors) {
