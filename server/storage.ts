@@ -6,6 +6,9 @@ import {
   jobMarketTrends,
   assessments,
   recommendations,
+  quizQuestions,
+  assessmentQuizzes,
+  quizResponses,
   type User,
   type UpsertUser,
   type Country,
@@ -20,6 +23,12 @@ import {
   type InsertAssessment,
   type Recommendation,
   type InsertRecommendation,
+  type QuizQuestion,
+  type InsertQuizQuestion,
+  type AssessmentQuiz,
+  type InsertAssessmentQuiz,
+  type QuizResponse,
+  type InsertQuizResponse,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, count, avg, sql as sqlFunc } from "drizzle-orm";
@@ -58,6 +67,16 @@ export interface IStorage {
   // Recommendation operations
   createRecommendation(recommendation: InsertRecommendation): Promise<Recommendation>;
   getRecommendationsByAssessment(assessmentId: string): Promise<Recommendation[]>;
+
+  // Quiz operations
+  createQuizQuestion(question: InsertQuizQuestion): Promise<QuizQuestion>;
+  getAllQuizQuestions(): Promise<QuizQuestion[]>;
+  getQuizQuestionsByGradeAndCountry(gradeBand: string, countryId: string | null): Promise<QuizQuestion[]>;
+  createAssessmentQuiz(assessmentQuiz: InsertAssessmentQuiz): Promise<AssessmentQuiz>;
+  getAssessmentQuizByAssessmentId(assessmentId: string): Promise<AssessmentQuiz | undefined>;
+  createQuizResponse(response: InsertQuizResponse): Promise<QuizResponse>;
+  getQuizResponsesByQuizId(assessmentQuizId: string): Promise<QuizResponse[]>;
+  updateAssessmentQuiz(id: string, data: Partial<InsertAssessmentQuiz>): Promise<AssessmentQuiz>;
 
   // Analytics operations
   getAnalyticsOverview(): Promise<{
@@ -230,6 +249,88 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(recommendations)
       .where(eq(recommendations.assessmentId, assessmentId));
+  }
+
+  // Quiz operations
+  async createQuizQuestion(questionData: InsertQuizQuestion): Promise<QuizQuestion> {
+    const [question] = await db.insert(quizQuestions).values(questionData).returning();
+    return question;
+  }
+
+  async getAllQuizQuestions(): Promise<QuizQuestion[]> {
+    return await db.select().from(quizQuestions);
+  }
+
+  async getQuizQuestionsByGradeAndCountry(gradeBand: string, countryId: string | null): Promise<QuizQuestion[]> {
+    if (countryId) {
+      // Return both country-specific AND global questions for the given grade band
+      const countrySpecific = await db
+        .select()
+        .from(quizQuestions)
+        .where(
+          and(
+            eq(quizQuestions.gradeBand, gradeBand),
+            eq(quizQuestions.countryId, countryId)
+          )
+        );
+      
+      const globalQuestions = await db
+        .select()
+        .from(quizQuestions)
+        .where(
+          and(
+            eq(quizQuestions.gradeBand, gradeBand),
+            sqlFunc`${quizQuestions.countryId} IS NULL`
+          )
+        );
+      
+      return [...countrySpecific, ...globalQuestions];
+    } else {
+      // Only return global questions if no country specified
+      return await db
+        .select()
+        .from(quizQuestions)
+        .where(
+          and(
+            eq(quizQuestions.gradeBand, gradeBand),
+            sqlFunc`${quizQuestions.countryId} IS NULL`
+          )
+        );
+    }
+  }
+
+  async createAssessmentQuiz(assessmentQuizData: InsertAssessmentQuiz): Promise<AssessmentQuiz> {
+    const [quiz] = await db.insert(assessmentQuizzes).values(assessmentQuizData).returning();
+    return quiz;
+  }
+
+  async getAssessmentQuizByAssessmentId(assessmentId: string): Promise<AssessmentQuiz | undefined> {
+    const [quiz] = await db
+      .select()
+      .from(assessmentQuizzes)
+      .where(eq(assessmentQuizzes.assessmentId, assessmentId));
+    return quiz;
+  }
+
+  async createQuizResponse(responseData: InsertQuizResponse): Promise<QuizResponse> {
+    const [response] = await db.insert(quizResponses).values(responseData).returning();
+    return response;
+  }
+
+  async getQuizResponsesByQuizId(assessmentQuizId: string): Promise<QuizResponse[]> {
+    return await db
+      .select()
+      .from(quizResponses)
+      .where(eq(quizResponses.assessmentQuizId, assessmentQuizId));
+  }
+
+  async updateAssessmentQuiz(id: string, data: Partial<InsertAssessmentQuiz>): Promise<AssessmentQuiz> {
+    const [quiz] = await db
+      .update(assessmentQuizzes)
+      .set(data)
+      .where(eq(assessmentQuizzes.id, id))
+      .returning();
+    return quiz;
   }
 
   // Analytics operations

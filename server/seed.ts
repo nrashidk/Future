@@ -569,5 +569,667 @@ export async function seedDatabase() {
     }
   }
 
+  // Template-based quiz question generator
+  const countryData = {
+    "saudi-arabia": { name: "Saudi Arabia", vision: "Vision 2030", keyFocus: "tourism and entertainment" },
+    "uae": { name: "UAE", vision: "UAE Centennial 2071", keyFocus: "technology and innovation" },
+    "bahrain": { name: "Bahrain", vision: "Economic Vision 2030", keyFocus: "financial services" },
+    "kuwait": { name: "Kuwait", vision: "Vision 2035", keyFocus: "private sector growth" },
+    "oman": { name: "Oman", vision: "Vision 2040", keyFocus: "logistics and tourism" },
+    "qatar": { name: "Qatar", vision: "National Vision 2030", keyFocus: "knowledge economy" },
+    "singapore": { name: "Singapore", vision: "Smart Nation 2.0", keyFocus: "digital innovation" },
+    "canada": { name: "Canada", vision: "Innovation Nation", keyFocus: "research and technology" },
+    "australia": { name: "Australia", vision: "Future Made in Australia", keyFocus: "clean energy" },
+    "germany": { name: "Germany", vision: "Energiewende 2050", keyFocus: "renewable energy" },
+    "japan": { name: "Japan", vision: "Society 5.0", keyFocus: "AI and robotics" },
+    "south-korea": { name: "South Korea", vision: "Korean New Deal", keyFocus: "green technology" },
+    "usa": { name: "USA", vision: "National Strategy", keyFocus: "infrastructure" },
+    "uk": { name: "UK", vision: "Levelling Up", keyFocus: "regional development" },
+    "india": { name: "India", vision: "Atmanirbhar Bharat", keyFocus: "manufacturing" }
+  };
+
+  const generateTemplateQuestions = (): any[] => {
+    const generated: any[] = [];
+    
+    // Template for each (domain, grade band) combination
+    const templates = {
+      vision_awareness_8_9: (country: any, countryId: string) => ({
+        question: `What is a main goal of ${country.name}'s ${country.vision}?`,
+        questionType: "multiple_choice",
+        options: [
+          { id: "a", text: `Develop ${country.keyFocus}` },
+          { id: "b", text: "Stop all progress" },
+          { id: "c", text: "Avoid technology" },
+          { id: "d", text: "Reduce education" }
+        ],
+        correctAnswer: "a",
+        gradeBand: "8-9",
+        domain: "vision_awareness",
+        countryId,
+        sectorTags: [country.keyFocus],
+        interestTags: ["National Development"],
+        cognitiveLevel: "knowledge",
+        outcomeWeights: { vision: 0.7, sector: 0.2, motivation: 0.1 }
+      }),
+      vision_awareness_10_12: (country: any, countryId: string) => ({
+        question: `${country.name}'s ${country.vision} emphasizes ${country.keyFocus}. Why is this important for the country's future?`,
+        questionType: "multiple_choice",
+        options: [
+          { id: "a", text: "To create economic opportunities and prepare for the future" },
+          { id: "b", text: "To eliminate all jobs" },
+          { id: "c", text: "To stop development" },
+          { id: "d", text: "To reduce innovation" }
+        ],
+        correctAnswer: "a",
+        gradeBand: "10-12",
+        domain: "vision_awareness",
+        countryId,
+        sectorTags: [country.keyFocus],
+        interestTags: ["Economic Development", "Innovation"],
+        cognitiveLevel: "comprehension",
+        outcomeWeights: { vision: 0.7, sector: 0.2, motivation: 0.1 }
+      }),
+      sector_competency_8_9: (country: any, countryId: string) => ({
+        question: `To work in ${country.keyFocus} in ${country.name}, what skills would be helpful?`,
+        questionType: "multiple_choice",
+        options: [
+          { id: "a", text: "Technology skills and continuous learning" },
+          { id: "b", text: "No skills needed" },
+          { id: "c", text: "Avoiding education" },
+          { id: "d", text: "Only manual labor" }
+        ],
+        correctAnswer: "a",
+        gradeBand: "8-9",
+        domain: "sector_competency",
+        countryId,
+        sectorTags: [country.keyFocus],
+        interestTags: ["Technology", "Learning"],
+        cognitiveLevel: "comprehension",
+        outcomeWeights: { vision: 0.2, sector: 0.6, motivation: 0.2 }
+      }),
+      sector_competency_10_12: (country: any, countryId: string) => ({
+        question: `Which competency is most valuable for careers aligned with ${country.name}'s focus on ${country.keyFocus}?`,
+        questionType: "multiple_choice",
+        options: [
+          { id: "a", text: "Adaptability, technical skills, and innovation mindset" },
+          { id: "b", text: "Resisting all change" },
+          { id: "c", text: "Avoiding technology" },
+          { id: "d", text: "No competency needed" }
+        ],
+        correctAnswer: "a",
+        gradeBand: "10-12",
+        domain: "sector_competency",
+        countryId,
+        sectorTags: [country.keyFocus],
+        interestTags: ["Innovation", "Technology"],
+        cognitiveLevel: "analysis",
+        outcomeWeights: { vision: 0.2, sector: 0.7, motivation: 0.1 }
+      }),
+      personal_alignment_8_9: (country: any, countryId: string) => ({
+        question: `If you care about ${country.keyFocus}, how motivated are you to learn more about careers in this area?`,
+        questionType: "rating",
+        options: [
+          { id: "1", text: "1 - Not interested" },
+          { id: "2", text: "2 - Slightly interested" },
+          { id: "3", text: "3 - Moderately interested" },
+          { id: "4", text: "4 - Very interested" },
+          { id: "5", text: "5 - Extremely interested" }
+        ],
+        correctAnswer: null,
+        gradeBand: "8-9",
+        domain: "personal_alignment",
+        countryId,
+        sectorTags: [country.keyFocus],
+        interestTags: ["Career Exploration"],
+        cognitiveLevel: "knowledge",
+        outcomeWeights: { vision: 0.2, sector: 0.2, motivation: 0.6 }
+      }),
+      personal_alignment_10_12: (country: any, countryId: string) => ({
+        question: `How important is contributing to ${country.name}'s ${country.vision} in your career choice?`,
+        questionType: "rating",
+        options: [
+          { id: "1", text: "1 - Not important" },
+          { id: "2", text: "2 - Slightly important" },
+          { id: "3", text: "3 - Moderately important" },
+          { id: "4", text: "4 - Very important" },
+          { id: "5", text: "5 - Extremely important" }
+        ],
+        correctAnswer: null,
+        gradeBand: "10-12",
+        domain: "personal_alignment",
+        countryId,
+        sectorTags: [country.keyFocus],
+        interestTags: ["National Development", "Purpose"],
+        cognitiveLevel: "knowledge",
+        outcomeWeights: { vision: 0.3, sector: 0.1, motivation: 0.6 }
+      })
+    };
+
+    // Generate questions for each country × grade band × domain
+    for (const [countryId, country] of Object.entries(countryData)) {
+      generated.push(templates.vision_awareness_8_9(country, countryId));
+      generated.push(templates.vision_awareness_10_12(country, countryId));
+      generated.push(templates.sector_competency_8_9(country, countryId));
+      generated.push(templates.sector_competency_10_12(country, countryId));
+      generated.push(templates.personal_alignment_8_9(country, countryId));
+      generated.push(templates.personal_alignment_10_12(country, countryId));
+    }
+
+    return generated;
+  };
+
+  // Seed Quiz Questions - combining manual questions with template-generated ones
+  const quizQuestions = [
+    // VISION AWARENESS - Grade 8-9 - Global
+    {
+      question: "What does 'sustainable development' mean for a country's future?",
+      questionType: "multiple_choice",
+      options: [
+        { id: "a", text: "Growing the economy as fast as possible" },
+        { id: "b", text: "Meeting today's needs without harming future generations" },
+        { id: "c", text: "Focusing only on environmental protection" },
+        { id: "d", text: "Reducing all technology use" }
+      ],
+      correctAnswer: "b",
+      gradeBand: "8-9",
+      domain: "vision_awareness",
+      countryId: null,
+      sectorTags: ["Environment", "Sustainability"],
+      interestTags: ["Science", "Environment"],
+      cognitiveLevel: "comprehension",
+      outcomeWeights: { vision: 0.6, sector: 0.2, motivation: 0.2 }
+    },
+    // VISION AWARENESS - Grade 8-9 - UAE
+    {
+      question: "The UAE wants to be among the world's best countries by 2071. Which of these is a key part of their plan?",
+      questionType: "multiple_choice",
+      options: [
+        { id: "a", text: "Leading in AI and space exploration" },
+        { id: "b", text: "Focusing only on oil production" },
+        { id: "c", text: "Avoiding all new technology" },
+        { id: "d", text: "Reducing tourism" }
+      ],
+      correctAnswer: "a",
+      gradeBand: "8-9",
+      domain: "vision_awareness",
+      countryId: "uae",
+      sectorTags: ["Artificial Intelligence", "Space Exploration", "Technology"],
+      interestTags: ["Technology", "Science"],
+      cognitiveLevel: "knowledge",
+      outcomeWeights: { vision: 0.7, sector: 0.2, motivation: 0.1 }
+    },
+    // VISION AWARENESS - Grade 8-9 - Saudi Arabia
+    {
+      question: "Saudi Arabia's Vision 2030 aims to reduce dependence on oil. What is one way they're doing this?",
+      questionType: "multiple_choice",
+      options: [
+        { id: "a", text: "Developing tourism and entertainment sectors" },
+        { id: "b", text: "Selling more oil" },
+        { id: "c", text: "Closing schools" },
+        { id: "d", text: "Stopping all construction" }
+      ],
+      correctAnswer: "a",
+      gradeBand: "8-9",
+      domain: "vision_awareness",
+      countryId: "saudi-arabia",
+      sectorTags: ["Tourism & Entertainment", "Renewable Energy", "Technology & Innovation"],
+      interestTags: ["Business", "Tourism", "Technology"],
+      cognitiveLevel: "knowledge",
+      outcomeWeights: { vision: 0.7, sector: 0.2, motivation: 0.1 }
+    },
+    // VISION AWARENESS - Grade 10-12 - Global
+    {
+      question: "Many countries are investing heavily in renewable energy. What is the primary long-term benefit of this shift?",
+      questionType: "multiple_choice",
+      options: [
+        { id: "a", text: "Lower electricity bills for everyone immediately" },
+        { id: "b", text: "Reducing carbon emissions and ensuring energy security" },
+        { id: "c", text: "Eliminating all traditional jobs" },
+        { id: "d", text: "Making energy more expensive" }
+      ],
+      correctAnswer: "b",
+      gradeBand: "10-12",
+      domain: "vision_awareness",
+      countryId: null,
+      sectorTags: ["Renewable Energy", "Sustainability"],
+      interestTags: ["Environment", "Engineering"],
+      cognitiveLevel: "analysis",
+      outcomeWeights: { vision: 0.6, sector: 0.3, motivation: 0.1 }
+    },
+    // VISION AWARENESS - Grade 10-12 - Singapore
+    {
+      question: "Singapore's Smart Nation 2.0 initiative focuses on using technology to improve citizens' lives. What is a key challenge they must address?",
+      questionType: "multiple_choice",
+      options: [
+        { id: "a", text: "Balancing innovation with data privacy and security" },
+        { id: "b", text: "Avoiding all digital technologies" },
+        { id: "c", text: "Reducing education standards" },
+        { id: "d", text: "Limiting internet access" }
+      ],
+      correctAnswer: "a",
+      gradeBand: "10-12",
+      domain: "vision_awareness",
+      countryId: "singapore",
+      sectorTags: ["Technology", "ICT & Digital Economy"],
+      interestTags: ["Technology", "Government"],
+      cognitiveLevel: "analysis",
+      outcomeWeights: { vision: 0.7, sector: 0.2, motivation: 0.1 }
+    },
+    
+    // SECTOR COMPETENCY - Grade 8-9 - Global
+    {
+      question: "If you enjoy solving puzzles and building things, which career path might suit you?",
+      questionType: "multiple_choice",
+      options: [
+        { id: "a", text: "Engineering or Computer Science" },
+        { id: "b", text: "Writing or Journalism" },
+        { id: "c", text: "Sales or Marketing" },
+        { id: "d", text: "Teaching Literature" }
+      ],
+      correctAnswer: "a",
+      gradeBand: "8-9",
+      domain: "sector_competency",
+      countryId: null,
+      sectorTags: ["Technology", "Engineering"],
+      interestTags: ["Problem Solving", "Building", "Technology"],
+      cognitiveLevel: "application",
+      outcomeWeights: { vision: 0.1, sector: 0.7, motivation: 0.2 }
+    },
+    // SECTOR COMPETENCY - Grade 8-9 - UAE
+    {
+      question: "The UAE is investing heavily in space exploration. Which skills would be most valuable for someone wanting to work in this sector?",
+      questionType: "multiple_choice",
+      options: [
+        { id: "a", text: "Math, physics, and engineering" },
+        { id: "b", text: "Only drawing and art" },
+        { id: "c", text: "Only sports training" },
+        { id: "d", text: "Only language skills" }
+      ],
+      correctAnswer: "a",
+      gradeBand: "8-9",
+      domain: "sector_competency",
+      countryId: "uae",
+      sectorTags: ["Space Exploration", "Technology", "Engineering"],
+      interestTags: ["Science", "Technology", "Space"],
+      cognitiveLevel: "comprehension",
+      outcomeWeights: { vision: 0.2, sector: 0.6, motivation: 0.2 }
+    },
+    // SECTOR COMPETENCY - Grade 10-12 - Saudi Arabia
+    {
+      question: "Saudi Arabia's Vision 2030 prioritizes renewable energy. Which combination of subjects would best prepare you for a career in this sector?",
+      questionType: "multiple_choice",
+      options: [
+        { id: "a", text: "Physics, Chemistry, and Environmental Science" },
+        { id: "b", text: "History and Literature only" },
+        { id: "c", text: "Physical Education only" },
+        { id: "d", text: "Art and Music only" }
+      ],
+      correctAnswer: "a",
+      gradeBand: "10-12",
+      domain: "sector_competency",
+      countryId: "saudi-arabia",
+      sectorTags: ["Renewable Energy", "Engineering"],
+      interestTags: ["Science", "Environment", "Technology"],
+      cognitiveLevel: "application",
+      outcomeWeights: { vision: 0.2, sector: 0.7, motivation: 0.1 }
+    },
+    // SECTOR COMPETENCY - Grade 10-12 - USA
+    {
+      question: "The USA's tech industry is rapidly evolving with AI and machine learning. What mindset is crucial for success in this field?",
+      questionType: "multiple_choice",
+      options: [
+        { id: "a", text: "Continuous learning and adaptability" },
+        { id: "b", text: "Avoiding all new technologies" },
+        { id: "c", text: "Working only independently" },
+        { id: "d", text: "Focusing only on past methods" }
+      ],
+      correctAnswer: "a",
+      gradeBand: "10-12",
+      domain: "sector_competency",
+      countryId: "usa",
+      sectorTags: ["Technology", "Artificial Intelligence"],
+      interestTags: ["Technology", "Innovation", "Learning"],
+      cognitiveLevel: "analysis",
+      outcomeWeights: { vision: 0.1, sector: 0.6, motivation: 0.3 }
+    },
+    
+    // PERSONAL ALIGNMENT - Grade 8-9 - Global
+    {
+      question: "How important is it to you to help solve environmental problems through your future career?",
+      questionType: "rating",
+      options: [
+        { id: "1", text: "Not important at all" },
+        { id: "2", text: "Slightly important" },
+        { id: "3", text: "Moderately important" },
+        { id: "4", text: "Very important" },
+        { id: "5", text: "Extremely important" }
+      ],
+      correctAnswer: null,
+      gradeBand: "8-9",
+      domain: "personal_alignment",
+      countryId: null,
+      sectorTags: ["Environment", "Sustainability"],
+      interestTags: ["Environment", "Science", "Social Impact"],
+      cognitiveLevel: "knowledge",
+      outcomeWeights: { vision: 0.2, sector: 0.2, motivation: 0.6 }
+    },
+    // PERSONAL ALIGNMENT - Grade 8-9 - Global
+    {
+      question: "I prefer working on projects that:",
+      questionType: "multiple_choice",
+      options: [
+        { id: "a", text: "Have a clear impact on helping people" },
+        { id: "b", text: "Involve creating or building new things" },
+        { id: "c", text: "Focus on analyzing data and finding patterns" },
+        { id: "d", text: "Allow me to work outdoors or with nature" }
+      ],
+      correctAnswer: null,
+      gradeBand: "8-9",
+      domain: "personal_alignment",
+      countryId: null,
+      sectorTags: null,
+      interestTags: ["Social Impact", "Building", "Analysis", "Environment"],
+      cognitiveLevel: "knowledge",
+      outcomeWeights: { vision: 0.1, sector: 0.3, motivation: 0.6 }
+    },
+    // PERSONAL ALIGNMENT - Grade 10-12 - Global
+    {
+      question: "When choosing a career, how important is it that your work aligns with your country's national development goals?",
+      questionType: "rating",
+      options: [
+        { id: "1", text: "Not important - I'll choose based only on personal interest" },
+        { id: "2", text: "Slightly important - Nice to have but not essential" },
+        { id: "3", text: "Moderately important - I'd like some alignment" },
+        { id: "4", text: "Very important - Strong alignment matters to me" },
+        { id: "5", text: "Extremely important - It's a top priority" }
+      ],
+      correctAnswer: null,
+      gradeBand: "10-12",
+      domain: "personal_alignment",
+      countryId: null,
+      sectorTags: null,
+      interestTags: ["Government", "Social Impact", "National Development"],
+      cognitiveLevel: "knowledge",
+      outcomeWeights: { vision: 0.4, sector: 0.1, motivation: 0.5 }
+    },
+    // PERSONAL ALIGNMENT - Grade 10-12 - Global
+    {
+      question: "I am most motivated by:",
+      questionType: "multiple_choice",
+      options: [
+        { id: "a", text: "Making a positive impact on society" },
+        { id: "b", text: "Earning a high salary" },
+        { id: "c", text: "Creative expression and innovation" },
+        { id: "d", text: "Job security and stability" }
+      ],
+      correctAnswer: null,
+      gradeBand: "10-12",
+      domain: "personal_alignment",
+      countryId: null,
+      sectorTags: null,
+      interestTags: ["Social Impact", "Finance", "Creativity", "Stability"],
+      cognitiveLevel: "knowledge",
+      outcomeWeights: { vision: 0.2, sector: 0.2, motivation: 0.6 }
+    },
+
+    // Additional country-specific questions for remaining 11 countries
+    // Bahrain
+    {
+      question: "Bahrain's Economic Vision 2030 focuses on shifting from oil dependence. Which sector is a key priority?",
+      questionType: "multiple_choice",
+      options: [
+        { id: "a", text: "Financial Services and ICT" },
+        { id: "b", text: "Agriculture only" },
+        { id: "c", text: "Coal mining" },
+        { id: "d", text: "Textile manufacturing only" }
+      ],
+      correctAnswer: "a",
+      gradeBand: "8-9",
+      domain: "vision_awareness",
+      countryId: "bahrain",
+      sectorTags: ["Financial Services", "ICT & Digital Economy"],
+      interestTags: ["Finance", "Technology"],
+      cognitiveLevel: "knowledge",
+      outcomeWeights: { vision: 0.7, sector: 0.2, motivation: 0.1 }
+    },
+    // Kuwait
+    {
+      question: "Kuwait Vision 2035 aims to transform the country into a financial and trade hub. Which area is emphasized?",
+      questionType: "multiple_choice",
+      options: [
+        { id: "a", text: "Private sector development and economic diversification" },
+        { id: "b", text: "Only government jobs" },
+        { id: "c", text: "Reducing all trade" },
+        { id: "d", text: "Closing borders" }
+      ],
+      correctAnswer: "a",
+      gradeBand: "10-12",
+      domain: "vision_awareness",
+      countryId: "kuwait",
+      sectorTags: ["Financial Services", "Trade"],
+      interestTags: ["Business", "Finance"],
+      cognitiveLevel: "comprehension",
+      outcomeWeights: { vision: 0.7, sector: 0.2, motivation: 0.1 }
+    },
+    // Oman
+    {
+      question: "Oman Vision 2040 prioritizes economic diversification. Which skills are increasingly important?",
+      questionType: "multiple_choice",
+      options: [
+        { id: "a", text: "Technology, logistics, and tourism expertise" },
+        { id: "b", text: "Only oil extraction" },
+        { id: "c", text: "No new skills needed" },
+        { id: "d", text: "Only traditional crafts" }
+      ],
+      correctAnswer: "a",
+      gradeBand: "8-9",
+      domain: "sector_competency",
+      countryId: "oman",
+      sectorTags: ["Technology", "Logistics", "Tourism"],
+      interestTags: ["Technology", "Tourism", "Business"],
+      cognitiveLevel: "comprehension",
+      outcomeWeights: { vision: 0.2, sector: 0.6, motivation: 0.2 }
+    },
+    // Qatar
+    {
+      question: "Qatar National Vision 2030 emphasizes knowledge economy. Which field is crucial?",
+      questionType: "multiple_choice",
+      options: [
+        { id: "a", text: "Education, research, and technology innovation" },
+        { id: "b", text: "Only sports" },
+        { id: "c", text: "Reducing education" },
+        { id: "d", text: "Avoiding technology" }
+      ],
+      correctAnswer: "a",
+      gradeBand: "10-12",
+      domain: "vision_awareness",
+      countryId: "qatar",
+      sectorTags: ["Education", "Technology", "Research"],
+      interestTags: ["Education", "Technology", "Science"],
+      cognitiveLevel: "knowledge",
+      outcomeWeights: { vision: 0.7, sector: 0.2, motivation: 0.1 }
+    },
+    // Canada
+    {
+      question: "Canada's Innovation Nation strategy focuses on becoming a global leader in innovation. Which mindset is essential?",
+      questionType: "multiple_choice",
+      options: [
+        { id: "a", text: "Continuous learning and embracing new technologies" },
+        { id: "b", text: "Avoiding all innovation" },
+        { id: "c", text: "Only traditional methods" },
+        { id: "d", text: "Rejecting change" }
+      ],
+      correctAnswer: "a",
+      gradeBand: "10-12",
+      domain: "sector_competency",
+      countryId: "canada",
+      sectorTags: ["Technology", "Innovation", "Research"],
+      interestTags: ["Technology", "Innovation", "Learning"],
+      cognitiveLevel: "analysis",
+      outcomeWeights: { vision: 0.2, sector: 0.6, motivation: 0.2 }
+    },
+    // Australia
+    {
+      question: "Australia's 'Future Made in Australia' plan emphasizes clean energy and manufacturing. What's important?",
+      questionType: "multiple_choice",
+      options: [
+        { id: "a", text: "Sustainability skills and advanced manufacturing knowledge" },
+        { id: "b", text: "Only mining coal" },
+        { id: "c", text: "Avoiding renewable energy" },
+        { id: "d", text: "No manufacturing" }
+      ],
+      correctAnswer: "a",
+      gradeBand: "8-9",
+      domain: "sector_competency",
+      countryId: "australia",
+      sectorTags: ["Renewable Energy", "Manufacturing", "Sustainability"],
+      interestTags: ["Environment", "Engineering", "Technology"],
+      cognitiveLevel: "comprehension",
+      outcomeWeights: { vision: 0.2, sector: 0.6, motivation: 0.2 }
+    },
+    // Germany
+    {
+      question: "Germany's Energiewende (Energy Transition) 2050 aims for climate neutrality. Which career path aligns with this?",
+      questionType: "multiple_choice",
+      options: [
+        { id: "a", text: "Renewable energy engineering and environmental science" },
+        { id: "b", text: "Only fossil fuel extraction" },
+        { id: "c", text: "Avoiding green technology" },
+        { id: "d", text: "No environmental careers" }
+      ],
+      correctAnswer: "a",
+      gradeBand: "10-12",
+      domain: "vision_awareness",
+      countryId: "germany",
+      sectorTags: ["Renewable Energy", "Environment", "Engineering"],
+      interestTags: ["Environment", "Engineering", "Science"],
+      cognitiveLevel: "application",
+      outcomeWeights: { vision: 0.6, sector: 0.3, motivation: 0.1 }
+    },
+    // Japan
+    {
+      question: "Japan's Society 5.0 vision integrates cyber and physical spaces. What skills are vital?",
+      questionType: "multiple_choice",
+      options: [
+        { id: "a", text: "AI, robotics, and IoT expertise" },
+        { id: "b", text: "Only traditional crafts" },
+        { id: "c", text: "Avoiding all technology" },
+        { id: "d", text: "No digital skills" }
+      ],
+      correctAnswer: "a",
+      gradeBand: "10-12",
+      domain: "sector_competency",
+      countryId: "japan",
+      sectorTags: ["Artificial Intelligence", "Robotics", "Technology"],
+      interestTags: ["Technology", "Engineering", "Innovation"],
+      cognitiveLevel: "knowledge",
+      outcomeWeights: { vision: 0.2, sector: 0.7, motivation: 0.1 }
+    },
+    // South Korea
+    {
+      question: "South Korea's Korean New Deal focuses on digital and green transformation. Which field is emphasized?",
+      questionType: "multiple_choice",
+      options: [
+        { id: "a", text: "Digital technology and renewable energy" },
+        { id: "b", text: "Only heavy industry" },
+        { id: "c", text: "Avoiding digital transformation" },
+        { id: "d", text: "No green energy" }
+      ],
+      correctAnswer: "a",
+      gradeBand: "8-9",
+      domain: "vision_awareness",
+      countryId: "south-korea",
+      sectorTags: ["Technology", "Renewable Energy", "Digital Economy"],
+      interestTags: ["Technology", "Environment", "Innovation"],
+      cognitiveLevel: "knowledge",
+      outcomeWeights: { vision: 0.7, sector: 0.2, motivation: 0.1 }
+    },
+    // United Kingdom
+    {
+      question: "The UK's Levelling Up initiative aims to reduce regional inequality. What does this create opportunities in?",
+      questionType: "multiple_choice",
+      options: [
+        { id: "a", text: "Infrastructure, technology, and regional development" },
+        { id: "b", text: "Only London-based jobs" },
+        { id: "c", text: "Reducing investment" },
+        { id: "d", text: "No regional development" }
+      ],
+      correctAnswer: "a",
+      gradeBand: "10-12",
+      domain: "vision_awareness",
+      countryId: "uk",
+      sectorTags: ["Infrastructure", "Technology", "Regional Development"],
+      interestTags: ["Government", "Technology", "Social Impact"],
+      cognitiveLevel: "comprehension",
+      outcomeWeights: { vision: 0.7, sector: 0.2, motivation: 0.1 }
+    },
+    // India
+    {
+      question: "India's Atmanirbhar Bharat (Self-Reliant India) promotes domestic manufacturing. Which skills matter?",
+      questionType: "multiple_choice",
+      options: [
+        { id: "a", text: "Manufacturing, technology, and entrepreneurship" },
+        { id: "b", text: "Only importing goods" },
+        { id: "c", text: "Avoiding manufacturing" },
+        { id: "d", text: "No technology skills" }
+      ],
+      correctAnswer: "a",
+      gradeBand: "8-9",
+      domain: "sector_competency",
+      countryId: "india",
+      sectorTags: ["Manufacturing", "Technology", "Entrepreneurship"],
+      interestTags: ["Business", "Technology", "Innovation"],
+      cognitiveLevel: "comprehension",
+      outcomeWeights: { vision: 0.2, sector: 0.6, motivation: 0.2 }
+    }
+  ];
+
+  // Generate template-based questions for all countries
+  const templateQuestions = generateTemplateQuestions();
+  const allQuestions = [...quizQuestions, ...templateQuestions];
+  
+  // Coverage validation: ensure every (country, grade band, domain) triple is covered
+  const countryIds = Object.keys(countryData);
+  const gradeBands = ["8-9", "10-12"];
+  const domains = ["vision_awareness", "sector_competency", "personal_alignment"];
+  
+  const missingCombinations: string[] = [];
+  for (const country of countryIds) {
+    for (const gradeBand of gradeBands) {
+      for (const domain of domains) {
+        const hasQuestion = allQuestions.some(
+          q => q.countryId === country && q.gradeBand === gradeBand && q.domain === domain
+        );
+        if (!hasQuestion) {
+          missingCombinations.push(`${country} - ${gradeBand} - ${domain}`);
+        }
+      }
+    }
+  }
+  
+  if (missingCombinations.length > 0) {
+    console.error(`❌ Missing quiz questions for: ${missingCombinations.join(", ")}`);
+    throw new Error("Quiz question coverage incomplete");
+  }
+  
+  console.log(`✅ Coverage validation passed: ${allQuestions.length} questions covering all ${countryIds.length} countries × ${gradeBands.length} grade bands × ${domains.length} domains`);
+
+  const existingQuestions = await storage.getAllQuizQuestions?.() || [];
+  const existingQuestionTexts = new Set(existingQuestions.map((q: any) => q.question));
+
+  let createdCount = 0;
+  for (const question of allQuestions) {
+    if (!existingQuestionTexts.has(question.question)) {
+      try {
+        await storage.createQuizQuestion(question);
+        createdCount++;
+      } catch (error) {
+        console.log(`Error creating quiz question:`, error);
+      }
+    }
+  }
+  
+  console.log(`✓ Created ${createdCount} new quiz questions (total: ${allQuestions.length})`);
+
   console.log("✅ Database seeded successfully!");
 }
