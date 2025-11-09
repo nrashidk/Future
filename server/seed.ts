@@ -1,4 +1,6 @@
 import { storage } from "./storage";
+import { uaeQuestionBank } from "./questionBanks/uae";
+import { validateQuestionBank, checkCoverage } from "../shared/questionTypes";
 
 export async function seedDatabase() {
   console.log("🌱 Seeding database...");
@@ -1184,36 +1186,36 @@ export async function seedDatabase() {
     }
   ];
 
-  // Generate template-based questions for all countries
-  const templateQuestions = generateTemplateQuestions();
-  const allQuestions = [...quizQuestions, ...templateQuestions];
+  // Seed UAE curriculum questions
+  console.log("📚 Seeding UAE curriculum questions...");
   
-  // Coverage validation: ensure every (country, grade band, domain) triple is covered
-  const countryIds = Object.keys(countryData);
-  const gradeBands = ["8-9", "10-12"];
-  const domains = ["vision_awareness", "sector_competency", "personal_alignment"];
-  
-  const missingCombinations: string[] = [];
-  for (const country of countryIds) {
-    for (const gradeBand of gradeBands) {
-      for (const domain of domains) {
-        const hasQuestion = allQuestions.some(
-          q => q.countryId === country && q.gradeBand === gradeBand && q.domain === domain
-        );
-        if (!hasQuestion) {
-          missingCombinations.push(`${country} - ${gradeBand} - ${domain}`);
-        }
-      }
-    }
+  // Validate question bank
+  const validation = validateQuestionBank(uaeQuestionBank);
+  if (!validation.valid) {
+    console.error("❌ UAE question bank validation failed:");
+    validation.errors.forEach(err => console.error(`  - ${err}`));
+    throw new Error("Invalid question bank");
   }
   
-  if (missingCombinations.length > 0) {
-    console.error(`❌ Missing quiz questions for: ${missingCombinations.join(", ")}`);
-    throw new Error("Quiz question coverage incomplete");
+  // Check coverage
+  const coverage = checkCoverage(uaeQuestionBank);
+  console.log(`✓ Total questions: ${coverage.totalQuestions}`);
+  console.log(`✓ Coverage by subject:`);
+  Object.entries(coverage.bySubject).forEach(([subject, counts]) => {
+    console.log(`  - ${subject}: Grade 8-9 (${counts["8-9"]}), Grade 10-12 (${counts["10-12"]}), Total (${counts.total})`);
+  });
+  
+  if (coverage.warnings.length > 0) {
+    console.log("⚠️ Coverage warnings:");
+    coverage.warnings.forEach(w => console.log(`  - ${w}`));
   }
   
-  console.log(`✅ Coverage validation passed: ${allQuestions.length} questions covering all ${countryIds.length} countries × ${gradeBands.length} grade bands × ${domains.length} domains`);
-
+  // Flatten all questions for seeding
+  const allQuestions = uaeQuestionBank.subjects.flatMap(subject => [
+    ...subject.grades["8-9"],
+    ...subject.grades["10-12"]
+  ]);
+  
   const existingQuestions = await storage.getAllQuizQuestions?.() || [];
   const existingQuestionTexts = new Set(existingQuestions.map((q: any) => q.question));
 
