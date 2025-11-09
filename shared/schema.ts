@@ -199,20 +199,18 @@ export const recommendationsRelations = relations(recommendations, ({ one }) => 
 export const quizQuestions = pgTable("quiz_questions", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   question: text("question").notNull(),
-  questionType: text("question_type").notNull(), // multiple_choice, rating, scenario
+  questionType: text("question_type").notNull(), // multiple_choice
   options: jsonb("options"), // Array of answer options for multiple choice
-  correctAnswer: text("correct_answer"), // For knowledge questions
+  correctAnswer: text("correct_answer").notNull(), // Correct answer
+  explanation: text("explanation"), // Explanation of correct answer
   
-  // Metadata for adaptive selection
+  // Subject-based metadata
+  subject: text("subject").notNull(), // Mathematics, Science, English, Arabic, Social Studies, Computer Science
   gradeBand: text("grade_band").notNull(), // 8-9 or 10-12
-  domain: text("domain").notNull(), // vision_awareness, sector_competency, personal_alignment
-  countryId: varchar("country_id").references(() => countries.id), // null = applies to all countries
-  sectorTags: text("sector_tags").array(), // Related sectors
-  interestTags: text("interest_tags").array(), // Related interests
+  countryId: varchar("country_id").notNull().references(() => countries.id), // Country-specific curriculum
+  topic: text("topic").notNull(), // Specific curriculum topic (e.g., "Algebra", "Photosynthesis")
+  difficulty: text("difficulty").notNull(), // easy, medium, hard
   cognitiveLevel: text("cognitive_level").notNull(), // knowledge, comprehension, application, analysis
-  
-  // Scoring weights
-  outcomeWeights: jsonb("outcome_weights"), // { vision: 0.3, sector: 0.4, motivation: 0.3 }
   
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -230,11 +228,9 @@ export const assessmentQuizzes = pgTable("assessment_quizzes", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   assessmentId: varchar("assessment_id").notNull().references(() => assessments.id),
   
-  // Scoring results
+  // Subject-based scoring results
   totalScore: real("total_score").notNull().default(0),
-  visionScore: real("vision_score").notNull().default(0),
-  sectorScore: real("sector_score").notNull().default(0),
-  motivationScore: real("motivation_score").notNull().default(0),
+  subjectScores: jsonb("subject_scores"), // { "Mathematics": 85, "Science": 72, "English": 90 }
   
   // Quiz metadata
   questionsCount: integer("questions_count").notNull().default(12),
