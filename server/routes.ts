@@ -718,6 +718,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
       doc.text(`Personality Traits: ${assessment.personalityTraits.join(", ")}`);
       doc.moveDown(2);
 
+      // Quiz Results (if completed)
+      if (assessment.quizScore) {
+        doc.fontSize(14).fillColor("#1F2937").text("Quiz Results", { underline: true });
+        doc.moveDown(0.5);
+        
+        doc.fontSize(11).fillColor("#4B5563");
+        doc.text(`Overall Score: ${Math.round(assessment.quizScore.overall)}%`, { continued: true });
+        
+        // Color code based on performance
+        const overallScore = assessment.quizScore.overall;
+        let performanceText = "";
+        let performanceColor = "#4B5563";
+        if (overallScore >= 80) {
+          performanceText = " - Excellent";
+          performanceColor = "#10B981"; // Green
+        } else if (overallScore >= 60) {
+          performanceText = " - Good";
+          performanceColor = "#3B82F6"; // Blue
+        } else if (overallScore >= 40) {
+          performanceText = " - Fair";
+          performanceColor = "#F59E0B"; // Orange
+        } else {
+          performanceText = " - Needs Improvement";
+          performanceColor = "#EF4444"; // Red
+        }
+        doc.fillColor(performanceColor).text(performanceText);
+        
+        doc.moveDown(0.3);
+        doc.fontSize(9).fillColor("#6B7280");
+        doc.text("Score Breakdown:");
+        doc.fontSize(8).fillColor("#6B7280");
+        doc.text(`  • Country Vision Awareness: ${Math.round(assessment.quizScore.vision)}%`);
+        doc.text(`  • Sector Competency Understanding: ${Math.round(assessment.quizScore.sector)}%`);
+        doc.text(`  • Personal Alignment & Motivation: ${Math.round(assessment.quizScore.motivation)}%`);
+        
+        doc.moveDown(0.5);
+        doc.fontSize(9).fillColor("#4B5563");
+        
+        // Insights based on quiz performance
+        if (assessment.quizScore.vision >= 70) {
+          doc.text("✓ You demonstrate strong understanding of your country's vision and national priorities.");
+        } else {
+          doc.text("• Consider learning more about your country's development goals to better align your career choices.");
+        }
+        
+        if (assessment.quizScore.sector >= 70) {
+          doc.text("✓ You show good awareness of priority sectors and their role in national development.");
+        } else {
+          doc.text("• Explore more about key sectors driving growth in your country.");
+        }
+        
+        if (assessment.quizScore.motivation >= 70) {
+          doc.text("✓ Your career aspirations align well with national development priorities.");
+        } else {
+          doc.text("• Reflect on how your career goals can contribute to your country's future.");
+        }
+        
+        doc.moveDown(2);
+      }
+
       // Recommendations
       doc.fontSize(14).fillColor("#1F2937").text("Top Career Recommendations", { underline: true });
       doc.moveDown(1);
@@ -744,10 +804,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Match Breakdown
         doc.fontSize(9).fillColor("#374151").text("Match Breakdown:");
         doc.fontSize(8).fillColor("#6B7280");
-        doc.text(`  • Subject Alignment: ${Math.round(rec.subjectMatchScore)}%`);
-        doc.text(`  • Interest Alignment: ${Math.round(rec.interestMatchScore)}%`);
-        doc.text(`  • Country Vision Alignment: ${Math.round(rec.countryVisionAlignment)}%`);
-        doc.text(`  • Future Market Demand: ${Math.round(rec.futureMarketDemand)}%`);
+        doc.text(`  • Subject Alignment: ${Math.round(rec.subjectMatchScore)}% (25% weight)`);
+        doc.text(`  • Interest Alignment: ${Math.round(rec.interestMatchScore)}% (25% weight)`);
+        doc.text(`  • Country Vision Alignment: ${Math.round(rec.countryVisionAlignment)}% (20% weight)`);
+        doc.text(`  • Future Market Demand: ${Math.round(rec.futureMarketDemand)}% (15% weight)`);
+        doc.text(`  • Quiz Score: ${Math.round(rec.quizScore)}% (15% weight)`);
         doc.moveDown(0.5);
 
         // Action Steps
