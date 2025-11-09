@@ -101,7 +101,7 @@ export function AspirationsStep({ data, onUpdate, onNext }: AspirationsStepProps
           className="px-12 py-6 text-lg rounded-full shadow-lg"
           data-testid="button-submit-assessment"
         >
-          See My Results! ✨
+          Self Assessment
         </Button>
       </div>
     </div>

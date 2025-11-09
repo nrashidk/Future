@@ -38,7 +38,7 @@ export async function seedDatabase() {
     },
     {
       id: "uae",
-      name: "United Arab Emirates",
+      name: "United Arab Emirates (UAE)",
       code: "UAE",
       flag: "🇦🇪",
       mission: "To establish the UAE as having the best government, education, and economy in the world through four key pillars: future-focused government, excellent education, diversified knowledge economy, and happy cohesive society.",
@@ -357,7 +357,7 @@ export async function seedDatabase() {
     },
     {
       id: "usa",
-      name: "United States",
+      name: "United States (USA)",
       code: "USA",
       flag: "🇺🇸",
       mission: "To preserve freedom, promote prosperity, and provide security for all Americans through democratic governance and economic opportunity.",
@@ -376,7 +376,7 @@ export async function seedDatabase() {
     },
     {
       id: "uk",
-      name: "United Kingdom",
+      name: "United Kingdom (UK)",
       code: "GBR",
       flag: "🇬🇧",
       mission: "To build a fair, prosperous, and secure nation that works for everyone, promoting innovation, education, and sustainable growth.",
@@ -1223,7 +1223,8 @@ export async function seedDatabase() {
   for (const question of allQuestions) {
     if (!existingQuestionTexts.has(question.question)) {
       try {
-        await storage.createQuizQuestion(question);
+        // Set countryId to null to make questions global (subject competency is universal)
+        await storage.createQuizQuestion({ ...question, countryId: null });
         createdCount++;
       } catch (error) {
         console.log(`Error creating quiz question:`, error);

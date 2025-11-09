@@ -427,12 +427,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Get question pool based on grade band and country
+      // Get question pool based on grade band (country-agnostic for subject competency)
       const gradeBand = assessment.grade && parseInt(assessment.grade as string) >= 10 ? "10-12" : "8-9";
-      const questionPool = await storage.getQuizQuestionsByGradeAndCountry(gradeBand, assessment.countryId);
+      // Pass null for countryId to get global questions (subject competency is universal)
+      const questionPool = await storage.getQuizQuestionsByGradeAndCountry(gradeBand, null);
       
       if (questionPool.length === 0) {
-        return res.status(400).json({ message: "No quiz questions available for this grade and country" });
+        return res.status(400).json({ message: "No quiz questions available for this grade level" });
       }
       
       // Filter questions by student's favorite subjects

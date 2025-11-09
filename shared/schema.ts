@@ -207,7 +207,7 @@ export const quizQuestions = pgTable("quiz_questions", {
   // Subject-based metadata
   subject: text("subject").notNull(), // Mathematics, Science, English, Arabic, Social Studies, Computer Science
   gradeBand: text("grade_band").notNull(), // 8-9 or 10-12
-  countryId: varchar("country_id").notNull().references(() => countries.id), // Country-specific curriculum
+  countryId: varchar("country_id").references(() => countries.id), // NULL = global questions, or country-specific
   topic: text("topic").notNull(), // Specific curriculum topic (e.g., "Algebra", "Photosynthesis")
   difficulty: text("difficulty").notNull(), // easy, medium, hard
   cognitiveLevel: text("cognitive_level").notNull(), // knowledge, comprehension, application, analysis
