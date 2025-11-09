@@ -75,25 +75,19 @@ export function CountryStep({ data, onUpdate, onNext }: CountryStepProps) {
           <h3 className="text-xl font-semibold">Select Your Country</h3>
         </div>
         {isMobile ? (
-          <div>
-            <select
-              value={selectedCountryId}
-              onChange={(e) => handleCountryChange(e.target.value)}
-              className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background/50 border-foreground/20 px-3 py-2 text-lg ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              data-testid="select-country"
-            >
-              <option value="">Choose your country</option>
-              {countries.map((country: any) => (
-                <option key={country.id} value={country.id}>
-                  {country.name}
-                </option>
-              ))}
-            </select>
-            <p className="text-xs mt-2 text-muted-foreground">
-              {countries.length} countries available
-              {countriesError && <span className="text-red-500"> - Error: {String(countriesError)}</span>}
-            </p>
-          </div>
+          <select
+            value={selectedCountryId}
+            onChange={(e) => handleCountryChange(e.target.value)}
+            className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background/50 border-foreground/20 px-3 py-2 text-lg ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+            data-testid="select-country"
+          >
+            <option value="">Choose your country</option>
+            {countries.map((country: any) => (
+              <option key={country.id} value={country.id}>
+                {country.name}
+              </option>
+            ))}
+          </select>
         ) : (
           <Select value={selectedCountryId} onValueChange={handleCountryChange}>
             <SelectTrigger className="bg-background/50 border-foreground/20 text-lg" data-testid="select-country">
