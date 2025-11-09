@@ -73,7 +73,7 @@ export function DemographicsStep({ data, onUpdate, onNext }: DemographicsStepPro
             <SelectTrigger className="bg-background/50 border-foreground/20" data-testid="select-grade">
               <SelectValue placeholder="Select your grade" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent position="popper" className="z-[9999]">
               <SelectItem value="grade8">Grade 8</SelectItem>
               <SelectItem value="grade9">Grade 9</SelectItem>
               <SelectItem value="grade10">Grade 10</SelectItem>
@@ -95,7 +95,7 @@ export function DemographicsStep({ data, onUpdate, onNext }: DemographicsStepPro
             <SelectTrigger className="bg-background/50 border-foreground/20" data-testid="select-gender">
               <SelectValue placeholder="Select gender" />
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent position="popper" className="z-[9999]">
               <SelectItem value="male">Male</SelectItem>
               <SelectItem value="female">Female</SelectItem>
             </SelectContent>

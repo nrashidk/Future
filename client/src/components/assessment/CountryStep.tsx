@@ -53,7 +53,7 @@ export function CountryStep({ data, onUpdate, onNext }: CountryStepProps) {
           <SelectTrigger className="bg-background/50 border-foreground/20 text-lg" data-testid="select-country">
             <SelectValue placeholder="Choose your country" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent position="popper" className="z-[9999] max-h-[300px]">
             {countries.map((country: any) => (
               <SelectItem key={country.id} value={country.id}>
                 {country.flag} {country.name}
