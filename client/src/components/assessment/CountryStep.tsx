@@ -15,18 +15,17 @@ interface CountryStepProps {
 export function CountryStep({ data, onUpdate, onNext }: CountryStepProps) {
   const [selectedCountryId, setSelectedCountryId] = useState(data.countryId || "");
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    const checkMobile = () => {
-      const userAgent = navigator.userAgent.toLowerCase();
-      const isMobileDevice = /iphone|ipad|ipod|android|webos|blackberry|windows phone/i.test(userAgent);
-      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-      setIsMobile(isMobileDevice || isTouchDevice);
-    };
-    
-    checkMobile();
-  }, []);
+  
+  const checkIfMobile = () => {
+    if (typeof window === 'undefined') return false;
+    const userAgent = navigator.userAgent.toLowerCase();
+    const isMobileDevice = /iphone|ipad|ipod|android|webos|blackberry|windows phone/i.test(userAgent);
+    const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    const isSmallScreen = window.innerWidth < 768;
+    return isMobileDevice || (isTouchDevice && isSmallScreen);
+  };
+  
+  const [isMobile] = useState(checkIfMobile);
 
   const { data: countries = [], isLoading: countriesLoading, error: countriesError } = useQuery<any[]>({
     queryKey: ["/api/countries"],
