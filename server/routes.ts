@@ -6,7 +6,24 @@ import { insertAssessmentSchema } from "@shared/schema";
 import { z } from "zod";
 import PDFDocument from "pdfkit";
 
-// Intelligent matching algorithm
+// Helper to enrich assessment with subject competency scores from quiz
+async function enrichAssessmentWithCompetencies(assessment: any) {
+  // Try to load the latest completed quiz for this assessment
+  const quiz = await storage.getAssessmentQuizByAssessmentId(assessment.id);
+  
+  if (quiz && quiz.completedAt && quiz.subjectScores) {
+    // Attach normalized subject competencies to assessment
+    return {
+      ...assessment,
+      subjectCompetencies: quiz.subjectScores
+    };
+  }
+  
+  // No quiz data available - return assessment as-is
+  return assessment;
+}
+
+// Intelligent matching algorithm with subject competency validation
 function calculateCareerMatch(
   assessment: any,
   career: any,
@@ -18,17 +35,64 @@ function calculateCareerMatch(
   interestMatchScore: number;
   countryVisionAlignment: number;
   futureMarketDemand: number;
-  quizScore: number;
   reasoning: string;
 } {
-  // Calculate subject match (0-100)
+  // Calculate subject match with competency validation (0-100)
   const subjectOverlap = assessment.favoriteSubjects.filter((s: string) =>
     career.relatedSubjects.includes(s)
   ).length;
-  const subjectMatchScore = Math.min(
+  
+  // Base preference alignment score
+  const preferenceAlignment = Math.min(
     (subjectOverlap / Math.max(assessment.favoriteSubjects.length, 1)) * 100,
     100
   );
+  
+  // Calculate competency score from quiz results (only if data exists)
+  let hasCompetencyData = false;
+  let competencyScore = 0;
+  
+  if (assessment.subjectCompetencies) {
+    const competencies = assessment.subjectCompetencies as Record<string, { correct: number; total: number; percentage: number }>;
+    const relevantSubjects = assessment.favoriteSubjects.filter((s: string) =>
+      career.relatedSubjects.includes(s)
+    );
+    
+    if (relevantSubjects.length > 0) {
+      let totalCompetency = 0;
+      let subjectCount = 0;
+      
+      for (const subject of relevantSubjects) {
+        if (competencies[subject]) {
+          totalCompetency += competencies[subject].percentage;
+          subjectCount++;
+        }
+      }
+      
+      if (subjectCount > 0) {
+        competencyScore = totalCompetency / subjectCount;
+        hasCompetencyData = true;
+      }
+    }
+  }
+  
+  // Calculate final subject match score
+  let subjectMatchScore: number;
+  
+  if (hasCompetencyData) {
+    // Blend preference alignment with demonstrated competency (50/50)
+    subjectMatchScore = preferenceAlignment * 0.5 + competencyScore * 0.5;
+    
+    // Additional penalty for low competency in stated favorite subjects
+    if (competencyScore < 50) {
+      subjectMatchScore = subjectMatchScore * 0.8; // 20% penalty
+    }
+  } else {
+    // No competency data available - fall back to preference alignment only
+    subjectMatchScore = preferenceAlignment;
+  }
+  
+  subjectMatchScore = Math.min(Math.max(subjectMatchScore, 0), 100);
 
   // Calculate interest match (0-100)
   const interestKeywords: Record<string, string[]> = {
@@ -136,27 +200,25 @@ function calculateCareerMatch(
   // Future market demand (uses job trend data)
   const futureMarketDemand = jobTrend?.demandScore || 60;
 
-  // Quiz score (from assessment)
-  // Default to 50 (neutral) if quiz not completed to avoid penalizing users who skip/can't take quiz
-  const quizScore = assessment.quizScore?.overall ?? 50;
-
-  // Overall weighted score with new weights:
-  // - Subjects: 25% (down from 30%)
-  // - Interests: 25% (down from 30%)
-  // - Country vision: 20% (same)
-  // - Future market demand: 15% (down from 20%)
-  // - Quiz score: 15% (NEW)
+  // Overall weighted score with new 30/30/20/20 distribution:
+  // - Subject Alignment (preference + competency): 30%
+  // - Interest Alignment: 30%
+  // - Country Vision Alignment: 20%
+  // - Future Market Demand: 20%
   const overallMatchScore =
-    subjectMatchScore * 0.25 +
-    interestMatchScore * 0.25 +
+    subjectMatchScore * 0.30 +
+    interestMatchScore * 0.30 +
     countryVisionAlignment * 0.20 +
-    futureMarketDemand * 0.15 +
-    quizScore * 0.15;
+    futureMarketDemand * 0.20;
 
-  // Generate reasoning
+  // Generate reasoning with competency insights
   const reasons: string[] = [];
   if (subjectMatchScore > 70) {
-    reasons.push(`Your strong performance in ${assessment.favoriteSubjects.slice(0, 2).join(" and ")} aligns perfectly with this career`);
+    if (assessment.subjectCompetencies && competencyScore > 70) {
+      reasons.push(`Your strong performance in ${assessment.favoriteSubjects.slice(0, 2).join(" and ")} is validated by your demonstrated competency in these subjects`);
+    } else {
+      reasons.push(`Your interest in ${assessment.favoriteSubjects.slice(0, 2).join(" and ")} aligns well with this career`);
+    }
   }
   if (interestMatchScore > 60) {
     reasons.push(`Your interests in ${assessment.interests.slice(0, 2).join(" and ")} match the core activities of this role`);
@@ -166,9 +228,6 @@ function calculateCareerMatch(
   }
   if (futureMarketDemand > 70) {
     reasons.push(`This field is experiencing high growth and strong demand in your country's job market`);
-  }
-  if (quizScore > 70) {
-    reasons.push(`Your quiz results demonstrate strong understanding of your country's vision and how this career aligns with national priorities`);
   }
 
   const reasoning = reasons.length > 0
@@ -181,7 +240,6 @@ function calculateCareerMatch(
     interestMatchScore,
     countryVisionAlignment,
     futureMarketDemand,
-    quizScore,
     reasoning,
   };
 }
@@ -329,33 +387,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No quiz questions available for this grade and country" });
       }
       
-      // Balance domain sampling: 2 vision + 2 sector + 2 motivation questions
-      const domains = ["vision_awareness", "sector_competency", "personal_alignment"];
-      const selectedQuestions: any[] = [];
+      // Filter questions by student's favorite subjects
+      const favoriteSubjects = assessment.favoriteSubjects || [];
+      const subjectQuestions = questionPool.filter(q => favoriteSubjects.includes(q.subject));
       
-      for (const domain of domains) {
-        const domainQuestions = questionPool.filter(q => q.domain === domain);
-        const count = Math.min(2, domainQuestions.length);
-        const shuffled = domainQuestions.sort(() => Math.random() - 0.5);
-        selectedQuestions.push(...shuffled.slice(0, count));
+      if (subjectQuestions.length === 0) {
+        return res.status(400).json({ 
+          message: "No quiz questions available for your favorite subjects. Please update your subject preferences." 
+        });
       }
       
-      // Fallback: if we don't have 6 questions, add random ones from pool
-      if (selectedQuestions.length < 6) {
-        const remaining = questionPool.filter(q => !selectedQuestions.some(sq => sq.id === q.id));
-        const needed = 6 - selectedQuestions.length;
+      // Ensure we have enough questions for a valid quiz
+      const TARGET_QUESTIONS = 6;
+      if (subjectQuestions.length < TARGET_QUESTIONS) {
+        return res.status(400).json({ 
+          message: `Not enough questions available for your favorite subjects. We need at least ${TARGET_QUESTIONS} questions, but only found ${subjectQuestions.length}. Please select more subjects or contact support.`,
+          availableQuestions: subjectQuestions.length,
+          requiredQuestions: TARGET_QUESTIONS
+        });
+      }
+      
+      // Randomly select exactly 6 questions from favorite subjects
+      // Try to distribute evenly across subjects if possible
+      const selectedQuestions: any[] = [];
+      const questionsPerSubject = Math.floor(TARGET_QUESTIONS / favoriteSubjects.length);
+      const remainder = TARGET_QUESTIONS % favoriteSubjects.length;
+      
+      for (let i = 0; i < favoriteSubjects.length; i++) {
+        const subject = favoriteSubjects[i];
+        const questionsForSubject = subjectQuestions.filter(q => q.subject === subject);
+        const count = questionsPerSubject + (i < remainder ? 1 : 0);
+        const shuffled = questionsForSubject.sort(() => Math.random() - 0.5);
+        selectedQuestions.push(...shuffled.slice(0, Math.min(count, questionsForSubject.length)));
+      }
+      
+      // If we still need more questions (edge case), add random ones from pool
+      if (selectedQuestions.length < TARGET_QUESTIONS) {
+        const remaining = subjectQuestions.filter(q => !selectedQuestions.some(sq => sq.id === q.id));
+        const needed = TARGET_QUESTIONS - selectedQuestions.length;
         const shuffled = remaining.sort(() => Math.random() - 0.5);
         selectedQuestions.push(...shuffled.slice(0, needed));
       }
       
-      // Create assessment quiz record
+      // Shuffle final selection to avoid predictable ordering
+      selectedQuestions.sort(() => Math.random() - 0.5);
+      
+      // Final validation: ensure we have exactly TARGET_QUESTIONS
+      if (selectedQuestions.length < TARGET_QUESTIONS) {
+        return res.status(400).json({ 
+          message: `Unable to generate complete quiz. Only ${selectedQuestions.length} questions available for your subjects.`,
+          availableQuestions: selectedQuestions.length,
+          requiredQuestions: TARGET_QUESTIONS
+        });
+      }
+      
+      // Create assessment quiz record with empty subject scores
       const quiz = await storage.createAssessmentQuiz({
         assessmentId,
         questionsCount: selectedQuestions.length,
         totalScore: 0,
-        visionScore: 0,
-        sectorScore: 0,
-        motivationScore: 0
+        subjectScores: {}
       });
       
       // Create placeholder quiz_responses for each selected question
@@ -480,37 +571,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "All questions must be answered" });
       }
       
-      // Calculate scores
-      let visionScore = 0, visionCount = 0;
-      let sectorScore = 0, sectorCount = 0;
-      let motivationScore = 0, motivationCount = 0;
-      let totalCorrect = 0, totalQuestions = 0;
+      // Calculate per-subject competency scores
+      const subjectScores: Record<string, { correct: number; total: number; percentage: number }> = {};
+      let totalCorrect = 0;
+      let totalQuestions = 0;
       
       for (const userResponse of userResponses) {
         const question = questions.find((q: any) => q.id === userResponse.questionId);
         if (!question) continue;
         
-        // Validate answer is valid for this question
-        const validOptions = question.options.map((o: any) => o.id);
-        if (!validOptions.includes(userResponse.answer)) {
-          return res.status(400).json({ message: `Invalid answer for question ${question.id}` });
+        // Validate answer format (correctAnswer for multiple_choice questions)
+        if (question.questionType === "multiple_choice" && !question.correctAnswer) {
+          console.error(`Question ${question.id} missing correctAnswer`);
+          continue;
         }
         
         // Update existing quiz_response with the answer
         const existingResponse = existingResponses.find(r => r.questionId === question.id);
         if (existingResponse) {
-          // Calculate score contribution
-          let pointsEarned = 0;
-          let isCorrect: boolean | null = null;
-          
-          if (question.questionType === "multiple_choice") {
-            isCorrect = question.correctAnswer === userResponse.answer;
-            pointsEarned = isCorrect ? 1 : 0;
-            totalCorrect += pointsEarned;
-            totalQuestions += 1;
-          } else if (question.questionType === "rating") {
-            pointsEarned = (parseInt(userResponse.answer) - 1) / 4;
-          }
+          // Calculate if answer is correct
+          const isCorrect = question.correctAnswer === userResponse.answer;
+          const pointsEarned = isCorrect ? 1 : 0;
           
           // Update response
           await storage.updateQuizResponse(existingResponse.id, {
@@ -519,49 +600,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
             score: pointsEarned
           });
           
-          // Apply outcome weights to distribute points to domains
-          const weights = question.outcomeWeights || { vision: 0.33, sector: 0.33, motivation: 0.34 };
-          visionScore += pointsEarned * weights.vision;
-          visionCount += weights.vision;
-          sectorScore += pointsEarned * weights.sector;
-          sectorCount += weights.sector;
-          motivationScore += pointsEarned * weights.motivation;
-          motivationCount += weights.motivation;
+          // Track subject-level scores
+          const subject = question.subject;
+          if (!subjectScores[subject]) {
+            subjectScores[subject] = { correct: 0, total: 0, percentage: 0 };
+          }
+          subjectScores[subject].correct += pointsEarned;
+          subjectScores[subject].total += 1;
+          
+          // Track overall scores
+          totalCorrect += pointsEarned;
+          totalQuestions += 1;
         }
       }
       
-      // Normalize scores to 0-100 scale
-      const normalizedVision = visionCount > 0 ? (visionScore / visionCount) * 100 : 0;
-      const normalizedSector = sectorCount > 0 ? (sectorScore / sectorCount) * 100 : 0;
-      const normalizedMotivation = motivationCount > 0 ? (motivationScore / motivationCount) * 100 : 0;
-      const overallScore = (normalizedVision + normalizedSector + normalizedMotivation) / 3;
-      const accuracyPercentage = totalQuestions > 0 ? (totalCorrect / totalQuestions) * 100 : 0;
+      // Calculate subject percentages
+      for (const subject in subjectScores) {
+        const { correct, total } = subjectScores[subject];
+        subjectScores[subject].percentage = total > 0 ? Math.round((correct / total) * 100) : 0;
+      }
       
-      const quizScore = {
-        vision: Math.round(normalizedVision),
-        sector: Math.round(normalizedSector),
-        motivation: Math.round(normalizedMotivation),
-        overall: Math.round(overallScore),
-        accuracy: Math.round(accuracyPercentage),
-        totalQuestions,
-        totalCorrect
-      };
+      // Calculate overall accuracy
+      const overallAccuracy = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
       
-      // Update assessment with quiz score
-      await storage.updateAssessment(assessmentId, { quizScore });
-      
-      // Update quiz record with scores and mark as completed
+      // Update quiz record with subject scores and mark as completed
       await storage.updateAssessmentQuiz(quiz.id, {
         completedAt: new Date(),
-        totalScore: Math.round(overallScore),
-        visionScore: Math.round(normalizedVision),
-        sectorScore: Math.round(normalizedSector),
-        motivationScore: Math.round(normalizedMotivation)
+        totalScore: overallAccuracy,
+        subjectScores: subjectScores
       });
       
       res.json({ 
         success: true, 
-        score: quizScore,
+        score: {
+          subjectScores,
+          overall: overallAccuracy,
+          totalQuestions,
+          totalCorrect
+        },
         message: "Quiz submitted successfully" 
       });
     } catch (error) {
@@ -585,12 +661,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const country = await storage.getCountryById(assessment.countryId);
       const allCareers = await storage.getAllCareers();
 
+      // Enrich assessment with subject competency scores from quiz
+      const enrichedAssessment = await enrichAssessmentWithCompetencies(assessment);
+
       const recommendations = [];
 
       for (const career of allCareers) {
         const jobTrend = await storage.getTrendByCareerAndCountry(career.id, assessment.countryId);
 
-        const matchScores = calculateCareerMatch(assessment, career, country, jobTrend);
+        const matchScores = calculateCareerMatch(enrichedAssessment, career, country, jobTrend);
 
         // Only recommend careers with overall match > 40%
         if (matchScores.overallMatchScore > 40) {
@@ -710,24 +789,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       doc.fontSize(11).fillColor("#4B5563");
       doc.text(`Name: ${assessment.name || "Guest User"}`);
       doc.text(`Age: ${assessment.age}`);
-      doc.text(`Education Level: ${assessment.educationLevel}`);
+      doc.text(`Grade: ${assessment.grade}`);
       doc.text(`Country: ${country?.name || "Not specified"}`);
       doc.moveDown();
       doc.text(`Favorite Subjects: ${assessment.favoriteSubjects.join(", ")}`);
       doc.text(`Interests: ${assessment.interests.join(", ")}`);
-      doc.text(`Personality Traits: ${assessment.personalityTraits.join(", ")}`);
       doc.moveDown(2);
 
       // Quiz Results (if completed)
-      if (assessment.quizScore) {
-        doc.fontSize(14).fillColor("#1F2937").text("Quiz Results", { underline: true });
+      const quiz = await storage.getAssessmentQuizByAssessmentId(assessment.id);
+      if (quiz && quiz.completedAt) {
+        doc.fontSize(14).fillColor("#1F2937").text("Subject Competency Assessment", { underline: true });
         doc.moveDown(0.5);
         
         doc.fontSize(11).fillColor("#4B5563");
-        doc.text(`Overall Score: ${Math.round(assessment.quizScore.overall)}%`, { continued: true });
+        doc.text(`Overall Score: ${Math.round(quiz.totalScore)}%`, { continued: true });
         
         // Color code based on performance
-        const overallScore = assessment.quizScore.overall;
+        const overallScore = quiz.totalScore;
         let performanceText = "";
         let performanceColor = "#4B5563";
         if (overallScore >= 80) {
@@ -747,33 +826,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         doc.moveDown(0.3);
         doc.fontSize(9).fillColor("#6B7280");
-        doc.text("Score Breakdown:");
+        doc.text("Subject Performance:");
         doc.fontSize(8).fillColor("#6B7280");
-        doc.text(`  • Country Vision Awareness: ${Math.round(assessment.quizScore.vision)}%`);
-        doc.text(`  • Sector Competency Understanding: ${Math.round(assessment.quizScore.sector)}%`);
-        doc.text(`  • Personal Alignment & Motivation: ${Math.round(assessment.quizScore.motivation)}%`);
+        
+        // Display subject scores from jsonb
+        const subjectScores = quiz.subjectScores as Record<string, { correct: number; total: number; percentage: number }> | null;
+        if (subjectScores) {
+          for (const [subject, scores] of Object.entries(subjectScores)) {
+            doc.text(`  • ${subject}: ${scores.percentage}% (${scores.correct}/${scores.total} correct)`);
+          }
+        }
         
         doc.moveDown(0.5);
         doc.fontSize(9).fillColor("#4B5563");
-        
-        // Insights based on quiz performance
-        if (assessment.quizScore.vision >= 70) {
-          doc.text("✓ You demonstrate strong understanding of your country's vision and national priorities.");
-        } else {
-          doc.text("• Consider learning more about your country's development goals to better align your career choices.");
-        }
-        
-        if (assessment.quizScore.sector >= 70) {
-          doc.text("✓ You show good awareness of priority sectors and their role in national development.");
-        } else {
-          doc.text("• Explore more about key sectors driving growth in your country.");
-        }
-        
-        if (assessment.quizScore.motivation >= 70) {
-          doc.text("✓ Your career aspirations align well with national development priorities.");
-        } else {
-          doc.text("• Reflect on how your career goals can contribute to your country's future.");
-        }
+        doc.text("✓ Your quiz results validate your subject preferences and help identify careers that match your actual competencies.");
+        doc.text("• Careers recommended below align with subjects where you demonstrated strong performance.");
         
         doc.moveDown(2);
       }
@@ -804,11 +871,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Match Breakdown
         doc.fontSize(9).fillColor("#374151").text("Match Breakdown:");
         doc.fontSize(8).fillColor("#6B7280");
-        doc.text(`  • Subject Alignment: ${Math.round(rec.subjectMatchScore)}% (25% weight)`);
-        doc.text(`  • Interest Alignment: ${Math.round(rec.interestMatchScore)}% (25% weight)`);
+        doc.text(`  • Subject Alignment: ${Math.round(rec.subjectMatchScore)}% (30% weight)`);
+        doc.text(`  • Interest Alignment: ${Math.round(rec.interestMatchScore)}% (30% weight)`);
         doc.text(`  • Country Vision Alignment: ${Math.round(rec.countryVisionAlignment)}% (20% weight)`);
-        doc.text(`  • Future Market Demand: ${Math.round(rec.futureMarketDemand)}% (15% weight)`);
-        doc.text(`  • Quiz Score: ${Math.round(rec.quizScore)}% (15% weight)`);
+        doc.text(`  • Future Market Demand: ${Math.round(rec.futureMarketDemand)}% (20% weight)`);
         doc.moveDown(0.5);
 
         // Action Steps
