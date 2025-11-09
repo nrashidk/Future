@@ -345,7 +345,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...validatedData,
         userId,
         isGuest,
-        guestSessionId: isGuest ? req.sessionID : null,
+        guestSessionId: isGuest ? req.session.id : null,
       });
 
       res.json(assessment);
@@ -398,7 +398,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Authorization: Check if user owns assessment or matches guest session
       const isOwner = req.isAuthenticated() && assessment.userId === req.user.claims.sub;
-      const isGuestOwner = assessment.isGuest && req.sessionID === assessment.guestSessionId;
+      const isGuestOwner = assessment.isGuest && req.session.id === assessment.guestSessionId;
       if (!isOwner && !isGuestOwner) {
         return res.status(403).json({ message: "Unauthorized to generate quiz for this assessment" });
       }
