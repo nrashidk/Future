@@ -77,11 +77,16 @@ export default function Assessment() {
             k => assessmentData.personalityTraits[k]
           ), // Convert object to array
           countryId: assessmentData.countryId,
-          careerAspirations: assessmentData.careerAspirations.join(", "), // Join array to string
+          careerAspirations: assessmentData.careerAspirations || [], // Keep as array
+          strengths: assessmentData.strengths || [], // Include strengths field
         };
+        
+        console.log("Submitting assessment:", backendData);
         
         const response = await apiRequest("POST", "/api/assessments", backendData);
         const assessment = await response.json();
+        
+        console.log("Assessment created:", assessment);
         
         // Store guest session ID
         if (assessment.guestSessionId && !isAuthenticated) {
@@ -91,10 +96,10 @@ export default function Assessment() {
         await apiRequest("POST", `/api/recommendations/generate/${assessment.id}`, {});
         setLocation("/results?assessmentId=" + assessment.id);
       } catch (error) {
-        console.error("Error saving assessment:", error);
+        console.error("Error saving assessment:", error, "Data was:", assessmentData);
         toast({
           title: "Error",
-          description: "Failed to save assessment. Please try again.",
+          description: `Failed to save assessment: ${error instanceof Error ? error.message : 'Unknown error'}`,
           variant: "destructive",
         });
       }
