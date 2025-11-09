@@ -54,25 +54,6 @@ export default function Landing() {
 
       {/* Hero Section */}
       <div className="relative min-h-screen flex items-center justify-center px-4 py-12 overflow-hidden">
-        {/* Decorative background sticky notes */}
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          <div className="absolute top-10 left-10 opacity-30">
-            <StickyNote color="yellow" rotation="-2" className="w-32 h-32" />
-          </div>
-          <div className="absolute top-32 right-20 opacity-30">
-            <StickyNote color="pink" rotation="1" className="w-40 h-32" />
-          </div>
-          <div className="absolute bottom-20 left-20 opacity-30">
-            <StickyNote color="blue" rotation="2" className="w-36 h-36" />
-          </div>
-          <div className="absolute bottom-40 right-32 opacity-30">
-            <StickyNote color="green" rotation="-1" className="w-28 h-28" />
-          </div>
-          <div className="absolute top-1/2 left-1/4 opacity-20">
-            <StickyNote color="purple" rotation="1" className="w-24 h-24" />
-          </div>
-        </div>
-
         {/* Main content */}
         <div className="relative z-10 max-w-6xl mx-auto text-center">
           <div className="mb-8 flex justify-center">
