@@ -506,6 +506,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/analytics/countries", async (req, res) => {
+    try {
+      const analytics = await storage.getAnalyticsOverview();
+      const countries = analytics.countriesBreakdown.map(c => ({
+        countryId: c.countryId,
+        countryName: c.countryName,
+        studentCount: c.count
+      }));
+      res.json(countries);
+    } catch (error) {
+      console.error("Error fetching countries analytics:", error);
+      res.status(500).json({ message: "Failed to fetch countries analytics" });
+    }
+  });
+
   app.get("/api/analytics/country/:id", async (req, res) => {
     try {
       const analytics = await storage.getCountryAnalytics(req.params.id);
@@ -513,6 +528,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching country analytics:", error);
       res.status(500).json({ message: "Failed to fetch country analytics" });
+    }
+  });
+
+  app.get("/api/analytics/careers", async (req, res) => {
+    try {
+      const trends = await storage.getCareerTrends();
+      res.json(trends);
+    } catch (error) {
+      console.error("Error fetching career trends:", error);
+      res.status(500).json({ message: "Failed to fetch career trends" });
     }
   });
 
