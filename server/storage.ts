@@ -76,6 +76,7 @@ export interface IStorage {
   getAssessmentQuizByAssessmentId(assessmentId: string): Promise<AssessmentQuiz | undefined>;
   createQuizResponse(response: InsertQuizResponse): Promise<QuizResponse>;
   getQuizResponsesByQuizId(assessmentQuizId: string): Promise<QuizResponse[]>;
+  updateQuizResponse(id: string, data: Partial<InsertQuizResponse>): Promise<QuizResponse>;
   updateAssessmentQuiz(id: string, data: Partial<InsertAssessmentQuiz>): Promise<AssessmentQuiz>;
 
   // Analytics operations
@@ -322,6 +323,15 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(quizResponses)
       .where(eq(quizResponses.assessmentQuizId, assessmentQuizId));
+  }
+
+  async updateQuizResponse(id: string, data: Partial<InsertQuizResponse>): Promise<QuizResponse> {
+    const [response] = await db
+      .update(quizResponses)
+      .set(data)
+      .where(eq(quizResponses.id, id))
+      .returning();
+    return response;
   }
 
   async updateAssessmentQuiz(id: string, data: Partial<InsertAssessmentQuiz>): Promise<AssessmentQuiz> {

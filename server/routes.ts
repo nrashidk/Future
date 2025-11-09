@@ -262,6 +262,299 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Quiz API Endpoints
+  
+  // POST /api/assessments/:assessmentId/quiz/generate - Generate quiz for assessment
+  app.post("/api/assessments/:assessmentId/quiz/generate", async (req: any, res) => {
+    try {
+      const { assessmentId } = req.params;
+      
+      // Get assessment to check authorization and get grade/country
+      const assessment = await storage.getAssessmentById(assessmentId);
+      if (!assessment) {
+        return res.status(404).json({ message: "Assessment not found" });
+      }
+      
+      // Authorization: Check if user owns assessment or matches guest session
+      const isOwner = req.isAuthenticated() && assessment.userId === req.user.claims.sub;
+      const isGuestOwner = assessment.isGuest && req.sessionID === assessment.guestSessionId;
+      if (!isOwner && !isGuestOwner) {
+        return res.status(403).json({ message: "Unauthorized to generate quiz for this assessment" });
+      }
+      
+      // Check if quiz already exists - idempotent operation
+      const existingQuiz = await storage.getAssessmentQuizByAssessmentId(assessmentId);
+      if (existingQuiz) {
+        // Fetch quiz responses to get question IDs
+        const responses = await storage.getQuizResponsesByQuizId(existingQuiz.id);
+        const questionIds = responses.map(r => r.questionId);
+        
+        // Fetch full question details
+        const allQuestions = await storage.getAllQuizQuestions();
+        const questions = allQuestions
+          .filter(q => questionIds.includes(q.id))
+          .map((q: any) => ({
+            ...q,
+            correctAnswer: q.questionType === "rating" ? q.correctAnswer : undefined
+          }));
+        
+        return res.json({ 
+          quizId: existingQuiz.id, 
+          questions,
+          responses: responses.map(r => ({ questionId: r.questionId, answer: r.answer })),
+          completed: !!existingQuiz.completedAt
+        });
+      }
+      
+      // Get question pool based on grade band and country
+      const gradeBand = assessment.grade && parseInt(assessment.grade as string) >= 10 ? "10-12" : "8-9";
+      const questionPool = await storage.getQuizQuestionsByGradeAndCountry(gradeBand, assessment.countryId);
+      
+      if (questionPool.length === 0) {
+        return res.status(400).json({ message: "No quiz questions available for this grade and country" });
+      }
+      
+      // Balance domain sampling: 2 vision + 2 sector + 2 motivation questions
+      const domains = ["vision_awareness", "sector_competency", "personal_alignment"];
+      const selectedQuestions: any[] = [];
+      
+      for (const domain of domains) {
+        const domainQuestions = questionPool.filter(q => q.domain === domain);
+        const count = Math.min(2, domainQuestions.length);
+        const shuffled = domainQuestions.sort(() => Math.random() - 0.5);
+        selectedQuestions.push(...shuffled.slice(0, count));
+      }
+      
+      // Fallback: if we don't have 6 questions, add random ones from pool
+      if (selectedQuestions.length < 6) {
+        const remaining = questionPool.filter(q => !selectedQuestions.some(sq => sq.id === q.id));
+        const needed = 6 - selectedQuestions.length;
+        const shuffled = remaining.sort(() => Math.random() - 0.5);
+        selectedQuestions.push(...shuffled.slice(0, needed));
+      }
+      
+      // Create assessment quiz record
+      const quiz = await storage.createAssessmentQuiz({
+        assessmentId,
+        questionsCount: selectedQuestions.length,
+        totalScore: 0,
+        visionScore: 0,
+        sectorScore: 0,
+        motivationScore: 0
+      });
+      
+      // Create placeholder quiz_responses for each selected question
+      for (const question of selectedQuestions) {
+        await storage.createQuizResponse({
+          assessmentQuizId: quiz.id,
+          questionId: question.id,
+          answer: "",
+          isCorrect: null,
+          score: 0
+        });
+      }
+      
+      // Return questions without correct answers for multiple_choice
+      const questionsForFrontend = selectedQuestions.map((q: any) => ({
+        ...q,
+        correctAnswer: q.questionType === "rating" ? q.correctAnswer : undefined
+      }));
+      
+      res.json({ quizId: quiz.id, questions: questionsForFrontend, responses: [], completed: false });
+    } catch (error) {
+      console.error("Error generating quiz:", error);
+      res.status(500).json({ message: "Failed to generate quiz" });
+    }
+  });
+  
+  // GET /api/assessments/:assessmentId/quiz - Get existing quiz
+  app.get("/api/assessments/:assessmentId/quiz", async (req: any, res) => {
+    try {
+      const { assessmentId } = req.params;
+      
+      // Get assessment to check authorization
+      const assessment = await storage.getAssessmentById(assessmentId);
+      if (!assessment) {
+        return res.status(404).json({ message: "Assessment not found" });
+      }
+      
+      // Authorization check
+      const isOwner = req.user && assessment.userId === req.user.id;
+      const isGuestOwner = assessment.isGuest && req.session.id === assessment.guestSessionId;
+      if (!isOwner && !isGuestOwner) {
+        return res.status(403).json({ message: "Unauthorized to view this quiz" });
+      }
+      
+      // Get quiz
+      const quiz = await storage.getAssessmentQuizByAssessmentId(assessmentId);
+      if (!quiz) {
+        return res.status(404).json({ message: "Quiz not found for this assessment" });
+      }
+      
+      // Get responses
+      const responses = await storage.getQuizResponsesByQuizId(quiz.id);
+      const questionIds = responses.map(r => r.questionId);
+      
+      // Fetch full question details
+      const allQuestions = await storage.getAllQuizQuestions();
+      const questions = allQuestions
+        .filter(q => questionIds.includes(q.id))
+        .map((q: any) => ({
+          ...q,
+          correctAnswer: q.questionType === "rating" ? q.correctAnswer : undefined
+        }));
+      
+      res.json({ 
+        quizId: quiz.id, 
+        questions,
+        responses: responses.map(r => ({ questionId: r.questionId, answer: r.answer })),
+        completed: !!quiz.completedAt
+      });
+    } catch (error) {
+      console.error("Error fetching quiz:", error);
+      res.status(500).json({ message: "Failed to fetch quiz" });
+    }
+  });
+  
+  // POST /api/assessments/:assessmentId/quiz/submit - Submit quiz responses and calculate score
+  app.post("/api/assessments/:assessmentId/quiz/submit", async (req: any, res) => {
+    try {
+      const { assessmentId } = req.params;
+      const { responses: userResponses } = req.body;
+      
+      if (!Array.isArray(userResponses)) {
+        return res.status(400).json({ message: "Responses must be an array" });
+      }
+      
+      // Get assessment to check authorization
+      const assessment = await storage.getAssessmentById(assessmentId);
+      if (!assessment) {
+        return res.status(404).json({ message: "Assessment not found" });
+      }
+      
+      // Authorization check
+      const isOwner = req.user && assessment.userId === req.user.id;
+      const isGuestOwner = assessment.isGuest && req.session.id === assessment.guestSessionId;
+      if (!isOwner && !isGuestOwner) {
+        return res.status(403).json({ message: "Unauthorized to submit quiz for this assessment" });
+      }
+      
+      // Get quiz
+      const quiz = await storage.getAssessmentQuizByAssessmentId(assessmentId);
+      if (!quiz) {
+        return res.status(404).json({ message: "Quiz not found" });
+      }
+      
+      if (quiz.completedAt) {
+        return res.status(400).json({ message: "Quiz already completed" });
+      }
+      
+      // Get existing responses to get question IDs
+      const existingResponses = await storage.getQuizResponsesByQuizId(quiz.id);
+      const questionIds = existingResponses.map(r => r.questionId);
+      
+      // Fetch full question details
+      const allQuestions = await storage.getAllQuizQuestions();
+      const questions = allQuestions.filter(q => questionIds.includes(q.id));
+      
+      // Validate all questions are answered
+      const answeredIds = userResponses.map((r: any) => r.questionId);
+      const missingAnswers = questionIds.filter((id: string) => !answeredIds.includes(id));
+      
+      if (missingAnswers.length > 0) {
+        return res.status(400).json({ message: "All questions must be answered" });
+      }
+      
+      // Calculate scores
+      let visionScore = 0, visionCount = 0;
+      let sectorScore = 0, sectorCount = 0;
+      let motivationScore = 0, motivationCount = 0;
+      let totalCorrect = 0, totalQuestions = 0;
+      
+      for (const userResponse of userResponses) {
+        const question = questions.find((q: any) => q.id === userResponse.questionId);
+        if (!question) continue;
+        
+        // Validate answer is valid for this question
+        const validOptions = question.options.map((o: any) => o.id);
+        if (!validOptions.includes(userResponse.answer)) {
+          return res.status(400).json({ message: `Invalid answer for question ${question.id}` });
+        }
+        
+        // Update existing quiz_response with the answer
+        const existingResponse = existingResponses.find(r => r.questionId === question.id);
+        if (existingResponse) {
+          // Calculate score contribution
+          let pointsEarned = 0;
+          let isCorrect: boolean | null = null;
+          
+          if (question.questionType === "multiple_choice") {
+            isCorrect = question.correctAnswer === userResponse.answer;
+            pointsEarned = isCorrect ? 1 : 0;
+            totalCorrect += pointsEarned;
+            totalQuestions += 1;
+          } else if (question.questionType === "rating") {
+            pointsEarned = (parseInt(userResponse.answer) - 1) / 4;
+          }
+          
+          // Update response
+          await storage.updateQuizResponse(existingResponse.id, {
+            answer: userResponse.answer,
+            isCorrect,
+            score: pointsEarned
+          });
+          
+          // Apply outcome weights to distribute points to domains
+          const weights = question.outcomeWeights || { vision: 0.33, sector: 0.33, motivation: 0.34 };
+          visionScore += pointsEarned * weights.vision;
+          visionCount += weights.vision;
+          sectorScore += pointsEarned * weights.sector;
+          sectorCount += weights.sector;
+          motivationScore += pointsEarned * weights.motivation;
+          motivationCount += weights.motivation;
+        }
+      }
+      
+      // Normalize scores to 0-100 scale
+      const normalizedVision = visionCount > 0 ? (visionScore / visionCount) * 100 : 0;
+      const normalizedSector = sectorCount > 0 ? (sectorScore / sectorCount) * 100 : 0;
+      const normalizedMotivation = motivationCount > 0 ? (motivationScore / motivationCount) * 100 : 0;
+      const overallScore = (normalizedVision + normalizedSector + normalizedMotivation) / 3;
+      const accuracyPercentage = totalQuestions > 0 ? (totalCorrect / totalQuestions) * 100 : 0;
+      
+      const quizScore = {
+        vision: Math.round(normalizedVision),
+        sector: Math.round(normalizedSector),
+        motivation: Math.round(normalizedMotivation),
+        overall: Math.round(overallScore),
+        accuracy: Math.round(accuracyPercentage),
+        totalQuestions,
+        totalCorrect
+      };
+      
+      // Update assessment with quiz score
+      await storage.updateAssessment(assessmentId, { quizScore });
+      
+      // Update quiz record with scores and mark as completed
+      await storage.updateAssessmentQuiz(quiz.id, {
+        completedAt: new Date(),
+        totalScore: Math.round(overallScore),
+        visionScore: Math.round(normalizedVision),
+        sectorScore: Math.round(normalizedSector),
+        motivationScore: Math.round(normalizedMotivation)
+      });
+      
+      res.json({ 
+        success: true, 
+        score: quizScore,
+        message: "Quiz submitted successfully" 
+      });
+    } catch (error) {
+      console.error("Error submitting quiz:", error);
+      res.status(500).json({ message: "Failed to submit quiz" });
+    }
+  });
+
   // Generate recommendations
   app.post("/api/recommendations/generate/:assessmentId", async (req, res) => {
     try {

@@ -9,6 +9,7 @@ import { InterestsStep } from "@/components/assessment/InterestsStep";
 import { PersonalityStep } from "@/components/assessment/PersonalityStep";
 import { CountryStep } from "@/components/assessment/CountryStep";
 import { AspirationsStep } from "@/components/assessment/AspirationsStep";
+import { QuizStep } from "@/components/assessment/QuizStep";
 import { GraduationCap, ArrowLeft, LogIn } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -25,7 +26,7 @@ interface AssessmentData {
   strengths: string[];
 }
 
-const TOTAL_STEPS = 6; // 6 steps total (Demographics, Subjects, Interests, Personality, Country, Aspirations)
+const TOTAL_STEPS = 7; // 7 steps total (Demographics, Subjects, Interests, Personality, Country, Aspirations, Quiz)
 
 export default function Assessment() {
   const [, setLocation] = useLocation();
@@ -33,6 +34,7 @@ export default function Assessment() {
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [isGuest, setIsGuest] = useState(false);
+  const [assessmentId, setAssessmentId] = useState<string | null>(null);
 
   const [assessmentData, setAssessmentData] = useState<AssessmentData>({
     name: "",
@@ -59,10 +61,11 @@ export default function Assessment() {
   };
 
   const handleNext = async () => {
-    if (currentStep < TOTAL_STEPS) {
+    if (currentStep < 6) {
+      // Steps 1-5: Just advance to next step
       setCurrentStep((prev) => prev + 1);
-    } else {
-      // Save assessment and generate recommendations
+    } else if (currentStep === 6) {
+      // Step 6 (Aspirations): Save assessment and move to quiz
       try {
         const { apiRequest } = await import("@/lib/queryClient");
         
@@ -70,39 +73,73 @@ export default function Assessment() {
         const backendData = {
           name: assessmentData.name,
           age: assessmentData.age,
-          educationLevel: assessmentData.grade, // Map grade -> educationLevel
+          educationLevel: assessmentData.grade,
           favoriteSubjects: assessmentData.favoriteSubjects,
           interests: assessmentData.interests,
           personalityTraits: Object.keys(assessmentData.personalityTraits).filter(
             k => assessmentData.personalityTraits[k]
-          ), // Convert object to array
+          ),
           countryId: assessmentData.countryId,
-          careerAspirations: assessmentData.careerAspirations || [], // Keep as array
-          strengths: assessmentData.strengths || [], // Include strengths field
+          careerAspirations: assessmentData.careerAspirations || [],
+          strengths: assessmentData.strengths || [],
         };
         
-        console.log("Submitting assessment:", backendData);
+        console.log("Saving assessment before quiz:", backendData);
         
-        const response = await apiRequest("POST", "/api/assessments", backendData);
-        const assessment = await response.json();
-        
-        console.log("Assessment created:", assessment);
-        
-        // Store guest session ID
-        if (assessment.guestSessionId && !isAuthenticated) {
-          localStorage.setItem("guestSessionId", assessment.guestSessionId);
+        // Create or update assessment (idempotent)
+        let assessment;
+        if (assessmentId) {
+          // Update existing assessment
+          const response = await apiRequest("PATCH", `/api/assessments/${assessmentId}`, backendData);
+          assessment = await response.json();
+        } else {
+          // Create new assessment
+          const response = await apiRequest("POST", "/api/assessments", backendData);
+          assessment = await response.json();
+          
+          // Store guest session ID if needed
+          if (assessment.guestSessionId && !isAuthenticated) {
+            localStorage.setItem("guestSessionId", assessment.guestSessionId);
+          }
         }
         
-        await apiRequest("POST", `/api/recommendations/generate/${assessment.id}`, {});
-        setLocation("/results?assessmentId=" + assessment.id);
+        console.log("Assessment saved:", assessment);
+        setAssessmentId(assessment.id);
+        
+        // Move to quiz step (don't generate recommendations yet)
+        setCurrentStep(7);
       } catch (error) {
-        console.error("Error saving assessment:", error, "Data was:", assessmentData);
+        console.error("Error saving assessment:", error);
         toast({
           title: "Error",
           description: `Failed to save assessment: ${error instanceof Error ? error.message : 'Unknown error'}`,
           variant: "destructive",
         });
       }
+    }
+  };
+
+  const handleQuizComplete = async () => {
+    if (!assessmentId) {
+      console.error("No assessmentId for quiz completion");
+      return;
+    }
+    
+    try {
+      const { apiRequest } = await import("@/lib/queryClient");
+      
+      // Generate recommendations based on assessment + quiz
+      await apiRequest("POST", `/api/recommendations/generate/${assessmentId}`, {});
+      
+      // Navigate to results
+      setLocation("/results?assessmentId=" + assessmentId);
+    } catch (error) {
+      console.error("Error generating recommendations:", error);
+      toast({
+        title: "Error",
+        description: "Failed to generate recommendations. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -225,6 +262,21 @@ export default function Assessment() {
             onUpdate={updateAssessmentData}
             onNext={handleNext}
           />
+        )}
+        {currentStep === 7 && assessmentId && (
+          <QuizStep
+            assessmentId={assessmentId}
+            onComplete={handleQuizComplete}
+          />
+        )}
+        {currentStep === 7 && !assessmentId && (
+          <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+            <p className="text-lg text-destructive font-semibold">Error: Assessment not found</p>
+            <p className="text-muted-foreground">Please go back and complete the previous steps.</p>
+            <Button onClick={() => setCurrentStep(6)} data-testid="button-back-to-assessment">
+              Go Back
+            </Button>
+          </div>
         )}
       </div>
     </div>
