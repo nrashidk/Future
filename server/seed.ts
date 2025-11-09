@@ -64,6 +64,127 @@ export async function seedDatabase() {
       }
     },
     {
+      id: "bahrain",
+      name: "Bahrain",
+      code: "BHR",
+      flag: "🇧🇭",
+      mission: "To shift from an oil-dependent economy to a productive, globally competitive, private-sector-led economy that improves living standards for all Bahrainis through sustainability, competitiveness, and fairness.",
+      vision: "Transform Bahrain into a regional financial and commercial hub by 2030 with doubled household income and sustainable government finances.",
+      visionPlan: "Economic Vision 2030",
+      prioritySectors: ["Financial Services", "Tourism", "ICT & Digital Economy", "Manufacturing", "Logistics", "Healthcare", "Education"],
+      nationalGoals: [
+        "Double household income by 2030",
+        "Strengthen non-oil GDP growth and diversification",
+        "Create high-wage skilled jobs for Bahrainis",
+        "Achieve fiscal balance and sustainable government finances"
+      ],
+      targets: {
+        economic: [
+          { metric: "Household Income", value: "100% increase", year: 2030, focusArea: "Living Standards" },
+          { metric: "FDI", value: "BHD 1.1 billion", year: 2030, focusArea: "Investment" },
+          { metric: "Non-oil Sectors Growth", value: "High value-added focus", year: 2030, focusArea: "Diversification" }
+        ],
+        social: [
+          { metric: "Life Expectancy", value: "75 years", year: 2030, focusArea: "Healthcare" },
+          { metric: "Skills Training", value: "95,000 Bahrainis", year: 2030, focusArea: "Workforce Development" },
+          { metric: "Business Support", value: "35,000 businesses", year: 2030, focusArea: "Entrepreneurship" }
+        ]
+      }
+    },
+    {
+      id: "kuwait",
+      name: "Kuwait",
+      code: "KWT",
+      flag: "🇰🇼",
+      mission: "To transform Kuwait into a regional financial, commercial, and cultural hub through seven strategic pillars focused on sustainable economic diversification and private sector growth.",
+      vision: "Position Kuwait as a leading economic powerhouse and global petrochemical hub by 2035 with increased FDI, non-oil sector expansion, and modernized infrastructure.",
+      visionPlan: "Kuwait Vision 2035 (New Kuwait)",
+      prioritySectors: ["Renewable Energy", "Information Technology", "Financial Services", "Logistics & Trade", "Tourism", "Healthcare", "Petrochemicals"],
+      nationalGoals: [
+        "Increase private sector employment by 69%",
+        "Increase FDI by 300% (400M+ Kuwaiti Dinars)",
+        "Expand road network from 6,000 km to 9,000 km",
+        "Increase higher education enrollment from 30% to 40%"
+      ],
+      targets: {
+        economic: [
+          { metric: "Private Sector Employment", value: "+69%", year: 2035, focusArea: "Job Creation" },
+          { metric: "FDI", value: "400M+ KWD", year: 2035, focusArea: "Investment" }
+        ],
+        social: [
+          { metric: "Hospital Beds", value: "3.5 per 1,000", year: 2035, focusArea: "Healthcare" },
+          { metric: "Government Housing", value: "50% of citizens", year: 2035, focusArea: "Housing" }
+        ],
+        tech: [
+          { metric: "Renewable Energy", value: "15% of consumption", year: 2035, focusArea: "Energy" },
+          { metric: "Digital Transformation", value: "Smart Kuwait", year: 2035, focusArea: "Technology" }
+        ]
+      }
+    },
+    {
+      id: "oman",
+      name: "Oman",
+      code: "OMN",
+      flag: "🇴🇲",
+      mission: "To achieve sustainable development across four core pillars: People & Society, Economy & Development, Governance, and Sustainable Environment, positioning Oman as a knowledge-based economy.",
+      vision: "Transform Oman into a diversified, knowledge-based economy with 91.6% non-oil GDP contribution, net-zero emissions by 2050, and top-tier global education ranking.",
+      visionPlan: "Oman Vision 2040",
+      prioritySectors: ["Tourism", "Logistics & Trade", "Manufacturing", "Mining", "Renewable Energy", "Fisheries", "Technology & Innovation"],
+      nationalGoals: [
+        "Increase non-oil GDP from 61% to 91.6% by 2040",
+        "Attract 5+ million tourists annually by 2040",
+        "Achieve 30% renewable electricity by 2040",
+        "Reach top 10 globally in education by 2040"
+      ],
+      targets: {
+        economic: [
+          { metric: "Non-oil GDP", value: "91.6%", year: 2040, focusArea: "Diversification" },
+          { metric: "FDI", value: "10% of GDP", year: 2040, focusArea: "Investment" },
+          { metric: "Tourism Revenue", value: "RO 20 billion", year: 2040, focusArea: "Tourism" }
+        ],
+        social: [
+          { metric: "Tourism Jobs", value: "560,000 (75% Omani)", year: 2040, focusArea: "Employment" },
+          { metric: "Education Ranking", value: "Top 10 globally", year: 2040, focusArea: "Education" }
+        ],
+        climate: [
+          { metric: "Renewable Energy", value: "30%", year: 2040, focusArea: "Energy" },
+          { metric: "Net-Zero Emissions", value: "100%", year: 2050, focusArea: "Climate" }
+        ]
+      }
+    },
+    {
+      id: "qatar",
+      name: "Qatar",
+      code: "QAT",
+      flag: "🇶🇦",
+      mission: "To transform Qatar into an advanced society capable of achieving sustainable development through four pillars: Human Development, Social Development, Economic Development, and Environmental Development.",
+      vision: "Achieve a high standard of living for all generations by 2030 through a diversified knowledge-based economy, world-class education and healthcare, and environmental sustainability.",
+      visionPlan: "Qatar National Vision 2030",
+      prioritySectors: ["Finance & Business Services", "Technology & Innovation", "Tourism & Hospitality", "Education & Research", "Healthcare", "Energy", "Infrastructure"],
+      nationalGoals: [
+        "Diversify economy away from hydrocarbon dependence",
+        "Build world-class educational and healthcare systems",
+        "100% electric bus fleet by 2030",
+        "Qatarization across all workforce sectors"
+      ],
+      targets: {
+        economic: [
+          { metric: "Private Sector GDP", value: "Enhanced contribution", year: 2030, focusArea: "Diversification" },
+          { metric: "R&D Investment", value: "2.8% of budget", year: 2030, focusArea: "Innovation" },
+          { metric: "Airport Capacity", value: "53 million passengers", year: 2030, focusArea: "Infrastructure" }
+        ],
+        social: [
+          { metric: "Education Standards", value: "Global benchmark", year: 2030, focusArea: "Education" },
+          { metric: "National Workforce", value: "Qatarization across sectors", year: 2030, focusArea: "Employment" },
+          { metric: "Healthcare Facilities", value: "Expanded hospitals & clinics", year: 2030, focusArea: "Health" }
+        ],
+        climate: [
+          { metric: "Electric Public Transport", value: "100%", year: 2030, focusArea: "Mobility" },
+          { metric: "Renewable Energy", value: "Increased share", year: 2030, focusArea: "Energy" }
+        ]
+      }
+    },
+    {
       id: "singapore",
       name: "Singapore",
       code: "SGP",
