@@ -11,8 +11,19 @@ import {
   Heart,
   Lightbulb
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 
 export default function Landing() {
+  const { data: analytics, isLoading } = useQuery<{ totalStudents: number }>({
+    queryKey: ['/api/analytics/overview'],
+  });
+
+  const studentCount = analytics?.totalStudents;
+  const displayCount = isLoading || !studentCount || studentCount === 0 
+    ? "10,000+" 
+    : studentCount.toLocaleString();
+  const isPlural = displayCount === "10,000+" || (studentCount && studentCount !== 1);
+
   const handleLogin = () => {
     window.location.href = "/api/login";
   };
@@ -85,7 +96,9 @@ export default function Landing() {
 
           <div className="inline-flex items-center gap-2 bg-primary/10 px-4 py-2 rounded-full">
             <Users className="w-5 h-5 text-primary" />
-            <span className="text-sm font-medium">Trusted by 10,000+ students</span>
+            <span className="text-sm font-medium" data-testid="text-student-count">
+              Trusted by {displayCount} student{isPlural ? 's' : ''}
+            </span>
           </div>
         </div>
       </div>

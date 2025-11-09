@@ -22,7 +22,7 @@ import {
   type InsertRecommendation,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, count, avg, sql as sqlFunc } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
@@ -58,6 +58,31 @@ export interface IStorage {
   // Recommendation operations
   createRecommendation(recommendation: InsertRecommendation): Promise<Recommendation>;
   getRecommendationsByAssessment(assessmentId: string): Promise<Recommendation[]>;
+
+  // Analytics operations
+  getAnalyticsOverview(): Promise<{
+    totalStudents: number;
+    completedAssessments: number;
+    countriesBreakdown: Array<{ countryId: string; countryName: string; count: number }>;
+    gradeDistribution: Array<{ grade: string; count: number }>;
+  }>;
+  getCountryAnalytics(countryId: string): Promise<{
+    totalStudents: number;
+    topCareers: Array<{ careerId: string; careerTitle: string; count: number }>;
+    avgVisionAlignment: number;
+    popularSubjects: Array<{ subject: string; count: number }>;
+  }>;
+  getCareerTrends(): Promise<Array<{
+    careerId: string;
+    careerTitle: string;
+    recommendationCount: number;
+    avgMatchScore: number;
+  }>>;
+  getSectorPipeline(): Promise<Array<{
+    sector: string;
+    studentCount: number;
+    avgAlignment: number;
+  }>>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -205,6 +230,173 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(recommendations)
       .where(eq(recommendations.assessmentId, assessmentId));
+  }
+
+  // Analytics operations
+  async getAnalyticsOverview() {
+    const allAssessments = await db.select().from(assessments);
+    const totalStudents = allAssessments.length;
+    const completedAssessments = allAssessments.filter(a => a.isCompleted).length;
+
+    const countriesMap = new Map<string, { countryId: string; countryName: string; count: number }>();
+    const gradesMap = new Map<string, number>();
+
+    for (const assessment of allAssessments) {
+      if (assessment.countryId) {
+        const existing = countriesMap.get(assessment.countryId);
+        if (existing) {
+          existing.count++;
+        } else {
+          const country = await this.getCountryById(assessment.countryId);
+          if (country) {
+            countriesMap.set(assessment.countryId, {
+              countryId: assessment.countryId,
+              countryName: country.name,
+              count: 1
+            });
+          }
+        }
+      }
+
+      if (assessment.grade) {
+        gradesMap.set(assessment.grade, (gradesMap.get(assessment.grade) || 0) + 1);
+      }
+    }
+
+    return {
+      totalStudents,
+      completedAssessments,
+      countriesBreakdown: Array.from(countriesMap.values()),
+      gradeDistribution: Array.from(gradesMap.entries()).map(([grade, count]) => ({ grade, count }))
+    };
+  }
+
+  async getCountryAnalytics(countryId: string) {
+    const countryAssessments = await db.select().from(assessments).where(eq(assessments.countryId, countryId));
+    const totalStudents = countryAssessments.length;
+
+    const allRecs = await db.select().from(recommendations);
+    const countryRecs = allRecs.filter(rec => 
+      countryAssessments.some(a => a.id === rec.assessmentId)
+    );
+
+    const careersMap = new Map<string, { careerId: string; careerTitle: string; count: number }>();
+    let totalAlignment = 0;
+    
+    for (const rec of countryRecs) {
+      totalAlignment += rec.countryVisionAlignment;
+      const career = await this.getCareerById(rec.careerId);
+      if (career) {
+        const existing = careersMap.get(rec.careerId);
+        if (existing) {
+          existing.count++;
+        } else {
+          careersMap.set(rec.careerId, {
+            careerId: rec.careerId,
+            careerTitle: career.title,
+            count: 1
+          });
+        }
+      }
+    }
+
+    const subjectsMap = new Map<string, number>();
+    for (const assessment of countryAssessments) {
+      if (assessment.favoriteSubjects) {
+        for (const subject of assessment.favoriteSubjects) {
+          subjectsMap.set(subject, (subjectsMap.get(subject) || 0) + 1);
+        }
+      }
+    }
+
+    return {
+      totalStudents,
+      topCareers: Array.from(careersMap.values()).sort((a, b) => b.count - a.count).slice(0, 10),
+      avgVisionAlignment: countryRecs.length > 0 ? totalAlignment / countryRecs.length : 0,
+      popularSubjects: Array.from(subjectsMap.entries())
+        .map(([subject, count]) => ({ subject, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10)
+    };
+  }
+
+  async getCareerTrends() {
+    const allRecs = await db.select().from(recommendations);
+    const careersMap = new Map<string, { careerId: string; careerTitle: string; count: number; totalScore: number }>();
+
+    for (const rec of allRecs) {
+      const career = await this.getCareerById(rec.careerId);
+      if (career) {
+        const existing = careersMap.get(rec.careerId);
+        if (existing) {
+          existing.count++;
+          existing.totalScore += rec.overallMatchScore;
+        } else {
+          careersMap.set(rec.careerId, {
+            careerId: rec.careerId,
+            careerTitle: career.title,
+            count: 1,
+            totalScore: rec.overallMatchScore
+          });
+        }
+      }
+    }
+
+    return Array.from(careersMap.values())
+      .map(({ careerId, careerTitle, count, totalScore }) => ({
+        careerId,
+        careerTitle,
+        recommendationCount: count,
+        avgMatchScore: totalScore / count
+      }))
+      .sort((a, b) => b.recommendationCount - a.recommendationCount)
+      .slice(0, 20);
+  }
+
+  async getSectorPipeline() {
+    const allCountries = await this.getAllCountries();
+    const allAssessments = await db.select().from(assessments).where(eq(assessments.isCompleted, true));
+    const allRecs = await db.select().from(recommendations);
+
+    const sectorsMap = new Map<string, { studentCount: number; totalAlignment: number; alignmentCount: number }>();
+
+    for (const country of allCountries) {
+      if (country.prioritySectors) {
+        for (const sector of country.prioritySectors) {
+          const countryAssessments = allAssessments.filter(a => a.countryId === country.id);
+          const countryRecs = allRecs.filter(rec => 
+            countryAssessments.some(a => a.id === rec.assessmentId)
+          );
+
+          const existing = sectorsMap.get(sector);
+          if (existing) {
+            existing.studentCount += countryAssessments.length;
+            for (const rec of countryRecs) {
+              existing.totalAlignment += rec.countryVisionAlignment;
+              existing.alignmentCount++;
+            }
+          } else {
+            let totalAlignment = 0;
+            for (const rec of countryRecs) {
+              totalAlignment += rec.countryVisionAlignment;
+            }
+            sectorsMap.set(sector, {
+              studentCount: countryAssessments.length,
+              totalAlignment,
+              alignmentCount: countryRecs.length
+            });
+          }
+        }
+      }
+    }
+
+    return Array.from(sectorsMap.entries())
+      .map(([sector, data]) => ({
+        sector,
+        studentCount: data.studentCount,
+        avgAlignment: data.alignmentCount > 0 ? data.totalAlignment / data.alignmentCount : 0
+      }))
+      .sort((a, b) => b.studentCount - a.studentCount);
   }
 }
 

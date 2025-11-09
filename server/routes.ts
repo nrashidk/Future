@@ -495,6 +495,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Analytics Endpoints
+  app.get("/api/analytics/overview", async (req, res) => {
+    try {
+      const analytics = await storage.getAnalyticsOverview();
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching analytics overview:", error);
+      res.status(500).json({ message: "Failed to fetch analytics overview" });
+    }
+  });
+
+  app.get("/api/analytics/country/:id", async (req, res) => {
+    try {
+      const analytics = await storage.getCountryAnalytics(req.params.id);
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching country analytics:", error);
+      res.status(500).json({ message: "Failed to fetch country analytics" });
+    }
+  });
+
+  app.get("/api/analytics/trends", async (req, res) => {
+    try {
+      const trends = await storage.getCareerTrends();
+      res.json(trends);
+    } catch (error) {
+      console.error("Error fetching career trends:", error);
+      res.status(500).json({ message: "Failed to fetch career trends" });
+    }
+  });
+
+  app.get("/api/analytics/sectors", async (req, res) => {
+    try {
+      const pipeline = await storage.getSectorPipeline();
+      res.json(pipeline);
+    } catch (error) {
+      console.error("Error fetching sector pipeline:", error);
+      res.status(500).json({ message: "Failed to fetch sector pipeline" });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
