@@ -48,6 +48,12 @@ app.use((req, res, next) => {
 
 (async () => {
   const server = await registerRoutes(app);
+  
+  // Seed database on startup (only in development)
+  if (app.get("env") === "development") {
+    const { seedDatabase } = await import("./seed");
+    await seedDatabase().catch(console.error);
+  }
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;

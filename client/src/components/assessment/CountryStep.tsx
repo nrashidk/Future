@@ -1,0 +1,120 @@
+import { useState, useEffect } from "react";
+import { StickyNote } from "@/components/StickyNote";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Globe2, Target, Eye } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+
+interface CountryStepProps {
+  data: any;
+  onUpdate: (field: string, value: any) => void;
+  onNext: () => void;
+}
+
+export function CountryStep({ data, onUpdate, onNext }: CountryStepProps) {
+  const [selectedCountryId, setSelectedCountryId] = useState(data.countryId || "");
+
+  const { data: countries = [] } = useQuery<any[]>({
+    queryKey: ["/api/countries"],
+  });
+
+  const { data: countryDetails } = useQuery<any>({
+    queryKey: ["/api/countries", selectedCountryId],
+    enabled: !!selectedCountryId,
+  });
+
+  const handleCountryChange = (countryId: string) => {
+    setSelectedCountryId(countryId);
+    onUpdate("countryId", countryId);
+  };
+
+  const canProceed = !!selectedCountryId;
+
+  return (
+    <div className="space-y-8 animate-in fade-in duration-500">
+      <div className="text-center mb-8">
+        <h2 className="text-4xl font-bold mb-3">Where Are You From? 🌍</h2>
+        <p className="text-lg text-muted-foreground font-body">
+          We'll align your career path with your country's vision and opportunities
+        </p>
+      </div>
+
+      <StickyNote color="blue" rotation="1" className="max-w-2xl mx-auto">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+            <Globe2 className="w-6 h-6 text-primary" />
+          </div>
+          <h3 className="text-xl font-semibold">Select Your Country</h3>
+        </div>
+        <Select value={selectedCountryId} onValueChange={handleCountryChange}>
+          <SelectTrigger className="bg-background/50 border-foreground/20 text-lg" data-testid="select-country">
+            <SelectValue placeholder="Choose your country" />
+          </SelectTrigger>
+          <SelectContent>
+            {countries.map((country: any) => (
+              <SelectItem key={country.id} value={country.id}>
+                {country.flag} {country.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </StickyNote>
+
+      {countryDetails && (
+        <div className="space-y-6 max-w-2xl mx-auto animate-in fade-in duration-500">
+          <StickyNote color="yellow" rotation="-1">
+            <div className="flex items-start gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <Target className="w-5 h-5 text-primary" />
+              </div>
+              <h4 className="text-lg font-bold">National Mission</h4>
+            </div>
+            <p className="font-body text-foreground/90 leading-relaxed">
+              {countryDetails.mission}
+            </p>
+          </StickyNote>
+
+          <StickyNote color="pink" rotation="2">
+            <div className="flex items-start gap-3 mb-3">
+              <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <Eye className="w-5 h-5 text-primary" />
+              </div>
+              <h4 className="text-lg font-bold">National Vision</h4>
+            </div>
+            <p className="font-body text-foreground/90 leading-relaxed">
+              {countryDetails.vision}
+            </p>
+          </StickyNote>
+
+          {countryDetails.prioritySectors && countryDetails.prioritySectors.length > 0 && (
+            <StickyNote color="green" rotation="-2">
+              <h4 className="text-lg font-bold mb-3">Priority Sectors</h4>
+              <div className="flex flex-wrap gap-2">
+                {countryDetails.prioritySectors.map((sector: string, index: number) => (
+                  <span
+                    key={index}
+                    className="bg-primary/10 px-3 py-1 rounded-full text-sm font-medium font-body"
+                  >
+                    {sector}
+                  </span>
+                ))}
+              </div>
+            </StickyNote>
+          )}
+        </div>
+      )}
+
+      <div className="flex justify-center pt-8">
+        <Button
+          size="lg"
+          onClick={onNext}
+          disabled={!canProceed}
+          className="px-12 py-6 text-lg rounded-full shadow-lg"
+          data-testid="button-next-country"
+        >
+          Continue →
+        </Button>
+      </div>
+    </div>
+  );
+}

@@ -75,6 +75,11 @@ export default {
           foreground: "hsl(var(--sidebar-accent-foreground) / <alpha-value>)",
           border: "var(--sidebar-accent-border)"
         },
+        "sticky-yellow": "hsl(var(--sticky-yellow) / <alpha-value>)",
+        "sticky-pink": "hsl(var(--sticky-pink) / <alpha-value>)",
+        "sticky-blue": "hsl(var(--sticky-blue) / <alpha-value>)",
+        "sticky-green": "hsl(var(--sticky-green) / <alpha-value>)",
+        "sticky-purple": "hsl(var(--sticky-purple) / <alpha-value>)",
         status: {
           online: "rgb(34 197 94)",
           away: "rgb(245 158 11)",
@@ -86,6 +91,13 @@ export default {
         sans: ["var(--font-sans)"],
         serif: ["var(--font-serif)"],
         mono: ["var(--font-mono)"],
+        body: ["var(--font-body)"],
+      },
+      rotate: {
+        '1': '1deg',
+        '2': '2deg',
+        '-1': '-1deg',
+        '-2': '-2deg',
       },
       keyframes: {
         "accordion-down": {

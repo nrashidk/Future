@@ -26,7 +26,7 @@
   --popover: 210 6% 91%;
   --popover-foreground: 215 25% 18%;
   --popover-border: 210 6% 85%;
-  --primary: 260 65% 45%;
+  --primary: 260 65% 55%;
   --primary-foreground: 0 0% 98%;
   --secondary: 210 8% 83%;
   --secondary-foreground: 215 25% 20%;
@@ -34,6 +34,11 @@
   --muted-foreground: 215 18% 35%;
   --accent: 35 85% 88%;
   --accent-foreground: 215 25% 20%;
+  --sticky-yellow: 48 100% 88%;
+  --sticky-pink: 340 100% 95%;
+  --sticky-blue: 207 100% 94%;
+  --sticky-green: 120 60% 95%;
+  --sticky-purple: 280 60% 96%;
   --destructive: 0 72% 48%;
   --destructive-foreground: 0 0% 98%;
   --input: 210 15% 70%;
@@ -43,9 +48,10 @@
   --chart-3: 35 85% 50%;
   --chart-4: 280 60% 48%;
   --chart-5: 150 55% 42%;
-  --font-sans: Open Sans, sans-serif;
-  --font-serif: Georgia, serif;
+  --font-sans: Poppins, sans-serif;
+  --font-serif: Poppins, sans-serif;
   --font-mono: Menlo, monospace;
+  --font-body: Inter, sans-serif;
   --radius: .5rem;
   --shadow-2xs: 0px 2px 0px 0px hsl(210 6% 20% / 0.02);
   --shadow-xs: 0px 2px 0px 0px hsl(210 6% 20% / 0.03);
@@ -110,7 +116,7 @@
   --popover: 215 18% 14%;
   --popover-foreground: 210 6% 92%;
   --popover-border: 215 18% 20%;
-  --primary: 260 65% 50%;
+  --primary: 260 65% 58%;
   --primary-foreground: 0 0% 98%;
   --secondary: 215 18% 18%;
   --secondary-foreground: 210 6% 92%;
@@ -118,6 +124,11 @@
   --muted-foreground: 210 6% 65%;
   --accent: 35 75% 20%;
   --accent-foreground: 35 85% 92%;
+  --sticky-yellow: 48 100% 25%;
+  --sticky-pink: 340 60% 25%;
+  --sticky-blue: 207 60% 25%;
+  --sticky-green: 120 40% 25%;
+  --sticky-purple: 280 40% 25%;
   --destructive: 0 72% 48%;
   --destructive-foreground: 0 0% 98%;
   --input: 215 18% 35%;
