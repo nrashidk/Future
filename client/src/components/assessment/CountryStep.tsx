@@ -28,7 +28,7 @@ export function CountryStep({ data, onUpdate, onNext }: CountryStepProps) {
     checkMobile();
   }, []);
 
-  const { data: countries = [] } = useQuery<any[]>({
+  const { data: countries = [], isLoading: countriesLoading } = useQuery<any[]>({
     queryKey: ["/api/countries"],
   });
 
@@ -44,6 +44,19 @@ export function CountryStep({ data, onUpdate, onNext }: CountryStepProps) {
   };
 
   const canProceed = !!selectedCountryId;
+
+  if (countriesLoading) {
+    return (
+      <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="text-center mb-8">
+          <h2 className="text-4xl font-bold mb-3">Where Are You From? 🌍</h2>
+          <p className="text-lg text-muted-foreground font-body">
+            Loading countries...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -71,7 +84,7 @@ export function CountryStep({ data, onUpdate, onNext }: CountryStepProps) {
             <option value="">Choose your country</option>
             {countries.map((country: any) => (
               <option key={country.id} value={country.id}>
-                {country.flag} {country.name}
+                {country.name}
               </option>
             ))}
           </select>
