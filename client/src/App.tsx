@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import Landing from "@/pages/Landing";
 import Assessment from "@/pages/Assessment";
 import Results from "@/pages/Results";
+import Analytics from "@/pages/Analytics";
 import AuthCallback from "@/pages/AuthCallback";
 import NotFound from "@/pages/not-found";
 
@@ -18,6 +19,7 @@ function Router() {
       <Route path="/" component={Landing} />
       <Route path="/assessment" component={Assessment} />
       <Route path="/results" component={Results} />
+      <Route path="/analytics" component={Analytics} />
       <Route path="/auth/callback" component={AuthCallback} />
       <Route component={NotFound} />
     </Switch>
