@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Future Pathways - Career Guidance System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.95;
+        }
+
+        .progress-bar {
+            background: rgba(255,255,255,0.2);
+            height: 10px;
+            border-radius: 5px;
+            margin-top: 20px;
+            overflow: hidden;
+        }
+
+        .progress {
+            background: white;
+            height: 100%;
+            border-radius: 5px;
+            transition: width 0.3s ease;
+            width: 14%;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .section {
+            display: none;
+            animation: fadeIn 0.5s;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .section h2 {
+            color: #667eea;
+            margin-bottom: 25px;
+            font-size: 2em;
+        }
+
+        .form-group {
+            margin-bottom: 25px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 500;
+            font-size: 1.05em;
+        }
+
+        .form-group input[type="text"],
+        .form-group input[type="number"],
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .checkbox-item:hover {
+            background: #e8e8e8;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            margin-right: 8px;
+            cursor: pointer;
+            width: 18px;
+            height: 18px;
+        }
+
+        .checkbox-item label {
+            cursor: pointer;
+            margin: 0;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            font-size: 1.1em;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: transform 0.3s, box-shadow 0.3s;
+            margin-right: 10px;
+            margin-top: 20px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .results-container {
+            background: #f9f9f9;
+            border-radius: 12px;
+            padding: 30px;
+            margin-top: 30px;
+        }
+
+        .result-category {
+            margin-bottom: 30px;
+        }
+
+        .result-category h3 {
+            color: #764ba2;
+            margin-bottom: 15px;
+            font-size: 1.4em;
+        }
+
+        .result-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            border-left: 4px solid #667eea;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .result-item strong {
+            color: #667eea;
+            display: block;
+            margin-bottom: 5px;
+        }
+
+        .quiz-question {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .quiz-question h4 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.2em;
+        }
+
+        .quiz-options {
+            display: grid;
+            gap: 10px;
+        }
+
+        .quiz-option {
+            background: white;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .quiz-option:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .quiz-option input[type="radio"] {
+            margin-right: 10px;
+        }
+
+        .country-data {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+
+        .country-data h4 {
+            color: #856404;
+            margin-bottom: 10px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+            font-size: 1.2em;
+        }
+
+        .final-recommendations {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 12px;
+            margin-top: 30px;
+        }
+
+        .final-recommendations h3 {
+            font-size: 1.8em;
+            margin-bottom: 20px;
+        }
+
+        .recommendation-card {
+            background: rgba(255,255,255,0.95);
+            color: #333;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .recommendation-card h4 {
+            color: #f5576c;
+            margin-bottom: 10px;
+            font-size: 1.3em;
+        }
+
+        .match-score {
+            background: #4caf50;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            display: inline-block;
+            margin-left: 10px;
+        }
+
+        @media (max-width: 768px) {
+            .checkbox-group {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 1.8em;
+            }
+            
+            .content {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Future Pathways</h1>
+            <p>Your Personalized Career Guidance System</p>
+            <div class="progress-bar">
+                <div class="progress" id="progressBar"></div>
+            </div>
+        </div>
+
+        <div class="content">
+            <!-- Section 1: Demographics -->
+            <div class="section active" id="section1">
+                <h2>📋 Basic Information</h2>
+                <div class="form-group">
+                    <label for="name">Your Name</label>
+                    <input type="text" id="name" placeholder="Enter your full name">
+                </div>
+                <div class="form-group">
+                    <label for="age">Age</label>
+                    <input type="number" id="age" min="13" max="25" placeholder="Enter your age">
+                </div>
+                <div class="form-group">
+                    <label for="grade">Current Grade/Year</label>
+                    <select id="grade">
+                        <option value="">Select your grade</option>
+                        <option value="grade9">Grade 9</option>
+                        <option value="grade10">Grade 10</option>
+                        <option value="grade11">Grade 11</option>
+                        <option value="grade12">Grade 12</option>
+                        <option value="graduated">Recently Graduated</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="gender">Gender</label>
+                    <select id="gender">
+                        <option value="">Select gender</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                        <option value="other">Other</option>
+                        <option value="prefer-not">Prefer not to say</option>
+                    </select>
+                </div>
+                <button class="btn" onclick="nextSection()">Next →</button>
+            </div>
+
+            <!-- Section 2: Favorite Subjects -->
+            <div class="section" id="section2">
+                <h2>📚 Your Favorite Subjects</h2>
+                <p style="margin-bottom: 20px; color: #666;">Select all subjects you enjoy (you can choose multiple)</p>
+                <div class="checkbox-group">
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="math" value="Mathematics">
+                        <label for="math">Mathematics</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="physics" value="Physics">
+                        <label for="physics">Physics</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="chemistry" value="Chemistry">
+                        <label for="chemistry">Chemistry</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="biology" value="Biology">
+                        <label for="biology">Biology</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="computer" value="Computer Science">
+                        <label for="computer">Computer Science/IT</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="english" value="English">
+                        <label for="english">English/Literature</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="history" value="History">
+                        <label for="history">History</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="geography" value="Geography">
+                        <label for="geography">Geography</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="economics" value="Economics">
+                        <label for="economics">Economics</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="business" value="Business">
+                        <label for="business">Business Studies</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="art" value="Art">
+                        <label for="art">Art & Design</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="music" value="Music">
+                        <label for="music">Music</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="psychology" value="Psychology">
+                        <label for="psychology">Psychology</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="philosophy" value="Philosophy">
+                        <label for="philosophy">Philosophy</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="language" value="Foreign Languages">
+                        <label for="language">Foreign Languages</label>
+                    </div>
+                </div>
+                <button class="btn btn-secondary" onclick="previousSection()">← Previous</button>
+                <button class="btn" onclick="nextSection()">Next →</button>
+            </div>
+
+            <!-- Section 3: Hobbies and Interests -->
+            <div class="section" id="section3">
+                <h2>🎨 Hobbies & Interests</h2>
+                <p style="margin-bottom: 20px; color: #666;">What do you enjoy doing in your free time?</p>
+                <div class="checkbox-group">
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="coding" value="Coding/Programming">
+                        <label for="coding">Coding/Programming</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="gaming" value="Gaming">
+                        <label for="gaming">Gaming</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="reading" value="Reading">
+                        <label for="reading">Reading</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="writing" value="Writing">
+                        <label for="writing">Writing/Blogging</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="sports" value="Sports">
+                        <label for="sports">Sports/Fitness</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="photography" value="Photography">
+                        <label for="photography">Photography</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="video" value="Video Production">
+                        <label for="video">Video Production</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="cooking" value="Cooking">
+                        <label for="cooking">Cooking/Baking</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="travel" value="Travel">
+                        <label for="travel">Travel/Exploring</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="volunteer" value="Volunteering">
+                        <label for="volunteer">Volunteering</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="entrepreneurship" value="Entrepreneurship">
+                        <label for="entrepreneurship">Entrepreneurship</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="robotics" value="Robotics">
+                        <label for="robotics">Robotics/Electronics</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="debate" value="Debate">
+                        <label for="debate">Debate/Public Speaking</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="research" value="Research">
+                        <label for="research">Research/Experiments</label>
+                    </div>
+                    <div class="checkbox-item">
+                        <input type="checkbox" id="social" value="Social Media">
+                        <label for="social">Social Media/Content Creation</label>
+                    </div>
+                </div>
+                <button class="btn btn-secondary" onclick="previousSection()">← Previous</button>
+                <button class="btn" onclick="nextSection()">Next →</button>
+            </div>
+
+            <!-- Section 4: Country & National Priorities -->
+            <div class="section" id="section4">
+                <h2>🌍 Country & National Vision</h2>
+                <div class="form-group">
+                    <label for="country">Your Country</label>
+                    <select id="country" onchange="updateCountryInfo()">
+                        <option value="">Select your country</option>
+                        <option value="uae">United Arab Emirates</option>
+                        <option value="saudi">Saudi Arabia</option>
+                        <option value="egypt">Egypt</option>
+                        <option value="india">India</option>
+                        <option value="usa">United States</option>
+                        <option value="uk">United Kingdom</option>
+                        <option value="singapore">Singapore</option>
+                        <option value="canada">Canada</option>
+                        <option value="australia">Australia</option>
+                        <option value="germany">Germany</option>
+                        <option value="japan">Japan</option>
+                        <option value="china">China</option>
+                        <option value="brazil">Brazil</option>
+                        <option value="nigeria">Nigeria</option>
+                        <option value="kenya">Kenya</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div id="countryInfo" class="country-data" style="display: none;">
+                    <h4>National Priority Areas</h4>
+                    <div id="countryPriorities"></div>
+                </div>
+                <div class="form-group">
+                    <label for="futureGoals">Where do you see yourself in 5-10 years?</label>
+                    <textarea id="futureGoals" rows="4" placeholder="Describe your career aspirations and life goals..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="contribution">How would you like to contribute to your country's development?</label>
+                    <textarea id="contribution" rows="4" placeholder="What role do you want to play in your nation's progress?"></textarea>
+                </div>
+                <button class="btn btn-secondary" onclick="previousSection()">← Previous</button>
+                <button class="btn" onclick="nextSection()">Next →</button>
+            </div>
+
+            <!-- Section 5: Global Trends & Future Skills -->
+            <div class="section" id="section5">
+                <h2>🚀 Future Skills & Global Trends</h2>
+                <p style="margin-bottom: 20px; color: #666;">Understanding the skills of tomorrow</p>
+                
+                <div class="form-group">
+                    <label>Which emerging fields interest you most?</label>
+                    <div class="checkbox-group">
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="ai" value="Artificial Intelligence">
+                            <label for="ai">Artificial Intelligence & ML</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="renewable" value="Renewable Energy">
+                            <label for="renewable">Renewable Energy</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="biotech" value="Biotechnology">
+                            <label for="biotech">Biotechnology</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="space" value="Space Technology">
+                            <label for="space">Space Technology</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="cyber" value="Cybersecurity">
+                            <label for="cyber">Cybersecurity</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="blockchain" value="Blockchain">
+                            <label for="blockchain">Blockchain & Crypto</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="quantum" value="Quantum Computing">
+                            <label for="quantum">Quantum Computing</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="nanotech" value="Nanotechnology">
+                            <label for="nanotech">Nanotechnology</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="vr" value="Virtual Reality">
+                            <label for="vr">VR/AR/Metaverse</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="sustainability" value="Sustainability">
+                            <label for="sustainability">Sustainability</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="health" value="Digital Health">
+                            <label for="health">Digital Health</label>
+                        </div>
+                        <div class="checkbox-item">
+                            <input type="checkbox" id="fintech" value="Fintech">
+                            <label for="fintech">Fintech</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="adaptability">How comfortable are you with continuous learning and adapting to new technologies?</label>
+                    <select id="adaptability">
+                        <option value="">Select your comfort level</option>
+                        <option value="very">Very comfortable - I love learning new things</option>
+                        <option value="comfortable">Comfortable - I can adapt when needed</option>
+                        <option value="neutral">Neutral - Depends on the situation</option>
+                        <option value="uncomfortable">Somewhat uncomfortable - I prefer stability</option>
+                    </select>
+                </div>
+
+                <button class="btn btn-secondary" onclick="previousSection()">← Previous</button>
+                <button class="btn" onclick="generateInitialResults()">Generate Recommendations →</button>
+            </div>
+
+            <!-- Section 6: Initial Results -->
+            <div class="section" id="section6">
+                <h2>📊 Your Personalized Career Insights</h2>
+                <div id="initialResults" class="results-container">
+                    <div class="loading">Analyzing your profile...</div>
+                </div>
+                <button class="btn btn-secondary" onclick="previousSection()">← Previous</button>
+                <button class="btn" onclick="nextSection()">Proceed to Academic Assessment →</button>
+            </div>
+
+            <!-- Section 7: Comprehensive Subject Quiz -->
+            <div class="section" id="section7">
+                <h2>📝 Academic Assessment Quiz</h2>
+                <p style="margin-bottom: 20px; color: #666;">This comprehensive quiz will help us better understand your academic strengths</p>
+                
+                <div id="quizContainer">
+                    <!-- Quiz questions will be dynamically loaded here -->
+                </div>
+
+                <button class="btn btn-secondary" onclick="previousSection()">← Previous</button>
+                <button class="btn" onclick="submitQuiz()">Submit Quiz & Get Final Recommendations</button>
+            </div>
+
+            <!-- Section 8: Final Recommendations -->
+            <div class="section" id="section8">
+                <h2>🎯 Your Final Study Path Recommendations</h2>
+                <div id="finalResults" class="final-recommendations">
+                    <div class="loading">Calculating your best matches...</div>
+                </div>
+                <button class="btn btn-secondary" onclick="restartAssessment()">Start New Assessment</button>
+                <button class="btn" onclick="downloadResults()">Download Results (PDF)</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentSection = 1;
+        let totalSections = 8;
+        let userData = {
+            demographics: {},
+            favoriteSubjects: [],
+            hobbies: [],
+            country: {},
+            futureFields: [],
+            quizResponses: {}
+        };
+
+        // Country-specific data
+        const countryData = {
+            uae: {
+                name: "United Arab Emirates",
+                priorities: ["AI & Digital Transformation", "Space Exploration", "Renewable Energy", "Tourism & Hospitality", "Financial Services", "Healthcare Innovation", "Smart Cities"],
+                vision: "UAE Vision 2071 - Becoming the world's best country by 2071"
+            },
+            saudi: {
+                name: "Saudi Arabia",
+                priorities: ["NEOM & Smart Cities", "Tourism Development", "Renewable Energy", "Technology & AI", "Entertainment Industry", "Healthcare", "Education Reform"],
+                vision: "Saudi Vision 2030 - Economic diversification and social transformation"
+            },
+            egypt: {
+                name: "Egypt",
+                priorities: ["Tourism & Heritage", "Agriculture Technology", "Renewable Energy", "Manufacturing", "IT Services", "Healthcare", "Education"],
+                vision: "Egypt Vision 2030 - Sustainable development and economic growth"
+            },
+            india: {
+                name: "India",
+                priorities: ["Digital India", "Make in India", "Space Technology", "Renewable Energy", "Healthcare", "Education", "Agriculture Technology"],
+                vision: "India 2047 - Developed nation status by 100th independence anniversary"
+            },
+            usa: {
+                name: "United States",
+                priorities: ["AI & Technology Leadership", "Climate Technology", "Biotechnology", "Space Exploration", "Cybersecurity", "Advanced Manufacturing", "Healthcare Innovation"],
+                vision: "Innovation leadership and technological advancement"
+            },
+            singapore: {
+                name: "Singapore",
+                priorities: ["Fintech Hub", "Biotechnology", "Smart Nation", "Green Technology", "Education Hub", "Logistics & Trade", "Urban Solutions"],
+                vision: "Smart Nation 2030 - Leading digital economy"
+            }
+        };
+
+        // Quiz questions database
+        const quizQuestions = {
+            mathematics: [
+                {
+                    question: "Solve: If f(x) = 2x² + 3x - 5, what is f'(x)?",
+                    options: ["4x + 3", "2x + 3", "4x² + 3", "x² + 3x"],
+                    correct: 0,
+                    difficulty: "hard"
+                },
+                {
+                    question: "What is the sum of angles in a hexagon?",
+                    options: ["540°", "720°", "900°", "1080°"],
+                    correct: 1,
+                    difficulty: "medium"
+                },
+                {
+                    question: "Simplify: (3x² + 2x - 1) + (x² - 3x + 4)",
+                    options: ["4x² - x + 3", "4x² + 5x + 3", "3x² - x + 3", "4x² - x + 5"],
+                    correct: 0,
+                    difficulty: "easy"
+                }
+            ],
+            physics: [
+                {
+                    question: "What is the SI unit of electric current?",
+                    options: ["Volt", "Ampere", "Ohm", "Watt"],
+                    correct: 1,
+                    difficulty: "easy"
+                },
+                {
+                    question: "If a car accelerates from 0 to 60 km/h in 5 seconds, what is its acceleration?",
+                    options: ["12 m/s²", "3.33 m/s²", "12 km/h²", "5 m/s²"],
+                    correct: 1,
+                    difficulty: "medium"
+                },
+                {
+                    question: "What phenomenon explains why the sky appears blue?",
+                    options: ["Reflection", "Refraction", "Rayleigh scattering", "Diffraction"],
+                    correct: 2,
+                    difficulty: "hard"
+                }
+            ],
+            chemistry: [
+                {
+                    question: "What is the chemical formula for sulfuric acid?",
+                    options: ["HCl", "H₂SO₄", "HNO₃", "H₃PO₄"],
+                    correct: 1,
+                    difficulty: "easy"
+                },
+                {
+                    question: "Which type of bond involves the sharing of electron pairs?",
+                    options: ["Ionic bond", "Covalent bond", "Metallic bond", "Hydrogen bond"],
+                    correct: 1,
+                    difficulty: "medium"
+                },
+                {
+                    question: "What is the oxidation state of Mn in KMnO₄?",
+                    options: ["+4", "+5", "+6", "+7"],
+                    correct: 3,
+                    difficulty: "hard"
+                }
+            ],
+            biology: [
+                {
+                    question: "What is the powerhouse of the cell?",
+                    options: ["Nucleus", "Mitochondria", "Ribosome", "Golgi apparatus"],
+                    correct: 1,
+                    difficulty: "easy"
+                },
+                {
+                    question: "Which process converts glucose into ATP in the absence of oxygen?",
+                    options: ["Aerobic respiration", "Fermentation", "Photosynthesis", "Calvin cycle"],
+                    correct: 1,
+                    difficulty: "medium"
+                },
+                {
+                    question: "What type of RNA carries amino acids to the ribosome?",
+                    options: ["mRNA", "tRNA", "rRNA", "siRNA"],
+                    correct: 1,
+                    difficulty: "hard"
+                }
+            ],
+            computerScience: [
+                {
+                    question: "What does HTML stand for?",
+                    options: ["Hyper Text Markup Language", "High Tech Modern Language", "Home Tool Markup Language", "Hyperlinks and Text Markup Language"],
+                    correct: 0,
+                    difficulty: "easy"
+                },
+                {
+                    question: "What is the time complexity of binary search?",
+                    options: ["O(n)", "O(log n)", "O(n²)", "O(1)"],
+                    correct: 1,
+                    difficulty: "medium"
+                },
+                {
+                    question: "Which sorting algorithm has the best average case time complexity?",
+                    options: ["Bubble Sort", "Quick Sort", "Merge Sort", "Selection Sort"],
+                    correct: 2,
+                    difficulty: "hard"
+                }
+            ]
+        };
+
+        function nextSection() {
+            if (validateCurrentSection()) {
+                saveCurrentSectionData();
+                currentSection++;
+                showSection(currentSection);
+                updateProgressBar();
+            }
+        }
+
+        function previousSection() {
+            currentSection--;
+            showSection(currentSection);
+            updateProgressBar();
+        }
+
+        function showSection(sectionNumber) {
+            document.querySelectorAll('.section').forEach(section => {
+                section.classList.remove('active');
+            });
+            document.getElementById(`section${sectionNumber}`).classList.add('active');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function updateProgressBar() {
+            const progress = (currentSection / totalSections) * 100;
+            document.getElementById('progressBar').style.width = progress + '%';
+        }
+
+        function validateCurrentSection() {
+            switch(currentSection) {
+                case 1:
+                    const name = document.getElementById('name').value;
+                    const age = document.getElementById('age').value;
+                    const grade = document.getElementById('grade').value;
+                    if (!name || !age || !grade) {
+                        alert('Please fill in all required fields');
+                        return false;
+                    }
+                    break;
+                case 2:
+                    const subjects = document.querySelectorAll('#section2 input[type="checkbox"]:checked');
+                    if (subjects.length === 0) {
+                        alert('Please select at least one favorite subject');
+                        return false;
+                    }
+                    break;
+                case 3:
+                    const hobbies = document.querySelectorAll('#section3 input[type="checkbox"]:checked');
+                    if (hobbies.length === 0) {
+                        alert('Please select at least one hobby or interest');
+                        return false;
+                    }
+                    break;
+                case 4:
+                    const country = document.getElementById('country').value;
+                    if (!country) {
+                        alert('Please select your country');
+                        return false;
+                    }
+                    break;
+            }
+            return true;
+        }
+
+        function saveCurrentSectionData() {
+            switch(currentSection) {
+                case 1:
+                    userData.demographics = {
+                        name: document.getElementById('name').value,
+                        age: document.getElementById('age').value,
+                        grade: document.getElementById('grade').value,
+                        gender: document.getElementById('gender').value
+                    };
+                    break;
+                case 2:
+                    userData.favoriteSubjects = Array.from(
+                        document.querySelectorAll('#section2 input[type="checkbox"]:checked')
+                    ).map(cb => cb.value);
+                    break;
+                case 3:
+                    userData.hobbies = Array.from(
+                        document.querySelectorAll('#section3 input[type="checkbox"]:checked')
+                    ).map(cb => cb.value);
+                    break;
+                case 4:
+                    userData.country = {
+                        code: document.getElementById('country').value,
+                        futureGoals: document.getElementById('futureGoals').value,
+                        contribution: document.getElementById('contribution').value
+                    };
+                    break;
+                case 5:
+                    userData.futureFields = Array.from(
+                        document.querySelectorAll('#section5 input[type="checkbox"]:checked')
+                    ).map(cb => cb.value);
+                    userData.adaptability = document.getElementById('adaptability').value;
+                    break;
+            }
+        }
+
+        function updateCountryInfo() {
+            const countrySelect = document.getElementById('country');
+            const countryInfo = document.getElementById('countryInfo');
+            const countryPriorities = document.getElementById('countryPriorities');
+            
+            if (countrySelect.value && countryData[countrySelect.value]) {
+                const data = countryData[countrySelect.value];
+                countryInfo.style.display = 'block';
+                countryPriorities.innerHTML = `
+                    <p><strong>Vision:</strong> ${data.vision}</p>
+                    <p><strong>Priority Sectors:</strong></p>
+                    <ul>
+                        ${data.priorities.map(p => `<li>${p}</li>`).join('')}
+                    </ul>
+                `;
+            } else {
+                countryInfo.style.display = 'none';
+            }
+        }
+
+        function generateInitialResults() {
+            if (!validateCurrentSection()) return;
+            saveCurrentSectionData();
+            
+            currentSection++;
+            showSection(currentSection);
+            updateProgressBar();
+            
+            // Simulate analysis and generate results
+            setTimeout(() => {
+                const resultsDiv = document.getElementById('initialResults');
+                
+                // Generate personalized recommendations based on user data
+                const skills = generateSkillRecommendations();
+                const jobs = generateJobRecommendations();
+                
+                resultsDiv.innerHTML = `
+                    <div class="result-category">
+                        <h3>🎯 Top Skills Aligned with Your Profile & Country Vision</h3>
+                        ${skills.map(skill => `
+                            <div class="result-item">
+                                <strong>${skill.name}</strong>
+                                <p>${skill.description}</p>
+                                <small>Alignment Score: ${skill.score}%</small>
+                            </div>
+                        `).join('')}
+                    </div>
+                    
+                    <div class="result-category">
+                        <h3>💼 Recommended Career Paths</h3>
+                        ${jobs.map(job => `
+                            <div class="result-item">
+                                <strong>${job.title}</strong>
+                                <p>${job.description}</p>
+                                <small>Growth Potential: ${job.growth}</small>
+                            </div>
+                        `).join('')}
+                    </div>
+                    
+                    <div class="result-category">
+                        <h3>🌍 Alignment with National Priorities</h3>
+                        <p>Your interests align particularly well with these national development areas:</p>
+                        ${generateNationalAlignment()}
+                    </div>
+                `;
+            }, 2000);
+        }
+
+        function generateSkillRecommendations() {
+            // This would use complex algorithms in a real application
+            const allSkills = [
+                { name: "Data Analysis & AI", description: "Machine learning, data science, and artificial intelligence", score: 95 },
+                { name: "Sustainable Engineering", description: "Green technology and renewable energy systems", score: 88 },
+                { name: "Digital Marketing", description: "Social media, SEO, and content strategy", score: 82 },
+                { name: "Cybersecurity", description: "Network security and ethical hacking", score: 90 },
+                { name: "Biotechnology", description: "Genetic engineering and pharmaceutical research", score: 85 },
+                { name: "Robotics & Automation", description: "Industrial automation and robotics programming", score: 87 },
+                { name: "Cloud Computing", description: "AWS, Azure, and cloud architecture", score: 91 },
+                { name: "UX/UI Design", description: "User experience and interface design", score: 79 }
+            ];
+            
+            // Return top 5-8 skills based on user profile
+            return allSkills.slice(0, Math.min(8, allSkills.length));
+        }
+
+        function generateJobRecommendations() {
+            // This would use complex algorithms in a real application
+            const jobs = [
+                { title: "AI Research Scientist", description: "Develop cutting-edge AI algorithms and models", growth: "Very High" },
+                { title: "Renewable Energy Engineer", description: "Design and implement sustainable energy solutions", growth: "High" },
+                { title: "Cybersecurity Analyst", description: "Protect organizations from digital threats", growth: "Very High" },
+                { title: "Biomedical Engineer", description: "Create medical devices and treatments", growth: "High" },
+                { title: "Data Scientist", description: "Extract insights from complex datasets", growth: "Very High" },
+                { title: "Robotics Engineer", description: "Design and program autonomous systems", growth: "High" },
+                { title: "Cloud Solutions Architect", description: "Design scalable cloud infrastructure", growth: "Very High" },
+                { title: "Sustainability Consultant", description: "Help organizations achieve environmental goals", growth: "High" }
+            ];
+            
+            return jobs.slice(0, Math.min(8, jobs.length));
+        }
+
+        function generateNationalAlignment() {
+            const country = userData.country.code;
+            if (countryData[country]) {
+                const priorities = countryData[country].priorities.slice(0, 3);
+                return `<ul>${priorities.map(p => `<li><strong>${p}</strong> - Excellent opportunity for growth</li>`).join('')}</ul>`;
+            }
+            return "<p>Your skills align well with global development priorities</p>";
+        }
+
+        function loadQuizQuestions() {
+            const quizContainer = document.getElementById('quizContainer');
+            let html = '';
+            let questionNumber = 1;
+            
+            // Load questions from each subject
+            Object.keys(quizQuestions).forEach(subject => {
+                html += `<h3 style="color: #667eea; margin-top: 30px;">${subject.charAt(0).toUpperCase() + subject.slice(1).replace(/([A-Z])/g, ' $1')}</h3>`;
+                
+                quizQuestions[subject].forEach((q, index) => {
+                    html += `
+                        <div class="quiz-question">
+                            <h4>Question ${questionNumber}: ${q.question}</h4>
+                            <div class="quiz-options">
+                                ${q.options.map((option, optIndex) => `
+                                    <label class="quiz-option">
+                                        <input type="radio" name="q${subject}${index}" value="${optIndex}">
+                                        ${option}
+                                    </label>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                    questionNumber++;
+                });
+            });
+            
+            quizContainer.innerHTML = html;
+        }
+
+        // Load quiz questions when page loads
+        window.addEventListener('DOMContentLoaded', () => {
+            loadQuizQuestions();
+        });
+
+        function submitQuiz() {
+            // Collect quiz responses
+            const quizResponses = {};
+            Object.keys(quizQuestions).forEach(subject => {
+                quizResponses[subject] = [];
+                quizQuestions[subject].forEach((q, index) => {
+                    const selectedOption = document.querySelector(`input[name="q${subject}${index}"]:checked`);
+                    if (selectedOption) {
+                        quizResponses[subject].push({
+                            question: index,
+                            answer: parseInt(selectedOption.value),
+                            correct: q.correct === parseInt(selectedOption.value)
+                        });
+                    }
+                });
+            });
+            
+            userData.quizResponses = quizResponses;
+            
+            // Calculate scores and generate final recommendations
+            currentSection++;
+            showSection(currentSection);
+            updateProgressBar();
+            
+            generateFinalRecommendations();
+        }
+
+        function generateFinalRecommendations() {
+            setTimeout(() => {
+                const scores = calculateSubjectScores();
+                const recommendations = generateStudyRecommendations(scores);
+                
+                const finalResultsDiv = document.getElementById('finalResults');
+                finalResultsDiv.innerHTML = `
+                    <h3>🎓 Your Personalized University Major Recommendations</h3>
+                    <p style="margin-bottom: 20px;">Based on your comprehensive assessment, here are your top major recommendations:</p>
+                    
+                    ${recommendations.map((rec, index) => `
+                        <div class="recommendation-card">
+                            <h4>
+                                ${index + 1}. ${rec.major}
+                                <span class="match-score">${rec.matchScore}% Match</span>
+                            </h4>
+                            <p><strong>Why this major?</strong> ${rec.reason}</p>
+                            <p><strong>Career Prospects:</strong> ${rec.careers.join(', ')}</p>
+                            <p><strong>Key Universities:</strong> ${rec.universities.join(', ')}</p>
+                            <p><strong>National Alignment:</strong> ${rec.nationalAlignment}</p>
+                        </div>
+                    `).join('')}
+                    
+                    <div style="background: white; padding: 20px; border-radius: 10px; margin-top: 30px;">
+                        <h4 style="color: #667eea;">📊 Your Subject Strength Analysis</h4>
+                        ${Object.entries(scores).map(([subject, score]) => `
+                            <div style="margin: 10px 0;">
+                                <strong>${subject}:</strong>
+                                <div style="background: #e0e0e0; height: 20px; border-radius: 10px; overflow: hidden;">
+                                    <div style="background: linear-gradient(to right, #667eea, #764ba2); width: ${score}%; height: 100%;"></div>
+                                </div>
+                                <small>${score}% proficiency</small>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }, 2000);
+        }
+
+        function calculateSubjectScores() {
+            const scores = {};
+            Object.keys(quizQuestions).forEach(subject => {
+                if (userData.quizResponses[subject]) {
+                    const correct = userData.quizResponses[subject].filter(r => r.correct).length;
+                    const total = userData.quizResponses[subject].length;
+                    scores[subject] = Math.round((correct / total) * 100);
+                }
+            });
+            return scores;
+        }
+
+        function generateStudyRecommendations(scores) {
+            // Complex algorithm would go here - this is simplified
+            const recommendations = [
+                {
+                    major: "Computer Science with AI Specialization",
+                    matchScore: 94,
+                    reason: "Your strong performance in mathematics and computer science, combined with interest in AI and technology, makes this an ideal choice.",
+                    careers: ["AI Engineer", "Data Scientist", "Machine Learning Specialist", "Research Scientist"],
+                    universities: ["MIT", "Stanford", "Carnegie Mellon", "Local Top University"],
+                    nationalAlignment: "Perfectly aligns with national AI and digital transformation initiatives"
+                },
+                {
+                    major: "Biomedical Engineering",
+                    matchScore: 87,
+                    reason: "Your balanced strength in biology, chemistry, and physics positions you well for this interdisciplinary field.",
+                    careers: ["Medical Device Designer", "Clinical Engineer", "Biotechnology Researcher", "Healthcare Innovation Specialist"],
+                    universities: ["Johns Hopkins", "Duke", "UCSD", "Local Medical College"],
+                    nationalAlignment: "Supports national healthcare innovation priorities"
+                },
+                {
+                    major: "Renewable Energy Engineering",
+                    matchScore: 85,
+                    reason: "Strong physics and chemistry foundation with interest in sustainability makes this a great fit.",
+                    careers: ["Solar Energy Engineer", "Wind Energy Specialist", "Sustainability Consultant", "Energy Policy Analyst"],
+                    universities: ["TU Delft", "Imperial College", "UC Berkeley", "Local Engineering School"],
+                    nationalAlignment: "Directly contributes to national renewable energy targets"
+                },
+                {
+                    major: "Data Science & Business Analytics",
+                    matchScore: 82,
+                    reason: "Your mathematical aptitude and interest in technology can drive business innovation.",
+                    careers: ["Business Intelligence Analyst", "Data Analyst", "Marketing Analytics Manager", "Financial Analyst"],
+                    universities: ["Wharton", "London Business School", "INSEAD", "Local Business School"],
+                    nationalAlignment: "Supports digital economy transformation goals"
+                },
+                {
+                    major: "Cybersecurity",
+                    matchScore: 80,
+                    reason: "Your computer science skills and analytical thinking are perfect for protecting digital infrastructure.",
+                    careers: ["Security Analyst", "Ethical Hacker", "Security Architect", "Compliance Officer"],
+                    universities: ["Georgia Tech", "Purdue", "RIT", "Local Tech Institute"],
+                    nationalAlignment: "Critical for national security and digital infrastructure protection"
+                }
+            ];
+            
+            return recommendations.slice(0, 5);
+        }
+
+        function restartAssessment() {
+            currentSection = 1;
+            userData = {
+                demographics: {},
+                favoriteSubjects: [],
+                hobbies: [],
+                country: {},
+                futureFields: [],
+                quizResponses: {}
+            };
+            
+            // Clear all form inputs
+            document.querySelectorAll('input[type="text"], input[type="number"], textarea').forEach(input => {
+                input.value = '';
+            });
+            document.querySelectorAll('select').forEach(select => {
+                select.selectedIndex = 0;
+            });
+            document.querySelectorAll('input[type="checkbox"], input[type="radio"]').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            
+            showSection(1);
+            updateProgressBar();
+        }
+
+        function downloadResults() {
+            // In a real application, this would generate a PDF
+            alert('PDF download feature would be implemented here. Your results have been saved!');
+            
+            // Create a simple text summary for now
+            const summary = `
+FUTURE PATHWAYS - CAREER GUIDANCE REPORT
+========================================
+Student: ${userData.demographics.name}
+Age: ${userData.demographics.age}
+Grade: ${userData.demographics.grade}
+
+RECOMMENDED MAJORS:
+1. Computer Science with AI Specialization (94% Match)
+2. Biomedical Engineering (87% Match)
+3. Renewable Energy Engineering (85% Match)
+4. Data Science & Business Analytics (82% Match)
+5. Cybersecurity (80% Match)
+
+For detailed results, please refer to the online portal.
+            `;
+            
+            // Create download
+            const blob = new Blob([summary], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'career_guidance_report.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
