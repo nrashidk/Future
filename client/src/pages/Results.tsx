@@ -19,6 +19,58 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 
+// Helper to map subjects to vision sectors using actual country vision data
+function mapSubjectsToVisionSectors(
+  subjectScores: Record<string, { percentage: number }>,
+  country: any
+): string | null {
+  if (!subjectScores || !country?.visionPlan) return null;
+
+  // Get top 2 subjects
+  const topSubjects = Object.entries(subjectScores)
+    .sort(([, a], [, b]) => b.percentage - a.percentage)
+    .slice(0, 2)
+    .map(([subject]) => subject);
+
+  if (topSubjects.length === 0) return null;
+
+  // Extract actual vision categories from country data
+  const visionCategories = Object.keys(country.visionPlan);
+  
+  // Map subjects to vision category keywords
+  const subjectKeywords: Record<string, string[]> = {
+    Mathematics: ["technology", "innovation", "economic", "industry"],
+    "Computer Science": ["technology", "innovation", "digital"],
+    Science: ["climate", "environment", "technology", "innovation", "energy"],
+    "Social Studies": ["social", "progress", "economic", "development"],
+    Arabic: ["social", "progress", "cultural"],
+    English: ["economic", "development", "global"],
+  };
+
+  // Find matching vision categories for top subjects
+  const matchedCategories = new Set<string>();
+  topSubjects.forEach((subject) => {
+    const keywords = subjectKeywords[subject] || [];
+    visionCategories.forEach((category) => {
+      const categoryLower = category.toLowerCase();
+      if (keywords.some(keyword => categoryLower.includes(keyword))) {
+        matchedCategories.add(category);
+      }
+    });
+  });
+
+  if (matchedCategories.size === 0) return null;
+
+  // Build message with actual country vision categories
+  const subjectsText = topSubjects.join(" and ");
+  const categoriesArray = Array.from(matchedCategories).slice(0, 2); // Limit to 2 categories
+  const categoriesText = categoriesArray.length === 1
+    ? categoriesArray[0]
+    : categoriesArray[0] + " and " + categoriesArray[1];
+
+  return `Your top strengths in ${subjectsText} directly align with ${country.name}'s ${categoriesText} priorities in their national vision.`;
+}
+
 export default function Results() {
   const { isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
@@ -34,10 +86,25 @@ export default function Results() {
     enabled: true,
   });
 
-  // Fetch assessment data to get quiz scores
+  // Determine active assessment ID (URL param or extracted from recommendations)
+  const activeAssessmentId = urlAssessmentId || assessmentId;
+
+  // Fetch quiz data to get subject competency scores
+  const { data: quizData } = useQuery<any>({
+    queryKey: [`/api/assessments/${activeAssessmentId}/quiz`],
+    enabled: !!activeAssessmentId,
+  });
+
+  // Fetch assessment to get country data
   const { data: assessment } = useQuery<any>({
-    queryKey: [`/api/assessments/${urlAssessmentId}`],
-    enabled: !!urlAssessmentId,
+    queryKey: [`/api/assessments/${activeAssessmentId}`],
+    enabled: !!activeAssessmentId,
+  });
+
+  // Fetch country data for vision linkage
+  const { data: country } = useQuery<any>({
+    queryKey: [`/api/countries/${assessment?.countryId}`],
+    enabled: !!assessment?.countryId,
   });
 
   // Extract assessment ID from recommendations
@@ -112,87 +179,93 @@ export default function Results() {
         </div>
       </div>
 
-      {/* Quiz Results */}
-      {assessment?.quizScore && (
+      {/* Subject Competency Spotlight */}
+      {quizData?.completed && quizData?.subjectScores && Object.keys(quizData.subjectScores).length > 0 && (
         <div className="max-w-4xl mx-auto px-4 -mt-8 mb-8">
           <StickyNote color="purple" rotation="1" className="p-8">
             <div className="text-center mb-6">
               <CheckCircle2 className="w-12 h-12 text-primary mx-auto mb-3" />
-              <h2 className="text-3xl font-bold mb-2">Quiz Results</h2>
+              <h2 className="text-3xl font-bold mb-2">Your Subject Strengths</h2>
               <p className="text-muted-foreground font-body">
-                Your understanding of your country's vision and career alignment
+                We tested your skills in your favorite subjects to validate your career matches
               </p>
             </div>
 
-            {/* Overall Score */}
+            {/* Overall Competency */}
             <div className="mb-6 text-center">
               <div className="inline-block">
-                <div className="text-6xl font-bold text-primary mb-2" data-testid="text-quiz-overall-score">
-                  {Math.round(assessment.quizScore.overall)}%
+                <div className="text-6xl font-bold text-primary mb-2" data-testid="text-overall-competency">
+                  {quizData.totalScore}%
                 </div>
-                <div className="text-sm font-semibold" data-testid="text-quiz-performance">
-                  {assessment.quizScore.overall >= 80 ? "Excellent" : 
-                   assessment.quizScore.overall >= 60 ? "Good" :
-                   assessment.quizScore.overall >= 40 ? "Fair" : 
-                   "Needs Improvement"}
+                <div className="text-sm font-semibold" data-testid="text-competency-level">
+                  {quizData.totalScore >= 80 ? "Excellent Mastery" : 
+                   quizData.totalScore >= 60 ? "Strong Understanding" :
+                   quizData.totalScore >= 40 ? "Good Foundation" : 
+                   "Room to Grow"}
                 </div>
               </div>
             </div>
 
-            {/* Score Breakdown */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <div className="text-center p-4 bg-background/30 rounded-lg" data-testid="card-vision-score">
-                <Target className="w-6 h-6 mx-auto mb-2 text-primary" />
-                <p className="text-xs text-muted-foreground mb-1 font-body">Vision Awareness</p>
-                <p className="text-2xl font-bold" data-testid="text-vision-score">{Math.round(assessment.quizScore.vision)}%</p>
-              </div>
-              <div className="text-center p-4 bg-background/30 rounded-lg" data-testid="card-sector-score">
-                <TrendingUp className="w-6 h-6 mx-auto mb-2 text-primary" />
-                <p className="text-xs text-muted-foreground mb-1 font-body">Sector Understanding</p>
-                <p className="text-2xl font-bold" data-testid="text-sector-score">{Math.round(assessment.quizScore.sector)}%</p>
-              </div>
-              <div className="text-center p-4 bg-background/30 rounded-lg" data-testid="card-motivation-score">
-                <Star className="w-6 h-6 mx-auto mb-2 text-primary" />
-                <p className="text-xs text-muted-foreground mb-1 font-body">Personal Alignment</p>
-                <p className="text-2xl font-bold" data-testid="text-motivation-score">{Math.round(assessment.quizScore.motivation)}%</p>
-              </div>
+            {/* Subject-by-Subject Breakdown */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+              {Object.entries(quizData.subjectScores)
+                .sort(([, a]: any, [, b]: any) => b.percentage - a.percentage)
+                .map(([subject, score]: [string, any]) => (
+                  <div key={subject} className="p-4 bg-background/30 rounded-lg" data-testid={`card-subject-${subject.toLowerCase().replace(/\s+/g, '-')}`}>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-semibold font-body">{subject}</span>
+                      <span className="text-lg font-bold text-primary" data-testid={`text-score-${subject.toLowerCase().replace(/\s+/g, '-')}`}>
+                        {score.percentage}%
+                      </span>
+                    </div>
+                    <Progress value={score.percentage} className="h-2 mb-1" />
+                    <p className="text-xs text-muted-foreground font-body">
+                      {score.correct} of {score.total} correct
+                    </p>
+                  </div>
+              ))}
             </div>
 
             {/* Insights */}
-            <div className="space-y-2 text-sm" data-testid="section-quiz-insights">
-              {assessment.quizScore.vision >= 70 ? (
-                <div className="flex items-start gap-2" data-testid="insight-vision-positive">
+            <div className="space-y-2 text-sm" data-testid="section-competency-insights">
+              {quizData.totalScore >= 70 ? (
+                <div className="flex items-start gap-2" data-testid="insight-strong-competency">
                   <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
-                  <p className="font-body">You demonstrate strong understanding of your country's vision and national priorities</p>
+                  <p className="font-body">Your strong subject performance validates your favorite subjects align with your actual skills!</p>
+                </div>
+              ) : quizData.totalScore >= 50 ? (
+                <div className="flex items-start gap-2" data-testid="insight-moderate-competency">
+                  <BookOpen className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
+                  <p className="font-body">You have a good foundation. The recommendations below focus on careers that match your strongest subjects.</p>
                 </div>
               ) : (
-                <div className="flex items-start gap-2" data-testid="insight-vision-suggestion">
-                  <BookOpen className="w-4 h-4 text-orange-500 flex-shrink-0 mt-0.5" />
-                  <p className="font-body">Consider learning more about your country's development goals</p>
+                <div className="flex items-start gap-2" data-testid="insight-growth-competency">
+                  <Star className="w-4 h-4 text-orange-500 flex-shrink-0 mt-0.5" />
+                  <p className="font-body">Don't worry! The recommendations highlight careers where you can build on your interests while developing your skills.</p>
                 </div>
               )}
-              {assessment.quizScore.sector >= 70 ? (
-                <div className="flex items-start gap-2" data-testid="insight-sector-positive">
-                  <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
-                  <p className="font-body">You show good awareness of priority sectors and their role in development</p>
-                </div>
-              ) : (
-                <div className="flex items-start gap-2" data-testid="insight-sector-suggestion">
-                  <BookOpen className="w-4 h-4 text-orange-500 flex-shrink-0 mt-0.5" />
-                  <p className="font-body">Explore more about key sectors driving growth in your country</p>
-                </div>
-              )}
-              {assessment.quizScore.motivation >= 70 ? (
-                <div className="flex items-start gap-2" data-testid="insight-motivation-positive">
-                  <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
-                  <p className="font-body">Your career aspirations align well with national development priorities</p>
-                </div>
-              ) : (
-                <div className="flex items-start gap-2" data-testid="insight-motivation-suggestion">
-                  <BookOpen className="w-4 h-4 text-orange-500 flex-shrink-0 mt-0.5" />
-                  <p className="font-body">Reflect on how your career goals can contribute to your country's future</p>
-                </div>
-              )}
+              <div className="flex items-start gap-2" data-testid="insight-competency-validation">
+                <Target className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                <p className="font-body">Your career recommendations below consider both your interests AND demonstrated competencies to ensure the best matches.</p>
+              </div>
+              {country && (() => {
+                const visionLinkage = mapSubjectsToVisionSectors(quizData.subjectScores, country);
+                return visionLinkage ? (
+                  <div className="flex items-start gap-2" data-testid="insight-vision-linkage">
+                    <TrendingUp className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                    <p className="font-body">
+                      <strong>Connecting to National Vision:</strong> {visionLinkage} The careers recommended below leverage your proven strengths to contribute to these priorities.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-2" data-testid="insight-vision-linkage-generic">
+                    <TrendingUp className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                    <p className="font-body">
+                      <strong>Connecting to National Vision:</strong> Each recommendation shows how your subject strengths enable you to contribute to national development priorities and future goals.
+                    </p>
+                  </div>
+                );
+              })()}
             </div>
           </StickyNote>
         </div>
@@ -225,19 +298,25 @@ export default function Results() {
                     <div className="grid grid-cols-2 gap-4 mb-6">
                       <div>
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-medium font-body">Subject Match</span>
+                          <span className="text-sm font-medium font-body flex items-center gap-1">
+                            <BookOpen className="w-3 h-3" />
+                            Subject Match
+                          </span>
                           <span className="text-sm font-bold">{Math.round(rec.subjectMatchScore)}%</span>
                         </div>
                         <Progress value={rec.subjectMatchScore} className="h-2" />
-                        <span className="text-xs text-muted-foreground">25% weight</span>
+                        <span className="text-xs text-muted-foreground">30% weight • Validated by quiz</span>
                       </div>
                       <div>
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-medium font-body">Interest Match</span>
+                          <span className="text-sm font-medium font-body flex items-center gap-1">
+                            <Star className="w-3 h-3" />
+                            Interest Match
+                          </span>
                           <span className="text-sm font-bold">{Math.round(rec.interestMatchScore)}%</span>
                         </div>
                         <Progress value={rec.interestMatchScore} className="h-2" />
-                        <span className="text-xs text-muted-foreground">25% weight</span>
+                        <span className="text-xs text-muted-foreground">30% weight</span>
                       </div>
                       <div>
                         <div className="flex items-center justify-between mb-1">
@@ -259,20 +338,49 @@ export default function Results() {
                           <span className="text-sm font-bold">{Math.round(rec.futureMarketDemand)}%</span>
                         </div>
                         <Progress value={rec.futureMarketDemand} className="h-2" />
-                        <span className="text-xs text-muted-foreground">15% weight</span>
-                      </div>
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-medium font-body flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3" />
-                            Quiz Score
-                          </span>
-                          <span className="text-sm font-bold">{Math.round(rec.quizScore)}%</span>
-                        </div>
-                        <Progress value={rec.quizScore} className="h-2" />
-                        <span className="text-xs text-muted-foreground">15% weight</span>
+                        <span className="text-xs text-muted-foreground">20% weight</span>
                       </div>
                     </div>
+
+                    {/* Validated Competencies & Vision Priorities */}
+                    {(rec.matchedSubjects?.length > 0 || rec.supportingVisionPriorities?.length > 0) && (
+                      <div className="mb-6 p-4 bg-background/30 rounded-lg space-y-3">
+                        {rec.matchedSubjects?.length > 0 && (
+                          <div>
+                            <h4 className="text-xs font-semibold text-muted-foreground mb-2">✓ Validated by Your Competencies</h4>
+                            <div className="flex flex-wrap gap-2">
+                              {rec.matchedSubjects.map((item: any) => (
+                                <span
+                                  key={item.subject}
+                                  className="inline-flex items-center gap-1 bg-primary/10 px-3 py-1 rounded-full text-xs font-medium"
+                                  data-testid={`badge-competency-${item.subject.toLowerCase().replace(/\s+/g, '-')}`}
+                                >
+                                  <CheckCircle2 className="w-3 h-3 text-primary" />
+                                  {item.subject}: {item.competency}%
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {rec.supportingVisionPriorities?.length > 0 && (
+                          <div>
+                            <h4 className="text-xs font-semibold text-muted-foreground mb-2">🎯 Supports National Vision</h4>
+                            <div className="flex flex-wrap gap-2">
+                              {rec.supportingVisionPriorities.map((priority: string, idx: number) => (
+                                <span
+                                  key={idx}
+                                  className="inline-flex items-center gap-1 bg-accent/20 px-3 py-1 rounded-full text-xs font-medium"
+                                  data-testid={`badge-vision-${idx}`}
+                                >
+                                  <Target className="w-3 h-3" />
+                                  {priority}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     {/* Why This Career */}
                     <div className="mb-6 p-4 bg-background/30 rounded-lg">

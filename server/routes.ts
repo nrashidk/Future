@@ -36,6 +36,8 @@ function calculateCareerMatch(
   countryVisionAlignment: number;
   futureMarketDemand: number;
   reasoning: string;
+  matchedSubjects?: Array<{ subject: string; competency: number }>;
+  supportingVisionPriorities?: string[];
 } {
   // Calculate subject match with competency validation (0-100)
   const subjectOverlap = assessment.favoriteSubjects.filter((s: string) =>
@@ -234,6 +236,50 @@ function calculateCareerMatch(
     ? reasons.join(". ") + "."
     : "This career offers a balanced match with your profile and local opportunities.";
 
+  // Build structured metadata for frontend display
+  const matchedSubjects: Array<{ subject: string; competency: number }> = [];
+  const supportingVisionPriorities: string[] = [];
+
+  // Collect matched subjects with competency scores
+  if (assessment.subjectCompetencies && hasCompetencyData) {
+    const competencies = assessment.subjectCompetencies as Record<string, { percentage: number }>;
+    const relevantSubjects = assessment.favoriteSubjects.filter((s: string) =>
+      career.relatedSubjects.includes(s)
+    );
+    
+    relevantSubjects.forEach((subject: string) => {
+      if (competencies[subject]) {
+        matchedSubjects.push({
+          subject,
+          competency: Math.round(competencies[subject].percentage)
+        });
+      }
+    });
+  }
+
+  // Extract supporting vision priorities from country vision plan
+  if (countryData?.visionPlan && typeof countryData.visionPlan === 'object') {
+    const visionPlan = countryData.visionPlan;
+    
+    // Collect priority sectors from matching vision categories
+    for (const [category, data] of Object.entries(visionPlan as Record<string, any>)) {
+      if (data && typeof data === 'object' && data.prioritySectors && Array.isArray(data.prioritySectors)) {
+        // Check if this career/subject aligns with this category
+        const categoryLower = category.toLowerCase();
+        const careerTitleLower = career.title.toLowerCase();
+        const careerDescLower = career.description?.toLowerCase() || "";
+        
+        // Simple matching: if career mentions category keywords or related subjects
+        if (careerTitleLower.includes(categoryLower.split(' ')[0]) || 
+            careerDescLower.includes(categoryLower.split(' ')[0])) {
+          // Add top 2 priority sectors from this category
+          const priorities = data.prioritySectors.slice(0, 2);
+          supportingVisionPriorities.push(...priorities);
+        }
+      }
+    }
+  }
+
   return {
     overallMatchScore,
     subjectMatchScore,
@@ -241,6 +287,8 @@ function calculateCareerMatch(
     countryVisionAlignment,
     futureMarketDemand,
     reasoning,
+    matchedSubjects: matchedSubjects.length > 0 ? matchedSubjects : undefined,
+    supportingVisionPriorities: supportingVisionPriorities.length > 0 ? supportingVisionPriorities.slice(0, 3) : undefined,
   };
 }
 
@@ -514,7 +562,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         quizId: quiz.id, 
         questions,
         responses: responses.map(r => ({ questionId: r.questionId, answer: r.answer })),
-        completed: !!quiz.completedAt
+        completed: !!quiz.completedAt,
+        subjectScores: quiz.subjectScores || {},
+        totalScore: quiz.totalScore || 0
       });
     } catch (error) {
       console.error("Error fetching quiz:", error);
