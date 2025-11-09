@@ -28,7 +28,7 @@ export function CountryStep({ data, onUpdate, onNext }: CountryStepProps) {
     checkMobile();
   }, []);
 
-  const { data: countries = [], isLoading: countriesLoading } = useQuery<any[]>({
+  const { data: countries = [], isLoading: countriesLoading, error: countriesError } = useQuery<any[]>({
     queryKey: ["/api/countries"],
   });
 
@@ -91,6 +91,7 @@ export function CountryStep({ data, onUpdate, onNext }: CountryStepProps) {
             </select>
             <p className="text-xs mt-2 text-muted-foreground">
               {countries.length} countries available
+              {countriesError && <span className="text-red-500"> - Error: {String(countriesError)}</span>}
             </p>
           </div>
         ) : (
