@@ -342,8 +342,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.isAuthenticated() ? req.user.claims.sub : null;
       const isGuest = !userId;
 
-      // For guest users, mark session and ensure it's saved before proceeding
+      const assessment = await storage.createAssessment({
+        ...validatedData,
+        userId,
+        isGuest,
+        guestSessionId: isGuest ? req.session.id : null,
+      });
+
+      // For guest users, store assessment ID in session for verification
       if (isGuest) {
+        if (!req.session.guestAssessments) {
+          req.session.guestAssessments = [];
+        }
+        req.session.guestAssessments.push(assessment.id);
         req.session.isGuest = true;
         
         // Explicitly save session and wait for it to complete
@@ -355,18 +366,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const assessment = await storage.createAssessment({
-        ...validatedData,
-        userId,
-        isGuest,
-        guestSessionId: isGuest ? req.session.id : null,
-      });
-
       // Debug: log session info for troubleshooting
       console.log("Assessment created with session:", {
         sessionId: req.session.id,
         isGuest,
-        assessmentId: assessment.id
+        assessmentId: assessment.id,
+        guestAssessments: req.session.guestAssessments
       });
 
       res.json(assessment);
@@ -417,9 +422,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Assessment not found" });
       }
       
-      // Authorization: Check if user owns assessment or matches guest session
+      // Authorization: Check if user owns assessment or has it in their guest session
       const isOwner = req.isAuthenticated() && assessment.userId === req.user.claims.sub;
-      const isGuestOwner = assessment.isGuest && req.session.id === assessment.guestSessionId;
+      const guestAssessments = req.session.guestAssessments || [];
+      const isGuestOwner = assessment.isGuest && guestAssessments.includes(assessmentId);
       
       // Debug logging
       console.log("Quiz Generate Auth Debug:", {
@@ -427,9 +433,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         assessmentIsGuest: assessment.isGuest,
         requestSessionId: req.session.id,
         assessmentGuestSessionId: assessment.guestSessionId,
+        guestAssessments,
+        assessmentId,
         isOwner,
         isGuestOwner,
-        sessionObject: req.session
+        cookies: req.headers.cookie
       });
       
       if (!isOwner && !isGuestOwner) {
