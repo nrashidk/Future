@@ -1,0 +1,93 @@
+Purpose (non-proprietary)
+
+Estimate preferences on Kolb’s two axes:
+
+CE–AC: Concrete Experience (CE) ↔ Abstract Conceptualization (AC)
+
+RO–AE: Reflective Observation (RO) ↔ Active Experimentation (AE)
+
+Output: CE, RO, AC, AE subscale scores; X = AC−CE; Y = AE−RO; quadrant label (Diverging / Assimilating / Converging / Accommodating); tailored guidance.
+
+Format
+
+24 items; 6 per subscale (CE, RO, AC, AE).
+
+Likert: 1=Strongly disagree … 5=Strongly agree
+
+Reverse-keyed items marked (R).
+
+Item bank (24)
+
+Concrete Experience (CE)
+
+I learn best when I can observe real situations up close.
+
+I like to collect concrete examples before forming an opinion.
+
+Hands-on exposure helps me “get it” faster.
+
+I prefer stories and case studies to abstract descriptions.
+
+I’m most confident after seeing it in action.
+
+I feel lost when learning without practical context.
+
+Reflective Observation (RO)
+7. I need quiet time to review what happened before deciding.
+8. I often journal or take notes to process experiences.
+9. I like to compare multiple perspectives before acting.
+10. I prefer to watch first, then try.
+11. I often ask clarifying questions before moving on.
+12. I look for patterns across different experiences.
+
+Abstract Conceptualization (AC)
+13. I enjoy building models or frameworks to explain things.
+14. I feel confident when I can define the underlying principles.
+15. I often turn experiences into general rules.
+16. I prefer logic and structure over examples.
+17. I learn well from diagrams or formal explanations.
+18. I like to test an idea against a theory.
+
+Active Experimentation (AE)
+19. I prefer to try things quickly rather than over-analyze.
+20. I like to run small experiments to learn what works.
+21. I’m comfortable making changes on the fly.
+22. I often propose pilots to move from talk to action.
+23. I iterate publicly, even if it’s not perfect.
+24. I learn best when I can apply something immediately.
+
+Optional reverse-keying (for response validity): convert 2–3 items to (R) by re-wording (e.g., “I struggle to learn from concrete examples” (R)). If you do that, remember to invert 1→5, 2→4, 3→3, 4→2, 5→1 on those items.
+
+Scoring
+
+Subscale raw scores: sum of each subscale’s 6 items (range 6–30).
+
+Axes:
+
+X = AC − CE (positive = abstract preference)
+
+Y = AE − RO (positive = active preference)
+
+Quadrant:
+
+X≥0 & Y≥0 → Converging
+
+X<0 & Y≥0 → Accommodating
+
+X≥0 & Y<0 → Assimilating
+
+X<0 & Y<0 → Diverging
+
+Normalization (optional)
+
+Convert raw to 0–100: norm = (raw−6) / (30−6) * 100.
+
+Keep raw for axis computation; normalization is just for charts.
+
+Response-quality checks
+
+Straight-lining: ≥80% identical responses → flag low_variance.
+
+Inconsistency pair (optional): include one (R) item; if both logically clash (e.g., AC vs CE extreme), flag inconsistency.
+
+Completion time: < ~90s for 24 items → flag too_fast.
