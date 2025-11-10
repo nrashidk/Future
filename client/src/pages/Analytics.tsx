@@ -1,8 +1,21 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { StickyNote } from "@/components/StickyNote";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
 import { Link } from "wouter";
 import { 
   Users, 
@@ -13,21 +26,11 @@ import {
   BarChart3,
   Sparkles,
   GraduationCap,
-  Home
+  Home,
+  Plus,
+  Award,
+  Briefcase
 } from "lucide-react";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend
-} from "recharts";
 
 interface AnalyticsOverview {
   totalStudents: number;
@@ -49,23 +52,34 @@ interface SectorData {
   avgAlignment: number;
 }
 
-const CHART_COLORS = [
-  "hsl(var(--chart-1))",
-  "hsl(var(--chart-2))",
-  "hsl(var(--chart-3))",
-  "hsl(var(--chart-4))",
-  "hsl(var(--chart-5))",
-];
-
 export default function Analytics() {
-  const [selectedCountry, setSelectedCountry] = useState<string | null>(null); // null = "All Countries"
+  const [pinnedCountryIds, setPinnedCountryIds] = useState<string[]>([]);
+  const [activeCountryId, setActiveCountryId] = useState<string | null>(null);
+  const [addCountryOpen, setAddCountryOpen] = useState(false);
 
-  // Query with country filter
+  // Countries list (always unfiltered to show all available countries)
+  const { data: countries, isLoading: countriesLoading } = useQuery<Array<{ countryId: string; countryName: string; studentCount: number }>>({
+    queryKey: ['/api/analytics/countries'],
+  });
+
+  // Auto-default to UAE on initial load
+  useEffect(() => {
+    if (countries && countries.length > 0 && pinnedCountryIds.length === 0) {
+      // Find UAE by name, fallback to first country
+      const uaeCountry = countries.find(c => c.countryName.toLowerCase().includes('emirates')) || countries[0];
+      if (uaeCountry) {
+        setPinnedCountryIds([uaeCountry.countryId]);
+        setActiveCountryId(uaeCountry.countryId);
+      }
+    }
+  }, [countries, pinnedCountryIds.length]);
+
+  // Query with active country filter
   const { data: overview, isLoading: overviewLoading } = useQuery<AnalyticsOverview>({
-    queryKey: ['/api/analytics/overview', selectedCountry],
+    queryKey: ['/api/analytics/overview', activeCountryId],
     queryFn: async () => {
-      const url = selectedCountry 
-        ? `/api/analytics/overview?countryId=${selectedCountry}`
+      const url = activeCountryId 
+        ? `/api/analytics/overview?countryId=${activeCountryId}`
         : '/api/analytics/overview';
       const res = await fetch(url);
       if (!res.ok) throw new Error('Failed to fetch analytics');
@@ -73,16 +87,11 @@ export default function Analytics() {
     },
   });
 
-  // Countries list (always unfiltered to show all available countries)
-  const { data: countries, isLoading: countriesLoading } = useQuery<Array<{ countryId: string; countryName: string; studentCount: number }>>({
-    queryKey: ['/api/analytics/countries'],
-  });
-
   const { data: careers, isLoading: careersLoading } = useQuery<CareerTrend[]>({
-    queryKey: ['/api/analytics/careers', selectedCountry],
+    queryKey: ['/api/analytics/careers', activeCountryId],
     queryFn: async () => {
-      const url = selectedCountry 
-        ? `/api/analytics/careers?countryId=${selectedCountry}`
+      const url = activeCountryId 
+        ? `/api/analytics/careers?countryId=${activeCountryId}`
         : '/api/analytics/careers';
       const res = await fetch(url);
       if (!res.ok) throw new Error('Failed to fetch careers');
@@ -91,10 +100,10 @@ export default function Analytics() {
   });
 
   const { data: sectors, isLoading: sectorsLoading } = useQuery<SectorData[]>({
-    queryKey: ['/api/analytics/sectors', selectedCountry],
+    queryKey: ['/api/analytics/sectors', activeCountryId],
     queryFn: async () => {
-      const url = selectedCountry 
-        ? `/api/analytics/sectors?countryId=${selectedCountry}`
+      const url = activeCountryId 
+        ? `/api/analytics/sectors?countryId=${activeCountryId}`
         : '/api/analytics/sectors';
       const res = await fetch(url);
       if (!res.ok) throw new Error('Failed to fetch sectors');
@@ -107,6 +116,22 @@ export default function Analytics() {
     : 0;
 
   const topCareer = careers?.[0];
+
+  // Available countries for "Add Country" (not already pinned and has completed assessments)
+  const availableCountries = countries?.filter(c => 
+    !pinnedCountryIds.includes(c.countryId) && c.studentCount > 0
+  ) || [];
+
+  // Get pinned countries data
+  const pinnedCountries = pinnedCountryIds
+    .map(id => countries?.find(c => c.countryId === id))
+    .filter(Boolean) as Array<{ countryId: string; countryName: string; studentCount: number }>;
+
+  const handleAddCountry = (countryId: string) => {
+    setPinnedCountryIds([...pinnedCountryIds, countryId]);
+    setActiveCountryId(countryId);
+    setAddCountryOpen(false);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10">
@@ -136,6 +161,84 @@ export default function Analytics() {
           <p className="text-muted-foreground text-lg">
             Real-time insights into student career pathways and trends
           </p>
+        </div>
+
+        {/* Country Filter Row */}
+        <div className="mb-12">
+          <div className="flex items-center gap-3 mb-6">
+            <Globe className="w-6 h-6 text-primary" />
+            <h2 className="text-2xl font-bold">Country Filter</h2>
+          </div>
+          
+          <div className="flex flex-wrap gap-4 items-center">
+            {/* Pinned Country Sticky Notes */}
+            {pinnedCountries.map((country, index) => {
+              const colors = ['yellow', 'pink', 'blue', 'green', 'purple'] as const;
+              const rotations = ['-2', '-1', '1', '2', '-1'] as const;
+              const color = colors[index % colors.length];
+              const rotation = rotations[index % rotations.length];
+
+              return (
+                <button
+                  key={country.countryId}
+                  onClick={() => setActiveCountryId(country.countryId)}
+                  className="focus:outline-none transition-transform hover:scale-105"
+                  data-testid={`filter-country-${country.countryId}`}
+                >
+                  <StickyNote 
+                    color={color} 
+                    rotation={rotation}
+                    className={activeCountryId === country.countryId ? "ring-4 ring-primary ring-offset-2" : ""}
+                  >
+                    <div className="text-center">
+                      <p className="text-sm text-muted-foreground mb-1 line-clamp-1">{country.countryName}</p>
+                      <p className="text-2xl font-bold">{country.studentCount}</p>
+                      <p className="text-xs text-muted-foreground mt-1">students</p>
+                    </div>
+                  </StickyNote>
+                </button>
+              );
+            })}
+
+            {/* Add Country Button */}
+            {availableCountries.length > 0 && (
+              <Popover open={addCountryOpen} onOpenChange={setAddCountryOpen}>
+                <PopoverTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="lg"
+                    className="h-32 min-w-32"
+                    data-testid="button-add-country"
+                  >
+                    <Plus className="w-6 h-6 mr-2" />
+                    Add Country
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-72 p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Search countries..." />
+                    <CommandEmpty>No countries found.</CommandEmpty>
+                    <CommandGroup>
+                      {availableCountries.map((country) => (
+                        <CommandItem
+                          key={country.countryId}
+                          value={country.countryName}
+                          onSelect={() => handleAddCountry(country.countryId)}
+                          data-testid={`add-country-${country.countryId}`}
+                        >
+                          <Globe className="mr-2 h-4 w-4" />
+                          <span>{country.countryName}</span>
+                          <span className="ml-auto text-xs text-muted-foreground">
+                            {country.studentCount} students
+                          </span>
+                        </CommandItem>
+                      ))}
+                    </CommandGroup>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            )}
+          </div>
         </div>
 
         {/* Key Metrics */}
@@ -169,7 +272,7 @@ export default function Analytics() {
               <div>
                 <p className="text-muted-foreground text-sm mb-1">Active Countries</p>
                 <p className="text-3xl font-bold" data-testid="metric-active-countries">
-                  {overviewLoading ? "..." : overview?.countriesBreakdown.length || 0}
+                  {countriesLoading ? "..." : countries?.length || 0}
                 </p>
               </div>
               <Globe className="w-8 h-8 text-primary" />
@@ -189,237 +292,124 @@ export default function Analytics() {
           </StickyNote>
         </div>
 
-        {/* Country Filters */}
+        {/* Top Career Recommendations - Portrait Sticky Notes */}
         <div className="mb-12">
           <div className="flex items-center gap-3 mb-6">
-            <Globe className="w-6 h-6 text-primary" />
-            <h2 className="text-2xl font-bold">Filter by Country</h2>
-            <p className="text-muted-foreground text-sm">(Click a country to filter all data)</p>
+            <TrendingUp className="w-6 h-6 text-primary" />
+            <h2 className="text-2xl font-bold">Top Career Recommendations</h2>
           </div>
           
-          <div className="flex flex-wrap gap-4">
-            {/* All Countries Filter */}
-            <button
-              onClick={() => setSelectedCountry(null)}
-              className="focus:outline-none transition-transform hover:scale-105"
-              data-testid="filter-country-all"
-            >
-              <StickyNote 
-                color="purple" 
-                rotation="-1"
-                className={selectedCountry === null ? "ring-4 ring-primary ring-offset-2" : ""}
-              >
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground mb-1">All Countries</p>
-                  <p className="text-2xl font-bold">
-                    {countriesLoading ? "..." : countries?.reduce((sum, c) => sum + c.studentCount, 0) || 0}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">students</p>
-                </div>
-              </StickyNote>
-            </button>
-
-            {/* Individual Country Filters */}
-            {countriesLoading ? (
-              <div className="text-muted-foreground">Loading countries...</div>
-            ) : countries && countries.length > 0 ? (
-              countries.map((country, index) => {
-                const colors = ['yellow', 'pink', 'blue', 'green', 'purple'] as const;
-                const rotations = ['-2', '-1', '1', '2', '-1'] as const;
-                const color = colors[index % colors.length];
-                const rotation = rotations[index % rotations.length];
-
+          {careersLoading ? (
+            <div className="h-60 flex items-center justify-center text-muted-foreground">
+              Loading career trends...
+            </div>
+          ) : careers && careers.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {careers.slice(0, 12).map((career, index) => {
+                const colors: Array<"yellow" | "pink" | "blue" | "green" | "purple"> = ["yellow", "pink", "blue", "green", "purple"];
+                const rotations: Array<"-1" | "1" | "-2" | "2"> = ["-1", "1", "-2", "2"];
+                
                 return (
-                  <button
-                    key={country.countryId}
-                    onClick={() => setSelectedCountry(country.countryId)}
-                    className="focus:outline-none transition-transform hover:scale-105"
-                    data-testid={`filter-country-${country.countryId}`}
+                  <StickyNote 
+                    key={career.careerId}
+                    color={colors[index % 5]}
+                    rotation={rotations[index % 4]}
+                    className="aspect-[3/4]"
                   >
-                    <StickyNote 
-                      color={color} 
-                      rotation={rotation}
-                      className={selectedCountry === country.countryId ? "ring-4 ring-primary ring-offset-2" : ""}
-                    >
-                      <div className="text-center">
-                        <p className="text-sm text-muted-foreground mb-1 line-clamp-1">{country.countryName}</p>
-                        <p className="text-2xl font-bold">{country.studentCount}</p>
-                        <p className="text-xs text-muted-foreground mt-1">students</p>
+                    <div className="flex flex-col h-full p-1">
+                      <div className="flex items-center justify-between mb-2">
+                        <Badge variant="secondary" className="text-xs">
+                          #{index + 1}
+                        </Badge>
+                        <Award className="w-4 h-4 text-primary" />
                       </div>
-                    </StickyNote>
-                  </button>
-                );
-              })
-            ) : (
-              <div className="text-muted-foreground">No countries with completed assessments yet</div>
-            )}
-          </div>
-        </div>
-
-        {/* Career Trends */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="w-5 h-5" />
-              Top Career Recommendations
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {careersLoading ? (
-              <div className="h-80 flex items-center justify-center text-muted-foreground">
-                Loading career trends...
-              </div>
-            ) : careers && careers.length > 0 ? (
-              <div className="space-y-4">
-                <ResponsiveContainer width="100%" height={400}>
-                  <BarChart data={careers.slice(0, 10)} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" />
-                    <YAxis 
-                      dataKey="careerTitle" 
-                      type="category" 
-                      width={200}
-                      tick={{ fontSize: 12 }}
-                    />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'hsl(var(--background))',
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px'
-                      }}
-                      formatter={(value: number, name: string) => {
-                        if (name === 'recommendationCount') return [value, 'Recommendations'];
-                        if (name === 'avgMatchScore') return [`${value.toFixed(1)}%`, 'Avg Match'];
-                        return [value, name];
-                      }}
-                    />
-                    <Bar dataKey="recommendationCount" fill="hsl(var(--chart-1))" radius={[0, 8, 8, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
-                  {careers.slice(0, 6).map((career, index) => {
-                    const colors: Array<"yellow" | "pink" | "blue" | "green" | "purple"> = ["yellow", "pink", "blue", "green", "purple", "yellow"];
-                    const rotations: Array<"-1" | "1" | "-2" | "2"> = ["-1", "1", "-2", "2", "-1", "1"];
-                    
-                    return (
-                      <StickyNote 
-                        key={career.careerId}
-                        color={colors[index % 6]}
-                        rotation={rotations[index % 6]}
-                        className="p-4"
-                      >
-                      <div>
-                        <h4 className="font-bold text-sm mb-2 line-clamp-2" data-testid={`career-${index}`}>
-                          {career.careerTitle}
-                        </h4>
-                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <h4 className="font-bold text-sm mb-2 line-clamp-3" data-testid={`career-${index}`}>
+                        {career.careerTitle}
+                      </h4>
+                      <div className="mt-auto space-y-1.5">
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Users className="w-3 h-3" />
                           <span>{career.recommendationCount} recommendations</span>
-                          <span className="font-semibold text-primary">
-                            {career.avgMatchScore.toFixed(0)}% match
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <TrendingUp className="w-3 h-3 text-primary" />
+                          <span className="text-xs font-semibold text-primary">
+                            {career.avgMatchScore.toFixed(1)}% avg match
                           </span>
                         </div>
                       </div>
-                    </StickyNote>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : (
-              <div className="h-80 flex items-center justify-center text-muted-foreground">
-                No career trend data available yet
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                    </div>
+                  </StickyNote>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="h-60 flex items-center justify-center text-muted-foreground">
+              No career data available yet
+            </div>
+          )}
+        </div>
 
-        {/* Sector Pipeline */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Target className="w-5 h-5" />
-              Talent Pipeline by Priority Sector
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {sectorsLoading ? (
-              <div className="h-80 flex items-center justify-center text-muted-foreground">
-                Loading sector data...
-              </div>
-            ) : sectors && sectors.length > 0 ? (
-              <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={sectors.slice(0, 15)}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    dataKey="sector" 
-                    angle={-45}
-                    textAnchor="end"
-                    height={120}
-                    interval={0}
-                    tick={{ fontSize: 11 }}
-                  />
-                  <YAxis />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--background))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px'
-                    }}
-                    formatter={(value: number, name: string) => {
-                      if (name === 'studentCount') return [value, 'Students'];
-                      if (name === 'avgAlignment') return [`${value.toFixed(1)}%`, 'Avg Alignment'];
-                      return [value, name];
-                    }}
-                  />
-                  <Bar dataKey="studentCount" fill="hsl(var(--chart-2))" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-80 flex items-center justify-center text-muted-foreground">
-                No sector data available yet
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Grade Distribution */}
-        {overview?.gradeDistribution && overview.gradeDistribution.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="w-5 h-5" />
-                Grade Level Distribution
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={overview.gradeDistribution}
-                    dataKey="count"
-                    nameKey="grade"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={100}
-                    label={(entry) => `${entry.grade}: ${entry.count}`}
+        {/* Talent Pipeline by Priority Sector - Portrait Sticky Notes */}
+        <div className="mb-12">
+          <div className="flex items-center gap-3 mb-6">
+            <Target className="w-6 h-6 text-primary" />
+            <h2 className="text-2xl font-bold">Talent Pipeline by Priority Sector</h2>
+          </div>
+          
+          {sectorsLoading ? (
+            <div className="h-60 flex items-center justify-center text-muted-foreground">
+              Loading sector data...
+            </div>
+          ) : sectors && sectors.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {sectors.slice(0, 12).map((sector, index) => {
+                const colors: Array<"yellow" | "pink" | "blue" | "green" | "purple"> = ["blue", "green", "pink", "yellow", "purple"];
+                const rotations: Array<"-1" | "1" | "-2" | "2"> = ["1", "-1", "2", "-2"];
+                
+                return (
+                  <StickyNote 
+                    key={sector.sector}
+                    color={colors[index % 5]}
+                    rotation={rotations[index % 4]}
+                    className="aspect-[3/4]"
                   >
-                    {overview.gradeDistribution.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--background))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px'
-                    }}
-                  />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        )}
+                    <div className="flex flex-col h-full p-1">
+                      <div className="flex items-center justify-between mb-2">
+                        <Badge variant="outline" className="text-xs">
+                          Sector #{index + 1}
+                        </Badge>
+                        <Briefcase className="w-4 h-4 text-primary" />
+                      </div>
+                      <h4 className="font-bold text-sm mb-2 line-clamp-3" data-testid={`sector-${index}`}>
+                        {sector.sector}
+                      </h4>
+                      <div className="mt-auto space-y-2">
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Users className="w-3 h-3" />
+                          <span>{sector.studentCount} students</span>
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">Vision Alignment</span>
+                            <span className="font-semibold text-primary">
+                              {sector.avgAlignment.toFixed(1)}%
+                            </span>
+                          </div>
+                          <Progress value={sector.avgAlignment} className="h-2" />
+                        </div>
+                      </div>
+                    </div>
+                  </StickyNote>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="h-60 flex items-center justify-center text-muted-foreground">
+              No sector data available yet
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
