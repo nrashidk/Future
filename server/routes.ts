@@ -558,8 +558,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Authorization check
-      const isOwner = req.user && assessment.userId === req.user.id;
-      const isGuestOwner = assessment.isGuest && req.session.id === assessment.guestSessionId;
+      const isOwner = req.isAuthenticated() && assessment.userId === req.user.claims.sub;
+      // Note: GET quiz doesn't require guest token as quiz data is already safe (no correct answers exposed)
+      const isGuestOwner = assessment.isGuest;
       if (!isOwner && !isGuestOwner) {
         return res.status(403).json({ message: "Unauthorized to view this quiz" });
       }
@@ -598,7 +599,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/assessments/:assessmentId/quiz/submit", async (req: any, res) => {
     try {
       const { assessmentId } = req.params;
-      const { responses: userResponses } = req.body;
+      const { responses: userResponses, guestToken } = req.body;
       
       if (!Array.isArray(userResponses)) {
         return res.status(400).json({ message: "Responses must be an array" });
@@ -610,9 +611,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Assessment not found" });
       }
       
-      // Authorization check
-      const isOwner = req.user && assessment.userId === req.user.id;
-      const isGuestOwner = assessment.isGuest && req.session.id === assessment.guestSessionId;
+      // Authorization: Check if user owns assessment or has valid guest token
+      const isOwner = req.isAuthenticated() && assessment.userId === req.user.claims.sub;
+      const isGuestOwner = assessment.isGuest && guestToken && assessment.guestSessionId === guestToken;
+      
       if (!isOwner && !isGuestOwner) {
         return res.status(403).json({ message: "Unauthorized to submit quiz for this assessment" });
       }

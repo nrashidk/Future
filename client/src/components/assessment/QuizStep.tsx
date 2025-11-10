@@ -56,8 +56,11 @@ export function QuizStep({ assessmentId, onComplete }: QuizStepProps) {
   // Submit quiz mutation
   const submitMutation = useMutation({
     mutationFn: async (quizResponses: QuizResponse[]) => {
+      // Retrieve guest token from localStorage for authorization
+      const guestToken = localStorage.getItem("guestToken");
       const response = await apiRequest("POST", `/api/assessments/${assessmentId}/quiz/submit`, {
-        responses: quizResponses
+        responses: quizResponses,
+        guestToken: guestToken || undefined
       });
       return await response.json();
     },
