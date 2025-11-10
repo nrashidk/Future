@@ -26,7 +26,7 @@ async function enrichAssessmentWithCompetencies(assessment: any) {
 }
 
 // Career-to-learning-style affinity mapping
-// Based on Kolb's learning styles: Diverging, Assimilating, Converging, Accommodating
+// Based on our proprietary learning style framework: Diverging, Assimilating, Converging, Accommodating
 function getCareerLearningStyleAffinities(career: any): Record<string, number> {
   const category = career.category?.toLowerCase() || "";
   const title = career.title?.toLowerCase() || "";
@@ -275,7 +275,7 @@ function calculateCareerMatch(
   // Future market demand (uses job trend data)
   const futureMarketDemand = jobTrend?.demandScore || 60;
 
-  // Learning Style Match (Kolb) - only for premium users with kolbScores
+  // Learning Style Match - only for Individual Assessment users with advanced learning style analysis
   let learningStyleMatch: number | null = null;
   
   if (assessment.kolbScores && assessment.assessmentType === 'kolb') {
@@ -296,11 +296,11 @@ function calculateCareerMatch(
   // - Interest Alignment: 25%
   // - Country Vision Alignment: 20%
   // - Future Market Demand: 20%
-  // - Learning Style Match (Kolb): 10% (only for premium users)
+  // - Learning Style Match: 10% (only for Individual Assessment users)
   let overallMatchScore: number;
   
   if (learningStyleMatch !== null) {
-    // Premium user with Kolb assessment
+    // Individual Assessment user with advanced learning style analysis
     overallMatchScore =
       subjectMatchScore * 0.25 +
       interestMatchScore * 0.25 +
@@ -308,7 +308,7 @@ function calculateCareerMatch(
       futureMarketDemand * 0.20 +
       learningStyleMatch * 0.10;
   } else {
-    // Free user or legacy assessment - redistribute Kolb's 10% across other factors
+    // Basic assessment user - redistribute learning style's 10% across other factors
     overallMatchScore =
       subjectMatchScore * 0.275 +
       interestMatchScore * 0.275 +
@@ -461,16 +461,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // For guest users, generate a unique guest token
       const guestToken = isGuest ? `guest_${Date.now()}_${Math.random().toString(36).substring(2, 15)}` : null;
 
-      // Calculate Kolb scores if kolbResponses provided (premium users)
+      // Calculate learning style scores if responses provided (Individual Assessment users)
       let kolbScores = null;
       let assessmentType = 'basic';
       if (validatedData.kolbResponses && Object.keys(validatedData.kolbResponses).length === 24) {
         try {
           kolbScores = calculateKolbScores(validatedData.kolbResponses);
           assessmentType = 'kolb';
-          console.log("Kolb scores calculated:", kolbScores);
+          console.log("Learning style scores calculated:", kolbScores);
         } catch (error) {
-          console.error("Error calculating Kolb scores:", error);
+          console.error("Error calculating learning style scores:", error);
           // Continue with basic assessment if scoring fails
         }
       }
@@ -525,14 +525,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const updateData = { ...req.body };
 
-      // Calculate Kolb scores if kolbResponses provided and complete
+      // Calculate learning style scores if responses provided and complete
       if (updateData.kolbResponses && Object.keys(updateData.kolbResponses).length === 24) {
         try {
           updateData.kolbScores = calculateKolbScores(updateData.kolbResponses);
           updateData.assessmentType = 'kolb';
-          console.log("Kolb scores calculated on update:", updateData.kolbScores);
+          console.log("Learning style scores calculated on update:", updateData.kolbScores);
         } catch (error) {
-          console.error("Error calculating Kolb scores:", error);
+          console.error("Error calculating learning style scores:", error);
         }
       }
 

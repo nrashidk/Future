@@ -31,7 +31,7 @@ export default function Landing() {
   };
 
   const handleGuestStart = () => {
-    window.location.href = "/tier-selection?guest=true";
+    window.location.href = "/assessment";
   };
 
   return (

@@ -19,50 +19,61 @@ The application is fully functional with:
 - Beautiful sticky notes UI optimized for students
 
 ## Recent Changes
-**November 10, 2025 - Premium Features & Payment System**
-- **Dual-Tier System**:
-  - Free: Basic personality assessment with career matching (27.5/27.5/22.5/22.5 weighting)
-  - Premium: Kolb's Experiential Learning Theory assessment ($10/student) with enhanced matching (25/25/20/20/10 weighting)
-  - School bulk discounts: 10% off for 100+, 15% off for 500+, 20% off for 1000+ students
+**November 10, 2025 - Individual & Group Assessment System**
+- **Dual-Tier System Rebranding**:
+  - Removed "Kolb" branding to protect proprietary assessment methodology
+  - Individual Assessment: Advanced learning style analysis ($10/student) with 25/25/20/20/10 weighting
+  - Group Assessment: All Individual features + bulk pricing (10-20% off) + planned analytics features for schools
+  - Guest users skip tier selection and go directly to basic assessment
 
 - **Payment System (Production-Ready)**:
   - Stripe integration with secure server-side pricing calculation
   - Server-calculated amounts prevent client-side tampering
   - Payment amount verification with metadata checks
-  - User ID validation before premium upgrade
+  - User ID validation before Individual Assessment upgrade
   - Idempotency checks to prevent duplicate upgrades
-  - Tier selection page with bulk pricing calculator
+  - Tier selection page with Individual vs Group Assessment comparison
   - Secure checkout flow with PaymentIntent validation
 
-- **Kolb Assessment Integration**:
+- **Advanced Learning Style Assessment (Individual Tier)**:
   - 24-question scientifically-validated assessment (6 questions per dimension: CE, RO, AC, AE)
   - Automatic score calculation and learning style determination
   - Four learning styles: Diverging, Assimilating, Converging, Accommodating
-  - Premium gating: KolbStep shown only for paid users
+  - Routing guard: Authenticated non-premium users redirected to tier selection
 
 - **Enhanced Career Matching Algorithm**:
-  - Premium users: 25% subjects, 25% interests, 20% vision, 20% market demand, 10% learning style
-  - Free users: 27.5% subjects, 27.5% interests, 22.5% vision, 22.5% market demand
-  - Learning style affinity scoring for 36 careers across 4 Kolb styles
-  - Backwards compatible with free users (null kolbScores)
+  - Individual Assessment: 25% subjects, 25% interests, 20% vision, 20% market demand, 10% learning style
+  - Basic Assessment: 27.5% subjects, 27.5% interests, 22.5% vision, 22.5% market demand
+  - Learning style affinity scoring for 36 careers across 4 learning styles
+  - Backwards compatible with basic assessment users
 
 - **Results Page Enhancements**:
   - Horizontal cascading masonry grid layout (ResizeObserver-driven row spans)
-  - Premium users: Learning Style Insights section with personalized study tips
-  - Free users: Upgrade prompt highlighting premium benefits
+  - Individual Assessment users: Learning Style Insights with personalized study tips
+  - Basic assessment users: Upgrade prompt highlighting Individual Assessment benefits
   - Career connection explanations (10% learning style weight)
 
 - **PDF Report Enhancements**:
-  - Premium-only Kolb Learning Style page (Page 2)
+  - Individual Assessment: Learning Style Analysis page (Page 2)
   - Age-appropriate descriptions for each learning style
   - 4 personalized study tips per learning style
   - Visual CE/RO/AC/AE score breakdown with progress bars
   - Career connection explanations
-  - All emojis removed (design guideline compliance)
+  - All proprietary methodology references (no external branding)
 
 - **Database Schema Updates**:
   - users table: isPremium, stripeCustomerId, paymentDate fields
-  - assessments table: assessmentType ('free'/'kolb'), kolbScores (jsonb with CE, RO, AC, AE, X, Y, learningStyle)
+  - assessments table: assessmentType ('basic'/'kolb'), kolbScores (jsonb with CE, RO, AC, AE, X, Y, learningStyle)
+  - Internal field names preserved ('kolb') for DB stability; user-facing text uses "learning style" terminology
+
+- **Group Assessment Features (Planned)**:
+  - School-wide analytics dashboard
+  - Student trend analysis
+  - Grouping by learning styles/career paths
+  - Administrative reporting tools
+  - Data export capabilities
+  - Priority support
+  - Features marked "Coming Soon" in UI
 
 **November 9, 2025 - Subject Competency Quiz & Vision Linkage System**
 - **Subject Competency Quiz Architecture**:
@@ -227,22 +238,31 @@ The application is fully functional with:
 4. View personalized career recommendations
 5. Prompted to sign up to save results
 
-### Free User Flow
-1. Land on homepage → Click "Get Started"
-2. OAuth login via Replit (or explore as guest)
-3. Complete basic assessment with personality questions
+### Guest User Flow
+1. Land on homepage → Click "Explore as Guest"
+2. Proceed directly to basic assessment (skip tier selection)
+3. Complete 6-step basic assessment
 4. View career recommendations with subject competency validation
-5. See upgrade prompt highlighting premium benefits
-6. Download basic PDF report
+5. See upgrade prompt for Individual Assessment
+6. Prompted to sign up to save results
 
-### Premium User Flow
-1. Complete free assessment or start directly
-2. Navigate to tier selection page → Choose premium ($10/student)
-3. Complete secure Stripe checkout
-4. Take Kolb's 24-question assessment
-5. View enhanced career recommendations with learning style insights
-6. Download comprehensive PDF report with study tips
-7. Access personalized learning strategies
+### Individual Assessment Flow
+1. Land on homepage → Click "Get Started"
+2. OAuth login via Replit → Navigate to tier selection
+3. Choose Individual Assessment ($10/student)
+4. Complete secure Stripe checkout
+5. Take advanced 24-question learning style assessment
+6. View enhanced career recommendations with learning style insights
+7. Download comprehensive PDF report with study tips
+
+### Group Assessment Flow (Planned)
+1. School administrator creates account
+2. Navigate to tier selection → Choose Group Assessment
+3. Enter number of students, calculate bulk pricing (10-20% off)
+4. Complete checkout for multiple student licenses
+5. Access school dashboard with analytics (when implemented)
+6. Students complete Individual Assessments
+7. View aggregated reports and trends
 
 ## Future Enhancements
 - Mentor matching system

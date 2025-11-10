@@ -132,11 +132,7 @@ export default function Results() {
   const migrateMutation = useMutation({
     mutationFn: async () => {
       const guestAssessmentIds = JSON.parse(localStorage.getItem("guestAssessments") || "[]");
-      return await apiRequest("/api/assessments/migrate", {
-        method: "POST",
-        body: JSON.stringify({ guestAssessmentIds }),
-        headers: { "Content-Type": "application/json" },
-      });
+      return await apiRequest("POST", "/api/assessments/migrate", { guestAssessmentIds });
     },
     onSuccess: (data: any) => {
       toast({
@@ -285,7 +281,7 @@ export default function Results() {
               <GraduationCap className="w-12 h-12 text-primary mx-auto mb-3" />
               <h2 className="text-3xl font-bold mb-2">Your Learning Style</h2>
               <p className="text-muted-foreground font-body">
-                Based on Kolb's Experiential Learning Theory
+                Based on our proprietary assessment methodology
               </p>
             </div>
 
@@ -431,7 +427,7 @@ export default function Results() {
               </div>
               <h2 className="text-2xl font-bold mb-2">Want Even Better Career Matches?</h2>
               <p className="text-muted-foreground font-body">
-                Unlock Kolb's Premium Assessment for deeper insights
+                Unlock our advanced Individual Assessment for deeper insights
               </p>
             </div>
 
@@ -443,7 +439,7 @@ export default function Results() {
                   <div>
                     <h4 className="font-semibold mb-1">Discover Your Learning Style</h4>
                     <p className="text-sm text-muted-foreground font-body">
-                      Take Kolb's scientifically-validated 24-question assessment to understand how you learn best
+                      Take our scientifically-validated 24-question assessment to understand how you learn best
                     </p>
                   </div>
                 </div>

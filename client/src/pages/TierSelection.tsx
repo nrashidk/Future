@@ -5,13 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Check, Sparkles, Users } from "lucide-react";
+import { Check, User, Users, BarChart3, TrendingUp, Settings, Clock } from "lucide-react";
 
 export default function TierSelection() {
   const [, setLocation] = useLocation();
   const [studentCount, setStudentCount] = useState<number>(1);
 
-  // Calculate bulk discount
+  // Calculate bulk discount for Group Assessment
   const calculatePrice = (count: number): { total: number; perStudent: number; discount: number } => {
     const basePrice = 10;
     let discount = 0;
@@ -32,13 +32,14 @@ export default function TierSelection() {
 
   const pricing = calculatePrice(studentCount);
 
-  const handleFreeTier = () => {
-    setLocation("/assessment");
+  const handleIndividualTier = () => {
+    // Navigate to checkout for single student
+    setLocation(`/checkout?students=1&total=10`);
   };
 
-  const handlePremiumTier = () => {
+  const handleGroupTier = () => {
     // Navigate to checkout with pricing info
-    setLocation(`/checkout?students=${studentCount}&total=${pricing.total}`);
+    setLocation(`/checkout?students=${studentCount}&total=${pricing.total}&group=true`);
   };
 
   return (
@@ -47,73 +48,85 @@ export default function TierSelection() {
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
-            Choose Your Path to Career Discovery
+            Choose Your Assessment Path
           </h1>
           <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-            Start with our free assessment or unlock advanced insights with Kolb's scientifically-validated learning style analysis
+            Unlock advanced learning style analysis with personalized insights tailored for individuals or entire schools
           </p>
         </div>
 
         {/* Tier Comparison */}
         <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto mb-12">
-          {/* Free Tier */}
-          <Card className="relative" data-testid="card-tier-free">
+          {/* Individual Assessment */}
+          <Card className="relative border-2 border-purple-500 shadow-lg" data-testid="card-tier-individual">
             <CardHeader>
-              <CardTitle className="text-2xl">Free Assessment</CardTitle>
-              <CardDescription>Perfect for exploring career options</CardDescription>
-              <div className="text-3xl font-bold mt-4">$0</div>
+              <div className="flex items-center gap-2 mb-2">
+                <User className="w-6 h-6 text-purple-600" />
+                <CardTitle className="text-2xl">Individual Assessment</CardTitle>
+              </div>
+              <CardDescription>Perfect for single students</CardDescription>
+              <div className="text-3xl font-bold mt-4">
+                $10
+                <span className="text-sm font-normal text-gray-500">/student</span>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-3">
                 <div className="flex items-start gap-2">
-                  <Check className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm">Complete 6-step career assessment</span>
+                  <Check className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
+                  <span className="text-sm">Complete 7-step advanced assessment</span>
                 </div>
                 <div className="flex items-start gap-2">
-                  <Check className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm">Basic personality profile</span>
+                  <Check className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
+                  <span className="text-sm font-semibold">24-question learning style analysis</span>
                 </div>
                 <div className="flex items-start gap-2">
-                  <Check className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm">Subject competency quiz</span>
+                  <Check className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
+                  <span className="text-sm">Subject competency validation</span>
                 </div>
                 <div className="flex items-start gap-2">
-                  <Check className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm">Top 5 career matches</span>
+                  <Check className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
+                  <span className="text-sm">Detailed learning style profile (Diverging, Assimilating, Converging, Accommodating)</span>
                 </div>
                 <div className="flex items-start gap-2">
-                  <Check className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm">Country vision alignment</span>
+                  <Check className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
+                  <span className="text-sm">Personalized study tips & strategies</span>
                 </div>
                 <div className="flex items-start gap-2">
-                  <Check className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm">View results online</span>
+                  <Check className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
+                  <span className="text-sm">Enhanced career matching (includes learning style)</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
+                  <span className="text-sm">Top 5 career matches with insights</span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
+                  <span className="text-sm">Downloadable PDF report</span>
                 </div>
               </div>
             </CardContent>
             <CardFooter>
               <Button 
-                className="w-full" 
-                variant="outline" 
-                onClick={handleFreeTier}
-                data-testid="button-select-free"
+                className="w-full bg-purple-600 hover:bg-purple-700" 
+                onClick={handleIndividualTier}
+                data-testid="button-select-individual"
               >
-                Start Free Assessment
+                Get Individual Assessment - $10.00
               </Button>
             </CardFooter>
           </Card>
 
-          {/* Premium Tier */}
-          <Card className="relative border-2 border-purple-500 shadow-lg" data-testid="card-tier-premium">
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-purple-600 text-white px-4 py-1 rounded-full text-sm font-semibold flex items-center gap-1">
-              <Sparkles className="w-4 h-4" />
-              Most Popular
-            </div>
+          {/* Group Assessment */}
+          <Card className="relative border-2 border-blue-500 shadow-lg" data-testid="card-tier-group">
             <CardHeader>
-              <CardTitle className="text-2xl">Premium Assessment</CardTitle>
-              <CardDescription>Unlock your full learning potential</CardDescription>
+              <div className="flex items-center gap-2 mb-2">
+                <Users className="w-6 h-6 text-blue-600" />
+                <CardTitle className="text-2xl">Group Assessment</CardTitle>
+              </div>
+              <CardDescription>For schools and institutions</CardDescription>
               <div className="text-3xl font-bold mt-4">
-                ${pricing.perStudent}
+                ${pricing.perStudent.toFixed(2)}
                 <span className="text-sm font-normal text-gray-500">/student</span>
               </div>
               {pricing.discount > 0 && (
@@ -123,55 +136,82 @@ export default function TierSelection() {
               )}
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="text-sm font-semibold text-purple-600 mb-2">Everything in Free, plus:</div>
+              <div className="text-sm font-semibold text-blue-600 mb-2">Everything in Individual, plus:</div>
               <div className="space-y-3">
                 <div className="flex items-start gap-2">
-                  <Check className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm font-semibold">Kolb's Experiential Learning Theory assessment</span>
+                  <Check className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <span className="text-sm font-semibold">Bulk pricing discounts (10-20% off)</span>
+                </div>
+                {/* TODO: Group Assessment analytics features - implementation pending */}
+                <div className="flex items-start gap-2">
+                  <BarChart3 className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <span className="text-sm font-semibold">School-wide analytics dashboard</span>
+                    <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Coming Soon</span>
+                  </div>
                 </div>
                 <div className="flex items-start gap-2">
-                  <Check className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm">Detailed learning style analysis (Diverging, Assimilating, Converging, Accommodating)</span>
+                  <TrendingUp className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <span className="text-sm font-semibold">Student trend analysis</span>
+                    <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Coming Soon</span>
+                  </div>
                 </div>
                 <div className="flex items-start gap-2">
-                  <Check className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm">Personalized study tips & strategies</span>
+                  <Users className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <span className="text-sm font-semibold">Group students by learning styles</span>
+                    <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Coming Soon</span>
+                  </div>
                 </div>
                 <div className="flex items-start gap-2">
-                  <Check className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm">Learning style-matched career recommendations</span>
+                  <Settings className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <span className="text-sm font-semibold">Administrative reporting tools</span>
+                    <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Coming Soon</span>
+                  </div>
                 </div>
                 <div className="flex items-start gap-2">
-                  <Check className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm">Downloadable PDF report</span>
+                  <Check className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <span className="text-sm">Export aggregated data for insights</span>
+                    <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Coming Soon</span>
+                  </div>
                 </div>
                 <div className="flex items-start gap-2">
-                  <Check className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm">Science-backed insights</span>
+                  <Check className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div className="flex-1">
+                    <span className="text-sm">Career pathway trends across cohorts</span>
+                    <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Coming Soon</span>
+                  </div>
+                </div>
+                <div className="flex items-start gap-2">
+                  <Check className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <span className="text-sm">Priority support for administrators</span>
                 </div>
               </div>
             </CardContent>
             <CardFooter>
               <Button 
-                className="w-full bg-purple-600 hover:bg-purple-700" 
-                onClick={handlePremiumTier}
-                data-testid="button-select-premium"
+                className="w-full bg-blue-600 hover:bg-blue-700" 
+                onClick={handleGroupTier}
+                data-testid="button-select-group"
               >
-                Unlock Premium - ${pricing.total.toFixed(2)}
+                Get Group Assessment - ${pricing.total.toFixed(2)}
               </Button>
             </CardFooter>
           </Card>
         </div>
 
-        {/* Bulk Pricing Calculator */}
+        {/* Group Pricing Calculator */}
         <Card className="max-w-2xl mx-auto" data-testid="card-bulk-pricing">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Users className="w-5 h-5" />
-              School & Institution Pricing
+              Group Assessment Pricing
             </CardTitle>
             <CardDescription>
-              Save more with bulk licenses for multiple students
+              Calculate pricing for your school or institution
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
@@ -211,7 +251,7 @@ export default function TierSelection() {
 
               <div className="flex justify-between text-lg font-bold">
                 <span>Total for {studentCount} {studentCount === 1 ? 'student' : 'students'}</span>
-                <span className="text-purple-600">${pricing.total.toFixed(2)}</span>
+                <span className="text-blue-600">${pricing.total.toFixed(2)}</span>
               </div>
             </div>
 

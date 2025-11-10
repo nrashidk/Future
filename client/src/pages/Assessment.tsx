@@ -61,6 +61,13 @@ export default function Assessment() {
     }
   }, []);
 
+  // Routing guard: Redirect authenticated non-premium users to tier selection
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && !isPremiumUser && !isGuest) {
+      setLocation("/tier-selection");
+    }
+  }, [isLoading, isAuthenticated, isPremiumUser, isGuest, setLocation]);
+
   const updateAssessmentData = (field: string, value: any) => {
     setAssessmentData((prev) => ({ ...prev, [field]: value }));
   };

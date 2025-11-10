@@ -20,8 +20,8 @@ function getCountryDisplayName(country: any): string {
   return country?.name || "your country";
 }
 
-// Helper to get Kolb learning style info
-function getKolbStyleInfo(learningStyle: string): {
+// Helper to get learning style info
+function getLearningStyleInfo(learningStyle: string): {
   icon: any;
   title: string;
   description: string;
@@ -315,12 +315,12 @@ export default function ResultsPrint() {
         )}
       </div>
 
-      {/* Page 2: Kolb Learning Style (Premium Only) */}
+      {/* Page 2: Learning Style Analysis (Individual Assessment Only) */}
       {assessment?.assessmentType === 'kolb' && assessment?.kolbScores?.learningStyle && (
         <div className="print-page-career">
           <StickyNote color="blue" rotation="0" className="p-8">
             {(() => {
-              const styleInfo = getKolbStyleInfo(assessment.kolbScores.learningStyle);
+              const styleInfo = getLearningStyleInfo(assessment.kolbScores.learningStyle);
               const Icon = styleInfo.icon;
               
               return (
@@ -333,7 +333,7 @@ export default function ResultsPrint() {
                     <h2 className="text-3xl font-bold mb-2">Your Learning Style</h2>
                     <p className="text-lg font-semibold text-primary mb-1">{styleInfo.title}</p>
                     <p className="text-sm text-muted-foreground font-body">
-                      Based on Kolb's Experiential Learning Theory
+                      Based on our proprietary assessment methodology
                     </p>
                   </div>
 
@@ -375,7 +375,7 @@ export default function ResultsPrint() {
                     </p>
                   </div>
 
-                  {/* Kolb Scores Breakdown (Visual) */}
+                  {/* Learning Style Scores Breakdown (Visual) */}
                   <div className="p-4 bg-background/30 rounded-lg">
                     <h3 className="font-semibold mb-3 text-sm">Your Learning Preferences</h3>
                     <div className="grid grid-cols-2 gap-3">
