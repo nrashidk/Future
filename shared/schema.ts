@@ -352,7 +352,10 @@ export const insertAssessmentSchema = createInsertSchema(assessments).omit({
   updatedAt: true,
 }).extend({
   kolbResponses: z.record(z.string(), z.number()).optional(), // Transient field: question ID -> response (1-5)
-  riasecResponses: z.record(z.string(), z.number()).optional(), // Transient field: question ID -> response (1-5)
+  riasecResponses: z.record(z.string(), z.number().min(1).max(5)).optional().refine(
+    (data) => !data || Object.keys(data).length === 30,
+    { message: "RIASEC assessment requires exactly 30 responses (5 per theme)" }
+  ), // Transient field: question ID -> response (1-5)
 });
 export type InsertAssessment = z.infer<typeof insertAssessmentSchema>;
 

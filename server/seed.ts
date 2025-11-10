@@ -1,6 +1,7 @@
 import { storage } from "./storage";
 import { uaeQuestionBank } from "./questionBanks/uae";
 import { validateQuestionBank, checkCoverage } from "../shared/questionTypes";
+import { RIASEC_CAREER_AFFINITIES } from "./riasecAffinities";
 
 export async function seedDatabase() {
   console.log("🌱 Seeding database...");
@@ -1236,6 +1237,65 @@ export async function seedDatabase() {
   }
   
   console.log(`✓ Created ${createdCount} new quiz questions (total: ${allQuestions.length})`);
+
+  // Seed Assessment Components (RIASEC)
+  console.log("\n📋 Seeding assessment components...");
+  
+  // Try to create component, or fetch if it already exists
+  let riasecComponent;
+  try {
+    riasecComponent = await storage.createAssessmentComponent({
+      name: "RIASEC (Holland Code)",
+      key: "riasec",
+      description: "Career personality assessment based on Holland's RIASEC model (Realistic, Investigative, Artistic, Social, Enterprising, Conventional)",
+      weight: 10, // Default 10% weight in matching algorithm
+      isActive: true,
+      requiresPremium: true,
+      displayOrder: 2, // After Kolb (displayOrder: 1)
+    });
+    console.log(`✓ Created assessment component: ${riasecComponent.name}`);
+  } catch (error: any) {
+    if (error?.message?.includes('unique') || error?.code === '23505') {
+      // Component already exists - fetch it
+      const components = await storage.getAllAssessmentComponents?.() || [];
+      riasecComponent = components.find(c => c.key === 'riasec');
+      console.log("  RIASEC component already exists");
+    } else {
+      // Unexpected error - log and continue
+      console.error("  Error creating RIASEC component:", error);
+    }
+  }
+  
+  // Seed RIASEC career affinities (regardless of whether component was created or fetched)
+  if (riasecComponent) {
+    console.log("\n🎯 Seeding RIASEC career affinities...");
+    const allCareers = await storage.getAllCareers();
+    
+    for (const mapping of RIASEC_CAREER_AFFINITIES) {
+      const career = allCareers.find(c => c.title === mapping.careerTitle);
+      if (!career) {
+        console.log(`⚠️  Career not found: ${mapping.careerTitle}`);
+        continue;
+      }
+      
+      try {
+        await storage.createCareerComponentAffinity({
+          careerId: career.id,
+          componentId: riasecComponent.id,
+          affinityData: mapping.affinities, // Store all 6 theme scores as jsonb
+        });
+        console.log(`✓ Created RIASEC affinities for: ${career.title}`);
+      } catch (error: any) {
+        if (error?.message?.includes('unique') || error?.code === '23505') {
+          // Affinity already exists - silently continue
+        } else {
+          console.error(`  Error creating affinity for ${career.title}:`, error);
+        }
+      }
+    }
+  } else {
+    console.error("⚠️  Failed to create or fetch RIASEC component");
+  }
 
   console.log("✅ Database seeded successfully!");
 }

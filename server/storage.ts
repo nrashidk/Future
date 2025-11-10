@@ -9,6 +9,8 @@ import {
   quizQuestions,
   assessmentQuizzes,
   quizResponses,
+  assessmentComponents,
+  careerComponentAffinities,
   type User,
   type UpsertUser,
   type Country,
@@ -29,6 +31,10 @@ import {
   type InsertAssessmentQuiz,
   type QuizResponse,
   type InsertQuizResponse,
+  type AssessmentComponent,
+  type InsertAssessmentComponent,
+  type CareerComponentAffinity,
+  type InsertCareerComponentAffinity,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, count, avg, sql as sqlFunc } from "drizzle-orm";
@@ -113,6 +119,22 @@ export interface IStorage {
     studentCount: number;
     avgAlignment: number;
   }>>;
+
+  // Assessment Component operations
+  createAssessmentComponent(component: InsertAssessmentComponent): Promise<AssessmentComponent>;
+  getAllAssessmentComponents(): Promise<AssessmentComponent[]>;
+  getAssessmentComponentById(id: string): Promise<AssessmentComponent | undefined>;
+  getAssessmentComponentByKey(key: string): Promise<AssessmentComponent | undefined>;
+  updateAssessmentComponent(id: string, component: Partial<InsertAssessmentComponent>): Promise<AssessmentComponent>;
+  deleteAssessmentComponent(id: string): Promise<boolean>;
+
+  // Career Component Affinity operations
+  createCareerComponentAffinity(affinity: InsertCareerComponentAffinity): Promise<CareerComponentAffinity>;
+  getCareerComponentAffinity(careerId: string, componentId: string): Promise<CareerComponentAffinity | undefined>;
+  getCareerComponentAffinitiesByComponent(componentId: string): Promise<CareerComponentAffinity[]>;
+  getCareerComponentAffinitiesByCareer(careerId: string): Promise<CareerComponentAffinity[]>;
+  updateCareerComponentAffinity(careerId: string, componentId: string, data: Partial<InsertCareerComponentAffinity>): Promise<CareerComponentAffinity>;
+  deleteCareerComponentAffinity(careerId: string, componentId: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -664,6 +686,93 @@ export class DatabaseStorage implements IStorage {
         avgAlignment: data.alignmentCount > 0 ? data.totalAlignment / data.alignmentCount : 0
       }))
       .sort((a, b) => b.studentCount - a.studentCount);
+  }
+
+  // Assessment Component operations
+  async createAssessmentComponent(componentData: InsertAssessmentComponent): Promise<AssessmentComponent> {
+    const [component] = await db.insert(assessmentComponents).values(componentData).returning();
+    return component;
+  }
+
+  async getAllAssessmentComponents(): Promise<AssessmentComponent[]> {
+    return await db.select().from(assessmentComponents).orderBy(assessmentComponents.displayOrder);
+  }
+
+  async getAssessmentComponentById(id: string): Promise<AssessmentComponent | undefined> {
+    const [component] = await db.select().from(assessmentComponents).where(eq(assessmentComponents.id, id));
+    return component;
+  }
+
+  async getAssessmentComponentByKey(key: string): Promise<AssessmentComponent | undefined> {
+    const [component] = await db.select().from(assessmentComponents).where(eq(assessmentComponents.key, key));
+    return component;
+  }
+
+  async updateAssessmentComponent(id: string, componentData: Partial<InsertAssessmentComponent>): Promise<AssessmentComponent> {
+    const [component] = await db
+      .update(assessmentComponents)
+      .set({ ...componentData, updatedAt: new Date() })
+      .where(eq(assessmentComponents.id, id))
+      .returning();
+    return component;
+  }
+
+  async deleteAssessmentComponent(id: string): Promise<boolean> {
+    const result = await db.delete(assessmentComponents).where(eq(assessmentComponents.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  // Career Component Affinity operations
+  async createCareerComponentAffinity(affinityData: InsertCareerComponentAffinity): Promise<CareerComponentAffinity> {
+    const [affinity] = await db.insert(careerComponentAffinities).values(affinityData).returning();
+    return affinity;
+  }
+
+  async getCareerComponentAffinity(careerId: string, componentId: string): Promise<CareerComponentAffinity | undefined> {
+    const [affinity] = await db
+      .select()
+      .from(careerComponentAffinities)
+      .where(and(
+        eq(careerComponentAffinities.careerId, careerId),
+        eq(careerComponentAffinities.componentId, componentId)
+      ));
+    return affinity;
+  }
+
+  async getCareerComponentAffinitiesByComponent(componentId: string): Promise<CareerComponentAffinity[]> {
+    return await db
+      .select()
+      .from(careerComponentAffinities)
+      .where(eq(careerComponentAffinities.componentId, componentId));
+  }
+
+  async getCareerComponentAffinitiesByCareer(careerId: string): Promise<CareerComponentAffinity[]> {
+    return await db
+      .select()
+      .from(careerComponentAffinities)
+      .where(eq(careerComponentAffinities.careerId, careerId));
+  }
+
+  async updateCareerComponentAffinity(careerId: string, componentId: string, data: Partial<InsertCareerComponentAffinity>): Promise<CareerComponentAffinity> {
+    const [affinity] = await db
+      .update(careerComponentAffinities)
+      .set({ ...data, updatedAt: new Date() })
+      .where(and(
+        eq(careerComponentAffinities.careerId, careerId),
+        eq(careerComponentAffinities.componentId, componentId)
+      ))
+      .returning();
+    return affinity;
+  }
+
+  async deleteCareerComponentAffinity(careerId: string, componentId: string): Promise<boolean> {
+    const result = await db
+      .delete(careerComponentAffinities)
+      .where(and(
+        eq(careerComponentAffinities.careerId, careerId),
+        eq(careerComponentAffinities.componentId, componentId)
+      ));
+    return (result.rowCount ?? 0) > 0;
   }
 }
 

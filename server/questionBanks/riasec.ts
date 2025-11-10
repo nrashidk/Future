@@ -40,14 +40,16 @@ export function calculateRiasecScores(responses: Record<string, number> | Riasec
     }
   });
   
-  // Normalize raw scores (5-25) to 0-100
+  // Normalize raw scores (5-25) to 0-100 with clamping for safety
+  const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+  
   const normalized: Record<Theme, number> = {
-    R: Math.round(((rawScores.R - 5) / 20) * 100),
-    I: Math.round(((rawScores.I - 5) / 20) * 100),
-    A: Math.round(((rawScores.A - 5) / 20) * 100),
-    S: Math.round(((rawScores.S - 5) / 20) * 100),
-    E: Math.round(((rawScores.E - 5) / 20) * 100),
-    C: Math.round(((rawScores.C - 5) / 20) * 100),
+    R: Math.round(clamp(((rawScores.R - 5) / 20) * 100, 0, 100)),
+    I: Math.round(clamp(((rawScores.I - 5) / 20) * 100, 0, 100)),
+    A: Math.round(clamp(((rawScores.A - 5) / 20) * 100, 0, 100)),
+    S: Math.round(clamp(((rawScores.S - 5) / 20) * 100, 0, 100)),
+    E: Math.round(clamp(((rawScores.E - 5) / 20) * 100, 0, 100)),
+    C: Math.round(clamp(((rawScores.C - 5) / 20) * 100, 0, 100)),
   };
   
   // Rank themes by score
