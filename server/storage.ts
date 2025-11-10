@@ -37,6 +37,7 @@ export interface IStorage {
   // User operations (mandatory for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
+  updateUserPremiumStatus(userId: string, stripeCustomerId: string | null): Promise<User>;
 
   // Country operations
   getAllCountries(): Promise<Country[]>;
@@ -133,6 +134,25 @@ export class DatabaseStorage implements IStorage {
         },
       })
       .returning();
+    return user;
+  }
+
+  async updateUserPremiumStatus(userId: string, stripeCustomerId: string | null): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({
+        isPremium: true,
+        stripeCustomerId: stripeCustomerId,
+        paymentDate: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    
+    if (!user) {
+      throw new Error(`User not found: ${userId}`);
+    }
+    
     return user;
   }
 

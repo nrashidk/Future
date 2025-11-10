@@ -5,6 +5,7 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertAssessmentSchema, insertQuizQuestionSchema } from "@shared/schema";
 import { z } from "zod";
 import { transformQuizQuestionForFrontend, shuffleQuestions, shuffleOptions } from "./utils/quiz";
+import Stripe from "stripe";
 
 // Helper to enrich assessment with subject competency scores from quiz
 async function enrichAssessmentWithCompetencies(assessment: any) {
@@ -1157,6 +1158,84 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error exporting questions:", error);
       res.status(500).json({ message: "Failed to export questions" });
+    }
+  });
+
+  // ===== STRIPE PAYMENT ROUTES =====
+  // Initialize Stripe only if keys are configured
+  let stripe: Stripe | null = null;
+  if (process.env.STRIPE_SECRET_KEY) {
+    stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: "2025-10-29.clover",
+    });
+  }
+
+  // Create payment intent for premium assessment
+  app.post("/api/create-payment-intent", async (req: any, res) => {
+    if (!stripe) {
+      return res.status(503).json({ 
+        message: "Payment system not configured. Please add STRIPE_SECRET_KEY to your environment." 
+      });
+    }
+
+    try {
+      const { amount, studentCount = 1 } = req.body;
+
+      // Validation
+      if (!amount || amount < 50) {
+        return res.status(400).json({ message: "Invalid amount. Minimum is $0.50 USD" });
+      }
+
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(amount * 100), // Convert to cents
+        currency: "usd",
+        automatic_payment_methods: {
+          enabled: true,
+        },
+        metadata: {
+          userId: req.isAuthenticated() ? req.user.claims.sub : "guest",
+          studentCount: studentCount.toString(),
+          assessmentType: "kolb_premium"
+        }
+      });
+
+      res.json({ clientSecret: paymentIntent.client_secret });
+    } catch (error: any) {
+      console.error("Error creating payment intent:", error);
+      res.status(500).json({ message: "Error creating payment intent: " + error.message });
+    }
+  });
+
+  // Mark user as premium after successful payment
+  app.post("/api/upgrade-to-premium", async (req: any, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Must be logged in to upgrade" });
+    }
+
+    try {
+      const { paymentIntentId } = req.body;
+
+      if (!stripe || !paymentIntentId) {
+        return res.status(400).json({ message: "Invalid request" });
+      }
+
+      // Verify payment was successful
+      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+      
+      if (paymentIntent.status !== "succeeded") {
+        return res.status(400).json({ message: "Payment not completed" });
+      }
+
+      // Update user to premium
+      const updatedUser = await storage.updateUserPremiumStatus(
+        req.user.claims.sub,
+        paymentIntent.customer as string || null
+      );
+
+      res.json({ success: true, user: updatedUser });
+    } catch (error: any) {
+      console.error("Error upgrading user:", error);
+      res.status(500).json({ message: "Failed to upgrade account" });
     }
   });
 

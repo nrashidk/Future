@@ -33,6 +33,12 @@ export const users = pgTable("users", {
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
   role: varchar("role").notNull().default("user"),
+  
+  // Premium subscription
+  isPremium: boolean("is_premium").notNull().default(false),
+  stripeCustomerId: varchar("stripe_customer_id"),
+  paymentDate: timestamp("payment_date"),
+  
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -133,12 +139,16 @@ export const assessments = pgTable("assessments", {
   countryId: varchar("country_id").references(() => countries.id),
   
   // Assessment data
+  assessmentType: text("assessment_type").notNull().default("basic"), // 'basic' or 'kolb'
   favoriteSubjects: text("favorite_subjects").array().notNull(),
   interests: text("interests").array().notNull(),
   personalityTraits: jsonb("personality_traits"),
   careerAspirations: text("career_aspirations").array(),
   strengths: text("strengths").array(),
   workPreferences: jsonb("work_preferences"),
+  
+  // Kolb's ELT scores (premium only)
+  kolbScores: jsonb("kolb_scores"), // { CE, RO, AC, AE, X, Y, learningStyle }
   
   // Quiz results
   quizScore: jsonb("quiz_score"),
