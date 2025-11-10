@@ -107,6 +107,13 @@ export default function Analytics() {
 
   const topCareer = careers?.[0];
 
+  // Calculate top grade level for the selected country
+  const topGrade = overview?.gradeDistribution && overview.gradeDistribution.length > 0
+    ? overview.gradeDistribution.reduce((prev, current) => 
+        (current.count > prev.count) ? current : prev
+      ).grade
+    : null;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10">
       {/* Navigation Header */}
@@ -205,12 +212,12 @@ export default function Analytics() {
           <StickyNote color="blue" rotation="-2">
             <div className="flex items-start justify-between">
               <div>
-                <p className="text-muted-foreground text-sm mb-1">Active Countries</p>
-                <p className="text-3xl font-bold" data-testid="metric-active-countries">
-                  {countriesLoading ? "..." : displayCountries.length}
+                <p className="text-muted-foreground text-sm mb-1">Top Grade Level</p>
+                <p className="text-3xl font-bold" data-testid="metric-top-grade">
+                  {overviewLoading ? "..." : topGrade ? `Grade ${topGrade}` : "N/A"}
                 </p>
               </div>
-              <Globe className="w-8 h-8 text-primary" />
+              <GraduationCap className="w-8 h-8 text-primary" />
             </div>
           </StickyNote>
 
