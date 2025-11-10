@@ -7,6 +7,7 @@ import { z } from "zod";
 import { transformQuizQuestionForFrontend, shuffleQuestions, shuffleOptions } from "./utils/quiz";
 import { calculateKolbScores } from "./questionBanks/kolb";
 import { calculateRiasecScores } from "./questionBanks/riasec";
+import { generateRecommendations } from "./services/matching";
 import Stripe from "stripe";
 
 // Helper to enrich assessment with subject competency scores from quiz
@@ -891,7 +892,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Generate recommendations
+  // Generate recommendations using dynamic matching service
   app.post("/api/recommendations/generate/:assessmentId", async (req, res) => {
     try {
       const assessment = await storage.getAssessmentById(req.params.assessmentId);
@@ -899,49 +900,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Assessment not found" });
       }
 
-      if (!assessment.countryId) {
-        return res.status(400).json({ message: "Assessment missing country" });
-      }
+      // Use new matching service to generate recommendations
+      const careerMatches = await generateRecommendations(storage, req.params.assessmentId);
 
-      const country = await storage.getCountryById(assessment.countryId);
-      const allCareers = await storage.getAllCareers();
-
-      // Enrich assessment with subject competency scores from quiz
-      const enrichedAssessment = await enrichAssessmentWithCompetencies(assessment);
-
+      // Persist recommendations to database
       const recommendations = [];
+      for (const match of careerMatches) {
+        const career = match.career;
 
-      for (const career of allCareers) {
-        const jobTrend = await storage.getTrendByCareerAndCountry(career.id, assessment.countryId);
+        const actionSteps = [
+          `Research ${career.title} programs at universities in your country`,
+          `Connect with professionals in this field through networking events or LinkedIn`,
+          `Build relevant skills through online courses or certifications`,
+          `Seek internships or volunteer opportunities in related organizations`,
+        ];
 
-        const matchScores = calculateCareerMatch(enrichedAssessment, career, country, jobTrend);
+        // Build overall reasoning from component scores
+        const reasoningParts = match.componentScores
+          .filter(c => c.score > 0)
+          .map(c => `${c.displayName}: ${c.reasoning}`)
+          .join("; ");
 
-        // Only recommend careers with overall match > 40%
-        if (matchScores.overallMatchScore > 40) {
-          const actionSteps = [
-            `Research ${career.title} programs at universities in your country`,
-            `Connect with professionals in this field through networking events or LinkedIn`,
-            `Build relevant skills through online courses or certifications`,
-            `Seek internships or volunteer opportunities in related organizations`,
-          ];
+        const recommendation = await storage.createRecommendation({
+          assessmentId: assessment.id,
+          careerId: career.id,
+          overallMatchScore: match.overallScore,
+          subjectMatchScore: match.componentScores.find(c => c.key === "subjects")?.score || 0,
+          interestMatchScore: match.componentScores.find(c => c.key === "interests")?.score || 0,
+          countryVisionAlignment: match.componentScores.find(c => c.key === "vision")?.score || 0,
+          futureMarketDemand: match.componentScores.find(c => c.key === "market")?.score || 0,
+          reasoning: reasoningParts,
+          actionSteps,
+          requiredEducation: career.educationLevel,
+        });
 
-          const recommendation = await storage.createRecommendation({
-            assessmentId: assessment.id,
-            careerId: career.id,
-            ...matchScores,
-            actionSteps,
-            requiredEducation: career.educationLevel,
-          });
-
-          recommendations.push(recommendation);
-        }
+        recommendations.push(recommendation);
       }
 
-      // Sort by overall match score
-      recommendations.sort((a, b) => b.overallMatchScore - a.overallMatchScore);
-
-      // Return top 5
-      res.json(recommendations.slice(0, 5));
+      res.json(recommendations);
     } catch (error) {
       console.error("Error generating recommendations:", error);
       res.status(500).json({ message: "Failed to generate recommendations" });
