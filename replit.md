@@ -19,6 +19,51 @@ The application is fully functional with:
 - Beautiful sticky notes UI optimized for students
 
 ## Recent Changes
+**November 10, 2025 - Premium Features & Payment System**
+- **Dual-Tier System**:
+  - Free: Basic personality assessment with career matching (27.5/27.5/22.5/22.5 weighting)
+  - Premium: Kolb's Experiential Learning Theory assessment ($10/student) with enhanced matching (25/25/20/20/10 weighting)
+  - School bulk discounts: 10% off for 100+, 15% off for 500+, 20% off for 1000+ students
+
+- **Payment System (Production-Ready)**:
+  - Stripe integration with secure server-side pricing calculation
+  - Server-calculated amounts prevent client-side tampering
+  - Payment amount verification with metadata checks
+  - User ID validation before premium upgrade
+  - Idempotency checks to prevent duplicate upgrades
+  - Tier selection page with bulk pricing calculator
+  - Secure checkout flow with PaymentIntent validation
+
+- **Kolb Assessment Integration**:
+  - 24-question scientifically-validated assessment (6 questions per dimension: CE, RO, AC, AE)
+  - Automatic score calculation and learning style determination
+  - Four learning styles: Diverging, Assimilating, Converging, Accommodating
+  - Premium gating: KolbStep shown only for paid users
+
+- **Enhanced Career Matching Algorithm**:
+  - Premium users: 25% subjects, 25% interests, 20% vision, 20% market demand, 10% learning style
+  - Free users: 27.5% subjects, 27.5% interests, 22.5% vision, 22.5% market demand
+  - Learning style affinity scoring for 36 careers across 4 Kolb styles
+  - Backwards compatible with free users (null kolbScores)
+
+- **Results Page Enhancements**:
+  - Horizontal cascading masonry grid layout (ResizeObserver-driven row spans)
+  - Premium users: Learning Style Insights section with personalized study tips
+  - Free users: Upgrade prompt highlighting premium benefits
+  - Career connection explanations (10% learning style weight)
+
+- **PDF Report Enhancements**:
+  - Premium-only Kolb Learning Style page (Page 2)
+  - Age-appropriate descriptions for each learning style
+  - 4 personalized study tips per learning style
+  - Visual CE/RO/AC/AE score breakdown with progress bars
+  - Career connection explanations
+  - All emojis removed (design guideline compliance)
+
+- **Database Schema Updates**:
+  - users table: isPremium, stripeCustomerId, paymentDate fields
+  - assessments table: assessmentType ('free'/'kolb'), kolbScores (jsonb with CE, RO, AC, AE, X, Y, learningStyle)
+
 **November 9, 2025 - Subject Competency Quiz & Vision Linkage System**
 - **Subject Competency Quiz Architecture**:
   - Implemented comprehensive question bank system for UAE curriculum (69 questions)
@@ -96,13 +141,23 @@ The application is fully functional with:
 
 ### Key Algorithms
 1. **Career Matching Engine** (`server/routes.ts`):
-   - Calculates subject match score based on overlap
+   - **Premium (Kolb users)**: 25% subjects, 25% interests, 20% vision, 20% market demand, 10% learning style
+   - **Free users**: 27.5% subjects, 27.5% interests, 22.5% vision, 22.5% market demand
+   - Calculates subject match score (preference alignment + competency validation)
    - Analyzes interest alignment with career categories
    - Scores country vision alignment using job market trends
    - Evaluates future market demand scores
+   - Premium: Kolb learning style affinity scoring (Diverging, Assimilating, Converging, Accommodating)
    - Generates personalized reasoning for each recommendation
+   - Returns matchedSubjects and supportingVisionPriorities metadata
 
-2. **Smart Recommendations**:
+2. **Kolb Score Calculation** (`server/routes.ts`):
+   - Calculates CE, RO, AC, AE scores from 24 Likert-scale responses
+   - Computes X-axis (AC - CE) and Y-axis (AE - RO) coordinates
+   - Determines learning style quadrant (Diverging/Assimilating/Converging/Accommodating)
+   - Stored in assessments.kolbScores jsonb field
+
+3. **Smart Recommendations**:
    - Only recommends careers with >40% overall match
    - Returns top 5 matches sorted by overall score
    - Provides actionable next steps for each career
@@ -122,7 +177,9 @@ The application is fully functional with:
 ### Assessments
 - `POST /api/assessments`: Create new assessment (guest or authenticated)
 - `GET /api/assessments/my`: Get user's assessments (authenticated only)
-- `PATCH /api/assessments/:id`: Update assessment
+- `PATCH /api/assessments/:id`: Update assessment (auto-calculates Kolb scores if kolbResponses provided)
+- `GET /api/assessments/:id`: Get single assessment details
+- `GET /api/assessments/:id/quiz`: Get quiz results with subject competency scores
 
 ### Recommendations
 - `POST /api/recommendations/generate/:assessmentId`: Generate career recommendations
@@ -131,6 +188,10 @@ The application is fully functional with:
 
 ### Careers
 - `GET /api/careers`: Get all available careers
+
+### Payment
+- `POST /api/create-payment-intent`: Create Stripe PaymentIntent with server-calculated pricing
+- `POST /api/upgrade-to-premium`: Upgrade user to premium after successful payment verification
 
 ### Migration
 - `POST /api/assessments/migrate`: Migrate guest assessments to authenticated user (requires guestSessionId)
@@ -166,13 +227,22 @@ The application is fully functional with:
 4. View personalized career recommendations
 5. Prompted to sign up to save results
 
-### Registered User Flow
+### Free User Flow
 1. Land on homepage → Click "Get Started"
-2. OAuth login via Replit
-3. Complete assessment (saves automatically)
-4. View recommendations
-5. Download PDF report
-6. Access saved assessments anytime
+2. OAuth login via Replit (or explore as guest)
+3. Complete basic assessment with personality questions
+4. View career recommendations with subject competency validation
+5. See upgrade prompt highlighting premium benefits
+6. Download basic PDF report
+
+### Premium User Flow
+1. Complete free assessment or start directly
+2. Navigate to tier selection page → Choose premium ($10/student)
+3. Complete secure Stripe checkout
+4. Take Kolb's 24-question assessment
+5. View enhanced career recommendations with learning style insights
+6. Download comprehensive PDF report with study tips
+7. Access personalized learning strategies
 
 ## Future Enhancements
 - Mentor matching system
