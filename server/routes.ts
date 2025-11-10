@@ -5,7 +5,7 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertAssessmentSchema } from "@shared/schema";
 import { z } from "zod";
 import PDFDocument from "pdfkit";
-import { transformQuizQuestionForFrontend } from "./utils/quiz";
+import { transformQuizQuestionForFrontend, shuffleQuestions, shuffleOptions } from "./utils/quiz";
 
 // Helper to enrich assessment with subject competency scores from quiz
 async function enrichAssessmentWithCompetencies(assessment: any) {
@@ -488,7 +488,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const subject = favoriteSubjects[i];
         const questionsForSubject = subjectQuestions.filter(q => q.subject === subject);
         const count = questionsPerSubject + (i < remainder ? 1 : 0);
-        const shuffled = questionsForSubject.sort(() => Math.random() - 0.5);
+        const shuffled = shuffleQuestions(questionsForSubject);
         selectedQuestions.push(...shuffled.slice(0, Math.min(count, questionsForSubject.length)));
       }
       
@@ -496,32 +496,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (selectedQuestions.length < TARGET_QUESTIONS) {
         const remaining = subjectQuestions.filter(q => !selectedQuestions.some(sq => sq.id === q.id));
         const needed = TARGET_QUESTIONS - selectedQuestions.length;
-        const shuffled = remaining.sort(() => Math.random() - 0.5);
+        const shuffled = shuffleQuestions(remaining);
         selectedQuestions.push(...shuffled.slice(0, needed));
       }
       
       // Shuffle final selection to avoid predictable ordering
-      selectedQuestions.sort(() => Math.random() - 0.5);
+      const finalShuffledQuestions = shuffleQuestions(selectedQuestions);
       
       // Final validation: ensure we have exactly TARGET_QUESTIONS
-      if (selectedQuestions.length < TARGET_QUESTIONS) {
+      if (finalShuffledQuestions.length < TARGET_QUESTIONS) {
         return res.status(400).json({ 
-          message: `Unable to generate complete quiz. Only ${selectedQuestions.length} questions available for your subjects.`,
-          availableQuestions: selectedQuestions.length,
+          message: `Unable to generate complete quiz. Only ${finalShuffledQuestions.length} questions available for your subjects.`,
+          availableQuestions: finalShuffledQuestions.length,
           requiredQuestions: TARGET_QUESTIONS
         });
       }
       
+      // Shuffle answer options for each question
+      const questionsWithShuffledOptions = finalShuffledQuestions.map(q => shuffleOptions(q));
+      
       // Create assessment quiz record with empty subject scores
       const quiz = await storage.createAssessmentQuiz({
         assessmentId,
-        questionsCount: selectedQuestions.length,
+        questionsCount: questionsWithShuffledOptions.length,
         totalScore: 0,
         subjectScores: {}
       });
       
       // Create placeholder quiz_responses for each selected question
-      for (const question of selectedQuestions) {
+      for (const question of questionsWithShuffledOptions) {
         await storage.createQuizResponse({
           assessmentQuizId: quiz.id,
           questionId: question.id,
@@ -532,7 +535,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Transform questions for frontend (format options and hide answers)
-      const questionsForFrontend = selectedQuestions.map(transformQuizQuestionForFrontend);
+      const questionsForFrontend = questionsWithShuffledOptions.map(transformQuizQuestionForFrontend);
       
       res.json({ quizId: quiz.id, questions: questionsForFrontend, responses: [], completed: false });
     } catch (error) {

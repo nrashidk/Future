@@ -1,4 +1,52 @@
 /**
+ * Fisher-Yates shuffle algorithm for randomizing array order
+ * Returns a new shuffled array without mutating the original
+ */
+function shuffleArray<T>(array: T[]): T[] {
+  const shuffled = [...array];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled;
+}
+
+/**
+ * Shuffles an array of quiz questions randomly
+ */
+export function shuffleQuestions(questions: any[]): any[] {
+  return shuffleArray(questions);
+}
+
+/**
+ * Shuffles the answer options for a single question while preserving correctAnswer linkage
+ * Returns a new question object with shuffled options and updated correctAnswer reference
+ */
+export function shuffleOptions(question: any): any {
+  if (!Array.isArray(question.options) || question.options.length === 0) {
+    return question;
+  }
+
+  // Create a mapping of original option text to new shuffled index
+  const shuffledOptions = shuffleArray(question.options);
+  
+  // Find the new position of the correct answer
+  let newCorrectAnswer = question.correctAnswer;
+  if (question.questionType === "multiple_choice" && question.correctAnswer) {
+    const correctAnswerText = question.correctAnswer;
+    const newIndex = shuffledOptions.findIndex((opt: string) => opt === correctAnswerText);
+    // Keep correctAnswer as the actual text value (not index)
+    newCorrectAnswer = newIndex >= 0 ? shuffledOptions[newIndex] : correctAnswerText;
+  }
+
+  return {
+    ...question,
+    options: shuffledOptions,
+    correctAnswer: newCorrectAnswer
+  };
+}
+
+/**
  * Transforms quiz questions from database format to frontend format
  * Converts options from string[] to {id, text}[] and handles sensitive data
  */
