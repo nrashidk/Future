@@ -35,15 +35,19 @@ The application features a playful, student-friendly sticky notes aesthetic with
 
 ### Feature Specifications
 - **User Authentication**: Replit Auth with guest access and session migration.
-- **Career Matching Engine**: A sophisticated algorithm that scores careers based on:
-    - Subject Match (30%): Blends preference with demonstrated competency.
-    - Interest Match (30%): Category-based interest alignment.
-    - Vision Alignment (20%): Matches to country vision/mission priority sectors.
-    - Market Demand (20%): Future job market growth scores.
-    - Learning Style Affinity (10%): For premium users, connecting learning styles to career characteristics.
-    - Competency validation applies penalties when quiz performance contradicts preferences.
-- **Smart Recommendations**: Filters careers with <40% overall match, returning top 5 matches with personalized reasoning and actionable next steps.
-- **Country-Specific Data**: Comprehensive 2030/2050 vision data for 11 countries, integrated into the matching algorithm.
+- **Dynamic Career Matching Engine** (server/services/matching.ts):
+    - **Modular Architecture**: Component-based calculator registry with pluggable scoring algorithms (subjects, interests, vision, market, Kolb, RIASEC).
+    - **Bulk Data Loading**: Eliminates N+1 query patterns with three deterministic queries (assessment data, job trends, career affinities).
+    - **Configurable Weights**: Subject Match (20%), Interest Match (20%), Vision Alignment (20%), Market Demand (20%), Kolb (10%), RIASEC (10%).
+    - **Component Calculators**:
+        - Subjects: Blends preference (40%) with demonstrated competency (60%) from quiz scores, applying penalties for low performance.
+        - Interests: Keyword thesaurus matching against career descriptions with flexible scoring.
+        - Vision: Tiered scoring (100/90/80) based on country priority sector rankings.
+        - Market: Job trend demand scores sorted by most recent year data.
+        - Kolb: Learning style affinity scores (placeholder for future database-backed implementation).
+        - RIASEC: Holland Code personality alignment using database-stored career affinities.
+    - **Smart Filtering**: Returns top 5 careers with >40% overall match, includes component-level reasoning for transparency.
+- **Country-Specific Data**: Comprehensive 2030/2050 vision data for 15 countries, integrated into the matching algorithm.
 
 ### System Design Choices
 - **Database Schema**: Includes `users`, `sessions`, `countries` (with mission/vision, visionPlan, targets), `skills`, `careers`, `job_market_trends`, `assessments` (with `assessmentType`, `kolbScores`, `riasecResponses`, `riaseacScores`), and `recommendations` tables.
