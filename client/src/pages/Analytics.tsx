@@ -1,21 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { StickyNote } from "@/components/StickyNote";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-} from "@/components/ui/command";
 import { Link } from "wouter";
 import { 
   Users, 
@@ -27,7 +15,6 @@ import {
   Sparkles,
   GraduationCap,
   Home,
-  Plus,
   Award,
   Briefcase
 } from "lucide-react";
@@ -53,26 +40,29 @@ interface SectorData {
 }
 
 export default function Analytics() {
-  const [pinnedCountryIds, setPinnedCountryIds] = useState<string[]>([]);
   const [activeCountryId, setActiveCountryId] = useState<string | null>(null);
-  const [addCountryOpen, setAddCountryOpen] = useState(false);
 
-  // Countries list (always unfiltered to show all available countries)
+  // Countries list with completed assessments (automatically shown)
   const { data: countries, isLoading: countriesLoading } = useQuery<Array<{ countryId: string; countryName: string; studentCount: number }>>({
     queryKey: ['/api/analytics/countries'],
   });
 
+  // Countries with completed assessments (automatically displayed)
+  const displayCountries = useMemo(() => 
+    countries?.filter(c => c.studentCount > 0) ?? [], 
+    [countries]
+  );
+
   // Auto-default to UAE on initial load
   useEffect(() => {
-    if (countries && countries.length > 0 && pinnedCountryIds.length === 0) {
+    if (displayCountries.length > 0 && !activeCountryId) {
       // Find UAE by name, fallback to first country
-      const uaeCountry = countries.find(c => c.countryName.toLowerCase().includes('emirates')) || countries[0];
+      const uaeCountry = displayCountries.find(c => c.countryName.toLowerCase().includes('emirates')) || displayCountries[0];
       if (uaeCountry) {
-        setPinnedCountryIds([uaeCountry.countryId]);
         setActiveCountryId(uaeCountry.countryId);
       }
     }
-  }, [countries, pinnedCountryIds.length]);
+  }, [displayCountries, activeCountryId]);
 
   // Query with active country filter
   const { data: overview, isLoading: overviewLoading } = useQuery<AnalyticsOverview>({
@@ -117,22 +107,6 @@ export default function Analytics() {
 
   const topCareer = careers?.[0];
 
-  // Available countries for "Add Country" (not already pinned and has completed assessments)
-  const availableCountries = countries?.filter(c => 
-    !pinnedCountryIds.includes(c.countryId) && c.studentCount > 0
-  ) || [];
-
-  // Get pinned countries data
-  const pinnedCountries = pinnedCountryIds
-    .map(id => countries?.find(c => c.countryId === id))
-    .filter(Boolean) as Array<{ countryId: string; countryName: string; studentCount: number }>;
-
-  const handleAddCountry = (countryId: string) => {
-    setPinnedCountryIds([...pinnedCountryIds, countryId]);
-    setActiveCountryId(countryId);
-    setAddCountryOpen(false);
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10">
       {/* Navigation Header */}
@@ -165,75 +139,41 @@ export default function Analytics() {
 
         {/* Country Selection - Sticky Notes */}
         <div className="mb-12">
-          <div className="flex flex-wrap gap-4 items-center">
-            {/* Pinned Country Sticky Notes */}
-            {pinnedCountries.map((country, index) => {
-              const colors = ['yellow', 'pink', 'blue', 'green', 'purple'] as const;
-              const rotations = ['-2', '-1', '1', '2', '-1'] as const;
-              const color = colors[index % colors.length];
-              const rotation = rotations[index % rotations.length];
+          {displayCountries.length > 0 ? (
+            <div className="flex flex-wrap gap-4 items-center">
+              {displayCountries.map((country, index) => {
+                const colors = ['yellow', 'pink', 'blue', 'green', 'purple'] as const;
+                const rotations = ['-2', '-1', '1', '2', '-1'] as const;
+                const color = colors[index % colors.length];
+                const rotation = rotations[index % rotations.length];
 
-              return (
-                <button
-                  key={country.countryId}
-                  onClick={() => setActiveCountryId(country.countryId)}
-                  className="focus:outline-none transition-transform hover:scale-105"
-                  data-testid={`filter-country-${country.countryId}`}
-                >
-                  <StickyNote 
-                    color={color} 
-                    rotation={rotation}
-                    className={activeCountryId === country.countryId ? "ring-4 ring-primary ring-offset-2" : ""}
+                return (
+                  <button
+                    key={country.countryId}
+                    onClick={() => setActiveCountryId(country.countryId)}
+                    className="focus:outline-none transition-transform hover:scale-105"
+                    data-testid={`filter-country-${country.countryId}`}
                   >
-                    <div className="text-center">
-                      <p className="text-lg font-bold mb-2 line-clamp-1">{country.countryName}</p>
-                      <p className="text-3xl font-bold text-primary">{country.studentCount}</p>
-                      <p className="text-xs text-muted-foreground mt-1">students assessed</p>
-                    </div>
-                  </StickyNote>
-                </button>
-              );
-            })}
-
-            {/* Add Country Button */}
-            {availableCountries.length > 0 && (
-              <Popover open={addCountryOpen} onOpenChange={setAddCountryOpen}>
-                <PopoverTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    size="lg"
-                    className="h-32 min-w-32"
-                    data-testid="button-add-country"
-                  >
-                    <Plus className="w-6 h-6 mr-2" />
-                    Add Country
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-72 p-0" align="start">
-                  <Command>
-                    <CommandInput placeholder="Search countries..." />
-                    <CommandEmpty>No countries found.</CommandEmpty>
-                    <CommandGroup>
-                      {availableCountries.map((country) => (
-                        <CommandItem
-                          key={country.countryId}
-                          value={country.countryName}
-                          onSelect={() => handleAddCountry(country.countryId)}
-                          data-testid={`add-country-${country.countryId}`}
-                        >
-                          <Globe className="mr-2 h-4 w-4" />
-                          <span>{country.countryName}</span>
-                          <span className="ml-auto text-xs text-muted-foreground">
-                            {country.studentCount} students
-                          </span>
-                        </CommandItem>
-                      ))}
-                    </CommandGroup>
-                  </Command>
-                </PopoverContent>
-              </Popover>
-            )}
-          </div>
+                    <StickyNote 
+                      color={color} 
+                      rotation={rotation}
+                      className={activeCountryId === country.countryId ? "ring-4 ring-primary ring-offset-2" : ""}
+                    >
+                      <div className="text-center">
+                        <p className="text-lg font-bold mb-2 line-clamp-1">{country.countryName}</p>
+                        <p className="text-3xl font-bold text-primary">{country.studentCount}</p>
+                        <p className="text-xs text-muted-foreground mt-1">students assessed</p>
+                      </div>
+                    </StickyNote>
+                  </button>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center text-muted-foreground py-8">
+              No countries with completed assessments yet
+            </div>
+          )}
         </div>
 
         {/* Key Metrics */}
@@ -267,7 +207,7 @@ export default function Analytics() {
               <div>
                 <p className="text-muted-foreground text-sm mb-1">Active Countries</p>
                 <p className="text-3xl font-bold" data-testid="metric-active-countries">
-                  {countriesLoading ? "..." : countries?.length || 0}
+                  {countriesLoading ? "..." : displayCountries.length}
                 </p>
               </div>
               <Globe className="w-8 h-8 text-primary" />
