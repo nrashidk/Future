@@ -855,8 +855,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const recommendations = await storage.getRecommendationsByAssessment(assessment.id);
       const country = assessment.countryId ? await storage.getCountryById(assessment.countryId) : null;
 
-      // Create PDF document with custom margins
-      const doc = new PDFDocument({ margin: layout.PAGE_MARGIN, size: "A4" });
+      // Create PDF document in landscape orientation
+      const doc = new PDFDocument({ 
+        margin: layout.PAGE_MARGIN, 
+        size: "A4",
+        layout: "landscape"
+      });
 
       // Set response headers
       res.setHeader("Content-Type", "application/pdf");
@@ -893,10 +897,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           renderContent: (doc, contentX, contentY, contentWidth) => {
             let innerY = contentY;
             
-            // Icon and title
-            doc.fontSize(12).fillColor(colors.primary).text("✓", contentX + contentWidth / 2 - 6, innerY, { width: 12 });
-            innerY += 20;
-            doc.fontSize(20).font("Helvetica-Bold").fillColor(colors.textDark).text(
+            // Title
+            doc.fontSize(18).font("Helvetica-Bold").fillColor(colors.textDark).text(
               "Your Subject Strengths",
               contentX,
               innerY,
@@ -1040,7 +1042,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               label: "Subject Match",
               value: rec.subjectMatchScore,
               weight: "30% weight • Validated by quiz",
-              icon: "📚",
             });
             
             const metric2Y = innerY;
@@ -1051,7 +1052,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               label: "Interest Match",
               value: rec.interestMatchScore,
               weight: "30% weight",
-              icon: "⭐",
             });
             
             innerY += 4;
@@ -1063,7 +1063,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               label: "Vision Alignment",
               value: rec.countryVisionAlignment,
               weight: "20% weight",
-              icon: "🎯",
             });
             
             const metric4Y = metric3Y;
@@ -1074,7 +1073,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
               label: "Market Demand",
               value: rec.futureMarketDemand,
               weight: "20% weight",
-              icon: "📈",
             });
             
             innerY += 12;
@@ -1082,7 +1080,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Competency validation badges (if available)
             if (rec.matchedSubjects && rec.matchedSubjects.length > 0) {
               doc.fontSize(8).font("Helvetica-Bold").fillColor(colors.textMuted).text(
-                "✓ Validated by Your Competencies",
+                "Validated by Your Competencies",
                 contentX,
                 innerY
               );
@@ -1108,7 +1106,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Vision priorities (if available)
             if (rec.supportingVisionPriorities && rec.supportingVisionPriorities.length > 0) {
               doc.fontSize(8).font("Helvetica-Bold").fillColor(colors.textMuted).text(
-                "🎯 Supports National Vision",
+                "Supports National Vision",
                 contentX,
                 innerY
               );
@@ -1133,7 +1131,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             // Why this career
             doc.fontSize(9).font("Helvetica-Bold").fillColor(colors.textDark).text(
-              "✓ Why This Career?",
+              "Why This Career?",
               contentX,
               innerY
             );
@@ -1145,7 +1143,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             // Education path
             doc.fontSize(9).font("Helvetica-Bold").fillColor(colors.textDark).text(
-              "📚 Education Required",
+              "Education Required",
               contentX,
               innerY
             );
@@ -1161,7 +1159,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Next steps (first 3)
             if (rec.actionSteps && rec.actionSteps.length > 0) {
               doc.fontSize(9).font("Helvetica-Bold").fillColor(colors.textDark).text(
-                "➜ Next Steps",
+                "Next Steps",
                 contentX,
                 innerY
               );

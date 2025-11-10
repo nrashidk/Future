@@ -65,38 +65,24 @@ export function drawGradientHeader(
   doc: typeof PDFDocument.prototype,
   options: { title: string; subtitle: string; iconLabel?: string }
 ) {
-  const { title, subtitle, iconLabel = "★" } = options;
+  const { title, subtitle } = options;
   const width = doc.page.width;
-  const height = 140;
+  const height = 100;
   
-  // Draw gradient background (simulate with two rectangles)
+  // Draw gradient background
   doc.save();
   doc.rect(0, 0, width, height).fill(colors.primaryStart);
   doc.rect(0, 0, width, height).fillOpacity(0.5).fill(colors.primaryEnd);
   doc.restore();
   
-  // Draw icon badge (circle with icon)
-  const badgeX = width / 2;
-  const badgeY = 40;
-  const badgeRadius = 30;
-  doc.save();
-  doc.circle(badgeX, badgeY, badgeRadius).fillOpacity(0.3).fill("#FFFFFF");
-  doc.restore();
-  
-  // Icon text
-  doc.fontSize(32).fillColor("#FFFFFF").text(iconLabel, 0, badgeY - 16, {
-    width: width,
-    align: "center"
-  });
-  
   // Title
-  doc.fontSize(32).font("Helvetica-Bold").fillColor("#FFFFFF").text(title, 0, 80, {
+  doc.fontSize(28).font("Helvetica-Bold").fillColor("#FFFFFF").text(title, 0, 30, {
     width: width,
     align: "center"
   });
   
   // Subtitle
-  doc.fontSize(14).font("Helvetica").fillColor("#FFFFFF").fillOpacity(0.95).text(subtitle, 0, 115, {
+  doc.fontSize(12).font("Helvetica").fillColor("#FFFFFF").fillOpacity(0.95).text(subtitle, 0, 65, {
     width: width,
     align: "center"
   });
@@ -279,11 +265,11 @@ export function drawMetricRow(
     icon?: string;
   }
 ): number {
-  const { x, y, width, label, value, weight, icon = "●" } = options;
+  const { x, y, width, label, value, weight } = options;
   
   // Label and value
   doc.fontSize(9).font("Helvetica").fillColor(colors.textMedium);
-  doc.text(`${icon} ${label}`, x, y, { continued: true, width: width * 0.6 });
+  doc.text(label, x, y, { continued: true, width: width * 0.6 });
   doc.fillColor(colors.textDark).font("Helvetica-Bold").text(`${Math.round(value)}%`, { align: "right" });
   
   // Progress bar
@@ -298,7 +284,7 @@ export function drawMetricRow(
   return weight ? 36 : 26; // Height consumed
 }
 
-// Helper: Draw insight row with icon
+// Helper: Draw insight row with bullet
 export function drawInsightRow(
   doc: typeof PDFDocument.prototype,
   options: {
@@ -310,15 +296,14 @@ export function drawInsightRow(
     iconColor?: string;
   }
 ): number {
-  const { x, y, width, text, icon = "✓", iconColor = colors.success } = options;
+  const { x, y, width, text } = options;
   
-  const iconSize = 10;
-  const iconX = x;
-  const textX = x + iconSize + 6;
-  const textWidth = width - iconSize - 6;
+  const bulletX = x;
+  const textX = x + 12;
+  const textWidth = width - 12;
   
-  // Draw icon (simple circle with symbol)
-  doc.fontSize(iconSize).fillColor(iconColor).text(icon, iconX, y);
+  // Draw bullet
+  doc.fontSize(9).fillColor(colors.textDark).text(">", bulletX, y);
   
   // Draw text
   doc.fontSize(9).font("Helvetica").fillColor(colors.textMedium);
