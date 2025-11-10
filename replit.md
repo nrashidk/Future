@@ -1,279 +1,60 @@
 # Future Pathways - Career Guidance System
 
 ## Overview
-Future Pathways is a comprehensive career guidance system designed specifically for school students aged 13-18. The application uses a beautiful sticky notes design aesthetic to make career exploration engaging and fun while providing intelligent alignment between student interests, country vision/mission, future skills needs, and job market opportunities.
-
-## Purpose
-- Help students discover career paths that match their interests and strengths
-- Align student career choices with their country's national development goals
-- Provide insights into future job market trends and skill requirements
-- Make career planning accessible and engaging for young students
-
-## Current State
-The application is fully functional with:
-- Complete user authentication system (Replit Auth + Guest access)
-- Multi-step career assessment questionnaire
-- Intelligent career matching algorithm
-- Country-specific career recommendations
-- Database integration with PostgreSQL
-- Beautiful sticky notes UI optimized for students
-
-## Recent Changes
-**November 10, 2025 - Individual & Group Assessment System**
-- **Dual-Tier System Rebranding**:
-  - Removed "Kolb" branding to protect proprietary assessment methodology
-  - Individual Assessment: Advanced learning style analysis ($10/student) with 25/25/20/20/10 weighting
-  - Group Assessment: All Individual features + bulk pricing (10-20% off) + planned analytics features for schools
-  - Guest users skip tier selection and go directly to basic assessment
-
-- **Payment System (Production-Ready)**:
-  - Stripe integration with secure server-side pricing calculation
-  - Server-calculated amounts prevent client-side tampering
-  - Payment amount verification with metadata checks
-  - User ID validation before Individual Assessment upgrade
-  - Idempotency checks to prevent duplicate upgrades
-  - Tier selection page with Individual vs Group Assessment comparison
-  - Secure checkout flow with PaymentIntent validation
-
-- **Advanced Learning Style Assessment (Individual Tier)**:
-  - 24-question scientifically-validated assessment (6 questions per dimension: CE, RO, AC, AE)
-  - Automatic score calculation and learning style determination
-  - Four learning styles: Diverging, Assimilating, Converging, Accommodating
-  - Routing guard: Authenticated non-premium users redirected to tier selection
-
-- **Enhanced Career Matching Algorithm**:
-  - Individual Assessment: 25% subjects, 25% interests, 20% vision, 20% market demand, 10% learning style
-  - Basic Assessment: 27.5% subjects, 27.5% interests, 22.5% vision, 22.5% market demand
-  - Learning style affinity scoring for 36 careers across 4 learning styles
-  - Backwards compatible with basic assessment users
-
-- **Results Page Enhancements**:
-  - Horizontal cascading masonry grid layout (ResizeObserver-driven row spans)
-  - Individual Assessment users: Learning Style Insights with personalized study tips
-  - Basic assessment users: Upgrade prompt highlighting Individual Assessment benefits
-  - Career connection explanations (10% learning style weight)
-
-- **PDF Report Enhancements**:
-  - Individual Assessment: Learning Style Analysis page (Page 2)
-  - Age-appropriate descriptions for each learning style
-  - 4 personalized study tips per learning style
-  - Visual CE/RO/AC/AE score breakdown with progress bars
-  - Career connection explanations
-  - All proprietary methodology references (no external branding)
-
-- **Database Schema Updates**:
-  - users table: isPremium, stripeCustomerId, paymentDate fields
-  - assessments table: assessmentType ('basic'/'kolb'), kolbScores (jsonb with CE, RO, AC, AE, X, Y, learningStyle)
-  - Internal field names preserved ('kolb') for DB stability; user-facing text uses "learning style" terminology
-
-- **Group Assessment Features (Planned)**:
-  - School-wide analytics dashboard
-  - Student trend analysis
-  - Grouping by learning styles/career paths
-  - Administrative reporting tools
-  - Data export capabilities
-  - Priority support
-  - Features marked "Coming Soon" in UI
-
-**November 9, 2025 - Subject Competency Quiz & Vision Linkage System**
-- **Subject Competency Quiz Architecture**:
-  - Implemented comprehensive question bank system for UAE curriculum (69 questions)
-  - Coverage: Math, Science, English, Arabic, Social Studies, Computer Science
-  - Grade-differentiated questions (8-9 vs 10-12) matching actual curriculum difficulty
-  - Enforced exactly 6 questions with clear validation errors
-  - Per-subject competency scoring replacing legacy vision metrics
-
-- **Enhanced Career Matching Algorithm (30/30/20/20 weighting)**:
-  - Subject Match (30%): Blends preference alignment with demonstrated competency (50/50)
-  - Interest Match (30%): Category-based interest alignment
-  - Vision Alignment (20%): Matches to country visionPlan priority sectors
-  - Market Demand (20%): Future job market growth scores
-  - Competency validation: Applies penalties when quiz performance contradicts preferences
-  - Backend metadata: Returns `matchedSubjects` and `supportingVisionPriorities` per career
-
-- **Results Page Overhaul - Competency → Career → Vision Narrative**:
-  - **Subject Competency Spotlight**: Overall score with student-friendly labels, per-subject breakdown, dynamic vision linkage
-  - **Per-Career Validation**: "✓ Validated by Your Competencies" badges showing matched subjects with percentages
-  - **Vision Priority Chips**: "🎯 Supports National Vision" chips showing specific priority sectors from country visionPlan
-  - **Fixed Query Logic**: Uses `activeAssessmentId = urlAssessmentId || assessmentId` for reliable data loading in all navigation paths
-  - Complete data-driven narrative linking competency → career → country vision
-
-- **Country Expansion** (Earlier): Expanded from 4 to 11 countries with comprehensive 2030/2050 vision data
-- **Structured Vision Data**: Added visionPlan and targets (jsonb) fields to countries table
-- **Bug Fixes**: Results page query logic, PDF authorization, PersonalityStep RadioGroup warning
-- **PDF Generation**: Complete report with subject competency scores and vision linkage
-
-**Initial Implementation**
-- Created complete database schema with users, assessments, countries, skills, careers, job market trends, and recommendations tables
-- Implemented Replit Auth with guest session support
-- Built all frontend components using sticky notes design system
-- Created intelligent matching algorithm that scores careers based on:
-  - Subject alignment (30%)
-  - Interest alignment (30%)
-  - Country vision alignment (20%)
-  - Future market demand (20%)
-- Generated job market trends data for each career-country combination
+Future Pathways is a comprehensive career guidance system for school students aged 13-18. It aims to make career exploration engaging and fun using a sticky notes design aesthetic. The system intelligently aligns student interests, national development goals, future skills, and job market opportunities to help students discover suitable career paths and plan for their future. The project's ambition is to make career planning accessible and engaging, providing insights into future job market trends and skill requirements.
 
 ## User Preferences
 - Design: Playful, student-friendly sticky notes aesthetic with vibrant colors
 - Target audience: School students aged 13-18
 - Key features: Guest access for exploration, easy registration to save progress
 
-## Project Architecture
+## System Architecture
 
-### Frontend (/client)
-- **Framework**: React with TypeScript
-- **Styling**: Tailwind CSS with custom sticky notes design tokens
-- **State Management**: TanStack Query for server state
-- **Routing**: Wouter for lightweight client-side routing
-- **Key Components**:
-  - `Landing.tsx`: Hero page with value proposition and CTAs
-  - `Assessment.tsx`: Multi-step questionnaire flow
-  - `Results.tsx`: Career recommendations display
-  - `StickyNote.tsx`: Reusable sticky note component
-  - Assessment steps: Demographics, Subjects, Interests, Personality, Country, Aspirations
+### UI/UX Decisions
+The application features a playful, student-friendly sticky notes aesthetic with vibrant colors. Key design elements include:
+- Sticky notes with subtle rotations (-2° to 2°), drop shadows, and tape effects.
+- Hover and active state elevations with smooth transitions and animations.
+- Typography uses Poppins for headings and Inter for body text.
 
-### Backend (/server)
-- **Framework**: Express.js with TypeScript
-- **Database**: PostgreSQL (Neon)
-- **ORM**: Drizzle ORM
-- **Authentication**: Replit Auth (OpenID Connect)
-- **Session Storage**: PostgreSQL-backed sessions
+### Technical Implementations
+- **Frontend**: React with TypeScript, Tailwind CSS for styling, TanStack Query for server state management, and Wouter for routing.
+- **Backend**: Express.js with TypeScript, PostgreSQL (Neon) for the database, and Drizzle ORM.
+- **Authentication**: Replit Auth (OpenID Connect) with PostgreSQL-backed sessions.
+- **Payment System**: Stripe integration for secure, server-side pricing and payment processing, supporting individual and group assessments.
+- **Assessment Components**:
+    - Multi-step career assessment questionnaire including demographics, subjects, interests, personality (RIASEC), country vision, and aspirations.
+    - Dual-tier assessment system: Basic (free) and Individual/Group (premium, paid).
+    - Scientifically-validated 24-question learning style assessment for premium users, determining four learning styles: Diverging, Assimilating, Converging, Accommodating.
+    - RIASEC (Holland Code) personality assessment with 30 Likert-scale questions, calculating normalized scores across six themes.
+    - Subject Competency Quiz with grade-differentiated questions covering Math, Science, English, Arabic, Social Studies, and Computer Science, linked to the UAE curriculum.
+- **Career Catalog**: Expanded to 36 diverse careers with comprehensive job market trends and Holland Code affinity scores for 15 countries.
+- **Results & Reporting**:
+    - Horizontal cascading masonry grid layout for career recommendations.
+    - Personalized insights for premium users (e.g., learning style analysis, study tips).
+    - PDF report generation with detailed assessment breakdowns, subject competency scores, vision linkages, and career connection explanations.
 
-### Database Schema
-- `users`: User profiles from Replit Auth
-- `sessions`: Auth session storage
-- `countries`: Country data with mission/vision
-- `skills`: Future skills taxonomy
-- `careers`: Career descriptions and requirements
-- `job_market_trends`: Country-specific job market data
-- `assessments`: Student assessment responses
-- `recommendations`: Generated career recommendations with match scores
+### Feature Specifications
+- **User Authentication**: Replit Auth with guest access and session migration.
+- **Career Matching Engine**: A sophisticated algorithm that scores careers based on:
+    - Subject Match (30%): Blends preference with demonstrated competency.
+    - Interest Match (30%): Category-based interest alignment.
+    - Vision Alignment (20%): Matches to country vision/mission priority sectors.
+    - Market Demand (20%): Future job market growth scores.
+    - Learning Style Affinity (10%): For premium users, connecting learning styles to career characteristics.
+    - Competency validation applies penalties when quiz performance contradicts preferences.
+- **Smart Recommendations**: Filters careers with <40% overall match, returning top 5 matches with personalized reasoning and actionable next steps.
+- **Country-Specific Data**: Comprehensive 2030/2050 vision data for 11 countries, integrated into the matching algorithm.
 
-### Key Algorithms
-1. **Career Matching Engine** (`server/routes.ts`):
-   - **Premium (Kolb users)**: 25% subjects, 25% interests, 20% vision, 20% market demand, 10% learning style
-   - **Free users**: 27.5% subjects, 27.5% interests, 22.5% vision, 22.5% market demand
-   - Calculates subject match score (preference alignment + competency validation)
-   - Analyzes interest alignment with career categories
-   - Scores country vision alignment using job market trends
-   - Evaluates future market demand scores
-   - Premium: Kolb learning style affinity scoring (Diverging, Assimilating, Converging, Accommodating)
-   - Generates personalized reasoning for each recommendation
-   - Returns matchedSubjects and supportingVisionPriorities metadata
+### System Design Choices
+- **Database Schema**: Includes `users`, `sessions`, `countries` (with mission/vision, visionPlan, targets), `skills`, `careers`, `job_market_trends`, `assessments` (with `assessmentType`, `kolbScores`, `riasecResponses`, `riaseacScores`), and `recommendations` tables.
+- **Assessment Component System**: Database-backed `assessment_components` and `career_component_affinities` tables for managing and mapping assessment types and career affinities (e.g., RIASEC, Learning Styles).
+- **Session Storage**: PostgreSQL-backed for reliability.
+- **Development Workflow**: Uses `npm run db:push` for database migrations and automatic seeding in development.
 
-2. **Kolb Score Calculation** (`server/routes.ts`):
-   - Calculates CE, RO, AC, AE scores from 24 Likert-scale responses
-   - Computes X-axis (AC - CE) and Y-axis (AE - RO) coordinates
-   - Determines learning style quadrant (Diverging/Assimilating/Converging/Accommodating)
-   - Stored in assessments.kolbScores jsonb field
-
-3. **Smart Recommendations**:
-   - Only recommends careers with >40% overall match
-   - Returns top 5 matches sorted by overall score
-   - Provides actionable next steps for each career
-
-## API Endpoints
-
-### Authentication
-- `GET /api/login`: Initiate OAuth login flow
-- `GET /api/logout`: Logout and clear session
-- `GET /api/callback`: OAuth callback handler
-- `GET /api/auth/user`: Get current authenticated user
-
-### Countries
-- `GET /api/countries`: Get all countries
-- `GET /api/countries/:id`: Get country details with mission/vision
-
-### Assessments
-- `POST /api/assessments`: Create new assessment (guest or authenticated)
-- `GET /api/assessments/my`: Get user's assessments (authenticated only)
-- `PATCH /api/assessments/:id`: Update assessment (auto-calculates Kolb scores if kolbResponses provided)
-- `GET /api/assessments/:id`: Get single assessment details
-- `GET /api/assessments/:id/quiz`: Get quiz results with subject competency scores
-
-### Recommendations
-- `POST /api/recommendations/generate/:assessmentId`: Generate career recommendations
-- `GET /api/recommendations?assessmentId=xxx`: Get recommendations with career details
-- `GET /api/recommendations/pdf/:assessmentId`: Download PDF report (requires ownership)
-
-### Careers
-- `GET /api/careers`: Get all available careers
-
-### Payment
-- `POST /api/create-payment-intent`: Create Stripe PaymentIntent with server-calculated pricing
-- `POST /api/upgrade-to-premium`: Upgrade user to premium after successful payment verification
-
-### Migration
-- `POST /api/assessments/migrate`: Migrate guest assessments to authenticated user (requires guestSessionId)
-
-## Design System
-
-### Colors
-- Sticky Yellow: `hsl(48 100% 88%)`
-- Sticky Pink: `hsl(340 100% 95%)`
-- Sticky Blue: `hsl(207 100% 94%)`
-- Sticky Green: `hsl(120 60% 95%)`
-- Sticky Purple: `hsl(280 60% 96%)`
-- Primary: Purple gradient (`hsl(260 65% 55%)`)
-- Accent: Warm yellow (`hsl(35 85% 88%)`)
-
-### Typography
-- Headings: Poppins (friendly, rounded)
-- Body text: Inter (clean, readable)
-
-### Components
-- Sticky notes with subtle rotations (-2° to 2°)
-- Drop shadows for depth
-- Tape effect at top of sticky notes
-- Hover and active state elevations
-- Smooth transitions and animations
-
-## User Journey
-
-### Guest Flow
-1. Land on homepage → See value proposition
-2. Click "Explore as Guest"
-3. Complete 6-step assessment
-4. View personalized career recommendations
-5. Prompted to sign up to save results
-
-### Guest User Flow
-1. Land on homepage → Click "Explore as Guest"
-2. Proceed directly to basic assessment (skip tier selection)
-3. Complete 6-step basic assessment
-4. View career recommendations with subject competency validation
-5. See upgrade prompt for Individual Assessment
-6. Prompted to sign up to save results
-
-### Individual Assessment Flow
-1. Land on homepage → Click "Get Started"
-2. OAuth login via Replit → Navigate to tier selection
-3. Choose Individual Assessment ($10/student)
-4. Complete secure Stripe checkout
-5. Take advanced 24-question learning style assessment
-6. View enhanced career recommendations with learning style insights
-7. Download comprehensive PDF report with study tips
-
-### Group Assessment Flow (Planned)
-1. School administrator creates account
-2. Navigate to tier selection → Choose Group Assessment
-3. Enter number of students, calculate bulk pricing (10-20% off)
-4. Complete checkout for multiple student licenses
-5. Access school dashboard with analytics (when implemented)
-6. Students complete Individual Assessments
-7. View aggregated reports and trends
-
-## Future Enhancements
-- Mentor matching system
-- Educational pathway mapper with universities/courses
-- Teacher collaboration features
-- Real-time job market API integration
-- Scholarship finder
-- School analytics dashboard
-
-## Technical Notes
-- Database migrations: Use `npm run db:push` (never manual SQL)
-- Session storage: PostgreSQL-backed for reliability
-- Guest sessions: Tracked via sessionID, can be migrated to user account
-- Seeding: Runs automatically in development on startup
+## External Dependencies
+- **Database**: PostgreSQL (specifically Neon for managed PostgreSQL).
+- **Authentication**: Replit Auth (OpenID Connect).
+- **Payment Gateway**: Stripe for processing payments.
+- **ORM**: Drizzle ORM for database interactions.
+- **Frontend Libraries**: React, TypeScript, Tailwind CSS, TanStack Query, Wouter.
+- **Backend Libraries**: Express.js, TypeScript.
