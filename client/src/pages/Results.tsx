@@ -277,6 +277,150 @@ export default function Results() {
         </div>
       )}
 
+      {/* Learning Style Insights (Premium Users Only) */}
+      {assessment?.assessmentType === 'kolb' && assessment?.kolbScores && (
+        <div className="max-w-4xl mx-auto px-4 mb-8">
+          <StickyNote color="blue" rotation="-1" className="p-8">
+            <div className="text-center mb-6">
+              <GraduationCap className="w-12 h-12 text-primary mx-auto mb-3" />
+              <h2 className="text-3xl font-bold mb-2">Your Learning Style</h2>
+              <p className="text-muted-foreground font-body">
+                Based on Kolb's Experiential Learning Theory
+              </p>
+            </div>
+
+            {/* Learning Style Badge */}
+            <div className="mb-6 text-center">
+              <div className="inline-block bg-primary/10 px-6 py-3 rounded-full">
+                <span className="text-2xl font-bold text-primary" data-testid="text-learning-style">
+                  {(assessment.kolbScores as any).learningStyle}
+                </span>
+              </div>
+            </div>
+
+            {/* Learning Style Description */}
+            <div className="mb-6 p-4 bg-background/30 rounded-lg">
+              <h4 className="font-semibold mb-3 flex items-center gap-2">
+                <Star className="w-4 h-4 text-primary" />
+                What This Means
+              </h4>
+              <p className="text-sm font-body mb-4" data-testid="text-style-description">
+                {(assessment.kolbScores as any).learningStyle === 'Diverging' && 
+                  "You excel at viewing situations from many perspectives and prefer to watch and observe rather than take action. You have strong imagination and are excellent at brainstorming. You prefer to work in groups, listening with an open mind, and receiving personalized feedback."}
+                {(assessment.kolbScores as any).learningStyle === 'Assimilating' && 
+                  "You prefer a concise, logical approach and excel at understanding a wide range of information. You're great at organizing information into clear, logical formats and prefer reading, lectures, and exploring analytical models. You value precision and logical soundness."}
+                {(assessment.kolbScores as any).learningStyle === 'Converging' && 
+                  "You're excellent at finding practical uses for ideas and theories. You prefer technical tasks and solving problems through experimentation. You excel at simulations, laboratory work, and practical applications, and you like working independently on technical problems."}
+                {(assessment.kolbScores as any).learningStyle === 'Accommodating' && 
+                  "You prefer hands-on, practical experiences and rely on intuition rather than logic. You're adaptable, excel at carrying out plans, and enjoy new challenges. You prefer field work, testing out different approaches, and working in teams to complete tasks."}
+              </p>
+            </div>
+
+            {/* Study Tips */}
+            <div className="mb-6 p-4 bg-background/30 rounded-lg">
+              <h4 className="font-semibold mb-3 flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-primary" />
+                Study Tips for You
+              </h4>
+              <ul className="space-y-2 text-sm font-body" data-testid="list-study-tips">
+                {(assessment.kolbScores as any).learningStyle === 'Diverging' && (<>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                    <span>Brainstorm ideas before starting assignments</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                    <span>Join study groups to discuss different viewpoints</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                    <span>Use mind maps and visual organizers</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                    <span>Reflect on lessons by journaling or discussing with peers</span>
+                  </li>
+                </>)}
+                {(assessment.kolbScores as any).learningStyle === 'Assimilating' && (<>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                    <span>Create detailed notes and outlines from lectures</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                    <span>Read textbooks and research papers thoroughly</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                    <span>Build theoretical models to understand concepts</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                    <span>Work independently to analyze and organize information</span>
+                  </li>
+                </>)}
+                {(assessment.kolbScores as any).learningStyle === 'Converging' && (<>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                    <span>Focus on practical applications of theories</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                    <span>Use simulations and lab experiments to learn</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                    <span>Practice problem-solving with real-world scenarios</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                    <span>Work on projects that have clear goals and outcomes</span>
+                  </li>
+                </>)}
+                {(assessment.kolbScores as any).learningStyle === 'Accommodating' && (<>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                    <span>Engage in hands-on projects and field work</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                    <span>Try different approaches until you find what works</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                    <span>Work in teams on practical challenges</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                    <span>Learn by doing rather than just reading or listening</span>
+                  </li>
+                </>)}
+              </ul>
+            </div>
+
+            {/* Career Connection */}
+            <div className="p-4 bg-primary/10 rounded-lg border-2 border-primary/20">
+              <div className="flex items-start gap-2">
+                <Target className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-semibold mb-2 text-primary">How This Affects Your Career Matches (10% Weight)</h4>
+                  <p className="text-sm font-body" data-testid="text-career-connection">
+                    {(assessment.kolbScores as any).learningStyle === 'Diverging' && 
+                      "Your reflective and imaginative approach makes you well-suited for careers in creative fields, counseling, and roles that require understanding diverse perspectives. Your learning style contributes 10% to each career match score, favoring careers that align with your preferred way of learning."}
+                    {(assessment.kolbScores as any).learningStyle === 'Assimilating' && 
+                      "Your analytical and theoretical thinking makes you well-suited for careers in research, science, and roles that require systematic planning. Your learning style contributes 10% to each career match score, favoring careers that align with your preferred way of learning."}
+                    {(assessment.kolbScores as any).learningStyle === 'Converging' && 
+                      "Your practical problem-solving skills make you well-suited for careers in engineering, technology, and roles that require technical expertise. Your learning style contributes 10% to each career match score, favoring careers that align with your preferred way of learning."}
+                    {(assessment.kolbScores as any).learningStyle === 'Accommodating' && 
+                      "Your hands-on and adaptive approach makes you well-suited for careers in business, sales, and roles that require flexibility and action. Your learning style contributes 10% to each career match score, favoring careers that align with your preferred way of learning."}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </StickyNote>
+        </div>
+      )}
+
       {/* Recommendations */}
       <div className="max-w-7xl mx-auto px-4 -mt-8">
         <MasonryGrid>
