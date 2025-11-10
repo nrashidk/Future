@@ -79,11 +79,27 @@ export default function Analytics() {
   });
 
   const { data: careers, isLoading: careersLoading } = useQuery<CareerTrend[]>({
-    queryKey: ['/api/analytics/careers'],
+    queryKey: ['/api/analytics/careers', selectedCountry],
+    queryFn: async () => {
+      const url = selectedCountry 
+        ? `/api/analytics/careers?countryId=${selectedCountry}`
+        : '/api/analytics/careers';
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Failed to fetch careers');
+      return res.json();
+    },
   });
 
   const { data: sectors, isLoading: sectorsLoading } = useQuery<SectorData[]>({
-    queryKey: ['/api/analytics/sectors'],
+    queryKey: ['/api/analytics/sectors', selectedCountry],
+    queryFn: async () => {
+      const url = selectedCountry 
+        ? `/api/analytics/sectors?countryId=${selectedCountry}`
+        : '/api/analytics/sectors';
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Failed to fetch sectors');
+      return res.json();
+    },
   });
 
   const completionRate = overview && overview.totalStudents > 0

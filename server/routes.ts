@@ -1105,7 +1105,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/analytics/careers", async (req, res) => {
     try {
-      const trends = await storage.getCareerTrends();
+      const countryId = req.query.countryId as string | undefined;
+      const trends = await storage.getCareerTrends(countryId);
       res.json(trends);
     } catch (error) {
       console.error("Error fetching career trends:", error);
@@ -1115,7 +1116,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/analytics/trends", async (req, res) => {
     try {
-      const trends = await storage.getCareerTrends();
+      const countryId = req.query.countryId as string | undefined;
+      const trends = await storage.getCareerTrends(countryId);
       res.json(trends);
     } catch (error) {
       console.error("Error fetching career trends:", error);
@@ -1125,7 +1127,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/analytics/sectors", async (req, res) => {
     try {
-      const pipeline = await storage.getSectorPipeline();
+      const countryId = req.query.countryId as string | undefined;
+      const pipeline = await storage.getSectorPipeline(countryId);
       res.json(pipeline);
     } catch (error) {
       console.error("Error fetching sector pipeline:", error);

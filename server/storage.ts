@@ -102,13 +102,13 @@ export interface IStorage {
     avgVisionAlignment: number;
     popularSubjects: Array<{ subject: string; count: number }>;
   }>;
-  getCareerTrends(): Promise<Array<{
+  getCareerTrends(countryId?: string): Promise<Array<{
     careerId: string;
     careerTitle: string;
     recommendationCount: number;
     avgMatchScore: number;
   }>>;
-  getSectorPipeline(): Promise<Array<{
+  getSectorPipeline(countryId?: string): Promise<Array<{
     sector: string;
     studentCount: number;
     avgAlignment: number;
@@ -552,12 +552,27 @@ export class DatabaseStorage implements IStorage {
   // - .leftJoin(careers, eq(recommendations.careerId, careers.id))
   // - Group by careerId with COUNT() and AVG(overallMatchScore)
   // - This eliminates per-recommendation queries, reducing from O(n) to O(1)
-  async getCareerTrends() {
+  async getCareerTrends(countryId?: string) {
+    // Filter by country if specified - get completed assessments for that country
+    let targetAssessmentIds: string[] | null = null;
+    if (countryId) {
+      const countryAssessments = await db
+        .select()
+        .from(assessments)
+        .where(and(eq(assessments.countryId, countryId), eq(assessments.isCompleted, true)));
+      targetAssessmentIds = countryAssessments.map(a => a.id);
+    }
+
     const allRecs = await db.select().from(recommendations);
+    
+    // Filter recommendations by country if needed
+    const filteredRecs = targetAssessmentIds 
+      ? allRecs.filter(rec => targetAssessmentIds!.includes(rec.assessmentId))
+      : allRecs;
+
     const careersMap = new Map<string, { careerId: string; careerTitle: string; count: number; totalScore: number }>();
 
-    for (const rec of allRecs) {
-      // N+1 ISSUE: Calling getCareerById inside loop
+    for (const rec of filteredRecs) {
       const career = await this.getCareerById(rec.careerId);
       if (career) {
         const existing = careersMap.get(rec.careerId);
@@ -596,15 +611,22 @@ export class DatabaseStorage implements IStorage {
   // - UNNEST prioritySectors array to create one row per sector
   // - GROUP BY sector with COUNT(DISTINCT assessments.id) and AVG(countryVisionAlignment)
   // - This eliminates all in-memory filtering, reducing complexity to O(1) with proper indexing
-  async getSectorPipeline() {
-    const allCountries = await this.getAllCountries();
-    // N+1 ISSUE: Fetching all data globally then filtering in memory
-    const allAssessments = await db.select().from(assessments).where(eq(assessments.isCompleted, true));
+  async getSectorPipeline(countryId?: string) {
+    // Filter countries if countryId specified
+    const allCountries = countryId 
+      ? [await this.getCountryById(countryId)].filter(Boolean) as typeof this.getAllCountries extends () => Promise<infer T> ? Awaited<T> : never
+      : await this.getAllCountries();
+
+    // Fetch completed assessments (filtered by country if specified)
+    const conditions = [eq(assessments.isCompleted, true)];
+    if (countryId) {
+      conditions.push(eq(assessments.countryId, countryId));
+    }
+    const allAssessments = await db.select().from(assessments).where(and(...conditions));
     const allRecs = await db.select().from(recommendations);
 
     const sectorsMap = new Map<string, { studentCount: number; totalAlignment: number; alignmentCount: number }>();
 
-    // N+1 ISSUE: Nested loops with in-memory filters
     for (const country of allCountries) {
       if (country.prioritySectors) {
         for (const sector of country.prioritySectors) {
