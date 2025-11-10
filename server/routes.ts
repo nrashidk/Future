@@ -222,13 +222,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Get question pool based on grade band (country-agnostic for subject competency)
+      // Get question pool based on grade band and student's country
       const gradeBand = assessment.grade && parseInt(assessment.grade as string) >= 10 ? "10-12" : "8-9";
-      // Pass null for countryId to get global questions (subject competency is universal)
-      const questionPool = await storage.getQuizQuestionsByGradeAndCountry(gradeBand, null);
+      
+      // Try to get country-specific questions first
+      let questionPool = await storage.getQuizQuestionsByGradeAndCountry(gradeBand, assessment.countryId);
+      
+      // Fallback: if no country-specific questions exist, try UAE questions as default
+      if (questionPool.length === 0 && assessment.countryId !== 'uae') {
+        console.log(`No questions found for country ${assessment.countryId}, falling back to UAE curriculum`);
+        questionPool = await storage.getQuizQuestionsByGradeAndCountry(gradeBand, 'uae');
+      }
+      
+      // Fallback: if still no questions, try global questions (countryId = null)
+      if (questionPool.length === 0) {
+        console.log(`No UAE questions found, falling back to global questions`);
+        questionPool = await storage.getQuizQuestionsByGradeAndCountry(gradeBand, null);
+      }
       
       if (questionPool.length === 0) {
-        return res.status(400).json({ message: "No quiz questions available for this grade level" });
+        return res.status(400).json({ message: "No quiz questions available for this grade level and country" });
       }
       
       // Filter questions by student's favorite subjects
