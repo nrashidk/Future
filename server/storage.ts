@@ -90,7 +90,7 @@ export interface IStorage {
   updateAssessmentQuiz(id: string, data: Partial<InsertAssessmentQuiz>): Promise<AssessmentQuiz>;
 
   // Analytics operations
-  getAnalyticsOverview(): Promise<{
+  getAnalyticsOverview(countryId?: string): Promise<{
     totalStudents: number;
     completedAssessments: number;
     countriesBreakdown: Array<{ countryId: string; countryName: string; count: number }>;
@@ -432,21 +432,31 @@ export class DatabaseStorage implements IStorage {
   // - Use .leftJoin(countries, eq(assessments.countryId, countries.id))
   // - Group by country and grade with COUNT() aggregation
   // - This will reduce database round-trips from O(n) to O(1)
-  async getAnalyticsOverview() {
-    const allAssessments = await db.select().from(assessments);
-    const totalStudents = allAssessments.length;
-    const completedAssessments = allAssessments.filter(a => a.isCompleted).length;
+  async getAnalyticsOverview(countryId?: string) {
+    // Only count completed assessments for accurate analytics
+    const conditions = [eq(assessments.isCompleted, true)];
+    
+    // Filter by country if specified
+    if (countryId) {
+      conditions.push(eq(assessments.countryId, countryId));
+    }
+    
+    const completedAssessmentsList = await db
+      .select()
+      .from(assessments)
+      .where(and(...conditions));
+    const totalStudents = completedAssessmentsList.length;
+    const completedAssessments = completedAssessmentsList.length; // All are completed due to filter
 
     const countriesMap = new Map<string, { countryId: string; countryName: string; count: number }>();
     const gradesMap = new Map<string, number>();
 
-    for (const assessment of allAssessments) {
+    for (const assessment of completedAssessmentsList) {
       if (assessment.countryId) {
         const existing = countriesMap.get(assessment.countryId);
         if (existing) {
           existing.count++;
         } else {
-          // N+1 ISSUE: Calling getCountryById inside loop
           const country = await this.getCountryById(assessment.countryId);
           if (country) {
             countriesMap.set(assessment.countryId, {
@@ -481,7 +491,11 @@ export class DatabaseStorage implements IStorage {
   // - Use GROUP BY careerId with COUNT() and AVG(countryVisionAlignment)
   // - This reduces O(n*m) complexity to O(1) with proper SQL aggregations
   async getCountryAnalytics(countryId: string) {
-    const countryAssessments = await db.select().from(assessments).where(eq(assessments.countryId, countryId));
+    // Only count completed assessments for accurate analytics
+    const countryAssessments = await db
+      .select()
+      .from(assessments)
+      .where(and(eq(assessments.countryId, countryId), eq(assessments.isCompleted, true)));
     const totalStudents = countryAssessments.length;
 
     // N+1 ISSUE: Fetching all recommendations globally instead of filtered query with JOIN

@@ -1068,7 +1068,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Analytics Endpoints
   app.get("/api/analytics/overview", async (req, res) => {
     try {
-      const analytics = await storage.getAnalyticsOverview();
+      const countryId = req.query.countryId as string | undefined;
+      const analytics = await storage.getAnalyticsOverview(countryId);
       res.json(analytics);
     } catch (error) {
       console.error("Error fetching analytics overview:", error);
@@ -1078,6 +1079,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/analytics/countries", async (req, res) => {
     try {
+      // Get all countries with completed assessments (no filter)
       const analytics = await storage.getAnalyticsOverview();
       const countries = analytics.countriesBreakdown.map(c => ({
         countryId: c.countryId,
