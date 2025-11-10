@@ -157,10 +157,10 @@ export default function Analytics() {
                     <StickyNote 
                       color={color} 
                       rotation={rotation}
-                      className={`w-64 h-36 ${activeCountryId === country.countryId ? "ring-4 ring-primary ring-offset-2" : ""}`}
+                      className={`w-80 h-36 ${activeCountryId === country.countryId ? "ring-4 ring-primary ring-offset-2" : ""}`}
                     >
-                      <div className="text-center h-full flex flex-col justify-center px-2">
-                        <p className="text-lg font-bold mb-2">{country.countryName}</p>
+                      <div className="text-center h-full flex flex-col justify-center px-3">
+                        <p className="text-lg font-bold mb-2 whitespace-nowrap">{country.countryName}</p>
                         <p className="text-3xl font-bold text-primary">{country.studentCount}</p>
                         <p className="text-xs text-muted-foreground mt-1">students assessed</p>
                       </div>
