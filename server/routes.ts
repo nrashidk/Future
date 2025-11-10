@@ -5,6 +5,7 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertAssessmentSchema, insertQuizQuestionSchema } from "@shared/schema";
 import { z } from "zod";
 import { transformQuizQuestionForFrontend, shuffleQuestions, shuffleOptions } from "./utils/quiz";
+import { calculateKolbScores } from "./questionBanks/kolb";
 import Stripe from "stripe";
 
 // Helper to enrich assessment with subject competency scores from quiz
@@ -24,7 +25,64 @@ async function enrichAssessmentWithCompetencies(assessment: any) {
   return assessment;
 }
 
-// Intelligent matching algorithm with subject competency validation
+// Career-to-learning-style affinity mapping
+// Based on Kolb's learning styles: Diverging, Assimilating, Converging, Accommodating
+function getCareerLearningStyleAffinities(career: any): Record<string, number> {
+  const category = career.category?.toLowerCase() || "";
+  const title = career.title?.toLowerCase() || "";
+  
+  // Default: all styles equally viable
+  const affinities: Record<string, number> = {
+    Diverging: 50,
+    Assimilating: 50,
+    Converging: 50,
+    Accommodating: 50,
+  };
+  
+  // Engineering, Technology, Applied Sciences → Converging (practical application)
+  if (category.includes("engineer") || category.includes("technology") || 
+      title.includes("engineer") || title.includes("developer") || title.includes("technician")) {
+    affinities.Converging = 85;
+    affinities.Assimilating = 65;
+    affinities.Accommodating = 45;
+    affinities.Diverging = 35;
+  }
+  // Research, Pure Sciences → Assimilating (theoretical models)
+  else if (category.includes("research") || category.includes("science") || 
+           title.includes("scientist") || title.includes("researcher") || title.includes("analyst")) {
+    affinities.Assimilating = 85;
+    affinities.Converging = 60;
+    affinities.Diverging = 50;
+    affinities.Accommodating = 35;
+  }
+  // Creative, Arts, Design → Diverging (broad cultural interests, imagination)
+  else if (category.includes("creative") || category.includes("arts") || category.includes("design") ||
+           title.includes("artist") || title.includes("designer") || title.includes("creative")) {
+    affinities.Diverging = 85;
+    affinities.Accommodating = 60;
+    affinities.Assimilating = 40;
+    affinities.Converging = 35;
+  }
+  // Business, Sales, Management → Accommodating (hands-on, adaptive)
+  else if (category.includes("business") || category.includes("management") || category.includes("sales") ||
+           title.includes("manager") || title.includes("entrepreneur") || title.includes("sales")) {
+    affinities.Accommodating = 85;
+    affinities.Diverging = 60;
+    affinities.Converging = 50;
+    affinities.Assimilating = 35;
+  }
+  // Healthcare, Teaching (mix of practical and reflective) → Balanced
+  else if (category.includes("health") || category.includes("education") || category.includes("teaching")) {
+    affinities.Diverging = 70;
+    affinities.Accommodating = 70;
+    affinities.Assimilating = 55;
+    affinities.Converging = 55;
+  }
+  
+  return affinities;
+}
+
+// Intelligent matching algorithm with subject competency validation and learning style
 function calculateCareerMatch(
   assessment: any,
   career: any,
@@ -36,6 +94,7 @@ function calculateCareerMatch(
   interestMatchScore: number;
   countryVisionAlignment: number;
   futureMarketDemand: number;
+  learningStyleMatch: number | null;
   reasoning: string;
   matchedSubjects?: Array<{ subject: string; competency: number }>;
   supportingVisionPriorities?: string[];
@@ -216,18 +275,48 @@ function calculateCareerMatch(
   // Future market demand (uses job trend data)
   const futureMarketDemand = jobTrend?.demandScore || 60;
 
-  // Overall weighted score with new 30/30/20/20 distribution:
-  // - Subject Alignment (preference + competency): 30%
-  // - Interest Alignment: 30%
+  // Learning Style Match (Kolb) - only for premium users with kolbScores
+  let learningStyleMatch: number | null = null;
+  
+  if (assessment.kolbScores && assessment.assessmentType === 'kolb') {
+    const kolbScores = assessment.kolbScores as { learningStyle: string };
+    const studentStyle = kolbScores.learningStyle;
+    
+    // Get career affinity scores for each learning style
+    const careerAffinities = getCareerLearningStyleAffinities(career);
+    
+    // Match student's learning style to career affinity
+    learningStyleMatch = careerAffinities[studentStyle] || 50;
+    
+    console.log(`Learning style match for ${career.title}: ${studentStyle} → ${learningStyleMatch}`);
+  }
+
+  // Overall weighted score with 25/25/20/20/10 distribution:
+  // - Subject Alignment (preference + competency): 25%
+  // - Interest Alignment: 25%
   // - Country Vision Alignment: 20%
   // - Future Market Demand: 20%
-  const overallMatchScore =
-    subjectMatchScore * 0.30 +
-    interestMatchScore * 0.30 +
-    countryVisionAlignment * 0.20 +
-    futureMarketDemand * 0.20;
+  // - Learning Style Match (Kolb): 10% (only for premium users)
+  let overallMatchScore: number;
+  
+  if (learningStyleMatch !== null) {
+    // Premium user with Kolb assessment
+    overallMatchScore =
+      subjectMatchScore * 0.25 +
+      interestMatchScore * 0.25 +
+      countryVisionAlignment * 0.20 +
+      futureMarketDemand * 0.20 +
+      learningStyleMatch * 0.10;
+  } else {
+    // Free user or legacy assessment - redistribute Kolb's 10% across other factors
+    overallMatchScore =
+      subjectMatchScore * 0.275 +
+      interestMatchScore * 0.275 +
+      countryVisionAlignment * 0.225 +
+      futureMarketDemand * 0.225;
+  }
 
-  // Generate reasoning with competency insights
+  // Generate reasoning with competency insights and learning style
   const reasons: string[] = [];
   if (subjectMatchScore > 70) {
     if (assessment.subjectCompetencies && competencyScore > 70) {
@@ -244,6 +333,19 @@ function calculateCareerMatch(
   }
   if (futureMarketDemand > 70) {
     reasons.push(`This field is experiencing high growth and strong demand in your country's job market`);
+  }
+  
+  // Add learning style insight for premium users
+  if (learningStyleMatch !== null && learningStyleMatch > 65) {
+    const kolbScores = assessment.kolbScores as { learningStyle: string };
+    const learningStyleDescriptions: Record<string, string> = {
+      Diverging: "reflective and imaginative approach",
+      Assimilating: "analytical and theoretical thinking",
+      Converging: "practical problem-solving skills",
+      Accommodating: "hands-on and adaptive style",
+    };
+    const styleDesc = learningStyleDescriptions[kolbScores.learningStyle] || "learning approach";
+    reasons.push(`Your ${styleDesc} is well-suited for the demands of this career path`);
   }
 
   const reasoning = reasons.length > 0
@@ -300,6 +402,7 @@ function calculateCareerMatch(
     interestMatchScore,
     countryVisionAlignment,
     futureMarketDemand,
+    learningStyleMatch,
     reasoning,
     matchedSubjects: matchedSubjects.length > 0 ? matchedSubjects : undefined,
     supportingVisionPriorities: supportingVisionPriorities.length > 0 ? supportingVisionPriorities.slice(0, 3) : undefined,
@@ -358,18 +461,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // For guest users, generate a unique guest token
       const guestToken = isGuest ? `guest_${Date.now()}_${Math.random().toString(36).substring(2, 15)}` : null;
 
+      // Calculate Kolb scores if kolbResponses provided (premium users)
+      let kolbScores = null;
+      let assessmentType = 'basic';
+      if (validatedData.kolbResponses && Object.keys(validatedData.kolbResponses).length === 24) {
+        try {
+          kolbScores = calculateKolbScores(validatedData.kolbResponses);
+          assessmentType = 'kolb';
+          console.log("Kolb scores calculated:", kolbScores);
+        } catch (error) {
+          console.error("Error calculating Kolb scores:", error);
+          // Continue with basic assessment if scoring fails
+        }
+      }
+
       const assessment = await storage.createAssessment({
         ...validatedData,
         userId,
         isGuest,
-        guestSessionId: guestToken, // Store guest token instead of session ID
+        guestSessionId: guestToken,
+        assessmentType,
+        kolbScores,
       });
 
       // Debug logging
       console.log("Assessment created:", {
         isGuest,
         assessmentId: assessment.id,
-        hasGuestToken: !!guestToken
+        hasGuestToken: !!guestToken,
+        assessmentType
       });
 
       // Return guest token to frontend for subsequent requests
@@ -403,7 +523,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/assessments/:id", async (req: any, res) => {
     try {
-      const assessment = await storage.updateAssessment(req.params.id, req.body);
+      const updateData = { ...req.body };
+
+      // Calculate Kolb scores if kolbResponses provided and complete
+      if (updateData.kolbResponses && Object.keys(updateData.kolbResponses).length === 24) {
+        try {
+          updateData.kolbScores = calculateKolbScores(updateData.kolbResponses);
+          updateData.assessmentType = 'kolb';
+          console.log("Kolb scores calculated on update:", updateData.kolbScores);
+        } catch (error) {
+          console.error("Error calculating Kolb scores:", error);
+        }
+      }
+
+      const assessment = await storage.updateAssessment(req.params.id, updateData);
       res.json(assessment);
     } catch (error) {
       console.error("Error updating assessment:", error);

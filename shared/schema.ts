@@ -304,6 +304,8 @@ export const insertAssessmentSchema = createInsertSchema(assessments).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
+}).extend({
+  kolbResponses: z.record(z.string(), z.number()).optional(), // Transient field: question ID -> response (1-5)
 });
 export type InsertAssessment = z.infer<typeof insertAssessmentSchema>;
 

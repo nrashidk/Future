@@ -7,6 +7,7 @@ import { DemographicsStep } from "@/components/assessment/DemographicsStep";
 import { SubjectsStep } from "@/components/assessment/SubjectsStep";
 import { InterestsStep } from "@/components/assessment/InterestsStep";
 import { PersonalityStep } from "@/components/assessment/PersonalityStep";
+import KolbStep from "@/components/KolbStep";
 import { CountryStep } from "@/components/assessment/CountryStep";
 import { AspirationsStep } from "@/components/assessment/AspirationsStep";
 import { QuizStep } from "@/components/assessment/QuizStep";
@@ -21,6 +22,7 @@ interface AssessmentData {
   favoriteSubjects: string[];
   interests: string[];
   personalityTraits: Record<string, number>;
+  kolbResponses: Record<string, number>; // Kolb ELT responses (premium users only)
   countryId: string;
   careerAspirations: string[];
   strengths: string[];
@@ -30,11 +32,13 @@ const TOTAL_STEPS = 7; // 7 steps total (Demographics, Subjects, Interests, Pers
 
 export default function Assessment() {
   const [, setLocation] = useLocation();
-  const { isAuthenticated, isLoading } = useAuth();
+  const { user, isAuthenticated, isLoading } = useAuth();
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [isGuest, setIsGuest] = useState(false);
   const [assessmentId, setAssessmentId] = useState<string | null>(null);
+
+  const isPremiumUser = user?.isPremium || false;
 
   const [assessmentData, setAssessmentData] = useState<AssessmentData>({
     name: "",
@@ -44,6 +48,7 @@ export default function Assessment() {
     favoriteSubjects: [],
     interests: [],
     personalityTraits: {},
+    kolbResponses: {},
     countryId: "",
     careerAspirations: [],
     strengths: [],
@@ -243,11 +248,22 @@ export default function Assessment() {
           />
         )}
         {currentStep === 4 && (
-          <PersonalityStep
-            data={assessmentData}
-            onUpdate={updateAssessmentData}
-            onNext={handleNext}
-          />
+          <>
+            {isPremiumUser ? (
+              <KolbStep
+                responses={assessmentData.kolbResponses}
+                onUpdate={(responses) => updateAssessmentData("kolbResponses", responses)}
+                onNext={handleNext}
+                onBack={() => setCurrentStep(3)}
+              />
+            ) : (
+              <PersonalityStep
+                data={assessmentData}
+                onUpdate={updateAssessmentData}
+                onNext={handleNext}
+              />
+            )}
+          </>
         )}
         {currentStep === 5 && (
           <CountryStep
