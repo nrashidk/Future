@@ -319,12 +319,59 @@ function calculateSubjectsScore(
     return null;
   }
 
-  // TODO: Implement subject matching logic
-  // For now, return placeholder
+  // Get competency scores if quiz was taken
+  const competencyData = assessment as any; // Will have competencyScores from getAssessmentWithCompetencies
+  
+  // Match user's favorite subjects with career's related subjects
+  const matchingSubjects = assessment.favoriteSubjects.filter(subject => 
+    career.relatedSubjects.includes(subject)
+  );
+  
+  if (matchingSubjects.length === 0) {
+    return {
+      careerId: career.id,
+      score: 20,
+      reasoning: "No matching subjects between preferences and career requirements",
+      componentKey: component.key,
+    };
+  }
+
+  // Calculate preference score (percentage of career's subjects that user likes)
+  const preferenceScore = career.relatedSubjects.length > 0
+    ? (matchingSubjects.length / career.relatedSubjects.length) * 100
+    : 0;
+
+  // Calculate competency score if quiz data available
+  let competencyScore = 0;
+  let hasCompetencyData = false;
+  
+  if (competencyData.competencyScores && Object.keys(competencyData.competencyScores).length > 0) {
+    const competencies = competencyData.competencyScores as Record<string, number>;
+    const matchingCompetencies = matchingSubjects
+      .map(subject => competencies[subject])
+      .filter((score): score is number => score !== undefined);
+    
+    if (matchingCompetencies.length > 0) {
+      competencyScore = matchingCompetencies.reduce((sum, score) => sum + score, 0) / matchingCompetencies.length;
+      hasCompetencyData = true;
+    }
+  }
+
+  // Blend preference and competency (40% preference, 60% competency if available)
+  const finalScore = hasCompetencyData
+    ? (preferenceScore * 0.4) + (competencyScore * 0.6)
+    : preferenceScore;
+
+  // Generate reasoning
+  const matchedList = matchingSubjects.slice(0, 3).join(", ");
+  const reasoning = hasCompetencyData
+    ? `Strong in ${matchedList} (preference + ${Math.round(competencyScore)}% quiz competency)`
+    : `Interest in ${matchedList}`;
+
   return {
     careerId: career.id,
-    score: 50,
-    reasoning: "Subject matching to be implemented",
+    score: Math.min(100, Math.max(0, finalScore)),
+    reasoning,
     componentKey: component.key,
   };
 }
@@ -340,11 +387,51 @@ function calculateInterestsScore(
     return null;
   }
 
-  // TODO: Implement interest matching logic
+  // Interest to career category mapping
+  const interestToCategoryMap: Record<string, string[]> = {
+    "Technology": ["Technology", "IT & Software", "Engineering"],
+    "Healthcare": ["Healthcare", "Medical", "Nursing"],
+    "Arts & Design": ["Creative", "Design", "Arts"],
+    "Business": ["Business", "Management", "Finance"],
+    "Education": ["Education", "Teaching"],
+    "Science": ["Science", "Research", "Engineering"],
+    "Sports": ["Sports", "Physical Therapy", "Healthcare"],
+    "Social Services": ["Social Services", "Healthcare", "Education"],
+    "Law & Government": ["Legal", "Government", "Business"],
+    "Environment": ["Environmental", "Science", "Engineering"],
+  };
+
+  // Calculate matching score
+  let matchingInterests = 0;
+  const matchedCategories: string[] = [];
+
+  for (const interest of assessment.interests) {
+    const categories = interestToCategoryMap[interest] || [interest];
+    
+    for (const category of categories) {
+      if (career.category.toLowerCase().includes(category.toLowerCase()) ||
+          category.toLowerCase().includes(career.category.toLowerCase())) {
+        matchingInterests++;
+        matchedCategories.push(interest);
+        break;
+      }
+    }
+  }
+
+  // Calculate percentage score
+  const score = assessment.interests.length > 0
+    ? (matchingInterests / assessment.interests.length) * 100
+    : 0;
+
+  // Generate reasoning
+  const reasoning = matchedCategories.length > 0
+    ? `Aligns with ${matchedCategories.slice(0, 2).join(" & ")} interests`
+    : "Limited alignment with stated interests";
+
   return {
     careerId: career.id,
-    score: 50,
-    reasoning: "Interest matching to be implemented",
+    score: Math.min(100, Math.max(0, score)),
+    reasoning,
     componentKey: component.key,
   };
 }
@@ -356,15 +443,52 @@ function calculateVisionScore(
 ): ComponentScore | null {
   const { userCountry } = context;
   
-  if (!userCountry || !userCountry.prioritySectors) {
+  if (!userCountry || !userCountry.prioritySectors || userCountry.prioritySectors.length === 0) {
     return null;
   }
 
-  // TODO: Implement vision alignment logic
+  // Check if career category aligns with country's priority sectors
+  const prioritySectors = userCountry.prioritySectors as string[];
+  
+  // Find if career matches any priority sector
+  let matchIndex = -1;
+  let matchedSector = "";
+  
+  for (let i = 0; i < prioritySectors.length; i++) {
+    const sector = prioritySectors[i];
+    if (career.category.toLowerCase().includes(sector.toLowerCase()) ||
+        sector.toLowerCase().includes(career.category.toLowerCase())) {
+      matchIndex = i;
+      matchedSector = sector;
+      break;
+    }
+  }
+
+  // Calculate score based on priority ranking
+  let score: number;
+  let reasoning: string;
+  
+  if (matchIndex === 0) {
+    score = 100;
+    reasoning = `Top priority sector for ${userCountry.name}: ${matchedSector}`;
+  } else if (matchIndex === 1) {
+    score = 90;
+    reasoning = `High priority sector for ${userCountry.name}: ${matchedSector}`;
+  } else if (matchIndex === 2) {
+    score = 80;
+    reasoning = `Priority sector for ${userCountry.name}: ${matchedSector}`;
+  } else if (matchIndex > 2) {
+    score = 60;
+    reasoning = `Aligns with ${userCountry.name}'s development goals`;
+  } else {
+    score = 40;
+    reasoning = `Viable career path in ${userCountry.name}`;
+  }
+
   return {
     careerId: career.id,
-    score: 50,
-    reasoning: "Vision alignment to be implemented",
+    score,
+    reasoning,
     componentKey: component.key,
   };
 }
@@ -374,19 +498,41 @@ function calculateMarketScore(
   career: Career,
   component: AssessmentComponent
 ): ComponentScore | null {
-  const trends = context.jobMarketTrends.get(career.id);
+  const { jobMarketTrends } = context;
   
-  if (!trends || trends.length === 0) {
+  // Get trends for this career (already filtered by country in hydration)
+  const careerTrends = jobMarketTrends.get(career.id) || [];
+  
+  if (careerTrends.length === 0) {
     return null;
   }
 
-  // Use most recent trend data
-  const latestTrend = trends[0];
+  // Sort trends by year descending to get most recent
+  const sortedTrends = [...careerTrends].sort((a, b) => b.year - a.year);
+  const latestTrend = sortedTrends[0];
+
+  // Use demandScore as the primary metric (assume 0-100 scale)
+  const demandScore = latestTrend.demandScore;
+  
+  // Normalize to 0-100 if needed (demandScore might be different scale)
+  const normalizedScore = Math.min(100, Math.max(0, demandScore));
+
+  // Generate reasoning based on growth rate and demand
+  let reasoning: string;
+  if (latestTrend.growthRate > 10) {
+    reasoning = `High growth market (${latestTrend.growthRate.toFixed(1)}% projected growth)`;
+  } else if (latestTrend.growthRate > 5) {
+    reasoning = `Growing market (${latestTrend.growthRate.toFixed(1)}% projected growth)`;
+  } else if (latestTrend.growthRate > 0) {
+    reasoning = `Stable market with modest growth`;
+  } else {
+    reasoning = `Competitive market with steady demand`;
+  }
 
   return {
     careerId: career.id,
-    score: latestTrend.demandScore,
-    reasoning: `${latestTrend.growthRate.toFixed(1)}% projected growth`,
+    score: normalizedScore,
+    reasoning,
     componentKey: component.key,
   };
 }
