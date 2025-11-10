@@ -6,6 +6,7 @@ import { insertAssessmentSchema, insertQuizQuestionSchema } from "@shared/schema
 import { z } from "zod";
 import { transformQuizQuestionForFrontend, shuffleQuestions, shuffleOptions } from "./utils/quiz";
 import { calculateKolbScores } from "./questionBanks/kolb";
+import { calculateRiasecScores } from "./questionBanks/riasec";
 import Stripe from "stripe";
 
 // Helper to enrich assessment with subject competency scores from quiz
@@ -463,7 +464,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Calculate learning style scores if responses provided (Individual Assessment users)
       let kolbScores = null;
+      let riasecScores = null;
       let assessmentType = 'basic';
+      
       if (validatedData.kolbResponses && Object.keys(validatedData.kolbResponses).length === 24) {
         try {
           kolbScores = calculateKolbScores(validatedData.kolbResponses);
@@ -474,6 +477,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Continue with basic assessment if scoring fails
         }
       }
+      
+      // Calculate RIASEC scores if responses provided (Individual Assessment users)
+      if (validatedData.riasecResponses) {
+        try {
+          riasecScores = calculateRiasecScores(validatedData.riasecResponses);
+          console.log("RIASEC scores calculated:", riasecScores);
+        } catch (error) {
+          console.error("Error calculating RIASEC scores:", error);
+          // Continue without RIASEC if scoring fails
+        }
+      }
 
       const assessment = await storage.createAssessment({
         ...validatedData,
@@ -482,6 +496,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         guestSessionId: guestToken,
         assessmentType,
         kolbScores,
+        riasecScores,
       });
 
       // Debug logging
@@ -533,6 +548,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log("Learning style scores calculated on update:", updateData.kolbScores);
         } catch (error) {
           console.error("Error calculating learning style scores:", error);
+        }
+      }
+      
+      // Calculate RIASEC scores if responses provided
+      if (updateData.riasecResponses) {
+        try {
+          updateData.riasecScores = calculateRiasecScores(updateData.riasecResponses);
+          console.log("RIASEC scores calculated on update:", updateData.riasecScores);
+        } catch (error) {
+          console.error("Error calculating RIASEC scores:", error);
         }
       }
 

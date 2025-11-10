@@ -32,7 +32,7 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
-  role: varchar("role").notNull().default("user"),
+  role: varchar("role").notNull().default("user"), // 'user', 'admin'
   
   // Premium subscription
   isPremium: boolean("is_premium").notNull().default(false),
@@ -150,8 +150,12 @@ export const assessments = pgTable("assessments", {
   // Kolb's ELT scores (premium only)
   kolbScores: jsonb("kolb_scores"), // { CE, RO, AC, AE, X, Y, learningStyle }
   
+  // RIASEC Holland Code scores (premium only)
+  riasecScores: jsonb("riasec_scores"), // { R, I, A, S, E, C, top3, ranking }
+  
   // Quiz results
   quizScore: jsonb("quiz_score"),
+  subjectCompetencies: jsonb("subject_competencies"),
   
   // Completion tracking
   currentStep: integer("current_step").notNull().default(1),
@@ -283,6 +287,48 @@ export const quizResponsesRelations = relations(quizResponses, ({ one }) => ({
   }),
 }));
 
+// Dynamic assessment components configuration (for super admin)
+export const assessmentComponents = pgTable("assessment_components", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(), // "Subject Match", "Interest Match", etc.
+  key: text("key").notNull().unique(), // "subject", "interest", "vision", "market", "kolb", "riasec"
+  description: text("description"), // Explanation of what this component measures
+  weight: real("weight").notNull().default(0), // Percentage weight (0-100)
+  isActive: boolean("is_active").notNull().default(true),
+  requiresPremium: boolean("requires_premium").notNull().default(false), // true for Kolb & RIASEC
+  displayOrder: integer("display_order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const assessmentComponentsRelations = relations(assessmentComponents, ({ many }) => ({
+  careerAffinities: many(careerComponentAffinities),
+}));
+
+// Career affinity scores for each component (replaces hardcoded affinity functions)
+export const careerComponentAffinities = pgTable("career_component_affinities", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  careerId: varchar("career_id").notNull().references(() => careers.id),
+  componentId: varchar("component_id").notNull().references(() => assessmentComponents.id),
+  affinityData: jsonb("affinity_data").notNull(), // Flexible structure depending on component type
+  // For RIASEC: { R: 45, I: 90, A: 40, S: 30, E: 35, C: 60 }
+  // For Kolb: { Diverging: 50, Assimilating: 85, Converging: 60, Accommodating: 35 }
+  // For others: can be null or custom structure
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const careerComponentAffinitiesRelations = relations(careerComponentAffinities, ({ one }) => ({
+  career: one(careers, {
+    fields: [careerComponentAffinities.careerId],
+    references: [careers.id],
+  }),
+  component: one(assessmentComponents, {
+    fields: [careerComponentAffinities.componentId],
+    references: [assessmentComponents.id],
+  }),
+}));
+
 // Type exports
 export type User = typeof users.$inferSelect;
 export type UpsertUser = typeof users.$inferInsert;
@@ -306,6 +352,7 @@ export const insertAssessmentSchema = createInsertSchema(assessments).omit({
   updatedAt: true,
 }).extend({
   kolbResponses: z.record(z.string(), z.number()).optional(), // Transient field: question ID -> response (1-5)
+  riasecResponses: z.record(z.string(), z.number()).optional(), // Transient field: question ID -> response (1-5)
 });
 export type InsertAssessment = z.infer<typeof insertAssessmentSchema>;
 
@@ -332,3 +379,19 @@ export const insertQuizResponseSchema = createInsertSchema(quizResponses).omit({
   createdAt: true,
 });
 export type InsertQuizResponse = z.infer<typeof insertQuizResponseSchema>;
+
+export type AssessmentComponent = typeof assessmentComponents.$inferSelect;
+export const insertAssessmentComponentSchema = createInsertSchema(assessmentComponents).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertAssessmentComponent = z.infer<typeof insertAssessmentComponentSchema>;
+
+export type CareerComponentAffinity = typeof careerComponentAffinities.$inferSelect;
+export const insertCareerComponentAffinitySchema = createInsertSchema(careerComponentAffinities).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertCareerComponentAffinity = z.infer<typeof insertCareerComponentAffinitySchema>;

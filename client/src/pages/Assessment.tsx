@@ -8,6 +8,7 @@ import { SubjectsStep } from "@/components/assessment/SubjectsStep";
 import { InterestsStep } from "@/components/assessment/InterestsStep";
 import { PersonalityStep } from "@/components/assessment/PersonalityStep";
 import KolbStep from "@/components/KolbStep";
+import RiasecStep from "@/components/RiasecStep";
 import { CountryStep } from "@/components/assessment/CountryStep";
 import { AspirationsStep } from "@/components/assessment/AspirationsStep";
 import { QuizStep } from "@/components/assessment/QuizStep";
@@ -23,12 +24,11 @@ interface AssessmentData {
   interests: string[];
   personalityTraits: Record<string, number>;
   kolbResponses: Record<string, number>; // Kolb ELT responses (premium users only)
+  riasecResponses: Record<string, number>; // RIASEC responses (premium users only)
   countryId: string;
   careerAspirations: string[];
   strengths: string[];
 }
-
-const TOTAL_STEPS = 7; // 7 steps total (Demographics, Subjects, Interests, Personality, Country, Aspirations, Quiz)
 
 export default function Assessment() {
   const [, setLocation] = useLocation();
@@ -39,6 +39,9 @@ export default function Assessment() {
   const [assessmentId, setAssessmentId] = useState<string | null>(null);
 
   const isPremiumUser = user?.isPremium || false;
+  
+  // Premium users have 8 steps (includes Kolb + RIASEC), free users have 7 steps
+  const totalSteps = isPremiumUser ? 8 : 7;
 
   const [assessmentData, setAssessmentData] = useState<AssessmentData>({
     name: "",
@@ -49,6 +52,7 @@ export default function Assessment() {
     interests: [],
     personalityTraits: {},
     kolbResponses: {},
+    riasecResponses: {},
     countryId: "",
     careerAspirations: [],
     strengths: [],
@@ -73,16 +77,19 @@ export default function Assessment() {
   };
 
   const handleNext = async () => {
-    if (currentStep < 6) {
-      // Steps 1-5: Just advance to next step
+    const aspirationsStep = isPremiumUser ? 7 : 6;
+    const quizStep = isPremiumUser ? 8 : 7;
+    
+    if (currentStep < aspirationsStep) {
+      // Before aspirations: Just advance to next step
       setCurrentStep((prev) => prev + 1);
-    } else if (currentStep === 6) {
-      // Step 6 (Aspirations): Save assessment and move to quiz
+    } else if (currentStep === aspirationsStep) {
+      // Aspirations step: Save assessment and move to quiz
       try {
         const { apiRequest } = await import("@/lib/queryClient");
         
         // Map frontend fields to backend schema
-        const backendData = {
+        const backendData: any = {
           name: assessmentData.name,
           age: assessmentData.age,
           educationLevel: assessmentData.grade,
@@ -95,6 +102,16 @@ export default function Assessment() {
           careerAspirations: assessmentData.careerAspirations || [],
           strengths: assessmentData.strengths || [],
         };
+        
+        // Include Kolb responses if premium user completed Kolb assessment
+        if (isPremiumUser && Object.keys(assessmentData.kolbResponses).length > 0) {
+          backendData.kolbResponses = assessmentData.kolbResponses;
+        }
+        
+        // Include RIASEC scores if premium user completed RIASEC assessment
+        if (isPremiumUser && assessmentData.riasecResponses) {
+          backendData.riasecResponses = assessmentData.riasecResponses;
+        }
         
         console.log("Saving assessment before quiz:", backendData);
         
@@ -119,7 +136,7 @@ export default function Assessment() {
         setAssessmentId(assessment.id);
         
         // Move to quiz step (don't generate recommendations yet)
-        setCurrentStep(7);
+        setCurrentStep(quizStep);
       } catch (error) {
         console.error("Error saving assessment:", error);
         toast({
@@ -229,7 +246,7 @@ export default function Assessment() {
       </div>
 
       {/* Progress Tracker */}
-      <ProgressTracker currentStep={currentStep} totalSteps={TOTAL_STEPS} />
+      <ProgressTracker currentStep={currentStep} totalSteps={totalSteps} />
 
       {/* Step Content */}
       <div className="max-w-4xl mx-auto px-4">
@@ -273,30 +290,81 @@ export default function Assessment() {
           </>
         )}
         {currentStep === 5 && (
-          <CountryStep
-            data={assessmentData}
-            onUpdate={updateAssessmentData}
-            onNext={handleNext}
-          />
+          <>
+            {isPremiumUser ? (
+              <RiasecStep
+                onComplete={(scores) => {
+                  // Convert RIASEC scores to responses format for backend
+                  const responses: Record<string, number> = {};
+                  // Store the computed scores directly
+                  updateAssessmentData("riasecResponses", scores);
+                  handleNext();
+                }}
+                onBack={() => setCurrentStep(4)}
+              />
+            ) : (
+              <CountryStep
+                data={assessmentData}
+                onUpdate={updateAssessmentData}
+                onNext={handleNext}
+              />
+            )}
+          </>
         )}
         {currentStep === 6 && (
-          <AspirationsStep
-            data={assessmentData}
-            onUpdate={updateAssessmentData}
-            onNext={handleNext}
-          />
+          <>
+            {isPremiumUser ? (
+              <CountryStep
+                data={assessmentData}
+                onUpdate={updateAssessmentData}
+                onNext={handleNext}
+              />
+            ) : (
+              <AspirationsStep
+                data={assessmentData}
+                onUpdate={updateAssessmentData}
+                onNext={handleNext}
+              />
+            )}
+          </>
         )}
-        {currentStep === 7 && assessmentId && (
+        {currentStep === 7 && (
+          <>
+            {isPremiumUser ? (
+              <AspirationsStep
+                data={assessmentData}
+                onUpdate={updateAssessmentData}
+                onNext={handleNext}
+              />
+            ) : (
+              assessmentId ? (
+                <QuizStep
+                  assessmentId={assessmentId}
+                  onComplete={handleQuizComplete}
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+                  <p className="text-lg text-destructive font-semibold">Error: Assessment not found</p>
+                  <p className="text-muted-foreground">Please go back and complete the previous steps.</p>
+                  <Button onClick={() => setCurrentStep(6)} data-testid="button-back-to-assessment">
+                    Go Back
+                  </Button>
+                </div>
+              )
+            )}
+          </>
+        )}
+        {currentStep === 8 && assessmentId && (
           <QuizStep
             assessmentId={assessmentId}
             onComplete={handleQuizComplete}
           />
         )}
-        {currentStep === 7 && !assessmentId && (
+        {currentStep === 8 && !assessmentId && (
           <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
             <p className="text-lg text-destructive font-semibold">Error: Assessment not found</p>
             <p className="text-muted-foreground">Please go back and complete the previous steps.</p>
-            <Button onClick={() => setCurrentStep(6)} data-testid="button-back-to-assessment">
+            <Button onClick={() => setCurrentStep(isPremiumUser ? 7 : 6)} data-testid="button-back-to-assessment">
               Go Back
             </Button>
           </div>
