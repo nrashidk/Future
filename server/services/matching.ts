@@ -133,11 +133,8 @@ async function hydrateMatchingContext(
   storage: IStorage,
   assessmentId: string
 ): Promise<MatchingContext> {
-  // Fetch assessment
-  const assessment = await storage.getAssessmentById(assessmentId);
-  if (!assessment) {
-    throw new Error(`Assessment ${assessmentId} not found`);
-  }
+  // Fetch assessment with competencies in a single query
+  const { assessment } = await storage.getAssessmentWithCompetencies(assessmentId);
 
   // Fetch all careers
   const careers = await storage.getAllCareers();
@@ -156,16 +153,19 @@ async function hydrateMatchingContext(
     return true;
   });
 
-  // Fetch career affinities for all active components
-  const careerAffinities = new Map<string, CareerComponentAffinity[]>();
-  for (const career of careers) {
-    const affinities = await storage.getCareerComponentAffinitiesByCareer(career.id);
-    careerAffinities.set(career.id, affinities);
-  }
+  // Bulk fetch career affinities for all careers and active components
+  const careerIds = careers.map(c => c.id);
+  const componentIds = activeComponents.map(c => c.id);
+  const affinitiesArray = await storage.getCareerAffinitiesBulk(careerIds, componentIds);
+  
+  // Group affinities by careerId for efficient lookup
+  const careerAffinities = groupAffinitiesByCareer(affinitiesArray);
 
-  // Fetch job market trends (placeholder for now - will be enhanced in later subtask)
-  const jobMarketTrends = new Map<string, JobMarketTrend[]>();
-  // TODO: Add efficient bulk query for job market trends in storage interface
+  // Bulk fetch job market trends for all careers (filtered by user's country if available)
+  const trendsArray = await storage.getJobTrendsByCareerIds(careerIds, assessment.countryId || undefined);
+  
+  // Group trends by careerId for efficient lookup
+  const jobMarketTrends = groupTrendsByCareer(trendsArray);
 
   // Fetch user's country for vision alignment
   let userCountry: Country | undefined;
@@ -181,6 +181,42 @@ async function hydrateMatchingContext(
     jobMarketTrends,
     userCountry,
   };
+}
+
+/**
+ * Helper: Group career affinities by careerId for efficient lookup
+ */
+function groupAffinitiesByCareer(
+  affinities: CareerComponentAffinity[]
+): Map<string, CareerComponentAffinity[]> {
+  const map = new Map<string, CareerComponentAffinity[]>();
+  
+  for (const affinity of affinities) {
+    if (!map.has(affinity.careerId)) {
+      map.set(affinity.careerId, []);
+    }
+    map.get(affinity.careerId)!.push(affinity);
+  }
+  
+  return map;
+}
+
+/**
+ * Helper: Group job market trends by careerId for efficient lookup
+ */
+function groupTrendsByCareer(
+  trends: JobMarketTrend[]
+): Map<string, JobMarketTrend[]> {
+  const map = new Map<string, JobMarketTrend[]>();
+  
+  for (const trend of trends) {
+    if (!map.has(trend.careerId)) {
+      map.set(trend.careerId, []);
+    }
+    map.get(trend.careerId)!.push(trend);
+  }
+  
+  return map;
 }
 
 /**

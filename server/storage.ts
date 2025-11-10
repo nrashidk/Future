@@ -37,7 +37,7 @@ import {
   type InsertCareerComponentAffinity,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, count, avg, sql as sqlFunc } from "drizzle-orm";
+import { eq, and, desc, count, avg, sql as sqlFunc, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
@@ -63,6 +63,7 @@ export interface IStorage {
   createJobMarketTrend(trend: InsertJobMarketTrend): Promise<JobMarketTrend>;
   getTrendsByCountry(countryId: string): Promise<JobMarketTrend[]>;
   getTrendByCareerAndCountry(careerId: string, countryId: string): Promise<JobMarketTrend | undefined>;
+  getJobTrendsByCareerIds(careerIds: string[], countryId?: string): Promise<JobMarketTrend[]>;
 
   // Assessment operations
   createAssessment(assessment: InsertAssessment): Promise<Assessment>;
@@ -133,8 +134,17 @@ export interface IStorage {
   getCareerComponentAffinity(careerId: string, componentId: string): Promise<CareerComponentAffinity | undefined>;
   getCareerComponentAffinitiesByComponent(componentId: string): Promise<CareerComponentAffinity[]>;
   getCareerComponentAffinitiesByCareer(careerId: string): Promise<CareerComponentAffinity[]>;
+  getCareerAffinitiesBulk(careerIds: string[], componentIds?: string[]): Promise<CareerComponentAffinity[]>;
   updateCareerComponentAffinity(careerId: string, componentId: string, data: Partial<InsertCareerComponentAffinity>): Promise<CareerComponentAffinity>;
   deleteCareerComponentAffinity(careerId: string, componentId: string): Promise<boolean>;
+  
+  // Bulk loading operations for matching service
+  getAssessmentWithCompetencies(assessmentId: string): Promise<{
+    assessment: Assessment;
+    quiz?: AssessmentQuiz;
+    responses: QuizResponse[];
+    competencyScores: Record<string, number>;
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -241,6 +251,20 @@ export class DatabaseStorage implements IStorage {
         )
       );
     return trend;
+  }
+
+  async getJobTrendsByCareerIds(careerIds: string[], countryId?: string): Promise<JobMarketTrend[]> {
+    if (careerIds.length === 0) return [];
+
+    const conditions = [inArray(jobMarketTrends.careerId, careerIds)];
+    if (countryId) {
+      conditions.push(eq(jobMarketTrends.countryId, countryId));
+    }
+
+    return await db
+      .select()
+      .from(jobMarketTrends)
+      .where(and(...conditions));
   }
 
   // Assessment operations
@@ -753,6 +777,20 @@ export class DatabaseStorage implements IStorage {
       .where(eq(careerComponentAffinities.careerId, careerId));
   }
 
+  async getCareerAffinitiesBulk(careerIds: string[], componentIds?: string[]): Promise<CareerComponentAffinity[]> {
+    if (careerIds.length === 0) return [];
+
+    const conditions = [inArray(careerComponentAffinities.careerId, careerIds)];
+    if (componentIds && componentIds.length > 0) {
+      conditions.push(inArray(careerComponentAffinities.componentId, componentIds));
+    }
+
+    return await db
+      .select()
+      .from(careerComponentAffinities)
+      .where(and(...conditions));
+  }
+
   async updateCareerComponentAffinity(careerId: string, componentId: string, data: Partial<InsertCareerComponentAffinity>): Promise<CareerComponentAffinity> {
     const [affinity] = await db
       .update(careerComponentAffinities)
@@ -773,6 +811,69 @@ export class DatabaseStorage implements IStorage {
         eq(careerComponentAffinities.componentId, componentId)
       ));
     return (result.rowCount ?? 0) > 0;
+  }
+
+  // Bulk loading operations for matching service
+  async getAssessmentWithCompetencies(assessmentId: string): Promise<{
+    assessment: Assessment;
+    quiz?: AssessmentQuiz;
+    responses: QuizResponse[];
+    competencyScores: Record<string, number>;
+  }> {
+    // Fetch assessment
+    const assessment = await this.getAssessmentById(assessmentId);
+    if (!assessment) {
+      throw new Error(`Assessment ${assessmentId} not found`);
+    }
+
+    // Fetch quiz and responses if they exist
+    const quiz = await this.getAssessmentQuizByAssessmentId(assessmentId);
+    const responses = quiz ? await this.getQuizResponsesByQuizId(quiz.id) : [];
+
+    // Calculate competency scores from quiz responses
+    const competencyScores: Record<string, number> = {};
+    
+    if (quiz && responses.length > 0) {
+      // Fetch quiz responses with question details (join with quizQuestions to get subject)
+      const responsesWithQuestions = await db
+        .select({
+          response: quizResponses,
+          question: quizQuestions,
+        })
+        .from(quizResponses)
+        .innerJoin(quizQuestions, eq(quizResponses.questionId, quizQuestions.id))
+        .where(eq(quizResponses.assessmentQuizId, quiz.id));
+
+      // Group responses by subject
+      const subjectResponses: Record<string, { correct: number; total: number }> = {};
+      
+      for (const { response, question } of responsesWithQuestions) {
+        if (!question.subject) continue;
+        
+        if (!subjectResponses[question.subject]) {
+          subjectResponses[question.subject] = { correct: 0, total: 0 };
+        }
+        
+        subjectResponses[question.subject].total++;
+        if (response.isCorrect) {
+          subjectResponses[question.subject].correct++;
+        }
+      }
+      
+      // Calculate percentage scores for each subject
+      for (const [subject, stats] of Object.entries(subjectResponses)) {
+        competencyScores[subject] = stats.total > 0 
+          ? Math.round((stats.correct / stats.total) * 100)
+          : 0;
+      }
+    }
+
+    return {
+      assessment,
+      quiz,
+      responses,
+      competencyScores,
+    };
   }
 }
 
