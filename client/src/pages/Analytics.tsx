@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { StickyNote } from "@/components/StickyNote";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -57,10 +58,22 @@ const CHART_COLORS = [
 ];
 
 export default function Analytics() {
+  const [selectedCountry, setSelectedCountry] = useState<string | null>(null); // null = "All Countries"
+
+  // Query with country filter
   const { data: overview, isLoading: overviewLoading } = useQuery<AnalyticsOverview>({
-    queryKey: ['/api/analytics/overview'],
+    queryKey: ['/api/analytics/overview', selectedCountry],
+    queryFn: async () => {
+      const url = selectedCountry 
+        ? `/api/analytics/overview?countryId=${selectedCountry}`
+        : '/api/analytics/overview';
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('Failed to fetch analytics');
+      return res.json();
+    },
   });
 
+  // Countries list (always unfiltered to show all available countries)
   const { data: countries, isLoading: countriesLoading } = useQuery<Array<{ countryId: string; countryName: string; studentCount: number }>>({
     queryKey: ['/api/analytics/countries'],
   });
@@ -73,7 +86,7 @@ export default function Analytics() {
     queryKey: ['/api/analytics/sectors'],
   });
 
-  const completionRate = overview 
+  const completionRate = overview && overview.totalStudents > 0
     ? Math.round((overview.completedAssessments / overview.totalStudents) * 100)
     : 0;
 
@@ -160,49 +173,72 @@ export default function Analytics() {
           </StickyNote>
         </div>
 
-        {/* Country Distribution */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Globe className="w-5 h-5" />
-              Student Distribution by Country
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
+        {/* Country Filters */}
+        <div className="mb-12">
+          <div className="flex items-center gap-3 mb-6">
+            <Globe className="w-6 h-6 text-primary" />
+            <h2 className="text-2xl font-bold">Filter by Country</h2>
+            <p className="text-muted-foreground text-sm">(Click a country to filter all data)</p>
+          </div>
+          
+          <div className="flex flex-wrap gap-4">
+            {/* All Countries Filter */}
+            <button
+              onClick={() => setSelectedCountry(null)}
+              className="focus:outline-none transition-transform hover:scale-105"
+              data-testid="filter-country-all"
+            >
+              <StickyNote 
+                color="purple" 
+                rotation="-1"
+                className={selectedCountry === null ? "ring-4 ring-primary ring-offset-2" : ""}
+              >
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground mb-1">All Countries</p>
+                  <p className="text-2xl font-bold">
+                    {countriesLoading ? "..." : countries?.reduce((sum, c) => sum + c.studentCount, 0) || 0}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">students</p>
+                </div>
+              </StickyNote>
+            </button>
+
+            {/* Individual Country Filters */}
             {countriesLoading ? (
-              <div className="h-80 flex items-center justify-center text-muted-foreground">
-                Loading chart data...
-              </div>
+              <div className="text-muted-foreground">Loading countries...</div>
             ) : countries && countries.length > 0 ? (
-              <ResponsiveContainer width="100%" height={400}>
-                <BarChart data={countries}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis 
-                    dataKey="countryName" 
-                    angle={-45}
-                    textAnchor="end"
-                    height={100}
-                    interval={0}
-                    tick={{ fontSize: 12 }}
-                  />
-                  <YAxis />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: 'hsl(var(--background))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '8px'
-                    }}
-                  />
-                  <Bar dataKey="studentCount" fill="hsl(var(--primary))" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              countries.map((country, index) => {
+                const colors = ['yellow', 'pink', 'blue', 'green', 'purple'] as const;
+                const rotations = ['-2', '-1', '1', '2', '-1'] as const;
+                const color = colors[index % colors.length];
+                const rotation = rotations[index % rotations.length];
+
+                return (
+                  <button
+                    key={country.countryId}
+                    onClick={() => setSelectedCountry(country.countryId)}
+                    className="focus:outline-none transition-transform hover:scale-105"
+                    data-testid={`filter-country-${country.countryId}`}
+                  >
+                    <StickyNote 
+                      color={color} 
+                      rotation={rotation}
+                      className={selectedCountry === country.countryId ? "ring-4 ring-primary ring-offset-2" : ""}
+                    >
+                      <div className="text-center">
+                        <p className="text-sm text-muted-foreground mb-1 line-clamp-1">{country.countryName}</p>
+                        <p className="text-2xl font-bold">{country.studentCount}</p>
+                        <p className="text-xs text-muted-foreground mt-1">students</p>
+                      </div>
+                    </StickyNote>
+                  </button>
+                );
+              })
             ) : (
-              <div className="h-80 flex items-center justify-center text-muted-foreground">
-                No country data available yet
-              </div>
+              <div className="text-muted-foreground">No countries with completed assessments yet</div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* Career Trends */}
         <Card className="mb-8">
