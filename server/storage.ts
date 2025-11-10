@@ -72,6 +72,15 @@ export interface IStorage {
   createQuizQuestion(question: InsertQuizQuestion): Promise<QuizQuestion>;
   getAllQuizQuestions(): Promise<QuizQuestion[]>;
   getQuizQuestionsByGradeAndCountry(gradeBand: string, countryId: string | null): Promise<QuizQuestion[]>;
+  getQuizQuestions(filters: {
+    countryId?: string;
+    subject?: string;
+    gradeBand?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<QuizQuestion[]>;
+  updateQuizQuestion(id: string, data: Partial<InsertQuizQuestion>): Promise<QuizQuestion | undefined>;
+  deleteQuizQuestion(id: string): Promise<boolean>;
   createAssessmentQuiz(assessmentQuiz: InsertAssessmentQuiz): Promise<AssessmentQuiz>;
   getAssessmentQuizByAssessmentId(assessmentId: string): Promise<AssessmentQuiz | undefined>;
   createQuizResponse(response: InsertQuizResponse): Promise<QuizResponse>;
@@ -298,6 +307,57 @@ export class DatabaseStorage implements IStorage {
           )
         );
     }
+  }
+
+  async getQuizQuestions(filters: {
+    countryId?: string;
+    subject?: string;
+    gradeBand?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<QuizQuestion[]> {
+    let query = db.select().from(quizQuestions);
+    
+    const conditions: any[] = [];
+    if (filters.countryId) {
+      conditions.push(eq(quizQuestions.countryId, filters.countryId));
+    }
+    if (filters.subject) {
+      conditions.push(eq(quizQuestions.subject, filters.subject));
+    }
+    if (filters.gradeBand) {
+      conditions.push(eq(quizQuestions.gradeBand, filters.gradeBand));
+    }
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+    
+    if (filters.limit) {
+      query = query.limit(filters.limit) as any;
+    }
+    if (filters.offset) {
+      query = query.offset(filters.offset) as any;
+    }
+    
+    return await query;
+  }
+
+  async updateQuizQuestion(id: string, data: Partial<InsertQuizQuestion>): Promise<QuizQuestion | undefined> {
+    const [question] = await db
+      .update(quizQuestions)
+      .set(data)
+      .where(eq(quizQuestions.id, id))
+      .returning();
+    return question;
+  }
+
+  async deleteQuizQuestion(id: string): Promise<boolean> {
+    const result = await db
+      .delete(quizQuestions)
+      .where(eq(quizQuestions.id, id))
+      .returning();
+    return result.length > 0;
   }
 
   async createAssessmentQuiz(assessmentQuizData: InsertAssessmentQuiz): Promise<AssessmentQuiz> {

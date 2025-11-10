@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { insertAssessmentSchema } from "@shared/schema";
+import { insertAssessmentSchema, insertQuizQuestionSchema } from "@shared/schema";
 import { z } from "zod";
 import { transformQuizQuestionForFrontend, shuffleQuestions, shuffleOptions } from "./utils/quiz";
 
@@ -980,6 +980,170 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error fetching sector pipeline:", error);
       res.status(500).json({ message: "Failed to fetch sector pipeline" });
+    }
+  });
+
+  // Admin middleware
+  const isAdmin = (req: any, res: any, next: any) => {
+    if (!req.user) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    const userId = req.user.claims.sub;
+    storage.getUser(userId).then(user => {
+      if (!user || user.role !== "superadmin") {
+        return res.status(403).json({ message: "Forbidden: Admin access required" });
+      }
+      next();
+    }).catch(() => {
+      res.status(500).json({ message: "Authorization check failed" });
+    });
+  };
+
+  // Super Admin Endpoints - Quiz Question Management
+  app.get("/api/admin/questions", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { countryId, subject, gradeBand, limit, offset } = req.query;
+      
+      const questions = await storage.getQuizQuestions({
+        countryId: countryId as string,
+        subject: subject as string,
+        gradeBand: gradeBand as string,
+        limit: limit ? parseInt(limit as string) : undefined,
+        offset: offset ? parseInt(offset as string) : undefined,
+      });
+      
+      res.json(questions);
+    } catch (error) {
+      console.error("Error fetching quiz questions:", error);
+      res.status(500).json({ message: "Failed to fetch quiz questions" });
+    }
+  });
+
+  app.post("/api/admin/questions", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const validatedData = insertQuizQuestionSchema.parse(req.body);
+      const question = await storage.createQuizQuestion(validatedData);
+      res.status(201).json(question);
+    } catch (error) {
+      console.error("Error creating quiz question:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid question data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to create quiz question" });
+    }
+  });
+
+  app.patch("/api/admin/questions/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const validatedData = insertQuizQuestionSchema.partial().parse(req.body);
+      const question = await storage.updateQuizQuestion(req.params.id, validatedData);
+      if (!question) {
+        return res.status(404).json({ message: "Question not found" });
+      }
+      res.json(question);
+    } catch (error) {
+      console.error("Error updating quiz question:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid question data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to update quiz question" });
+    }
+  });
+
+  app.delete("/api/admin/questions/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const deleted = await storage.deleteQuizQuestion(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Question not found" });
+      }
+      res.json({ success: true, message: "Question deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting quiz question:", error);
+      res.status(500).json({ message: "Failed to delete quiz question" });
+    }
+  });
+
+  // Bulk operations
+  app.post("/api/admin/questions/bulk-upload", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { questions, format } = req.body;
+      
+      if (!Array.isArray(questions)) {
+        return res.status(400).json({ message: "Questions must be an array" });
+      }
+
+      const results = {
+        success: 0,
+        failed: 0,
+        errors: [] as any[],
+      };
+
+      for (const questionData of questions) {
+        try {
+          const validatedData = insertQuizQuestionSchema.parse(questionData);
+          await storage.createQuizQuestion(validatedData);
+          results.success++;
+        } catch (error) {
+          results.failed++;
+          results.errors.push({
+            question: questionData.question?.substring(0, 50) + "...",
+            error: error instanceof Error ? error.message : "Unknown error",
+          });
+        }
+      }
+
+      res.json(results);
+    } catch (error) {
+      console.error("Error bulk uploading questions:", error);
+      res.status(500).json({ message: "Failed to bulk upload questions" });
+    }
+  });
+
+  app.get("/api/admin/questions/export", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { countryId, subject, gradeBand, format } = req.query;
+      
+      const questions = await storage.getQuizQuestions({
+        countryId: countryId as string,
+        subject: subject as string,
+        gradeBand: gradeBand as string,
+      });
+
+      if (format === "csv") {
+        const csvRows = [
+          ["Question", "Type", "Subject", "Grade Band", "Country", "Topic", "Difficulty", "Cognitive Level", "Correct Answer", "Options (JSON)", "Explanation"].join(",")
+        ];
+
+        questions.forEach((q: any) => {
+          const row = [
+            `"${q.question.replace(/"/g, '""')}"`,
+            q.questionType,
+            q.subject,
+            q.gradeBand,
+            q.countryId || "global",
+            q.topic,
+            q.difficulty,
+            q.cognitiveLevel,
+            `"${q.correctAnswer.replace(/"/g, '""')}"`,
+            `"${JSON.stringify(q.options).replace(/"/g, '""')}"`,
+            `"${(q.explanation || '').replace(/"/g, '""')}"`,
+          ];
+          csvRows.push(row.join(","));
+        });
+
+        const csv = csvRows.join("\n");
+        res.setHeader("Content-Type", "text/csv");
+        res.setHeader("Content-Disposition", `attachment; filename="quiz-questions-${Date.now()}.csv"`);
+        res.send(csv);
+      } else {
+        res.setHeader("Content-Type", "application/json");
+        res.setHeader("Content-Disposition", `attachment; filename="quiz-questions-${Date.now()}.json"`);
+        res.json(questions);
+      }
+    } catch (error) {
+      console.error("Error exporting questions:", error);
+      res.status(500).json({ message: "Failed to export questions" });
     }
   });
 
