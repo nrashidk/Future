@@ -342,9 +342,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.isAuthenticated() ? req.user.claims.sub : null;
       const isGuest = !userId;
 
-      // For guest users, mark session to ensure it's saved
+      // For guest users, mark session and ensure it's saved before proceeding
       if (isGuest) {
         req.session.isGuest = true;
+        
+        // Explicitly save session and wait for it to complete
+        await new Promise<void>((resolve, reject) => {
+          req.session.save((err: any) => {
+            if (err) reject(err);
+            else resolve();
+          });
+        });
       }
 
       const assessment = await storage.createAssessment({
