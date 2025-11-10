@@ -32,13 +32,14 @@ export function getSession() {
     store: sessionStore,
     resave: false,
     saveUninitialized: true, // Save uninitialized sessions for guest users
-    name: 'sessionId', // Explicit session cookie name
+    name: 'connect.sid', // Use default session cookie name for better compatibility
+    proxy: true, // Trust the reverse proxy
     cookie: {
       httpOnly: true,
-      secure: false, // Disable secure flag for development (Replit uses HTTPS proxy)
-      sameSite: 'lax', // Allow cookies in same-site navigation
+      secure: true, // Required when sameSite: 'none'
+      sameSite: 'none', // Required for cross-origin requests in Replit iframe
       maxAge: sessionTtl,
-      path: '/', // Ensure cookie is available for all paths
+      path: '/',
     },
   });
 }
