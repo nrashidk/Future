@@ -5,6 +5,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/useAuth";
 import Landing from "@/pages/Landing";
+import TierSelection from "@/pages/TierSelection";
+import Checkout from "@/pages/Checkout";
 import Assessment from "@/pages/Assessment";
 import Results from "@/pages/Results";
 import ResultsPrint from "@/pages/ResultsPrint";
@@ -19,6 +21,8 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Landing} />
+      <Route path="/tier-selection" component={TierSelection} />
+      <Route path="/checkout" component={Checkout} />
       <Route path="/assessment" component={Assessment} />
       <Route path="/results" component={Results} />
       <Route path="/print/results" component={ResultsPrint} />
