@@ -163,13 +163,8 @@ export default function Analytics() {
           </p>
         </div>
 
-        {/* Country Filter Row */}
+        {/* Country Selection - Sticky Notes */}
         <div className="mb-12">
-          <div className="flex items-center gap-3 mb-6">
-            <Globe className="w-6 h-6 text-primary" />
-            <h2 className="text-2xl font-bold">Country Filter</h2>
-          </div>
-          
           <div className="flex flex-wrap gap-4 items-center">
             {/* Pinned Country Sticky Notes */}
             {pinnedCountries.map((country, index) => {
@@ -191,9 +186,9 @@ export default function Analytics() {
                     className={activeCountryId === country.countryId ? "ring-4 ring-primary ring-offset-2" : ""}
                   >
                     <div className="text-center">
-                      <p className="text-sm text-muted-foreground mb-1 line-clamp-1">{country.countryName}</p>
-                      <p className="text-2xl font-bold">{country.studentCount}</p>
-                      <p className="text-xs text-muted-foreground mt-1">students</p>
+                      <p className="text-lg font-bold mb-2 line-clamp-1">{country.countryName}</p>
+                      <p className="text-3xl font-bold text-primary">{country.studentCount}</p>
+                      <p className="text-xs text-muted-foreground mt-1">students assessed</p>
                     </div>
                   </StickyNote>
                 </button>
