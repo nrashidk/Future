@@ -986,9 +986,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Import Puppeteer
       const puppeteer = await import("puppeteer");
 
-      // Launch headless browser
+      // Launch headless browser with system Chromium
       const browser = await puppeteer.default.launch({
         headless: true,
+        executablePath: 'chromium-browser',
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
