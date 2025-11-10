@@ -342,39 +342,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.isAuthenticated() ? req.user.claims.sub : null;
       const isGuest = !userId;
 
+      // For guest users, generate a unique guest token
+      const guestToken = isGuest ? `guest_${Date.now()}_${Math.random().toString(36).substring(2, 15)}` : null;
+
       const assessment = await storage.createAssessment({
         ...validatedData,
         userId,
         isGuest,
-        guestSessionId: isGuest ? req.session.id : null,
+        guestSessionId: guestToken, // Store guest token instead of session ID
       });
 
-      // For guest users, store assessment ID in session for verification
-      if (isGuest) {
-        if (!req.session.guestAssessments) {
-          req.session.guestAssessments = [];
-        }
-        req.session.guestAssessments.push(assessment.id);
-        req.session.isGuest = true;
-        
-        // Explicitly save session and wait for it to complete
-        await new Promise<void>((resolve, reject) => {
-          req.session.save((err: any) => {
-            if (err) reject(err);
-            else resolve();
-          });
-        });
-      }
-
-      // Debug: log session info for troubleshooting
-      console.log("Assessment created with session:", {
-        sessionId: req.session.id,
+      // Debug logging
+      console.log("Assessment created:", {
         isGuest,
         assessmentId: assessment.id,
-        guestAssessments: req.session.guestAssessments
+        hasGuestToken: !!guestToken
       });
 
-      res.json(assessment);
+      // Return guest token to frontend for subsequent requests
+      res.json({
+        ...assessment,
+        guestToken: isGuest ? guestToken : undefined
+      });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
@@ -415,6 +404,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/assessments/:assessmentId/quiz/generate", async (req: any, res) => {
     try {
       const { assessmentId } = req.params;
+      const { guestToken } = req.body; // Guest token from frontend
       
       // Get assessment to check authorization and get grade/country
       const assessment = await storage.getAssessmentById(assessmentId);
@@ -422,22 +412,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Assessment not found" });
       }
       
-      // Authorization: Check if user owns assessment or has it in their guest session
+      // Authorization: Check if user owns assessment or has valid guest token
       const isOwner = req.isAuthenticated() && assessment.userId === req.user.claims.sub;
-      const guestAssessments = req.session.guestAssessments || [];
-      const isGuestOwner = assessment.isGuest && guestAssessments.includes(assessmentId);
+      const isGuestOwner = assessment.isGuest && guestToken && assessment.guestSessionId === guestToken;
       
       // Debug logging
       console.log("Quiz Generate Auth Debug:", {
         isAuthenticated: req.isAuthenticated(),
         assessmentIsGuest: assessment.isGuest,
-        requestSessionId: req.session.id,
-        assessmentGuestSessionId: assessment.guestSessionId,
-        guestAssessments,
-        assessmentId,
+        hasGuestToken: !!guestToken,
+        tokensMatch: assessment.guestSessionId === guestToken,
         isOwner,
-        isGuestOwner,
-        cookies: req.headers.cookie
+        isGuestOwner
       });
       
       if (!isOwner && !isGuestOwner) {

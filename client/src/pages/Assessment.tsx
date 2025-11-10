@@ -97,9 +97,9 @@ export default function Assessment() {
           const response = await apiRequest("POST", "/api/assessments", backendData);
           assessment = await response.json();
           
-          // Store guest session ID if needed
-          if (assessment.guestSessionId && !isAuthenticated) {
-            localStorage.setItem("guestSessionId", assessment.guestSessionId);
+          // Store guest token if needed (for subsequent API calls)
+          if (assessment.guestToken && !isAuthenticated) {
+            localStorage.setItem("guestToken", assessment.guestToken);
           }
         }
         

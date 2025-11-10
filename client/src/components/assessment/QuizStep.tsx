@@ -37,7 +37,11 @@ export function QuizStep({ assessmentId, onComplete }: QuizStepProps) {
   const { data: quizData, isLoading: isGenerating, error: generationError } = useQuery({
     queryKey: ["/api/assessments", assessmentId, "quiz"],
     queryFn: async () => {
-      const response = await apiRequest("POST", `/api/assessments/${assessmentId}/quiz/generate`);
+      // Retrieve guest token from localStorage for authorization
+      const guestToken = localStorage.getItem("guestToken");
+      const response = await apiRequest("POST", `/api/assessments/${assessmentId}/quiz/generate`, {
+        guestToken: guestToken || undefined
+      });
       return await response.json();
     }
   });
