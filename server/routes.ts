@@ -4,21 +4,7 @@ import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertAssessmentSchema } from "@shared/schema";
 import { z } from "zod";
-import PDFDocument from "pdfkit";
 import { transformQuizQuestionForFrontend, shuffleQuestions, shuffleOptions } from "./utils/quiz";
-import {
-  colors,
-  layout,
-  drawGradientHeader,
-  drawStickyCard,
-  drawBadge,
-  drawCircularBadge,
-  drawProgressBar,
-  drawMetricRow,
-  drawInsightRow,
-  getStickyColor,
-  ensurePageSpace,
-} from "./utils/pdfTheme";
 
 // Helper to enrich assessment with subject competency scores from quiz
 async function enrichAssessmentWithCompetencies(assessment: any) {
@@ -837,7 +823,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // PDF Report Generation
+  // PDF Report Generation using Puppeteer
   app.get("/api/recommendations/pdf/:assessmentId", async (req: any, res) => {
     try {
       const assessment = await storage.getAssessmentById(req.params.assessmentId);
@@ -846,351 +832,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Authorization check: verify ownership
-      // For registered users, verify authentication
-      // For guest assessments, allow access (assessment IDs are UUIDs, hard to guess)
       if (assessment.userId && (!req.isAuthenticated() || req.user.claims.sub !== assessment.userId)) {
         return res.status(403).json({ message: "Unauthorized to access this report" });
       }
 
-      const recommendations = await storage.getRecommendationsByAssessment(assessment.id);
-      const country = assessment.countryId ? await storage.getCountryById(assessment.countryId) : null;
+      // Import Puppeteer
+      const puppeteer = await import("puppeteer");
 
-      // Create PDF document in landscape orientation
-      const doc = new PDFDocument({ 
-        margin: layout.PAGE_MARGIN, 
-        size: "A4",
-        layout: "landscape"
+      // Launch headless browser
+      const browser = await puppeteer.default.launch({
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu',
+        ],
       });
+
+      const page = await browser.newPage();
+
+      // Navigate to print-optimized page
+      const baseUrl = process.env.NODE_ENV === 'production' 
+        ? `https://${req.get('host')}`
+        : `http://localhost:${process.env.PORT || 5000}`;
+      
+      const printUrl = `${baseUrl}/print/results?assessmentId=${assessment.id}`;
+      
+      await page.goto(printUrl, {
+        waitUntil: 'networkidle0',
+        timeout: 30000,
+      });
+
+      // Wait for report data to be fully loaded
+      await page.waitForFunction(() => (window as any).__REPORT_READY__ === true, {
+        timeout: 30000,
+      });
+
+      // Generate PDF
+      const pdfBuffer = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        preferCSSPageSize: true,
+      });
+
+      await browser.close();
 
       // Set response headers
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Disposition", `attachment; filename="career-report-${assessment.id}.pdf"`);
 
-      // Pipe PDF to response
-      doc.pipe(res);
-      
-      let cursorY = 0;
-
-      // ========== HERO HEADER ==========
-      const heroHeight = drawGradientHeader(doc, {
-        title: "Your Career Pathways!",
-        subtitle: "Based on your interests, skills, and country's vision, here are your perfect matches",
-        iconLabel: "★",
-      });
-      cursorY = heroHeight;
-
-      // ========== SUBJECT COMPETENCY SPOTLIGHT (if quiz completed) ==========
-      const quiz = await storage.getAssessmentQuizByAssessmentId(assessment.id);
-      if (quiz && quiz.completedAt) {
-        cursorY = ensurePageSpace(doc, 850, cursorY);
-        
-        const cardX = layout.PAGE_MARGIN;
-        const cardWidth = doc.page.width - layout.PAGE_MARGIN * 2;
-        const cardY = cursorY;
-        
-        const cardHeight = drawStickyCard(doc, {
-          x: cardX,
-          y: cardY,
-          width: cardWidth,
-          color: colors.stickyPurple,
-          minHeight: 500,
-          renderContent: (doc, contentX, contentY, contentWidth) => {
-            let innerY = contentY;
-            
-            // Title
-            doc.fontSize(18).font("Helvetica-Bold").fillColor(colors.textDark).text(
-              "Your Subject Strengths",
-              contentX,
-              innerY,
-              { width: contentWidth, align: "center" }
-            );
-            innerY += 30;
-            
-            doc.fontSize(9).font("Helvetica").fillColor(colors.textLight).text(
-              "We tested your skills in your favorite subjects to validate your career matches",
-              contentX,
-              innerY,
-              { width: contentWidth, align: "center" }
-            );
-            innerY += 30;
-            
-            // Overall competency score
-            const overallScore = Math.round(quiz.totalScore);
-            doc.fontSize(48).font("Helvetica-Bold").fillColor(colors.primary).text(
-              `${overallScore}%`,
-              contentX,
-              innerY,
-              { width: contentWidth, align: "center" }
-            );
-            innerY += 60;
-            
-            // Performance label
-            let performanceLabel = "Excellent Mastery";
-            if (overallScore < 80) performanceLabel = "Strong Understanding";
-            if (overallScore < 60) performanceLabel = "Good Foundation";
-            if (overallScore < 40) performanceLabel = "Room to Grow";
-            
-            doc.fontSize(11).font("Helvetica-Bold").fillColor(colors.textMedium).text(
-              performanceLabel,
-              contentX,
-              innerY,
-              { width: contentWidth, align: "center" }
-            );
-            innerY += 30;
-            
-            // Subject breakdown (top 4 subjects)
-            const subjectScores = quiz.subjectScores as Record<string, { correct: number; total: number; percentage: number }> | null;
-            if (subjectScores) {
-              const sortedSubjects = Object.entries(subjectScores)
-                .sort(([, a], [, b]) => b.percentage - a.percentage)
-                .slice(0, 4);
-              
-              const col1X = contentX;
-              const col2X = contentX + contentWidth / 2 + 8;
-              const colWidth = contentWidth / 2 - 8;
-              let subjectY = innerY;
-              
-              sortedSubjects.forEach(([subject, score], idx) => {
-                const x = idx % 2 === 0 ? col1X : col2X;
-                const y = subjectY + Math.floor(idx / 2) * 32;
-                
-                // Subject name and score
-                doc.fontSize(9).font("Helvetica-Bold").fillColor(colors.textDark).text(subject, x, y);
-                doc.fontSize(10).font("Helvetica-Bold").fillColor(colors.primary).text(
-                  `${score.percentage}%`,
-                  x + colWidth - 40,
-                  y
-                );
-                
-                // Progress bar
-                drawProgressBar(doc, { x, y: y + 12, width: colWidth, value: score.percentage, height: 6 });
-                
-                // Correct/total
-                doc.fontSize(7).font("Helvetica").fillColor(colors.textMuted).text(
-                  `${score.correct}/${score.total} correct`,
-                  x,
-                  y + 20
-                );
-              });
-              
-              innerY += Math.ceil(sortedSubjects.length / 2) * 32 + 10;
-            }
-            
-            return innerY - contentY;
-          },
-        });
-        
-        cursorY += cardHeight + layout.CARD_GAP;
-      }
-
-      // ========== CAREER RECOMMENDATIONS ==========
-      for (let i = 0; i < Math.min(recommendations.length, 5); i++) {
-        const rec: any = recommendations[i]; // Type as any to access matchedSubjects and supportingVisionPriorities
-        const career = await storage.getCareerById(rec.careerId);
-        
-        if (!career) continue;
-
-        cursorY = ensurePageSpace(doc, 850, cursorY);
-        
-        const cardX = layout.PAGE_MARGIN;
-        const cardWidth = doc.page.width - layout.PAGE_MARGIN * 2;
-        const cardY = cursorY;
-        const cardColor = getStickyColor(i);
-        
-        const cardHeight = drawStickyCard(doc, {
-          x: cardX,
-          y: cardY,
-          width: cardWidth,
-          color: cardColor,
-          minHeight: 800,
-          renderContent: (doc, contentX, contentY, contentWidth) => {
-            let innerY = contentY;
-            
-            // Career title
-            doc.fontSize(18).font("Helvetica-Bold").fillColor(colors.textDark).text(
-              career.title,
-              contentX,
-              innerY,
-              { width: contentWidth - 70 }
-            );
-            
-            // Match score badge
-            drawCircularBadge(doc, {
-              x: contentX + contentWidth - 30,
-              y: innerY + 15,
-              text: `${Math.round(rec.overallMatchScore)}%`,
-              radius: 28,
-            });
-            
-            innerY += 35;
-            
-            // Description
-            doc.fontSize(9).font("Helvetica").fillColor(colors.textMedium);
-            const descHeight = doc.heightOfString(career.description, { width: contentWidth, lineGap: 2 });
-            doc.text(career.description, contentX, innerY, { width: contentWidth, lineGap: 2 });
-            innerY += descHeight + 12;
-            
-            // Match breakdown (4 metrics in 2x2 grid)
-            const metricCol1X = contentX;
-            const metricCol2X = contentX + contentWidth / 2 + 8;
-            const metricColWidth = contentWidth / 2 - 8;
-            
-            innerY += drawMetricRow(doc, {
-              x: metricCol1X,
-              y: innerY,
-              width: metricColWidth,
-              label: "Subject Match",
-              value: rec.subjectMatchScore,
-              weight: "30% weight • Validated by quiz",
-            });
-            
-            const metric2Y = innerY;
-            innerY += drawMetricRow(doc, {
-              x: metricCol2X,
-              y: metric2Y,
-              width: metricColWidth,
-              label: "Interest Match",
-              value: rec.interestMatchScore,
-              weight: "30% weight",
-            });
-            
-            innerY += 4;
-            const metric3Y = innerY;
-            innerY += drawMetricRow(doc, {
-              x: metricCol1X,
-              y: metric3Y,
-              width: metricColWidth,
-              label: "Vision Alignment",
-              value: rec.countryVisionAlignment,
-              weight: "20% weight",
-            });
-            
-            const metric4Y = metric3Y;
-            drawMetricRow(doc, {
-              x: metricCol2X,
-              y: metric4Y,
-              width: metricColWidth,
-              label: "Market Demand",
-              value: rec.futureMarketDemand,
-              weight: "20% weight",
-            });
-            
-            innerY += 12;
-            
-            // Competency validation badges (if available)
-            if (rec.matchedSubjects && rec.matchedSubjects.length > 0) {
-              doc.fontSize(8).font("Helvetica-Bold").fillColor(colors.textMuted).text(
-                "Validated by Your Competencies",
-                contentX,
-                innerY
-              );
-              innerY += 14;
-              
-              let badgeX = contentX;
-              rec.matchedSubjects.slice(0, 3).forEach((item: any) => {
-                const badge = drawBadge(doc, {
-                  x: badgeX,
-                  y: innerY,
-                  text: `${item.subject}: ${item.competency}%`,
-                  background: colors.competencyBg,
-                  foreground: colors.primary,
-                  fontSize: 8,
-                  paddingX: 8,
-                  paddingY: 4,
-                });
-                badgeX += badge.width + 6;
-              });
-              innerY += 24;
-            }
-            
-            // Vision priorities (if available)
-            if (rec.supportingVisionPriorities && rec.supportingVisionPriorities.length > 0) {
-              doc.fontSize(8).font("Helvetica-Bold").fillColor(colors.textMuted).text(
-                "Supports National Vision",
-                contentX,
-                innerY
-              );
-              innerY += 14;
-              
-              let badgeX = contentX;
-              rec.supportingVisionPriorities.slice(0, 2).forEach((priority: string) => {
-                const badge = drawBadge(doc, {
-                  x: badgeX,
-                  y: innerY,
-                  text: priority,
-                  background: colors.visionBg,
-                  foreground: colors.textDark,
-                  fontSize: 8,
-                  paddingX: 8,
-                  paddingY: 4,
-                });
-                badgeX += badge.width + 6;
-              });
-              innerY += 24;
-            }
-            
-            // Why this career
-            doc.fontSize(9).font("Helvetica-Bold").fillColor(colors.textDark).text(
-              "Why This Career?",
-              contentX,
-              innerY
-            );
-            innerY += 14;
-            doc.fontSize(8).font("Helvetica").fillColor(colors.textMedium);
-            const reasonHeight = doc.heightOfString(rec.reasoning, { width: contentWidth, lineGap: 2 });
-            doc.text(rec.reasoning, contentX, innerY, { width: contentWidth, lineGap: 2 });
-            innerY += reasonHeight + 12;
-            
-            // Education path
-            doc.fontSize(9).font("Helvetica-Bold").fillColor(colors.textDark).text(
-              "Education Required",
-              contentX,
-              innerY
-            );
-            innerY += 14;
-            doc.fontSize(8).font("Helvetica").fillColor(colors.textMedium).text(
-              career.educationLevel,
-              contentX,
-              innerY,
-              { width: contentWidth }
-            );
-            innerY += 20;
-            
-            // Next steps (first 3)
-            if (rec.actionSteps && rec.actionSteps.length > 0) {
-              doc.fontSize(9).font("Helvetica-Bold").fillColor(colors.textDark).text(
-                "Next Steps",
-                contentX,
-                innerY
-              );
-              innerY += 14;
-              
-              rec.actionSteps.slice(0, 3).forEach((step: string, idx: number) => {
-                doc.fontSize(8).font("Helvetica").fillColor(colors.textMedium);
-                doc.text(`${idx + 1}. `, contentX, innerY, { continued: true });
-                const stepHeight = doc.heightOfString(step, { width: contentWidth - 15, lineGap: 2 });
-                doc.text(step, { width: contentWidth - 15, lineGap: 2 });
-                innerY += stepHeight + 4;
-              });
-            }
-            
-            return innerY - contentY;
-          },
-        });
-        
-        cursorY += cardHeight + layout.CARD_GAP;
-      }
-
-      // ========== FOOTER ==========
-      cursorY = ensurePageSpace(doc, 50, cursorY);
-      doc.fontSize(8).fillColor(colors.textMuted).font("Helvetica").text(
-        `Generated on ${new Date().toLocaleDateString()} | Future Pathways Career Guidance System`,
-        0,
-        cursorY + 20,
-        { align: "center", width: doc.page.width }
-      );
-
-      doc.end();
+      // Send PDF
+      res.send(pdfBuffer);
     } catch (error) {
       console.error("Error generating PDF:", error);
       res.status(500).json({ message: "Failed to generate PDF report" });
