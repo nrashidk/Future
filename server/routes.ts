@@ -1312,15 +1312,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
-      const { amount, studentCount = 1 } = req.body;
+      // SECURITY FIX: Ignore client-provided amount, calculate server-side
+      const { studentCount = 1 } = req.body;
 
-      // Validation
-      if (!amount || amount < 50) {
+      // Validate student count
+      if (!Number.isInteger(studentCount) || studentCount < 1 || studentCount > 100000) {
+        return res.status(400).json({ message: "Invalid student count. Must be between 1 and 100,000" });
+      }
+
+      // SERVER-SIDE PRICING CALCULATION
+      const basePrice = 10.00; // $10 per student
+      let discount = 0;
+      
+      if (studentCount >= 1000) {
+        discount = 0.20; // 20% off for 1000+
+      } else if (studentCount >= 500) {
+        discount = 0.15; // 15% off for 500+
+      } else if (studentCount >= 100) {
+        discount = 0.10; // 10% off for 100+
+      }
+
+      const total = basePrice * studentCount * (1 - discount);
+      const amountInCents = Math.round(total * 100);
+
+      // Minimum payment validation
+      if (amountInCents < 50) {
         return res.status(400).json({ message: "Invalid amount. Minimum is $0.50 USD" });
       }
 
       const paymentIntent = await stripe.paymentIntents.create({
-        amount: Math.round(amount * 100), // Convert to cents
+        amount: amountInCents,
         currency: "usd",
         automatic_payment_methods: {
           enabled: true,
@@ -1328,11 +1349,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         metadata: {
           userId: req.isAuthenticated() ? req.user.claims.sub : "guest",
           studentCount: studentCount.toString(),
+          expectedAmount: amountInCents.toString(),
           assessmentType: "kolb_premium"
         }
       });
 
-      res.json({ clientSecret: paymentIntent.client_secret });
+      // Return server-calculated total for UI display
+      res.json({ 
+        clientSecret: paymentIntent.client_secret,
+        amount: total, // Server-calculated amount in dollars
+        studentCount
+      });
     } catch (error: any) {
       console.error("Error creating payment intent:", error);
       res.status(500).json({ message: "Error creating payment intent: " + error.message });
@@ -1352,11 +1379,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid request" });
       }
 
-      // Verify payment was successful
+      // SECURITY FIX: Verify payment was successful AND amount is correct
       const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
       
       if (paymentIntent.status !== "succeeded") {
         return res.status(400).json({ message: "Payment not completed" });
+      }
+
+      // Verify user matches the payment metadata
+      if (paymentIntent.metadata.userId !== req.user.claims.sub) {
+        return res.status(403).json({ message: "Payment does not belong to this user" });
+      }
+
+      // Validate payment amount matches expected amount
+      const expectedAmount = paymentIntent.metadata.expectedAmount;
+      if (!expectedAmount || paymentIntent.amount !== parseInt(expectedAmount)) {
+        console.error(`Payment amount mismatch: expected ${expectedAmount}, got ${paymentIntent.amount}`);
+        return res.status(400).json({ message: "Payment amount verification failed" });
+      }
+
+      // Prevent duplicate premium upgrades
+      const existingUser = await storage.getUser(req.user.claims.sub);
+      if (existingUser && existingUser.isPremium) {
+        return res.json({ success: true, user: existingUser, message: "Already premium" });
       }
 
       // Update user to premium

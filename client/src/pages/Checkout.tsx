@@ -23,7 +23,7 @@ const getStripe = () => {
 };
 
 // Checkout Form Component
-function CheckoutForm({ amount, studentCount }: { amount: number; studentCount: number }) {
+function CheckoutForm({ amount, studentCount }: { amount: number | null; studentCount: number }) {
   const stripe = useStripe();
   const elements = useElements();
   const { toast } = useToast();
@@ -98,14 +98,18 @@ function CheckoutForm({ amount, studentCount }: { amount: number; studentCount: 
         </div>
         <div className="flex justify-between text-lg font-bold">
           <span>Total</span>
-          <span className="text-purple-600">${amount.toFixed(2)}</span>
+          {amount !== null ? (
+            <span className="text-purple-600">${amount.toFixed(2)}</span>
+          ) : (
+            <span className="text-gray-400">Calculating...</span>
+          )}
         </div>
       </div>
 
       <Button
         type="submit"
         className="w-full bg-purple-600 hover:bg-purple-700"
-        disabled={!stripe || isProcessing}
+        disabled={!stripe || isProcessing || amount === null}
         data-testid="button-complete-payment"
       >
         {isProcessing ? (
@@ -113,8 +117,13 @@ function CheckoutForm({ amount, studentCount }: { amount: number; studentCount: 
             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
             Processing...
           </>
-        ) : (
+        ) : amount !== null ? (
           `Pay $${amount.toFixed(2)}`
+        ) : (
+          <>
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            Calculating...
+          </>
         )}
       </Button>
 
@@ -130,11 +139,11 @@ export default function Checkout() {
   const [, setLocation] = useLocation();
   const [clientSecret, setClientSecret] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [serverAmount, setServerAmount] = useState<number | null>(null);
   
-  // Parse URL parameters
+  // Parse URL parameters (only studentCount, ignore client-provided total)
   const params = new URLSearchParams(window.location.search);
   const studentCount = parseInt(params.get("students") || "1");
-  const total = parseFloat(params.get("total") || "10");
 
   useEffect(() => {
     // Check if Stripe is configured
@@ -147,13 +156,14 @@ export default function Checkout() {
     // Create PaymentIntent as soon as the page loads
     const createPaymentIntent = async () => {
       try {
+        // SECURITY FIX: Only send studentCount, server calculates amount
         const response = await apiRequest("POST", "/api/create-payment-intent", {
-          amount: total,
           studentCount: studentCount
         });
 
         const data = await response.json();
         setClientSecret(data.clientSecret);
+        setServerAmount(data.amount); // Use server-calculated amount for display
       } catch (error) {
         console.error("Error creating payment intent:", error);
         setLocation("/tier-selection");
@@ -163,7 +173,7 @@ export default function Checkout() {
     };
 
     createPaymentIntent();
-  }, [total, studentCount, setLocation]);
+  }, [studentCount, setLocation]); // Removed total from dependencies
 
   if (loading || !clientSecret) {
     return (
@@ -209,7 +219,7 @@ export default function Checkout() {
                     },
                   }}
                 >
-                  <CheckoutForm amount={total} studentCount={studentCount} />
+                  <CheckoutForm amount={serverAmount} studentCount={studentCount} />
                 </Elements>
               ) : (
                 <div className="text-center py-8 text-red-600">
