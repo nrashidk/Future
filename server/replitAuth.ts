@@ -34,7 +34,7 @@ export function getSession() {
     saveUninitialized: true, // Save uninitialized sessions for guest users
     cookie: {
       httpOnly: true,
-      secure: true,
+      secure: process.env.NODE_ENV === 'production', // Only secure in production
       sameSite: 'lax', // Allow cookies in same-site navigation
       maxAge: sessionTtl,
     },

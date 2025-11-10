@@ -127,7 +127,7 @@ export function CountryStep({ data, onUpdate, onNext }: CountryStepProps) {
             <SelectContent position="popper" className="z-[9999] max-h-[300px]">
               {countries.map((country: any) => (
                 <SelectItem key={country.id} value={country.id}>
-                  {country.flag} {country.name}
+                  {country.name}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -143,7 +143,7 @@ export function CountryStep({ data, onUpdate, onNext }: CountryStepProps) {
                 <Target className="w-5 h-5 text-primary" />
               </div>
               <div className="flex-1">
-                <h4 className="text-lg font-bold">National Mission</h4>
+                <h4 className="text-lg font-bold">Mission - {countryDetails.name}</h4>
                 {countryDetails.visionPlan && (
                   <span className="inline-block mt-1 px-3 py-1 bg-primary text-primary-foreground rounded-full text-xs font-medium">
                     {countryDetails.visionPlan}
@@ -161,7 +161,7 @@ export function CountryStep({ data, onUpdate, onNext }: CountryStepProps) {
               <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                 <Eye className="w-5 h-5 text-primary" />
               </div>
-              <h4 className="text-lg font-bold">National Vision</h4>
+              <h4 className="text-lg font-bold">Vision - {countryDetails.name}</h4>
             </div>
             <p className="font-body text-foreground/90 leading-relaxed">
               {countryDetails.vision}
@@ -170,7 +170,7 @@ export function CountryStep({ data, onUpdate, onNext }: CountryStepProps) {
 
           {countryDetails.prioritySectors && countryDetails.prioritySectors.length > 0 && (
             <StickyNote color="green" rotation="-2">
-              <h4 className="text-lg font-bold mb-3">Priority Sectors</h4>
+              <h4 className="text-lg font-bold mb-3">Priority Sectors - {countryDetails.name}</h4>
               <div className="flex flex-wrap gap-2">
                 {countryDetails.prioritySectors.map((sector: string, index: number) => (
                   <span
