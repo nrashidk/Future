@@ -6,6 +6,19 @@ import { insertAssessmentSchema } from "@shared/schema";
 import { z } from "zod";
 import PDFDocument from "pdfkit";
 import { transformQuizQuestionForFrontend, shuffleQuestions, shuffleOptions } from "./utils/quiz";
+import {
+  colors,
+  layout,
+  drawGradientHeader,
+  drawStickyCard,
+  drawBadge,
+  drawCircularBadge,
+  drawProgressBar,
+  drawMetricRow,
+  drawInsightRow,
+  getStickyColor,
+  ensurePageSpace,
+} from "./utils/pdfTheme";
 
 // Helper to enrich assessment with subject competency scores from quiz
 async function enrichAssessmentWithCompetencies(assessment: any) {
@@ -842,8 +855,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const recommendations = await storage.getRecommendationsByAssessment(assessment.id);
       const country = assessment.countryId ? await storage.getCountryById(assessment.countryId) : null;
 
-      // Create PDF document
-      const doc = new PDFDocument({ margin: 50 });
+      // Create PDF document with custom margins
+      const doc = new PDFDocument({ margin: layout.PAGE_MARGIN, size: "A4" });
 
       // Set response headers
       res.setHeader("Content-Type", "application/pdf");
@@ -851,123 +864,332 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Pipe PDF to response
       doc.pipe(res);
+      
+      let cursorY = 0;
 
-      // Title
-      doc.fontSize(24).fillColor("#6B46C1").text("Future Pathways", { align: "center" });
-      doc.fontSize(16).fillColor("#374151").text("Career Guidance Report", { align: "center" });
-      doc.moveDown(2);
+      // ========== HERO HEADER ==========
+      const heroHeight = drawGradientHeader(doc, {
+        title: "Your Career Pathways!",
+        subtitle: "Based on your interests, skills, and country's vision, here are your perfect matches",
+        iconLabel: "★",
+      });
+      cursorY = heroHeight;
 
-      // Student Info
-      doc.fontSize(14).fillColor("#1F2937").text("Student Profile", { underline: true });
-      doc.moveDown(0.5);
-      doc.fontSize(11).fillColor("#4B5563");
-      doc.text(`Name: ${assessment.name || "Guest User"}`);
-      doc.text(`Age: ${assessment.age}`);
-      doc.text(`Grade: ${assessment.grade}`);
-      doc.text(`Country: ${country?.name || "Not specified"}`);
-      doc.moveDown();
-      doc.text(`Favorite Subjects: ${assessment.favoriteSubjects.join(", ")}`);
-      doc.text(`Interests: ${assessment.interests.join(", ")}`);
-      doc.moveDown(2);
-
-      // Quiz Results (if completed)
+      // ========== SUBJECT COMPETENCY SPOTLIGHT (if quiz completed) ==========
       const quiz = await storage.getAssessmentQuizByAssessmentId(assessment.id);
       if (quiz && quiz.completedAt) {
-        doc.fontSize(14).fillColor("#1F2937").text("Subject Competency Assessment", { underline: true });
-        doc.moveDown(0.5);
+        cursorY = ensurePageSpace(doc, 850, cursorY);
         
-        doc.fontSize(11).fillColor("#4B5563");
-        doc.text(`Overall Score: ${Math.round(quiz.totalScore)}%`, { continued: true });
+        const cardX = layout.PAGE_MARGIN;
+        const cardWidth = doc.page.width - layout.PAGE_MARGIN * 2;
+        const cardY = cursorY;
         
-        // Color code based on performance
-        const overallScore = quiz.totalScore;
-        let performanceText = "";
-        let performanceColor = "#4B5563";
-        if (overallScore >= 80) {
-          performanceText = " - Excellent";
-          performanceColor = "#10B981"; // Green
-        } else if (overallScore >= 60) {
-          performanceText = " - Good";
-          performanceColor = "#3B82F6"; // Blue
-        } else if (overallScore >= 40) {
-          performanceText = " - Fair";
-          performanceColor = "#F59E0B"; // Orange
-        } else {
-          performanceText = " - Needs Improvement";
-          performanceColor = "#EF4444"; // Red
-        }
-        doc.fillColor(performanceColor).text(performanceText);
+        const cardHeight = drawStickyCard(doc, {
+          x: cardX,
+          y: cardY,
+          width: cardWidth,
+          color: colors.stickyPurple,
+          minHeight: 500,
+          renderContent: (doc, contentX, contentY, contentWidth) => {
+            let innerY = contentY;
+            
+            // Icon and title
+            doc.fontSize(12).fillColor(colors.primary).text("✓", contentX + contentWidth / 2 - 6, innerY, { width: 12 });
+            innerY += 20;
+            doc.fontSize(20).font("Helvetica-Bold").fillColor(colors.textDark).text(
+              "Your Subject Strengths",
+              contentX,
+              innerY,
+              { width: contentWidth, align: "center" }
+            );
+            innerY += 30;
+            
+            doc.fontSize(9).font("Helvetica").fillColor(colors.textLight).text(
+              "We tested your skills in your favorite subjects to validate your career matches",
+              contentX,
+              innerY,
+              { width: contentWidth, align: "center" }
+            );
+            innerY += 30;
+            
+            // Overall competency score
+            const overallScore = Math.round(quiz.totalScore);
+            doc.fontSize(48).font("Helvetica-Bold").fillColor(colors.primary).text(
+              `${overallScore}%`,
+              contentX,
+              innerY,
+              { width: contentWidth, align: "center" }
+            );
+            innerY += 60;
+            
+            // Performance label
+            let performanceLabel = "Excellent Mastery";
+            if (overallScore < 80) performanceLabel = "Strong Understanding";
+            if (overallScore < 60) performanceLabel = "Good Foundation";
+            if (overallScore < 40) performanceLabel = "Room to Grow";
+            
+            doc.fontSize(11).font("Helvetica-Bold").fillColor(colors.textMedium).text(
+              performanceLabel,
+              contentX,
+              innerY,
+              { width: contentWidth, align: "center" }
+            );
+            innerY += 30;
+            
+            // Subject breakdown (top 4 subjects)
+            const subjectScores = quiz.subjectScores as Record<string, { correct: number; total: number; percentage: number }> | null;
+            if (subjectScores) {
+              const sortedSubjects = Object.entries(subjectScores)
+                .sort(([, a], [, b]) => b.percentage - a.percentage)
+                .slice(0, 4);
+              
+              const col1X = contentX;
+              const col2X = contentX + contentWidth / 2 + 8;
+              const colWidth = contentWidth / 2 - 8;
+              let subjectY = innerY;
+              
+              sortedSubjects.forEach(([subject, score], idx) => {
+                const x = idx % 2 === 0 ? col1X : col2X;
+                const y = subjectY + Math.floor(idx / 2) * 32;
+                
+                // Subject name and score
+                doc.fontSize(9).font("Helvetica-Bold").fillColor(colors.textDark).text(subject, x, y);
+                doc.fontSize(10).font("Helvetica-Bold").fillColor(colors.primary).text(
+                  `${score.percentage}%`,
+                  x + colWidth - 40,
+                  y
+                );
+                
+                // Progress bar
+                drawProgressBar(doc, { x, y: y + 12, width: colWidth, value: score.percentage, height: 6 });
+                
+                // Correct/total
+                doc.fontSize(7).font("Helvetica").fillColor(colors.textMuted).text(
+                  `${score.correct}/${score.total} correct`,
+                  x,
+                  y + 20
+                );
+              });
+              
+              innerY += Math.ceil(sortedSubjects.length / 2) * 32 + 10;
+            }
+            
+            return innerY - contentY;
+          },
+        });
         
-        doc.moveDown(0.3);
-        doc.fontSize(9).fillColor("#6B7280");
-        doc.text("Subject Performance:");
-        doc.fontSize(8).fillColor("#6B7280");
-        
-        // Display subject scores from jsonb
-        const subjectScores = quiz.subjectScores as Record<string, { correct: number; total: number; percentage: number }> | null;
-        if (subjectScores) {
-          for (const [subject, scores] of Object.entries(subjectScores)) {
-            doc.text(`  • ${subject}: ${scores.percentage}% (${scores.correct}/${scores.total} correct)`);
-          }
-        }
-        
-        doc.moveDown(0.5);
-        doc.fontSize(9).fillColor("#4B5563");
-        doc.text("✓ Your quiz results validate your subject preferences and help identify careers that match your actual competencies.");
-        doc.text("• Careers recommended below align with subjects where you demonstrated strong performance.");
-        
-        doc.moveDown(2);
+        cursorY += cardHeight + layout.CARD_GAP;
       }
 
-      // Recommendations
-      doc.fontSize(14).fillColor("#1F2937").text("Top Career Recommendations", { underline: true });
-      doc.moveDown(1);
-
+      // ========== CAREER RECOMMENDATIONS ==========
       for (let i = 0; i < Math.min(recommendations.length, 5); i++) {
-        const rec = recommendations[i];
+        const rec: any = recommendations[i]; // Type as any to access matchedSubjects and supportingVisionPriorities
         const career = await storage.getCareerById(rec.careerId);
         
         if (!career) continue;
 
-        doc.fontSize(13).fillColor("#6B46C1").text(`${i + 1}. ${career.title}`, { underline: false });
-        doc.moveDown(0.3);
+        cursorY = ensurePageSpace(doc, 850, cursorY);
         
-        doc.fontSize(10).fillColor("#4B5563");
-        doc.text(`Overall Match: ${Math.round(rec.overallMatchScore)}%`);
-        doc.text(`Category: ${career.category}`);
-        doc.text(`Education Required: ${career.educationLevel}`);
-        doc.moveDown(0.3);
+        const cardX = layout.PAGE_MARGIN;
+        const cardWidth = doc.page.width - layout.PAGE_MARGIN * 2;
+        const cardY = cursorY;
+        const cardColor = getStickyColor(i);
         
-        doc.fontSize(9).fillColor("#6B7280");
-        doc.text(career.description, { width: 500 });
-        doc.moveDown(0.5);
-
-        // Match Breakdown
-        doc.fontSize(9).fillColor("#374151").text("Match Breakdown:");
-        doc.fontSize(8).fillColor("#6B7280");
-        doc.text(`  • Subject Alignment: ${Math.round(rec.subjectMatchScore)}% (30% weight)`);
-        doc.text(`  • Interest Alignment: ${Math.round(rec.interestMatchScore)}% (30% weight)`);
-        doc.text(`  • Country Vision Alignment: ${Math.round(rec.countryVisionAlignment)}% (20% weight)`);
-        doc.text(`  • Future Market Demand: ${Math.round(rec.futureMarketDemand)}% (20% weight)`);
-        doc.moveDown(0.5);
-
-        // Action Steps
-        doc.fontSize(9).fillColor("#374151").text("Next Steps:");
-        doc.fontSize(8).fillColor("#6B7280");
-        rec.actionSteps.forEach((step: string) => {
-          doc.text(`  • ${step}`, { width: 500 });
+        const cardHeight = drawStickyCard(doc, {
+          x: cardX,
+          y: cardY,
+          width: cardWidth,
+          color: cardColor,
+          minHeight: 800,
+          renderContent: (doc, contentX, contentY, contentWidth) => {
+            let innerY = contentY;
+            
+            // Career title
+            doc.fontSize(18).font("Helvetica-Bold").fillColor(colors.textDark).text(
+              career.title,
+              contentX,
+              innerY,
+              { width: contentWidth - 70 }
+            );
+            
+            // Match score badge
+            drawCircularBadge(doc, {
+              x: contentX + contentWidth - 30,
+              y: innerY + 15,
+              text: `${Math.round(rec.overallMatchScore)}%`,
+              radius: 28,
+            });
+            
+            innerY += 35;
+            
+            // Description
+            doc.fontSize(9).font("Helvetica").fillColor(colors.textMedium);
+            const descHeight = doc.heightOfString(career.description, { width: contentWidth, lineGap: 2 });
+            doc.text(career.description, contentX, innerY, { width: contentWidth, lineGap: 2 });
+            innerY += descHeight + 12;
+            
+            // Match breakdown (4 metrics in 2x2 grid)
+            const metricCol1X = contentX;
+            const metricCol2X = contentX + contentWidth / 2 + 8;
+            const metricColWidth = contentWidth / 2 - 8;
+            
+            innerY += drawMetricRow(doc, {
+              x: metricCol1X,
+              y: innerY,
+              width: metricColWidth,
+              label: "Subject Match",
+              value: rec.subjectMatchScore,
+              weight: "30% weight • Validated by quiz",
+              icon: "📚",
+            });
+            
+            const metric2Y = innerY;
+            innerY += drawMetricRow(doc, {
+              x: metricCol2X,
+              y: metric2Y,
+              width: metricColWidth,
+              label: "Interest Match",
+              value: rec.interestMatchScore,
+              weight: "30% weight",
+              icon: "⭐",
+            });
+            
+            innerY += 4;
+            const metric3Y = innerY;
+            innerY += drawMetricRow(doc, {
+              x: metricCol1X,
+              y: metric3Y,
+              width: metricColWidth,
+              label: "Vision Alignment",
+              value: rec.countryVisionAlignment,
+              weight: "20% weight",
+              icon: "🎯",
+            });
+            
+            const metric4Y = metric3Y;
+            drawMetricRow(doc, {
+              x: metricCol2X,
+              y: metric4Y,
+              width: metricColWidth,
+              label: "Market Demand",
+              value: rec.futureMarketDemand,
+              weight: "20% weight",
+              icon: "📈",
+            });
+            
+            innerY += 12;
+            
+            // Competency validation badges (if available)
+            if (rec.matchedSubjects && rec.matchedSubjects.length > 0) {
+              doc.fontSize(8).font("Helvetica-Bold").fillColor(colors.textMuted).text(
+                "✓ Validated by Your Competencies",
+                contentX,
+                innerY
+              );
+              innerY += 14;
+              
+              let badgeX = contentX;
+              rec.matchedSubjects.slice(0, 3).forEach((item: any) => {
+                const badge = drawBadge(doc, {
+                  x: badgeX,
+                  y: innerY,
+                  text: `${item.subject}: ${item.competency}%`,
+                  background: colors.competencyBg,
+                  foreground: colors.primary,
+                  fontSize: 8,
+                  paddingX: 8,
+                  paddingY: 4,
+                });
+                badgeX += badge.width + 6;
+              });
+              innerY += 24;
+            }
+            
+            // Vision priorities (if available)
+            if (rec.supportingVisionPriorities && rec.supportingVisionPriorities.length > 0) {
+              doc.fontSize(8).font("Helvetica-Bold").fillColor(colors.textMuted).text(
+                "🎯 Supports National Vision",
+                contentX,
+                innerY
+              );
+              innerY += 14;
+              
+              let badgeX = contentX;
+              rec.supportingVisionPriorities.slice(0, 2).forEach((priority: string) => {
+                const badge = drawBadge(doc, {
+                  x: badgeX,
+                  y: innerY,
+                  text: priority,
+                  background: colors.visionBg,
+                  foreground: colors.textDark,
+                  fontSize: 8,
+                  paddingX: 8,
+                  paddingY: 4,
+                });
+                badgeX += badge.width + 6;
+              });
+              innerY += 24;
+            }
+            
+            // Why this career
+            doc.fontSize(9).font("Helvetica-Bold").fillColor(colors.textDark).text(
+              "✓ Why This Career?",
+              contentX,
+              innerY
+            );
+            innerY += 14;
+            doc.fontSize(8).font("Helvetica").fillColor(colors.textMedium);
+            const reasonHeight = doc.heightOfString(rec.reasoning, { width: contentWidth, lineGap: 2 });
+            doc.text(rec.reasoning, contentX, innerY, { width: contentWidth, lineGap: 2 });
+            innerY += reasonHeight + 12;
+            
+            // Education path
+            doc.fontSize(9).font("Helvetica-Bold").fillColor(colors.textDark).text(
+              "📚 Education Required",
+              contentX,
+              innerY
+            );
+            innerY += 14;
+            doc.fontSize(8).font("Helvetica").fillColor(colors.textMedium).text(
+              career.educationLevel,
+              contentX,
+              innerY,
+              { width: contentWidth }
+            );
+            innerY += 20;
+            
+            // Next steps (first 3)
+            if (rec.actionSteps && rec.actionSteps.length > 0) {
+              doc.fontSize(9).font("Helvetica-Bold").fillColor(colors.textDark).text(
+                "➜ Next Steps",
+                contentX,
+                innerY
+              );
+              innerY += 14;
+              
+              rec.actionSteps.slice(0, 3).forEach((step: string, idx: number) => {
+                doc.fontSize(8).font("Helvetica").fillColor(colors.textMedium);
+                doc.text(`${idx + 1}. `, contentX, innerY, { continued: true });
+                const stepHeight = doc.heightOfString(step, { width: contentWidth - 15, lineGap: 2 });
+                doc.text(step, { width: contentWidth - 15, lineGap: 2 });
+                innerY += stepHeight + 4;
+              });
+            }
+            
+            return innerY - contentY;
+          },
         });
         
-        if (i < recommendations.length - 1) {
-          doc.moveDown(1.5);
-        }
+        cursorY += cardHeight + layout.CARD_GAP;
       }
 
-      // Footer
-      doc.moveDown(2);
-      doc.fontSize(8).fillColor("#9CA3AF").text(
+      // ========== FOOTER ==========
+      cursorY = ensurePageSpace(doc, 50, cursorY);
+      doc.fontSize(8).fillColor(colors.textMuted).font("Helvetica").text(
         `Generated on ${new Date().toLocaleDateString()} | Future Pathways Career Guidance System`,
-        { align: "center" }
+        0,
+        cursorY + 20,
+        { align: "center", width: doc.page.width }
       );
 
       doc.end();
