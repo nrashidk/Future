@@ -19,9 +19,9 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 
-// Helper to get display name (use abbreviation for vision/mission, full name for other contexts)
+// Helper to get display name
 function getCountryDisplayName(country: any): string {
-  return country?.abbreviation || country?.name || "your country";
+  return country?.name || "your country";
 }
 
 // Helper to map subjects to vision sectors using actual country vision data

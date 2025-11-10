@@ -49,8 +49,6 @@ export function StickyNote({
       onClick={onClick}
       data-testid={onClick ? `sticky-note-${color}` : undefined}
     >
-      <div className="absolute top-0 left-6 w-16 h-6 bg-black/5 -translate-y-3 rounded-sm" />
-      
       {Icon && (
         <div className="mb-4">
           <Icon className="w-8 h-8 text-foreground/70" />

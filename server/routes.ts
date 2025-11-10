@@ -342,15 +342,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.isAuthenticated() ? req.user.claims.sub : null;
       const isGuest = !userId;
 
-      // For guest users, ensure session is saved by marking it as modified
+      // For guest users, mark session to ensure it's saved
       if (isGuest) {
         req.session.isGuest = true;
-        await new Promise((resolve, reject) => {
-          req.session.save((err: any) => {
-            if (err) reject(err);
-            else resolve(null);
-          });
-        });
       }
 
       const assessment = await storage.createAssessment({
@@ -358,6 +352,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId,
         isGuest,
         guestSessionId: isGuest ? req.session.id : null,
+      });
+
+      // Debug: log session info for troubleshooting
+      console.log("Assessment created with session:", {
+        sessionId: req.session.id,
+        isGuest,
+        assessmentId: assessment.id
       });
 
       res.json(assessment);
