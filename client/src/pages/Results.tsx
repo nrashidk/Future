@@ -2,6 +2,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { StickyNote } from "@/components/StickyNote";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { MasonryGrid, MasonryItem } from "@/components/MasonryGrid";
 import { 
   GraduationCap, 
   Target, 
@@ -277,14 +278,14 @@ export default function Results() {
       )}
 
       {/* Recommendations */}
-      <div className="max-w-6xl mx-auto px-4 -mt-8">
-        <div className="space-y-6">
+      <div className="max-w-7xl mx-auto px-4 -mt-8">
+        <MasonryGrid>
           {recommendations.map((rec: any, index: number) => (
-            <div key={rec.id} className="animate-in fade-in duration-500" style={{ animationDelay: `${index * 100}ms` }}>
+            <MasonryItem key={rec.id} className="animate-in fade-in duration-500" style={{ animationDelay: `${index * 100}ms` }}>
               <StickyNote
                 color={["yellow", "pink", "blue", "green", "purple"][index % 5] as any}
                 rotation={index % 2 === 0 ? "1" : "-1"}
-                className="p-8"
+                className="p-6 lg:p-8"
               >
                 <div className="flex flex-col md:flex-row gap-6">
                   {/* Career Info */}
@@ -457,9 +458,9 @@ export default function Results() {
                   </div>
                 </div>
               </StickyNote>
-            </div>
+            </MasonryItem>
           ))}
-        </div>
+        </MasonryGrid>
 
         {/* Actions */}
         <div className="mt-12 flex flex-col sm:flex-row gap-4 justify-center items-center">
