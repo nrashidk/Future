@@ -421,6 +421,95 @@ export default function Results() {
         </div>
       )}
 
+      {/* Upgrade Prompt (Free Users Only) */}
+      {assessment?.assessmentType !== 'kolb' && (
+        <div className="max-w-4xl mx-auto px-4 mb-8">
+          <StickyNote color="purple" rotation="1" className="p-8">
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
+                <Star className="w-8 h-8 text-primary" />
+              </div>
+              <h2 className="text-2xl font-bold mb-2">Want Even Better Career Matches?</h2>
+              <p className="text-muted-foreground font-body">
+                Unlock Kolb's Premium Assessment for deeper insights
+              </p>
+            </div>
+
+            {/* Features Grid */}
+            <div className="grid md:grid-cols-2 gap-4 mb-6">
+              <div className="p-4 bg-background/30 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-semibold mb-1">Discover Your Learning Style</h4>
+                    <p className="text-sm text-muted-foreground font-body">
+                      Take Kolb's scientifically-validated 24-question assessment to understand how you learn best
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="p-4 bg-background/30 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-semibold mb-1">Personalized Study Tips</h4>
+                    <p className="text-sm text-muted-foreground font-body">
+                      Get customized study strategies that match your unique learning preferences
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="p-4 bg-background/30 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-semibold mb-1">Enhanced Career Matching</h4>
+                    <p className="text-sm text-muted-foreground font-body">
+                      Your learning style adds 10% to career match scores, ensuring better alignment
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="p-4 bg-background/30 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="font-semibold mb-1">Detailed PDF Report</h4>
+                    <p className="text-sm text-muted-foreground font-body">
+                      Comprehensive report including your learning style insights and study strategies
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Pricing & CTA */}
+            <div className="bg-primary/10 rounded-lg p-6 text-center border-2 border-primary/20">
+              <div className="mb-4">
+                <div className="text-4xl font-bold text-primary mb-1">$10</div>
+                <div className="text-sm text-muted-foreground">per student</div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  School bulk discounts available: 10% off for 100+, 15% off for 500+, 20% off for 1000+
+                </div>
+              </div>
+              <Button
+                size="lg"
+                className="bg-primary hover:bg-primary/90 text-lg px-8"
+                onClick={() => setLocation('/tier-selection')}
+                data-testid="button-upgrade-premium"
+              >
+                <Star className="w-5 h-5 mr-2" />
+                Unlock Premium Assessment
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </Button>
+            </div>
+          </StickyNote>
+        </div>
+      )}
+
       {/* Recommendations */}
       <div className="max-w-7xl mx-auto px-4 -mt-8">
         <MasonryGrid>
