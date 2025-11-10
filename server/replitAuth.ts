@@ -31,10 +31,11 @@ export function getSession() {
     secret: process.env.SESSION_SECRET!,
     store: sessionStore,
     resave: false,
-    saveUninitialized: false,
+    saveUninitialized: true, // Save uninitialized sessions for guest users
     cookie: {
       httpOnly: true,
       secure: true,
+      sameSite: 'lax', // Allow cookies in same-site navigation
       maxAge: sessionTtl,
     },
   });
