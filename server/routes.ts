@@ -96,22 +96,35 @@ function calculateCareerMatch(
   
   subjectMatchScore = Math.min(Math.max(subjectMatchScore, 0), 100);
 
-  // Calculate interest match (0-100)
+  // Calculate interest match (0-100) with flexible, case-insensitive matching
   const interestKeywords: Record<string, string[]> = {
-    Technology: ["Computer Science", "Engineering"],
-    Creative: ["Art", "Music", "Design"],
-    Helping: ["Healthcare", "Education", "Social Work"],
-    "Problem Solving": ["Mathematics", "Physics", "Engineering"],
-    Research: ["Biology", "Chemistry", "Science"],
-    Business: ["Business", "Economics"],
-    Leadership: ["Business", "Management"],
+    Technology: ["computer", "software", "engineer", "data", "tech", "IT", "digital", "cyber", "network", "programming", "developer", "analyst", "system"],
+    Creative: ["art", "music", "design", "creative", "media", "graphic", "animation", "photography", "writing", "content"],
+    Helping: ["health", "medical", "education", "teaching", "social", "care", "nurse", "doctor", "counselor", "support", "service"],
+    "Problem Solving": ["math", "analy", "research", "science", "engineer", "consult", "strategy", "solution", "technical"],
+    Research: ["research", "science", "biolog", "chemist", "physics", "laboratory", "study", "investigation", "analy"],
+    Business: ["business", "finance", "economic", "market", "sales", "accounting", "banking", "commercial", "entrepreneur"],
+    Leadership: ["manage", "leader", "director", "executive", "supervisor", "coordinator", "admin", "chief", "head"],
   };
+
+  // Build searchable career text (lowercase for case-insensitive matching)
+  const careerSearchText = [
+    career.title,
+    career.category,
+    career.description || "",
+    ...(career.relatedSubjects || []),
+  ].join(" ").toLowerCase();
 
   let interestScore = 0;
   for (const interest of assessment.interests) {
     const keywords = interestKeywords[interest] || [];
-    if (keywords.some((k) => career.title.includes(k) || career.category.includes(k))) {
-      interestScore += 20;
+    const matchCount = keywords.filter(keyword => 
+      careerSearchText.includes(keyword.toLowerCase())
+    ).length;
+    
+    if (matchCount > 0) {
+      // Award 25 points for primary match, +5 for each additional keyword match (max 35 per interest)
+      interestScore += Math.min(25 + (matchCount - 1) * 5, 35);
     }
   }
   const interestMatchScore = Math.min(interestScore, 100);
