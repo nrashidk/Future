@@ -32,12 +32,16 @@ const GRADE_BANDS = ["8-9", "10-12"];
 const DIFFICULTIES = ["easy", "medium", "hard"];
 const COGNITIVE_LEVELS = ["knowledge", "comprehension", "application", "analysis"];
 
+const normalizeCountryId = (value: string): string | null => {
+  return value === "all" ? null : value;
+};
+
 export default function Admin() {
   const { toast } = useToast();
   const [filters, setFilters] = useState({
-    countryId: "",
-    subject: "",
-    gradeBand: "",
+    countryId: "all",
+    subject: "all",
+    gradeBand: "all",
   });
   const [editingQuestion, setEditingQuestion] = useState<QuizQuestion | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -47,9 +51,9 @@ export default function Admin() {
     queryKey: ['/api/admin/questions', filters],
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (filters.countryId) params.set('countryId', filters.countryId);
-      if (filters.subject) params.set('subject', filters.subject);
-      if (filters.gradeBand) params.set('gradeBand', filters.gradeBand);
+      if (filters.countryId && filters.countryId !== 'all') params.set('countryId', filters.countryId);
+      if (filters.subject && filters.subject !== 'all') params.set('subject', filters.subject);
+      if (filters.gradeBand && filters.gradeBand !== 'all') params.set('gradeBand', filters.gradeBand);
       const queryString = params.toString();
       const url = queryString ? `/api/admin/questions?${queryString}` : '/api/admin/questions';
       
@@ -138,7 +142,7 @@ export default function Admin() {
                 <SelectValue placeholder="All Countries" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Countries</SelectItem>
+                <SelectItem value="all">All Countries</SelectItem>
                 {countries.map(c => (
                   <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                 ))}
@@ -153,7 +157,7 @@ export default function Admin() {
                 <SelectValue placeholder="All Subjects" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Subjects</SelectItem>
+                <SelectItem value="all">All Subjects</SelectItem>
                 {SUBJECTS.map(s => (
                   <SelectItem key={s} value={s}>{s}</SelectItem>
                 ))}
@@ -168,7 +172,7 @@ export default function Admin() {
                 <SelectValue placeholder="All Grades" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Grades</SelectItem>
+                <SelectItem value="all">All Grades</SelectItem>
                 {GRADE_BANDS.map(g => (
                   <SelectItem key={g} value={g}>Grade {g}</SelectItem>
                 ))}
@@ -333,7 +337,7 @@ function QuestionForm({
     explanation: question?.explanation || "",
     subject: question?.subject || "",
     gradeBand: question?.gradeBand || "",
-    countryId: question?.countryId || "",
+    countryId: question?.countryId || "all",
     topic: question?.topic || "",
     difficulty: question?.difficulty || "",
     cognitiveLevel: question?.cognitiveLevel || "",
@@ -362,7 +366,10 @@ function QuestionForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    mutation.mutate(formData);
+    mutation.mutate({
+      ...formData,
+      countryId: normalizeCountryId(formData.countryId),
+    });
   };
 
   const updateOption = (index: number, value: string) => {
@@ -442,7 +449,7 @@ function QuestionForm({
                 <SelectValue placeholder="Global (All Countries)" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Global (All Countries)</SelectItem>
+                <SelectItem value="all">Global (All Countries)</SelectItem>
                 {countries.map(c => (
                   <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                 ))}
