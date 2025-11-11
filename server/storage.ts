@@ -11,6 +11,8 @@ import {
   quizResponses,
   assessmentComponents,
   careerComponentAffinities,
+  organizations,
+  organizationMembers,
   type User,
   type UpsertUser,
   type Country,
@@ -35,6 +37,10 @@ import {
   type InsertAssessmentComponent,
   type CareerComponentAffinity,
   type InsertCareerComponentAffinity,
+  type Organization,
+  type InsertOrganization,
+  type OrganizationMember,
+  type InsertOrganizationMember,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, count, avg, sql as sqlFunc, inArray } from "drizzle-orm";
@@ -145,6 +151,32 @@ export interface IStorage {
     responses: QuizResponse[];
     competencyScores: Record<string, number>;
   }>;
+
+  // Organization operations
+  createOrganization(organization: InsertOrganization): Promise<Organization>;
+  getOrganizationById(id: string): Promise<Organization | undefined>;
+  getOrganizationByAdminUserId(adminUserId: string): Promise<Organization | undefined>;
+  updateOrganization(id: string, data: Partial<InsertOrganization>): Promise<Organization>;
+  updateOrganizationQuota(id: string, increment: number): Promise<Organization>;
+
+  // Organization Member operations
+  createOrganizationMember(member: InsertOrganizationMember): Promise<OrganizationMember>;
+  getOrganizationMemberById(id: string): Promise<OrganizationMember | undefined>;
+  getOrganizationMemberByUserId(userId: string): Promise<OrganizationMember | undefined>;
+  getOrganizationMembersByOrganizationId(organizationId: string): Promise<OrganizationMember[]>;
+  updateOrganizationMember(id: string, data: Partial<InsertOrganizationMember>): Promise<OrganizationMember>;
+  deleteOrganizationMember(id: string): Promise<boolean>;
+  lockOrganizationMember(id: string): Promise<OrganizationMember>;
+
+  // Combined operations
+  createUserWithCredentials(userData: {
+    firstName: string;
+    lastName: string;
+    username: string;
+    passwordHash: string;
+    accountType: string;
+    isOrgGenerated: boolean;
+  }): Promise<User>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -874,6 +906,165 @@ export class DatabaseStorage implements IStorage {
       responses,
       competencyScores,
     };
+  }
+
+  // Organization operations
+  async createOrganization(organizationData: InsertOrganization): Promise<Organization> {
+    const [organization] = await db
+      .insert(organizations)
+      .values(organizationData)
+      .returning();
+    return organization;
+  }
+
+  async getOrganizationById(id: string): Promise<Organization | undefined> {
+    const [organization] = await db
+      .select()
+      .from(organizations)
+      .where(eq(organizations.id, id));
+    return organization;
+  }
+
+  async getOrganizationByAdminUserId(adminUserId: string): Promise<Organization | undefined> {
+    const [organization] = await db
+      .select()
+      .from(organizations)
+      .where(eq(organizations.adminUserId, adminUserId));
+    return organization;
+  }
+
+  async updateOrganization(id: string, data: Partial<InsertOrganization>): Promise<Organization> {
+    const [organization] = await db
+      .update(organizations)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(organizations.id, id))
+      .returning();
+    return organization;
+  }
+
+  async updateOrganizationQuota(id: string, increment: number): Promise<Organization> {
+    if (!Number.isInteger(increment)) {
+      throw new Error('Quota increment must be an integer');
+    }
+
+    const [organization] = await db
+      .update(organizations)
+      .set({
+        usedLicenses: sqlFunc`${organizations.usedLicenses} + ${increment}`,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(organizations.id, id),
+          sqlFunc`${organizations.usedLicenses} + ${increment} >= 0`,
+          sqlFunc`${organizations.usedLicenses} + ${increment} <= ${organizations.totalLicenses}`
+        )
+      )
+      .returning();
+
+    if (!organization) {
+      const org = await this.getOrganizationById(id);
+      if (!org) {
+        throw new Error(`Organization ${id} not found`);
+      }
+      const wouldBe = org.usedLicenses + increment;
+      if (wouldBe < 0) {
+        throw new Error(`Cannot decrement quota below 0 (current: ${org.usedLicenses}, increment: ${increment})`);
+      }
+      if (wouldBe > org.totalLicenses) {
+        throw new Error(`Quota exceeded: attempting to use ${wouldBe} licenses but only ${org.totalLicenses} available`);
+      }
+      throw new Error('Quota update failed for unknown reason');
+    }
+
+    return organization;
+  }
+
+  // Organization Member operations
+  async createOrganizationMember(memberData: InsertOrganizationMember): Promise<OrganizationMember> {
+    const [member] = await db
+      .insert(organizationMembers)
+      .values(memberData)
+      .returning();
+    return member;
+  }
+
+  async getOrganizationMemberById(id: string): Promise<OrganizationMember | undefined> {
+    const [member] = await db
+      .select()
+      .from(organizationMembers)
+      .where(eq(organizationMembers.id, id));
+    return member;
+  }
+
+  async getOrganizationMemberByUserId(userId: string): Promise<OrganizationMember | undefined> {
+    const [member] = await db
+      .select()
+      .from(organizationMembers)
+      .where(eq(organizationMembers.userId, userId));
+    return member;
+  }
+
+  async getOrganizationMembersByOrganizationId(organizationId: string): Promise<OrganizationMember[]> {
+    return db
+      .select()
+      .from(organizationMembers)
+      .where(eq(organizationMembers.organizationId, organizationId))
+      .orderBy(desc(organizationMembers.createdAt));
+  }
+
+  async updateOrganizationMember(id: string, data: Partial<InsertOrganizationMember>): Promise<OrganizationMember> {
+    const [member] = await db
+      .update(organizationMembers)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(organizationMembers.id, id))
+      .returning();
+    return member;
+  }
+
+  async deleteOrganizationMember(id: string): Promise<boolean> {
+    const result = await db
+      .delete(organizationMembers)
+      .where(eq(organizationMembers.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async lockOrganizationMember(id: string): Promise<OrganizationMember> {
+    const [member] = await db
+      .update(organizationMembers)
+      .set({
+        isLocked: true,
+        hasCompletedAssessment: true,
+        assessmentCompletedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(organizationMembers.id, id))
+      .returning();
+    return member;
+  }
+
+  // Combined operations
+  async createUserWithCredentials(userData: {
+    firstName: string;
+    lastName: string;
+    username: string;
+    passwordHash: string;
+    accountType: string;
+    isOrgGenerated: boolean;
+  }): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values({
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        username: userData.username,
+        passwordHash: userData.passwordHash,
+        accountType: userData.accountType,
+        isOrgGenerated: userData.isOrgGenerated,
+        role: 'user',
+      })
+      .returning();
+    return user;
   }
 }
 
