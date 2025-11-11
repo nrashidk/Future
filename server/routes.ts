@@ -846,11 +846,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Import Puppeteer
       const puppeteer = await import("puppeteer");
+      const { execSync } = await import("child_process");
+
+      // Find Chromium executable dynamically
+      let chromiumPath: string;
+      try {
+        chromiumPath = execSync('which chromium').toString().trim();
+      } catch {
+        // Fallback to common paths
+        chromiumPath = 'chromium';
+      }
 
       // Launch headless browser with system Chromium
       const browser = await puppeteer.default.launch({
         headless: true,
-        executablePath: 'chromium-browser',
+        executablePath: chromiumPath,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
