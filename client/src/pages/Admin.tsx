@@ -344,7 +344,7 @@ function QuestionForm({
   });
 
   const mutation = useMutation({
-    mutationFn: async (data: typeof formData) => {
+    mutationFn: async (data: typeof formData & { countryId: string | null }) => {
       const url = question 
         ? `/api/admin/questions/${question.id}`
         : '/api/admin/questions';
