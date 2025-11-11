@@ -565,6 +565,7 @@ export type InsertOrganizationMember = z.infer<typeof insertOrganizationMemberSc
 // CVQ type exports
 export type CvqItem = typeof cvqItems.$inferSelect;
 export const insertCvqItemSchema = createInsertSchema(cvqItems).omit({
+  id: true,
   createdAt: true,
 });
 export type InsertCvqItem = z.infer<typeof insertCvqItemSchema>;

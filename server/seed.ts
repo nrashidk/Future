@@ -2,6 +2,7 @@ import { storage } from "./storage";
 import { uaeQuestionBank } from "./questionBanks/uae";
 import { validateQuestionBank, checkCoverage } from "../shared/questionTypes";
 import { RIASEC_CAREER_AFFINITIES } from "./riasecAffinities";
+import { seedCVQItems } from "./cvq-seed";
 
 export async function seedDatabase() {
   console.log("🌱 Seeding database...");
@@ -1582,6 +1583,9 @@ export async function seedDatabase() {
   } else {
     console.error("⚠️  Failed to create or fetch RIASEC component");
   }
+
+  // Seed CVQ (Children's Values Questionnaire) items
+  await seedCVQItems();
 
   console.log("✅ Database seeded successfully!");
 }
