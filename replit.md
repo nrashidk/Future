@@ -19,7 +19,12 @@ The application features a playful, student-friendly sticky notes aesthetic with
 ### Technical Implementations
 - **Frontend**: React with TypeScript, Tailwind CSS for styling, TanStack Query for server state management, and Wouter for routing.
 - **Backend**: Express.js with TypeScript, PostgreSQL (Neon) for the database, and Drizzle ORM.
-- **Authentication**: Replit Auth (OpenID Connect) with PostgreSQL-backed sessions.
+- **Authentication**: Dual authentication system supporting both Replit Auth (OpenID Connect) and username-based login for organization students.
+    - **Replit Auth**: Standard OAuth flow for regular users and superadmins via GET `/api/login` → `/api/callback`
+    - **Local Auth**: Username/password authentication via passport-local for organization students (POST `/api/login/username`)
+    - **Session Management**: PostgreSQL-backed sessions (1 week TTL) shared across both auth types
+    - **Middleware**: `isAuthenticated` supports both auth flows; `isAdmin` restricts admin routes to Replit Auth superadmins only
+    - **Student Login Page**: `/login/student` provides simple username/password form with error handling and auth cache invalidation
 - **Payment System**: Stripe integration for secure, server-side pricing and payment processing, supporting individual and group assessments.
 - **Assessment Components**:
     - Multi-step career assessment questionnaire including demographics, subjects, interests, personality (RIASEC), country vision, and aspirations.
@@ -34,7 +39,12 @@ The application features a playful, student-friendly sticky notes aesthetic with
     - PDF report generation with detailed assessment breakdowns, subject competency scores, vision linkages, and career connection explanations.
 
 ### Feature Specifications
-- **User Authentication**: Replit Auth with guest access and session migration.
+- **User Authentication**: 
+    - **Dual Authentication System**: Replit Auth (OIDC) for regular users and superadmins + passport-local for organization students
+    - **Security Model**: Local users cannot be superadmins; admin routes protected by `isAdmin` middleware
+    - **Session Serialization**: Replit users store OIDC tokens; local users store `{ userId, username, isLocal: true }`
+    - **User Fetching**: `/api/auth/user` handles both `req.user.userId` (local) and `req.user.claims.sub` (OIDC)
+    - **Guest Access**: Available for exploration with session migration upon registration
 - **Dynamic Career Matching Engine** (server/services/matching.ts):
     - **Modular Architecture**: Component-based calculator registry with pluggable scoring algorithms (subjects, interests, vision, market, Kolb, RIASEC).
     - **Bulk Data Loading**: Eliminates N+1 query patterns with three deterministic queries (assessment data, job trends, career affinities).
@@ -52,12 +62,16 @@ The application features a playful, student-friendly sticky notes aesthetic with
 ### System Design Choices
 - **Database Schema**: Includes `users`, `sessions`, `countries` (with mission/vision, visionPlan, targets), `skills`, `careers`, `job_market_trends`, `assessments` (with `assessmentType`, `kolbScores`, `riasecResponses`, `riaseacScores`), `recommendations`, `organizations`, and `organizationMembers` tables.
 - **Group Assessment System** (November 2025):
-    - **Database Tables**: `organizations` (name, adminUserId, totalLicenses, usedLicenses, Stripe metadata) and `organizationMembers` (userId, organizationId, grade, studentId, role, hasCompletedAssessment, isLocked, password reset audit trail).
-    - **Password System**: Three complexity levels (easy, medium, strong) using secure bcrypt hashing. Plaintext passwords provided only during creation/download for admin distribution.
-    - **Quota Management**: Atomic SQL-based quota tracking with bounds enforcement (0 ≤ usedLicenses ≤ totalLicenses) to prevent race conditions and quota drift.
-    - **Student Account Creation**: `createUserWithCredentials` method parses fullName into firstName/lastName, generates unique usernames with collision handling (up to 10 attempts), creates both User and OrganizationMember records transactionally.
-    - **API Routes** (Super Admin only): Organization CRUD, member management (create, bulk upload, update, delete, password reset), quota tracking, and credentials download endpoints at `/api/admin/organizations/*`.
-    - **Security**: Unique constraint on `organizationMembers.userId` prevents duplicate memberships. Locked accounts (post-assessment) cannot be deleted.
+    - **Admin Dashboard**: `/admin/organizations` provides organization selector, student roster table with quota tracking, manual/bulk account creation, and credentials download
+    - **Database Tables**: `organizations` (name, adminUserId, totalLicenses, usedLicenses, Stripe metadata) and `organizationMembers` (userId, organizationId, grade, studentId, role, hasCompletedAssessment, isLocked, password reset audit trail)
+    - **Password System**: Three complexity levels (easy, medium, strong) using secure bcrypt hashing via `server/utils/passwordHash.ts`. Plaintext passwords provided only during creation/download for admin distribution
+    - **Username Generation**: `server/utils/usernameGenerator.ts` creates unique usernames from fullName with collision handling (up to 10 attempts)
+    - **Quota Management**: Atomic SQL-based quota tracking with bounds enforcement (0 ≤ usedLicenses ≤ totalLicenses) to prevent race conditions and quota drift
+    - **Student Account Creation**: `createUserWithCredentials` method parses fullName into firstName/lastName, generates unique usernames, creates both User and OrganizationMember records transactionally
+    - **API Routes** (Super Admin only): Organization CRUD, member management (create, bulk upload, update, delete, password reset), quota tracking, and credentials download endpoints at `/api/admin/organizations/*`
+    - **Authentication**: Organization students use username-based login via `/login/student` page; passwords verified with bcrypt
+    - **Authorization**: `isAdmin` middleware blocks local users from admin routes; only Replit Auth superadmins can manage organizations
+    - **Security**: Unique constraint on `organizationMembers.userId` prevents duplicate memberships. Locked accounts (post-assessment) cannot be deleted
 - **Assessment Component System**: Database-backed `assessment_components` and `career_component_affinities` tables for managing and mapping assessment types and career affinities (e.g., RIASEC, Learning Styles).
 - **Quiz Availability**: Subject competency quiz questions available for UAE curriculum only (240 questions covering 6 subjects × 2 grade bands × 20 questions). Other countries show friendly "coming soon" message with skip option.
 - **Session Storage**: PostgreSQL-backed for reliability.
