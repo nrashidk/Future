@@ -9,6 +9,49 @@ import { calculateKolbScores } from "./questionBanks/kolb";
 import { calculateRiasecScores } from "./questionBanks/riasec";
 import { generateRecommendations } from "./services/matching";
 import Stripe from "stripe";
+import { normalizeSubjects } from "./utils/subjects";
+
+/**
+ * Normalize assessment payload before validation
+ * - Promotes educationLevel → grade for backwards compatibility
+ * - Normalizes favorite subjects to canonical quiz subjects
+ * - Returns { normalized: data } on success or { error: message } on validation failure
+ */
+function normalizeAssessmentPayload(body: any): { normalized?: any; error?: string } {
+  const normalized = { ...body };
+  
+  // Handle educationLevel → grade migration with coercion and conflict detection
+  if (normalized.educationLevel && !normalized.grade) {
+    console.log(`[Normalization] Promoting educationLevel → grade: ${normalized.educationLevel}`);
+    normalized.grade = String(normalized.educationLevel).trim();
+    delete normalized.educationLevel;
+  } else if (normalized.educationLevel && normalized.grade) {
+    // Both fields present - coerce to strings and compare
+    const educationLevelNorm = String(normalized.educationLevel).trim();
+    const gradeNorm = String(normalized.grade).trim();
+    
+    if (educationLevelNorm !== gradeNorm) {
+      return {
+        error: `Conflicting grade fields: educationLevel (${normalized.educationLevel}) does not match grade (${normalized.grade}). Please provide only one.`
+      };
+    }
+    console.log(`[Normalization] Removing duplicate educationLevel field (matches grade: ${normalized.grade})`);
+    delete normalized.educationLevel; // Remove duplicate
+  }
+  
+  // Normalize favorite subjects to canonical quiz subjects
+  if (normalized.favoriteSubjects && Array.isArray(normalized.favoriteSubjects)) {
+    const originalSubjects = [...normalized.favoriteSubjects];
+    normalized.favoriteSubjects = normalizeSubjects(normalized.favoriteSubjects);
+    
+    // Log normalization for debugging
+    if (JSON.stringify(originalSubjects) !== JSON.stringify(normalized.favoriteSubjects)) {
+      console.log(`[Normalization] Subjects normalized: ${originalSubjects.join(', ')} → ${normalized.favoriteSubjects.join(', ')}`);
+    }
+  }
+  
+  return { normalized };
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -53,7 +96,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Assessment routes
   app.post("/api/assessments", async (req: any, res) => {
     try {
-      const validatedData = insertAssessmentSchema.parse(req.body);
+      // Normalize payload before validation
+      const normalizationResult = normalizeAssessmentPayload(req.body);
+      if (normalizationResult.error) {
+        return res.status(400).json({ message: normalizationResult.error });
+      }
+      const validatedData = insertAssessmentSchema.parse(normalizationResult.normalized);
 
       // Check if user is authenticated
       const userId = req.isAuthenticated() ? req.user.claims.sub : null;
@@ -138,7 +186,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/assessments/:id", async (req: any, res) => {
     try {
-      const updateData = { ...req.body };
+      // Normalize payload before processing
+      const normalizationResult = normalizeAssessmentPayload(req.body);
+      if (normalizationResult.error) {
+        return res.status(400).json({ message: normalizationResult.error });
+      }
+      const updateData = { ...normalizationResult.normalized };
 
       // Calculate learning style scores if responses provided and complete
       if (updateData.kolbResponses && Object.keys(updateData.kolbResponses).length === 24) {
@@ -245,7 +298,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Filter questions by student's favorite subjects
-      const favoriteSubjects = assessment.favoriteSubjects || [];
+      // Defensively normalize subjects for legacy assessments that might have non-canonical subjects
+      const favoriteSubjects = normalizeSubjects((assessment.favoriteSubjects as string[]) || []);
       const subjectQuestions = questionPool.filter(q => favoriteSubjects.includes(q.subject));
       
       if (subjectQuestions.length === 0) {

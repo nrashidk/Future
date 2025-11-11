@@ -97,7 +97,7 @@ export default function Assessment() {
         const backendData: any = {
           name: assessmentData.name,
           age: assessmentData.age,
-          educationLevel: assessmentData.grade,
+          grade: assessmentData.grade,
           favoriteSubjects: assessmentData.favoriteSubjects,
           interests: assessmentData.interests,
           personalityTraits: Object.keys(assessmentData.personalityTraits).filter(
