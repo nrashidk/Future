@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   index,
+  uniqueIndex,
   integer,
   jsonb,
   pgTable,
@@ -171,8 +172,15 @@ export const careers = pgTable("careers", {
   averageSalary: text("average_salary"),
   growthOutlook: text("growth_outlook").notNull(),
   icon: text("icon"),
+  
+  // CVQ (Personal Values) integration - O*NET derived
+  valuesProfile: jsonb("values_profile"), // { achievement: 80, honesty: 90, kindness: 75, ... }
+  onetCode: varchar("onet_code", { length: 15 }), // O*NET-SOC code (e.g., "17-2199.11")
+  
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [
+  index("careers_onet_code_idx").on(table.onetCode),
+]);
 
 export const careersRelations = relations(careers, ({ many }) => ({
   jobMarketTrends: many(jobMarketTrends),
@@ -231,6 +239,9 @@ export const assessments = pgTable("assessments", {
   
   // RIASEC Holland Code scores (premium only)
   riasecScores: jsonb("riasec_scores"), // { R, I, A, S, E, C, top3, ranking }
+  
+  // CVQ (Personal Values) scores (premium only)
+  cvqScores: jsonb("cvq_scores"), // { achievement: 80, honesty: 90, ..., top3: ["honesty", "achievement", "kindness"] }
   
   // Quiz results
   quizScore: jsonb("quiz_score"),
@@ -366,6 +377,63 @@ export const quizResponsesRelations = relations(quizResponses, ({ one }) => ({
   }),
 }));
 
+// CVQ (Children's Values Questionnaire) - Question Items
+export const cvqItems = pgTable("cvq_items", {
+  id: varchar("id").primaryKey(), // CVQ-A1, CVQ-H1, etc.
+  domain: text("domain").notNull(), // achievement, honesty, kindness, respect, responsibility, peacefulness, environment
+  text: text("text").notNull(), // Question text
+  isReverseScored: boolean("is_reverse_scored").notNull().default(false),
+  position: integer("position").notNull(), // 1-3 within domain
+  version: text("version").notNull().default("1.0.0"),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("cvq_items_version_active_idx").on(table.version, table.isActive),
+  // Unique constraint to prevent duplicate items per domain/position/version
+  uniqueIndex("cvq_items_unique_idx").on(table.domain, table.position, table.version),
+]);
+
+// CVQ Results - User responses and computed scores
+export const cvqResults = pgTable("cvq_results", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  assessmentId: varchar("assessment_id").unique().references(() => assessments.id), // Unique: one canonical result per assessment
+  userId: varchar("user_id").notNull().references(() => users.id),
+  
+  // Version tracking
+  attemptVersion: text("attempt_version").notNull().default("1.0.0"),
+  
+  // Scoring data
+  rawScores: jsonb("raw_scores").notNull(), // { achievement: 12, honesty: 15, ... } (3-15 range)
+  normalizedScores: jsonb("normalized_scores").notNull(), // { achievement: 80, honesty: 100, ... } (0-100)
+  topValues: text("top_values").array().notNull(), // ["honesty", "achievement", "kindness"]
+  
+  // Response data
+  itemResponses: jsonb("item_responses").notNull(), // { "CVQ-A1": 5, "CVQ-H1": 4, ... }
+  
+  // Quality metrics
+  completionSeconds: integer("completion_seconds"),
+  avgResponseVariance: real("avg_response_variance"),
+  lowVariance: boolean("low_variance").notNull().default(false), // 80%+ same response
+  rushedCompletion: boolean("rushed_completion").notNull().default(false), // < 2.5s per item
+  incomplete: boolean("incomplete").notNull().default(false), // Missing responses
+  
+  submittedAt: timestamp("submitted_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("cvq_results_user_submitted_idx").on(table.userId, table.submittedAt),
+]);
+
+export const cvqResultsRelations = relations(cvqResults, ({ one }) => ({
+  assessment: one(assessments, {
+    fields: [cvqResults.assessmentId],
+    references: [assessments.id],
+  }),
+  user: one(users, {
+    fields: [cvqResults.userId],
+    references: [users.id],
+  }),
+}));
+
 // Dynamic assessment components configuration (for super admin)
 export const assessmentComponents = pgTable("assessment_components", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -493,3 +561,18 @@ export const insertOrganizationMemberSchema = createInsertSchema(organizationMem
   updatedAt: true,
 });
 export type InsertOrganizationMember = z.infer<typeof insertOrganizationMemberSchema>;
+
+// CVQ type exports
+export type CvqItem = typeof cvqItems.$inferSelect;
+export const insertCvqItemSchema = createInsertSchema(cvqItems).omit({
+  createdAt: true,
+});
+export type InsertCvqItem = z.infer<typeof insertCvqItemSchema>;
+
+export type CvqResult = typeof cvqResults.$inferSelect;
+export const insertCvqResultSchema = createInsertSchema(cvqResults).omit({
+  id: true,
+  submittedAt: true,
+  createdAt: true,
+});
+export type InsertCvqResult = z.infer<typeof insertCvqResultSchema>;
