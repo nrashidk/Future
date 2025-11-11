@@ -50,8 +50,16 @@ The application features a playful, student-friendly sticky notes aesthetic with
 - **Country-Specific Data**: Comprehensive 2030/2050 vision data for 15 countries, integrated into the matching algorithm.
 
 ### System Design Choices
-- **Database Schema**: Includes `users`, `sessions`, `countries` (with mission/vision, visionPlan, targets), `skills`, `careers`, `job_market_trends`, `assessments` (with `assessmentType`, `kolbScores`, `riasecResponses`, `riaseacScores`), and `recommendations` tables.
+- **Database Schema**: Includes `users`, `sessions`, `countries` (with mission/vision, visionPlan, targets), `skills`, `careers`, `job_market_trends`, `assessments` (with `assessmentType`, `kolbScores`, `riasecResponses`, `riaseacScores`), `recommendations`, `organizations`, and `organizationMembers` tables.
+- **Group Assessment System** (November 2025):
+    - **Database Tables**: `organizations` (name, adminUserId, totalLicenses, usedLicenses, Stripe metadata) and `organizationMembers` (userId, organizationId, grade, studentId, role, hasCompletedAssessment, isLocked, password reset audit trail).
+    - **Password System**: Three complexity levels (easy, medium, strong) using secure bcrypt hashing. Plaintext passwords provided only during creation/download for admin distribution.
+    - **Quota Management**: Atomic SQL-based quota tracking with bounds enforcement (0 ≤ usedLicenses ≤ totalLicenses) to prevent race conditions and quota drift.
+    - **Student Account Creation**: `createUserWithCredentials` method parses fullName into firstName/lastName, generates unique usernames with collision handling (up to 10 attempts), creates both User and OrganizationMember records transactionally.
+    - **API Routes** (Super Admin only): Organization CRUD, member management (create, bulk upload, update, delete, password reset), quota tracking, and credentials download endpoints at `/api/admin/organizations/*`.
+    - **Security**: Unique constraint on `organizationMembers.userId` prevents duplicate memberships. Locked accounts (post-assessment) cannot be deleted.
 - **Assessment Component System**: Database-backed `assessment_components` and `career_component_affinities` tables for managing and mapping assessment types and career affinities (e.g., RIASEC, Learning Styles).
+- **Quiz Availability**: Subject competency quiz questions available for UAE curriculum only (240 questions covering 6 subjects × 2 grade bands × 20 questions). Other countries show friendly "coming soon" message with skip option.
 - **Session Storage**: PostgreSQL-backed for reliability.
 - **Development Workflow**: Uses `npm run db:push` for database migrations and automatic seeding in development.
 
