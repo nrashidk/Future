@@ -17,7 +17,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   app.get("/api/auth/user", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
       const user = await storage.getUser(userId);
       res.json(user);
     } catch (error) {
@@ -773,6 +773,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const isAdmin = (req: any, res: any, next: any) => {
     if (!req.user) {
       return res.status(401).json({ message: "Unauthorized" });
+    }
+    
+    if (req.user.isLocal) {
+      return res.status(403).json({ message: "Forbidden: Admin access required" });
     }
     
     const userId = req.user.claims.sub;
