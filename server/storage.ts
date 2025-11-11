@@ -11,6 +11,8 @@ import {
   quizResponses,
   assessmentComponents,
   careerComponentAffinities,
+  cvqItems,
+  cvqResults,
   organizations,
   organizationMembers,
   type User,
@@ -37,6 +39,10 @@ import {
   type InsertAssessmentComponent,
   type CareerComponentAffinity,
   type InsertCareerComponentAffinity,
+  type CvqItem,
+  type InsertCvqItem,
+  type CvqResult,
+  type InsertCvqResult,
   type Organization,
   type InsertOrganization,
   type OrganizationMember,
@@ -144,6 +150,12 @@ export interface IStorage {
   getCareerAffinitiesBulk(careerIds: string[], componentIds?: string[]): Promise<CareerComponentAffinity[]>;
   updateCareerComponentAffinity(careerId: string, componentId: string, data: Partial<InsertCareerComponentAffinity>): Promise<CareerComponentAffinity>;
   deleteCareerComponentAffinity(careerId: string, componentId: string): Promise<boolean>;
+
+  // CVQ operations
+  getCvqItems(version?: string): Promise<CvqItem[]>;
+  createCvqResult(result: InsertCvqResult): Promise<CvqResult>;
+  getCvqResultByUserId(userId: string): Promise<CvqResult | undefined>;
+  getCvqResultByAssessmentId(assessmentId: string): Promise<CvqResult | undefined>;
   
   // Bulk loading operations for matching service
   getAssessmentWithCompetencies(assessmentId: string): Promise<{
@@ -854,6 +866,49 @@ export class DatabaseStorage implements IStorage {
         eq(careerComponentAffinities.componentId, componentId)
       ));
     return (result.rowCount ?? 0) > 0;
+  }
+
+  // CVQ operations
+  async getCvqItems(version?: string): Promise<CvqItem[]> {
+    const query = db
+      .select()
+      .from(cvqItems)
+      .orderBy(cvqItems.domain, cvqItems.position);
+    
+    if (version) {
+      return await query.where(and(
+        eq(cvqItems.isActive, true),
+        eq(cvqItems.version, version)
+      ));
+    } else {
+      return await query.where(eq(cvqItems.isActive, true));
+    }
+  }
+
+  async createCvqResult(resultData: InsertCvqResult): Promise<CvqResult> {
+    const [result] = await db
+      .insert(cvqResults)
+      .values(resultData)
+      .returning();
+    return result;
+  }
+
+  async getCvqResultByUserId(userId: string): Promise<CvqResult | undefined> {
+    const [result] = await db
+      .select()
+      .from(cvqResults)
+      .where(eq(cvqResults.userId, userId))
+      .orderBy(desc(cvqResults.submittedAt))
+      .limit(1);
+    return result;
+  }
+
+  async getCvqResultByAssessmentId(assessmentId: string): Promise<CvqResult | undefined> {
+    const [result] = await db
+      .select()
+      .from(cvqResults)
+      .where(eq(cvqResults.assessmentId, assessmentId));
+    return result;
   }
 
   // Bulk loading operations for matching service
