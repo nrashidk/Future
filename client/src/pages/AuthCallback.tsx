@@ -11,6 +11,9 @@ export default function AuthCallback() {
   useEffect(() => {
     const migrateAndRedirect = async () => {
       try {
+        // Fetch current user to check role
+        const user = await apiRequest("/api/auth/user");
+        
         // Check if there are guest assessments to migrate
         const guestAssessmentIds = JSON.parse(localStorage.getItem("guestAssessments") || "[]");
         const guestSessionId = localStorage.getItem("guestSessionId");
@@ -32,8 +35,10 @@ export default function AuthCallback() {
           }
         }
         
-        // Redirect to results if there were assessments, otherwise to home
-        if (guestAssessmentIds.length > 0) {
+        // Redirect based on user role
+        if (user?.role === "superadmin") {
+          setLocation("/admin");
+        } else if (guestAssessmentIds.length > 0) {
           setLocation("/results");
         } else {
           setLocation("/");
