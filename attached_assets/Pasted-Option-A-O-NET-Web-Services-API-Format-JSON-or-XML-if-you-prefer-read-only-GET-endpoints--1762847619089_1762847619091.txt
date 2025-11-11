@@ -1,0 +1,62 @@
+Option A — O*NET Web Services (API)
+
+Format: JSON (or XML if you prefer); read-only GET endpoints.
+
+Access: free registration → API key (HTTP Basic).
+
+How to request JSON: send header Accept: application/json. The API defaults to XML otherwise. 
+O*NET Web Services
+
+Relevant endpoints: the “O*NET OnLine services → Occupation report → Summary/details → Work Values” endpoints return up to the top three work value descriptors for an occupation; there are also “Related occupations for Work Values” endpoints. 
+O*NET Web Services
++1
+
+Example call (structure):
+
+GET https://services.onetcenter.org/ws/online/occupations/{onet_code}/summary/work_values
+Accept: application/json
+Authorization: Basic {your_key}
+
+
+You’ll receive JSON you can parse directly (or XML if you set no Accept header). 
+O*NET Web Services
+
+When to use: quick lookups at runtime (low bandwidth, always-current to the live database version noted by the service). 
+O*NET Web Services
+
+Option B — Download the O*NET Database
+
+Formats available: Excel, Text (tab-delimited; CSV-like), and SQL dumps for MySQL / SQL Server / Oracle (you can also import to SQLite or Postgres). 
+O*NET Resource Center
+
+Table: work_values (maps O*NET-SOC occupations to Work Values ratings). The data dictionary documents columns (e.g., scale, mean “EX” extent, “VH” high-point indices). 
+O*NET Resource Center
++2
+O*NET Resource Center
++2
+
+Important note: O*NET 30.0 indicates Work Values are no longer updated/displayed on the websites, though downloadable files remain available from the database page; other content areas (e.g., Work Styles, Work Activities) continue to update. If you need the latest snapshot, pull from the Database page (not just the website UI). 
+O*NET Resource Center
+
+Parsing tips
+
+Text/Excel: treat “Text” as tab-delimited CSV; Excel is .xlsx; both are straightforward to ingest. 
+O*NET Resource Center
+
+SQL dumps: load the work_values table into your DB; join by O*NET-SOC code to your occupation list. 
+O*NET Resource Center
+
+Licensing / reuse
+
+O*NET Web Services & most database content are under CC BY 4.0—reuse allowed with attribution; check the license page and note exceptions listed for a few external data sources. 
+O*NET Web Services
++2
+O*NET OnLine
++2
+
+Recommended integration pattern for your build
+
+Bulk/offline: import the work_values table from the downloadable database (Text/Excel/SQL). This gives you full coverage and stable joins for your CVQ mapping. 
+O*NET Resource Center
+
+Runtime enrichments: use Web Services to fetch per-occupation summaries (e.g., top Work Values, Interests, etc.) as needed—JSON parsing is trivial and officially supported
