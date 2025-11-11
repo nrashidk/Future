@@ -511,6 +511,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const isCorrect = selectedAnswer === question.correctAnswer;
           const pointsEarned = isCorrect ? 1 : 0;
           
+          // Debug logging
+          console.log(`[Quiz Debug] Question ${question.id}:`, {
+            userAnswer: userResponse.answer,
+            selectedIndex: selectedOptionIndex,
+            selectedAnswer,
+            correctAnswer: question.correctAnswer,
+            isCorrect,
+            optionsType: typeof question.options,
+            optionsLength: Array.isArray(question.options) ? question.options.length : 'N/A'
+          });
+          
           // Update response
           await storage.updateQuizResponse(existingResponse.id, {
             answer: userResponse.answer,
