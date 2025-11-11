@@ -98,27 +98,18 @@ export default function TierSelection() {
                 <CardTitle className="text-2xl">Group Assessment</CardTitle>
               </div>
               <CardDescription>For schools and institutions</CardDescription>
-              <div className="mt-4 space-y-2">
+              <div className="mt-4">
                 <div className="text-3xl font-bold">
                   <span className="text-sm font-normal text-gray-500 line-through">$10.00</span>
                   {" "}
                   $8.00-$9.00
-                  <span className="text-sm font-normal text-gray-500">/student</span>
-                </div>
-                <div className="text-xs text-gray-600 dark:text-gray-400 space-y-0.5">
-                  <div>100-499 students: $9.00/student (10% off)</div>
-                  <div>500-999 students: $8.50/student (15% off)</div>
-                  <div>1000+ students: $8.00/student (20% off)</div>
+                  <span className="text-sm font-normal text-gray-500">/student 10%-20% off</span>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="text-sm font-semibold text-blue-600 mb-2">Everything in Individual, plus:</div>
               <div className="space-y-3">
-                <div className="flex items-start gap-2">
-                  <Check className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm font-semibold">Bulk pricing discounts (10-20% off)</span>
-                </div>
                 {/* TODO: Group Assessment analytics features - implementation pending */}
                 <div className="flex items-start gap-2">
                   <BarChart3 className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
