@@ -11,6 +11,12 @@ import {
   Lightbulb,
   Users,
   Wrench,
+  Heart,
+  Globe,
+  Sparkles,
+  Shield,
+  Crown,
+  Smile,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
@@ -151,6 +157,11 @@ export default function ResultsPrint() {
   const { data: country } = useQuery<any>({
     queryKey: [`/api/countries/${assessment?.countryId}`],
     enabled: !!assessment?.countryId,
+  });
+
+  const { data: cvqResult } = useQuery<any>({
+    queryKey: [`/api/cvq/result/${assessmentId}`],
+    enabled: !!assessmentId && assessment?.assessmentType === 'kolb',
   });
 
   // Signal when data is ready for PDF capture
@@ -416,6 +427,171 @@ export default function ResultsPrint() {
 
           {/* Footer */}
           <div className="mt-4 text-xs text-center text-muted-foreground">
+            Generated on {new Date().toLocaleDateString()} | Future Pathways Career Guidance System
+          </div>
+        </div>
+      )}
+
+      {/* Page 3: CVQ Values Analysis (Individual Assessment Only) */}
+      {cvqResult && assessment?.assessmentType === 'kolb' && (
+        <div className="print-page-career">
+          <StickyNote color="purple" rotation="0" className="p-6">
+            <div className="space-y-4">
+              {/* Header - Compact */}
+              <div className="text-center mb-4">
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-2">
+                  <Heart className="w-6 h-6 text-primary" />
+                </div>
+                <h2 className="text-2xl font-bold mb-1">What Matters Most to You</h2>
+                <p className="text-xs text-muted-foreground font-body">
+                  Based on the Children's Values Questionnaire (CVQ)
+                </p>
+              </div>
+
+              {/* Top 3 Values & Complete Profile - 2 Column Layout */}
+              <div className="grid grid-cols-2 gap-4">
+                {/* Left: Top 3 Values */}
+                <div className="p-3 bg-background/30 rounded-lg">
+                  <h3 className="text-sm font-semibold mb-2">Your Top 3 Core Values</h3>
+                  <div className="space-y-2">
+                    {(() => {
+                      const domainNames: Record<string, { name: string; icon: any; description: string }> = {
+                        achievement: { name: "Achievement", icon: Target, description: "Success & competence" },
+                        benevolence: { name: "Benevolence", icon: Heart, description: "Caring for others" },
+                        universalism: { name: "Universalism", icon: Globe, description: "Fairness & equality" },
+                        self_direction: { name: "Self-Direction", icon: Sparkles, description: "Independence & creativity" },
+                        security: { name: "Security", icon: Shield, description: "Safety & stability" },
+                        power: { name: "Power", icon: Crown, description: "Influence & authority" },
+                        hedonism: { name: "Hedonism", icon: Smile, description: "Pleasure & enjoyment" },
+                      };
+
+                      const scores = cvqResult.normalizedScores as Record<string, number>;
+                      const sorted = Object.entries(scores)
+                        .sort(([, a], [, b]) => b - a)
+                        .slice(0, 3);
+
+                      return sorted.map(([domain, score], index) => {
+                        const info = domainNames[domain];
+                        if (!info) return null;
+                        const Icon = info.icon;
+                        
+                        return (
+                          <div key={domain} className="flex items-start gap-2">
+                            <div className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex-shrink-0">
+                              {index + 1}
+                            </div>
+                            <Icon className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-semibold truncate">{info.name}</span>
+                                <span className="text-xs font-bold ml-1">{Math.round(score)}%</span>
+                              </div>
+                              <p className="text-xs text-muted-foreground">{info.description}</p>
+                              <Progress value={score} className="h-1 mt-1" />
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
+
+                {/* Right: All Domain Scores */}
+                <div className="p-3 bg-background/30 rounded-lg">
+                  <h3 className="text-sm font-semibold mb-2">Complete Values Profile</h3>
+                  <div className="space-y-1.5">
+                    {(() => {
+                      const domainNames: Record<string, { name: string; icon: any }> = {
+                        achievement: { name: "Achievement", icon: Target },
+                        benevolence: { name: "Benevolence", icon: Heart },
+                        universalism: { name: "Universalism", icon: Globe },
+                        self_direction: { name: "Self-Direction", icon: Sparkles },
+                        security: { name: "Security", icon: Shield },
+                        power: { name: "Power", icon: Crown },
+                        hedonism: { name: "Hedonism", icon: Smile },
+                      };
+
+                      const scores = cvqResult.normalizedScores as Record<string, number>;
+                      return Object.entries(domainNames).map(([domain, info]) => {
+                        const score = scores[domain] || 0;
+                        const Icon = info.icon;
+
+                        return (
+                          <div key={domain} className="flex items-center gap-1.5">
+                            <Icon className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-medium truncate">{info.name}</span>
+                                <span className="text-xs font-bold ml-1">{Math.round(score)}%</span>
+                              </div>
+                              <Progress value={score} className="h-1 mt-0.5" />
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
+              </div>
+
+              {/* What This Means & Career Connection - Combined */}
+              <div className="p-3 bg-background/30 rounded-lg">
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Left: What This Means */}
+                  <div>
+                    <h3 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
+                      <BookOpen className="w-3.5 h-3.5" />
+                      What Your Values Mean
+                    </h3>
+                    <div className="space-y-1.5 text-xs font-body">
+                      {(() => {
+                        const scores = cvqResult.normalizedScores as Record<string, number>;
+                        const top3 = Object.entries(scores)
+                          .sort(([, a], [, b]) => b - a)
+                          .slice(0, 3)
+                          .map(([d]) => d);
+
+                        const explanations: Record<string, string> = {
+                          achievement: "You're driven by success and recognition.",
+                          benevolence: "You care deeply about helping others.",
+                          universalism: "You believe in fairness and equality.",
+                          self_direction: "You value independence and creativity.",
+                          security: "You prioritize safety and stability.",
+                          power: "You're motivated by influence.",
+                          hedonism: "You value enjoying life.",
+                        };
+
+                        return top3.map(domain => (
+                          <p key={domain} className="flex items-start gap-1.5">
+                            <CheckCircle2 className="w-3 h-3 text-primary flex-shrink-0 mt-0.5" />
+                            <span><strong>{domain.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}:</strong> {explanations[domain]}</span>
+                          </p>
+                        ));
+                      })()}
+                    </div>
+                  </div>
+
+                  {/* Right: Career Connection */}
+                  <div>
+                    <h3 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
+                      <Target className="w-3.5 h-3.5" />
+                      Career Connection
+                    </h3>
+                    <p className="text-xs font-body mb-2">
+                      Your values are matched against each career's work values using scientific O*NET data.
+                    </p>
+                    <p className="text-xs text-muted-foreground font-body flex items-start gap-1">
+                      <Star className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                      <span>Values contribute 20% to career match scores, ensuring recommended careers fulfill what you care about.</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </StickyNote>
+
+          {/* Footer */}
+          <div className="mt-2 text-xs text-center text-muted-foreground">
             Generated on {new Date().toLocaleDateString()} | Future Pathways Career Guidance System
           </div>
         </div>
