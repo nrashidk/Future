@@ -34,6 +34,12 @@ export const users = pgTable("users", {
   profileImageUrl: varchar("profile_image_url"),
   role: varchar("role").notNull().default("user"), // 'user', 'admin'
   
+  // Organization-generated student accounts
+  username: varchar("username").unique(),
+  passwordHash: varchar("password_hash"), // Hashed password (bcrypt/argon2)
+  accountType: text("account_type").notNull().default("individual"), // 'individual', 'org_admin', 'org_student'
+  isOrgGenerated: boolean("is_org_generated").notNull().default(false),
+  
   // Premium subscription
   isPremium: boolean("is_premium").notNull().default(false),
   stripeCustomerId: varchar("stripe_customer_id"),
@@ -43,8 +49,81 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
-export const usersRelations = relations(users, ({ many }) => ({
+export const usersRelations = relations(users, ({ many, one }) => ({
   assessments: many(assessments),
+  organizationMembership: one(organizationMembers, {
+    fields: [users.id],
+    references: [organizationMembers.userId],
+  }),
+  ownedOrganization: one(organizations, {
+    fields: [users.id],
+    references: [organizations.adminUserId],
+  }),
+}));
+
+// Organizations (Schools/Institutions)
+export const organizations = pgTable("organizations", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  adminUserId: varchar("admin_user_id").notNull().references(() => users.id),
+  
+  // License tracking
+  totalLicenses: integer("total_licenses").notNull(),
+  usedLicenses: integer("used_licenses").notNull().default(0),
+  
+  // Settings
+  passwordComplexity: text("password_complexity").notNull().default("medium"), // 'easy', 'medium', 'strong'
+  
+  // Payment info
+  purchaseDate: timestamp("purchase_date").defaultNow(),
+  stripePaymentId: varchar("stripe_payment_id"),
+  amountPaid: real("amount_paid"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const organizationsRelations = relations(organizations, ({ one, many }) => ({
+  admin: one(users, {
+    fields: [organizations.adminUserId],
+    references: [users.id],
+  }),
+  members: many(organizationMembers),
+}));
+
+// Organization Members (Students in schools)
+export const organizationMembers = pgTable("organization_members", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
+  userId: varchar("user_id").notNull().unique().references(() => users.id), // User can only belong to one organization
+  
+  // Student information
+  studentId: text("student_id"), // School's own student ID
+  grade: text("grade"),
+  role: text("role").notNull().default("student"), // 'student' or 'admin'
+  
+  // Quota tracking
+  hasCompletedAssessment: boolean("has_completed_assessment").notNull().default(false),
+  assessmentCompletedAt: timestamp("assessment_completed_at"),
+  isLocked: boolean("is_locked").notNull().default(false),
+  
+  // Admin actions audit
+  passwordLastResetBy: varchar("password_last_reset_by"),
+  passwordLastResetAt: timestamp("password_last_reset_at"),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const organizationMembersRelations = relations(organizationMembers, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [organizationMembers.organizationId],
+    references: [organizations.id],
+  }),
+  user: one(users, {
+    fields: [organizationMembers.userId],
+    references: [users.id],
+  }),
 }));
 
 // Countries with mission/vision data
@@ -398,3 +477,19 @@ export const insertCareerComponentAffinitySchema = createInsertSchema(careerComp
   updatedAt: true,
 });
 export type InsertCareerComponentAffinity = z.infer<typeof insertCareerComponentAffinitySchema>;
+
+export type Organization = typeof organizations.$inferSelect;
+export const insertOrganizationSchema = createInsertSchema(organizations).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertOrganization = z.infer<typeof insertOrganizationSchema>;
+
+export type OrganizationMember = typeof organizationMembers.$inferSelect;
+export const insertOrganizationMemberSchema = createInsertSchema(organizationMembers).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertOrganizationMember = z.infer<typeof insertOrganizationMemberSchema>;
