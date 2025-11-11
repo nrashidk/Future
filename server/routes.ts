@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { insertAssessmentSchema, insertQuizQuestionSchema } from "@shared/schema";
+import { insertAssessmentSchema, insertQuizQuestionSchema, insertCvqResultSchema } from "@shared/schema";
 import { z } from "zod";
 import { transformQuizQuestionForFrontend, shuffleQuestions, shuffleOptions } from "./utils/quiz";
 import { calculateKolbScores } from "./questionBanks/kolb";
@@ -501,6 +501,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error submitting quiz:", error);
       res.status(500).json({ message: "Failed to submit quiz" });
+    }
+  });
+
+  // CVQ routes
+  app.get("/api/cvq/items", async (req, res) => {
+    try {
+      const version = req.query.version as string | undefined;
+      const items = await storage.getCvqItems(version);
+      res.json(items);
+    } catch (error) {
+      console.error("Error fetching CVQ items:", error);
+      res.status(500).json({ message: "Failed to fetch CVQ items" });
+    }
+  });
+
+  app.post("/api/cvq/submit", isAuthenticated, async (req: any, res) => {
+    try {
+      const validatedData = insertCvqResultSchema.parse(req.body);
+      
+      // Get userId from authenticated request
+      const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
+      
+      // Create CVQ result with userId
+      const result = await storage.createCvqResult({
+        ...validatedData,
+        userId
+      });
+      
+      res.status(201).json(result);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid CVQ data", errors: error.errors });
+      }
+      console.error("Error submitting CVQ:", error);
+      res.status(500).json({ message: "Failed to submit CVQ" });
+    }
+  });
+
+  app.get("/api/cvq/result/latest", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
+      const result = await storage.getCvqResultByUserId(userId);
+      
+      if (!result) {
+        return res.status(404).json({ message: "No CVQ result found" });
+      }
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Error fetching CVQ result:", error);
+      res.status(500).json({ message: "Failed to fetch CVQ result" });
     }
   });
 
