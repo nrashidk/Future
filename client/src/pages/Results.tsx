@@ -683,78 +683,80 @@ export default function Results() {
                 rotation={index % 2 === 0 ? "1" : "-1"}
                 className="p-6 lg:p-8"
               >
-                <div className="flex flex-col md:flex-row gap-6">
-                  {/* Career Info */}
+                {/* Header: Title and Match Score */}
+                <div className="flex items-start justify-between gap-4 mb-6">
                   <div className="flex-1">
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <h3 className="text-2xl font-bold mb-2">{rec.career?.title}</h3>
-                        <p className="text-muted-foreground font-body">{rec.career?.description}</p>
-                      </div>
-                      <div className="bg-primary text-primary-foreground px-4 py-2 rounded-full font-bold text-lg ml-4 flex-shrink-0">
-                        {Math.round(rec.overallMatchScore)}%
-                      </div>
-                    </div>
+                    <h3 className="text-2xl font-bold mb-2">{rec.career?.title}</h3>
+                    <p className="text-muted-foreground font-body text-sm">{rec.career?.description}</p>
+                  </div>
+                  <div className="bg-primary text-primary-foreground px-4 py-2 rounded-full font-bold text-lg flex-shrink-0">
+                    {Math.round(rec.overallMatchScore)}%
+                  </div>
+                </div>
 
-                    {/* Match Breakdown */}
-                    <div className="grid grid-cols-2 gap-4 mb-6">
+                {/* Two Column Layout */}
+                <div className="grid md:grid-cols-[1fr,auto] gap-6">
+                  {/* Left Column: Match Details */}
+                  <div className="space-y-4">
+                    {/* Match Breakdown - Compact 2x2 Grid */}
+                    <div className="grid grid-cols-2 gap-3">
                       <div>
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-medium font-body flex items-center gap-1">
+                          <span className="text-xs font-medium font-body flex items-center gap-1">
                             <BookOpen className="w-3 h-3" />
                             Subject Match
                           </span>
                           <span className="text-sm font-bold">{Math.round(rec.subjectMatchScore)}%</span>
                         </div>
-                        <Progress value={rec.subjectMatchScore} className="h-2" />
-                        <span className="text-xs text-muted-foreground">30% weight • Validated by quiz</span>
+                        <Progress value={rec.subjectMatchScore} className="h-1.5" />
+                        <span className="text-xs text-muted-foreground">30% weight</span>
                       </div>
                       <div>
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-medium font-body flex items-center gap-1">
+                          <span className="text-xs font-medium font-body flex items-center gap-1">
                             <Star className="w-3 h-3" />
                             Interest Match
                           </span>
                           <span className="text-sm font-bold">{Math.round(rec.interestMatchScore)}%</span>
                         </div>
-                        <Progress value={rec.interestMatchScore} className="h-2" />
+                        <Progress value={rec.interestMatchScore} className="h-1.5" />
                         <span className="text-xs text-muted-foreground">30% weight</span>
                       </div>
                       <div>
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-medium font-body flex items-center gap-1">
+                          <span className="text-xs font-medium font-body flex items-center gap-1">
                             <Target className="w-3 h-3" />
                             Vision Alignment
                           </span>
                           <span className="text-sm font-bold">{Math.round(rec.countryVisionAlignment)}%</span>
                         </div>
-                        <Progress value={rec.countryVisionAlignment} className="h-2" />
+                        <Progress value={rec.countryVisionAlignment} className="h-1.5" />
                         <span className="text-xs text-muted-foreground">20% weight</span>
                       </div>
                       <div>
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-medium font-body flex items-center gap-1">
+                          <span className="text-xs font-medium font-body flex items-center gap-1">
                             <TrendingUp className="w-3 h-3" />
                             Market Demand
                           </span>
                           <span className="text-sm font-bold">{Math.round(rec.futureMarketDemand)}%</span>
                         </div>
-                        <Progress value={rec.futureMarketDemand} className="h-2" />
+                        <Progress value={rec.futureMarketDemand} className="h-1.5" />
                         <span className="text-xs text-muted-foreground">20% weight</span>
                       </div>
                     </div>
 
                     {/* Validated Competencies & Vision Priorities */}
                     {(rec.matchedSubjects?.length > 0 || rec.supportingVisionPriorities?.length > 0) && (
-                      <div className="mb-6 p-4 bg-background/30 rounded-lg space-y-3">
+                      <div className="p-3 bg-background/30 rounded-lg space-y-2">
                         {rec.matchedSubjects?.length > 0 && (
                           <div>
-                            <h4 className="text-xs font-semibold text-muted-foreground mb-2">✓ Validated by Your Competencies</h4>
-                            <div className="flex flex-wrap gap-2">
+                            <h4 className="text-xs font-semibold text-muted-foreground mb-1.5">✓ Validated by Your Competencies</h4>
+                            <div className="flex flex-wrap gap-1.5">
                               {rec.matchedSubjects.map((item: any) => (
                                 <span
                                   key={item.subject}
-                                  className="inline-flex items-center gap-1 bg-primary/10 px-3 py-1 rounded-full text-xs font-medium"
+                                  className="inline-flex items-center gap-1 bg-primary/10 px-2 py-0.5 rounded-full text-xs font-medium"
                                   data-testid={`badge-competency-${item.subject.toLowerCase().replace(/\s+/g, '-')}`}
                                 >
                                   <CheckCircle2 className="w-3 h-3 text-primary" />
@@ -766,12 +768,12 @@ export default function Results() {
                         )}
                         {rec.supportingVisionPriorities?.length > 0 && (
                           <div>
-                            <h4 className="text-xs font-semibold text-muted-foreground mb-2">🎯 Supports National Vision</h4>
-                            <div className="flex flex-wrap gap-2">
+                            <h4 className="text-xs font-semibold text-muted-foreground mb-1.5">🎯 Supports National Vision</h4>
+                            <div className="flex flex-wrap gap-1.5">
                               {rec.supportingVisionPriorities.map((priority: string, idx: number) => (
                                 <span
                                   key={idx}
-                                  className="inline-flex items-center gap-1 bg-accent/20 px-3 py-1 rounded-full text-xs font-medium"
+                                  className="inline-flex items-center gap-1 bg-accent/20 px-2 py-0.5 rounded-full text-xs font-medium"
                                   data-testid={`badge-vision-${idx}`}
                                 >
                                   <Target className="w-3 h-3" />
@@ -785,23 +787,23 @@ export default function Results() {
                     )}
 
                     {/* Why This Career */}
-                    <div className="mb-6 p-4 bg-background/30 rounded-lg">
-                      <h4 className="font-semibold mb-2 flex items-center gap-2">
+                    <div className="p-3 bg-background/30 rounded-lg">
+                      <h4 className="font-semibold mb-1.5 text-sm flex items-center gap-2">
                         <CheckCircle2 className="w-4 h-4 text-primary" />
                         Why This Career?
                       </h4>
-                      <p className="text-sm font-body text-foreground/90">{rec.reasoning}</p>
+                      <p className="text-xs font-body text-foreground/90">{rec.reasoning}</p>
                     </div>
 
                     {/* Required Skills */}
                     {rec.career?.requiredSkills && rec.career.requiredSkills.length > 0 && (
-                      <div className="mb-6">
-                        <h4 className="font-semibold mb-2 text-sm">Required Skills</h4>
-                        <div className="flex flex-wrap gap-2">
+                      <div>
+                        <h4 className="font-semibold mb-2 text-xs">Required Skills</h4>
+                        <div className="flex flex-wrap gap-1.5">
                           {rec.career.requiredSkills.map((skill: string) => (
                             <span
                               key={skill}
-                              className="bg-primary/10 px-3 py-1 rounded-full text-xs font-medium font-body"
+                              className="bg-primary/10 px-2 py-0.5 rounded-full text-xs font-medium font-body"
                             >
                               {skill}
                             </span>
@@ -811,24 +813,24 @@ export default function Results() {
                     )}
 
                     {/* Education Required */}
-                    <div className="mb-6">
-                      <h4 className="font-semibold mb-2 text-sm flex items-center gap-2">
+                    <div>
+                      <h4 className="font-semibold mb-1.5 text-xs flex items-center gap-2">
                         <BookOpen className="w-4 h-4" />
                         Education Path
                       </h4>
-                      <p className="text-sm font-body">{rec.requiredEducation}</p>
+                      <p className="text-xs font-body">{rec.requiredEducation}</p>
                     </div>
 
                     {/* Action Steps */}
                     {rec.actionSteps && rec.actionSteps.length > 0 && (
                       <div>
-                        <h4 className="font-semibold mb-3 text-sm flex items-center gap-2">
+                        <h4 className="font-semibold mb-2 text-xs flex items-center gap-2">
                           <ArrowRight className="w-4 h-4" />
                           Next Steps
                         </h4>
-                        <ul className="space-y-2">
+                        <ul className="space-y-1.5">
                           {rec.actionSteps.map((step: string, i: number) => (
-                            <li key={i} className="flex items-start gap-2 text-sm font-body">
+                            <li key={i} className="flex items-start gap-2 text-xs font-body">
                               <span className="text-primary font-bold">{i + 1}.</span>
                               <span>{step}</span>
                             </li>
@@ -838,15 +840,15 @@ export default function Results() {
                     )}
                   </div>
 
-                  {/* Salary & Growth */}
-                  <div className="md:w-48 space-y-4">
-                    <div className="p-4 bg-background/30 rounded-lg text-center">
+                  {/* Right Column: Salary & Growth */}
+                  <div className="md:w-48 flex-shrink-0 space-y-3">
+                    <div className="p-3 bg-background/30 rounded-lg text-center">
                       <TrendingUp className="w-6 h-6 mx-auto mb-2 text-primary" />
                       <p className="text-xs text-muted-foreground mb-1 font-body">Growth Outlook</p>
-                      <p className="font-bold">{rec.career?.growthOutlook}</p>
+                      <p className="font-bold text-sm">{rec.career?.growthOutlook}</p>
                     </div>
                     {rec.career?.averageSalary && (
-                      <div className="p-4 bg-background/30 rounded-lg text-center">
+                      <div className="p-3 bg-background/30 rounded-lg text-center">
                         <p className="text-xs text-muted-foreground mb-1 font-body">Avg. Salary</p>
                         <p className="font-bold text-sm">{rec.career.averageSalary}</p>
                       </div>
