@@ -1,49 +1,22 @@
-import { useState } from "react";
 import { useLocation } from "wouter";
+import { PageLayout } from "@/components/layout/PageLayout";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { Check, User, Users, BarChart3, TrendingUp, Settings, Clock } from "lucide-react";
+import { Check, User, Users, BarChart3, TrendingUp, Settings } from "lucide-react";
 
 export default function TierSelection() {
   const [, setLocation] = useLocation();
-  const [studentCount, setStudentCount] = useState<number>(1);
-
-  // Calculate bulk discount for Group Assessment
-  const calculatePrice = (count: number): { total: number; perStudent: number; discount: number } => {
-    const basePrice = 10;
-    let discount = 0;
-
-    if (count >= 1000) {
-      discount = 0.20; // 20% off
-    } else if (count >= 500) {
-      discount = 0.15; // 15% off
-    } else if (count >= 100) {
-      discount = 0.10; // 10% off
-    }
-
-    const perStudent = basePrice * (1 - discount);
-    const total = perStudent * count;
-
-    return { total, perStudent, discount: discount * 100 };
-  };
-
-  const pricing = calculatePrice(studentCount);
 
   const handleIndividualTier = () => {
-    // Navigate to checkout for single student
     setLocation(`/checkout?students=1&total=10`);
   };
 
   const handleGroupTier = () => {
-    // Navigate to checkout with pricing info
-    setLocation(`/checkout?students=${studentCount}&total=${pricing.total}&group=true`);
+    setLocation('/group-pricing');
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 dark:from-gray-900 dark:via-purple-900 dark:to-gray-900">
+    <PageLayout variant="gradient">
       <div className="container mx-auto px-4 py-16">
         {/* Header */}
         <div className="text-center mb-12">
@@ -125,15 +98,19 @@ export default function TierSelection() {
                 <CardTitle className="text-2xl">Group Assessment</CardTitle>
               </div>
               <CardDescription>For schools and institutions</CardDescription>
-              <div className="text-3xl font-bold mt-4">
-                ${pricing.perStudent.toFixed(2)}
-                <span className="text-sm font-normal text-gray-500">/student</span>
-              </div>
-              {pricing.discount > 0 && (
-                <div className="text-sm text-green-600 font-semibold">
-                  {pricing.discount}% bulk discount applied!
+              <div className="mt-4 space-y-2">
+                <div className="text-3xl font-bold">
+                  <span className="text-sm font-normal text-gray-500 line-through">$10.00</span>
+                  {" "}
+                  $8.00-$9.00
+                  <span className="text-sm font-normal text-gray-500">/student</span>
                 </div>
-              )}
+                <div className="text-xs text-gray-600 dark:text-gray-400 space-y-0.5">
+                  <div>100-499 students: $9.00/student (10% off)</div>
+                  <div>500-999 students: $8.50/student (15% off)</div>
+                  <div>1000+ students: $8.00/student (20% off)</div>
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="text-sm font-semibold text-blue-600 mb-2">Everything in Individual, plus:</div>
@@ -197,85 +174,12 @@ export default function TierSelection() {
                 onClick={handleGroupTier}
                 data-testid="button-select-group"
               >
-                Get Group Assessment - ${pricing.total.toFixed(2)}
+                Get Group Assessment
               </Button>
             </CardFooter>
           </Card>
         </div>
-
-        {/* Group Pricing Calculator */}
-        <Card className="max-w-2xl mx-auto" data-testid="card-bulk-pricing">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="w-5 h-5" />
-              Group Assessment Pricing
-            </CardTitle>
-            <CardDescription>
-              Calculate pricing for your school or institution
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="space-y-2">
-              <Label htmlFor="student-count">Number of Students</Label>
-              <Input
-                id="student-count"
-                type="number"
-                min="1"
-                value={studentCount}
-                onChange={(e) => setStudentCount(Math.max(1, parseInt(e.target.value) || 1))}
-                data-testid="input-student-count"
-              />
-            </div>
-
-            <Separator />
-
-            <div className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600 dark:text-gray-400">Base Price</span>
-                <span className="font-semibold">$10.00 per student</span>
-              </div>
-              
-              {pricing.discount > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600 dark:text-gray-400">Bulk Discount</span>
-                  <span className="text-green-600 font-semibold">-{pricing.discount}%</span>
-                </div>
-              )}
-
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600 dark:text-gray-400">Price per Student</span>
-                <span className="font-semibold">${pricing.perStudent.toFixed(2)}</span>
-              </div>
-
-              <Separator />
-
-              <div className="flex justify-between text-lg font-bold">
-                <span>Total for {studentCount} {studentCount === 1 ? 'student' : 'students'}</span>
-                <span className="text-blue-600">${pricing.total.toFixed(2)}</span>
-              </div>
-            </div>
-
-            {/* Discount Tiers */}
-            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-2">
-              <div className="text-sm font-semibold mb-2">Bulk Discount Tiers:</div>
-              <div className="text-sm space-y-1">
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">100-499 students</span>
-                  <span className="font-semibold text-green-600">10% off</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">500-999 students</span>
-                  <span className="font-semibold text-green-600">15% off</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600 dark:text-gray-400">1000+ students</span>
-                  <span className="font-semibold text-green-600">20% off</span>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
       </div>
-    </div>
+    </PageLayout>
   );
 }
