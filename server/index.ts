@@ -47,6 +47,16 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Validate tier weight configuration before starting server
+  const { validateTierWeights } = await import("./services/tierWeights");
+  try {
+    validateTierWeights();
+    console.log("✓ Tier weight configuration validated successfully");
+  } catch (error) {
+    console.error("❌ Tier weight validation failed:", error);
+    process.exit(1); // Fail fast if config is invalid
+  }
+  
   const server = await registerRoutes(app);
   
   // Seed database on startup (only in development)

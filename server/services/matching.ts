@@ -17,6 +17,7 @@ import type {
   JobMarketTrend,
   Country
 } from "../../shared/schema";
+import { type AssessmentTier, getEffectiveWeight } from "./tierWeights";
 
 /**
  * Typed interfaces for JSONB fields
@@ -141,17 +142,30 @@ async function hydrateMatchingContext(
 
   // Fetch active components (only those applicable to this user)
   const allComponents = await storage.getAllAssessmentComponents();
-  const activeComponents = allComponents.filter(component => {
-    // Only include active components
-    if (!component.isActive) return false;
-    
-    // Skip premium components if user doesn't have premium access
-    if (component.requiresPremium && assessment.assessmentType === 'basic') {
-      return false;
-    }
-    
-    return true;
-  });
+  const tier: AssessmentTier = assessment.assessmentType as AssessmentTier;
+  
+  // Filter components and apply tier-specific weight overrides
+  const activeComponents = allComponents
+    .filter(component => {
+      // Only include active components
+      if (!component.isActive) return false;
+      
+      // Skip premium components if user doesn't have premium access
+      if (component.requiresPremium && assessment.assessmentType === 'basic') {
+        return false;
+      }
+      
+      return true;
+    })
+    .map(component => {
+      // Apply tier-specific weight override
+      const effectiveWeight = getEffectiveWeight(tier, component.key, component.weight);
+      return {
+        ...component,
+        weight: effectiveWeight, // Use effective weight for this tier
+      };
+    })
+    .filter(component => component.weight > 0); // Remove components with 0 weight
 
   // Bulk fetch career affinities for all careers and active components
   const careerIds = careers.map(c => c.id);

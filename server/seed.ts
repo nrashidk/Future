@@ -1528,13 +1528,14 @@ export async function seedDatabase() {
   // Seed Assessment Components
   console.log("\n📋 Seeding assessment components...");
   
-  // Define all components with updated weights (paid tier weights)
+  // Define all components with database default weights
+  // Note: Actual weights are determined by tier-specific overrides in tierWeights.ts
   const componentsToSeed = [
     {
       name: "Subject Match",
       key: "subjects",
       description: "Matches career requirements with student's subject preferences and demonstrated competency from quiz scores",
-      weight: 20,
+      weight: 35, // Default weight (overridden per tier)
       isActive: true,
       requiresPremium: false,
       displayOrder: 0,
@@ -1543,7 +1544,7 @@ export async function seedDatabase() {
       name: "Interest Match",
       key: "interests",
       description: "Keyword-based matching between student interests and career descriptions (free tier only)",
-      weight: 0, // Used in free tier (35%), but 0 in paid tier
+      weight: 35, // Default weight (overridden per tier)
       isActive: true,
       requiresPremium: false,
       displayOrder: 1,
@@ -1552,7 +1553,7 @@ export async function seedDatabase() {
       name: "Country Vision Alignment",
       key: "vision",
       description: "Aligns career paths with national development priorities and vision sectors",
-      weight: 20,
+      weight: 30, // Default weight (overridden per tier)
       isActive: true,
       requiresPremium: false,
       displayOrder: 2,
