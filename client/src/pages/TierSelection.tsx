@@ -31,7 +31,7 @@ export default function TierSelection() {
         {/* Tier Comparison */}
         <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto mb-12">
           {/* Individual Assessment */}
-          <Card className="relative border-2 border-purple-500 shadow-lg" data-testid="card-tier-individual">
+          <Card className="relative border-2 border-purple-500 shadow-lg flex flex-col" data-testid="card-tier-individual">
             <CardHeader>
               <div className="flex items-center gap-2 mb-2">
                 <User className="w-6 h-6 text-purple-600" />
@@ -43,7 +43,7 @@ export default function TierSelection() {
                 <span className="text-sm font-normal text-gray-500">/student</span>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 flex-1">
               <div className="space-y-3">
                 <div className="flex items-start gap-2">
                   <Check className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
@@ -91,7 +91,7 @@ export default function TierSelection() {
           </Card>
 
           {/* Group Assessment */}
-          <Card className="relative border-2 border-blue-500 shadow-lg" data-testid="card-tier-group">
+          <Card className="relative border-2 border-blue-500 shadow-lg flex flex-col" data-testid="card-tier-group">
             <CardHeader>
               <div className="flex items-center gap-2 mb-2">
                 <Users className="w-6 h-6 text-blue-600" />
@@ -107,7 +107,7 @@ export default function TierSelection() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-4 flex-1">
               <div className="text-sm font-semibold text-blue-600 mb-2">Everything in Individual, plus:</div>
               <div className="space-y-3">
                 {/* TODO: Group Assessment analytics features - implementation pending */}
