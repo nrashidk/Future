@@ -1525,35 +1525,106 @@ export async function seedDatabase() {
   
   console.log(`✓ Created ${createdCount} new quiz questions (total: ${allQuestions.length})`);
 
-  // Seed Assessment Components (RIASEC)
+  // Seed Assessment Components
   console.log("\n📋 Seeding assessment components...");
   
-  // Try to create component, or fetch if it already exists
-  let riasecComponent;
-  try {
-    riasecComponent = await storage.createAssessmentComponent({
+  // Define all components with updated weights (paid tier weights)
+  const componentsToSeed = [
+    {
+      name: "Subject Match",
+      key: "subjects",
+      description: "Matches career requirements with student's subject preferences and demonstrated competency from quiz scores",
+      weight: 20,
+      isActive: true,
+      requiresPremium: false,
+      displayOrder: 0,
+    },
+    {
+      name: "Interest Match",
+      key: "interests",
+      description: "Keyword-based matching between student interests and career descriptions (free tier only)",
+      weight: 0, // Used in free tier (35%), but 0 in paid tier
+      isActive: true,
+      requiresPremium: false,
+      displayOrder: 1,
+    },
+    {
+      name: "Country Vision Alignment",
+      key: "vision",
+      description: "Aligns career paths with national development priorities and vision sectors",
+      weight: 20,
+      isActive: true,
+      requiresPremium: false,
+      displayOrder: 2,
+    },
+    {
+      name: "Kolb Learning Style",
+      key: "kolb",
+      description: "Learning style affinity based on Kolb's Experiential Learning Theory",
+      weight: 10,
+      isActive: true,
+      requiresPremium: true,
+      displayOrder: 3,
+    },
+    {
       name: "RIASEC (Holland Code)",
       key: "riasec",
       description: "Career personality assessment based on Holland's RIASEC model (Realistic, Investigative, Artistic, Social, Enterprising, Conventional)",
-      weight: 10, // Default 10% weight in matching algorithm
+      weight: 30, // UPDATED from 10%
       isActive: true,
       requiresPremium: true,
-      displayOrder: 2, // After Kolb (displayOrder: 1)
-    });
-    console.log(`✓ Created assessment component: ${riasecComponent.name}`);
-  } catch (error: any) {
-    if (error?.message?.includes('unique') || error?.code === '23505') {
-      // Component already exists - fetch it
-      const components = await storage.getAllAssessmentComponents?.() || [];
-      riasecComponent = components.find(c => c.key === 'riasec');
-      console.log("  RIASEC component already exists");
-    } else {
-      // Unexpected error - log and continue
-      console.error("  Error creating RIASEC component:", error);
+      displayOrder: 4,
+    },
+    {
+      name: "Personal Values (CVQ)",
+      key: "cvq",
+      description: "Career values alignment based on Children's Values Questionnaire (Schwartz model)",
+      weight: 20, // NEW component
+      isActive: true,
+      requiresPremium: true,
+      displayOrder: 5,
+    },
+    {
+      name: "Market Demand",
+      key: "market",
+      description: "[DEPRECATED] Job market trends - replaced by CVQ in Nov 2025",
+      weight: 0,
+      isActive: false, // REMOVED
+      requiresPremium: false,
+      displayOrder: 99,
+    },
+  ];
+  
+  // Seed or update all components
+  const seededComponents: Record<string, any> = {};
+  for (const componentData of componentsToSeed) {
+    try {
+      const component = await storage.createAssessmentComponent(componentData);
+      seededComponents[componentData.key] = component;
+      console.log(`✓ Created component: ${component.name} (${component.weight}%)`);
+    } catch (error: any) {
+      if (error?.message?.includes('unique') || error?.code === '23505') {
+        // Component already exists - fetch and update weight
+        const components = await storage.getAllAssessmentComponents?.() || [];
+        const existing = components.find((c: any) => c.key === componentData.key);
+        if (existing) {
+          // Update weight and isActive status
+          const updated = await storage.updateAssessmentComponent(existing.id, {
+            weight: componentData.weight,
+            isActive: componentData.isActive,
+            description: componentData.description,
+          });
+          seededComponents[componentData.key] = updated;
+          console.log(`  ${componentData.name} already exists (updated weight to ${componentData.weight}%)`);
+        }
+      } else {
+        console.error(`  Error creating component ${componentData.name}:`, error);
+      }
     }
   }
   
   // Seed RIASEC career affinities (regardless of whether component was created or fetched)
+  const riasecComponent = seededComponents['riasec'];
   if (riasecComponent) {
     console.log("\n🎯 Seeding RIASEC career affinities...");
     const allCareers = await storage.getAllCareers();
