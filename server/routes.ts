@@ -481,6 +481,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Calculate overall accuracy
       const overallAccuracy = totalQuestions > 0 ? Math.round((totalCorrect / totalQuestions) * 100) : 0;
       
+      // Calculate breakdown scores for UI display
+      // Vision Awareness: Based on Social Studies + awareness subjects
+      const visionScore = subjectScores["Social Studies"]?.percentage || 
+                         subjectScores["Arabic"]?.percentage || 
+                         overallAccuracy;
+      
+      // Sector Competency: Based on technical subjects (Math, Science, Computer Science)
+      const techSubjects = ["Mathematics", "Science", "Computer Science"];
+      const techScores = techSubjects.map(s => subjectScores[s]?.percentage || 0).filter(s => s > 0);
+      const sectorScore = techScores.length > 0 
+        ? Math.round(techScores.reduce((a, b) => a + b, 0) / techScores.length)
+        : overallAccuracy;
+      
+      // Personal Alignment: Based on language and soft subjects (English, Arabic)
+      const softSubjects = ["English", "Arabic"];
+      const softScores = softSubjects.map(s => subjectScores[s]?.percentage || 0).filter(s => s > 0);
+      const motivationScore = softScores.length > 0
+        ? Math.round(softScores.reduce((a, b) => a + b, 0) / softScores.length)
+        : overallAccuracy;
+      
       // Update quiz record with subject scores and mark as completed
       await storage.updateAssessmentQuiz(quiz.id, {
         completedAt: new Date(),
@@ -488,11 +508,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         subjectScores: subjectScores
       });
       
+      // Update assessment record with quiz score and subject competencies
+      await storage.updateAssessment(assessmentId, {
+        quizScore: overallAccuracy,
+        subjectCompetencies: subjectScores
+      });
+      
       res.json({ 
         success: true, 
         score: {
           subjectScores,
           overall: overallAccuracy,
+          vision: visionScore,
+          sector: sectorScore,
+          motivation: motivationScore,
           totalQuestions,
           totalCorrect
         },
