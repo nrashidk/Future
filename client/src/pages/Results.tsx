@@ -655,7 +655,7 @@ export default function Results() {
                 <div className="text-4xl font-bold text-primary mb-1">$10</div>
                 <div className="text-sm text-muted-foreground">per student</div>
                 <div className="text-xs text-muted-foreground mt-1">
-                  School bulk discounts available: 10% off for 100+, 15% off for 500+, 20% off for 1000+
+                  School bulk discounts available
                 </div>
               </div>
               <Button
