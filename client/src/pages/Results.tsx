@@ -12,7 +12,13 @@ import {
   Share2,
   Star,
   CheckCircle2,
-  ArrowRight
+  ArrowRight,
+  Heart,
+  Globe,
+  Sparkles,
+  Shield,
+  Crown,
+  Smile
 } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -111,6 +117,12 @@ export default function Results() {
   const { data: country } = useQuery<any>({
     queryKey: [`/api/countries/${assessment?.countryId}`],
     enabled: !!assessment?.countryId,
+  });
+
+  // Fetch CVQ result for premium users
+  const { data: cvqResult } = useQuery<any>({
+    queryKey: [`/api/cvq/result/${activeAssessmentId}`],
+    enabled: !!activeAssessmentId && assessment?.assessmentType === 'kolb',
   });
 
   // Extract assessment ID from recommendations
@@ -409,6 +421,161 @@ export default function Results() {
                       "Your practical problem-solving skills make you well-suited for careers in engineering, technology, and roles that require technical expertise. Your learning style contributes 10% to each career match score, favoring careers that align with your preferred way of learning."}
                     {(assessment.kolbScores as any).learningStyle === 'Accommodating' && 
                       "Your hands-on and adaptive approach makes you well-suited for careers in business, sales, and roles that require flexibility and action. Your learning style contributes 10% to each career match score, favoring careers that align with your preferred way of learning."}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </StickyNote>
+        </div>
+      )}
+
+      {/* CVQ Values Insights (Premium Users Only) */}
+      {cvqResult && assessment?.assessmentType === 'kolb' && (
+        <div className="max-w-4xl mx-auto px-4 mb-8">
+          <StickyNote color="purple" rotation="1" className="p-8">
+            <div className="text-center mb-6">
+              <Heart className="w-12 h-12 text-primary mx-auto mb-3" />
+              <h2 className="text-3xl font-bold mb-2">What Matters Most to You</h2>
+              <p className="text-muted-foreground font-body">
+                Based on the Children's Values Questionnaire (CVQ)
+              </p>
+            </div>
+
+            {/* Top 3 Values */}
+            <div className="mb-6">
+              <h3 className="font-semibold mb-4 text-center">Your Top 3 Core Values</h3>
+              <div className="grid md:grid-cols-3 gap-4">
+                {(() => {
+                  const domainNames: Record<string, { name: string; icon: any; description: string }> = {
+                    achievement: { name: "Achievement", icon: Target, description: "Success and competence" },
+                    benevolence: { name: "Benevolence", icon: Heart, description: "Caring for others" },
+                    universalism: { name: "Universalism", icon: Globe, description: "Fairness and equality" },
+                    self_direction: { name: "Self-Direction", icon: Sparkles, description: "Independence and creativity" },
+                    security: { name: "Security", icon: Shield, description: "Safety and stability" },
+                    power: { name: "Power", icon: Crown, description: "Influence and authority" },
+                    hedonism: { name: "Hedonism", icon: Smile, description: "Pleasure and enjoyment" },
+                  };
+
+                  const scores = cvqResult.normalizedScores as Record<string, number>;
+                  const sorted = Object.entries(scores)
+                    .sort(([, a], [, b]) => b - a)
+                    .slice(0, 3);
+
+                  return sorted.map(([domain, score], index) => {
+                    const info = domainNames[domain];
+                    if (!info) return null;
+                    const Icon = info.icon;
+                    const rank = index + 1;
+                    
+                    return (
+                      <div 
+                        key={domain} 
+                        className="p-4 bg-background/30 rounded-lg border-2 border-primary/20"
+                        data-testid={`value-rank-${rank}`}
+                      >
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary font-bold">
+                            {rank}
+                          </div>
+                          <Icon className="w-6 h-6 text-primary" />
+                        </div>
+                        <h4 className="font-semibold mb-1">{info.name}</h4>
+                        <p className="text-xs text-muted-foreground mb-2">{info.description}</p>
+                        <div className="flex items-center gap-2">
+                          <Progress value={score} className="h-2 flex-1" />
+                          <span className="text-sm font-semibold">{Math.round(score)}%</span>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            </div>
+
+            {/* All Domain Scores */}
+            <div className="mb-6 p-4 bg-background/30 rounded-lg">
+              <h4 className="font-semibold mb-4 flex items-center gap-2">
+                <Star className="w-4 h-4 text-primary" />
+                Your Complete Values Profile
+              </h4>
+              <div className="space-y-3">
+                {(() => {
+                  const domainNames: Record<string, { name: string; icon: any }> = {
+                    achievement: { name: "Achievement", icon: Target },
+                    benevolence: { name: "Benevolence", icon: Heart },
+                    universalism: { name: "Universalism", icon: Globe },
+                    self_direction: { name: "Self-Direction", icon: Sparkles },
+                    security: { name: "Security", icon: Shield },
+                    power: { name: "Power", icon: Crown },
+                    hedonism: { name: "Hedonism", icon: Smile },
+                  };
+
+                  const scores = cvqResult.normalizedScores as Record<string, number>;
+                  return Object.entries(domainNames).map(([domain, info]) => {
+                    const score = scores[domain] || 0;
+                    const Icon = info.icon;
+
+                    return (
+                      <div key={domain} className="flex items-center gap-3">
+                        <Icon className="w-5 h-5 text-primary flex-shrink-0" />
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm font-medium">{info.name}</span>
+                            <span className="text-sm font-semibold">{Math.round(score)}%</span>
+                          </div>
+                          <Progress value={score} className="h-2" />
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            </div>
+
+            {/* What This Means */}
+            <div className="mb-6 p-4 bg-background/30 rounded-lg">
+              <h4 className="font-semibold mb-3 flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-primary" />
+                What Your Values Mean
+              </h4>
+              <div className="space-y-3 text-sm font-body">
+                {(() => {
+                  const scores = cvqResult.normalizedScores as Record<string, number>;
+                  const top3 = Object.entries(scores)
+                    .sort(([, a], [, b]) => b - a)
+                    .slice(0, 3)
+                    .map(([d]) => d);
+
+                  const explanations: Record<string, string> = {
+                    achievement: "You're driven by success and recognition. You want to demonstrate competence and be admired for your accomplishments.",
+                    benevolence: "You deeply care about others' well-being. Helping people and maintaining harmonious relationships is important to you.",
+                    universalism: "You believe in fairness and equality for all. Social justice and understanding diverse perspectives matter greatly to you.",
+                    self_direction: "You value independence and creativity. You prefer thinking for yourself and exploring new ideas in your own unique way.",
+                    security: "You prioritize safety and stability. A secure environment and predictable outcomes make you feel comfortable.",
+                    power: "You're motivated by influence and authority. Having control over resources and decisions is important to you.",
+                    hedonism: "You value pleasure and enjoying life. Having fun and experiencing gratification matters to you.",
+                  };
+
+                  return top3.map(domain => (
+                    <p key={domain} className="flex items-start gap-2">
+                      <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                      <span><strong>{domain.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}:</strong> {explanations[domain]}</span>
+                    </p>
+                  ));
+                })()}
+              </div>
+            </div>
+
+            {/* Career Connection */}
+            <div className="p-4 bg-primary/10 rounded-lg border-2 border-primary/20">
+              <div className="flex items-start gap-2">
+                <Target className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                <div>
+                  <h4 className="font-semibold mb-2 text-primary">How Your Values Shape Your Career Matches (20% Weight)</h4>
+                  <p className="text-sm font-body">
+                    Your values profile is matched against each career's work values using scientific O*NET data. 
+                    Careers that align with what matters most to you receive higher match scores. This ensures 
+                    you're not just skilled for a career, but that it fulfills what you truly care about.
                   </p>
                 </div>
               </div>

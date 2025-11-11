@@ -555,6 +555,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/cvq/result/:assessmentId", async (req, res) => {
+    try {
+      const result = await storage.getCvqResultByAssessmentId(req.params.assessmentId);
+      
+      if (!result) {
+        return res.status(404).json({ message: "No CVQ result found for this assessment" });
+      }
+      
+      res.json(result);
+    } catch (error) {
+      console.error("Error fetching CVQ result:", error);
+      res.status(500).json({ message: "Failed to fetch CVQ result" });
+    }
+  });
+
   // Generate recommendations using dynamic matching service
   app.post("/api/recommendations/generate/:assessmentId", async (req, res) => {
     try {
