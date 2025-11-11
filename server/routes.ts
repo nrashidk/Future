@@ -883,7 +883,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ? `https://${req.get('host')}`
         : `http://localhost:${process.env.PORT || 5000}`;
       
-      const printUrl = `${baseUrl}/print/results?assessmentId=${assessment.id}`;
+      // Include guest token if this is a guest assessment
+      const guestTokenParam = assessment.guestSessionId ? `&guestToken=${assessment.guestSessionId}` : '';
+      const printUrl = `${baseUrl}/print/results?assessmentId=${assessment.id}${guestTokenParam}`;
       
       await page.goto(printUrl, {
         waitUntil: 'networkidle0',

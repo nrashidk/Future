@@ -346,7 +346,7 @@ export class DatabaseStorage implements IStorage {
     const [assessment] = await db
       .select()
       .from(assessments)
-      .where(eq(assessments.guestToken, guestToken))
+      .where(eq(assessments.guestSessionId, guestToken))
       .orderBy(desc(assessments.createdAt));
     return assessment;
   }

@@ -138,9 +138,14 @@ function mapSubjectsToVisionSectors(
 export default function ResultsPrint() {
   const urlParams = new URLSearchParams(window.location.search);
   const assessmentId = urlParams.get("assessmentId");
+  const guestToken = urlParams.get("guestToken");
 
   const { data: recommendations = [], isLoading } = useQuery<any[]>({
-    queryKey: assessmentId ? [`/api/recommendations?assessmentId=${assessmentId}`] : ["/api/recommendations"],
+    queryKey: assessmentId 
+      ? [`/api/recommendations?assessmentId=${assessmentId}${guestToken ? `&guestToken=${guestToken}` : ''}`] 
+      : guestToken 
+        ? [`/api/recommendations?guestToken=${guestToken}`]
+        : ["/api/recommendations"],
     enabled: true,
   });
 
