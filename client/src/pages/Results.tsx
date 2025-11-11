@@ -18,7 +18,8 @@ import {
   Sparkles,
   Shield,
   Crown,
-  Smile
+  Smile,
+  DollarSign
 } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -754,8 +755,9 @@ export default function Results() {
                   </div>
                   {rec.career?.averageSalary && (
                     <div className="p-3 bg-background/30 rounded-lg text-center">
-                      <p className="text-xs text-muted-foreground mb-1">Avg. Salary</p>
-                      <p className="font-bold text-sm">{rec.career.averageSalary}</p>
+                      <DollarSign className="w-5 h-5 mx-auto mb-1 text-primary" />
+                      <p className="text-xs text-muted-foreground mb-1">Average Salary</p>
+                      <p className="font-bold text-sm">Typical {rec.career.averageSalary}</p>
                     </div>
                   )}
                 </div>
