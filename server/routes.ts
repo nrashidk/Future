@@ -502,7 +502,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const existingResponse = existingResponses.find(r => r.questionId === question.id);
         if (existingResponse) {
           // Calculate if answer is correct
-          const isCorrect = question.correctAnswer === userResponse.answer;
+          // userResponse.answer is the option index (e.g., "0", "1", "2", "3")
+          // question.options is an array of option texts
+          // question.correctAnswer is the text of the correct answer
+          const selectedOptionIndex = parseInt(userResponse.answer);
+          const options = question.options as string[];
+          const selectedAnswer = options && options[selectedOptionIndex];
+          const isCorrect = selectedAnswer === question.correctAnswer;
           const pointsEarned = isCorrect ? 1 : 0;
           
           // Update response

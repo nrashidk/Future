@@ -34,7 +34,7 @@ export function shuffleOptions(question: any): any {
   let newCorrectAnswer = question.correctAnswer;
   if (question.questionType === "multiple_choice" && question.correctAnswer) {
     const correctAnswerText = question.correctAnswer;
-    const newIndex = shuffledOptions.findIndex((opt: string) => opt === correctAnswerText);
+    const newIndex = shuffledOptions.findIndex((opt) => opt === correctAnswerText);
     // Keep correctAnswer as the actual text value (not index)
     newCorrectAnswer = newIndex >= 0 ? shuffledOptions[newIndex] : correctAnswerText;
   }
