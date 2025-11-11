@@ -886,6 +886,254 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Organization Management - Super Admin Endpoints
+  app.get("/api/admin/organizations", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const organizations = await storage.getAllOrganizations();
+      res.json(organizations);
+    } catch (error) {
+      console.error("Error fetching organizations:", error);
+      res.status(500).json({ message: "Failed to fetch organizations" });
+    }
+  });
+
+  app.post("/api/admin/organizations", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { name, adminUserId, totalLicenses } = req.body;
+      
+      if (!name || !adminUserId || !totalLicenses) {
+        return res.status(400).json({ message: "Missing required fields: name, adminUserId, totalLicenses" });
+      }
+
+      const organization = await storage.createOrganization({
+        name,
+        adminUserId,
+        totalLicenses: parseInt(totalLicenses),
+        usedLicenses: 0,
+      });
+
+      res.status(201).json(organization);
+    } catch (error) {
+      console.error("Error creating organization:", error);
+      res.status(500).json({ message: "Failed to create organization" });
+    }
+  });
+
+  app.get("/api/admin/organizations/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const organization = await storage.getOrganizationById(req.params.id);
+      if (!organization) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+      res.json(organization);
+    } catch (error) {
+      console.error("Error fetching organization:", error);
+      res.status(500).json({ message: "Failed to fetch organization" });
+    }
+  });
+
+  app.patch("/api/admin/organizations/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { name, totalLicenses } = req.body;
+      const updates: any = {};
+      
+      if (name !== undefined) updates.name = name;
+      if (totalLicenses !== undefined) updates.totalLicenses = parseInt(totalLicenses);
+
+      const organization = await storage.updateOrganization(req.params.id, updates);
+      res.json(organization);
+    } catch (error) {
+      console.error("Error updating organization:", error);
+      res.status(500).json({ message: "Failed to update organization" });
+    }
+  });
+
+  // Organization Member Management - Admin Endpoints
+  app.get("/api/admin/organizations/:id/members", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const members = await storage.getOrganizationMembersByOrganizationId(req.params.id);
+      res.json(members);
+    } catch (error) {
+      console.error("Error fetching organization members:", error);
+      res.status(500).json({ message: "Failed to fetch organization members" });
+    }
+  });
+
+  app.post("/api/admin/organizations/:id/members", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { username, fullName, grade, passwordComplexity = 'medium' } = req.body;
+      const organizationId = req.params.id;
+
+      if (!fullName || !grade) {
+        return res.status(400).json({ message: "Missing required fields: fullName, grade" });
+      }
+
+      const result = await storage.createUserWithCredentials({
+        username,
+        fullName,
+        grade: grade.toString(),
+        passwordComplexity: passwordComplexity as 'easy' | 'medium' | 'strong',
+        organizationId,
+      });
+
+      await storage.updateOrganizationQuota(organizationId, 1);
+
+      res.status(201).json(result);
+    } catch (error: any) {
+      console.error("Error creating organization member:", error);
+      if (error.message?.includes('Quota exceeded')) {
+        return res.status(400).json({ message: error.message });
+      }
+      res.status(500).json({ message: "Failed to create organization member" });
+    }
+  });
+
+  app.post("/api/admin/organizations/:id/members/bulk", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { members, passwordComplexity = 'medium' } = req.body;
+      const organizationId = req.params.id;
+
+      if (!Array.isArray(members) || members.length === 0) {
+        return res.status(400).json({ message: "Members must be a non-empty array" });
+      }
+
+      const org = await storage.getOrganizationById(organizationId);
+      if (!org) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+
+      const availableLicenses = org.totalLicenses - org.usedLicenses;
+      if (members.length > availableLicenses) {
+        return res.status(400).json({ 
+          message: `Insufficient licenses: attempting to add ${members.length} students but only ${availableLicenses} licenses available` 
+        });
+      }
+
+      const results = {
+        success: 0,
+        failed: 0,
+        errors: [] as any[],
+        credentials: [] as any[],
+      };
+
+      for (const memberData of members) {
+        try {
+          const { username, fullName, grade } = memberData;
+          
+          if (!username || !fullName || !grade) {
+            throw new Error("Missing required fields");
+          }
+
+          const result = await storage.createUserWithCredentials({
+            username,
+            fullName,
+            grade: grade.toString(),
+            passwordComplexity: passwordComplexity as 'easy' | 'medium' | 'strong',
+            organizationId,
+          });
+
+          await storage.updateOrganizationQuota(organizationId, 1);
+
+          results.success++;
+          results.credentials.push({
+            username: result.user.username,
+            password: result.password,
+            fullName: `${result.user.firstName} ${result.user.lastName}`.trim(),
+            grade: result.member.grade || '',
+          });
+        } catch (error: any) {
+          results.failed++;
+          results.errors.push({
+            member: memberData,
+            error: error.message || "Unknown error",
+          });
+        }
+      }
+
+      res.json(results);
+    } catch (error) {
+      console.error("Error bulk creating members:", error);
+      res.status(500).json({ message: "Failed to bulk create members" });
+    }
+  });
+
+  app.patch("/api/admin/organizations/:id/members/:memberId", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { fullName, grade } = req.body;
+      const updates: any = {};
+      
+      if (fullName !== undefined) updates.fullName = fullName;
+      if (grade !== undefined) updates.grade = parseInt(grade);
+
+      const member = await storage.updateOrganizationMember(req.params.memberId, updates);
+      res.json(member);
+    } catch (error) {
+      console.error("Error updating organization member:", error);
+      res.status(500).json({ message: "Failed to update organization member" });
+    }
+  });
+
+  app.delete("/api/admin/organizations/:id/members/:memberId", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const member = await storage.getOrganizationMemberById(req.params.memberId);
+      if (!member) {
+        return res.status(404).json({ message: "Member not found" });
+      }
+
+      if (member.isLocked) {
+        return res.status(400).json({ message: "Cannot delete member who has completed an assessment" });
+      }
+
+      await storage.deleteOrganizationMember(req.params.memberId);
+      await storage.updateOrganizationQuota(req.params.id, -1);
+
+      res.json({ success: true, message: "Member deleted successfully" });
+    } catch (error: any) {
+      console.error("Error deleting organization member:", error);
+      if (error.message?.includes('Cannot decrement')) {
+        return res.status(400).json({ message: error.message });
+      }
+      res.status(500).json({ message: "Failed to delete organization member" });
+    }
+  });
+
+  app.post("/api/admin/organizations/:id/members/:memberId/reset-password", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { passwordComplexity = 'medium' } = req.body;
+      const memberId = req.params.memberId;
+
+      const member = await storage.getOrganizationMemberById(memberId);
+      if (!member) {
+        return res.status(404).json({ message: "Member not found" });
+      }
+
+      const user = await storage.getUser(member.userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      const { generatePassword } = await import("./utils/passwordGenerator");
+      const { hashPassword } = await import("./utils/passwordHash");
+
+      const newPassword = generatePassword(passwordComplexity as 'easy' | 'medium' | 'strong');
+      const passwordHash = await hashPassword(newPassword);
+
+      await storage.upsertUser({
+        id: user.id,
+        passwordHash,
+      });
+
+      res.json({ 
+        success: true, 
+        password: newPassword,
+        username: user.username 
+      });
+    } catch (error) {
+      console.error("Error resetting password:", error);
+      res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
+
   app.get("/api/admin/questions/export", isAuthenticated, isAdmin, async (req, res) => {
     try {
       const { countryId, subject, gradeBand, format } = req.query;

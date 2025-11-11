@@ -120,12 +120,54 @@ export function QuizStep({ assessmentId, onComplete }: QuizStepProps) {
   }
 
   if (generationError) {
+    const errorMessage = (generationError as any)?.message || '';
+    const isQuestionsUnavailable = errorMessage.includes('No quiz questions available') || 
+                                    errorMessage.includes('Not enough questions available');
+    
+    if (isQuestionsUnavailable) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[500px] space-y-8 animate-in fade-in p-8">
+          <div className="text-center space-y-6 max-w-2xl">
+            <div className="relative inline-block">
+              <StickyNote color="yellow" rotation="2" className="mb-4">
+                <div className="text-6xl mb-2">🚧</div>
+                <h2 className="text-3xl font-bold mb-2">Coming Soon!</h2>
+                <p className="text-base text-muted-foreground">
+                  Quiz questions for your country
+                </p>
+              </StickyNote>
+            </div>
+            
+            <div className="space-y-4">
+              <p className="text-lg text-muted-foreground max-w-lg mx-auto">
+                We're working hard to create country-specific quiz questions for your region. 
+                Currently, quiz questions are available for UAE students only.
+              </p>
+              <p className="text-base text-muted-foreground max-w-lg mx-auto">
+                Don't worry! You can still get personalized career recommendations based on your interests, 
+                personality, and country's vision. The quiz helps refine recommendations, but it's not required.
+              </p>
+            </div>
+          </div>
+          
+          <Button
+            size="lg"
+            onClick={onComplete}
+            className="px-8"
+            data-testid="button-skip-quiz"
+          >
+            Continue to Results →
+          </Button>
+        </div>
+      );
+    }
+    
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] space-y-6 animate-in fade-in">
         <div className="text-center space-y-4">
           <h2 className="text-2xl font-bold text-destructive">Unable to Generate Quiz</h2>
           <p className="text-muted-foreground max-w-md">
-            We couldn't create your quiz at this time. This might be due to missing questions for your grade level or country.
+            {errorMessage || "We couldn't create your quiz at this time. Please try again or continue to see your results."}
           </p>
         </div>
         <Button

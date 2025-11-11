@@ -154,6 +154,7 @@ export interface IStorage {
 
   // Organization operations
   createOrganization(organization: InsertOrganization): Promise<Organization>;
+  getAllOrganizations(): Promise<Organization[]>;
   getOrganizationById(id: string): Promise<Organization | undefined>;
   getOrganizationByAdminUserId(adminUserId: string): Promise<Organization | undefined>;
   updateOrganization(id: string, data: Partial<InsertOrganization>): Promise<Organization>;
@@ -170,13 +171,17 @@ export interface IStorage {
 
   // Combined operations
   createUserWithCredentials(userData: {
-    firstName: string;
-    lastName: string;
-    username: string;
-    passwordHash: string;
-    accountType: string;
-    isOrgGenerated: boolean;
-  }): Promise<User>;
+    organizationId: string;
+    fullName: string;
+    grade?: string;
+    username?: string;
+    studentId?: string;
+    passwordComplexity?: 'easy' | 'medium' | 'strong';
+  }): Promise<{
+    user: User;
+    member: OrganizationMember;
+    password: string;
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -917,6 +922,10 @@ export class DatabaseStorage implements IStorage {
     return organization;
   }
 
+  async getAllOrganizations(): Promise<Organization[]> {
+    return db.select().from(organizations).orderBy(desc(organizations.createdAt));
+  }
+
   async getOrganizationById(id: string): Promise<Organization | undefined> {
     const [organization] = await db
       .select()
@@ -1045,26 +1054,73 @@ export class DatabaseStorage implements IStorage {
 
   // Combined operations
   async createUserWithCredentials(userData: {
-    firstName: string;
-    lastName: string;
-    username: string;
-    passwordHash: string;
-    accountType: string;
-    isOrgGenerated: boolean;
-  }): Promise<User> {
-    const [user] = await db
-      .insert(users)
-      .values({
-        firstName: userData.firstName,
-        lastName: userData.lastName,
-        username: userData.username,
-        passwordHash: userData.passwordHash,
-        accountType: userData.accountType,
-        isOrgGenerated: userData.isOrgGenerated,
-        role: 'user',
-      })
-      .returning();
-    return user;
+    organizationId: string;
+    fullName: string;
+    grade?: string;
+    username?: string;
+    studentId?: string;
+    passwordComplexity?: 'easy' | 'medium' | 'strong';
+  }): Promise<{
+    user: User;
+    member: OrganizationMember;
+    password: string;
+  }> {
+    const { generatePassword } = await import("./utils/passwordGenerator");
+    const { hashPassword } = await import("./utils/passwordHash");
+
+    const nameParts = userData.fullName.trim().split(/\s+/);
+    const firstName = nameParts[0] || 'Student';
+    const lastName = nameParts.slice(1).join(' ') || 'User';
+
+    const password = generatePassword(userData.passwordComplexity || 'medium');
+    const passwordHash = await hashPassword(password);
+
+    let username = userData.username;
+    if (!username) {
+      const baseUsername = `${firstName.toLowerCase()}.${lastName.toLowerCase()}`.replace(/[^a-z.]/g, '');
+      const suffix = userData.studentId || Math.random().toString(36).substring(2, 8);
+      username = `${baseUsername}.${suffix}`;
+    }
+
+    let attempts = 0;
+    while (attempts < 10) {
+      try {
+        const [user] = await db
+          .insert(users)
+          .values({
+            firstName,
+            lastName,
+            username,
+            passwordHash,
+            accountType: 'org_student',
+            isOrgGenerated: true,
+            role: 'user',
+          })
+          .returning();
+
+        const [member] = await db
+          .insert(organizationMembers)
+          .values({
+            organizationId: userData.organizationId,
+            userId: user.id,
+            grade: userData.grade,
+            studentId: userData.studentId,
+            role: 'student',
+          })
+          .returning();
+
+        return { user, member, password };
+      } catch (error: any) {
+        if (error.code === '23505') {
+          username = `${username}.${Math.random().toString(36).substring(2, 5)}`;
+          attempts++;
+        } else {
+          throw error;
+        }
+      }
+    }
+
+    throw new Error('Failed to generate unique username after 10 attempts');
   }
 }
 
