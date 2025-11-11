@@ -789,12 +789,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // For demo, get the latest assessment
       let assessmentId = req.query.assessmentId;
+      const guestToken = req.query.guestToken || req.headers['x-guest-token'];
 
       if (!assessmentId) {
         if (req.isAuthenticated()) {
           const userAssessments = await storage.getAssessmentsByUser(req.user.claims.sub);
           if (userAssessments.length > 0) {
             assessmentId = userAssessments[0].id;
+          }
+        } else if (guestToken) {
+          // Get assessment for guest user
+          const guestAssessment = await storage.getAssessmentByGuestToken(guestToken);
+          if (guestAssessment) {
+            assessmentId = guestAssessment.id;
           }
         }
       }

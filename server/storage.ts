@@ -82,6 +82,7 @@ export interface IStorage {
   createAssessment(assessment: InsertAssessment): Promise<Assessment>;
   getAssessmentById(id: string): Promise<Assessment | undefined>;
   getAssessmentsByUser(userId: string): Promise<Assessment[]>;
+  getAssessmentByGuestToken(guestToken: string): Promise<Assessment | undefined>;
   updateAssessment(id: string, assessment: Partial<InsertAssessment>): Promise<Assessment>;
   migrateGuestAssessments(guestAssessmentIds: string[], userId: string, guestSessionId: string): Promise<number>;
 
@@ -339,6 +340,15 @@ export class DatabaseStorage implements IStorage {
       .from(assessments)
       .where(eq(assessments.userId, userId))
       .orderBy(desc(assessments.createdAt));
+  }
+
+  async getAssessmentByGuestToken(guestToken: string): Promise<Assessment | undefined> {
+    const [assessment] = await db
+      .select()
+      .from(assessments)
+      .where(eq(assessments.guestToken, guestToken))
+      .orderBy(desc(assessments.createdAt));
+    return assessment;
   }
 
   async updateAssessment(id: string, assessmentData: Partial<InsertAssessment>): Promise<Assessment> {
