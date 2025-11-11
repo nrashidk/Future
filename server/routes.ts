@@ -563,6 +563,68 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Assessment not found" });
       }
 
+      // STRICT VALIDATION: Check all required components are complete
+      const user = assessment.userId ? await storage.getUser(assessment.userId) : null;
+      const isPremium = user?.isPremium || false;
+
+      const missingComponents: string[] = [];
+
+      // Core fields required for both tiers
+      if (!assessment.name) missingComponents.push("Name");
+      if (!assessment.age) missingComponents.push("Age");
+      if (!assessment.grade) missingComponents.push("Grade");
+      if (!assessment.favoriteSubjects || (assessment.favoriteSubjects as string[]).length === 0) {
+        missingComponents.push("Favorite Subjects");
+      }
+      if (!assessment.countryId) missingComponents.push("Country Selection");
+
+      if (isPremium) {
+        // Premium tier requirements
+        if (assessment.quizScore === null || assessment.quizScore === undefined) {
+          missingComponents.push("Subject Competency Quiz");
+        }
+
+        // Check Kolb assessment (stored as JSONB in assessments table)
+        if (!assessment.kolbScores || Object.keys(assessment.kolbScores as object).length === 0) {
+          missingComponents.push("Learning Style Assessment (Kolb)");
+        }
+
+        // Check RIASEC assessment (stored as JSONB in assessments table)
+        if (!assessment.riasecScores || Object.keys(assessment.riasecScores as object).length === 0) {
+          missingComponents.push("Personality Assessment (RIASEC)");
+        }
+
+        // Check CVQ assessment (stored in cvq_results table)
+        const cvqResult = await storage.getCvqResultByAssessmentId(assessment.id);
+        if (!cvqResult) {
+          missingComponents.push("Values Assessment (CVQ)");
+        }
+
+        if (!assessment.careerAspirations || (assessment.careerAspirations as string[]).length === 0) {
+          missingComponents.push("Career Aspirations");
+        }
+      } else {
+        // Free tier requirements
+        if (!assessment.interests || (assessment.interests as string[]).length === 0) {
+          missingComponents.push("Interests");
+        }
+        if (!assessment.personalityTraits || (assessment.personalityTraits as string[]).length === 0) {
+          missingComponents.push("Personality Traits");
+        }
+        if (assessment.quizScore === null || assessment.quizScore === undefined) {
+          missingComponents.push("Subject Competency Quiz");
+        }
+      }
+
+      // If any components missing, return validation error
+      if (missingComponents.length > 0) {
+        return res.status(400).json({
+          message: "Assessment incomplete",
+          missingComponents,
+          isPremium,
+        });
+      }
+
       // Use new matching service to generate recommendations
       const careerMatches = await generateRecommendations(storage, req.params.assessmentId);
 
