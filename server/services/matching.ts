@@ -96,9 +96,9 @@ const componentCalculators: Record<string, ComponentCalculator> = {
   subjects: calculateSubjectsScore,
   interests: calculateInterestsScore,
   vision: calculateVisionScore,
-  market: calculateMarketScore,
   kolb: calculateKolbScore,
   riasec: calculateRiasecScore,
+  cvq: calculateCvqScore,
 };
 
 /**
@@ -493,50 +493,6 @@ function calculateVisionScore(
   };
 }
 
-function calculateMarketScore(
-  context: MatchingContext,
-  career: Career,
-  component: AssessmentComponent
-): ComponentScore | null {
-  const { jobMarketTrends } = context;
-  
-  // Get trends for this career (already filtered by country in hydration)
-  const careerTrends = jobMarketTrends.get(career.id) || [];
-  
-  if (careerTrends.length === 0) {
-    return null;
-  }
-
-  // Sort trends by year descending to get most recent
-  const sortedTrends = [...careerTrends].sort((a, b) => b.year - a.year);
-  const latestTrend = sortedTrends[0];
-
-  // Use demandScore as the primary metric (assume 0-100 scale)
-  const demandScore = latestTrend.demandScore;
-  
-  // Normalize to 0-100 if needed (demandScore might be different scale)
-  const normalizedScore = Math.min(100, Math.max(0, demandScore));
-
-  // Generate reasoning based on growth rate and demand
-  let reasoning: string;
-  if (latestTrend.growthRate > 10) {
-    reasoning = `High growth market (${latestTrend.growthRate.toFixed(1)}% projected growth)`;
-  } else if (latestTrend.growthRate > 5) {
-    reasoning = `Growing market (${latestTrend.growthRate.toFixed(1)}% projected growth)`;
-  } else if (latestTrend.growthRate > 0) {
-    reasoning = `Stable market with modest growth`;
-  } else {
-    reasoning = `Competitive market with steady demand`;
-  }
-
-  return {
-    careerId: career.id,
-    score: normalizedScore,
-    reasoning,
-    componentKey: component.key,
-  };
-}
-
 function calculateKolbScore(
   context: MatchingContext,
   career: Career,
@@ -659,6 +615,79 @@ function calculateRiasecScore(
     careerId: career.id,
     score: Math.min(100, Math.max(0, normalizedScore)),
     reasoning: `Strong ${topThemes} personality match`,
+    componentKey: component.key,
+  };
+}
+
+function calculateCvqScore(
+  context: MatchingContext,
+  career: Career,
+  component: AssessmentComponent
+): ComponentScore | null {
+  const { assessment } = context;
+  
+  // Check if user has CVQ scores (normalized 0-100 for each domain)
+  if (!assessment.cvqScores || typeof assessment.cvqScores !== 'object') {
+    return null;
+  }
+  
+  const userScores = assessment.cvqScores as Record<string, any>;
+  
+  // Extract normalized scores (expecting { achievement: 80, benevolence: 90, ..., top3: [...] })
+  if (!userScores || typeof userScores !== 'object') {
+    return null;
+  }
+  
+  // Check if career has valuesProfile
+  if (!career.valuesProfile || typeof career.valuesProfile !== 'object') {
+    return null;
+  }
+  
+  const careerValues = career.valuesProfile as Record<string, number>;
+  
+  // CVQ domains (7 domains from Schwartz model)
+  const domains = ['achievement', 'benevolence', 'universalism', 'self_direction', 'security', 'power', 'hedonism'];
+  
+  // Validate that both user and career have all domain scores
+  const validDomains = domains.filter(d => 
+    typeof userScores[d] === 'number' && 
+    typeof careerValues[d] === 'number'
+  );
+  
+  if (validDomains.length === 0) {
+    return null;
+  }
+  
+  // Calculate Euclidean distance between user values and career values
+  let sumSquaredDiff = 0;
+  for (const domain of validDomains) {
+    const diff = userScores[domain] - careerValues[domain];
+    sumSquaredDiff += diff * diff;
+  }
+  
+  const distance = Math.sqrt(sumSquaredDiff);
+  
+  // Normalize distance to 0-100 score (0 distance = 100% match, max distance = 0% match)
+  // Max possible distance for N domains with 0-100 scale = sqrt(N * 100^2)
+  const maxDistance = Math.sqrt(validDomains.length * 100 * 100);
+  const normalizedScore = Math.max(0, 100 - (distance / maxDistance) * 100);
+  
+  // Generate reasoning based on top user values
+  const top3 = userScores.top3 as string[] | undefined;
+  const topValuesText = top3 && Array.isArray(top3) && top3.length > 0
+    ? top3.slice(0, 2).map(v => v.charAt(0).toUpperCase() + v.slice(1)).join(' & ')
+    : 'Core values';
+  
+  const reasoning = normalizedScore > 70
+    ? `Strong ${topValuesText} alignment with career values`
+    : normalizedScore > 50
+    ? `Moderate ${topValuesText} values match`
+    : `${topValuesText} values partially align`;
+  
+  return {
+    careerId: career.id,
+    score: Math.min(100, Math.max(0, normalizedScore)),
+    reasoning,
     componentKey: component.key,
   };
 }
