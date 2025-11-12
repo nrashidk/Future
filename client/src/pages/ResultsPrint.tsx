@@ -205,12 +205,15 @@ export default function ResultsPrint() {
           
           .print-page-career {
             page-break-before: always;
-            page-break-after: always;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
             justify-content: flex-start;
             padding: 2rem;
+          }
+          
+          .print-page-career:not(:last-of-type) {
+            page-break-after: always;
           }
           
           .no-print {
@@ -432,7 +435,8 @@ export default function ResultsPrint() {
 
           {/* Footer */}
           <div className="mt-4 text-xs text-center text-muted-foreground">
-            Generated on {new Date().toLocaleDateString()} | Future Pathways Career Guidance System
+            Generated on {new Date().toLocaleDateString()} | Future Pathways Career Guidance System<br />
+            Visit us at futurepathways.replit.app
           </div>
         </div>
       )}
@@ -597,7 +601,8 @@ export default function ResultsPrint() {
 
           {/* Footer */}
           <div className="mt-2 text-xs text-center text-muted-foreground">
-            Generated on {new Date().toLocaleDateString()} | Future Pathways Career Guidance System
+            Generated on {new Date().toLocaleDateString()} | Future Pathways Career Guidance System<br />
+            Visit us at futurepathways.replit.app
           </div>
         </div>
       )}
@@ -753,7 +758,8 @@ export default function ResultsPrint() {
 
           {/* Footer */}
           <div className="mt-4 text-xs text-center text-muted-foreground">
-            Generated on {new Date().toLocaleDateString()} | Future Pathways Career Guidance System
+            Generated on {new Date().toLocaleDateString()} | Future Pathways Career Guidance System<br />
+            Visit us at futurepathways.replit.app
           </div>
         </div>
       ))}
