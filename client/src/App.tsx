@@ -16,6 +16,9 @@ import Admin from "@/pages/Admin";
 import AdminOrganizations from "@/pages/AdminOrganizations";
 import StudentLogin from "@/pages/StudentLogin";
 import AuthCallback from "@/pages/AuthCallback";
+import PrivacyPolicy from "@/pages/PrivacyPolicy";
+import TermsOfUse from "@/pages/TermsOfUse";
+import Disclaimer from "@/pages/Disclaimer";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -35,6 +38,9 @@ function Router() {
       <Route path="/admin/organizations" component={AdminOrganizations} />
       <Route path="/login/student" component={StudentLogin} />
       <Route path="/auth/callback" component={AuthCallback} />
+      <Route path="/privacy" component={PrivacyPolicy} />
+      <Route path="/terms" component={TermsOfUse} />
+      <Route path="/disclaimer" component={Disclaimer} />
       <Route component={NotFound} />
     </Switch>
   );
