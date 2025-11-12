@@ -94,8 +94,15 @@ export default function Results() {
   const urlAssessmentId = urlParams.get("assessmentId");
   const [assessmentId, setAssessmentId] = useState<string | null>(urlAssessmentId);
 
+  // Get guest token for non-authenticated users
+  const guestToken = !isAuthenticated ? localStorage.getItem("guestSessionId") : null;
+  
   const { data: recommendations = [], isLoading } = useQuery<any[]>({
-    queryKey: urlAssessmentId ? [`/api/recommendations?assessmentId=${urlAssessmentId}`] : ["/api/recommendations"],
+    queryKey: urlAssessmentId 
+      ? [`/api/recommendations?assessmentId=${urlAssessmentId}${guestToken ? `&guestToken=${guestToken}` : ''}`]
+      : guestToken 
+        ? [`/api/recommendations?guestToken=${guestToken}`]
+        : ["/api/recommendations"],
     enabled: true,
   });
 

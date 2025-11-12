@@ -503,11 +503,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (existingResponse) {
           // Calculate if answer is correct
           // userResponse.answer is the option index (e.g., "0", "1", "2", "3")
-          // question.options is an array of option texts
+          // question.options can be either string[] or {id, text}[]
           // question.correctAnswer is the text of the correct answer
           const selectedOptionIndex = parseInt(userResponse.answer);
-          const options = question.options as string[];
-          const selectedAnswer = options && options[selectedOptionIndex];
+          const options = question.options;
+          
+          // Handle both string array and object array formats
+          let selectedAnswer: string | undefined;
+          if (Array.isArray(options) && options.length > selectedOptionIndex) {
+            const option = options[selectedOptionIndex];
+            selectedAnswer = typeof option === 'string' ? option : option?.text;
+          }
+          
           const isCorrect = selectedAnswer === question.correctAnswer;
           const pointsEarned = isCorrect ? 1 : 0;
           
