@@ -847,6 +847,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // PDF Report Generation using Puppeteer
   app.get("/api/recommendations/pdf/:assessmentId", async (req: any, res) => {
+    let browser: any = null;
     try {
       const assessment = await storage.getAssessmentById(req.params.assessmentId);
       if (!assessment) {
@@ -872,7 +873,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Launch headless browser with system Chromium
-      const browser = await puppeteer.default.launch({
+      browser = await puppeteer.default.launch({
         headless: true,
         executablePath: chromiumPath,
         args: [
@@ -913,6 +914,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       await browser.close();
 
+      // Validate PDF buffer
+      if (!pdfBuffer || pdfBuffer.length === 0) {
+        console.error("PDF buffer is empty or invalid");
+        return res.status(500).json({ message: "PDF generation failed - empty buffer" });
+      }
+
+      // Check if it's actually a PDF (should start with %PDF)
+      const pdfHeader = pdfBuffer.slice(0, 4).toString();
+      if (pdfHeader !== '%PDF') {
+        console.error(`Invalid PDF header: ${pdfHeader}, buffer length: ${pdfBuffer.length}`);
+        console.error(`First 100 bytes: ${pdfBuffer.slice(0, 100).toString()}`);
+        return res.status(500).json({ message: "PDF generation failed - invalid format" });
+      }
+
+      console.log(`PDF generated successfully: ${pdfBuffer.length} bytes`);
+
       // Set response headers
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Disposition", `attachment; filename="career-report-${assessment.id}.pdf"`);
@@ -921,6 +938,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.send(pdfBuffer);
     } catch (error) {
       console.error("Error generating PDF:", error);
+      // Make sure we close the browser even on error
+      try {
+        if (browser) await browser.close();
+      } catch (closeError) {
+        console.error("Error closing browser:", closeError);
+      }
       res.status(500).json({ message: "Failed to generate PDF report" });
     }
   });
