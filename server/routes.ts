@@ -920,22 +920,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ message: "PDF generation failed - empty buffer" });
       }
 
-      // Check if it's actually a PDF (should start with %PDF)
-      const pdfHeader = pdfBuffer.slice(0, 4).toString();
-      if (pdfHeader !== '%PDF') {
-        console.error(`Invalid PDF header: ${pdfHeader}, buffer length: ${pdfBuffer.length}`);
-        console.error(`First 100 bytes: ${pdfBuffer.slice(0, 100).toString()}`);
-        return res.status(500).json({ message: "PDF generation failed - invalid format" });
-      }
-
       console.log(`PDF generated successfully: ${pdfBuffer.length} bytes`);
 
       // Set response headers
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Disposition", `attachment; filename="career-report-${assessment.id}.pdf"`);
 
-      // Send PDF
-      res.send(pdfBuffer);
+      // Send PDF as binary buffer
+      res.send(Buffer.from(pdfBuffer));
     } catch (error) {
       console.error("Error generating PDF:", error);
       // Make sure we close the browser even on error
