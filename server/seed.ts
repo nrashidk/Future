@@ -3,6 +3,7 @@ import { uaeQuestionBank } from "./questionBanks/uae";
 import { validateQuestionBank, checkCoverage } from "../shared/questionTypes";
 import { RIASEC_CAREER_AFFINITIES } from "./riasecAffinities";
 import { seedCVQItems } from "./cvq-seed";
+import { WEF_16_SKILLS, CAREER_WEF_SKILL_AFFINITIES } from "./wefSkillsData";
 
 export async function seedDatabase() {
   console.log("🌱 Seeding database...");
@@ -1655,6 +1656,77 @@ export async function seedDatabase() {
   } else {
     console.error("⚠️  Failed to create or fetch RIASEC component");
   }
+
+  // Seed WEF (World Economic Forum) 16 Skills Framework
+  console.log("\n🌐 Seeding WEF 16 Skills Framework...");
+  
+  // Seed WEF Skills (6 foundational literacies + 10 competencies)
+  const seededWefSkills: Record<string, any> = {};
+  for (const skillData of WEF_16_SKILLS) {
+    try {
+      const skill = await storage.upsertWefSkillByName(skillData);
+      seededWefSkills[skill.name] = skill;
+      console.log(`✓ ${skillData.competencyType === 'foundational_literacy' ? '📚' : '🎯'} ${skill.name} (${skill.displayOrder}/16)`);
+    } catch (error: any) {
+      console.error(`  Error seeding WEF skill ${skillData.name}:`, error);
+    }
+  }
+  
+  console.log(`\n✓ Seeded ${Object.keys(seededWefSkills).length}/16 WEF skills`);
+  
+  // Seed Career-WEF Skill Affinities
+  console.log("\n🔗 Seeding Career-WEF Skill affinities...");
+  const allCareersForWef = await storage.getAllCareers();
+  let affinitiesCreated = 0;
+  let affinitiesUpdated = 0;
+  
+  for (const mapping of CAREER_WEF_SKILL_AFFINITIES) {
+    const career = allCareersForWef.find(c => c.title === mapping.careerTitle);
+    if (!career) {
+      console.log(`⚠️  Career not found: ${mapping.careerTitle}`);
+      continue;
+    }
+    
+    // For each skill affinity score
+    for (const [skillName, affinityScore] of Object.entries(mapping.skills)) {
+      const wefSkill = seededWefSkills[skillName];
+      if (!wefSkill) {
+        console.log(`⚠️  WEF skill not found: ${skillName}`);
+        continue;
+      }
+      
+      // Validate affinity score (0-100)
+      if (affinityScore < 0 || affinityScore > 100) {
+        console.warn(`⚠️  Invalid affinity score for ${career.title} - ${skillName}: ${affinityScore} (expected 0-100)`);
+      }
+      
+      try {
+        // Check if affinity already exists to determine if we're creating or updating
+        const existing = await storage.getCareerWefSkillAffinity(career.id, wefSkill.id);
+        
+        await storage.createOrUpdateCareerWefSkillAffinity(
+          career.id,
+          wefSkill.id,
+          {
+            affinityScore,
+            source: 'Expert Panel',
+            evidence: null,
+          }
+        );
+        
+        if (existing) {
+          affinitiesUpdated++;
+        } else {
+          affinitiesCreated++;
+        }
+      } catch (error: any) {
+        console.error(`  Error creating affinity for ${career.title} - ${skillName}:`, error);
+      }
+    }
+  }
+  
+  console.log(`✓ Created ${affinitiesCreated} new affinities, updated ${affinitiesUpdated} existing affinities`);
+  console.log(`✓ Total affinities: ${affinitiesCreated + affinitiesUpdated} across ${allCareersForWef.length} careers × 16 WEF skills`);
 
   // Seed CVQ (Children's Values Questionnaire) items
   await seedCVQItems();

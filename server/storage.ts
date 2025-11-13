@@ -13,6 +13,9 @@ import {
   careerComponentAffinities,
   cvqItems,
   cvqResults,
+  wefSkills,
+  careerWefSkillAffinities,
+  wefCompetencyResults,
   organizations,
   organizationMembers,
   type User,
@@ -43,6 +46,12 @@ import {
   type InsertCvqItem,
   type CvqResult,
   type InsertCvqResult,
+  type WefSkill,
+  type InsertWefSkill,
+  type CareerWefSkillAffinity,
+  type InsertCareerWefSkillAffinity,
+  type WefCompetencyResult,
+  type InsertWefCompetencyResult,
   type Organization,
   type InsertOrganization,
   type OrganizationMember,
@@ -157,6 +166,25 @@ export interface IStorage {
   createCvqResult(result: InsertCvqResult): Promise<CvqResult>;
   getCvqResultByUserId(userId: string): Promise<CvqResult | undefined>;
   getCvqResultByAssessmentId(assessmentId: string): Promise<CvqResult | undefined>;
+  
+  // WEF Skills operations
+  createWefSkill(skill: InsertWefSkill): Promise<WefSkill>;
+  upsertWefSkillByName(skill: InsertWefSkill): Promise<WefSkill>;
+  getAllWefSkills(version?: string): Promise<WefSkill[]>;
+  getWefSkillById(id: string): Promise<WefSkill | undefined>;
+  getWefSkillByName(name: string): Promise<WefSkill | undefined>;
+  
+  // Career WEF Skill Affinity operations
+  createCareerWefSkillAffinity(affinity: InsertCareerWefSkillAffinity): Promise<CareerWefSkillAffinity>;
+  createOrUpdateCareerWefSkillAffinity(careerId: string, wefSkillId: string, affinityData: Omit<InsertCareerWefSkillAffinity, 'careerId' | 'wefSkillId'>): Promise<CareerWefSkillAffinity>;
+  getCareerWefSkillAffinity(careerId: string, wefSkillId: string): Promise<CareerWefSkillAffinity | undefined>;
+  getCareerWefSkillAffinitiesByCareer(careerId: string): Promise<CareerWefSkillAffinity[]>;
+  getCareerWefSkillAffinitiesBulk(careerIds: string[]): Promise<CareerWefSkillAffinity[]>;
+  
+  // WEF Competency Results operations
+  createWefCompetencyResult(result: InsertWefCompetencyResult): Promise<WefCompetencyResult>;
+  getWefCompetencyResultByAssessmentId(assessmentId: string): Promise<WefCompetencyResult | undefined>;
+  getWefCompetencyResultByUserId(userId: string): Promise<WefCompetencyResult | undefined>;
   
   // Bulk loading operations for matching service
   getAssessmentWithCompetencies(assessmentId: string): Promise<{
@@ -918,6 +946,167 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(cvqResults)
       .where(eq(cvqResults.assessmentId, assessmentId));
+    return result;
+  }
+
+  // WEF Skills operations
+  async createWefSkill(skillData: InsertWefSkill): Promise<WefSkill> {
+    const [skill] = await db
+      .insert(wefSkills)
+      .values(skillData)
+      .returning();
+    return skill;
+  }
+
+  async upsertWefSkillByName(skillData: InsertWefSkill): Promise<WefSkill> {
+    const existing = await this.getWefSkillByName(skillData.name);
+    if (existing) {
+      // Update existing skill - only set fields that are explicitly provided
+      const updateData: Partial<InsertWefSkill> = {};
+      
+      if (skillData.competencyType !== undefined) updateData.competencyType = skillData.competencyType;
+      if (skillData.category !== undefined) updateData.category = skillData.category;
+      if (skillData.description !== undefined) updateData.description = skillData.description;
+      if (skillData.displayOrder !== undefined) updateData.displayOrder = skillData.displayOrder;
+      if (skillData.assessmentApplicable !== undefined) updateData.assessmentApplicable = skillData.assessmentApplicable;
+      if (skillData.version !== undefined) updateData.version = skillData.version;
+      if (skillData.relatedSubjects !== undefined) updateData.relatedSubjects = skillData.relatedSubjects;
+      
+      const [updated] = await db
+        .update(wefSkills)
+        .set(updateData)
+        .where(eq(wefSkills.name, skillData.name))
+        .returning();
+      return updated;
+    } else {
+      // Create new skill
+      return await this.createWefSkill(skillData);
+    }
+  }
+
+  async getAllWefSkills(version?: string): Promise<WefSkill[]> {
+    const query = db
+      .select()
+      .from(wefSkills)
+      .orderBy(wefSkills.displayOrder);
+    
+    if (version) {
+      return await query.where(eq(wefSkills.version, version));
+    } else {
+      return await query;
+    }
+  }
+
+  async getWefSkillById(id: string): Promise<WefSkill | undefined> {
+    const [skill] = await db
+      .select()
+      .from(wefSkills)
+      .where(eq(wefSkills.id, id));
+    return skill;
+  }
+
+  async getWefSkillByName(name: string): Promise<WefSkill | undefined> {
+    const [skill] = await db
+      .select()
+      .from(wefSkills)
+      .where(eq(wefSkills.name, name));
+    return skill;
+  }
+
+  // Career WEF Skill Affinity operations
+  async createCareerWefSkillAffinity(affinityData: InsertCareerWefSkillAffinity): Promise<CareerWefSkillAffinity> {
+    const [affinity] = await db
+      .insert(careerWefSkillAffinities)
+      .values(affinityData)
+      .returning();
+    return affinity;
+  }
+
+  async createOrUpdateCareerWefSkillAffinity(
+    careerId: string,
+    wefSkillId: string,
+    affinityData: Omit<InsertCareerWefSkillAffinity, 'careerId' | 'wefSkillId'>
+  ): Promise<CareerWefSkillAffinity> {
+    // Build update data with updatedAt and only provided fields
+    const updateData: any = {
+      affinityScore: affinityData.affinityScore,
+      updatedAt: new Date(), // Always update timestamp
+    };
+    
+    // Only set optional fields if explicitly provided (not undefined)
+    if (affinityData.evidence !== undefined) {
+      updateData.evidence = affinityData.evidence;
+    }
+    if (affinityData.source !== undefined) {
+      updateData.source = affinityData.source;
+    }
+    
+    // Try to insert, on conflict update
+    const [affinity] = await db
+      .insert(careerWefSkillAffinities)
+      .values({
+        careerId,
+        wefSkillId,
+        ...affinityData,
+      })
+      .onConflictDoUpdate({
+        target: [careerWefSkillAffinities.careerId, careerWefSkillAffinities.wefSkillId],
+        set: updateData,
+      })
+      .returning();
+    return affinity;
+  }
+
+  async getCareerWefSkillAffinity(careerId: string, wefSkillId: string): Promise<CareerWefSkillAffinity | undefined> {
+    const [affinity] = await db
+      .select()
+      .from(careerWefSkillAffinities)
+      .where(and(
+        eq(careerWefSkillAffinities.careerId, careerId),
+        eq(careerWefSkillAffinities.wefSkillId, wefSkillId)
+      ));
+    return affinity;
+  }
+
+  async getCareerWefSkillAffinitiesByCareer(careerId: string): Promise<CareerWefSkillAffinity[]> {
+    return await db
+      .select()
+      .from(careerWefSkillAffinities)
+      .where(eq(careerWefSkillAffinities.careerId, careerId));
+  }
+
+  async getCareerWefSkillAffinitiesBulk(careerIds: string[]): Promise<CareerWefSkillAffinity[]> {
+    if (careerIds.length === 0) return [];
+    return await db
+      .select()
+      .from(careerWefSkillAffinities)
+      .where(inArray(careerWefSkillAffinities.careerId, careerIds));
+  }
+
+  // WEF Competency Results operations
+  async createWefCompetencyResult(resultData: InsertWefCompetencyResult): Promise<WefCompetencyResult> {
+    const [result] = await db
+      .insert(wefCompetencyResults)
+      .values(resultData)
+      .returning();
+    return result;
+  }
+
+  async getWefCompetencyResultByAssessmentId(assessmentId: string): Promise<WefCompetencyResult | undefined> {
+    const [result] = await db
+      .select()
+      .from(wefCompetencyResults)
+      .where(eq(wefCompetencyResults.assessmentId, assessmentId));
+    return result;
+  }
+
+  async getWefCompetencyResultByUserId(userId: string): Promise<WefCompetencyResult | undefined> {
+    const [result] = await db
+      .select()
+      .from(wefCompetencyResults)
+      .where(eq(wefCompetencyResults.userId, userId))
+      .orderBy(desc(wefCompetencyResults.submittedAt))
+      .limit(1);
     return result;
   }
 
