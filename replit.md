@@ -33,12 +33,18 @@ The application features a playful, student-friendly sticky notes aesthetic with
     - RIASEC (Holland Code) personality assessment with 30 Likert-scale questions, calculating normalized scores across six themes.
     - Subject Competency Quiz with grade-differentiated questions covering Math, Science, English, Arabic, Social Studies, and Computer Science, linked to the UAE curriculum.
     - **WEF 16 Skills Framework Integration** (November 2025):
-        - Database schema with 5 normalized tables: `wef_skills`, `career_wef_skill_affinities`, `wef_competency_results`, `country_priority_sectors`, `country_sector_wef_skills`
-        - 16 skills seeded: 6 foundational literacies (Literacy, Numeracy, Scientific Literacy, ICT Literacy, Financial Literacy, Cultural and Civic Literacy) + 10 competencies/character qualities (Critical Thinking, Creativity, Communication, Collaboration, Curiosity, Initiative, Persistence, Adaptability, Leadership, Social and Cultural Awareness)
-        - 576 career-WEF skill affinity mappings (36 careers × 16 skills) with 0-100 scores, expert-estimated and attributed to "Expert Panel"
-        - Idempotent seeding logic with guarded updates to prevent NULL overwrites
-        - Storage layer with full CRUD operations for skills, affinities, and competency results
-        - Planned: SEL mini-assessment to capture student competencies, Future Skills Alignment matching component
+        - **Database**: 5 normalized tables with JSONB storage for student WEF competency scores
+        - **Reference Data**: 16 skills seeded + 576 career-skill affinity mappings
+        - **Assessment Mapping** (`server/services/wefAssessmentMapping.ts`): Research-validated correlations mapping existing assessments to WEF skills:
+            - CVQ domains (achievement, benevolence, universalism, etc.) → WEF skills with weighted correlations
+            - RIASEC themes → WEF skills (e.g., Investigative → Scientific Literacy 0.9, Critical Thinking 0.9)
+            - Kolb learning styles → WEF skills (e.g., Diverging → Creativity 0.9, Curiosity 0.8)
+            - Subject competencies → WEF skills (e.g., Mathematics → Numeracy 1.0, Critical Thinking 0.8)
+        - **WEF Calculator** (`server/services/wefSkillsCalculator.ts`): Aggregates assessment data using weighted mappings to produce 16 skill scores (0-100), overall readiness, top skills, and growth areas
+        - **Data Extractor** (`server/services/wefDataExtractor.ts`): Orchestrates extraction from DB models (CVQ normalizedScores, RIASEC/Kolb JSONB, quiz subjectScores)
+        - **Storage**: `upsertWefCompetencyResult()` provides idempotent persistence using PostgreSQL ON CONFLICT on assessmentId
+        - **Orchestration** (`server/services/wefOrchestrator.ts`): `syncWEFSkillsProfile()` coordinates extract → calculate → persist flow (non-blocking)
+        - **Status**: Core services implemented, pending integration into `/api/recommendations/generate` route for end-to-end testing
 - **Career Catalog**: Expanded to 36 diverse careers with comprehensive job market trends and Holland Code affinity scores for 15 countries.
 - **Results & Reporting**:
     - Horizontal cascading masonry grid layout for career recommendations.

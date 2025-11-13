@@ -183,6 +183,7 @@ export interface IStorage {
   
   // WEF Competency Results operations
   createWefCompetencyResult(result: InsertWefCompetencyResult): Promise<WefCompetencyResult>;
+  upsertWefCompetencyResult(assessmentId: string, userId: string | null, skillScores: Record<string, number>, sourceAttribution: string, isGuest?: boolean, guestSessionId?: string | null): Promise<WefCompetencyResult>;
   getWefCompetencyResultByAssessmentId(assessmentId: string): Promise<WefCompetencyResult | undefined>;
   getWefCompetencyResultByUserId(userId: string): Promise<WefCompetencyResult | undefined>;
   
@@ -1089,6 +1090,64 @@ export class DatabaseStorage implements IStorage {
       .insert(wefCompetencyResults)
       .values(resultData)
       .returning();
+    return result;
+  }
+
+  async upsertWefCompetencyResult(
+    assessmentId: string,
+    userId: string | null,
+    skillScores: Record<string, number>,
+    sourceAttribution: string,
+    isGuest: boolean = false,
+    guestSessionId?: string | null
+  ): Promise<WefCompetencyResult> {
+    // Fetch existing to preserve prior rawResponses data
+    const existing = await this.getWefCompetencyResultByAssessmentId(assessmentId);
+    
+    // Merge new metadata with existing rawResponses
+    const rawResponses = {
+      ...(existing?.rawResponses || {}),
+      _meta: {
+        ...(existing?.rawResponses?._meta || {}),
+        sourceAttribution,
+        calculatedAt: new Date().toISOString(),
+      },
+    };
+
+    // Extract top 5 competencies
+    const sortedSkills = Object.entries(skillScores)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5)
+      .map(([skill]) => skill);
+
+    const values = {
+      assessmentId,
+      userId,
+      isGuest,
+      guestSessionId,
+      rawResponses,
+      normalizedScores: skillScores,
+      topCompetencies: sortedSkills,
+      submittedAt: new Date(),
+    };
+
+    const [result] = await db
+      .insert(wefCompetencyResults)
+      .values(values as any)
+      .onConflictDoUpdate({
+        target: wefCompetencyResults.assessmentId,
+        set: {
+          userId,
+          isGuest,
+          guestSessionId,
+          rawResponses,
+          normalizedScores: skillScores,
+          topCompetencies: sortedSkills,
+          submittedAt: new Date(),
+        },
+      })
+      .returning();
+
     return result;
   }
 

@@ -8,6 +8,7 @@ import { transformQuizQuestionForFrontend, shuffleQuestions, shuffleOptions } fr
 import { calculateKolbScores } from "./questionBanks/kolb";
 import { calculateRiasecScores } from "./questionBanks/riasec";
 import { generateRecommendations } from "./services/matching";
+import { syncWEFSkillsProfile } from "./services/wefOrchestrator";
 import Stripe from "stripe";
 import { normalizeSubjects } from "./utils/subjects";
 
@@ -745,6 +746,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           missingComponents,
           isPremium,
         });
+      }
+
+      // Sync WEF Skills Profile for premium assessments (non-blocking)
+      if (isPremium) {
+        try {
+          await syncWEFSkillsProfile(storage, assessment);
+        } catch (error) {
+          console.error("[WEF] Non-blocking sync error:", error);
+        }
       }
 
       // Use new matching service to generate recommendations
