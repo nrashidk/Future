@@ -756,8 +756,51 @@ export default function ResultsPrint() {
             </div>
           </StickyNote>
 
+          {/* Research Methodology & Citations */}
+          <div className="mt-8 pt-6 border-t border-border/40">
+            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+              <BookOpen className="w-5 h-5 text-primary" />
+              Research Methodology & Sources
+            </h3>
+            
+            <div className="bg-background/30 rounded-lg p-4 mb-4">
+              <p className="text-xs font-body leading-relaxed mb-3">
+                This career guidance report integrates multiple research-validated frameworks to provide comprehensive, 
+                scientifically-backed career recommendations. Your assessment results are mapped to the World Economic Forum's 
+                16 future-ready skills framework, providing insights into your readiness for tomorrow's job market.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="bg-background/20 rounded p-3">
+                <div className="font-semibold mb-1">WEF Future Skills Framework</div>
+                <div className="text-muted-foreground font-body">World Economic Forum (2025). The Future of Jobs Report 2025.</div>
+              </div>
+
+              <div className="bg-background/20 rounded p-3">
+                <div className="font-semibold mb-1">Holland Code (RIASEC)</div>
+                <div className="text-muted-foreground font-body">Holland, J. L. (1997). Making Vocational Choices (3rd ed.).</div>
+              </div>
+
+              <div className="bg-background/20 rounded p-3">
+                <div className="font-semibold mb-1">Kolb Learning Styles</div>
+                <div className="text-muted-foreground font-body">Kolb, D. A. (1984). Experiential Learning Theory.</div>
+              </div>
+
+              <div className="bg-background/20 rounded p-3">
+                <div className="font-semibold mb-1">Children's Values Questionnaire</div>
+                <div className="text-muted-foreground font-body">Döring et al. (2015). British Journal of Psychology, 106(4).</div>
+              </div>
+            </div>
+
+            <div className="mt-3 text-xs text-muted-foreground text-center">
+              <p>Assessment results are correlated using research-validated mappings between frameworks.</p>
+              <p className="mt-1">National vision alignment based on official government strategic documents.</p>
+            </div>
+          </div>
+
           {/* Footer */}
-          <div className="mt-4 text-xs text-center text-muted-foreground">
+          <div className="mt-6 text-xs text-center text-muted-foreground">
             Generated on {new Date().toLocaleDateString()} | Future Pathways Career Guidance System<br />
             Visit us at futurepathways.replit.app
           </div>

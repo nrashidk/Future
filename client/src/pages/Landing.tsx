@@ -265,6 +265,90 @@ export default function Landing() {
         </div>
       </div>
 
+      {/* Research & Methodology Section */}
+      <div className="py-20 px-4 bg-background/30">
+        <div className="max-w-6xl mx-auto">
+          <h2 className="text-4xl md:text-5xl font-bold text-center mb-4">
+            Research-Backed Methodology
+          </h2>
+          <p className="text-center text-muted-foreground mb-12 text-lg font-body max-w-3xl mx-auto">
+            Our career guidance system integrates cutting-edge frameworks and scientifically-validated assessments
+          </p>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+            <StickyNote color="blue" rotation="1" className="p-6">
+              <h4 className="text-lg font-bold mb-2">WEF Future Skills Framework</h4>
+              <p className="text-sm text-muted-foreground font-body mb-2">
+                World Economic Forum's 16 essential future-ready skills across Foundational Literacies and Core Competencies
+              </p>
+              <p className="text-xs text-muted-foreground italic">
+                Source: Future of Jobs Report 2025
+              </p>
+            </StickyNote>
+
+            <StickyNote color="green" rotation="-1" className="p-6">
+              <h4 className="text-lg font-bold mb-2">Holland Code (RIASEC)</h4>
+              <p className="text-sm text-muted-foreground font-body mb-2">
+                Scientifically-validated personality assessment matching six career themes to individual interests
+              </p>
+              <p className="text-xs text-muted-foreground italic">
+                Source: Holland, J. L. (1997)
+              </p>
+            </StickyNote>
+
+            <StickyNote color="yellow" rotation="2" className="p-6">
+              <h4 className="text-lg font-bold mb-2">Kolb Learning Styles</h4>
+              <p className="text-sm text-muted-foreground font-body mb-2">
+                Experiential learning theory identifying four distinct learning approaches for personalized study strategies
+              </p>
+              <p className="text-xs text-muted-foreground italic">
+                Source: Kolb, D. A. (1984)
+              </p>
+            </StickyNote>
+
+            <StickyNote color="pink" rotation="-2" className="p-6">
+              <h4 className="text-lg font-bold mb-2">Children's Values Questionnaire</h4>
+              <p className="text-sm text-muted-foreground font-body mb-2">
+                Cross-culturally validated assessment measuring 10 basic human values for value-based career alignment
+              </p>
+              <p className="text-xs text-muted-foreground italic">
+                Source: Döring et al. (2015)
+              </p>
+            </StickyNote>
+
+            <StickyNote color="purple" rotation="1" className="p-6">
+              <h4 className="text-lg font-bold mb-2">National Vision Integration</h4>
+              <p className="text-sm text-muted-foreground font-body mb-2">
+                Aligns career paths with country-specific development goals including UAE Centennial 2071 and Saudi Vision 2030
+              </p>
+              <p className="text-xs text-muted-foreground italic">
+                Sources: UAE Centennial 2071 (2017), Saudi Vision 2030 (2016)
+              </p>
+            </StickyNote>
+
+            <StickyNote color="yellow" rotation="-1" className="p-6">
+              <h4 className="text-lg font-bold mb-2">Curriculum-Aligned Assessments</h4>
+              <p className="text-sm text-muted-foreground font-body mb-2">
+                240 grade-differentiated questions covering core subjects aligned with UAE national curriculum standards
+              </p>
+              <p className="text-xs text-muted-foreground italic">
+                Source: UAE National Curriculum Framework (2023)
+              </p>
+            </StickyNote>
+          </div>
+
+          <div className="bg-accent/5 border border-accent/20 rounded-lg p-6 max-w-4xl mx-auto">
+            <h4 className="font-bold text-lg mb-3 text-center">Our Approach</h4>
+            <p className="text-sm text-muted-foreground font-body text-center leading-relaxed">
+              We map existing, research-validated assessments to the World Economic Forum's 16 future-ready skills framework, 
+              providing students with comprehensive insights into their career readiness. By integrating personality, learning styles, 
+              values, and competencies, we deliver personalized career recommendations that align with both individual strengths 
+              and national development priorities.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Footer */}
       <footer className="py-12 px-4 text-center text-muted-foreground">
         <div className="max-w-6xl mx-auto">
@@ -294,7 +378,7 @@ export default function Landing() {
             © {new Date().getFullYear()} Future Pathways. All Rights Reserved.
           </p>
           <p className="text-xs mt-2">
-            Research-based Career & Learning Platform | Built on validated models by Holland, Kolb, and others
+            Research-based Career & Learning Platform | Powered by WEF, Holland, Kolb, and other validated frameworks
           </p>
         </div>
       </footer>

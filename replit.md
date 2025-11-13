@@ -46,6 +46,7 @@ The application features a playful, student-friendly sticky notes aesthetic with
         - **Orchestration** (`server/services/wefOrchestrator.ts`): `syncWEFSkillsProfile()` coordinates extract → calculate → persist flow (non-blocking)
         - **Integration**: Fully integrated into `/api/recommendations/generate` route for premium users; WEF skills calculator active in matching algorithm
         - **UAE Priority Sectors**: 6 sectors (AI, Space, Biotech, Renewable Energy, Education, Technology) mapped to WEF skills with importance scores for enhanced vision alignment matching
+        - **Research Attribution** (`server/research/sources.ts`): Centralized registry of 8 research sources (WEF, Holland, Kolb, CVQ, UAE/Saudi visions, OECD, UAE curriculum) with utility functions for programmatic citation access. Attribution visible on landing page "Research-Backed Methodology" section and PDF report "Research Methodology & Sources" section
 - **Career Catalog**: Expanded to 36 diverse careers with comprehensive job market trends and Holland Code affinity scores for 15 countries.
 - **Results & Reporting**:
     - Horizontal cascading masonry grid layout for career recommendations.
