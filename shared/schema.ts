@@ -146,9 +146,11 @@ export const countries = pgTable("countries", {
 export const countriesRelations = relations(countries, ({ many }) => ({
   assessments: many(assessments),
   jobMarketTrends: many(jobMarketTrends),
+  prioritySectors: many(countryPrioritySectors),
 }));
 
-// Future skills taxonomy
+// Future skills taxonomy (legacy - kept for backward compatibility)
+// NOTE: WEF skills framework now uses wef_skills table for normalized WEF-specific data
 export const skills = pgTable("skills", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull().unique(),
@@ -159,6 +161,137 @@ export const skills = pgTable("skills", {
   futureRelevance: integer("future_relevance").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+// WEF (World Economic Forum) 16 Skills Framework
+export const wefSkills = pgTable("wef_skills", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull().unique(),
+  competencyType: text("competency_type").notNull(), // 'foundational_literacy' or 'competency'
+  category: text("category").notNull(), // 'Literacy', 'Numeracy', 'Critical Thinking', etc.
+  description: text("description").notNull(),
+  displayOrder: integer("display_order").notNull(), // 1-16 for UI ordering
+  assessmentApplicable: boolean("assessment_applicable").notNull().default(false), // true for competencies, false for literacies
+  relatedSubjects: text("related_subjects").array(), // Links to subjects for literacy skills
+  version: text("version").notNull().default("2025"), // WEF framework version
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("wef_skills_display_order_idx").on(table.displayOrder, table.version),
+]);
+
+export const wefSkillsRelations = relations(wefSkills, ({ many }) => ({
+  careerAffinities: many(careerWefSkillAffinities),
+  sectorMappings: many(countrySectorWefSkills),
+}));
+
+// Career-WEF Skill affinity scores
+export const careerWefSkillAffinities = pgTable("career_wef_skill_affinities", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  careerId: varchar("career_id").notNull().references(() => careers.id),
+  wefSkillId: varchar("wef_skill_id").notNull().references(() => wefSkills.id),
+  affinityScore: integer("affinity_score").notNull(), // 0-100
+  evidence: jsonb("evidence"), // Optional: O*NET mapping, expert judgment, etc.
+  source: text("source"), // 'O*NET', 'WEF', 'Expert Panel', etc.
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("career_wef_skill_unique_idx").on(table.careerId, table.wefSkillId),
+  index("career_wef_skill_career_idx").on(table.careerId),
+  index("career_wef_skill_skill_idx").on(table.wefSkillId),
+]);
+
+export const careerWefSkillAffinitiesRelations = relations(careerWefSkillAffinities, ({ one }) => ({
+  career: one(careers, {
+    fields: [careerWefSkillAffinities.careerId],
+    references: [careers.id],
+  }),
+  wefSkill: one(wefSkills, {
+    fields: [careerWefSkillAffinities.wefSkillId],
+    references: [wefSkills.id],
+  }),
+}));
+
+// WEF Competency Assessment Results (for students)
+export const wefCompetencyResults = pgTable("wef_competency_results", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  assessmentId: varchar("assessment_id").unique().notNull().references(() => assessments.id),
+  userId: varchar("user_id").references(() => users.id), // Nullable for guest assessments
+  isGuest: boolean("is_guest").notNull().default(false),
+  guestSessionId: varchar("guest_session_id"),
+  
+  // Version tracking
+  version: text("version").notNull().default("2025"),
+  
+  // Assessment data
+  rawResponses: jsonb("raw_responses").notNull(), // { "critical_thinking_1": 4, "creativity_2": 5, ... }
+  normalizedScores: jsonb("normalized_scores").notNull(), // { critical_thinking: 85, creativity: 92, ... } (0-100)
+  topCompetencies: text("top_competencies").array().notNull(), // ["creativity", "critical_thinking", "collaboration"]
+  
+  // Quality metrics
+  completionSeconds: integer("completion_seconds"),
+  lowVariance: boolean("low_variance").notNull().default(false),
+  rushedCompletion: boolean("rushed_completion").notNull().default(false),
+  
+  submittedAt: timestamp("submitted_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("wef_competency_user_submitted_idx").on(table.userId, table.submittedAt),
+]);
+
+export const wefCompetencyResultsRelations = relations(wefCompetencyResults, ({ one }) => ({
+  assessment: one(assessments, {
+    fields: [wefCompetencyResults.assessmentId],
+    references: [assessments.id],
+  }),
+  user: one(users, {
+    fields: [wefCompetencyResults.userId],
+    references: [users.id],
+  }),
+}));
+
+// Country Priority Sectors (normalizing countries.prioritySectors array)
+export const countryPrioritySectors = pgTable("country_priority_sectors", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  countryId: varchar("country_id").notNull().references(() => countries.id),
+  name: text("name").notNull(),
+  displayOrder: integer("display_order").notNull(),
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("country_sector_unique_idx").on(table.countryId, table.name),
+  index("country_sector_country_idx").on(table.countryId),
+]);
+
+export const countryPrioritySectorsRelations = relations(countryPrioritySectors, ({ one, many }) => ({
+  country: one(countries, {
+    fields: [countryPrioritySectors.countryId],
+    references: [countries.id],
+  }),
+  wefSkillMappings: many(countrySectorWefSkills),
+}));
+
+// Junction: Country Sectors ↔ WEF Skills
+export const countrySectorWefSkills = pgTable("country_sector_wef_skills", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sectorId: varchar("sector_id").notNull().references(() => countryPrioritySectors.id),
+  wefSkillId: varchar("wef_skill_id").notNull().references(() => wefSkills.id),
+  importance: integer("importance").notNull(), // 0-100: how critical this skill is for this sector
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("sector_wef_skill_unique_idx").on(table.sectorId, table.wefSkillId),
+  index("sector_wef_skill_sector_idx").on(table.sectorId),
+  index("sector_wef_skill_skill_idx").on(table.wefSkillId),
+]);
+
+export const countrySectorWefSkillsRelations = relations(countrySectorWefSkills, ({ one }) => ({
+  sector: one(countryPrioritySectors, {
+    fields: [countrySectorWefSkills.sectorId],
+    references: [countryPrioritySectors.id],
+  }),
+  wefSkill: one(wefSkills, {
+    fields: [countrySectorWefSkills.wefSkillId],
+    references: [wefSkills.id],
+  }),
+}));
 
 // Careers/job roles
 export const careers = pgTable("careers", {
@@ -184,6 +317,7 @@ export const careers = pgTable("careers", {
 
 export const careersRelations = relations(careers, ({ many }) => ({
   jobMarketTrends: many(jobMarketTrends),
+  wefSkillAffinities: many(careerWefSkillAffinities),
 }));
 
 // Job market trends by country
@@ -577,3 +711,41 @@ export const insertCvqResultSchema = createInsertSchema(cvqResults).omit({
   createdAt: true,
 });
 export type InsertCvqResult = z.infer<typeof insertCvqResultSchema>;
+
+// WEF Skills Framework type exports
+export type WefSkill = typeof wefSkills.$inferSelect;
+export const insertWefSkillSchema = createInsertSchema(wefSkills).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertWefSkill = z.infer<typeof insertWefSkillSchema>;
+
+export type CareerWefSkillAffinity = typeof careerWefSkillAffinities.$inferSelect;
+export const insertCareerWefSkillAffinitySchema = createInsertSchema(careerWefSkillAffinities).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertCareerWefSkillAffinity = z.infer<typeof insertCareerWefSkillAffinitySchema>;
+
+export type WefCompetencyResult = typeof wefCompetencyResults.$inferSelect;
+export const insertWefCompetencyResultSchema = createInsertSchema(wefCompetencyResults).omit({
+  id: true,
+  submittedAt: true,
+  createdAt: true,
+});
+export type InsertWefCompetencyResult = z.infer<typeof insertWefCompetencyResultSchema>;
+
+export type CountryPrioritySector = typeof countryPrioritySectors.$inferSelect;
+export const insertCountryPrioritySectorSchema = createInsertSchema(countryPrioritySectors).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertCountryPrioritySector = z.infer<typeof insertCountryPrioritySectorSchema>;
+
+export type CountrySectorWefSkill = typeof countrySectorWefSkills.$inferSelect;
+export const insertCountrySectorWefSkillSchema = createInsertSchema(countrySectorWefSkills).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertCountrySectorWefSkill = z.infer<typeof insertCountrySectorWefSkillSchema>;
