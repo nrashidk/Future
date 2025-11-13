@@ -58,6 +58,8 @@ export interface MatchingContext {
   careerAffinities: Map<string, CareerComponentAffinity[]>; // careerId -> affinities
   jobMarketTrends: Map<string, JobMarketTrend[]>; // careerId -> trends
   userCountry?: Country; // For vision alignment
+  wefCompetencyScores?: Record<string, number>; // WEF skill scores (0-100)
+  careerWefAffinities?: Map<string, Array<{ wefSkillId: string; affinityScore: number }>>; // careerId -> WEF affinities
 }
 
 /**
@@ -105,6 +107,7 @@ const componentCalculators: Record<string, ComponentCalculator> = {
   kolb: calculateKolbScore,
   riasec: calculateRiasecScore,
   cvq: calculateCvqScore,
+  wef_skills: calculateWefSkillsScore,
 };
 
 /**
@@ -192,6 +195,30 @@ async function hydrateMatchingContext(
     userCountry = await storage.getCountryById(assessment.countryId);
   }
 
+  // Fetch WEF data only if WEF component is active
+  let wefCompetencyScores: Record<string, number> | undefined;
+  let careerWefAffinities: Map<string, Array<{ wefSkillId: string; affinityScore: number }>> | undefined;
+  
+  const hasWefComponent = activeComponents.some(c => c.key === 'wef_skills');
+  if (hasWefComponent) {
+    // Fetch student's WEF scores for premium assessments
+    if (assessment.assessmentType !== 'basic') {
+      const wefResult = await storage.getWefCompetencyResultByAssessmentId(assessmentId);
+      if (wefResult?.normalizedScores) {
+        wefCompetencyScores = wefResult.normalizedScores as Record<string, number>;
+      }
+    }
+
+    // Bulk fetch career-WEF skill affinities
+    try {
+      const wefAffinitiesArray = await storage.getCareerWefSkillAffinitiesBulk(careerIds);
+      careerWefAffinities = groupWefAffinitiesByCareer(wefAffinitiesArray || []);
+    } catch (error) {
+      console.warn('[Matching] Failed to load WEF affinities:', error);
+      careerWefAffinities = new Map(); // Fallback to empty map
+    }
+  }
+
   return {
     assessment,
     careers,
@@ -199,6 +226,8 @@ async function hydrateMatchingContext(
     careerAffinities,
     jobMarketTrends,
     userCountry,
+    wefCompetencyScores,
+    careerWefAffinities,
   };
 }
 
@@ -233,6 +262,31 @@ function groupTrendsByCareer(
       map.set(trend.careerId, []);
     }
     map.get(trend.careerId)!.push(trend);
+  }
+  
+  return map;
+}
+
+/**
+ * Helper: Group WEF skill affinities by careerId for efficient lookup
+ */
+function groupWefAffinitiesByCareer(
+  affinities: Array<{ careerId: string; wefSkillId: string; affinityScore: number }> | null | undefined
+): Map<string, Array<{ wefSkillId: string; affinityScore: number }>> {
+  const map = new Map<string, Array<{ wefSkillId: string; affinityScore: number }>>();
+  
+  if (!affinities) {
+    return map;
+  }
+  
+  for (const affinity of affinities) {
+    if (!map.has(affinity.careerId)) {
+      map.set(affinity.careerId, []);
+    }
+    map.get(affinity.careerId)!.push({
+      wefSkillId: affinity.wefSkillId,
+      affinityScore: affinity.affinityScore,
+    });
   }
   
   return map;
@@ -740,6 +794,95 @@ function calculateCvqScore(
     : normalizedScore > 50
     ? `Moderate ${topValuesText} values match`
     : `${topValuesText} values partially align`;
+  
+  return {
+    careerId: career.id,
+    score: Math.min(100, Math.max(0, normalizedScore)),
+    reasoning,
+    componentKey: component.key,
+  };
+}
+
+/**
+ * Calculate WEF Skills alignment score
+ * Compares student's WEF competency profile with career's skill requirements
+ */
+function calculateWefSkillsScore(
+  context: MatchingContext,
+  career: Career,
+  component: AssessmentComponent
+): ComponentScore | null {
+  const { wefCompetencyScores, careerWefAffinities } = context;
+  
+  // Check if WEF data is available
+  if (!careerWefAffinities) {
+    return null;
+  }
+  
+  // Check if student has WEF scores (premium assessments only)
+  if (!wefCompetencyScores || Object.keys(wefCompetencyScores).length === 0) {
+    return null;
+  }
+  
+  // Get career's WEF skill requirements
+  const careerAffinities = careerWefAffinities.get(career.id);
+  if (!careerAffinities || careerAffinities.length === 0) {
+    return null;
+  }
+  
+  // Calculate weighted alignment score
+  let totalAlignment = 0;
+  let totalWeight = 0;
+  const skillMatches: Array<{ skill: string; userScore: number; careerRequirement: number }> = [];
+  
+  for (const affinity of careerAffinities) {
+    const userScore = wefCompetencyScores[affinity.wefSkillId];
+    if (userScore !== undefined) {
+      // Weight by career's skill requirement (0-100)
+      // Higher affinity scores = more important for this career
+      const weight = affinity.affinityScore / 100; // Normalize to 0-1
+      const alignmentScore = userScore * weight;
+      
+      totalAlignment += alignmentScore;
+      totalWeight += affinity.affinityScore;
+      
+      skillMatches.push({
+        skill: affinity.wefSkillId,
+        userScore,
+        careerRequirement: affinity.affinityScore,
+      });
+    }
+  }
+  
+  if (totalWeight === 0) {
+    return null;
+  }
+  
+  // Normalize to 0-100 scale
+  const normalizedScore = (totalAlignment / totalWeight) * 100;
+  
+  // Find top matching skills for reasoning
+  const sortedMatches = skillMatches
+    .map(m => ({
+      ...m,
+      alignmentScore: m.userScore * (m.careerRequirement / 100),
+    }))
+    .sort((a, b) => b.alignmentScore - a.alignmentScore)
+    .slice(0, 2);
+  
+  // Convert snake_case to readable format
+  const formatSkillName = (skill: string) => 
+    skill.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+  
+  const topSkills = sortedMatches
+    .map(m => formatSkillName(m.skill))
+    .join(' & ');
+  
+  const reasoning = normalizedScore > 75
+    ? `Excellent future skills match (${topSkills})`
+    : normalizedScore > 60
+    ? `Strong skills alignment in ${topSkills}`
+    : `Growing ${topSkills} competencies`;
   
   return {
     careerId: career.id,
