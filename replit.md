@@ -32,6 +32,13 @@ The application features a playful, student-friendly sticky notes aesthetic with
     - Scientifically-validated 24-question learning style assessment for premium users, determining four learning styles: Diverging, Assimilating, Converging, Accommodating.
     - RIASEC (Holland Code) personality assessment with 30 Likert-scale questions, calculating normalized scores across six themes.
     - Subject Competency Quiz with grade-differentiated questions covering Math, Science, English, Arabic, Social Studies, and Computer Science, linked to the UAE curriculum.
+    - **WEF 16 Skills Framework Integration** (November 2025):
+        - Database schema with 5 normalized tables: `wef_skills`, `career_wef_skill_affinities`, `wef_competency_results`, `country_priority_sectors`, `country_sector_wef_skills`
+        - 16 skills seeded: 6 foundational literacies (Literacy, Numeracy, Scientific Literacy, ICT Literacy, Financial Literacy, Cultural and Civic Literacy) + 10 competencies/character qualities (Critical Thinking, Creativity, Communication, Collaboration, Curiosity, Initiative, Persistence, Adaptability, Leadership, Social and Cultural Awareness)
+        - 576 career-WEF skill affinity mappings (36 careers × 16 skills) with 0-100 scores, expert-estimated and attributed to "Expert Panel"
+        - Idempotent seeding logic with guarded updates to prevent NULL overwrites
+        - Storage layer with full CRUD operations for skills, affinities, and competency results
+        - Planned: SEL mini-assessment to capture student competencies, Future Skills Alignment matching component
 - **Career Catalog**: Expanded to 36 diverse careers with comprehensive job market trends and Holland Code affinity scores for 15 countries.
 - **Results & Reporting**:
     - Horizontal cascading masonry grid layout for career recommendations.
@@ -60,7 +67,7 @@ The application features a playful, student-friendly sticky notes aesthetic with
 - **Country-Specific Data**: Comprehensive 2030/2050 vision data for 15 countries, integrated into the matching algorithm.
 
 ### System Design Choices
-- **Database Schema**: Includes `users`, `sessions`, `countries` (with mission/vision, visionPlan, targets), `skills`, `careers`, `job_market_trends`, `assessments` (with `assessmentType`, `kolbScores`, `riasecResponses`, `riaseacScores`), `recommendations`, `organizations`, and `organizationMembers` tables.
+- **Database Schema**: Includes `users`, `sessions`, `countries` (with mission/vision, visionPlan, targets), `skills`, `careers`, `job_market_trends`, `assessments` (with `assessmentType`, `kolbScores`, `riasecResponses`, `riaseacScores`), `recommendations`, `organizations`, `organizationMembers`, `wef_skills`, `career_wef_skill_affinities`, `wef_competency_results`, `country_priority_sectors`, and `country_sector_wef_skills` tables.
 - **Group Assessment System** (November 2025):
     - **Admin Dashboard**: `/admin/organizations` provides organization selector, student roster table with quota tracking, manual/bulk account creation, and credentials download
     - **Database Tables**: `organizations` (name, adminUserId, totalLicenses, usedLicenses, Stripe metadata) and `organizationMembers` (userId, organizationId, grade, studentId, role, hasCompletedAssessment, isLocked, password reset audit trail)
