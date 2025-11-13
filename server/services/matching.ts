@@ -18,6 +18,11 @@ import type {
   Country
 } from "../../shared/schema";
 import { type AssessmentTier, getEffectiveWeight } from "./tierWeights";
+import { 
+  INTEREST_LEXICON, 
+  INTEREST_MATCHING_WEIGHTS, 
+  findMatchingKeywords 
+} from "./interestLexicon";
 
 /**
  * Typed interfaces for JSONB fields
@@ -401,46 +406,84 @@ function calculateInterestsScore(
     return null;
   }
 
-  // Interest to career category mapping
-  const interestToCategoryMap: Record<string, string[]> = {
-    "Technology": ["Technology", "IT & Software", "Engineering"],
-    "Healthcare": ["Healthcare", "Medical", "Nursing"],
-    "Arts & Design": ["Creative", "Design", "Arts"],
-    "Business": ["Business", "Management", "Finance"],
-    "Education": ["Education", "Teaching"],
-    "Science": ["Science", "Research", "Engineering"],
-    "Sports": ["Sports", "Physical Therapy", "Healthcare"],
-    "Social Services": ["Social Services", "Healthcare", "Education"],
-    "Law & Government": ["Legal", "Government", "Business"],
-    "Environment": ["Environmental", "Science", "Engineering"],
-  };
+  // Track matched interests and their matching channels
+  interface InterestMatch {
+    interest: string;
+    categoryMatches: string[];
+    descriptionMatches: string[];
+    skillMatches: string[];
+    weightedScore: number;
+  }
 
-  // Calculate matching score
-  let matchingInterests = 0;
-  const matchedCategories: string[] = [];
+  const matches: InterestMatch[] = [];
 
+  // For each student interest, calculate multi-channel match score
   for (const interest of assessment.interests) {
-    const categories = interestToCategoryMap[interest] || [interest];
-    
-    for (const category of categories) {
-      if (career.category.toLowerCase().includes(category.toLowerCase()) ||
-          category.toLowerCase().includes(career.category.toLowerCase())) {
-        matchingInterests++;
-        matchedCategories.push(interest);
-        break;
-      }
+    const lexicon = INTEREST_LEXICON[interest];
+    if (!lexicon) {
+      // Fallback for interests not in lexicon
+      continue;
+    }
+
+    const categoryMatches = findMatchingKeywords(lexicon.categories, career.category);
+    const descriptionMatches = findMatchingKeywords(lexicon.descriptionKeywords, career.description);
+    const skillMatches = findMatchingKeywords(
+      lexicon.skillKeywords,
+      career.requiredSkills.join(" ")
+    );
+
+    // Calculate weighted score for this interest
+    const categoryScore = categoryMatches.length > 0 ? INTEREST_MATCHING_WEIGHTS.categoryMatch : 0;
+    const descriptionScore = descriptionMatches.length > 0 ? INTEREST_MATCHING_WEIGHTS.descriptionMatch : 0;
+    const skillScore = skillMatches.length > 0 ? INTEREST_MATCHING_WEIGHTS.skillMatch : 0;
+    const weightedScore = categoryScore + descriptionScore + skillScore;
+
+    if (weightedScore > 0) {
+      matches.push({
+        interest,
+        categoryMatches,
+        descriptionMatches,
+        skillMatches,
+        weightedScore,
+      });
     }
   }
 
-  // Calculate percentage score
-  const score = assessment.interests.length > 0
-    ? (matchingInterests / assessment.interests.length) * 100
-    : 0;
+  // Calculate overall score (percentage of max possible weighted score)
+  const maxPossibleScore = assessment.interests.length * 
+    (INTEREST_MATCHING_WEIGHTS.categoryMatch + 
+     INTEREST_MATCHING_WEIGHTS.descriptionMatch + 
+     INTEREST_MATCHING_WEIGHTS.skillMatch);
+  
+  const totalScore = matches.reduce((sum, match) => sum + match.weightedScore, 0);
+  const score = maxPossibleScore > 0 ? (totalScore / maxPossibleScore) * 100 : 0;
 
-  // Generate reasoning
-  const reasoning = matchedCategories.length > 0
-    ? `Aligns with ${matchedCategories.slice(0, 2).join(" & ")} interests`
-    : "Limited alignment with stated interests";
+  // Generate enhanced reasoning with specific signals
+  let reasoning: string;
+  if (matches.length === 0) {
+    reasoning = "Limited alignment with stated interests";
+  } else {
+    const topMatches = matches
+      .sort((a, b) => b.weightedScore - a.weightedScore)
+      .slice(0, 2);
+
+    const reasonParts: string[] = [];
+    for (const match of topMatches) {
+      const signals: string[] = [];
+      if (match.categoryMatches.length > 0) {
+        signals.push("field");
+      }
+      if (match.descriptionMatches.length > 0) {
+        signals.push("work tasks");
+      }
+      if (match.skillMatches.length > 0) {
+        signals.push("skills");
+      }
+      reasonParts.push(`${match.interest} (${signals.join(", ")})`);
+    }
+
+    reasoning = `Strong match with your ${reasonParts.join(" and ")} interests`;
+  }
 
   return {
     careerId: career.id,

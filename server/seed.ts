@@ -433,7 +433,7 @@ export async function seedDatabase() {
   const careers = [
     {
       title: "Software Engineer",
-      description: "Design, develop, and maintain software applications and systems",
+      description: "Build apps, websites, and games that people use every day. Turn ideas into working software by writing code and solving technical challenges.",
       requiredSkills: ["Programming", "Problem Solving", "Data Structures", "Algorithms"],
       relatedSubjects: ["Computer Science", "Mathematics", "Physics"],
       category: "Technology",
@@ -444,7 +444,7 @@ export async function seedDatabase() {
     },
     {
       title: "Data Scientist",
-      description: "Analyze complex data to help organizations make better decisions",
+      description: "Uncover hidden patterns in massive amounts of data to help companies predict trends, understand customers, and make smarter decisions. Use AI and machine learning to solve real-world problems.",
       requiredSkills: ["Statistics", "Machine Learning", "Python/R", "Data Visualization"],
       relatedSubjects: ["Mathematics", "Computer Science", "Statistics"],
       category: "Technology",
@@ -455,7 +455,7 @@ export async function seedDatabase() {
     },
     {
       title: "Renewable Energy Engineer",
-      description: "Design and implement sustainable energy solutions",
+      description: "Design solar panels, wind turbines, and clean energy systems that power homes and cities without harming the planet. Help create a sustainable future for the next generation.",
       requiredSkills: ["Engineering Design", "Sustainability", "Project Management", "Technical Analysis"],
       relatedSubjects: ["Physics", "Mathematics", "Chemistry", "Engineering"],
       category: "Engineering",
@@ -466,7 +466,7 @@ export async function seedDatabase() {
     },
     {
       title: "Healthcare Professional (Nurse)",
-      description: "Provide patient care and support in hospitals, clinics, and healthcare facilities",
+      description: "Care for patients when they need it most, from helping newborns take their first breath to supporting families through difficult times. Make a real difference in people's lives every single day.",
       requiredSkills: ["Patient Care", "Medical Knowledge", "Communication", "Empathy"],
       relatedSubjects: ["Biology", "Chemistry", "Health Science"],
       category: "Healthcare",
@@ -477,7 +477,7 @@ export async function seedDatabase() {
     },
     {
       title: "Digital Marketing Specialist",
-      description: "Create and manage online marketing campaigns to promote brands and products",
+      description: "Create engaging campaigns, grow social media communities, and help brands connect with customers online. Turn creative ideas into posts, ads, and content that people actually want to see.",
       requiredSkills: ["Social Media", "Content Creation", "Analytics", "SEO/SEM"],
       relatedSubjects: ["Business", "English", "Computer Science", "Art"],
       category: "Business & Marketing",
@@ -488,7 +488,7 @@ export async function seedDatabase() {
     },
     {
       title: "Graphic Designer",
-      description: "Create visual concepts to communicate ideas that inspire and inform consumers",
+      description: "Design eye-catching logos, posters, websites, and packaging that grab attention and tell stories. Bring brands to life through colors, shapes, and visual creativity that people remember.",
       requiredSkills: ["Creative Design", "Adobe Creative Suite", "Typography", "Visual Communication"],
       relatedSubjects: ["Art", "Computer Science", "Design"],
       category: "Creative Arts",
@@ -499,7 +499,7 @@ export async function seedDatabase() {
     },
     {
       title: "Mechanical Engineer",
-      description: "Design, develop, and test mechanical devices and systems",
+      description: "Invent and improve machines that make life easier, from robots and drones to cars and medical devices. Test your designs, solve technical problems, and watch your creations come to life.",
       requiredSkills: ["CAD Software", "Physics", "Materials Science", "Problem Solving"],
       relatedSubjects: ["Physics", "Mathematics", "Engineering"],
       category: "Engineering",
@@ -510,7 +510,7 @@ export async function seedDatabase() {
     },
     {
       title: "Financial Analyst",
-      description: "Analyze financial data to guide business and investment decisions",
+      description: "Help companies and investors grow their money by analyzing markets, predicting trends, and finding smart investment opportunities. Turn numbers into insights that drive million-dollar decisions.",
       requiredSkills: ["Financial Modeling", "Excel", "Data Analysis", "Risk Assessment"],
       relatedSubjects: ["Mathematics", "Economics", "Business"],
       category: "Finance",
@@ -521,7 +521,7 @@ export async function seedDatabase() {
     },
     {
       title: "Teacher (Secondary Education)",
-      description: "Educate and inspire students in middle and high school settings",
+      description: "Shape young minds and inspire the next generation of scientists, artists, and leaders. Make complex topics exciting, help students discover their talents, and watch them grow into confident learners.",
       requiredSkills: ["Subject Expertise", "Communication", "Patience", "Curriculum Development"],
       relatedSubjects: ["Education", "Subject Specialization"],
       category: "Education",
@@ -532,7 +532,7 @@ export async function seedDatabase() {
     },
     {
       title: "Environmental Scientist",
-      description: "Study and develop solutions to environmental problems",
+      description: "Protect our planet by studying pollution, climate change, and ecosystems. Develop solutions to environmental challenges and help communities live in harmony with nature.",
       requiredSkills: ["Research", "Data Analysis", "Environmental Policy", "Field Work"],
       relatedSubjects: ["Biology", "Chemistry", "Geography", "Environmental Science"],
       category: "Science",
@@ -543,7 +543,7 @@ export async function seedDatabase() {
     },
     {
       title: "Civil Engineer",
-      description: "Design and oversee construction of infrastructure projects like roads, bridges, and buildings",
+      description: "Plan and build the roads, bridges, airports, and water systems that communities depend on every day. Turn blueprints into real structures that stand for generations.",
       requiredSkills: ["Structural Design", "Project Management", "AutoCAD", "Mathematics"],
       relatedSubjects: ["Mathematics", "Physics", "Engineering"],
       category: "Engineering",
@@ -554,7 +554,7 @@ export async function seedDatabase() {
     },
     {
       title: "Architect",
-      description: "Design buildings and structures combining functionality with aesthetic appeal",
+      description: "Design stunning buildings and spaces where people live, work, and gather. Blend art with engineering to create structures that are both beautiful and functional.",
       requiredSkills: ["Architectural Design", "3D Modeling", "Building Codes", "Creativity"],
       relatedSubjects: ["Art", "Mathematics", "Physics", "Engineering"],
       category: "Design & Architecture",
@@ -565,7 +565,7 @@ export async function seedDatabase() {
     },
     {
       title: "Electrical Engineer",
-      description: "Design and develop electrical systems, equipment, and components",
+      description: "Design the electrical systems that power everything from smartphones to power grids. Work on cutting-edge technology like electric vehicles, renewable energy, and smart devices.",
       requiredSkills: ["Circuit Design", "Power Systems", "Electronics", "Programming"],
       relatedSubjects: ["Physics", "Mathematics", "Computer Science"],
       category: "Engineering",
@@ -576,7 +576,7 @@ export async function seedDatabase() {
     },
     {
       title: "Biomedical Engineer",
-      description: "Develop medical devices and technologies to improve healthcare",
+      description: "Create life-saving medical devices like artificial organs, prosthetic limbs, and diagnostic equipment. Combine engineering with biology to solve healthcare challenges and improve patient care.",
       requiredSkills: ["Medical Device Design", "Biomechanics", "Regulatory Compliance", "Research"],
       relatedSubjects: ["Biology", "Physics", "Mathematics", "Engineering"],
       category: "Engineering",
@@ -587,7 +587,7 @@ export async function seedDatabase() {
     },
     {
       title: "Pharmacist",
-      description: "Dispense medications and provide healthcare advice to patients",
+      description: "Be the medication expert who helps patients understand their prescriptions and stay healthy. Advise doctors on drug interactions and ensure people get the right treatments safely.",
       requiredSkills: ["Pharmacology", "Patient Counseling", "Drug Interactions", "Attention to Detail"],
       relatedSubjects: ["Chemistry", "Biology", "Health Science"],
       category: "Healthcare",
@@ -598,7 +598,7 @@ export async function seedDatabase() {
     },
     {
       title: "Doctor (General Practitioner)",
-      description: "Diagnose and treat patients with various medical conditions",
+      description: "Be the first person people turn to when they're sick or need medical advice. Diagnose illnesses, treat patients, and build trusted relationships that keep communities healthy.",
       requiredSkills: ["Medical Diagnosis", "Patient Care", "Clinical Skills", "Communication"],
       relatedSubjects: ["Biology", "Chemistry", "Health Science"],
       category: "Healthcare",
@@ -609,7 +609,7 @@ export async function seedDatabase() {
     },
     {
       title: "Dentist",
-      description: "Diagnose and treat dental problems and promote oral health",
+      description: "Help people maintain healthy smiles and confident teeth. Fix cavities, perform cleanings, and educate patients on oral health using precision and care.",
       requiredSkills: ["Dental Procedures", "Patient Care", "Hand-Eye Coordination", "Attention to Detail"],
       relatedSubjects: ["Biology", "Chemistry", "Health Science"],
       category: "Healthcare",
@@ -620,7 +620,7 @@ export async function seedDatabase() {
     },
     {
       title: "Physical Therapist",
-      description: "Help patients recover from injuries and improve mobility through exercise and therapy",
+      description: "Help athletes recover from injuries, assist elderly patients regain mobility, and guide people through rehabilitation exercises. Make movement possible again for those in pain.",
       requiredSkills: ["Patient Rehabilitation", "Anatomy Knowledge", "Exercise Therapy", "Empathy"],
       relatedSubjects: ["Biology", "Health Science", "Physical Education"],
       category: "Healthcare",
@@ -631,7 +631,7 @@ export async function seedDatabase() {
     },
     {
       title: "Psychologist",
-      description: "Study human behavior and provide mental health counseling and therapy",
+      description: "Help people overcome anxiety, depression, and life challenges through counseling and therapy. Understand how the human mind works and guide people toward better mental health.",
       requiredSkills: ["Counseling", "Research", "Assessment", "Empathy"],
       relatedSubjects: ["Psychology", "Biology", "Social Studies"],
       category: "Healthcare",
@@ -642,7 +642,7 @@ export async function seedDatabase() {
     },
     {
       title: "Social Worker",
-      description: "Help individuals and communities cope with challenges and access resources",
+      description: "Stand up for people who need help the most. Connect families with resources, support children in difficult situations, and advocate for vulnerable communities.",
       requiredSkills: ["Case Management", "Advocacy", "Communication", "Empathy"],
       relatedSubjects: ["Social Studies", "Psychology", "Sociology"],
       category: "Social Services",
@@ -653,7 +653,7 @@ export async function seedDatabase() {
     },
     {
       title: "Lawyer",
-      description: "Represent clients in legal matters and provide legal advice",
+      description: "Fight for justice in courtrooms, negotiate major business deals, and defend people's rights. Use persuasive arguments and legal knowledge to solve complex disputes.",
       requiredSkills: ["Legal Research", "Advocacy", "Writing", "Critical Thinking"],
       relatedSubjects: ["English", "Social Studies", "Government"],
       category: "Legal",
@@ -664,7 +664,7 @@ export async function seedDatabase() {
     },
     {
       title: "Accountant",
-      description: "Prepare and examine financial records for individuals and businesses",
+      description: "Manage company finances, prepare tax returns, and help businesses make smart financial decisions. Work with numbers to ensure organizations stay profitable and legally compliant.",
       requiredSkills: ["Accounting", "Tax Preparation", "Excel", "Attention to Detail"],
       relatedSubjects: ["Mathematics", "Business", "Economics"],
       category: "Finance",
@@ -675,7 +675,7 @@ export async function seedDatabase() {
     },
     {
       title: "Human Resources Manager",
-      description: "Oversee employee recruitment, training, and relations in organizations",
+      description: "Build great company cultures by hiring talented people, resolving workplace conflicts, and developing programs that make employees happy and productive. Be the bridge between management and staff.",
       requiredSkills: ["Recruitment", "Employee Relations", "Conflict Resolution", "Leadership"],
       relatedSubjects: ["Business", "Psychology", "Communication"],
       category: "Business & Management",
@@ -686,7 +686,7 @@ export async function seedDatabase() {
     },
     {
       title: "Management Consultant",
-      description: "Advise organizations on business strategy and operational improvements",
+      description: "Solve tough business challenges for major companies. Analyze problems, present solutions to executives, and help organizations transform their operations and strategy.",
       requiredSkills: ["Business Analysis", "Strategy", "Presentation", "Problem Solving"],
       relatedSubjects: ["Business", "Mathematics", "Economics"],
       category: "Business & Management",
@@ -697,7 +697,7 @@ export async function seedDatabase() {
     },
     {
       title: "Entrepreneur",
-      description: "Start and manage your own business ventures",
+      description: "Turn your ideas into reality by launching your own business. Take calculated risks, innovate solutions to problems, and build something from the ground up that you're passionate about.",
       requiredSkills: ["Business Planning", "Risk Taking", "Innovation", "Leadership"],
       relatedSubjects: ["Business", "Mathematics", "Economics"],
       category: "Business & Management",
@@ -708,7 +708,7 @@ export async function seedDatabase() {
     },
     {
       title: "Sales Manager",
-      description: "Lead sales teams and develop strategies to increase revenue",
+      description: "Lead teams that bring in revenue and grow businesses. Develop winning sales strategies, motivate your team to hit targets, and build strong client relationships that last.",
       requiredSkills: ["Sales Strategy", "Leadership", "Communication", "Negotiation"],
       relatedSubjects: ["Business", "Communication", "Mathematics"],
       category: "Business & Marketing",
@@ -719,7 +719,7 @@ export async function seedDatabase() {
     },
     {
       title: "Marketing Manager",
-      description: "Develop and execute marketing campaigns to promote products and brands",
+      description: "Create campaigns that make products successful and brands memorable. Plan launch strategies, analyze customer behavior, and lead creative teams to connect with target audiences.",
       requiredSkills: ["Marketing Strategy", "Digital Marketing", "Analytics", "Creativity"],
       relatedSubjects: ["Business", "English", "Art", "Computer Science"],
       category: "Business & Marketing",
@@ -730,7 +730,7 @@ export async function seedDatabase() {
     },
     {
       title: "Product Manager",
-      description: "Guide product development from conception to launch",
+      description: "Own the vision for digital products and features. Work with designers and engineers to bring new ideas to life, listen to customer feedback, and decide what gets built next.",
       requiredSkills: ["Product Strategy", "User Research", "Project Management", "Communication"],
       relatedSubjects: ["Business", "Computer Science", "Design"],
       category: "Technology",
@@ -741,7 +741,7 @@ export async function seedDatabase() {
     },
     {
       title: "UX/UI Designer",
-      description: "Design user interfaces and experiences for websites and applications",
+      description: "Make apps and websites beautiful and easy to use. Research how people interact with technology, design intuitive interfaces, and create experiences that delight users.",
       requiredSkills: ["User Research", "Interface Design", "Prototyping", "Design Tools"],
       relatedSubjects: ["Art", "Computer Science", "Psychology"],
       category: "Technology",
@@ -752,7 +752,7 @@ export async function seedDatabase() {
     },
     {
       title: "Video Game Designer",
-      description: "Create concepts, mechanics, and storylines for video games",
+      description: "Design engaging games that players love. Create immersive worlds, develop gameplay mechanics that keep players interested, and tell compelling stories through interactive experiences.",
       requiredSkills: ["Game Design", "Creativity", "Programming", "Storytelling"],
       relatedSubjects: ["Computer Science", "Art", "English"],
       category: "Creative Arts",
@@ -763,7 +763,7 @@ export async function seedDatabase() {
     },
     {
       title: "Journalist",
-      description: "Research, write, and report news stories for various media outlets",
+      description: "Uncover the truth and tell important stories that inform the public. Investigate issues that matter, interview key people, and report news that holds power accountable.",
       requiredSkills: ["Writing", "Research", "Interviewing", "Critical Thinking"],
       relatedSubjects: ["English", "Social Studies", "Communication"],
       category: "Media & Communications",
@@ -774,7 +774,7 @@ export async function seedDatabase() {
     },
     {
       title: "Content Creator",
-      description: "Create engaging digital content for social media and online platforms",
+      description: "Build an online following by creating videos, posts, and content that people love to watch and share. Turn your creativity and personality into a career on platforms like YouTube, TikTok, and Instagram.",
       requiredSkills: ["Video Production", "Social Media", "Creativity", "Audience Engagement"],
       relatedSubjects: ["Art", "English", "Computer Science"],
       category: "Media & Communications",
@@ -785,7 +785,7 @@ export async function seedDatabase() {
     },
     {
       title: "Photographer",
-      description: "Capture images for artistic, commercial, or documentary purposes",
+      description: "Tell stories through powerful images. Capture weddings, fashion shoots, news events, or nature scenes. Turn moments into memories and art that people treasure.",
       requiredSkills: ["Photography", "Photo Editing", "Lighting", "Creativity"],
       relatedSubjects: ["Art", "Computer Science"],
       category: "Creative Arts",
@@ -796,7 +796,7 @@ export async function seedDatabase() {
     },
     {
       title: "Chef",
-      description: "Prepare and create culinary dishes in restaurants and hospitality settings",
+      description: "Create delicious dishes that make people's day better. Design menus, experiment with flavors and techniques, and lead kitchen teams in restaurants, hotels, or your own establishment.",
       requiredSkills: ["Cooking", "Menu Planning", "Food Safety", "Creativity"],
       relatedSubjects: ["Chemistry", "Art", "Business"],
       category: "Culinary Arts",
@@ -807,7 +807,7 @@ export async function seedDatabase() {
     },
     {
       title: "Fashion Designer",
-      description: "Create original clothing and accessory designs",
+      description: "Create the clothes and accessories that define style and culture. Sketch original designs, select fabrics, and see your creations on runways or in stores worldwide.",
       requiredSkills: ["Fashion Design", "Sewing", "Trend Forecasting", "Creativity"],
       relatedSubjects: ["Art", "Design", "Business"],
       category: "Creative Arts",
@@ -818,7 +818,7 @@ export async function seedDatabase() {
     },
     {
       title: "Interior Designer",
-      description: "Design functional and aesthetic interior spaces for homes and businesses",
+      description: "Transform empty spaces into beautiful, functional rooms where people love to live and work. Choose colors, furniture, and layouts that match clients' dreams and lifestyles.",
       requiredSkills: ["Space Planning", "Color Theory", "3D Modeling", "Client Communication"],
       relatedSubjects: ["Art", "Mathematics", "Design"],
       category: "Design & Architecture",
