@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
+import { Link } from "wouter";
 import { StickyNote } from "@/components/StickyNote";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { User, Cake, GraduationCap, Users2 } from "lucide-react";
 
@@ -26,7 +28,7 @@ export function DemographicsStep({ data, onUpdate, onNext }: DemographicsStepPro
     checkMobile();
   }, []);
 
-  const canProceed = data.name && data.age && data.grade && data.gender;
+  const canProceed = data.name && data.age && data.grade && data.gender && data.consentGiven;
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -146,6 +148,48 @@ export function DemographicsStep({ data, onUpdate, onNext }: DemographicsStepPro
               </SelectContent>
             </Select>
           )}
+        </StickyNote>
+      </div>
+
+      {/* Consent Section */}
+      <div className="max-w-3xl mx-auto mt-8">
+        <StickyNote color="purple" rotation="0">
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold mb-3">Before You Continue</h3>
+            
+            <div className="flex items-start gap-3">
+              <Checkbox
+                id="consent"
+                checked={data.consentGiven || false}
+                onCheckedChange={(checked) => onUpdate("consentGiven", checked)}
+                className="mt-1"
+                data-testid="checkbox-consent"
+              />
+              <div className="flex-1">
+                <Label htmlFor="consent" className="text-sm font-body leading-relaxed cursor-pointer">
+                  I agree to the{" "}
+                  <Link href="/terms" className="text-primary hover:underline font-semibold" data-testid="link-consent-terms">
+                    Terms of Use
+                  </Link>
+                  {" "}and{" "}
+                  <Link href="/privacy" className="text-primary hover:underline font-semibold" data-testid="link-consent-privacy">
+                    Privacy Policy
+                  </Link>
+                  . I understand this is an educational tool as described in the{" "}
+                  <Link href="/disclaimer" className="text-primary hover:underline font-semibold" data-testid="link-consent-disclaimer">
+                    Disclaimer
+                  </Link>
+                  .
+                </Label>
+              </div>
+            </div>
+            
+            {data.age && data.age < 18 && (
+              <p className="text-xs text-muted-foreground font-body mt-2 ml-7">
+                Note: Users under 18 require parental or institutional consent.
+              </p>
+            )}
+          </div>
         </StickyNote>
       </div>
 

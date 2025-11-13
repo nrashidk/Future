@@ -21,6 +21,7 @@ interface AssessmentData {
   age: number | null;
   grade: string;
   gender: string;
+  consentGiven: boolean;
   favoriteSubjects: string[];
   interests: string[];
   personalityTraits: Record<string, number>;
@@ -50,6 +51,7 @@ export default function Assessment() {
     age: null,
     grade: "",
     gender: "",
+    consentGiven: false,
     favoriteSubjects: [],
     interests: [],
     personalityTraits: {},
