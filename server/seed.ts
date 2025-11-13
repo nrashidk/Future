@@ -1728,6 +1728,128 @@ export async function seedDatabase() {
   console.log(`✓ Created ${affinitiesCreated} new affinities, updated ${affinitiesUpdated} existing affinities`);
   console.log(`✓ Total affinities: ${affinitiesCreated + affinitiesUpdated} across ${allCareersForWef.length} careers × 16 WEF skills`);
 
+  // Seed UAE Priority Sectors and WEF Skills Mapping
+  console.log("\n🇦🇪 Seeding UAE Priority Sectors → WEF Skills mapping...");
+  
+  // Define UAE sector-to-WEF skills mappings with importance scores (0-100)
+  // Based on UAE Centennial 2071 priorities and WEF Future of Jobs 2025 insights
+  const UAE_SECTOR_WEF_SKILLS = [
+    {
+      name: "Artificial Intelligence",
+      displayOrder: 1,
+      description: "AI-driven innovation across government services, economy, and society",
+      skills: {
+        "ICT Literacy": 95,
+        "Critical Thinking and Problem Solving": 90,
+        "Numeracy": 85,
+        "Creativity": 80,
+        "Adaptability": 75,
+      }
+    },
+    {
+      name: "Space Exploration",
+      displayOrder: 2,
+      description: "Leadership in space science, Mars colonization, and satellite technology",
+      skills: {
+        "Scientific Literacy": 95,
+        "Critical Thinking and Problem Solving": 90,
+        "Numeracy": 85,
+        "Initiative": 80,
+        "Collaboration": 75,
+      }
+    },
+    {
+      name: "Biotechnology",
+      displayOrder: 3,
+      description: "Advanced healthcare, genomics, and life sciences innovation",
+      skills: {
+        "Scientific Literacy": 95,
+        "Critical Thinking and Problem Solving": 85,
+        "ICT Literacy": 75,
+        "Curiosity": 80,
+        "Collaboration": 70,
+      }
+    },
+    {
+      name: "Renewable Energy",
+      displayOrder: 4,
+      description: "50% clean energy by 2050 and climate leadership",
+      skills: {
+        "Scientific Literacy": 90,
+        "Critical Thinking and Problem Solving": 85,
+        "Sustainability": 90, // Map to Scientific Literacy if Sustainability not in WEF 16
+        "Numeracy": 75,
+        "Adaptability": 70,
+      }
+    },
+    {
+      name: "Education",
+      displayOrder: 5,
+      description: "World-class education system and lifelong learning culture",
+      skills: {
+        "Communication": 90,
+        "Collaboration": 85,
+        "Literacy": 90,
+        "Social and Cultural Awareness": 80,
+        "Creativity": 75,
+      }
+    },
+    {
+      name: "Technology",
+      displayOrder: 6,
+      description: "Digital transformation, smart cities, and innovation ecosystem",
+      skills: {
+        "ICT Literacy": 95,
+        "Critical Thinking and Problem Solving": 85,
+        "Creativity": 80,
+        "Adaptability": 75,
+        "Initiative": 70,
+      }
+    },
+  ];
+
+  const allCountries = await storage.getAllCountries();
+  const uaeCountry = allCountries.find((c: any) => c.code === "UAE");
+  if (!uaeCountry) {
+    console.warn("⚠️  UAE country not found, skipping priority sectors seeding");
+  } else {
+    let sectorsCreated = 0;
+    let skillMappingsCreated = 0;
+
+    for (const sectorData of UAE_SECTOR_WEF_SKILLS) {
+      // Create or update sector
+      const sector = await storage.createOrUpdateCountryPrioritySector(
+        uaeCountry.id,
+        sectorData.name,
+        sectorData.displayOrder,
+        sectorData.description
+      );
+      sectorsCreated++;
+
+      // Map sector to WEF skills
+      for (const [skillName, importance] of Object.entries(sectorData.skills)) {
+        // Handle "Sustainability" mapping to Scientific Literacy
+        const mappedSkillName = skillName === "Sustainability" ? "Scientific Literacy" : skillName;
+        const wefSkill = seededWefSkills[mappedSkillName];
+        
+        if (!wefSkill) {
+          console.warn(`⚠️  WEF skill not found: ${skillName} (mapped to ${mappedSkillName})`);
+          continue;
+        }
+
+        await storage.createOrUpdateCountrySectorWefSkill(
+          sector.id,
+          wefSkill.id,
+          importance
+        );
+        skillMappingsCreated++;
+      }
+    }
+
+    console.log(`✓ Created/updated ${sectorsCreated} UAE priority sectors`);
+    console.log(`✓ Created/updated ${skillMappingsCreated} sector→WEF skill mappings`);
+  }
+
   // Seed CVQ (Children's Values Questionnaire) items
   await seedCVQItems();
 

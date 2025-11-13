@@ -18,6 +18,8 @@ import {
   wefCompetencyResults,
   organizations,
   organizationMembers,
+  countryPrioritySectors,
+  countrySectorWefSkills,
   type User,
   type UpsertUser,
   type Country,
@@ -56,6 +58,10 @@ import {
   type InsertOrganization,
   type OrganizationMember,
   type InsertOrganizationMember,
+  type CountryPrioritySector,
+  type InsertCountryPrioritySector,
+  type CountrySectorWefSkill,
+  type InsertCountrySectorWefSkill,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, count, avg, sql as sqlFunc, inArray } from "drizzle-orm";
@@ -186,6 +192,11 @@ export interface IStorage {
   upsertWefCompetencyResult(assessmentId: string, userId: string | null, skillScores: Record<string, number>, sourceAttribution: string, isGuest?: boolean, guestSessionId?: string | null): Promise<WefCompetencyResult>;
   getWefCompetencyResultByAssessmentId(assessmentId: string): Promise<WefCompetencyResult | undefined>;
   getWefCompetencyResultByUserId(userId: string): Promise<WefCompetencyResult | undefined>;
+
+  // Country Priority Sectors operations
+  getCountryPrioritySectorsByCountry(countryId: string): Promise<CountryPrioritySector[]>;
+  createOrUpdateCountryPrioritySector(countryId: string, name: string, displayOrder: number, description?: string): Promise<CountryPrioritySector>;
+  createOrUpdateCountrySectorWefSkill(sectorId: string, wefSkillId: string, importance: number): Promise<CountrySectorWefSkill>;
   
   // Bulk loading operations for matching service
   getAssessmentWithCompetencies(assessmentId: string): Promise<{
@@ -1105,10 +1116,13 @@ export class DatabaseStorage implements IStorage {
     const existing = await this.getWefCompetencyResultByAssessmentId(assessmentId);
     
     // Merge new metadata with existing rawResponses
+    const existingRaw = (existing?.rawResponses as Record<string, any>) || {};
+    const existingMeta = (existingRaw._meta as Record<string, any>) || {};
+    
     const rawResponses = {
-      ...(existing?.rawResponses || {}),
+      ...existingRaw,
       _meta: {
-        ...(existing?.rawResponses?._meta || {}),
+        ...existingMeta,
         sourceAttribution,
         calculatedAt: new Date().toISOString(),
       },
@@ -1167,6 +1181,62 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(wefCompetencyResults.submittedAt))
       .limit(1);
     return result;
+  }
+
+  // Country Priority Sectors operations
+  async getCountryPrioritySectorsByCountry(countryId: string): Promise<CountryPrioritySector[]> {
+    return await db
+      .select()
+      .from(countryPrioritySectors)
+      .where(eq(countryPrioritySectors.countryId, countryId))
+      .orderBy(countryPrioritySectors.displayOrder);
+  }
+
+  async createOrUpdateCountryPrioritySector(
+    countryId: string,
+    name: string,
+    displayOrder: number,
+    description?: string
+  ): Promise<CountryPrioritySector> {
+    const [sector] = await db
+      .insert(countryPrioritySectors)
+      .values({
+        countryId,
+        name,
+        displayOrder,
+        description,
+      })
+      .onConflictDoUpdate({
+        target: [countryPrioritySectors.countryId, countryPrioritySectors.name],
+        set: {
+          displayOrder,
+          description,
+        },
+      })
+      .returning();
+    return sector;
+  }
+
+  async createOrUpdateCountrySectorWefSkill(
+    sectorId: string,
+    wefSkillId: string,
+    importance: number
+  ): Promise<CountrySectorWefSkill> {
+    const [mapping] = await db
+      .insert(countrySectorWefSkills)
+      .values({
+        sectorId,
+        wefSkillId,
+        importance,
+      })
+      .onConflictDoUpdate({
+        target: [countrySectorWefSkills.sectorId, countrySectorWefSkills.wefSkillId],
+        set: {
+          importance,
+        },
+      })
+      .returning();
+    return mapping;
   }
 
   // Bulk loading operations for matching service
