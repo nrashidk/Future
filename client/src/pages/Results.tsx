@@ -165,8 +165,25 @@ export default function Results() {
 
   const handleDownloadPDF = () => {
     if (assessmentId) {
-      // Use location.href to maintain session cookie for guest users
-      window.location.href = `/api/recommendations/pdf/${assessmentId}`;
+      try {
+        // Use anchor tag approach to prevent navigation and state update issues
+        const link = document.createElement('a');
+        link.href = `/api/recommendations/pdf/${assessmentId}`;
+        link.download = `career-report-${assessmentId}.pdf`;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        toast({
+          title: "Download Started",
+          description: "Your career report is being downloaded.",
+        });
+      } catch (error) {
+        console.error("PDF download error:", error);
+        // Fallback to window.location
+        window.location.href = `/api/recommendations/pdf/${assessmentId}`;
+      }
     }
   };
 
