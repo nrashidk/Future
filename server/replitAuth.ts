@@ -139,13 +139,23 @@ export async function setupAuth(app: Express) {
   app.get("/api/login", (req, res, next) => {
     // Store the returnTo URL in session for post-login redirect
     const returnTo = req.query.returnTo as string || '/';
-    (req.session as any).returnTo = returnTo;
+    console.log('🔐 Login initiated - returnTo:', returnTo);
     
-    ensureStrategy(req.hostname);
-    passport.authenticate(`replitauth:${req.hostname}`, {
-      prompt: "login consent",
-      scope: ["openid", "email", "profile", "offline_access"],
-    })(req, res, next);
+    // Save session before redirect
+    (req.session as any).returnTo = returnTo;
+    req.session.save((err) => {
+      if (err) {
+        console.error('❌ Session save error:', err);
+      } else {
+        console.log('✅ Session saved with returnTo:', returnTo);
+      }
+      
+      ensureStrategy(req.hostname);
+      passport.authenticate(`replitauth:${req.hostname}`, {
+        prompt: "login consent",
+        scope: ["openid", "email", "profile", "offline_access"],
+      })(req, res, next);
+    });
   });
 
   app.get("/api/callback", (req, res, next) => {
@@ -159,8 +169,11 @@ export async function setupAuth(app: Express) {
       
       // Get the returnTo URL from session, default to /
       const returnTo = (req.session as any).returnTo || '/';
+      console.log('🎯 Callback received - returnTo from session:', returnTo);
+      console.log('📦 Full session data:', JSON.stringify(req.session, null, 2));
       delete (req.session as any).returnTo; // Clean up
       
+      console.log('🔄 Redirecting to:', returnTo);
       // Redirect to the intended destination
       res.redirect(returnTo);
     });
