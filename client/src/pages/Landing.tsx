@@ -27,7 +27,8 @@ export default function Landing() {
   const isPlural = displayCount === "10,000+" || (studentCount && studentCount !== 1);
 
   const handleLogin = () => {
-    window.location.href = "/api/login";
+    // Redirect to assessment after login
+    window.location.href = "/api/login?returnTo=/assessment";
   };
 
   const handleGuestStart = () => {

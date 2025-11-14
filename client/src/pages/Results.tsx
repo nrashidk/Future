@@ -188,8 +188,8 @@ export default function Results() {
   };
 
   const handleSignUp = async () => {
-    // Trigger migration after sign-up
-    window.location.href = "/api/login";
+    // Trigger migration after sign-up, redirect back to results page
+    window.location.href = "/api/login?returnTo=/results";
   };
 
   if (isLoading) {

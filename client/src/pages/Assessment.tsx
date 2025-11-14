@@ -206,7 +206,8 @@ export default function Assessment() {
       ...assessmentData,
       currentStep,
     }));
-    window.location.href = "/api/login";
+    // Redirect back to assessment after login
+    window.location.href = "/api/login?returnTo=/assessment";
   };
 
   if (isLoading) {
