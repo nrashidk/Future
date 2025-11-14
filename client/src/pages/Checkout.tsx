@@ -32,11 +32,6 @@ function CheckoutForm({ amount, studentCount, isAuthenticated }: { amount: numbe
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [isProcessing, setIsProcessing] = useState(false);
-  
-  // Account creation fields (only for guest users)
-  const [email, setEmail] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [password, setPassword] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,34 +40,15 @@ function CheckoutForm({ amount, studentCount, isAuthenticated }: { amount: numbe
       return;
     }
 
-    // Validate account fields for guest users
+    // Require authentication
     if (!isAuthenticated) {
-      if (!email || !fullName || !password) {
-        toast({
-          title: "Missing Information",
-          description: "Please fill in all account details",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (password.length < 6) {
-        toast({
-          title: "Invalid Password",
-          description: "Password must be at least 6 characters",
-          variant: "destructive",
-        });
-        return;
-      }
-
-      if (!email.includes("@")) {
-        toast({
-          title: "Invalid Email",
-          description: "Please enter a valid email address",
-          variant: "destructive",
-        });
-        return;
-      }
+      toast({
+        title: "Login Required",
+        description: "Please login to continue with your purchase",
+        variant: "destructive",
+      });
+      setLocation('/login/student');
+      return;
     }
 
     setIsProcessing(true);
@@ -92,66 +68,27 @@ function CheckoutForm({ amount, studentCount, isAuthenticated }: { amount: numbe
           description: error.message,
           variant: "destructive",
         });
-      } else if (paymentIntent && paymentIntent.status === "succeeded") {
-        // Payment successful!
-        
-        // If guest user, create account first
-        if (!isAuthenticated) {
-          try {
-            // Create account with Replit Auth
-            const signupResponse = await fetch("/api/register-and-upgrade", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                email,
-                fullName,
-                password,
-                paymentIntentId: paymentIntent.id
-              }),
-            });
+        return;
+      }
 
-            if (!signupResponse.ok) {
-              const errorData = await signupResponse.json();
-              throw new Error(errorData.message || "Failed to create account");
-            }
+      if (paymentIntent && paymentIntent.status === "succeeded") {
+        // Payment successful! Upgrade user to premium
+        await apiRequest("/api/upgrade-to-premium", {
+          method: "POST",
+          body: JSON.stringify({
+            paymentIntentId: paymentIntent.id
+          }),
+        });
 
-            // Invalidate auth cache to get new user data
-            await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+        // Invalidate auth cache to get updated premium status
+        await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
 
-            toast({
-              title: "Account Created & Payment Successful!",
-              description: "Welcome! You can now start your premium assessment.",
-            });
+        toast({
+          title: "Payment Successful!",
+          description: "Your account has been upgraded to premium.",
+        });
 
-            setLocation("/assessment");
-          } catch (err: any) {
-            toast({
-              title: "Payment Successful, Account Error",
-              description: err.message || "Payment succeeded but account creation failed. Please contact support.",
-              variant: "destructive",
-            });
-          }
-        } else {
-          // Already logged in, just upgrade to premium
-          try {
-            await apiRequest("POST", "/api/upgrade-to-premium", {
-              paymentIntentId: paymentIntent.id
-            });
-
-            toast({
-              title: "Payment Successful!",
-              description: "You now have access to the premium assessment.",
-            });
-
-            setLocation("/assessment");
-          } catch (err) {
-            toast({
-              title: "Payment Successful",
-              description: "Please refresh and start your premium assessment.",
-            });
-            setLocation("/assessment");
-          }
-        }
+        setLocation("/assessment");
       }
     } catch (err: any) {
       toast({
@@ -166,58 +103,6 @@ function CheckoutForm({ amount, studentCount, isAuthenticated }: { amount: numbe
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Account creation fields for guest users */}
-      {!isAuthenticated && (
-        <div className="space-y-4 pb-6 border-b border-gray-200 dark:border-gray-700">
-          <div>
-            <h3 className="text-lg font-semibold mb-4">Create Your Account</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-              Fill in your details to create an account and access your premium assessment
-            </p>
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="fullName">Full Name *</Label>
-            <Input
-              id="fullName"
-              type="text"
-              placeholder="John Smith"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              required
-              data-testid="input-fullname"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="email">Email Address *</Label>
-            <Input
-              id="email"
-              type="email"
-              placeholder="john@example.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              data-testid="input-email"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="password">Password *</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="At least 6 characters"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-              data-testid="input-password"
-            />
-          </div>
-        </div>
-      )}
-
       {/* Payment section */}
       <div>
         <h3 className="text-lg font-semibold mb-4">Payment Information</h3>
@@ -273,11 +158,22 @@ export default function Checkout() {
   const [clientSecret, setClientSecret] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [serverAmount, setServerAmount] = useState<number | null>(null);
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
   
   // Parse URL parameters (only studentCount, ignore client-provided total)
   const params = new URLSearchParams(window.location.search);
   const studentCount = parseInt(params.get("students") || "1");
+
+  // Auth guard: redirect unauthenticated users after auth state has loaded
+  useEffect(() => {
+    // Wait for auth state to load before making any decisions
+    if (isAuthLoading) return;
+    
+    // Auth has loaded - redirect if not authenticated
+    if (!isAuthenticated) {
+      setLocation("/login/student");
+    }
+  }, [isAuthenticated, isAuthLoading, setLocation]);
 
   useEffect(() => {
     // Check if Stripe is configured
