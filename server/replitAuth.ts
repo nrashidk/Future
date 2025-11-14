@@ -137,25 +137,19 @@ export async function setupAuth(app: Express) {
   passport.deserializeUser((user: Express.User, cb) => cb(null, user));
 
   app.get("/api/login", (req, res, next) => {
-    // Store the returnTo URL in session for post-login redirect
+    // Encode returnTo in OAuth state parameter (more reliable than session)
     const returnTo = req.query.returnTo as string || '/';
     console.log('🔐 Login initiated - returnTo:', returnTo);
     
-    // Save session before redirect
-    (req.session as any).returnTo = returnTo;
-    req.session.save((err) => {
-      if (err) {
-        console.error('❌ Session save error:', err);
-      } else {
-        console.log('✅ Session saved with returnTo:', returnTo);
-      }
-      
-      ensureStrategy(req.hostname);
-      passport.authenticate(`replitauth:${req.hostname}`, {
-        prompt: "login consent",
-        scope: ["openid", "email", "profile", "offline_access"],
-      })(req, res, next);
-    });
+    // Encode returnTo in state parameter as base64
+    const state = Buffer.from(JSON.stringify({ returnTo })).toString('base64');
+    
+    ensureStrategy(req.hostname);
+    passport.authenticate(`replitauth:${req.hostname}`, {
+      prompt: "login consent",
+      scope: ["openid", "email", "profile", "offline_access"],
+      state, // Pass custom state with returnTo encoded
+    })(req, res, next);
   });
 
   app.get("/api/callback", (req, res, next) => {
@@ -167,11 +161,18 @@ export async function setupAuth(app: Express) {
         return next(err);
       }
       
-      // Get the returnTo URL from session, default to /
-      const returnTo = (req.session as any).returnTo || '/';
-      console.log('🎯 Callback received - returnTo from session:', returnTo);
-      console.log('📦 Full session data:', JSON.stringify(req.session, null, 2));
-      delete (req.session as any).returnTo; // Clean up
+      // Decode returnTo from OAuth state parameter
+      let returnTo = '/';
+      try {
+        const stateParam = req.query.state as string;
+        if (stateParam) {
+          const decoded = JSON.parse(Buffer.from(stateParam, 'base64').toString());
+          returnTo = decoded.returnTo || '/';
+          console.log('🎯 Callback received - returnTo from state:', returnTo);
+        }
+      } catch (error) {
+        console.error('❌ Error decoding state parameter:', error);
+      }
       
       console.log('🔄 Redirecting to:', returnTo);
       // Redirect to the intended destination
