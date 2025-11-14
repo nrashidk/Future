@@ -1510,6 +1510,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid amount. Minimum is $0.50 USD" });
       }
 
+      // Get userId - works for both Replit Auth and local users
+      const userId = req.isAuthenticated() 
+        ? (req.user.userId || req.user.claims?.sub) 
+        : "guest";
+
       const paymentIntent = await stripe.paymentIntents.create({
         amount: amountInCents,
         currency: "usd",
@@ -1517,7 +1522,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           enabled: true,
         },
         metadata: {
-          userId: req.isAuthenticated() ? req.user.claims.sub : "guest",
+          userId,
           studentCount: studentCount.toString(),
           expectedAmount: amountInCents.toString(),
           assessmentType: "kolb_premium"
@@ -1556,8 +1561,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Payment not completed" });
       }
 
+      // Get userId - works for both Replit Auth and local users
+      const userId = req.user.userId || req.user.claims?.sub;
+      
       // Verify user matches the payment metadata
-      if (paymentIntent.metadata.userId !== req.user.claims.sub) {
+      if (paymentIntent.metadata.userId !== userId) {
         return res.status(403).json({ message: "Payment does not belong to this user" });
       }
 
