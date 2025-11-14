@@ -1,16 +1,26 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Users, ArrowLeft } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Users, ArrowLeft, Mail, Phone, Building2 } from "lucide-react";
 
 export default function GroupPricing() {
   const [, setLocation] = useLocation();
+  const { user, isLoading } = useAuth();
   const [studentCount, setStudentCount] = useState<number>(100);
+
+  // Redirect admins to organizations dashboard
+  useEffect(() => {
+    if (!isLoading && user?.isSuperAdmin) {
+      setLocation('/admin/organizations');
+    }
+  }, [user, isLoading, setLocation]);
 
   const calculatePrice = (count: number): { total: number; perStudent: number; discount: number } => {
     const basePrice = 10;
@@ -32,12 +42,12 @@ export default function GroupPricing() {
 
   const pricing = calculatePrice(studentCount);
 
-  const handleContinue = () => {
-    setLocation(`/checkout?students=${studentCount}&total=${pricing.total}&group=true`);
-  };
-
   const handleBack = () => {
     setLocation('/tier-selection');
+  };
+
+  const handleContactSales = () => {
+    window.location.href = 'mailto:sales@futurepathways.edu?subject=Group Assessment Inquiry';
   };
 
   return (
@@ -124,6 +134,31 @@ export default function GroupPricing() {
                 </div>
               </div>
             </div>
+
+            <Separator />
+
+            {/* Contact Sales Section */}
+            <Alert data-testid="alert-contact-sales">
+              <Building2 className="h-4 w-4" />
+              <AlertDescription>
+                <p className="font-semibold mb-2">Ready to get started?</p>
+                <p className="text-sm text-muted-foreground mb-3">
+                  Group assessments require coordination with our team. Contact us to set up your organization and receive your licenses.
+                </p>
+                <div className="space-y-1 text-sm">
+                  <div className="flex items-center gap-2">
+                    <Mail className="w-4 h-4" />
+                    <a href="mailto:sales@futurepathways.edu" className="text-primary hover:underline">
+                      sales@futurepathways.edu
+                    </a>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Phone className="w-4 h-4" />
+                    <span className="text-muted-foreground">+1 (555) 123-4567</span>
+                  </div>
+                </div>
+              </AlertDescription>
+            </Alert>
           </CardContent>
           <CardFooter className="flex flex-col sm:flex-row gap-3">
             <Button 
@@ -137,10 +172,11 @@ export default function GroupPricing() {
             </Button>
             <Button 
               className="w-full bg-blue-600 hover:bg-blue-700 flex-1" 
-              onClick={handleContinue}
-              data-testid="button-continue-checkout"
+              onClick={handleContactSales}
+              data-testid="button-contact-sales"
             >
-              Continue to Checkout - ${pricing.total.toFixed(2)}
+              <Mail className="w-4 h-4 mr-2" />
+              Contact Sales Team
             </Button>
           </CardFooter>
         </Card>

@@ -1,11 +1,26 @@
 # Payment Flow Testing Guide
 
-## ✅ What Was Fixed (November 14, 2025)
+**Last Updated**: November 14, 2025  
+**Status**: ✅ Individual & Admin Flows Unified
 
-### Problem
+---
+
+## 🎯 Overview
+
+Future Pathways supports two distinct flows:
+1. **Individual Purchases** - Self-service Stripe payments ($10/student)
+2. **Group/Admin Flow** - Manual organization management (guided sales)
+
+---
+
+## 🔐 Individual Purchase Flow (Self-Service)
+
+### What Was Fixed (November 14, 2025)
+
+#### Problem
 Guest users could not purchase the premium assessment - there was no way to create an account during checkout.
 
-### Solution
+#### Solution
 **Simplified Payment Flow**: Require users to login/signup BEFORE checkout (industry standard practice)
 
 This is:
@@ -16,7 +31,7 @@ This is:
 
 ---
 
-## 🔐 Complete Payment Flow
+## 🔐 Complete Individual Payment Flow
 
 ### Step 1: Login Required
 1. Visit `/tier-selection`
@@ -91,6 +106,65 @@ This is:
 - [ ] 1. Login with `premiumuser` / `test123` (already has premium)
 - [ ] 2. Visit `/assessment`
 - [ ] 3. Verify: Can access all premium features (Kolb, RIASEC, WEF Skills, PDF reports)
+
+---
+
+## 🏫 Group/Admin Flow (Guided Sales)
+
+### Overview
+**Group purchases do NOT use the self-service checkout flow**. Instead, schools work with the sales team, and admins manage organizations manually through the admin dashboard.
+
+### Complete Admin Flow
+
+#### Step 1: Group Pricing Inquiry
+1. Visit `/tier-selection`
+2. Click **"Group Assessment"** button
+3. Redirected to `/group-pricing`
+4. Page shows:
+   - Bulk discount calculator (10%, 15%, 20% tiers)
+   - **Contact Sales** section with email and phone
+   - **Note**: Admins are automatically redirected to `/admin/organizations`
+
+#### Step 2: Sales Team Coordination
+1. School contacts sales team (sales@futurepathways.edu)
+2. Sales team:
+   - Processes payment (external to app)
+   - Creates organization record
+   - Sets `totalLicenses` based on purchase
+
+#### Step 3: Admin Dashboard Management
+1. Admin logs in (must be superadmin with Replit Auth)
+2. Navigate to `/admin/organizations`
+3. Select organization
+4. Add students:
+   - **Manual**: Click "Add Student", enter details
+   - **Bulk**: Click "CSV Upload", upload student list
+5. System auto-generates usernames and passwords
+6. Admin downloads credentials for distribution
+
+#### Step 4: Students Login
+1. Students visit `/login/student`
+2. Login with provided username/password
+3. Complete assessment (already premium via organization license)
+
+### Testing Group Flow
+- [ ] 1. Login as admin: `adminuser` / `test123`
+- [ ] 2. Visit `/group-pricing` → Auto-redirected to `/admin/organizations`
+- [ ] 3. Select an organization (or create one)
+- [ ] 4. Verify license quota tracking works
+- [ ] 5. Add a test student
+- [ ] 6. Download student credentials
+- [ ] 7. Logout and login as student
+- [ ] 8. Verify student has premium access
+
+### Non-Admin Group Flow Test
+- [ ] 1. Login as regular user: `teststudent` / `test123`
+- [ ] 2. Visit `/group-pricing`
+- [ ] 3. Verify: Page shows bulk discount calculator
+- [ ] 4. Verify: "Contact Sales" section is visible
+- [ ] 5. Verify: Button says "Contact Sales Team" (not "Continue to Checkout")
+- [ ] 6. Click "Contact Sales Team"
+- [ ] 7. Verify: Opens email client with pre-filled subject
 
 ---
 
