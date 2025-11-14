@@ -89,20 +89,15 @@ function CheckoutForm({ amount, studentCount }: { amount: number | null; student
 
       if (paymentIntent && paymentIntent.status === "succeeded") {
         // Payment successful! Create account and allocate licenses
-        const response = await apiRequest("/api/checkout/complete", {
-          method: "POST",
-          body: JSON.stringify({
-            paymentIntentId: paymentIntent.id,
-            firstName,
-            lastName,
-            email,
-            phone,
-            organizationName: studentCount > 1 ? organizationName : null,
-            studentCount
-          }),
+        const data = await apiRequest("POST", "/api/checkout/complete", {
+          paymentIntentId: paymentIntent.id,
+          firstName,
+          lastName,
+          email,
+          phone,
+          organizationName: studentCount > 1 ? organizationName : null,
+          studentCount
         });
-
-        const data = await response.json();
 
         // Invalidate auth cache
         await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
@@ -270,11 +265,10 @@ export default function Checkout() {
     const createPaymentIntent = async () => {
       try {
         // SECURITY FIX: Only send studentCount, server calculates amount
-        const response = await apiRequest("POST", "/api/create-payment-intent", {
+        const data = await apiRequest("POST", "/api/create-payment-intent", {
           studentCount: studentCount
         });
 
-        const data = await response.json();
         setClientSecret(data.clientSecret);
         setServerAmount(data.amount); // Use server-calculated amount for display
       } catch (error) {
