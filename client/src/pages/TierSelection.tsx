@@ -3,11 +3,25 @@ import { PageLayout } from "@/components/layout/PageLayout";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Check, User, Users, BarChart3, TrendingUp, Settings } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 
 export default function TierSelection() {
   const [, setLocation] = useLocation();
+  const { isAuthenticated } = useAuth();
+  const { toast } = useToast();
 
   const handleIndividualTier = () => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Login Required",
+        description: "Please login to continue with your purchase. Use /login/student page with test credentials: teststudent / test123",
+        variant: "destructive",
+      });
+      // Redirect to student login page
+      setLocation('/login/student');
+      return;
+    }
     setLocation(`/checkout?students=1&total=10`);
   };
 

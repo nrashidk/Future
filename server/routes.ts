@@ -1577,14 +1577,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Prevent duplicate premium upgrades
-      const existingUser = await storage.getUser(req.user.claims.sub);
+      const existingUser = await storage.getUser(userId);
       if (existingUser && existingUser.isPremium) {
         return res.json({ success: true, user: existingUser, message: "Already premium" });
       }
 
       // Update user to premium
       const updatedUser = await storage.updateUserPremiumStatus(
-        req.user.claims.sub,
+        userId,
         paymentIntent.customer as string || null
       );
 

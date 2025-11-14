@@ -4,8 +4,11 @@ import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-
 import { loadStripe, Stripe } from "@stripe/stripe-js";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/useAuth";
 import { Loader2 } from "lucide-react";
 
 // Initialize Stripe (lazy loaded)
@@ -23,18 +26,53 @@ const getStripe = () => {
 };
 
 // Checkout Form Component
-function CheckoutForm({ amount, studentCount }: { amount: number | null; studentCount: number }) {
+function CheckoutForm({ amount, studentCount, isAuthenticated }: { amount: number | null; studentCount: number; isAuthenticated: boolean }) {
   const stripe = useStripe();
   const elements = useElements();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [isProcessing, setIsProcessing] = useState(false);
+  
+  // Account creation fields (only for guest users)
+  const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [password, setPassword] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!stripe || !elements) {
       return;
+    }
+
+    // Validate account fields for guest users
+    if (!isAuthenticated) {
+      if (!email || !fullName || !password) {
+        toast({
+          title: "Missing Information",
+          description: "Please fill in all account details",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (password.length < 6) {
+        toast({
+          title: "Invalid Password",
+          description: "Password must be at least 6 characters",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (!email.includes("@")) {
+        toast({
+          title: "Invalid Email",
+          description: "Please enter a valid email address",
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     setIsProcessing(true);
@@ -55,25 +93,64 @@ function CheckoutForm({ amount, studentCount }: { amount: number | null; student
           variant: "destructive",
         });
       } else if (paymentIntent && paymentIntent.status === "succeeded") {
-        // Payment successful - upgrade user to premium
-        try {
-          await apiRequest("POST", "/api/upgrade-to-premium", {
-            paymentIntentId: paymentIntent.id
-          });
+        // Payment successful!
+        
+        // If guest user, create account first
+        if (!isAuthenticated) {
+          try {
+            // Create account with Replit Auth
+            const signupResponse = await fetch("/api/register-and-upgrade", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                email,
+                fullName,
+                password,
+                paymentIntentId: paymentIntent.id
+              }),
+            });
 
-          toast({
-            title: "Payment Successful!",
-            description: "You now have access to the premium Kolb assessment.",
-          });
+            if (!signupResponse.ok) {
+              const errorData = await signupResponse.json();
+              throw new Error(errorData.message || "Failed to create account");
+            }
 
-          // Redirect to assessment
-          setLocation("/assessment");
-        } catch (err) {
-          toast({
-            title: "Payment Successful",
-            description: "Please refresh and start your premium assessment.",
-          });
-          setLocation("/assessment");
+            // Invalidate auth cache to get new user data
+            await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+
+            toast({
+              title: "Account Created & Payment Successful!",
+              description: "Welcome! You can now start your premium assessment.",
+            });
+
+            setLocation("/assessment");
+          } catch (err: any) {
+            toast({
+              title: "Payment Successful, Account Error",
+              description: err.message || "Payment succeeded but account creation failed. Please contact support.",
+              variant: "destructive",
+            });
+          }
+        } else {
+          // Already logged in, just upgrade to premium
+          try {
+            await apiRequest("POST", "/api/upgrade-to-premium", {
+              paymentIntentId: paymentIntent.id
+            });
+
+            toast({
+              title: "Payment Successful!",
+              description: "You now have access to the premium assessment.",
+            });
+
+            setLocation("/assessment");
+          } catch (err) {
+            toast({
+              title: "Payment Successful",
+              description: "Please refresh and start your premium assessment.",
+            });
+            setLocation("/assessment");
+          }
         }
       }
     } catch (err: any) {
@@ -89,7 +166,63 @@ function CheckoutForm({ amount, studentCount }: { amount: number | null; student
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <PaymentElement />
+      {/* Account creation fields for guest users */}
+      {!isAuthenticated && (
+        <div className="space-y-4 pb-6 border-b border-gray-200 dark:border-gray-700">
+          <div>
+            <h3 className="text-lg font-semibold mb-4">Create Your Account</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              Fill in your details to create an account and access your premium assessment
+            </p>
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="fullName">Full Name *</Label>
+            <Input
+              id="fullName"
+              type="text"
+              placeholder="John Smith"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              required
+              data-testid="input-fullname"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="email">Email Address *</Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="john@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              data-testid="input-email"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="password">Password *</Label>
+            <Input
+              id="password"
+              type="password"
+              placeholder="At least 6 characters"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={6}
+              data-testid="input-password"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Payment section */}
+      <div>
+        <h3 className="text-lg font-semibold mb-4">Payment Information</h3>
+        <PaymentElement />
+      </div>
       
       <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 space-y-2">
         <div className="flex justify-between text-sm">
@@ -140,6 +273,7 @@ export default function Checkout() {
   const [clientSecret, setClientSecret] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [serverAmount, setServerAmount] = useState<number | null>(null);
+  const { isAuthenticated } = useAuth();
   
   // Parse URL parameters (only studentCount, ignore client-provided total)
   const params = new URLSearchParams(window.location.search);
@@ -219,7 +353,7 @@ export default function Checkout() {
                     },
                   }}
                 >
-                  <CheckoutForm amount={serverAmount} studentCount={studentCount} />
+                  <CheckoutForm amount={serverAmount} studentCount={studentCount} isAuthenticated={isAuthenticated} />
                 </Elements>
               ) : (
                 <div className="text-center py-8 text-red-600">
