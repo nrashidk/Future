@@ -26,6 +26,31 @@ The application features a playful, student-friendly sticky notes aesthetic with
     - **Middleware**: `isAuthenticated` supports both auth flows; `isAdmin` restricts admin routes to Replit Auth superadmins only
     - **Student Login Page**: `/login/student` provides simple username/password form with error handling and auth cache invalidation
 - **Payment System**: Stripe integration for secure, server-side pricing and payment processing, supporting individual and group assessments.
+- **Self-Service Checkout** (November 2025):
+    - **Unified Checkout Flow**: Single checkout page (`/checkout`) for both individual ($10) and group purchases (bulk discounts)
+    - **Registration Form**: Collects firstName, lastName, email, phone, and organizationName (for groups)
+    - **Backend API** (`POST /api/checkout/complete`):
+        - **Payment Verification**: Validates Stripe payment success + amount against metadata
+        - **Idempotency Protection**: Tracks processed payments via Stripe metadata to prevent double-counting on retries
+        - **User Handling**: 
+            - New users: Auto-create with generated username/password (bcrypt hashed), auto-login with local strategy
+            - Existing OAuth users: Reject with helpful error (must login first to upgrade)
+            - Existing local users: Increment licenses, redirect to login (no auto-login for security)
+        - **Group Purchases**: Promote user to org_admin role, create organization with payment tracking
+        - **Response**: Different messages/routing for new vs existing users, includes credentials for new accounts
+    - **Storage Layer Enhancements**:
+        - `getUserByEmail`: Find users by email for duplicate detection
+        - `createStandaloneUser`: Create users with auto-generated credentials (username collision handling, max 10 retries)
+        - `updateUserFields`: Selective field updates with incremental license allocation
+    - **Frontend Flow**:
+        - TierSelection → GroupPricing (for groups) → Checkout
+        - Smart routing after payment: New users auto-logged in → /assessment or /admin/organizations
+        - Existing users → /login/student with message
+        - Credentials display: 15s toast + console log (TODO: upgrade to modal)
+    - **Security**: Bcrypt password hashing, server-side payment verification, incremental license allocation, OAuth user protection
+    - **Known Limitations**: 
+        - Transactional group creation (role promotion + org creation) needs atomic handling to prevent inconsistencies
+        - Credentials display should use modal instead of toast for better UX
 - **Assessment Components**:
     - Multi-step career assessment questionnaire including demographics, subjects, interests, personality (RIASEC), country vision, and aspirations.
     - Dual-tier assessment system: Basic (free) and Individual/Group (premium, paid).
