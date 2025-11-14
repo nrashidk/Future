@@ -224,6 +224,13 @@ export interface IStorage {
 
   // Organization operations
   createOrganization(organization: InsertOrganization): Promise<Organization>;
+  createGroupPurchaseTransaction(params: {
+    userId: string;
+    organizationName: string;
+    studentCount: number;
+    paymentIntentId: string;
+    amountPaid: number;
+  }): Promise<{ user: User; organization: Organization }>;
   getAllOrganizations(): Promise<Organization[]>;
   getOrganizationById(id: string): Promise<Organization | undefined>;
   getOrganizationByAdminUserId(adminUserId: string): Promise<Organization | undefined>;
@@ -1408,6 +1415,83 @@ export class DatabaseStorage implements IStorage {
       .values(organizationData)
       .returning();
     return organization;
+  }
+
+  /**
+   * Atomic transaction for group purchase: Promotes user to org_admin and creates organization
+   * Uses SELECT ... FOR UPDATE to prevent concurrent purchases by same user
+   * Rolls back both operations if either fails
+   */
+  async createGroupPurchaseTransaction(params: {
+    userId: string;
+    organizationName: string;
+    studentCount: number;
+    paymentIntentId: string;
+    amountPaid: number;
+  }): Promise<{ user: User; organization: Organization }> {
+    const { userId, organizationName, studentCount, paymentIntentId, amountPaid } = params;
+
+    return await db.transaction(async (tx) => {
+      // Lock user row to prevent concurrent group purchases
+      const [existingUser] = await tx
+        .select()
+        .from(users)
+        .where(eq(users.id, userId))
+        .for('update');
+
+      if (!existingUser) {
+        throw new Error(`User ${userId} not found`);
+      }
+
+      // Check if user already has an organization
+      const [existingOrg] = await tx
+        .select()
+        .from(organizations)
+        .where(eq(organizations.adminUserId, userId));
+
+      if (existingOrg) {
+        throw new Error(`User already has an organization: ${existingOrg.name}. Cannot create multiple organizations.`);
+      }
+
+      // Promote user to org_admin and allocate licenses
+      const [updatedUser] = await tx
+        .update(users)
+        .set({
+          accountType: 'org_admin',
+          role: 'admin',
+          isPremium: true,
+          purchasedLicenses: sqlFunc`COALESCE(${users.purchasedLicenses}, 0) + ${studentCount}`,
+          updatedAt: new Date()
+        })
+        .where(eq(users.id, userId))
+        .returning();
+
+      // Create organization
+      const [organization] = await tx
+        .insert(organizations)
+        .values({
+          name: organizationName,
+          adminUserId: userId,
+          totalLicenses: studentCount,
+          usedLicenses: 0,
+          stripePaymentId: paymentIntentId,
+          amountPaid
+        })
+        .returning();
+
+      // Enroll admin as organization member
+      await tx
+        .insert(organizationMembers)
+        .values({
+          userId: userId,
+          organizationId: organization.id,
+          role: 'admin', // Organization member role (not user role)
+          hasCompletedAssessment: false,
+          isLocked: false
+        });
+
+      return { user: updatedUser, organization };
+    });
   }
 
   async getAllOrganizations(): Promise<Organization[]> {

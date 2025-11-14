@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
 import { Loader2 } from "lucide-react";
+import { CredentialsModal } from "@/components/CredentialsModal";
 
 // Initialize Stripe (lazy loaded)
 let stripePromise: Promise<Stripe | null> | null = null;
@@ -39,6 +40,28 @@ function CheckoutForm({ amount, studentCount }: { amount: number | null; student
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [organizationName, setOrganizationName] = useState("");
+
+  // Credentials modal state
+  const [showCredentialsModal, setShowCredentialsModal] = useState(false);
+  const [credentials, setCredentials] = useState<{
+    username: string;
+    password: string;
+    email: string;
+  } | null>(null);
+  const [createdOrgName, setCreatedOrgName] = useState<string | undefined>();
+
+  // Handle credentials modal close and routing
+  const handleCredentialsModalClose = () => {
+    setShowCredentialsModal(false);
+    // Route new users to appropriate destination
+    if (studentCount > 1) {
+      // Group purchase -> Organization dashboard
+      setLocation("/admin/organizations");
+    } else {
+      // Individual purchase -> Assessment
+      setLocation("/assessment");
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,33 +126,25 @@ function CheckoutForm({ amount, studentCount }: { amount: number | null; student
         // Invalidate auth cache
         await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
 
-        // Display credentials for new users
+        // Display credentials for new users in modal
         if (data.isNewUser && data.credentials) {
-          toast({
-            title: "Payment Successful!",
-            description: `Account created! Username: ${data.credentials.username}, Password: ${data.credentials.password}. Please save these credentials.`,
-            duration: 15000, // Show for 15 seconds
-          });
+          setCredentials(data.credentials);
+          setCreatedOrgName(data.organization?.name);
+          setShowCredentialsModal(true);
           
-          // TODO: Display credentials in a modal or dedicated page instead of just toast
+          // Also log to console as backup
           console.log("Your Login Credentials - Please Save:", data.credentials);
         } else {
           toast({
             title: "Payment Successful!",
             description: data.message || "Purchase completed successfully.",
           });
-        }
-
-        // Route based on purchase type and new user status
-        if (data.requiresLogin) {
-          // Existing user - redirect to login
-          setLocation("/login/student");
-        } else if (studentCount > 1) {
-          // New user with group purchase -> Organization dashboard
-          setLocation("/admin/organizations");
-        } else {
-          // New user with individual purchase -> Assessment
-          setLocation("/assessment");
+          
+          // Route existing users immediately
+          if (data.requiresLogin) {
+            // Existing user - redirect to login
+            setLocation("/login/student");
+          }
         }
       }
     } catch (err: any) {
@@ -254,6 +269,16 @@ function CheckoutForm({ amount, studentCount }: { amount: number | null; student
       <p className="text-xs text-center text-gray-500">
         Secure payment powered by Stripe. Your payment information is encrypted and secure.
       </p>
+
+      {/* Credentials Modal */}
+      {credentials && (
+        <CredentialsModal
+          open={showCredentialsModal}
+          onClose={handleCredentialsModalClose}
+          credentials={credentials}
+          organizationName={createdOrgName}
+        />
+      )}
     </form>
   );
 }

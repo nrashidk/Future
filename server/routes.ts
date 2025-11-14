@@ -1672,26 +1672,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         username = user.username!;
       }
 
-      // Handle group purchases: Create organization and promote user to admin
+      // Handle group purchases: Atomically promote user and create organization
       let organization = null;
       if (studentCount > 1 && organizationName) {
-        // Promote user to org admin
-        const [updatedUser] = await db.update(users).set({
-          accountType: 'org_admin',
-          role: 'admin',
-          updatedAt: new Date()
-        }).where(eq(users.id, user.id)).returning();
-        user = updatedUser;
-        
-        // Create organization
-        organization = await storage.createOrganization({
-          name: organizationName,
-          adminUserId: user!.id,
-          totalLicenses: studentCount,
-          usedLicenses: 0,
-          stripePaymentId: paymentIntent.id,
-          amountPaid: paymentIntent.amount / 100 // Convert cents to dollars
-        });
+        try {
+          const result = await storage.createGroupPurchaseTransaction({
+            userId: user.id,
+            organizationName,
+            studentCount,
+            paymentIntentId: paymentIntent.id,
+            amountPaid: paymentIntent.amount / 100 // Convert cents to dollars
+          });
+          user = result.user;
+          organization = result.organization;
+        } catch (error: any) {
+          console.error("Group purchase transaction failed:", error);
+          if (error.message.includes("already has an organization")) {
+            return res.status(409).json({ message: error.message });
+          }
+          throw error;
+        }
       }
 
       // Auto-login for new local users only
