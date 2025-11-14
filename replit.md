@@ -47,10 +47,11 @@ The application features a playful, student-friendly sticky notes aesthetic with
         - Smart routing after payment: New users auto-logged in → /assessment or /admin/organizations
         - Existing users → /login/student with message
         - Credentials display: 15s toast + console log (TODO: upgrade to modal)
-    - **Security**: Bcrypt password hashing, server-side payment verification, incremental license allocation, OAuth user protection
-    - **Known Limitations**: 
-        - Transactional group creation (role promotion + org creation) needs atomic handling to prevent inconsistencies
-        - Credentials display should use modal instead of toast for better UX
+    - **Security**: Bcrypt password hashing, server-side payment verification, incremental license allocation, OAuth user protection, atomic transactions
+    - **Improvements (November 14, 2025 - **COMPLETED**)**:
+        - ✅ **Atomic Transactions**: `createGroupPurchaseTransaction` wraps all group purchase operations (user promotion, license allocation, org creation, admin membership) in a single Drizzle transaction with row-level locking
+        - ✅ **Credentials Modal**: Professional modal component with copy-to-clipboard functionality replaces toast notifications for better UX
+        - ✅ **Complete Testing Guide**: Comprehensive guide covering individual purchases, group purchases, edge cases, and error scenarios (`CHECKOUT_TESTING_GUIDE.md`)
 - **Assessment Components**:
     - Multi-step career assessment questionnaire including demographics, subjects, interests, personality (RIASEC), country vision, and aspirations.
     - Dual-tier assessment system: Basic (free) and Individual/Group (premium, paid).
