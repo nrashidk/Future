@@ -25,13 +25,20 @@ const getStripe = () => {
   return stripePromise;
 };
 
-// Checkout Form Component
-function CheckoutForm({ amount, studentCount, isAuthenticated }: { amount: number | null; studentCount: number; isAuthenticated: boolean }) {
+// Checkout Form Component  
+function CheckoutForm({ amount, studentCount }: { amount: number | null; studentCount: number }) {
   const stripe = useStripe();
   const elements = useElements();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // Registration form state
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
+  const [organizationName, setOrganizationName] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,14 +47,23 @@ function CheckoutForm({ amount, studentCount, isAuthenticated }: { amount: numbe
       return;
     }
 
-    // Require authentication
-    if (!isAuthenticated) {
+    // Validate registration fields
+    if (!firstName || !lastName || !email || !phone) {
       toast({
-        title: "Login Required",
-        description: "Please login to continue with your purchase",
+        title: "Missing Information",
+        description: "Please fill in all required fields",
         variant: "destructive",
       });
-      setLocation('/login/student');
+      return;
+    }
+
+    // Validate organization name for group purchases
+    if (studentCount > 1 && !organizationName) {
+      toast({
+        title: "Missing Organization Name",
+        description: "Please enter your school or organization name",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -72,23 +88,38 @@ function CheckoutForm({ amount, studentCount, isAuthenticated }: { amount: numbe
       }
 
       if (paymentIntent && paymentIntent.status === "succeeded") {
-        // Payment successful! Upgrade user to premium
-        await apiRequest("/api/upgrade-to-premium", {
+        // Payment successful! Create account and allocate licenses
+        const response = await apiRequest("/api/checkout/complete", {
           method: "POST",
           body: JSON.stringify({
-            paymentIntentId: paymentIntent.id
+            paymentIntentId: paymentIntent.id,
+            firstName,
+            lastName,
+            email,
+            phone,
+            organizationName: studentCount > 1 ? organizationName : null,
+            studentCount
           }),
         });
 
-        // Invalidate auth cache to get updated premium status
+        const data = await response.json();
+
+        // Invalidate auth cache
         await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
 
         toast({
           title: "Payment Successful!",
-          description: "Your account has been upgraded to premium.",
+          description: data.message || "Your account has been created successfully.",
         });
 
-        setLocation("/assessment");
+        // Route based on purchase type
+        if (studentCount > 1) {
+          // Group purchase -> Organization dashboard
+          setLocation("/admin/organizations");
+        } else {
+          // Individual purchase -> Assessment
+          setLocation("/assessment");
+        }
       }
     } catch (err: any) {
       toast({
@@ -103,6 +134,70 @@ function CheckoutForm({ amount, studentCount, isAuthenticated }: { amount: numbe
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Registration section */}
+      <div>
+        <h3 className="text-lg font-semibold mb-4">Your Information</h3>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="firstName">First Name *</Label>
+            <Input
+              id="firstName"
+              type="text"
+              value={firstName}
+              onChange={(e) => setFirstName(e.target.value)}
+              required
+              data-testid="input-first-name"
+            />
+          </div>
+          <div>
+            <Label htmlFor="lastName">Last Name *</Label>
+            <Input
+              id="lastName"
+              type="text"
+              value={lastName}
+              onChange={(e) => setLastName(e.target.value)}
+              required
+              data-testid="input-last-name"
+            />
+          </div>
+        </div>
+        <div className="mt-4">
+          <Label htmlFor="email">Email *</Label>
+          <Input
+            id="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            data-testid="input-email"
+          />
+        </div>
+        <div className="mt-4">
+          <Label htmlFor="phone">Phone Number *</Label>
+          <Input
+            id="phone"
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            required
+            data-testid="input-phone"
+          />
+        </div>
+        {studentCount > 1 && (
+          <div className="mt-4">
+            <Label htmlFor="organizationName">School/Organization Name *</Label>
+            <Input
+              id="organizationName"
+              type="text"
+              value={organizationName}
+              onChange={(e) => setOrganizationName(e.target.value)}
+              required
+              data-testid="input-organization-name"
+            />
+          </div>
+        )}
+      </div>
+
       {/* Payment section */}
       <div>
         <h3 className="text-lg font-semibold mb-4">Payment Information</h3>
@@ -158,22 +253,10 @@ export default function Checkout() {
   const [clientSecret, setClientSecret] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [serverAmount, setServerAmount] = useState<number | null>(null);
-  const { isAuthenticated, isLoading: isAuthLoading } = useAuth();
   
   // Parse URL parameters (only studentCount, ignore client-provided total)
   const params = new URLSearchParams(window.location.search);
   const studentCount = parseInt(params.get("students") || "1");
-
-  // Auth guard: redirect unauthenticated users after auth state has loaded
-  useEffect(() => {
-    // Wait for auth state to load before making any decisions
-    if (isAuthLoading) return;
-    
-    // Auth has loaded - redirect if not authenticated
-    if (!isAuthenticated) {
-      setLocation("/login/student");
-    }
-  }, [isAuthenticated, isAuthLoading, setLocation]);
 
   useEffect(() => {
     // Check if Stripe is configured
@@ -249,7 +332,7 @@ export default function Checkout() {
                     },
                   }}
                 >
-                  <CheckoutForm amount={serverAmount} studentCount={studentCount} isAuthenticated={isAuthenticated} />
+                  <CheckoutForm amount={serverAmount} studentCount={studentCount} />
                 </Elements>
               ) : (
                 <div className="text-center py-8 text-red-600">

@@ -12,16 +12,6 @@ export default function TierSelection() {
   const { toast } = useToast();
 
   const handleIndividualTier = () => {
-    if (!isAuthenticated) {
-      toast({
-        title: "Login Required",
-        description: "Please login to continue with your purchase. Use /login/student page with test credentials: teststudent / test123",
-        variant: "destructive",
-      });
-      // Redirect to student login page
-      setLocation('/login/student');
-      return;
-    }
     setLocation(`/checkout?students=1&total=10`);
   };
 

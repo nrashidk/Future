@@ -32,6 +32,7 @@ export const users = pgTable("users", {
   email: varchar("email").unique(),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
+  phone: varchar("phone"), // Phone number for checkout/contact
   profileImageUrl: varchar("profile_image_url"),
   role: varchar("role").notNull().default("user"), // 'user', 'admin'
   
@@ -43,6 +44,7 @@ export const users = pgTable("users", {
   
   // Premium subscription
   isPremium: boolean("is_premium").notNull().default(false),
+  purchasedLicenses: integer("purchased_licenses").default(0), // Track purchased assessment licenses
   stripeCustomerId: varchar("stripe_customer_id"),
   paymentDate: timestamp("payment_date"),
   
