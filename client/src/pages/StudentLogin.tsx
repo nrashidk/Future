@@ -43,12 +43,24 @@ export default function StudentLogin() {
       });
 
       if (response.ok) {
+        const result = await response.json();
         await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+        
+        // Fetch full user data to determine redirect
+        const userResponse = await fetch("/api/auth/user");
+        const userData = await userResponse.json();
+        
         toast({
           title: "Welcome!",
           description: "Successfully logged in.",
         });
-        navigate("/");
+        
+        // Redirect based on user role
+        if (userData.role === 'admin') {
+          navigate("/admin/organizations");
+        } else {
+          navigate("/assessment");
+        }
       } else {
         const error = await response.json();
         toast({
