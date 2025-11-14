@@ -70,8 +70,24 @@ export interface IStorage {
   // User operations (mandatory for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   updateUserPremiumStatus(userId: string, stripeCustomerId: string | null): Promise<User>;
+  createStandaloneUser(userData: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    isPremium?: boolean;
+    purchasedLicenses?: number;
+    stripeCustomerId?: string | null;
+  }): Promise<{ user: User; username: string; password: string }>;
+  updateUserFields(userId: string, fields: {
+    phone?: string;
+    isPremium?: boolean;
+    purchasedLicenses?: number;
+    stripeCustomerId?: string | null;
+  }): Promise<User>;
 
   // Country operations
   getAllCountries(): Promise<Country[]>;
@@ -247,6 +263,89 @@ export class DatabaseStorage implements IStorage {
 
   async getUserByUsername(username: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
+  async createStandaloneUser(userData: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    isPremium?: boolean;
+    purchasedLicenses?: number;
+    stripeCustomerId?: string | null;
+  }): Promise<{ user: User; username: string; password: string }> {
+    const { generateUsername, generatePassword } = await import("./utils/passwordGenerator");
+    const { hashPassword } = await import("./utils/passwordHash");
+    
+    // Generate username with collision handling
+    let username = generateUsername(userData.firstName, userData.lastName);
+    let attempts = 0;
+    const maxAttempts = 10;
+    
+    while (attempts < maxAttempts) {
+      const existing = await this.getUserByUsername(username);
+      if (!existing) break;
+      
+      // Collision detected - add random suffix
+      username = generateUsername(userData.firstName, userData.lastName, Math.random().toString(36).substring(2, 6));
+      attempts++;
+    }
+    
+    if (attempts >= maxAttempts) {
+      throw new Error("Failed to generate unique username after 10 attempts");
+    }
+    
+    // Generate and hash password
+    const password = generatePassword('medium');
+    const passwordHash = await hashPassword(password);
+    
+    // Create user
+    const [user] = await db.insert(users).values({
+      username,
+      passwordHash,
+      firstName: userData.firstName,
+      lastName: userData.lastName,
+      email: userData.email,
+      phone: userData.phone,
+      role: 'user',
+      accountType: 'individual',
+      isOrgGenerated: false,
+      isPremium: userData.isPremium ?? false,
+      purchasedLicenses: userData.purchasedLicenses ?? 0,
+      stripeCustomerId: userData.stripeCustomerId ?? null
+    }).returning();
+    
+    return { user, username, password };
+  }
+
+  async updateUserFields(userId: string, fields: {
+    phone?: string;
+    isPremium?: boolean;
+    purchasedLicenses?: number; // This is incremental - will be added to existing
+    stripeCustomerId?: string | null;
+  }): Promise<User> {
+    // If purchasedLicenses is provided, increment it (don't replace)
+    const updates: any = { ...fields, updatedAt: new Date() };
+    
+    if (fields.purchasedLicenses !== undefined) {
+      const currentUser = await this.getUser(userId);
+      if (!currentUser) {
+        throw new Error(`User ${userId} not found`);
+      }
+      updates.purchasedLicenses = (currentUser.purchasedLicenses || 0) + fields.purchasedLicenses;
+    }
+    
+    const [user] = await db.update(users)
+      .set(updates)
+      .where(eq(users.id, userId))
+      .returning();
+    
     return user;
   }
 

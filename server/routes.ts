@@ -1,6 +1,9 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { db } from "./db";
+import { users } from "@shared/schema";
+import { eq } from "drizzle-orm";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertAssessmentSchema, insertQuizQuestionSchema, insertCvqResultSchema } from "@shared/schema";
 import { z } from "zod";
@@ -1592,6 +1595,142 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Error upgrading user:", error);
       res.status(500).json({ message: "Failed to upgrade account" });
+    }
+  });
+
+  // Complete self-service checkout: Create account + allocate licenses
+  app.post("/api/checkout/complete", async (req: any, res) => {
+    try {
+      const { paymentIntentId, firstName, lastName, email, phone, organizationName, studentCount } = req.body;
+
+      if (!stripe || !paymentIntentId || !firstName || !lastName || !email || !phone || !studentCount) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      // Verify payment with Stripe
+      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+      
+      if (paymentIntent.status !== "succeeded") {
+        return res.status(400).json({ message: "Payment not completed" });
+      }
+
+      // Validate payment amount matches expected amount
+      const expectedAmount = paymentIntent.metadata.expectedAmount;
+      if (!expectedAmount || paymentIntent.amount !== parseInt(expectedAmount)) {
+        console.error(`Payment amount mismatch: expected ${expectedAmount}, got ${paymentIntent.amount}`);
+        return res.status(400).json({ message: "Payment amount verification failed" });
+      }
+
+      // IDEMPOTENCY CHECK: Prevent double-processing of same payment
+      if (paymentIntent.metadata.processed === "true") {
+        console.log(`Payment ${paymentIntentId} already processed, returning success`);
+        return res.status(200).json({
+          success: true,
+          message: "Payment already processed",
+          alreadyProcessed: true
+        });
+      }
+
+      // Check if user already exists by email
+      let user = await storage.getUserByEmail(email);
+      let password: string | null = null;
+      let username: string;
+      let isNewUser = false;
+      
+      if (!user) {
+        // Create new standalone user with auto-generated credentials
+        const result = await storage.createStandaloneUser({
+          firstName,
+          lastName,
+          email,
+          phone,
+          isPremium: true,
+          purchasedLicenses: studentCount,
+          stripeCustomerId: paymentIntent.customer as string || null
+        });
+        
+        user = result.user;
+        username = result.username;
+        password = result.password; // Only set for new users
+        isNewUser = true;
+      } else {
+        // Existing user - check if they're OAuth or local
+        if (!user.passwordHash) {
+          // OAuth user - cannot use self-service checkout
+          return res.status(400).json({ 
+            message: "This email is already registered via Replit Auth. Please login first, then purchase from your account dashboard." 
+          });
+        }
+        
+        // Update existing local user (increment licenses)
+        user = await storage.updateUserFields(user.id, {
+          phone,
+          isPremium: true,
+          purchasedLicenses: studentCount, // This will be incremented
+          stripeCustomerId: paymentIntent.customer as string || user.stripeCustomerId
+        });
+        username = user.username!;
+      }
+
+      // Handle group purchases: Create organization and promote user to admin
+      let organization = null;
+      if (studentCount > 1 && organizationName) {
+        // Promote user to org admin
+        const [updatedUser] = await db.update(users).set({
+          accountType: 'org_admin',
+          role: 'admin',
+          updatedAt: new Date()
+        }).where(eq(users.id, user.id)).returning();
+        user = updatedUser;
+        
+        // Create organization
+        organization = await storage.createOrganization({
+          name: organizationName,
+          adminUserId: user!.id,
+          totalLicenses: studentCount,
+          usedLicenses: 0,
+          stripePaymentId: paymentIntent.id,
+          amountPaid: paymentIntent.amount / 100 // Convert cents to dollars
+        });
+      }
+
+      // Auto-login for new local users only
+      if (isNewUser) {
+        await new Promise<void>((resolve, reject) => {
+          req.login({ userId: user!.id, username: username, isLocal: true }, (err: any) => {
+            if (err) reject(err);
+            else resolve();
+          });
+        });
+      }
+
+      // Mark payment as processed to prevent double-processing
+      await stripe.paymentIntents.update(paymentIntentId, {
+        metadata: { ...paymentIntent.metadata, processed: "true" }
+      });
+
+      // Return success response
+      res.json({ 
+        success: true, 
+        message: isNewUser
+          ? (organization 
+              ? `Organization "${organizationName}" created! Your login credentials are below.`
+              : "Premium account created! Your login credentials are below.")
+          : (organization
+              ? `Organization "${organizationName}" created! Please login to manage your students.`
+              : "Premium licenses added to your account! Please login to access them."),
+        isNewUser,
+        requiresLogin: !isNewUser,
+        credentials: isNewUser ? {
+          username,
+          password,
+          email: user!.email
+        } : undefined,
+        organization
+      });
+    } catch (error: any) {
+      console.error("Error completing checkout:", error);
+      res.status(500).json({ message: "Failed to complete checkout: " + error.message });
     }
   });
 

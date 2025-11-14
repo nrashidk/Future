@@ -12,18 +12,19 @@ export default function AuthCallback() {
     const migrateAndRedirect = async () => {
       try {
         // Fetch current user to check role
-        const user = await apiRequest("/api/auth/user");
+        const userRes = await apiRequest("GET", "/api/auth/user");
+        const user = await userRes.json();
         
         // Check if there are guest assessments to migrate
         const guestAssessmentIds = JSON.parse(localStorage.getItem("guestAssessments") || "[]");
         const guestSessionId = localStorage.getItem("guestSessionId");
         
         if (guestAssessmentIds.length > 0 && guestSessionId) {
-          const result = await apiRequest("/api/assessments/migrate", {
-            method: "POST",
-            body: JSON.stringify({ guestAssessmentIds, guestSessionId }),
-            headers: { "Content-Type": "application/json" },
+          const resultRes = await apiRequest("POST", "/api/assessments/migrate", {
+            guestAssessmentIds, 
+            guestSessionId
           });
+          const result = await resultRes.json();
 
           if (result) {
             toast({

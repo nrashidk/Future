@@ -89,7 +89,7 @@ function CheckoutForm({ amount, studentCount }: { amount: number | null; student
 
       if (paymentIntent && paymentIntent.status === "succeeded") {
         // Payment successful! Create account and allocate licenses
-        const data = await apiRequest("POST", "/api/checkout/complete", {
+        const res = await apiRequest("POST", "/api/checkout/complete", {
           paymentIntentId: paymentIntent.id,
           firstName,
           lastName,
@@ -98,21 +98,37 @@ function CheckoutForm({ amount, studentCount }: { amount: number | null; student
           organizationName: studentCount > 1 ? organizationName : null,
           studentCount
         });
+        const data = await res.json();
 
         // Invalidate auth cache
         await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
 
-        toast({
-          title: "Payment Successful!",
-          description: data.message || "Your account has been created successfully.",
-        });
+        // Display credentials for new users
+        if (data.isNewUser && data.credentials) {
+          toast({
+            title: "Payment Successful!",
+            description: `Account created! Username: ${data.credentials.username}, Password: ${data.credentials.password}. Please save these credentials.`,
+            duration: 15000, // Show for 15 seconds
+          });
+          
+          // TODO: Display credentials in a modal or dedicated page instead of just toast
+          console.log("Your Login Credentials - Please Save:", data.credentials);
+        } else {
+          toast({
+            title: "Payment Successful!",
+            description: data.message || "Purchase completed successfully.",
+          });
+        }
 
-        // Route based on purchase type
-        if (studentCount > 1) {
-          // Group purchase -> Organization dashboard
+        // Route based on purchase type and new user status
+        if (data.requiresLogin) {
+          // Existing user - redirect to login
+          setLocation("/login/student");
+        } else if (studentCount > 1) {
+          // New user with group purchase -> Organization dashboard
           setLocation("/admin/organizations");
         } else {
-          // Individual purchase -> Assessment
+          // New user with individual purchase -> Assessment
           setLocation("/assessment");
         }
       }
@@ -265,9 +281,10 @@ export default function Checkout() {
     const createPaymentIntent = async () => {
       try {
         // SECURITY FIX: Only send studentCount, server calculates amount
-        const data = await apiRequest("POST", "/api/create-payment-intent", {
+        const res = await apiRequest("POST", "/api/create-payment-intent", {
           studentCount: studentCount
         });
+        const data = await res.json();
 
         setClientSecret(data.clientSecret);
         setServerAmount(data.amount); // Use server-calculated amount for display
