@@ -267,6 +267,36 @@ export const INTEREST_LEXICON: Record<string, InterestMapping> = {
       "exercise science", "kinesiology", "coaching", "rehabilitation"
     ],
   },
+
+  "Creative": {
+    categories: ["Creative", "Design", "Arts", "Media"],
+    descriptionKeywords: [
+      "creative", "design", "art", "visual", "aesthetic", "artistic", "beauty",
+      "graphics", "illustration", "photography", "video", "animation", "music",
+      "creative expression", "imagination", "style", "composition", "layout",
+      "writing", "storytelling", "content creation"
+    ],
+    skillKeywords: [
+      "creativity", "design thinking", "color theory", "typography",
+      "visual communication", "adobe", "sketching", "illustration", "3d modeling",
+      "writing", "music composition", "artistic skills"
+    ],
+  },
+
+  "Research": {
+    categories: ["Science", "Research", "Engineering", "Laboratory"],
+    descriptionKeywords: [
+      "research", "science", "experiment", "discovery", "analysis", "laboratory",
+      "scientific", "investigation", "study", "testing", "hypothesis",
+      "innovation", "breakthrough", "theory", "evidence", "data collection",
+      "learning", "exploration", "inquiry", "academic"
+    ],
+    skillKeywords: [
+      "scientific method", "research methodology", "data analysis",
+      "laboratory techniques", "critical thinking", "hypothesis testing",
+      "statistical analysis", "experimental design", "academic research"
+    ],
+  },
 };
 
 /**
