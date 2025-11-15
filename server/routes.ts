@@ -507,18 +507,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (existingResponse) {
           // Calculate if answer is correct
           // Frontend now sends the selected answer TEXT (e.g., "2⁷", "40 m", "70°")
-          // Backend compares it directly with the correctAnswer TEXT
-          // Both are normalized with whitespace trimming and case-insensitive comparison
+          // Backend compares it with correctAnswer, which can be:
+          //   - Answer TEXT (modern): "2⁷", "40 m", etc.
+          //   - Letter ID (legacy): "a", "b", "c", "d"
           
           const selectedAnswer = userResponse.answer?.toString().trim() || '';
-          const correctAnswer = question.correctAnswer?.toString().trim() || '';
+          const correctAnswerValue = question.correctAnswer?.toString().trim() || '';
           
-          // Simple text-based comparison (case-insensitive)
-          const isCorrect = selectedAnswer.toLowerCase() === correctAnswer.toLowerCase();
+          // Check if this is a legacy question (correctAnswer is a letter)
+          const isLegacyFormat = /^[a-d]$/i.test(correctAnswerValue);
+          
+          let isCorrect = false;
+          
+          if (isLegacyFormat) {
+            // Legacy format: Find the option with matching id
+            const options = question.options;
+            if (Array.isArray(options)) {
+              const correctOption = options.find((opt: any) => 
+                opt?.id?.toLowerCase() === correctAnswerValue.toLowerCase()
+              );
+              if (correctOption) {
+                // Compare selected answer with the correct option's text
+                isCorrect = selectedAnswer.toLowerCase() === correctOption.text?.toLowerCase();
+              }
+            }
+          } else {
+            // Modern format: Direct text comparison
+            isCorrect = selectedAnswer.toLowerCase() === correctAnswerValue.toLowerCase();
+          }
+          
           const pointsEarned = isCorrect ? 1 : 0;
           
           // Debug logging
           console.log(`[Quiz Debug] Question ${question.id}:`, {
+            format: isLegacyFormat ? 'legacy' : 'modern',
             userAnswer: userResponse.answer,
             selectedAnswer,
             correctAnswer: question.correctAnswer,
