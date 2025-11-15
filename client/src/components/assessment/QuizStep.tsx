@@ -68,7 +68,7 @@ export function QuizStep({ assessmentId, onComplete }: QuizStepProps) {
       setScore(data.score);
       setShowResults(true);
       toast({
-        title: "Quiz Completed! 🎉",
+        title: "Quiz Completed!",
         description: `You scored ${data.score.overall}% overall`,
       });
       setTimeout(() => {
@@ -187,7 +187,7 @@ export function QuizStep({ assessmentId, onComplete }: QuizStepProps) {
       <div className="space-y-8 animate-in fade-in duration-500">
         <div className="text-center mb-8">
           <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
-          <h2 className="text-4xl font-bold mb-3">Quiz Complete! 🎉</h2>
+          <h2 className="text-4xl font-bold mb-3">Quiz Complete!</h2>
           <p className="text-lg text-muted-foreground">
             Great job! Here's how you did:
           </p>

@@ -58,6 +58,7 @@ export interface MatchingContext {
   careerAffinities: Map<string, CareerComponentAffinity[]>; // careerId -> affinities
   jobMarketTrends: Map<string, JobMarketTrend[]>; // careerId -> trends
   userCountry?: Country; // For vision alignment
+  competencyScores?: Record<string, number>; // Subject competency scores from quiz (0-100)
   wefCompetencyScores?: Record<string, number>; // WEF skill scores (0-100)
   careerWefAffinities?: Map<string, Array<{ wefSkillId: string; affinityScore: number }>>; // careerId -> WEF affinities
 }
@@ -143,7 +144,7 @@ async function hydrateMatchingContext(
   assessmentId: string
 ): Promise<MatchingContext> {
   // Fetch assessment with competencies in a single query
-  const { assessment } = await storage.getAssessmentWithCompetencies(assessmentId);
+  const { assessment, competencyScores } = await storage.getAssessmentWithCompetencies(assessmentId);
 
   // Fetch all careers
   const careers = await storage.getAllCareers();
@@ -226,6 +227,7 @@ async function hydrateMatchingContext(
     careerAffinities,
     jobMarketTrends,
     userCountry,
+    competencyScores,
     wefCompetencyScores,
     careerWefAffinities,
   };
@@ -386,14 +388,11 @@ function calculateSubjectsScore(
   career: Career,
   component: AssessmentComponent
 ): ComponentScore | null {
-  const { assessment } = context;
+  const { assessment, competencyScores } = context;
   
   if (!assessment.favoriteSubjects || assessment.favoriteSubjects.length === 0) {
     return null;
   }
-
-  // Get competency scores if quiz was taken
-  const competencyData = assessment as any; // Will have competencyScores from getAssessmentWithCompetencies
   
   // Match user's favorite subjects with career's related subjects
   const matchingSubjects = assessment.favoriteSubjects.filter(subject => 
@@ -418,10 +417,9 @@ function calculateSubjectsScore(
   let competencyScore = 0;
   let hasCompetencyData = false;
   
-  if (competencyData.competencyScores && Object.keys(competencyData.competencyScores).length > 0) {
-    const competencies = competencyData.competencyScores as Record<string, number>;
+  if (competencyScores && Object.keys(competencyScores).length > 0) {
     const matchingCompetencies = matchingSubjects
-      .map(subject => competencies[subject])
+      .map(subject => competencyScores[subject])
       .filter((score): score is number => score !== undefined);
     
     if (matchingCompetencies.length > 0) {
