@@ -85,8 +85,8 @@ export function QuizStep({ assessmentId, onComplete }: QuizStepProps) {
     }
   });
 
-  const handleAnswerChange = (questionId: string, answer: string) => {
-    setResponses(prev => ({ ...prev, [questionId]: answer }));
+  const handleAnswerChange = (questionId: string, answerText: string) => {
+    setResponses(prev => ({ ...prev, [questionId]: answerText }));
   };
 
   const handleSubmit = () => {
@@ -271,10 +271,10 @@ export function QuizStep({ assessmentId, onComplete }: QuizStepProps) {
                     <div 
                       key={option.id} 
                       className="flex items-center space-x-2 p-2 rounded-lg hover-elevate cursor-pointer"
-                      onClick={() => handleAnswerChange(question.id, option.id)}
+                      onClick={() => handleAnswerChange(question.id, option.text)}
                     >
                       <RadioGroupItem 
-                        value={option.id} 
+                        value={option.text} 
                         id={`${question.id}-${option.id}`}
                         data-testid={`radio-quiz-${question.id}-${option.id}`}
                       />

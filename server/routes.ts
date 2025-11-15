@@ -506,35 +506,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         const existingResponse = existingResponses.find(r => r.questionId === question.id);
         if (existingResponse) {
           // Calculate if answer is correct
-          // userResponse.answer can be:
-          // - Numeric index: "0", "1", "2", "3" (from transformed questions)
-          // - Letter ID: "a", "b", "c", "d" (from seeded questions)
-          // question.options can be either string[] or {id, text}[]
-          // question.correctAnswer is the text of the correct answer (or letter ID)
+          // Frontend now sends the selected answer TEXT (e.g., "2⁷", "40 m", "70°")
+          // Backend compares it directly with the correctAnswer TEXT
+          // Both are normalized with whitespace trimming and case-insensitive comparison
           
-          const options = question.options;
-          let selectedAnswer: string | undefined;
+          const selectedAnswer = userResponse.answer?.toString().trim() || '';
+          const correctAnswer = question.correctAnswer?.toString().trim() || '';
           
-          // Convert letter-based answer to numeric index if needed
-          let selectedOptionIndex: number;
-          const answer = userResponse.answer.toString().toLowerCase();
-          if (answer.match(/^[a-d]$/)) {
-            // Letter-based answer: "a" → 0, "b" → 1, "c" → 2, "d" → 3
-            selectedOptionIndex = answer.charCodeAt(0) - 'a'.charCodeAt(0);
-          } else {
-            // Numeric answer: "0", "1", "2", "3"
-            selectedOptionIndex = parseInt(answer);
-          }
-          
-          // Handle both string array and object array formats
-          if (Array.isArray(options) && options.length > selectedOptionIndex && selectedOptionIndex >= 0) {
-            const option = options[selectedOptionIndex];
-            selectedAnswer = typeof option === 'string' ? option : option?.text;
-          }
-          
-          // For letter-based correctAnswer, also compare against the letter ID
-          const isCorrect = selectedAnswer === question.correctAnswer || 
-                           userResponse.answer.toString().toLowerCase() === question.correctAnswer?.toLowerCase();
+          // Simple text-based comparison (case-insensitive)
+          const isCorrect = selectedAnswer.toLowerCase() === correctAnswer.toLowerCase();
           const pointsEarned = isCorrect ? 1 : 0;
           
           // Debug logging
