@@ -215,6 +215,58 @@ export const INTEREST_LEXICON: Record<string, InterestMapping> = {
       "unreal engine", "storytelling", "user experience", "creative problem solving"
     ],
   },
+
+  "Problem Solving": {
+    categories: ["Technology", "Engineering", "Science", "Business"],
+    descriptionKeywords: [
+      "problem", "solve", "solution", "challenge", "troubleshoot", "debug",
+      "analytical", "critical thinking", "optimization", "strategic", "resolve",
+      "technical challenges", "complex problems", "decision making", "innovation"
+    ],
+    skillKeywords: [
+      "problem solving", "critical thinking", "analytical skills", "troubleshooting",
+      "debugging", "logical thinking", "algorithms", "optimization", "root cause analysis"
+    ],
+  },
+
+  "Leadership": {
+    categories: ["Business", "Management", "Education", "Government"],
+    descriptionKeywords: [
+      "lead", "leadership", "manage", "direct", "guide", "coordinate", "supervise",
+      "team", "organize", "motivate", "mentor", "decision making", "strategic planning",
+      "influence", "inspire", "delegation", "responsibility"
+    ],
+    skillKeywords: [
+      "leadership", "team management", "strategic thinking", "decision making",
+      "mentorship", "delegation", "communication", "project management", "motivation"
+    ],
+  },
+
+  "Helping": {
+    categories: ["Healthcare", "Social Services", "Education", "Community"],
+    descriptionKeywords: [
+      "help", "assist", "support", "care", "service", "aid", "benefit", "contribute",
+      "volunteer", "community", "social impact", "patient care", "counseling",
+      "teaching", "mentoring", "empowerment", "wellbeing"
+    ],
+    skillKeywords: [
+      "empathy", "active listening", "patient care", "counseling", "teaching",
+      "mentorship", "communication", "compassion", "problem solving"
+    ],
+  },
+
+  "Physical": {
+    categories: ["Sports", "Healthcare", "Physical Therapy", "Fitness"],
+    descriptionKeywords: [
+      "physical", "movement", "exercise", "athletic", "sports", "fitness", "active",
+      "training", "strength", "conditioning", "rehabilitation", "therapy", "wellness",
+      "health", "performance", "coordination", "endurance"
+    ],
+    skillKeywords: [
+      "physical fitness", "athletic ability", "physical therapy", "sports medicine",
+      "exercise science", "kinesiology", "coaching", "rehabilitation"
+    ],
+  },
 };
 
 /**
