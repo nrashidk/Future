@@ -1646,45 +1646,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Check if user already exists by email
-      let user = await storage.getUserByEmail(email);
+      // PRIORITY: Check if user is already logged in - upgrade their account
+      let user: any;
       let password: string | null = null;
       let username: string;
       let isNewUser = false;
       
-      if (!user) {
-        // Create new standalone user with auto-generated credentials
-        const result = await storage.createStandaloneUser({
-          firstName,
-          lastName,
-          email,
-          phone,
-          isPremium: true,
-          purchasedLicenses: studentCount,
-          stripeCustomerId: paymentIntent.customer as string || null
-        });
+      if (req.isAuthenticated && req.isAuthenticated() && req.user) {
+        // User is logged in - upgrade their existing account
+        const loggedInUserId = (req.user as any).userId || (req.user as any).claims?.sub;
+        user = await storage.getUser(loggedInUserId);
         
-        user = result.user;
-        username = result.username;
-        password = result.password; // Only set for new users
-        isNewUser = true;
-      } else {
-        // Existing user - check if they're OAuth or local
-        if (!user.passwordHash) {
-          // OAuth user - cannot use self-service checkout
-          return res.status(400).json({ 
-            message: "This email is already registered via Replit Auth. Please login first, then purchase from your account dashboard." 
-          });
+        if (!user) {
+          return res.status(400).json({ message: "Logged in user not found" });
         }
         
-        // Update existing local user (increment licenses)
+        // Update logged-in user's account
         user = await storage.updateUserFields(user.id, {
           phone,
           isPremium: true,
-          purchasedLicenses: studentCount, // This will be incremented
+          purchasedLicenses: studentCount,
           stripeCustomerId: paymentIntent.customer as string || user.stripeCustomerId
         });
-        username = user.username!;
+        username = user.username || user.email || 'user';
+        isNewUser = false;
+      } else {
+        // User not logged in - check if email already exists
+        const existingUser = await storage.getUserByEmail(email);
+        
+        if (!existingUser) {
+          // Create new standalone user with auto-generated credentials
+          const result = await storage.createStandaloneUser({
+            firstName,
+            lastName,
+            email,
+            phone,
+            isPremium: true,
+            purchasedLicenses: studentCount,
+            stripeCustomerId: paymentIntent.customer as string || null
+          });
+          
+          user = result.user;
+          username = result.username;
+          password = result.password; // Only set for new users
+          isNewUser = true;
+        } else {
+          // Existing user - check if they're OAuth or local
+          if (!existingUser.passwordHash) {
+            // OAuth user - cannot use self-service checkout without login
+            return res.status(400).json({ 
+              message: "This email is already registered. Please login first, then purchase from your account dashboard." 
+            });
+          }
+          
+          // Update existing local user (increment licenses)
+          user = await storage.updateUserFields(existingUser.id, {
+            phone,
+            isPremium: true,
+            purchasedLicenses: studentCount, // This will be incremented
+            stripeCustomerId: paymentIntent.customer as string || existingUser.stripeCustomerId
+          });
+          username = existingUser.username!;
+          isNewUser = false;
+        }
       }
 
       // Handle group purchases: Atomically promote user and create organization
