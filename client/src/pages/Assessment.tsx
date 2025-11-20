@@ -116,12 +116,12 @@ export default function Assessment() {
         }
         
         // Include RIASEC scores if premium user completed RIASEC assessment
-        if (isPremiumUser && assessmentData.riasecResponses) {
+        if (isPremiumUser && Object.keys(assessmentData.riasecResponses).length > 0) {
           backendData.riasecResponses = assessmentData.riasecResponses;
         }
         
         // Include CVQ responses if premium user completed CVQ assessment
-        if (isPremiumUser && assessmentData.cvqResponses) {
+        if (isPremiumUser && Object.keys(assessmentData.cvqResponses).length > 0) {
           backendData.cvqResponses = assessmentData.cvqResponses;
         }
         
