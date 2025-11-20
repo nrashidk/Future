@@ -107,8 +107,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       const validatedData = insertAssessmentSchema.parse(normalizationResult.normalized);
 
-      // Check if user is authenticated
-      const userId = req.isAuthenticated() ? req.user.claims.sub : null;
+      // Check if user is authenticated and get userId from appropriate source
+      // For local auth: req.user.userId, for Replit auth: req.user.claims.sub
+      const userId = req.isAuthenticated() 
+        ? (req.user.isLocal ? req.user.userId : req.user.claims.sub) 
+        : null;
       const isGuest = !userId;
 
       // For guest users, generate a unique guest token
@@ -179,7 +182,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const userId = req.user.claims.sub;
+      const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
       const assessments = await storage.getAssessmentsByUser(userId);
       res.json(assessments);
     } catch (error) {
@@ -241,7 +244,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Authorization: Check if user owns assessment or has valid guest token
-      const isOwner = req.isAuthenticated() && assessment.userId === req.user.claims.sub;
+      const userId = req.isAuthenticated() ? (req.user.isLocal ? req.user.userId : req.user.claims.sub) : null;
+      const isOwner = req.isAuthenticated() && assessment.userId === userId;
       const isGuestOwner = assessment.isGuest && guestToken && assessment.guestSessionId === guestToken;
       
       // Debug logging
@@ -400,7 +404,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Authorization check
-      const isOwner = req.isAuthenticated() && assessment.userId === req.user.claims.sub;
+      const userId = req.isAuthenticated() ? (req.user.isLocal ? req.user.userId : req.user.claims.sub) : null;
+      const isOwner = req.isAuthenticated() && assessment.userId === userId;
       // Note: GET quiz doesn't require guest token as quiz data is already safe (no correct answers exposed)
       const isGuestOwner = assessment.isGuest;
       if (!isOwner && !isGuestOwner) {
@@ -454,7 +459,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Authorization: Check if user owns assessment or has valid guest token
-      const isOwner = req.isAuthenticated() && assessment.userId === req.user.claims.sub;
+      const userId = req.isAuthenticated() ? (req.user.isLocal ? req.user.userId : req.user.claims.sub) : null;
+      const isOwner = req.isAuthenticated() && assessment.userId === userId;
       const isGuestOwner = assessment.isGuest && guestToken && assessment.guestSessionId === guestToken;
       
       if (!isOwner && !isGuestOwner) {
@@ -828,7 +834,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (!assessmentId) {
         if (req.isAuthenticated()) {
-          const userAssessments = await storage.getAssessmentsByUser(req.user.claims.sub);
+          const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
+          const userAssessments = await storage.getAssessmentsByUser(userId);
           if (userAssessments.length > 0) {
             assessmentId = userAssessments[0].id;
           }
@@ -883,7 +890,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Authorization check: verify ownership
-      if (assessment.userId && (!req.isAuthenticated() || req.user.claims.sub !== assessment.userId)) {
+      const userId = req.isAuthenticated() ? (req.user.isLocal ? req.user.userId : req.user.claims.sub) : null;
+      if (assessment.userId && (!req.isAuthenticated() || userId !== assessment.userId)) {
         return res.status(403).json({ message: "Unauthorized to access this report" });
       }
 
@@ -972,7 +980,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/assessments/migrate", isAuthenticated, async (req: any, res) => {
     try {
       const { guestAssessmentIds, guestSessionId } = req.body;
-      const userId = req.user.claims.sub;
+      const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
 
       if (!Array.isArray(guestAssessmentIds) || guestAssessmentIds.length === 0) {
         return res.status(400).json({ message: "No assessments to migrate" });
@@ -1076,7 +1084,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(403).json({ message: "Forbidden: Admin access required" });
     }
     
-    const userId = req.user.claims.sub;
+    const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
     storage.getUser(userId).then(user => {
       if (!user || user.role !== "superadmin") {
         return res.status(403).json({ message: "Forbidden: Admin access required" });
