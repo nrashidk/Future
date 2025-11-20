@@ -18,7 +18,11 @@ The application features a playful, student-friendly sticky notes aesthetic with
 - **Backend**: Express.js with TypeScript, PostgreSQL (Neon), and Drizzle ORM.
 - **Authentication**: Dual system supporting Replit Auth (OpenID Connect) and username-based login for organization students, with PostgreSQL-backed sessions.
 - **Payment System**: Stripe integration for secure, server-side pricing and payment processing for individual and group assessments. Includes a self-service checkout flow that handles user registration, upgrades existing accounts, and manages group purchases.
-- **Assessment Components**: Multi-step career assessment covering demographics, subjects, interests, personality (RIASEC), country vision, and aspirations. Features a dual-tier (Basic/Premium) system, a scientifically-validated 24-question learning style assessment, a 30-question RIASEC personality assessment, and a Subject Competency Quiz linked to the UAE curriculum. Integrates the WEF 16 Skills Framework, mapping existing assessments to WEF skills to generate personalized skill profiles and growth areas.
+- **Assessment Components**: Multi-step career assessment featuring a dual-tier (Free/Premium) system with distinct assessment flows:
+  - **Free Flow (7 steps)**: Demographics → Subjects → Interests → Personality → Country → Aspirations → Quiz
+  - **Premium Flow (8 steps)**: Demographics → Subjects → Country → Quiz → Kolb → RIASEC → CVQ → Aspirations
+  - Premium users complete all mandatory scientifically-validated assessments: 24-question Kolb Learning Style, 30-question RIASEC personality, 21-item CVQ values questionnaire, and Subject Competency Quiz linked to the UAE curriculum
+  - Integrates the WEF 16 Skills Framework, mapping assessments to WEF skills for personalized skill profiles
 - **Career Catalog**: Expanded to 36 diverse careers with job market trends and Holland Code affinity scores for 15 countries.
 - **Results & Reporting**: Horizontal cascading masonry grid for career recommendations, personalized insights for premium users, and PDF report generation with detailed assessment breakdowns.
 

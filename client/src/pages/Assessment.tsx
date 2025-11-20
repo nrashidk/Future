@@ -43,7 +43,7 @@ export default function Assessment() {
 
   const isPremiumUser = user?.isPremium || false;
   
-  // Premium users have 8 steps (Quiz at step 3, final step 8 redirects to results), free users have 7 steps
+  // Premium users have 8 steps, free users have 7 steps
   const totalSteps = isPremiumUser ? 8 : 7;
 
   const [assessmentData, setAssessmentData] = useState<AssessmentData>({
@@ -82,10 +82,10 @@ export default function Assessment() {
   };
 
   const handleNext = async () => {
-    // For premium: Quiz at step 3, Aspirations at step 8
-    // For free: Aspirations at step 6, Quiz at step 7
+    // Premium: Save after Country (step 3), before Quiz (step 4)
+    // Free: Save after Aspirations (step 6), before Quiz (step 7)
     const needsSaveBeforeQuiz = 
-      (isPremiumUser && currentStep === 2) || // Premium: Save after Subjects, before Quiz
+      (isPremiumUser && currentStep === 3) || // Premium: Save after Country, before Quiz
       (!isPremiumUser && currentStep === 6);  // Free: Save after Aspirations, before Quiz
     
     const isAspirationsStepPremium = isPremiumUser && currentStep === 8;
@@ -174,6 +174,13 @@ export default function Assessment() {
   const handleQuizComplete = async () => {
     if (!assessmentId) {
       console.error("No assessmentId for quiz completion");
+      return;
+    }
+    
+    // Premium users: Continue to next step (Kolb at step 5)
+    // Free users: Generate recommendations and go to results
+    if (isPremiumUser) {
+      setCurrentStep(5);
       return;
     }
     
@@ -292,21 +299,15 @@ export default function Assessment() {
           />
         )}
         
-        {/* Step 3: Quiz (premium) | Interests (free) */}
+        {/* Step 3: Country (premium) | Interests (free) */}
         {currentStep === 3 && (
           <>
             {isPremiumUser ? (
-              assessmentId ? (
-                <QuizStep
-                  assessmentId={assessmentId}
-                  onComplete={() => setCurrentStep(4)}
-                />
-              ) : (
-                <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-                  <p className="text-lg text-destructive font-semibold">Loading quiz...</p>
-                  <p className="text-muted-foreground">Please wait while we prepare your assessment.</p>
-                </div>
-              )
+              <CountryStep
+                data={assessmentData}
+                onUpdate={updateAssessmentData}
+                onNext={handleNext}
+              />
             ) : (
               <InterestsStep
                 data={assessmentData}
@@ -317,16 +318,21 @@ export default function Assessment() {
           </>
         )}
         
-        {/* Step 4: Kolb (premium) | Personality (free) */}
+        {/* Step 4: Quiz (premium) | Personality (free) */}
         {currentStep === 4 && (
           <>
             {isPremiumUser ? (
-              <KolbStep
-                responses={assessmentData.kolbResponses}
-                onUpdate={(responses) => updateAssessmentData("kolbResponses", responses)}
-                onNext={handleNext}
-                onBack={() => setCurrentStep(3)}
-              />
+              assessmentId ? (
+                <QuizStep
+                  assessmentId={assessmentId}
+                  onComplete={() => setCurrentStep(5)}
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+                  <p className="text-lg text-destructive font-semibold">Loading quiz...</p>
+                  <p className="text-muted-foreground">Please wait while we prepare your assessment.</p>
+                </div>
+              )
             ) : (
               <PersonalityStep
                 data={assessmentData}
@@ -337,15 +343,14 @@ export default function Assessment() {
           </>
         )}
         
-        {/* Step 5: RIASEC (premium) | Country (free) */}
+        {/* Step 5: Kolb (premium) | Country (free) */}
         {currentStep === 5 && (
           <>
             {isPremiumUser ? (
-              <RiasecStep
-                onComplete={(scores) => {
-                  updateAssessmentData("riasecResponses", scores);
-                  handleNext();
-                }}
+              <KolbStep
+                responses={assessmentData.kolbResponses}
+                onUpdate={(responses) => updateAssessmentData("kolbResponses", responses)}
+                onNext={handleNext}
                 onBack={() => setCurrentStep(4)}
               />
             ) : (
@@ -358,14 +363,16 @@ export default function Assessment() {
           </>
         )}
         
-        {/* Step 6: Country (premium) | Aspirations (free) */}
+        {/* Step 6: RIASEC (premium) | Aspirations (free) */}
         {currentStep === 6 && (
           <>
             {isPremiumUser ? (
-              <CountryStep
-                data={assessmentData}
-                onUpdate={updateAssessmentData}
-                onNext={handleNext}
+              <RiasecStep
+                onComplete={(scores) => {
+                  updateAssessmentData("riasecResponses", scores);
+                  handleNext();
+                }}
+                onBack={() => setCurrentStep(5)}
               />
             ) : (
               <AspirationsStep
