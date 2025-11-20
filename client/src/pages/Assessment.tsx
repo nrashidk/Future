@@ -277,7 +277,7 @@ export default function Assessment() {
       </div>
 
       {/* Progress Tracker */}
-      <ProgressTracker currentStep={currentStep} totalSteps={totalSteps} />
+      <ProgressTracker currentStep={currentStep} totalSteps={totalSteps} isPremium={isPremiumUser} />
 
       {/* Step Content */}
       <div className="max-w-4xl mx-auto px-4">

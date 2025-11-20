@@ -301,13 +301,6 @@ export default function RiasecStep({ onComplete, onBack }: RiasecStepProps) {
             {currentPage === totalPages - 1 ? "Complete Assessment" : "Next"}
             <ArrowRight className="w-4 h-4 ml-2" />
           </Button>
-          
-          {/* Show warning when trying to complete with unanswered questions */}
-          {currentPage === totalPages - 1 && !isComplete && (
-            <p className="text-sm text-destructive mt-2" data-testid="text-riasec-incomplete-warning">
-              Please answer all questions before completing the assessment
-            </p>
-          )}
         </div>
 
         {/* Help Text */}

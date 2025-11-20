@@ -11,9 +11,10 @@ interface Step {
 interface ProgressTrackerProps {
   currentStep: number;
   totalSteps: number;
+  isPremium?: boolean;
 }
 
-const stepTitles = [
+const freeStepTitles = [
   "Basic Info",
   "Subjects",
   "Interests",
@@ -23,7 +24,20 @@ const stepTitles = [
   "Results"
 ];
 
-export function ProgressTracker({ currentStep, totalSteps }: ProgressTrackerProps) {
+const premiumStepTitles = [
+  "Basic Info",
+  "Subjects",
+  "Country",
+  "Quiz",
+  "Kolb",
+  "RIASEC",
+  "CVQ",
+  "Aspirations"
+];
+
+export function ProgressTracker({ currentStep, totalSteps, isPremium = false }: ProgressTrackerProps) {
+  const stepTitles = isPremium ? premiumStepTitles : freeStepTitles;
+  
   const steps: Step[] = Array.from({ length: totalSteps }, (_, i) => ({
     number: i + 1,
     title: stepTitles[i] || `Step ${i + 1}`,

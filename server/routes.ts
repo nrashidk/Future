@@ -641,7 +641,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const version = req.query.version as string | undefined;
       const items = await storage.getCvqItems(version);
-      res.json(items);
+      res.json({ items });
     } catch (error) {
       console.error("Error fetching CVQ items:", error);
       res.status(500).json({ message: "Failed to fetch CVQ items" });
