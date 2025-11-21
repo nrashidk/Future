@@ -40,6 +40,7 @@ export type CVQItem = {
 };
 
 interface CVQStepProps {
+  assessmentId: string;
   responses: Record<string, number>;
   onUpdate: (responses: Record<string, number>) => void;
   onNext: () => void;
@@ -64,7 +65,7 @@ const LIKERT_OPTIONS = [
   { value: 5, label: "Very Much Like Me" },
 ];
 
-export default function CVQStep({ responses, onUpdate, onNext, onBack }: CVQStepProps) {
+export default function CVQStep({ assessmentId, responses, onUpdate, onNext, onBack }: CVQStepProps) {
   const [localResponses, setLocalResponses] = useState<Record<string, Likert>>(responses as Record<string, Likert>);
   const [currentPage, setCurrentPage] = useState(0);
   const [startTime] = useState(Date.now());
@@ -122,7 +123,7 @@ export default function CVQStep({ responses, onUpdate, onNext, onBack }: CVQStep
   };
 
   const submitMutation = useMutation({
-    mutationFn: async (data: { responses: Record<string, number>; durationSeconds: number }) => {
+    mutationFn: async (data: { assessmentId: string; responses: Record<string, number>; durationSeconds: number }) => {
       const response = await apiRequest("POST", "/api/cvq/submit", data);
       return response.json();
     },
@@ -140,6 +141,7 @@ export default function CVQStep({ responses, onUpdate, onNext, onBack }: CVQStep
     
     const durationSeconds = Math.floor((Date.now() - startTime) / 1000);
     submitMutation.mutate({
+      assessmentId,
       responses: localResponses,
       durationSeconds,
     });

@@ -179,6 +179,7 @@ export default function RiasecStep({ onComplete, onBack }: RiasecStepProps) {
   const handleNext = () => {
     if (currentPage < totalPages - 1) {
       setCurrentPage(prev => prev + 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } else if (isComplete) {
       handleComplete();
     }
@@ -187,6 +188,7 @@ export default function RiasecStep({ onComplete, onBack }: RiasecStepProps) {
   const handlePrevious = () => {
     if (currentPage > 0) {
       setCurrentPage(prev => prev - 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
       onBack();
     }

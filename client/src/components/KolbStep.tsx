@@ -87,6 +87,7 @@ export default function KolbStep({ responses, onUpdate, onNext, onBack }: KolbSt
   const handleNextPage = () => {
     if (currentPage < totalPages - 1) {
       setCurrentPage(currentPage + 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } else if (allQuestionsAnswered) {
       onNext();
     }
@@ -95,6 +96,7 @@ export default function KolbStep({ responses, onUpdate, onNext, onBack }: KolbSt
   const handlePrevPage = () => {
     if (currentPage > 0) {
       setCurrentPage(currentPage - 1);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
       onBack();
     }

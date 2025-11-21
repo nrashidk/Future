@@ -20,8 +20,11 @@ The application features a playful, student-friendly sticky notes aesthetic with
 - **Payment System**: Stripe integration for secure, server-side pricing and payment processing for individual and group assessments. Includes a self-service checkout flow that handles user registration, upgrades existing accounts, and manages group purchases.
 - **Assessment Components**: Multi-step career assessment featuring a dual-tier (Free/Premium) system with distinct assessment flows:
   - **Free Flow (7 steps)**: Demographics → Subjects → Interests → Personality → Country → Aspirations → Quiz
-  - **Premium Flow (8 steps)**: Demographics → Subjects → Country → Quiz → Kolb → RIASEC → CVQ → Aspirations
-  - Premium users complete all mandatory scientifically-validated assessments: 24-question Kolb Learning Style, 30-question RIASEC personality, 21-item CVQ values questionnaire, and Subject Competency Quiz linked to the UAE curriculum
+  - **Premium Flow (8 steps)**: Demographics → Subjects → Country → Quiz → Learning Style → Career Personality → Personal Values → Aspirations
+  - Premium users complete all mandatory scientifically-validated assessments: 24-question Learning Style (Kolb), 30-question Career Personality (RIASEC), 21-item Personal Values (CVQ) questionnaire, and Subject Competency Quiz linked to the UAE curriculum
+  - Step titles use student-friendly names (Learning Style, Career Personality, Personal Values) instead of technical terminology (Kolb, RIASEC, CVQ)
+  - CVQ submission properly links results to assessment ID to enable recommendation generation
+  - All assessment steps implement smooth scrolling to top when navigating between question pages
   - Integrates the WEF 16 Skills Framework, mapping assessments to WEF skills for personalized skill profiles
 - **Career Catalog**: Expanded to 36 diverse careers with job market trends and Holland Code affinity scores for 15 countries.
 - **Results & Reporting**: Horizontal cascading masonry grid for career recommendations, personalized insights for premium users, and PDF report generation with detailed assessment breakdowns.

@@ -650,7 +650,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/cvq/submit", isAuthenticated, async (req: any, res) => {
     try {
-      const { responses, durationSeconds } = req.body;
+      const { assessmentId, responses, durationSeconds } = req.body;
+      
+      if (!assessmentId || typeof assessmentId !== 'string') {
+        return res.status(400).json({ message: "Assessment ID is required" });
+      }
       
       if (!responses || typeof responses !== 'object') {
         return res.status(400).json({ message: "Invalid responses data" });
@@ -704,6 +708,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create CVQ result
       const result = await storage.createCvqResult({
+        assessmentId,
         userId,
         rawScores,
         normalizedScores,

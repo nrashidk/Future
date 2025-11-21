@@ -392,12 +392,23 @@ export default function Assessment() {
         {currentStep === 7 && (
           <>
             {isPremiumUser ? (
-              <CVQStep
-                responses={assessmentData.cvqResponses}
-                onUpdate={(responses) => updateAssessmentData("cvqResponses", responses)}
-                onNext={handleNext}
-                onBack={() => setCurrentStep(6)}
-              />
+              assessmentId ? (
+                <CVQStep
+                  assessmentId={assessmentId}
+                  responses={assessmentData.cvqResponses}
+                  onUpdate={(responses) => updateAssessmentData("cvqResponses", responses)}
+                  onNext={handleNext}
+                  onBack={() => setCurrentStep(6)}
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+                  <p className="text-lg text-destructive font-semibold">Error: Assessment not found</p>
+                  <p className="text-muted-foreground">Please go back and complete the previous steps.</p>
+                  <Button onClick={() => setCurrentStep(6)} data-testid="button-back-to-assessment">
+                    Go Back
+                  </Button>
+                </div>
+              )
             ) : (
               assessmentId ? (
                 <QuizStep
