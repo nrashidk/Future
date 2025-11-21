@@ -197,9 +197,9 @@ export default function RiasecStep({ onComplete, onBack }: RiasecStepProps) {
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <h2 className="text-4xl font-bold mb-3">Career Personality Assessment</h2>
+          <h2 className="text-4xl font-bold mb-3">Career Personality</h2>
           <p className="text-lg text-muted-foreground mb-4">
-            Discover your Holland Code (RIASEC) profile
+            Explore the types of work environments and activities you naturally enjoy
           </p>
           <Progress value={progress} className="h-3 mb-2" data-testid="progress-riasec" />
           <p className="text-sm text-muted-foreground">

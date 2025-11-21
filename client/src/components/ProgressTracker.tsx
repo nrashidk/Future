@@ -29,9 +29,9 @@ const premiumStepTitles = [
   "Subjects",
   "Country",
   "Quiz",
-  "Kolb",
-  "RIASEC",
-  "CVQ",
+  "Learning Style",
+  "Career Personality",
+  "Personal Values",
   "Aspirations"
 ];
 

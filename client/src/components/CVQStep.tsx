@@ -158,7 +158,7 @@ export default function CVQStep({ responses, onUpdate, onNext, onBack }: CVQStep
     <div className="max-w-4xl mx-auto py-8 space-y-8">
       {/* Header */}
       <div className="text-center space-y-4">
-        <h2 className="text-3xl font-bold">What Matters to You?</h2>
+        <h2 className="text-3xl font-bold">Personal Values</h2>
         <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
           Think about your values and what's important in your life. For each statement, 
           rate how much the description sounds like you.

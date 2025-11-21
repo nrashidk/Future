@@ -117,10 +117,10 @@ export default function KolbStep({ responses, onUpdate, onNext, onBack }: KolbSt
       {/* Header */}
       <div className="space-y-2">
         <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
-          Discover Your Learning Style
+          Learning Style
         </h2>
         <p className="text-gray-600 dark:text-gray-300">
-          Based on Kolb's Experiential Learning Theory - answer honestly to get accurate insights
+          Answer these questions to understand how you absorb and process new information
         </p>
       </div>
 
