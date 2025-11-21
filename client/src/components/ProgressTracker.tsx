@@ -48,7 +48,7 @@ export function ProgressTracker({ currentStep, totalSteps, isPremium = false }: 
   const progress = ((currentStep - 1) / (totalSteps - 1)) * 100;
 
   return (
-    <div className="w-full max-w-4xl mx-auto px-4 py-6">
+    <div className="w-full max-w-6xl mx-auto px-4 py-6">
       {/* Progress bar */}
       <div className="mb-8">
         <div className="h-3 bg-muted rounded-full overflow-hidden">
@@ -65,7 +65,7 @@ export function ProgressTracker({ currentStep, totalSteps, isPremium = false }: 
       </div>
 
       {/* Step indicators */}
-      <div className="hidden md:flex justify-between items-start relative">
+      <div className="hidden md:flex justify-between items-start relative gap-2">
         {/* Connection line */}
         <div className="absolute top-6 left-0 right-0 h-1 bg-muted -z-10" />
         <div 
@@ -74,7 +74,7 @@ export function ProgressTracker({ currentStep, totalSteps, isPremium = false }: 
         />
 
         {steps.map((step) => (
-          <div key={step.number} className="flex flex-col items-center" style={{ width: `${100 / totalSteps}%` }}>
+          <div key={step.number} className="flex flex-col items-center flex-1 min-w-0">
             <div
               className={cn(
                 "w-12 h-12 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300 shadow-md",
@@ -87,7 +87,7 @@ export function ProgressTracker({ currentStep, totalSteps, isPremium = false }: 
             </div>
             <span
               className={cn(
-                "mt-2 text-xs font-medium text-center transition-all duration-300",
+                "mt-2 text-xs font-medium text-center transition-all duration-300 whitespace-nowrap px-1",
                 step.current && "text-foreground font-bold",
                 step.completed && "text-primary",
                 !step.completed && !step.current && "text-muted-foreground"
