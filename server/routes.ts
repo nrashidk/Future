@@ -650,15 +650,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/cvq/submit", isAuthenticated, async (req: any, res) => {
     try {
-      const validatedData = insertCvqResultSchema.parse(req.body);
+      const { responses, durationSeconds } = req.body;
+      
+      if (!responses || typeof responses !== 'object') {
+        return res.status(400).json({ message: "Invalid responses data" });
+      }
       
       // Get userId from authenticated request
       const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
       
-      // Create CVQ result with userId
+      // Get CVQ items to map responses to domains
+      const cvqItems = await storage.getCvqItems();
+      
+      // Calculate domain scores
+      const domainScores: Record<string, number[]> = {};
+      for (const item of cvqItems) {
+        if (responses[item.id] !== undefined) {
+          if (!domainScores[item.domain]) {
+            domainScores[item.domain] = [];
+          }
+          domainScores[item.domain].push(responses[item.id]);
+        }
+      }
+      
+      // Calculate raw scores (sum per domain)
+      const rawScores: Record<string, number> = {};
+      for (const [domain, scores] of Object.entries(domainScores)) {
+        rawScores[domain] = scores.reduce((sum, score) => sum + score, 0);
+      }
+      
+      // Normalize scores to 0-100 scale
+      // CVQ uses 1-5 scale, with 3 items per domain, so max is 15, min is 3
+      const normalizedScores: Record<string, number> = {};
+      for (const [domain, rawScore] of Object.entries(rawScores)) {
+        const itemCount = domainScores[domain].length;
+        const minScore = itemCount * 1;
+        const maxScore = itemCount * 5;
+        normalizedScores[domain] = Math.round(((rawScore - minScore) / (maxScore - minScore)) * 100);
+      }
+      
+      // Get top 3 values (highest normalized scores)
+      const topValues = Object.entries(normalizedScores)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, 3)
+        .map(([domain]) => domain);
+      
+      // Calculate quality metrics
+      const allResponses = Object.values(responses) as number[];
+      const avgResponse = allResponses.reduce((sum, val) => sum + val, 0) / allResponses.length;
+      const variance = allResponses.reduce((sum, val) => sum + Math.pow(val - avgResponse, 2), 0) / allResponses.length;
+      const lowVariance = variance < 0.5; // More than 80% same response
+      const rushedCompletion = durationSeconds && durationSeconds < (cvqItems.length * 2.5);
+      
+      // Create CVQ result
       const result = await storage.createCvqResult({
-        ...validatedData,
-        userId
+        userId,
+        rawScores,
+        normalizedScores,
+        topValues,
+        itemResponses: responses,
+        completionSeconds: durationSeconds || null,
+        avgResponseVariance: variance,
+        lowVariance,
+        rushedCompletion: rushedCompletion || false,
       });
       
       res.status(201).json(result);
