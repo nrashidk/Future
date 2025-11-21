@@ -31,16 +31,17 @@ The application features a playful, student-friendly sticky notes aesthetic with
 
 ### Feature Specifications
 - **User Authentication**: Dual authentication (Replit Auth and local username/password) with a robust security model and guest access with session migration.
+- **User Profile System**: Personalized profile pages displaying account details, premium status, and assessment history. Organization admins can view organization-wide statistics including license usage, total students, and completed assessments via dedicated API endpoints.
 - **Dynamic Career Matching Engine**: Modular architecture with pluggable scoring algorithms (subjects, interests, vision, market, Kolb, RIASEC) and configurable weights. Uses bulk data loading and provides smart filtering to return top 5 careers with detailed reasoning.
 - **Country-Specific Data**: Incorporates comprehensive 2030/2050 vision data for 15 countries into the matching algorithm.
 
 ### System Design Choices
 - **Database Schema**: Comprehensive schema including tables for users, sessions, countries, skills, careers, job market trends, assessments, recommendations, organizations, organization members, and WEF skills data.
-- **Group Assessment System**: Features an Admin Dashboard for managing organizations and students, with functionalities for quota tracking, account creation (manual/bulk), and credentials download. Implements secure password handling, unique username generation, and atomic SQL-based quota management.
+- **Group Assessment System**: Features an Admin Dashboard for managing organizations and students, with functionalities for quota tracking, account creation (manual/bulk), and credentials download. Organization admins have access to their organization data via dedicated endpoints (`/api/my-organization`, `/api/my-organization/stats`) showing license usage and member statistics. Implements secure password handling, unique username generation, and atomic SQL-based quota management.
 - **Assessment Component System**: Database-backed tables for managing and mapping assessment types and career affinities.
 - **Quiz Availability**: Subject competency quiz questions are currently available for the UAE curriculum only, with a "coming soon" message for other countries.
 - **Session Storage**: Utilizes PostgreSQL for reliable session persistence.
-- **Development Workflow**: Employs `npm run db:push` for database migrations and automatic seeding in development.
+- **Development Workflow**: Employs `npm run db:push` for database migrations and automatic seeding in development. Optimized WEF affinity seeding with intelligent count-based skipping to prevent data loss when new careers/skills are added.
 
 ## External Dependencies
 - **Database**: PostgreSQL (Neon)

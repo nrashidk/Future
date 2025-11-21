@@ -64,7 +64,7 @@ import {
   type InsertCountrySectorWefSkill,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, count, avg, sql as sqlFunc, inArray } from "drizzle-orm";
+import { eq, and, desc, count, avg, sql as sqlFunc, inArray, isNotNull } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
@@ -202,6 +202,7 @@ export interface IStorage {
   getCareerWefSkillAffinity(careerId: string, wefSkillId: string): Promise<CareerWefSkillAffinity | undefined>;
   getCareerWefSkillAffinitiesByCareer(careerId: string): Promise<CareerWefSkillAffinity[]>;
   getCareerWefSkillAffinitiesBulk(careerIds: string[]): Promise<CareerWefSkillAffinity[]>;
+  getCareerWefSkillAffinityCount(): Promise<number>;
   
   // WEF Competency Results operations
   createWefCompetencyResult(result: InsertWefCompetencyResult): Promise<WefCompetencyResult>;
@@ -242,6 +243,11 @@ export interface IStorage {
   getOrganizationMemberById(id: string): Promise<OrganizationMember | undefined>;
   getOrganizationMemberByUserId(userId: string): Promise<OrganizationMember | undefined>;
   getOrganizationMembersByOrganizationId(organizationId: string): Promise<OrganizationMember[]>;
+  getOrganizationStats(organizationId: string): Promise<{
+    totalMembers: number;
+    completedAssessments: number;
+    pendingAssessments: number;
+  }>;
   updateOrganizationMember(id: string, data: Partial<InsertOrganizationMember>): Promise<OrganizationMember>;
   deleteOrganizationMember(id: string): Promise<boolean>;
   lockOrganizationMember(id: string): Promise<OrganizationMember>;
@@ -1201,6 +1207,13 @@ export class DatabaseStorage implements IStorage {
       .where(inArray(careerWefSkillAffinities.careerId, careerIds));
   }
 
+  async getCareerWefSkillAffinityCount(): Promise<number> {
+    const result = await db
+      .select({ count: sqlFunc<number>`count(*)` })
+      .from(careerWefSkillAffinities);
+    return result[0]?.count || 0;
+  }
+
   // WEF Competency Results operations
   async createWefCompetencyResult(resultData: InsertWefCompetencyResult): Promise<WefCompetencyResult> {
     const [result] = await db
@@ -1592,6 +1605,29 @@ export class DatabaseStorage implements IStorage {
       .from(organizationMembers)
       .where(eq(organizationMembers.organizationId, organizationId))
       .orderBy(desc(organizationMembers.createdAt));
+  }
+
+  async getOrganizationStats(organizationId: string): Promise<{
+    totalMembers: number;
+    completedAssessments: number;
+    pendingAssessments: number;
+  }> {
+    // Get all members in this organization with their completion status
+    const members = await db
+      .select({
+        hasCompletedAssessment: organizationMembers.hasCompletedAssessment,
+      })
+      .from(organizationMembers)
+      .where(eq(organizationMembers.organizationId, organizationId));
+
+    const totalMembers = members.length;
+    const completedAssessments = members.filter(m => m.hasCompletedAssessment).length;
+
+    return {
+      totalMembers,
+      completedAssessments,
+      pendingAssessments: totalMembers - completedAssessments,
+    };
   }
 
   async updateOrganizationMember(id: string, data: Partial<InsertOrganizationMember>): Promise<OrganizationMember> {

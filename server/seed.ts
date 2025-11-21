@@ -1677,56 +1677,71 @@ export async function seedDatabase() {
   // Seed Career-WEF Skill Affinities
   console.log("\n🔗 Seeding Career-WEF Skill affinities...");
   const allCareersForWef = await storage.getAllCareers();
-  let affinitiesCreated = 0;
-  let affinitiesUpdated = 0;
   
-  for (const mapping of CAREER_WEF_SKILL_AFFINITIES) {
-    const career = allCareersForWef.find(c => c.title === mapping.careerTitle);
-    if (!career) {
-      console.log(`⚠️  Career not found: ${mapping.careerTitle}`);
-      continue;
-    }
+  // Check if affinities are already seeded by comparing expected vs actual counts
+  const expectedAffinityCount = CAREER_WEF_SKILL_AFFINITIES.reduce((total, mapping) => {
+    return total + Object.keys(mapping.skills).length;
+  }, 0);
+  
+  // Get actual count from database
+  const existingAffinityCount = await storage.getCareerWefSkillAffinityCount();
+  
+  if (existingAffinityCount >= expectedAffinityCount) {
+    console.log(`✓ WEF career affinities already seeded (${existingAffinityCount}/${expectedAffinityCount}), skipping...`);
+  } else {
+    console.log(`  Found ${existingAffinityCount} existing affinities, need ${expectedAffinityCount}. Seeding missing affinities...`);
+    // Proceed with seeding
+    let affinitiesCreated = 0;
+    let affinitiesUpdated = 0;
     
-    // For each skill affinity score
-    for (const [skillName, affinityScore] of Object.entries(mapping.skills)) {
-      const wefSkill = seededWefSkills[skillName];
-      if (!wefSkill) {
-        console.log(`⚠️  WEF skill not found: ${skillName}`);
+    for (const mapping of CAREER_WEF_SKILL_AFFINITIES) {
+      const career = allCareersForWef.find(c => c.title === mapping.careerTitle);
+      if (!career) {
+        console.log(`⚠️  Career not found: ${mapping.careerTitle}`);
         continue;
       }
       
-      // Validate affinity score (0-100)
-      if (affinityScore < 0 || affinityScore > 100) {
-        console.warn(`⚠️  Invalid affinity score for ${career.title} - ${skillName}: ${affinityScore} (expected 0-100)`);
-      }
-      
-      try {
-        // Check if affinity already exists to determine if we're creating or updating
-        const existing = await storage.getCareerWefSkillAffinity(career.id, wefSkill.id);
-        
-        await storage.createOrUpdateCareerWefSkillAffinity(
-          career.id,
-          wefSkill.id,
-          {
-            affinityScore,
-            source: 'Expert Panel',
-            evidence: null,
-          }
-        );
-        
-        if (existing) {
-          affinitiesUpdated++;
-        } else {
-          affinitiesCreated++;
+      // For each skill affinity score
+      for (const [skillName, affinityScore] of Object.entries(mapping.skills)) {
+        const wefSkill = seededWefSkills[skillName];
+        if (!wefSkill) {
+          console.log(`⚠️  WEF skill not found: ${skillName}`);
+          continue;
         }
-      } catch (error: any) {
-        console.error(`  Error creating affinity for ${career.title} - ${skillName}:`, error);
+        
+        // Validate affinity score (0-100)
+        if (affinityScore < 0 || affinityScore > 100) {
+          console.warn(`⚠️  Invalid affinity score for ${career.title} - ${skillName}: ${affinityScore} (expected 0-100)`);
+        }
+        
+        try {
+          // Check if affinity already exists to determine if we're creating or updating
+          const existing = await storage.getCareerWefSkillAffinity(career.id, wefSkill.id);
+          
+          await storage.createOrUpdateCareerWefSkillAffinity(
+            career.id,
+            wefSkill.id,
+            {
+              affinityScore,
+              source: 'Expert Panel',
+              evidence: null,
+            }
+          );
+          
+          if (existing) {
+            affinitiesUpdated++;
+          } else {
+            affinitiesCreated++;
+          }
+        } catch (error: any) {
+          console.error(`  Error creating affinity for ${career.title} - ${skillName}:`, error);
+        }
       }
     }
+    
+    console.log(`✓ Created ${affinitiesCreated} new affinities, updated ${affinitiesUpdated} existing affinities`);
+    console.log(`✓ Total affinities: ${affinitiesCreated + affinitiesUpdated} across ${allCareersForWef.length} careers × 16 WEF skills`);
   }
-  
-  console.log(`✓ Created ${affinitiesCreated} new affinities, updated ${affinitiesUpdated} existing affinities`);
-  console.log(`✓ Total affinities: ${affinitiesCreated + affinitiesUpdated} across ${allCareersForWef.length} careers × 16 WEF skills`);
 
   // Seed UAE Priority Sectors and WEF Skills Mapping
   console.log("\n🇦🇪 Seeding UAE Priority Sectors → WEF Skills mapping...");
@@ -1853,5 +1868,64 @@ export async function seedDatabase() {
   // Seed CVQ (Children's Values Questionnaire) items
   await seedCVQItems();
 
-  console.log("✅ Database seeded successfully!");
+  // Seed Test Organization Admin Account (for testing admin functionality)
+  console.log("\n👤 Seeding test organization admin account...");
+  try {
+    const existingAdmin = await storage.getUserByUsername("schooladmin");
+    if (!existingAdmin) {
+      const { hashPassword } = await import("./utils/passwordHash");
+      const { db } = await import("./db");
+      const { users, organizations, organizationMembers } = await import("@shared/schema");
+      
+      const adminPassword = "Admin123!";
+      const adminPasswordHash = await hashPassword(adminPassword);
+      
+      // Create admin user
+      const [adminUser] = await db
+        .insert(users)
+        .values({
+          username: "schooladmin",
+          email: "admin@futurepathways.edu",
+          firstName: "School",
+          lastName: "Administrator",
+          passwordHash: adminPasswordHash,
+          accountType: 'org_admin',
+          role: 'admin',
+          isOrgGenerated: false,
+          isPremium: false,
+        })
+        .returning();
+
+      // Create test organization
+      const [testOrg] = await db
+        .insert(organizations)
+        .values({
+          name: "Test High School",
+          adminUserId: adminUser.id,
+          totalLicenses: 50,
+          usedLicenses: 0,
+          passwordComplexity: 'medium',
+        })
+        .returning();
+
+      // Create organization membership for admin
+      await db.insert(organizationMembers).values({
+        organizationId: testOrg.id,
+        userId: adminUser.id,
+        role: 'admin',
+      });
+
+      console.log("✓ Test organization admin created:");
+      console.log(`  📧 Username: schooladmin`);
+      console.log(`  🔑 Password: ${adminPassword}`);
+      console.log(`  🏫 Organization: ${testOrg.name}`);
+      console.log(`  📊 Total Licenses: ${testOrg.totalLicenses}`);
+    } else {
+      console.log("  Test admin account already exists (schooladmin)");
+    }
+  } catch (error: any) {
+    console.error("  Error creating test admin:", error.message);
+  }
+
+  console.log("\n✅ Database seeded successfully!");
 }

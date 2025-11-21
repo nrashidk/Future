@@ -19,6 +19,7 @@ import AuthCallback from "@/pages/AuthCallback";
 import PrivacyPolicy from "@/pages/PrivacyPolicy";
 import TermsOfUse from "@/pages/TermsOfUse";
 import Disclaimer from "@/pages/Disclaimer";
+import Profile from "@/pages/Profile";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -34,6 +35,7 @@ function Router() {
       <Route path="/results" component={Results} />
       <Route path="/print/results" component={ResultsPrint} />
       <Route path="/analytics" component={Analytics} />
+      <Route path="/profile" component={Profile} />
       <Route path="/admin" component={Admin} />
       <Route path="/admin/organizations" component={AdminOrganizations} />
       <Route path="/login/student" component={StudentLogin} />

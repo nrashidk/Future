@@ -1,8 +1,11 @@
 import { Link } from "wouter";
-import { GraduationCap, BarChart3 } from "lucide-react";
+import { GraduationCap, BarChart3, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 
 export function Header() {
+  const { user } = useAuth();
+
   return (
     <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-sm border-b">
       <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -10,12 +13,22 @@ export function Header() {
           <GraduationCap className="w-6 h-6 text-primary" />
           <span className="font-bold text-lg">Future Pathways</span>
         </Link>
-        <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">
-          <Link href="/analytics">
-            <BarChart3 className="w-4 h-4 mr-2" />
-            Analytics
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">
+            <Link href="/analytics">
+              <BarChart3 className="w-4 h-4 mr-2" />
+              Analytics
+            </Link>
+          </Button>
+          {user && (
+            <Button variant="outline" size="sm" asChild data-testid="button-nav-profile">
+              <Link href="/profile">
+                <User className="w-4 h-4 mr-2" />
+                Profile
+              </Link>
+            </Button>
+          )}
+        </div>
       </div>
     </header>
   );
