@@ -102,13 +102,17 @@ export default function Assessment() {
           grade: assessmentData.grade,
           favoriteSubjects: assessmentData.favoriteSubjects,
           interests: assessmentData.interests,
-          personalityTraits: Object.keys(assessmentData.personalityTraits).filter(
-            k => assessmentData.personalityTraits[k]
-          ),
           countryId: assessmentData.countryId,
           careerAspirations: assessmentData.careerAspirations || [],
           strengths: assessmentData.strengths || [],
         };
+        
+        // Only include personalityTraits for free users (who complete PersonalityStep)
+        if (!isPremiumUser) {
+          backendData.personalityTraits = Object.keys(assessmentData.personalityTraits).filter(
+            k => assessmentData.personalityTraits[k]
+          );
+        }
         
         // Include Kolb responses if premium user completed Kolb assessment
         if (isPremiumUser && Object.keys(assessmentData.kolbResponses).length > 0) {
