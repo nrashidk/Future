@@ -7,8 +7,18 @@ import session from "express-session";
 import type { Express, RequestHandler } from "express";
 import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
+import rateLimit from "express-rate-limit";
 import { storage } from "./storage";
 import { verifyPassword } from "./utils/passwordHash";
+
+// Rate limiting for authentication endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Limit each IP to 5 login attempts per window
+  message: 'Too many login attempts, please try again later',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 const getOidcConfig = memoize(
   async () => {
@@ -60,7 +70,14 @@ async function upsertUser(
   claims: any,
 ) {
   const email = claims["email"];
-  const role = email === "nrashidk@gmail.com" ? "superadmin" : "user";
+  
+  // Check if email is in the superadmin list from environment variable
+  const superadminEmails = (process.env.SUPERADMIN_EMAILS || "")
+    .split(",")
+    .map(e => e.trim())
+    .filter(e => e.length > 0);
+  
+  const role = superadminEmails.includes(email) ? "superadmin" : "user";
   
   await storage.upsertUser({
     id: claims["sub"],
@@ -180,7 +197,7 @@ export async function setupAuth(app: Express) {
     });
   });
 
-  app.post("/api/login/username", (req, res, next) => {
+  app.post("/api/login/username", authLimiter, (req, res, next) => {
     passport.authenticate("local", (err: any, user: any, info: any) => {
       if (err) {
         return res.status(500).json({ message: "Internal server error" });

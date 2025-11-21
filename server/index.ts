@@ -1,8 +1,60 @@
 import express, { type Request, Response, NextFunction } from "express";
+import helmet from "helmet";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
+
+// Security headers with helmet
+const isProduction = app.get("env") === "production";
+
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: [
+        "'self'",
+        "'unsafe-inline'", // Required for Vite in development
+        "https://js.stripe.com", // Stripe.js
+        "https://m.stripe.network", // Stripe fraud detection
+      ],
+      styleSrc: [
+        "'self'",
+        "'unsafe-inline'", // Required for inline styles in components
+      ],
+      imgSrc: [
+        "'self'",
+        "data:", // For inline images
+        "https:", // Allow HTTPS images
+      ],
+      connectSrc: [
+        "'self'",
+        "https://api.stripe.com", // Stripe API
+        "https://m.stripe.network", // Stripe analytics
+      ],
+      frameSrc: [
+        "https://js.stripe.com", // Stripe iframe
+        "https://hooks.stripe.com", // Stripe webhooks
+      ],
+      fontSrc: ["'self'", "data:"],
+      objectSrc: ["'none'"],
+      upgradeInsecureRequests: [],
+    },
+  },
+  // Only enable HSTS in production to avoid breaking development environments
+  hsts: isProduction ? {
+    maxAge: 31536000, // 1 year
+    includeSubDomains: true,
+    preload: false, // Set to false to avoid permanent browser caching issues
+  } : false,
+  // Use 'sameorigin' to allow Replit auth iframe and Stripe checkout
+  frameguard: {
+    action: 'sameorigin', // Allows same-origin framing (Replit auth, Stripe)
+  },
+  referrerPolicy: {
+    policy: 'strict-origin-when-cross-origin',
+  },
+}));
 
 declare module 'http' {
   interface IncomingMessage {

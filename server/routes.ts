@@ -1,5 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
+import { randomBytes } from "crypto";
+import rateLimit from "express-rate-limit";
 import { storage } from "./storage";
 import { db } from "./db";
 import { users } from "@shared/schema";
@@ -14,6 +16,25 @@ import { generateRecommendations } from "./services/matching";
 import { syncWEFSkillsProfile } from "./services/wefOrchestrator";
 import Stripe from "stripe";
 import { normalizeSubjects } from "./utils/subjects";
+
+// Rate limiting configuration
+// Rate limiting for payment endpoints
+const paymentLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 10, // Limit each IP to 10 payment requests per hour
+  message: 'Too many payment requests, please try again later',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Rate limiting for expensive recommendation generation
+const recommendationsLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 20, // Limit recommendations generation to 20 per hour
+  message: 'Too many recommendation requests, please try again later',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 /**
  * Normalize assessment payload before validation
@@ -114,8 +135,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         : null;
       const isGuest = !userId;
 
-      // For guest users, generate a unique guest token
-      const guestToken = isGuest ? `guest_${Date.now()}_${Math.random().toString(36).substring(2, 15)}` : null;
+      // For guest users, generate a cryptographically secure unique guest token
+      const guestToken = isGuest ? `guest_${Date.now()}_${randomBytes(16).toString('hex')}` : null;
 
       // Calculate learning style scores if responses provided (Individual Assessment users)
       let kolbScores = null;
@@ -762,7 +783,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Generate recommendations using dynamic matching service
-  app.post("/api/recommendations/generate/:assessmentId", async (req, res) => {
+  app.post("/api/recommendations/generate/:assessmentId", recommendationsLimiter, async (req, res) => {
     try {
       const assessment = await storage.getAssessmentById(req.params.assessmentId);
       if (!assessment) {
@@ -1185,7 +1206,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Admin middleware
-  const isAdmin = (req: any, res: any, next: any) => {
+  const isAdmin = async (req: any, res: any, next: any) => {
     if (!req.user) {
       return res.status(401).json({ message: "Unauthorized" });
     }
@@ -1194,15 +1215,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(403).json({ message: "Forbidden: Admin access required" });
     }
     
-    const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
-    storage.getUser(userId).then(user => {
+    try {
+      const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      
       if (!user || user.role !== "superadmin") {
         return res.status(403).json({ message: "Forbidden: Admin access required" });
       }
+      
       next();
-    }).catch(() => {
+    } catch (error) {
+      console.error("Admin authorization check failed:", error);
       res.status(500).json({ message: "Authorization check failed" });
-    });
+    }
   };
 
   // Super Admin Endpoints - Quiz Question Management
@@ -1610,7 +1635,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   }
 
   // Create payment intent for premium assessment
-  app.post("/api/create-payment-intent", async (req: any, res) => {
+  app.post("/api/create-payment-intent", paymentLimiter, async (req: any, res) => {
     if (!stripe) {
       return res.status(503).json({ 
         message: "Payment system not configured. Please add STRIPE_SECRET_KEY to your environment." 
