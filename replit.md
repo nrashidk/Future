@@ -43,10 +43,33 @@ The application features a playful, student-friendly sticky notes aesthetic with
 - **Session Storage**: Utilizes PostgreSQL for reliable session persistence.
 - **Development Workflow**: Employs `npm run db:push` for database migrations and automatic seeding in development. Optimized WEF affinity seeding with intelligent count-based skipping to prevent data loss when new careers/skills are added.
 
+## Recent Improvements (Nov 22, 2025)
+
+### Phase 1: Critical Security Fixes ✅ COMPLETED
+- **Environment-based Superadmin Emails**: Moved from hardcoded values to `SUPERADMIN_EMAILS` environment variable
+- **Async Admin Middleware**: Fixed race condition in authorization checks with proper async/await
+- **Cryptographic Guest Tokens**: Replaced predictable Math.random() with crypto.randomBytes()
+- **Rate Limiting**: Added protection for login (5/15min), payment (10/hour), recommendations (20/hour)
+- **Security Headers**: Integrated Helmet with CSP for XSS/clickjacking protection, conditional HSTS
+
+### Phase 2A: Performance Optimization ✅ COMPLETED
+- **N+1 Query Elimination**: Optimized analytics endpoints with SQL JOINs and aggregations
+  - `getAnalyticsOverview()`: Single queries for countries breakdown and grade distribution
+  - `getCountryAnalytics()`: JOIN query filtering by countryId instead of fetching all recommendations
+  - `getCareerTrends()`: Single JOIN query with GROUP BY replacing in-memory filtering
+- **Database Indexes**: Added indexes on `assessments.userId`, `assessments.countryId`, `recommendations.assessmentId`, `quiz_responses.assessmentQuizId`
+- **Performance Targets**: Analytics endpoints now respond in ~200ms range (target: <500ms)
+
+### Phase 2B: Input Validation ✅ COMPLETED
+- **Quiz Submission Validation**: Comprehensive checks for question IDs, answer formats, duplicate detection
+- **Bulk Member Upload Validation**: 500-member limit, required fields validation, duplicate username detection
+- **Assessment Update Validation**: Allowed fields whitelist including all legitimate fields (kolbScores, riasecScores, cvqScores, currentStepMetadata, etc.)
+- **Guest Authorization**: Token verification already implemented for quiz endpoints
+
 ## External Dependencies
 - **Database**: PostgreSQL (Neon)
 - **Authentication**: Replit Auth (OpenID Connect)
 - **Payment Gateway**: Stripe
 - **ORM**: Drizzle ORM
 - **Frontend Libraries**: React, TypeScript, Tailwind CSS, TanStack Query, Wouter
-- **Backend Libraries**: Express.js, TypeScript
+- **Backend Libraries**: Express.js, TypeScript, Helmet (security), express-rate-limit
