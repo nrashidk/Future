@@ -10,10 +10,11 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { 
   Home, Plus, Download, Upload, Edit, Trash2, GraduationCap, 
-  Users, Building2, Key, RefreshCw, FileDown, Lock, LockOpen
+  Users, Building2, Key, RefreshCw, FileDown, Lock, LockOpen, User
 } from "lucide-react";
 import { StickyNote } from "@/components/StickyNote";
 
@@ -48,6 +49,7 @@ interface OrganizationMember {
 }
 
 export default function AdminOrganizations() {
+  const { user } = useAuth();
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
@@ -86,6 +88,14 @@ export default function AdminOrganizations() {
                 Home
               </Link>
             </Button>
+            {user && (
+              <Button variant="outline" size="sm" asChild data-testid="button-nav-profile">
+                <Link href="/profile">
+                  <User className="w-4 h-4 mr-2" />
+                  Profile
+                </Link>
+              </Button>
+            )}
           </div>
         </div>
       </header>

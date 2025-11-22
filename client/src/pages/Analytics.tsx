@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Link } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
 import { 
   Users, 
   TrendingUp, 
@@ -16,7 +17,8 @@ import {
   GraduationCap,
   Home,
   Award,
-  Briefcase
+  Briefcase,
+  User
 } from "lucide-react";
 
 interface AnalyticsOverview {
@@ -40,6 +42,7 @@ interface SectorData {
 }
 
 export default function Analytics() {
+  const { user } = useAuth();
   const [activeCountryId, setActiveCountryId] = useState<string | null>(null);
 
   // Countries list with completed assessments (automatically shown)
@@ -123,12 +126,22 @@ export default function Analytics() {
             <GraduationCap className="w-6 h-6 text-primary" />
             <span className="font-bold text-lg">Future Pathways</span>
           </Link>
-          <Button variant="outline" size="sm" asChild data-testid="button-nav-home">
-            <Link href="/">
-              <Home className="w-4 h-4 mr-2" />
-              Home
-            </Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" asChild data-testid="button-nav-home">
+              <Link href="/">
+                <Home className="w-4 h-4 mr-2" />
+                Home
+              </Link>
+            </Button>
+            {user && (
+              <Button variant="outline" size="sm" asChild data-testid="button-nav-profile">
+                <Link href="/profile">
+                  <User className="w-4 h-4 mr-2" />
+                  Profile
+                </Link>
+              </Button>
+            )}
+          </div>
         </div>
       </header>
 

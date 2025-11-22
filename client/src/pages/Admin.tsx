@@ -9,8 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Home, Plus, Download, Upload, Edit, Trash2, GraduationCap } from "lucide-react";
+import { Home, Plus, Download, Upload, Edit, Trash2, GraduationCap, User } from "lucide-react";
 
 interface QuizQuestion {
   id: string;
@@ -37,6 +38,7 @@ const normalizeCountryId = (value: string): string | null => {
 };
 
 export default function Admin() {
+  const { user } = useAuth();
   const { toast } = useToast();
   const [filters, setFilters] = useState({
     countryId: "all",
@@ -119,12 +121,22 @@ export default function Admin() {
             <GraduationCap className="w-6 h-6 text-primary" />
             <span className="font-bold text-lg">Future Pathways</span>
           </Link>
-          <Button variant="outline" size="sm" asChild data-testid="button-nav-home">
-            <Link href="/">
-              <Home className="w-4 h-4 mr-2" />
-              Home
-            </Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" asChild data-testid="button-nav-home">
+              <Link href="/">
+                <Home className="w-4 h-4 mr-2" />
+                Home
+              </Link>
+            </Button>
+            {user && (
+              <Button variant="outline" size="sm" asChild data-testid="button-nav-profile">
+                <Link href="/profile">
+                  <User className="w-4 h-4 mr-2" />
+                  Profile
+                </Link>
+              </Button>
+            )}
+          </div>
         </div>
       </header>
 
@@ -344,7 +356,7 @@ function QuestionForm({
   });
 
   const mutation = useMutation({
-    mutationFn: async (data: typeof formData & { countryId: string | null }) => {
+    mutationFn: async (data: Omit<typeof formData, 'countryId'> & { countryId: string | null }) => {
       const url = question 
         ? `/api/admin/questions/${question.id}`
         : '/api/admin/questions';

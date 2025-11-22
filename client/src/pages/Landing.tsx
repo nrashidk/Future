@@ -10,12 +10,15 @@ import {
   Rocket,
   Heart,
   Lightbulb,
-  BarChart3
+  BarChart3,
+  User
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
 
 export default function Landing() {
+  const { user } = useAuth();
   const { data: analytics, isLoading } = useQuery<{ totalStudents: number }>({
     queryKey: ['/api/analytics/overview'],
   });
@@ -44,12 +47,22 @@ export default function Landing() {
             <GraduationCap className="w-6 h-6 text-primary" />
             <span className="font-bold text-lg">Future Pathways</span>
           </Link>
-          <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">
-            <Link href="/analytics">
-              <BarChart3 className="w-4 h-4 mr-2" />
-              Analytics
-            </Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">
+              <Link href="/analytics">
+                <BarChart3 className="w-4 h-4 mr-2" />
+                Analytics
+              </Link>
+            </Button>
+            {user && (
+              <Button variant="outline" size="sm" asChild data-testid="button-nav-profile">
+                <Link href="/profile">
+                  <User className="w-4 h-4 mr-2" />
+                  Profile
+                </Link>
+              </Button>
+            )}
+          </div>
         </div>
       </header>
 
