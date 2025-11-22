@@ -601,7 +601,7 @@ function BulkUploadForm({ organizationId, onSuccess }: { organizationId: string;
       });
 
       const response = await apiRequest('POST', `/api/admin/organizations/${organizationId}/members/bulk`, {
-        students,
+        members: students,
         passwordComplexity,
       });
       return await response.json();
