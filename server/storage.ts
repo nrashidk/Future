@@ -64,7 +64,7 @@ import {
   type InsertCountrySectorWefSkill,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, count, avg, sql as sqlFunc, inArray, isNotNull } from "drizzle-orm";
+import { eq, and, desc, count, avg, sql, inArray, isNotNull } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
@@ -573,7 +573,7 @@ export class DatabaseStorage implements IStorage {
         .where(
           and(
             eq(quizQuestions.gradeBand, gradeBand),
-            sqlFunc`${quizQuestions.countryId} IS NULL`
+            sql`${quizQuestions.countryId} IS NULL`
           )
         );
       
@@ -586,7 +586,7 @@ export class DatabaseStorage implements IStorage {
         .where(
           and(
             eq(quizQuestions.gradeBand, gradeBand),
-            sqlFunc`${quizQuestions.countryId} IS NULL`
+            sql`${quizQuestions.countryId} IS NULL`
           )
         );
     }
@@ -688,13 +688,7 @@ export class DatabaseStorage implements IStorage {
 
   // Analytics operations
   
-  // TODO: PERFORMANCE OPTIMIZATION NEEDED - N+1 Query Pattern
-  // This function has a N+1 query issue: it fetches all assessments, then calls
-  // getCountryById() for each unique country inside the loop (line 250).
-  // RECOMMENDED FIX: Use Drizzle aggregations with JOIN to fetch country names in one query:
-  // - Use .leftJoin(countries, eq(assessments.countryId, countries.id))
-  // - Group by country and grade with COUNT() aggregation
-  // - This will reduce database round-trips from O(n) to O(1)
+  // OPTIMIZED: Uses JOIN and aggregations to eliminate N+1 queries
   async getAnalyticsOverview(countryId?: string) {
     // Only count completed assessments for accurate analytics
     const conditions = [eq(assessments.isCompleted, true)];
@@ -704,94 +698,93 @@ export class DatabaseStorage implements IStorage {
       conditions.push(eq(assessments.countryId, countryId));
     }
     
-    const completedAssessmentsList = await db
-      .select()
+    // Get total counts with a single query
+    const totalResult = await db
+      .select({ count: sql<number>`count(*)::int` })
       .from(assessments)
       .where(and(...conditions));
-    const totalStudents = completedAssessmentsList.length;
-    const completedAssessments = completedAssessmentsList.length; // All are completed due to filter
+    const totalStudents = totalResult[0]?.count || 0;
+    const completedAssessments = totalStudents; // All are completed due to filter
 
-    const countriesMap = new Map<string, { countryId: string; countryName: string; count: number }>();
-    const gradesMap = new Map<string, number>();
+    // Get countries breakdown with JOIN in a single query
+    const countriesData = await db
+      .select({
+        countryId: assessments.countryId,
+        countryName: countries.name,
+        count: sql<number>`count(*)::int`
+      })
+      .from(assessments)
+      .leftJoin(countries, eq(assessments.countryId, countries.id))
+      .where(and(...conditions, isNotNull(assessments.countryId)))
+      .groupBy(assessments.countryId, countries.name);
 
-    for (const assessment of completedAssessmentsList) {
-      if (assessment.countryId) {
-        const existing = countriesMap.get(assessment.countryId);
-        if (existing) {
-          existing.count++;
-        } else {
-          const country = await this.getCountryById(assessment.countryId);
-          if (country) {
-            countriesMap.set(assessment.countryId, {
-              countryId: assessment.countryId,
-              countryName: country.name,
-              count: 1
-            });
-          }
-        }
-      }
-
-      if (assessment.grade) {
-        gradesMap.set(assessment.grade, (gradesMap.get(assessment.grade) || 0) + 1);
-      }
-    }
+    // Get grade distribution with aggregation
+    const gradesData = await db
+      .select({
+        grade: assessments.grade,
+        count: sql<number>`count(*)::int`
+      })
+      .from(assessments)
+      .where(and(...conditions, isNotNull(assessments.grade)))
+      .groupBy(assessments.grade);
 
     return {
       totalStudents,
       completedAssessments,
-      countriesBreakdown: Array.from(countriesMap.values()),
-      gradeDistribution: Array.from(gradesMap.entries()).map(([grade, count]) => ({ grade, count }))
+      countriesBreakdown: countriesData.map(row => ({
+        countryId: row.countryId!,
+        countryName: row.countryName || 'Unknown',
+        count: row.count
+      })),
+      gradeDistribution: gradesData.map(row => ({
+        grade: row.grade!,
+        count: row.count
+      }))
     };
   }
 
-  // TODO: PERFORMANCE OPTIMIZATION NEEDED - N+1 Query Pattern  
-  // This function has multiple N+1 issues:
-  // 1. Fetches ALL recommendations globally, then filters in memory (line 278-281)
-  // 2. Calls getCareerById() for each recommendation inside loop (line 288)
-  // RECOMMENDED FIX: 
-  // - Join assessments with recommendations WHERE countryId = ?
-  // - Left join with careers table to get titles
-  // - Use GROUP BY careerId with COUNT() and AVG(countryVisionAlignment)
-  // - This reduces O(n*m) complexity to O(1) with proper SQL aggregations
+  // OPTIMIZED: Uses JOINs and aggregations to eliminate N+1 queries
   async getCountryAnalytics(countryId: string) {
-    // Only count completed assessments for accurate analytics
-    const countryAssessments = await db
-      .select()
+    // Get total students count with a single query
+    const totalResult = await db
+      .select({ count: sql<number>`count(*)::int` })
       .from(assessments)
       .where(and(eq(assessments.countryId, countryId), eq(assessments.isCompleted, true)));
-    const totalStudents = countryAssessments.length;
+    const totalStudents = totalResult[0]?.count || 0;
 
-    // N+1 ISSUE: Fetching all recommendations globally instead of filtered query with JOIN
-    const allRecs = await db.select().from(recommendations);
-    const countryRecs = allRecs.filter(rec => 
-      countryAssessments.some(a => a.id === rec.assessmentId)
-    );
+    // Get top careers with JOIN in a single query
+    const careersData = await db
+      .select({
+        careerId: recommendations.careerId,
+        careerTitle: careers.title,
+        count: sql<number>`count(*)::int`
+      })
+      .from(assessments)
+      .innerJoin(recommendations, eq(assessments.id, recommendations.assessmentId))
+      .leftJoin(careers, eq(recommendations.careerId, careers.id))
+      .where(and(eq(assessments.countryId, countryId), eq(assessments.isCompleted, true)))
+      .groupBy(recommendations.careerId, careers.title)
+      .orderBy(sql`count(*) desc`)
+      .limit(10);
 
-    const careersMap = new Map<string, { careerId: string; careerTitle: string; count: number }>();
-    let totalAlignment = 0;
-    
-    for (const rec of countryRecs) {
-      totalAlignment += rec.countryVisionAlignment;
-      // N+1 ISSUE: Calling getCareerById inside loop
-      const career = await this.getCareerById(rec.careerId);
-      if (career) {
-        const existing = careersMap.get(rec.careerId);
-        if (existing) {
-          existing.count++;
-        } else {
-          careersMap.set(rec.careerId, {
-            careerId: rec.careerId,
-            careerTitle: career.title,
-            count: 1
-          });
-        }
-      }
-    }
+    // Get average vision alignment with a single query
+    const alignmentResult = await db
+      .select({ avg: sql<number>`avg(${recommendations.countryVisionAlignment})::float` })
+      .from(assessments)
+      .innerJoin(recommendations, eq(assessments.id, recommendations.assessmentId))
+      .where(and(eq(assessments.countryId, countryId), eq(assessments.isCompleted, true)));
+    const avgVisionAlignment = alignmentResult[0]?.avg || 0;
+
+    // Get popular subjects - need to fetch and process since it's an array column
+    const subjectsResult = await db
+      .select({ favoriteSubjects: assessments.favoriteSubjects })
+      .from(assessments)
+      .where(and(eq(assessments.countryId, countryId), eq(assessments.isCompleted, true), isNotNull(assessments.favoriteSubjects)));
 
     const subjectsMap = new Map<string, number>();
-    for (const assessment of countryAssessments) {
-      if (assessment.favoriteSubjects) {
-        for (const subject of assessment.favoriteSubjects) {
+    for (const row of subjectsResult) {
+      if (row.favoriteSubjects) {
+        for (const subject of row.favoriteSubjects) {
           subjectsMap.set(subject, (subjectsMap.get(subject) || 0) + 1);
         }
       }
@@ -799,8 +792,12 @@ export class DatabaseStorage implements IStorage {
 
     return {
       totalStudents,
-      topCareers: Array.from(careersMap.values()).sort((a, b) => b.count - a.count).slice(0, 10),
-      avgVisionAlignment: countryRecs.length > 0 ? totalAlignment / countryRecs.length : 0,
+      topCareers: careersData.map(row => ({
+        careerId: row.careerId,
+        careerTitle: row.careerTitle || 'Unknown',
+        count: row.count
+      })),
+      avgVisionAlignment,
       popularSubjects: Array.from(subjectsMap.entries())
         .map(([subject, count]) => ({ subject, count }))
         .sort((a, b) => b.count - a.count)
@@ -808,60 +805,36 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  // TODO: PERFORMANCE OPTIMIZATION NEEDED - N+1 Query Pattern
-  // This function has a N+1 query issue: it fetches all recommendations, then calls
-  // getCareerById() for each recommendation inside the loop (line 348).
-  // RECOMMENDED FIX: Use Drizzle JOIN with careers table:
-  // - .leftJoin(careers, eq(recommendations.careerId, careers.id))
-  // - Group by careerId with COUNT() and AVG(overallMatchScore)
-  // - This eliminates per-recommendation queries, reducing from O(n) to O(1)
+  // OPTIMIZED: Uses JOIN and aggregations to eliminate N+1 queries
   async getCareerTrends(countryId?: string) {
-    // Filter by country if specified - get completed assessments for that country
-    let targetAssessmentIds: string[] | null = null;
+    // Build conditions for filtering
+    const conditions = [eq(assessments.isCompleted, true)];
     if (countryId) {
-      const countryAssessments = await db
-        .select()
-        .from(assessments)
-        .where(and(eq(assessments.countryId, countryId), eq(assessments.isCompleted, true)));
-      targetAssessmentIds = countryAssessments.map(a => a.id);
+      conditions.push(eq(assessments.countryId, countryId));
     }
 
-    const allRecs = await db.select().from(recommendations);
-    
-    // Filter recommendations by country if needed
-    const filteredRecs = targetAssessmentIds 
-      ? allRecs.filter(rec => targetAssessmentIds!.includes(rec.assessmentId))
-      : allRecs;
+    // Get career trends with JOIN in a single query
+    const trendsData = await db
+      .select({
+        careerId: recommendations.careerId,
+        careerTitle: careers.title,
+        recommendationCount: sql<number>`count(*)::int`,
+        avgMatchScore: sql<number>`avg(${recommendations.overallMatchScore})::float`
+      })
+      .from(assessments)
+      .innerJoin(recommendations, eq(assessments.id, recommendations.assessmentId))
+      .leftJoin(careers, eq(recommendations.careerId, careers.id))
+      .where(and(...conditions))
+      .groupBy(recommendations.careerId, careers.title)
+      .orderBy(sql`count(*) desc`)
+      .limit(20);
 
-    const careersMap = new Map<string, { careerId: string; careerTitle: string; count: number; totalScore: number }>();
-
-    for (const rec of filteredRecs) {
-      const career = await this.getCareerById(rec.careerId);
-      if (career) {
-        const existing = careersMap.get(rec.careerId);
-        if (existing) {
-          existing.count++;
-          existing.totalScore += rec.overallMatchScore;
-        } else {
-          careersMap.set(rec.careerId, {
-            careerId: rec.careerId,
-            careerTitle: career.title,
-            count: 1,
-            totalScore: rec.overallMatchScore
-          });
-        }
-      }
-    }
-
-    return Array.from(careersMap.values())
-      .map(({ careerId, careerTitle, count, totalScore }) => ({
-        careerId,
-        careerTitle,
-        recommendationCount: count,
-        avgMatchScore: totalScore / count
-      }))
-      .sort((a, b) => b.recommendationCount - a.recommendationCount)
-      .slice(0, 20);
+    return trendsData.map(row => ({
+      careerId: row.careerId,
+      careerTitle: row.careerTitle || 'Unknown',
+      recommendationCount: row.recommendationCount,
+      avgMatchScore: row.avgMatchScore
+    }));
   }
 
   // TODO: PERFORMANCE OPTIMIZATION NEEDED - N+1 Query Pattern
@@ -1209,7 +1182,7 @@ export class DatabaseStorage implements IStorage {
 
   async getCareerWefSkillAffinityCount(): Promise<number> {
     const result = await db
-      .select({ count: sqlFunc<number>`count(*)` })
+      .select({ count: sql<number>`count(*)` })
       .from(careerWefSkillAffinities);
     return result[0]?.count || 0;
   }
@@ -1473,7 +1446,7 @@ export class DatabaseStorage implements IStorage {
           accountType: 'org_admin',
           role: 'admin',
           isPremium: true,
-          purchasedLicenses: sqlFunc`COALESCE(${users.purchasedLicenses}, 0) + ${studentCount}`,
+          purchasedLicenses: sql`COALESCE(${users.purchasedLicenses}, 0) + ${studentCount}`,
           updatedAt: new Date()
         })
         .where(eq(users.id, userId))
@@ -1544,14 +1517,14 @@ export class DatabaseStorage implements IStorage {
     const [organization] = await db
       .update(organizations)
       .set({
-        usedLicenses: sqlFunc`${organizations.usedLicenses} + ${increment}`,
+        usedLicenses: sql`${organizations.usedLicenses} + ${increment}`,
         updatedAt: new Date(),
       })
       .where(
         and(
           eq(organizations.id, id),
-          sqlFunc`${organizations.usedLicenses} + ${increment} >= 0`,
-          sqlFunc`${organizations.usedLicenses} + ${increment} <= ${organizations.totalLicenses}`
+          sql`${organizations.usedLicenses} + ${increment} >= 0`,
+          sql`${organizations.usedLicenses} + ${increment} <= ${organizations.totalLicenses}`
         )
       )
       .returning();
