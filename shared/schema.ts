@@ -390,7 +390,11 @@ export const assessments = pgTable("assessments", {
   
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => [
+  index("assessments_user_id_idx").on(table.userId),
+  index("assessments_country_id_idx").on(table.countryId),
+  index("assessments_completed_idx").on(table.isCompleted),
+]);
 
 export const assessmentsRelations = relations(assessments, ({ one, many }) => ({
   user: one(users, {
@@ -424,7 +428,10 @@ export const recommendations = pgTable("recommendations", {
   requiredEducation: text("required_education").notNull(),
   
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [
+  index("recommendations_assessment_id_idx").on(table.assessmentId),
+  index("recommendations_career_id_idx").on(table.careerId),
+]);
 
 export const recommendationsRelations = relations(recommendations, ({ one }) => ({
   assessment: one(assessments, {
@@ -500,7 +507,10 @@ export const quizResponses = pgTable("quiz_responses", {
   score: real("score").notNull().default(0),
   
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [
+  index("quiz_responses_assessment_quiz_id_idx").on(table.assessmentQuizId),
+  index("quiz_responses_question_id_idx").on(table.questionId),
+]);
 
 export const quizResponsesRelations = relations(quizResponses, ({ one }) => ({
   assessmentQuiz: one(assessmentQuizzes, {

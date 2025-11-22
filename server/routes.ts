@@ -214,6 +214,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.patch("/api/assessments/:id", async (req: any, res) => {
     try {
+      // Validation: Ensure request body is an object
+      if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
+        return res.status(400).json({ message: "Request body must be an object" });
+      }
+      
+      // Define allowed fields for assessment updates
+      const allowedFields = [
+        'name', 'age', 'grade', 'gender', 'countryId', 'favoriteSubjects', 
+        'interests', 'personalityTraits', 'careerAspirations', 'strengths', 
+        'workPreferences', 'kolbResponses', 'riasecResponses', 'cvqResponses',
+        'kolbScores', 'riasecScores', 'cvqScores', 'quizScore', 'subjectCompetencies',
+        'currentStep', 'currentStepMetadata', 'isCompleted', 'completedAt', 
+        'assessmentType', 'educationLevel'
+      ];
+      
+      // Validation: Check for disallowed fields
+      const providedFields = Object.keys(req.body);
+      const disallowedFields = providedFields.filter(field => !allowedFields.includes(field));
+      if (disallowedFields.length > 0) {
+        return res.status(400).json({ 
+          message: `Disallowed fields: ${disallowedFields.join(', ')}. Only allowed fields: ${allowedFields.join(', ')}` 
+        });
+      }
+      
       // Normalize payload before processing
       const normalizationResult = normalizeAssessmentPayload(req.body);
       if (normalizationResult.error) {
@@ -469,8 +493,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { assessmentId } = req.params;
       const { responses: userResponses, guestToken } = req.body;
       
+      // Validation: Check if responses is an array
       if (!Array.isArray(userResponses)) {
         return res.status(400).json({ message: "Responses must be an array" });
+      }
+      
+      // Validation: Check for empty responses
+      if (userResponses.length === 0) {
+        return res.status(400).json({ message: "Responses array cannot be empty" });
+      }
+      
+      // Validation: Check each response has required fields
+      for (const response of userResponses) {
+        if (!response.questionId || response.answer === undefined || response.answer === null) {
+          return res.status(400).json({ message: "Each response must have questionId and answer" });
+        }
+        if (typeof response.questionId !== 'string' || response.questionId.trim() === '') {
+          return res.status(400).json({ message: "Invalid questionId format" });
+        }
+      }
+      
+      // Validation: Check for duplicate question IDs
+      const answeredIds = userResponses.map((r: any) => r.questionId);
+      const uniqueIds = new Set(answeredIds);
+      if (answeredIds.length !== uniqueIds.size) {
+        return res.status(400).json({ message: "Duplicate question IDs in submission" });
       }
       
       // Get assessment to check authorization
@@ -502,12 +549,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingResponses = await storage.getQuizResponsesByQuizId(quiz.id);
       const questionIds = existingResponses.map(r => r.questionId);
       
+      // Validation: Check all submitted question IDs belong to this quiz
+      const invalidIds = answeredIds.filter(id => !questionIds.includes(id));
+      if (invalidIds.length > 0) {
+        return res.status(400).json({ message: `Invalid question IDs: ${invalidIds.join(', ')}` });
+      }
+      
       // Fetch full question details
       const allQuestions = await storage.getAllQuizQuestions();
       const questions = allQuestions.filter(q => questionIds.includes(q.id));
       
       // Validate all questions are answered
-      const answeredIds = userResponses.map((r: any) => r.questionId);
       const missingAnswers = questionIds.filter((id: string) => !answeredIds.includes(id));
       
       if (missingAnswers.length > 0) {
@@ -1437,8 +1489,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { members, passwordComplexity = 'medium' } = req.body;
       const organizationId = req.params.id;
 
-      if (!Array.isArray(members) || members.length === 0) {
-        return res.status(400).json({ message: "Members must be a non-empty array" });
+      // Validation: Check if members is an array
+      if (!Array.isArray(members)) {
+        return res.status(400).json({ message: "Members must be an array" });
+      }
+      
+      // Validation: Check for empty array
+      if (members.length === 0) {
+        return res.status(400).json({ message: "Members array cannot be empty" });
+      }
+      
+      // Validation: Check array size limit (max 500 members per request)
+      const MAX_BULK_SIZE = 500;
+      if (members.length > MAX_BULK_SIZE) {
+        return res.status(400).json({ 
+          message: `Bulk upload limited to ${MAX_BULK_SIZE} members per request. Please split into multiple requests.` 
+        });
+      }
+      
+      // Validation: Check each member has required fields and valid format
+      for (let i = 0; i < members.length; i++) {
+        const member = members[i];
+        if (!member || typeof member !== 'object') {
+          return res.status(400).json({ message: `Member at index ${i} must be an object` });
+        }
+        if (!member.username || typeof member.username !== 'string' || member.username.trim() === '') {
+          return res.status(400).json({ message: `Member at index ${i} missing or invalid username` });
+        }
+        if (!member.fullName || typeof member.fullName !== 'string' || member.fullName.trim() === '') {
+          return res.status(400).json({ message: `Member at index ${i} missing or invalid fullName` });
+        }
+        if (!member.grade) {
+          return res.status(400).json({ message: `Member at index ${i} missing grade` });
+        }
+      }
+      
+      // Validation: Check for duplicate usernames within the batch
+      const usernames = members.map(m => m.username.toLowerCase().trim());
+      const uniqueUsernames = new Set(usernames);
+      if (usernames.length !== uniqueUsernames.size) {
+        return res.status(400).json({ message: "Duplicate usernames in submission" });
+      }
+      
+      // Validation: Check passwordComplexity is valid
+      if (passwordComplexity && !['easy', 'medium', 'strong'].includes(passwordComplexity)) {
+        return res.status(400).json({ message: "Invalid passwordComplexity. Must be 'easy', 'medium', or 'strong'" });
       }
 
       const org = await storage.getOrganizationById(organizationId);
