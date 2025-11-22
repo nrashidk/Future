@@ -1,9 +1,19 @@
 import type { Express } from "express";
 import { storage } from "../storage";
 import { isAuthenticated } from "../replitAuth";
-import { isAdmin } from "../middleware/auth.middleware";
+import { isAdmin, isOrgAdmin } from "../middleware/auth.middleware";
 import { insertQuizQuestionSchema } from "@shared/schema";
 import { z } from "zod";
+
+/**
+ * Get superadmin emails from environment variable
+ */
+const getSuperadminEmails = (): string[] => {
+  return (process.env.SUPERADMIN_EMAILS || "")
+    .split(",")
+    .map(e => e.trim())
+    .filter(e => e.length > 0);
+};
 
 export function registerAdminRoutes(app: Express) {
   // Super Admin Endpoints - Quiz Question Management
@@ -106,11 +116,43 @@ export function registerAdminRoutes(app: Express) {
     }
   });
 
-  // Organization Management - Super Admin Endpoints
-  app.get("/api/admin/organizations", isAuthenticated, isAdmin, async (req, res) => {
+  // Organization Management - Accessible by both superadmins and org admins
+  // Org admins see only their organization, superadmins see all
+  app.get("/api/admin/organizations", isAuthenticated, async (req, res) => {
     try {
-      const organizations = await storage.getAllOrganizations();
-      res.json(organizations);
+      const userId = (req.user as any).isLocal ? (req.user as any).userId : (req.user as any).claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      // Check if user is superadmin
+      const superadminEmails = getSuperadminEmails();
+      const isSuperadmin = 
+        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email)) ||
+        user.role === "superadmin";
+      
+      // Check if user is org admin
+      const isOrgAdminUser = user.accountType === "org_admin";
+
+      if (!isSuperadmin && !isOrgAdminUser) {
+        return res.status(403).json({ message: "Forbidden: Admin or Organization Admin access required" });
+      }
+
+      // Superadmins get all organizations
+      if (isSuperadmin) {
+        const organizations = await storage.getAllOrganizations();
+        return res.json(organizations);
+      }
+      
+      // Org admins get only their organization
+      const organization = await storage.getOrganizationByAdminUserId(userId);
+      if (!organization) {
+        return res.json([]);  // Return empty array if no organization found
+      }
+      
+      res.json([organization]);  // Return as array to match superadmin response format
     } catch (error) {
       console.error("Error fetching organizations:", error);
       res.status(500).json({ message: "Failed to fetch organizations" });
@@ -169,8 +211,34 @@ export function registerAdminRoutes(app: Express) {
   });
 
   // Organization Member Management - Admin Endpoints
-  app.get("/api/admin/organizations/:id/members", isAuthenticated, isAdmin, async (req, res) => {
+  app.get("/api/admin/organizations/:id/members", isAuthenticated, async (req, res) => {
     try {
+      const userId = (req.user as any).isLocal ? (req.user as any).userId : (req.user as any).claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      // Check if user is superadmin
+      const superadminEmails = getSuperadminEmails();
+      const isSuperadmin = 
+        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email)) ||
+        user.role === "superadmin";
+      
+      // Check if user is org admin for THIS specific organization
+      const isOrgAdminForThisOrg = user.accountType === "org_admin";
+      if (isOrgAdminForThisOrg) {
+        const userOrg = await storage.getOrganizationByAdminUserId(userId);
+        if (!userOrg || userOrg.id !== req.params.id) {
+          return res.status(403).json({ message: "Forbidden: Can only access your own organization" });
+        }
+      }
+
+      if (!isSuperadmin && !isOrgAdminForThisOrg) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
       const members = await storage.getOrganizationMembersByOrganizationId(req.params.id);
       res.json(members);
     } catch (error) {
@@ -179,8 +247,34 @@ export function registerAdminRoutes(app: Express) {
     }
   });
 
-  app.post("/api/admin/organizations/:id/members", isAuthenticated, isAdmin, async (req, res) => {
+  app.post("/api/admin/organizations/:id/members", isAuthenticated, async (req, res) => {
     try {
+      const userId = (req.user as any).isLocal ? (req.user as any).userId : (req.user as any).claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      // Check if user is superadmin
+      const superadminEmails = getSuperadminEmails();
+      const isSuperadmin = 
+        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email)) ||
+        user.role === "superadmin";
+      
+      // Check if user is org admin for THIS specific organization
+      const isOrgAdminForThisOrg = user.accountType === "org_admin";
+      if (isOrgAdminForThisOrg) {
+        const userOrg = await storage.getOrganizationByAdminUserId(userId);
+        if (!userOrg || userOrg.id !== req.params.id) {
+          return res.status(403).json({ message: "Forbidden: Can only access your own organization" });
+        }
+      }
+
+      if (!isSuperadmin && !isOrgAdminForThisOrg) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
       const { username, fullName, grade, passwordComplexity = 'medium' } = req.body;
       const organizationId = req.params.id;
 
@@ -208,8 +302,34 @@ export function registerAdminRoutes(app: Express) {
     }
   });
 
-  app.post("/api/admin/organizations/:id/members/bulk", isAuthenticated, isAdmin, async (req, res) => {
+  app.post("/api/admin/organizations/:id/members/bulk", isAuthenticated, async (req, res) => {
     try {
+      const userId = (req.user as any).isLocal ? (req.user as any).userId : (req.user as any).claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      // Check if user is superadmin
+      const superadminEmails = getSuperadminEmails();
+      const isSuperadmin = 
+        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email)) ||
+        user.role === "superadmin";
+      
+      // Check if user is org admin for THIS specific organization
+      const isOrgAdminForThisOrg = user.accountType === "org_admin";
+      if (isOrgAdminForThisOrg) {
+        const userOrg = await storage.getOrganizationByAdminUserId(userId);
+        if (!userOrg || userOrg.id !== req.params.id) {
+          return res.status(403).json({ message: "Forbidden: Can only access your own organization" });
+        }
+      }
+
+      if (!isSuperadmin && !isOrgAdminForThisOrg) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
       const { members, passwordComplexity = 'medium' } = req.body;
       const organizationId = req.params.id;
 

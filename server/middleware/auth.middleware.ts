@@ -1,6 +1,16 @@
 import { storage } from "../storage";
 
 /**
+ * Get superadmin emails from environment variable
+ */
+const getSuperadminEmails = (): string[] => {
+  return (process.env.SUPERADMIN_EMAILS || "")
+    .split(",")
+    .map(e => e.trim())
+    .filter(e => e.length > 0);
+};
+
+/**
  * Middleware to check if the authenticated user is a superadmin
  * Requires isAuthenticated middleware to run first
  */
@@ -9,21 +19,51 @@ export const isAdmin = async (req: any, res: any, next: any) => {
     return res.status(401).json({ message: "Unauthorized" });
   }
   
-  if (req.user.isLocal) {
-    return res.status(403).json({ message: "Forbidden: Admin access required" });
-  }
-  
   try {
     const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
     const user = await storage.getUser(userId);
     
-    if (!user || user.role !== "superadmin") {
+    if (!user) {
+      return res.status(403).json({ message: "Forbidden: Admin access required" });
+    }
+
+    // Check if user is superadmin by email (for Replit Auth users) or role
+    const superadminEmails = getSuperadminEmails();
+    const isSuperadmin = 
+      (!req.user.isLocal && user.email && superadminEmails.includes(user.email)) ||
+      user.role === "superadmin";
+    
+    if (!isSuperadmin) {
       return res.status(403).json({ message: "Forbidden: Admin access required" });
     }
     
     next();
   } catch (error) {
     console.error("Admin authorization check failed:", error);
+    res.status(500).json({ message: "Authorization check failed" });
+  }
+};
+
+/**
+ * Middleware to check if the authenticated user is an organization admin
+ * Requires isAuthenticated middleware to run first
+ */
+export const isOrgAdmin = async (req: any, res: any, next: any) => {
+  if (!req.user) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+  
+  try {
+    const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
+    const user = await storage.getUser(userId);
+    
+    if (!user || user.accountType !== "org_admin") {
+      return res.status(403).json({ message: "Forbidden: Organization admin access required" });
+    }
+    
+    next();
+  } catch (error) {
+    console.error("Organization admin authorization check failed:", error);
     res.status(500).json({ message: "Authorization check failed" });
   }
 };
