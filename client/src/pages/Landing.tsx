@@ -11,7 +11,8 @@ import {
   Heart,
   Lightbulb,
   BarChart3,
-  User
+  User,
+  LogIn
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
@@ -48,6 +49,12 @@ export default function Landing() {
             <span className="font-bold text-lg">Future Pathways</span>
           </Link>
           <div className="flex gap-2">
+            <Button variant="outline" size="sm" asChild data-testid="button-nav-school-login">
+              <Link href="/login/student">
+                <LogIn className="w-4 h-4 mr-2" />
+                School Login
+              </Link>
+            </Button>
             <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">
               <Link href="/analytics">
                 <BarChart3 className="w-4 h-4 mr-2" />
