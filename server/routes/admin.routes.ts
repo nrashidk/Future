@@ -357,22 +357,12 @@ export function registerAdminRoutes(app: Express) {
         if (!member || typeof member !== 'object') {
           return res.status(400).json({ message: `Member at index ${i} must be an object` });
         }
-        if (!member.username || typeof member.username !== 'string' || member.username.trim() === '') {
-          return res.status(400).json({ message: `Member at index ${i} missing or invalid username` });
-        }
         if (!member.fullName || typeof member.fullName !== 'string' || member.fullName.trim() === '') {
           return res.status(400).json({ message: `Member at index ${i} missing or invalid fullName` });
         }
         if (!member.grade) {
           return res.status(400).json({ message: `Member at index ${i} missing grade` });
         }
-      }
-      
-      // Validation: Check for duplicate usernames within the batch
-      const usernames = members.map(m => m.username.toLowerCase().trim());
-      const uniqueUsernames = new Set(usernames);
-      if (usernames.length !== uniqueUsernames.size) {
-        return res.status(400).json({ message: "Duplicate usernames in submission" });
       }
       
       // Validation: Check passwordComplexity is valid
@@ -401,16 +391,17 @@ export function registerAdminRoutes(app: Express) {
 
       for (const memberData of members) {
         try {
-          const { username, fullName, grade } = memberData;
+          const { username, fullName, grade, studentId } = memberData;
           
-          if (!username || !fullName || !grade) {
-            throw new Error("Missing required fields");
+          if (!fullName || !grade) {
+            throw new Error("Missing required fields: fullName and grade");
           }
 
           const result = await storage.createUserWithCredentials({
-            username,
+            username: username || undefined,
             fullName,
             grade: grade.toString(),
+            studentId: studentId || undefined,
             passwordComplexity: passwordComplexity as 'easy' | 'medium' | 'strong',
             organizationId,
           });
@@ -456,8 +447,34 @@ export function registerAdminRoutes(app: Express) {
     }
   });
 
-  app.delete("/api/admin/organizations/:id/members/:memberId", isAuthenticated, isAdmin, async (req, res) => {
+  app.delete("/api/admin/organizations/:id/members/:memberId", isAuthenticated, async (req, res) => {
     try {
+      const userId = (req.user as any).isLocal ? (req.user as any).userId : (req.user as any).claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      // Check if user is superadmin
+      const superadminEmails = getSuperadminEmails();
+      const isSuperadmin = 
+        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email)) ||
+        user.role === "superadmin";
+      
+      // Check if user is org admin for THIS specific organization
+      const isOrgAdminForThisOrg = user.accountType === "org_admin";
+      if (isOrgAdminForThisOrg) {
+        const userOrg = await storage.getOrganizationByAdminUserId(userId);
+        if (!userOrg || userOrg.id !== req.params.id) {
+          return res.status(403).json({ message: "Forbidden: Can only access your own organization" });
+        }
+      }
+
+      if (!isSuperadmin && !isOrgAdminForThisOrg) {
+        return res.status(403).json({ message: "Forbidden: Admin access required" });
+      }
+
       const member = await storage.getOrganizationMemberById(req.params.memberId);
       if (!member) {
         return res.status(404).json({ message: "Member not found" });
@@ -480,8 +497,34 @@ export function registerAdminRoutes(app: Express) {
     }
   });
 
-  app.post("/api/admin/organizations/:id/members/:memberId/reset-password", isAuthenticated, isAdmin, async (req, res) => {
+  app.post("/api/admin/organizations/:id/members/:memberId/reset-password", isAuthenticated, async (req, res) => {
     try {
+      const userId = (req.user as any).isLocal ? (req.user as any).userId : (req.user as any).claims.sub;
+      const currentUser = await storage.getUser(userId);
+      
+      if (!currentUser) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      // Check if user is superadmin
+      const superadminEmails = getSuperadminEmails();
+      const isSuperadmin = 
+        (!(req.user as any).isLocal && currentUser.email && superadminEmails.includes(currentUser.email)) ||
+        currentUser.role === "superadmin";
+      
+      // Check if user is org admin for THIS specific organization
+      const isOrgAdminForThisOrg = currentUser.accountType === "org_admin";
+      if (isOrgAdminForThisOrg) {
+        const userOrg = await storage.getOrganizationByAdminUserId(userId);
+        if (!userOrg || userOrg.id !== req.params.id) {
+          return res.status(403).json({ message: "Forbidden: Can only access your own organization" });
+        }
+      }
+
+      if (!isSuperadmin && !isOrgAdminForThisOrg) {
+        return res.status(403).json({ message: "Forbidden: Admin access required" });
+      }
+
       const { passwordComplexity = 'medium' } = req.body;
       const memberId = req.params.memberId;
 

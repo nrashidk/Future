@@ -115,21 +115,23 @@ export default function AdminOrganizations() {
                   <CardTitle className="text-lg">Organizations</CardTitle>
                   <CardDescription>{organizations.length} total</CardDescription>
                 </div>
-                <Dialog open={isCreateOrgDialogOpen} onOpenChange={setIsCreateOrgDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button size="sm" data-testid="button-create-organization">
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <CreateOrganizationForm 
-                      onSuccess={() => {
-                        setIsCreateOrgDialogOpen(false);
-                        queryClient.invalidateQueries({ queryKey: ['/api/admin/organizations'] });
-                      }}
-                    />
-                  </DialogContent>
-                </Dialog>
+                {user?.accountType !== 'org_admin' && (
+                  <Dialog open={isCreateOrgDialogOpen} onOpenChange={setIsCreateOrgDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button size="sm" data-testid="button-create-organization">
+                        <Plus className="w-4 h-4" />
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <CreateOrganizationForm 
+                        onSuccess={() => {
+                          setIsCreateOrgDialogOpen(false);
+                          queryClient.invalidateQueries({ queryKey: ['/api/admin/organizations'] });
+                        }}
+                      />
+                    </DialogContent>
+                  </Dialog>
+                )}
               </CardHeader>
               <CardContent>
                 {orgsLoading ? (
