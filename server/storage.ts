@@ -1572,12 +1572,34 @@ export class DatabaseStorage implements IStorage {
     return member;
   }
 
-  async getOrganizationMembersByOrganizationId(organizationId: string): Promise<OrganizationMember[]> {
-    return db
-      .select()
+  async getOrganizationMembersByOrganizationId(organizationId: string): Promise<any[]> {
+    const members = await db
+      .select({
+        id: organizationMembers.id,
+        organizationId: organizationMembers.organizationId,
+        userId: organizationMembers.userId,
+        studentId: organizationMembers.studentId,
+        grade: organizationMembers.grade,
+        role: organizationMembers.role,
+        hasCompletedAssessment: organizationMembers.hasCompletedAssessment,
+        assessmentCompletedAt: organizationMembers.assessmentCompletedAt,
+        isLocked: organizationMembers.isLocked,
+        createdAt: organizationMembers.createdAt,
+        updatedAt: organizationMembers.updatedAt,
+        user: {
+          id: users.id,
+          username: users.username,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          email: users.email,
+        },
+      })
       .from(organizationMembers)
+      .innerJoin(users, eq(organizationMembers.userId, users.id))
       .where(eq(organizationMembers.organizationId, organizationId))
       .orderBy(desc(organizationMembers.createdAt));
+    
+    return members;
   }
 
   async getOrganizationStats(organizationId: string): Promise<{
