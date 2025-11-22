@@ -1,7 +1,13 @@
 import express, { type Request, Response, NextFunction } from "express";
 import helmet from "helmet";
+import morgan from "morgan";
+import compression from "compression";
+import { validateEnvironmentVariables } from "./utils/env-validation";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+
+// Validate environment variables before starting the application
+validateEnvironmentVariables();
 
 const app = express();
 
@@ -55,6 +61,17 @@ app.use(helmet({
     policy: 'strict-origin-when-cross-origin',
   },
 }));
+
+// Response compression middleware
+app.use(compression());
+
+// Request logging middleware (only in development)
+if (app.get("env") === "development") {
+  app.use(morgan('dev'));
+} else {
+  // Minimal logging in production
+  app.use(morgan('combined'));
+}
 
 declare module 'http' {
   interface IncomingMessage {

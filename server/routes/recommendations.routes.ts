@@ -1,0 +1,227 @@
+import type { Express } from "express";
+import { storage } from "../storage";
+import { generateRecommendations } from "../services/matching";
+import { syncWEFSkillsProfile } from "../services/wefOrchestrator";
+import { recommendationsLimiter } from "../middleware/rateLimiter.middleware";
+
+export function registerRecommendationsRoutes(app: Express) {
+  // Generate recommendations using dynamic matching service
+  app.post("/api/recommendations/generate/:assessmentId", recommendationsLimiter, async (req, res) => {
+    try {
+      const assessment = await storage.getAssessmentById(req.params.assessmentId);
+      if (!assessment) {
+        return res.status(404).json({ message: "Assessment not found" });
+      }
+
+      // STRICT VALIDATION: Check all required components are complete
+      const user = assessment.userId ? await storage.getUser(assessment.userId) : null;
+      const isPremium = user?.isPremium || false;
+
+      const missingComponents: string[] = [];
+
+      // Core fields required for both tiers
+      if (!assessment.name) missingComponents.push("Name");
+      if (!assessment.age) missingComponents.push("Age");
+      if (!assessment.grade) missingComponents.push("Grade");
+      if (!assessment.favoriteSubjects || (assessment.favoriteSubjects as string[]).length === 0) {
+        missingComponents.push("Favorite Subjects");
+      }
+      if (!assessment.countryId) missingComponents.push("Country Selection");
+
+      if (isPremium) {
+        // Premium tier requirements
+        if (assessment.quizScore === null || assessment.quizScore === undefined) {
+          missingComponents.push("Subject Competency Quiz");
+        }
+
+        // Check Kolb assessment (stored as JSONB in assessments table)
+        if (!assessment.kolbScores || Object.keys(assessment.kolbScores as object).length === 0) {
+          missingComponents.push("Learning Style Assessment (Kolb)");
+        }
+
+        // Check RIASEC assessment (stored as JSONB in assessments table)
+        if (!assessment.riasecScores || Object.keys(assessment.riasecScores as object).length === 0) {
+          missingComponents.push("Interest Inventory (RIASEC)");
+        }
+
+        // Check CVQ assessment (stored in separate cvq_results table)
+        const cvqResult = await storage.getCvqResultByAssessmentId(req.params.assessmentId);
+        if (!cvqResult) {
+          missingComponents.push("Work Values Assessment (CVQ)");
+        }
+      } else {
+        // Free tier requirements
+        if (!assessment.interests || (assessment.interests as string[]).length === 0) {
+          missingComponents.push("Interests");
+        }
+        if (!assessment.personalityTraits || (assessment.personalityTraits as string[]).length === 0) {
+          missingComponents.push("Personality Traits");
+        }
+        if (!assessment.careerAspirations) {
+          missingComponents.push("Career Aspirations");
+        }
+      }
+
+      if (missingComponents.length > 0) {
+        return res.status(400).json({ 
+          message: `Assessment incomplete. Missing: ${missingComponents.join(", ")}`,
+          missingComponents,
+          isPremium
+        });
+      }
+
+      // Sync WEF Skills Profile for premium assessments (non-blocking)
+      if (isPremium) {
+        try {
+          await syncWEFSkillsProfile(storage, assessment);
+        } catch (error) {
+          console.error("[WEF] Non-blocking sync error:", error);
+        }
+      }
+
+      // Generate recommendations using dynamic matching service
+      const recommendations = await generateRecommendations(storage, req.params.assessmentId);
+
+      res.json({ 
+        success: true, 
+        count: recommendations.length,
+        recommendations 
+      });
+    } catch (error) {
+      console.error("Error generating recommendations:", error);
+      res.status(500).json({ message: "Failed to generate recommendations" });
+    }
+  });
+
+  // Get recommendations for an assessment (or guest with guestToken)
+  app.get("/api/recommendations", async (req: any, res) => {
+    try {
+      let assessmentId = req.query.assessmentId as string | undefined;
+      const guestToken = req.query.guestToken as string | undefined;
+
+      // If no assessmentId but guestToken provided, try to find guest assessment
+      if (!assessmentId && guestToken) {
+        if (guestToken.startsWith('guest_')) {
+          const guestAssessment = await storage.getAssessmentByGuestToken(guestToken);
+          if (guestAssessment) {
+            assessmentId = guestAssessment.id;
+          }
+        }
+      }
+
+      if (!assessmentId) {
+        return res.json([]);
+      }
+
+      const recommendations = await storage.getRecommendationsByAssessment(assessmentId);
+
+      // Enrich with career details
+      const enriched = await Promise.all(
+        recommendations.map(async (rec) => {
+          const career = await storage.getCareerById(rec.careerId);
+          return { ...rec, career };
+        })
+      );
+
+      res.json(enriched);
+    } catch (error) {
+      console.error("Error fetching recommendations:", error);
+      res.status(500).json({ message: "Failed to fetch recommendations" });
+    }
+  });
+
+  // PDF Report Generation using Puppeteer
+  app.get("/api/recommendations/pdf/:assessmentId", async (req: any, res) => {
+    let browser: any = null;
+    try {
+      const assessment = await storage.getAssessmentById(req.params.assessmentId);
+      if (!assessment) {
+        return res.status(404).json({ message: "Assessment not found" });
+      }
+
+      // Authorization check: verify ownership
+      const userId = req.isAuthenticated() ? (req.user.isLocal ? req.user.userId : req.user.claims.sub) : null;
+      if (assessment.userId && (!req.isAuthenticated() || userId !== assessment.userId)) {
+        return res.status(403).json({ message: "Unauthorized to access this report" });
+      }
+
+      // Import Puppeteer
+      const puppeteer = await import("puppeteer");
+      const { execSync } = await import("child_process");
+
+      // Find Chromium executable dynamically
+      let chromiumPath: string;
+      try {
+        chromiumPath = execSync('which chromium').toString().trim();
+      } catch {
+        chromiumPath = 'chromium';
+      }
+
+      // Launch headless browser with system Chromium
+      browser = await puppeteer.default.launch({
+        headless: true,
+        executablePath: chromiumPath,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu',
+        ],
+      });
+
+      const page = await browser.newPage();
+
+      // Navigate to print-optimized page
+      const baseUrl = process.env.NODE_ENV === 'production' 
+        ? `https://${req.get('host')}`
+        : `http://localhost:${process.env.PORT || 5000}`;
+      
+      // Include guest token if this is a guest assessment
+      const guestTokenParam = assessment.guestSessionId ? `&guestToken=${assessment.guestSessionId}` : '';
+      const printUrl = `${baseUrl}/print/results?assessmentId=${assessment.id}${guestTokenParam}`;
+      
+      await page.goto(printUrl, {
+        waitUntil: 'networkidle0',
+        timeout: 30000,
+      });
+
+      // Wait for report data to be fully loaded
+      await page.waitForFunction(() => (window as any).__REPORT_READY__ === true, {
+        timeout: 30000,
+      });
+
+      // Generate PDF
+      const pdfBuffer = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        preferCSSPageSize: true,
+      });
+
+      await browser.close();
+
+      // Validate PDF buffer
+      if (!pdfBuffer || pdfBuffer.length === 0) {
+        console.error("PDF buffer is empty or invalid");
+        return res.status(500).json({ message: "PDF generation failed - empty buffer" });
+      }
+
+      console.log(`PDF generated successfully: ${pdfBuffer.length} bytes`);
+
+      // Set response headers
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `attachment; filename="career-report-${assessment.id}.pdf"`);
+
+      // Send PDF as binary buffer
+      res.send(Buffer.from(pdfBuffer));
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      // Make sure we close the browser even on error
+      try {
+        if (browser) await browser.close();
+      } catch (closeError) {
+        console.error("Error closing browser:", closeError);
+      }
+      res.status(500).json({ message: "Failed to generate PDF report" });
+    }
+  });
+}
