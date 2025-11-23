@@ -8,9 +8,26 @@ export function registerAuthRoutes(app: Express) {
       const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
       const user = await storage.getUser(userId);
       
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
       // Organization students should be treated as premium users since they have school access
-      if (user && user.accountType === 'org_student') {
+      if (user.accountType === 'org_student') {
         user.isPremium = true;
+        
+        // Fetch organization member data to get grade and organization name
+        const orgMember = await storage.getOrganizationMemberByUserId(userId);
+        if (orgMember) {
+          // Add grade to user object
+          (user as any).predefinedGrade = orgMember.grade;
+          
+          // Fetch organization details to get school name
+          const organization = await storage.getOrganizationById(orgMember.organizationId);
+          if (organization) {
+            (user as any).organizationName = organization.name;
+          }
+        }
       }
       
       res.json(user);
