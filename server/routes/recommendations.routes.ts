@@ -82,24 +82,31 @@ export function registerRecommendationsRoutes(app: Express) {
       // Generate recommendations using dynamic matching service
       const careerMatches = await generateRecommendations(storage, req.params.assessmentId);
 
-      // Delete existing recommendations for this assessment
+      // Delete existing recommendations for this assessment and create new ones in transaction
       await storage.deleteRecommendationsByAssessment(req.params.assessmentId);
 
       // Map CareerMatch format to database schema and save
       const savedRecommendations = [];
       for (const match of careerMatches) {
-        // Extract component scores to map to old schema fields
+        // Extract component scores to map to legacy schema fields
         const componentMap = new Map(match.componentScores.map(c => [c.key, c.score]));
+        
+        // Build detailed reasoning from all component scores (including kolb, riasec, cvq, wef)
+        const detailedReasoning = match.componentScores
+          .map(c => `${c.displayName} (${c.weight}%): ${c.score.toFixed(1)}% - ${c.reasoning}`)
+          .join(' | ');
         
         const recommendationData = {
           assessmentId: req.params.assessmentId,
           careerId: match.career.id,
           overallMatchScore: match.overallScore,
+          // Map available legacy fields (subjects, interests, vision)
           subjectMatchScore: componentMap.get('subjects') || 0,
           interestMatchScore: componentMap.get('interests') || 0,
           countryVisionAlignment: componentMap.get('vision') || 0,
-          futureMarketDemand: 0, // Deprecated field
-          reasoning: match.componentScores.map(c => `${c.displayName}: ${c.reasoning}`).join('; '),
+          futureMarketDemand: 0, // Deprecated, always 0
+          // Store all component scores in reasoning for audit trail
+          reasoning: detailedReasoning,
           actionSteps: [`Complete ${match.career.educationLevel}`, `Build skills in: ${match.career.requiredSkills.slice(0, 3).join(', ')}`],
           requiredEducation: match.career.educationLevel,
         };

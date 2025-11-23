@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -7,11 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Home, Plus, Download, Upload, Edit, Trash2, GraduationCap, 
   Users, Building2, Key, RefreshCw, FileDown, Lock, LockOpen, User
@@ -56,6 +58,7 @@ export default function AdminOrganizations() {
   const [isCreateOrgDialogOpen, setIsCreateOrgDialogOpen] = useState(false);
   const [isCreateMemberDialogOpen, setIsCreateMemberDialogOpen] = useState(false);
   const [isBulkUploadDialogOpen, setIsBulkUploadDialogOpen] = useState(false);
+  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
 
   const { data: organizations = [], isLoading: orgsLoading } = useQuery<Organization[]>({
     queryKey: ['/api/admin/organizations'],
@@ -67,6 +70,50 @@ export default function AdminOrganizations() {
   });
 
   const selectedOrg = organizations.find(org => org.id === selectedOrgId);
+
+  // Reset selected members when changing organizations
+  useEffect(() => {
+    setSelectedMemberIds([]);
+  }, [selectedOrgId]);
+
+  // Bulk delete mutation
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (memberIds: string[]) => {
+      return apiRequest('POST', `/api/admin/organizations/${selectedOrgId}/members/bulk-delete`, { memberIds });
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Selected students deleted successfully" });
+      setSelectedMemberIds([]);
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/organizations', selectedOrgId, 'members'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/organizations'] });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to delete students", 
+        variant: "destructive" 
+      });
+    },
+  });
+
+  // Check/uncheck all members
+  const toggleAllMembers = () => {
+    const unlockedMembers = members.filter(m => !m.isLocked);
+    if (selectedMemberIds.length === unlockedMembers.length) {
+      setSelectedMemberIds([]);
+    } else {
+      setSelectedMemberIds(unlockedMembers.map(m => m.id));
+    }
+  };
+
+  // Toggle individual member
+  const toggleMember = (memberId: string) => {
+    setSelectedMemberIds(prev => 
+      prev.includes(memberId) 
+        ? prev.filter(id => id !== memberId)
+        : [...prev, memberId]
+    );
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10">
@@ -226,9 +273,44 @@ export default function AdminOrganizations() {
                   <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-4">
                     <div>
                       <CardTitle className="text-lg">Student Roster</CardTitle>
-                      <CardDescription>{members.length} students</CardDescription>
+                      <CardDescription>
+                        {members.length} students
+                        {selectedMemberIds.length > 0 && (
+                          <span className="text-primary font-medium ml-2">
+                            ({selectedMemberIds.length} selected)
+                          </span>
+                        )}
+                      </CardDescription>
                     </div>
                     <div className="flex gap-2">
+                      {selectedMemberIds.length > 0 && (
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="destructive" size="sm" data-testid="button-bulk-delete">
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Delete Selected ({selectedMemberIds.length})
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Delete {selectedMemberIds.length} Students</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Are you sure you want to delete {selectedMemberIds.length} selected student(s)? This action cannot be undone.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={() => bulkDeleteMutation.mutate(selectedMemberIds)}
+                                className="bg-destructive hover:bg-destructive/90"
+                                data-testid="button-confirm-bulk-delete"
+                              >
+                                Delete {selectedMemberIds.length} Students
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
                       <Dialog open={isBulkUploadDialogOpen} onOpenChange={setIsBulkUploadDialogOpen}>
                         <DialogTrigger asChild>
                           <Button variant="outline" size="sm" data-testid="button-bulk-upload">
@@ -283,6 +365,13 @@ export default function AdminOrganizations() {
                         <Table>
                           <TableHeader>
                             <TableRow>
+                              <TableHead className="w-12">
+                                <Checkbox
+                                  checked={selectedMemberIds.length > 0 && selectedMemberIds.length === members.filter(m => !m.isLocked).length}
+                                  onCheckedChange={toggleAllMembers}
+                                  data-testid="checkbox-select-all"
+                                />
+                              </TableHead>
                               <TableHead>Name</TableHead>
                               <TableHead>Username</TableHead>
                               <TableHead>Grade</TableHead>
@@ -294,6 +383,14 @@ export default function AdminOrganizations() {
                           <TableBody>
                             {members.map((member) => (
                               <TableRow key={member.id} data-testid={`member-row-${member.id}`}>
+                                <TableCell>
+                                  <Checkbox
+                                    checked={selectedMemberIds.includes(member.id)}
+                                    onCheckedChange={() => toggleMember(member.id)}
+                                    disabled={member.isLocked}
+                                    data-testid={`checkbox-member-${member.id}`}
+                                  />
+                                </TableCell>
                                 <TableCell className="font-medium">
                                   {member.user.firstName} {member.user.lastName}
                                 </TableCell>
@@ -925,27 +1022,36 @@ function MemberActions({ member, organizationId }: { member: OrganizationMember;
         </DialogContent>
       </Dialog>
 
-      <Button 
-        variant="ghost" 
-        size="icon"
-        onClick={() => {
-          if (member.isLocked) {
-            toast({ 
-              title: "Cannot Delete", 
-              description: "Locked students cannot be deleted", 
-              variant: "destructive" 
-            });
-            return;
-          }
-          if (confirm(`Delete ${member.user.firstName} ${member.user.lastName}?`)) {
-            deleteMutation.mutate();
-          }
-        }}
-        disabled={member.isLocked}
-        data-testid={`button-delete-${member.id}`}
-      >
-        <Trash2 className="w-4 h-4 text-destructive" />
-      </Button>
+      <AlertDialog>
+        <AlertDialogTrigger asChild>
+          <Button 
+            variant="ghost" 
+            size="icon"
+            disabled={member.isLocked}
+            data-testid={`button-delete-member-${member.id}`}
+          >
+            <Trash2 className="w-4 h-4 text-destructive" />
+          </Button>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Student</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete <span className="font-semibold">{member.user.firstName} {member.user.lastName}</span>? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={() => deleteMutation.mutate()}
+              className="bg-destructive hover:bg-destructive/90"
+              data-testid={`button-confirm-delete-${member.id}`}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

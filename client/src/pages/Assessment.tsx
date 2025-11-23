@@ -109,26 +109,21 @@ export default function Assessment() {
     }
   }, [user, currentStep, assessmentData.name]);
 
-  // Country auto-skip logic: Auto-populate countryId and skip Country step if org has predefined country
+  // Country auto-populate logic: Pre-fill countryId if org has predefined country (don't auto-skip)
   useEffect(() => {
-    if (!user) return;
+    if (!user || assessmentData.countryId) return;
     
     const predefinedCountryId = (user as any)?.organizationCountryId;
     
-    // For premium users: Country is step 3, auto-skip to Quiz (step 4)
-    // For free users: Country is step 5, auto-skip to Aspirations (step 6)
+    // Auto-populate country when reaching the country step, but don't skip
+    // This allows students to see what country was selected for them
     const countryStepNumber = isPremiumUser ? 3 : 5;
-    const nextStepAfterCountry = isPremiumUser ? 4 : 6;
     
-    if (currentStep === countryStepNumber && predefinedCountryId && !assessmentData.countryId) {
-      // Auto-populate country
+    if (currentStep === countryStepNumber && predefinedCountryId) {
       setAssessmentData((prev) => ({
         ...prev,
         countryId: predefinedCountryId,
       }));
-      
-      // Skip to next step after country
-      setTimeout(() => setCurrentStep(nextStepAfterCountry), 0);
     }
   }, [user, currentStep, isPremiumUser, assessmentData.countryId]);
 
