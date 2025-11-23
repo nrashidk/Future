@@ -120,6 +120,7 @@ export interface IStorage {
   // Recommendation operations
   createRecommendation(recommendation: InsertRecommendation): Promise<Recommendation>;
   getRecommendationsByAssessment(assessmentId: string): Promise<Recommendation[]>;
+  deleteRecommendationsByAssessment(assessmentId: string): Promise<number>;
 
   // Quiz operations
   createQuizQuestion(question: InsertQuizQuestion): Promise<QuizQuestion>;
@@ -545,6 +546,13 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(recommendations)
       .where(eq(recommendations.assessmentId, assessmentId));
+  }
+
+  async deleteRecommendationsByAssessment(assessmentId: string): Promise<number> {
+    const result = await db
+      .delete(recommendations)
+      .where(eq(recommendations.assessmentId, assessmentId));
+    return result.rowCount || 0;
   }
 
   // Quiz operations

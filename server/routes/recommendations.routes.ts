@@ -80,12 +80,44 @@ export function registerRecommendationsRoutes(app: Express) {
       }
 
       // Generate recommendations using dynamic matching service
-      const recommendations = await generateRecommendations(storage, req.params.assessmentId);
+      const careerMatches = await generateRecommendations(storage, req.params.assessmentId);
+
+      // Delete existing recommendations for this assessment
+      await storage.deleteRecommendationsByAssessment(req.params.assessmentId);
+
+      // Map CareerMatch format to database schema and save
+      const savedRecommendations = [];
+      for (const match of careerMatches) {
+        // Extract component scores to map to old schema fields
+        const componentMap = new Map(match.componentScores.map(c => [c.key, c.score]));
+        
+        const recommendationData = {
+          assessmentId: req.params.assessmentId,
+          careerId: match.career.id,
+          overallMatchScore: match.overallScore,
+          subjectMatchScore: componentMap.get('subjects') || 0,
+          interestMatchScore: componentMap.get('interests') || 0,
+          countryVisionAlignment: componentMap.get('vision') || 0,
+          futureMarketDemand: 0, // Deprecated field
+          reasoning: match.componentScores.map(c => `${c.displayName}: ${c.reasoning}`).join('; '),
+          actionSteps: [`Complete ${match.career.educationLevel}`, `Build skills in: ${match.career.requiredSkills.slice(0, 3).join(', ')}`],
+          requiredEducation: match.career.educationLevel,
+        };
+        
+        const savedRec = await storage.createRecommendation(recommendationData);
+        savedRecommendations.push(savedRec);
+      }
+
+      // Mark assessment as completed
+      await storage.updateAssessment(req.params.assessmentId, {
+        isCompleted: true,
+        completedAt: new Date(),
+      });
 
       res.json({ 
         success: true, 
-        count: recommendations.length,
-        recommendations 
+        count: savedRecommendations.length,
+        recommendations: careerMatches // Return new format for immediate use
       });
     } catch (error) {
       console.error("Error generating recommendations:", error);
