@@ -137,42 +137,86 @@ export default function Profile() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <p className="text-sm text-muted-foreground">Name</p>
-                <p className="font-medium" data-testid="text-user-name">
-                  {user.firstName || user.lastName ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : 'Not provided'}
-                </p>
-              </div>
-              {user.email && (
-                <div>
-                  <p className="text-sm text-muted-foreground">Email</p>
-                  <p className="font-medium" data-testid="text-user-email">{user.email}</p>
-                </div>
+              {/* Two-column layout for org students: name/username on left, school/grade on right */}
+              {isOrgStudent ? (
+                <>
+                  <div className="grid grid-cols-2 gap-6">
+                    {/* Left column: Name and Username */}
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Name</p>
+                        <p className="font-medium" data-testid="text-user-name">
+                          {user.firstName || user.lastName ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : 'Not provided'}
+                        </p>
+                      </div>
+                      {user.username && (
+                        <div>
+                          <p className="text-sm text-muted-foreground">Username</p>
+                          <p className="font-medium" data-testid="text-user-username">{user.username}</p>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Right column: School and Grade */}
+                    <div className="space-y-4">
+                      {((user as any).organizationName || organization) && (
+                        <div>
+                          <p className="text-sm text-muted-foreground">School</p>
+                          <p className="font-medium text-primary" data-testid="text-organization-name">
+                            {(user as any).organizationName || organization?.name}
+                          </p>
+                        </div>
+                      )}
+                      {(user as any).predefinedGrade && (
+                        <div>
+                          <p className="text-sm text-muted-foreground">Grade</p>
+                          <p className="font-medium" data-testid="text-student-grade">{(user as any).predefinedGrade}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Third line: Account Type */}
+                  <div className="pt-2 border-t">
+                    <p className="text-sm text-muted-foreground mb-2">Account Type</p>
+                    {getAccountTypeBadge()}
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Regular layout for non-org students */}
+                  <div>
+                    <p className="text-sm text-muted-foreground">Name</p>
+                    <p className="font-medium" data-testid="text-user-name">
+                      {user.firstName || user.lastName ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : 'Not provided'}
+                    </p>
+                  </div>
+                  {user.email && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Email</p>
+                      <p className="font-medium" data-testid="text-user-email">{user.email}</p>
+                    </div>
+                  )}
+                  {user.username && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Username</p>
+                      <p className="font-medium" data-testid="text-user-username">{user.username}</p>
+                    </div>
+                  )}
+                  {isOrgAdmin && ((user as any).organizationName || organization) && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">Organization</p>
+                      <p className="font-medium text-primary" data-testid="text-organization-name">
+                        {(user as any).organizationName || organization?.name}
+                      </p>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-sm text-muted-foreground mb-2">Account Type</p>
+                    {getAccountTypeBadge()}
+                  </div>
+                </>
               )}
-              {user.username && (
-                <div>
-                  <p className="text-sm text-muted-foreground">Username</p>
-                  <p className="font-medium" data-testid="text-user-username">{user.username}</p>
-                </div>
-              )}
-              {(isOrgAdmin || isOrgStudent) && ((user as any).organizationName || organization) && (
-                <div>
-                  <p className="text-sm text-muted-foreground">{isOrgAdmin ? 'Organization' : 'School'}</p>
-                  <p className="font-medium text-primary" data-testid="text-organization-name">
-                    {(user as any).organizationName || organization?.name}
-                  </p>
-                </div>
-              )}
-              {isOrgStudent && (user as any).predefinedGrade && (
-                <div>
-                  <p className="text-sm text-muted-foreground">Grade</p>
-                  <p className="font-medium" data-testid="text-student-grade">{(user as any).predefinedGrade}</p>
-                </div>
-              )}
-              <div>
-                <p className="text-sm text-muted-foreground mb-2">Account Type</p>
-                {getAccountTypeBadge()}
-              </div>
             </CardContent>
           </StickyNote>
 

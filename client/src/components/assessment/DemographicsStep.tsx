@@ -13,6 +13,9 @@ interface DemographicsStepProps {
   onUpdate: (field: string, value: any) => void;
   onNext: () => void;
   predefinedGrade?: string | null;
+  predefinedName?: string | null;
+  predefinedAge?: number | null;
+  predefinedGender?: string | null;
 }
 
 // Helper function to convert grade codes to readable labels
@@ -28,17 +31,33 @@ const getGradeLabel = (gradeCode: string): string => {
   return gradeMap[gradeCode] || gradeCode;
 };
 
-export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade }: DemographicsStepProps) {
+export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, predefinedName, predefinedAge, predefinedGender }: DemographicsStepProps) {
   const [isMobile, setIsMobile] = useState(false);
   
-  // Pre-fill grade if predefined and not already set
+  // Detect if user is an organization student (has predefinedGrade)
+  const isOrgStudent = !!predefinedGrade;
+  
+  // Pre-fill all fields if predefined and not already set (only depend on predefined values to avoid redundant re-runs)
   useEffect(() => {
     if (predefinedGrade && !data.grade) {
       onUpdate("grade", predefinedGrade);
     }
-    // Only run when predefinedGrade or data.grade changes
+    if (predefinedName && !data.name) {
+      onUpdate("name", predefinedName);
+    }
+    if ((predefinedAge !== null && predefinedAge !== undefined) && !data.age) {
+      onUpdate("age", predefinedAge);
+    }
+    if (predefinedGender && !data.gender) {
+      onUpdate("gender", predefinedGender);
+    }
+    // Auto-check consent for organization students (institutional consent)
+    if (isOrgStudent && !data.consentGiven) {
+      onUpdate("consentGiven", true);
+    }
+    // Only run when predefined values change (not data values) to prevent re-render loops
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [predefinedGrade, data.grade]);
+  }, [predefinedGrade, predefinedName, predefinedAge, predefinedGender]);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -68,7 +87,11 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade }: De
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
               <User className="w-5 h-5 text-primary" />
             </div>
-            <Label htmlFor="name" className="text-lg font-semibold">Your Name</Label>
+            <div className="flex-1">
+              <Label htmlFor="name" className="text-lg font-semibold">
+                Your Name {predefinedName && <span className="text-xs text-muted-foreground font-normal ml-2">(Set by your school)</span>}
+              </Label>
+            </div>
           </div>
           <Input
             id="name"
@@ -76,6 +99,7 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade }: De
             placeholder="Enter your full name"
             value={data.name}
             onChange={(e) => onUpdate("name", e.target.value)}
+            disabled={!!predefinedName}
             className="bg-background/50 border-foreground/20"
             data-testid="input-name"
           />
@@ -86,7 +110,11 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade }: De
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
               <Cake className="w-5 h-5 text-primary" />
             </div>
-            <Label htmlFor="age" className="text-lg font-semibold">Age</Label>
+            <div className="flex-1">
+              <Label htmlFor="age" className="text-lg font-semibold">
+                Age {predefinedAge && <span className="text-xs text-muted-foreground font-normal ml-2">(Set by your school)</span>}
+              </Label>
+            </div>
           </div>
           <Input
             id="age"
@@ -96,6 +124,7 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade }: De
             placeholder="Your age"
             value={data.age || ""}
             onChange={(e) => onUpdate("age", parseInt(e.target.value) || null)}
+            disabled={!!predefinedAge}
             className="bg-background/50 border-foreground/20"
             data-testid="input-age"
           />
@@ -108,13 +137,8 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade }: De
             </div>
             <div className="flex-1">
               <Label htmlFor="grade" className="text-lg font-semibold">
-                Current Grade
+                Current Grade {predefinedGrade && <span className="text-xs text-muted-foreground font-normal ml-2">(Set by your school: {getGradeLabel(predefinedGrade)})</span>}
               </Label>
-              {predefinedGrade && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  Set by your school: <span className="font-semibold text-primary">{getGradeLabel(predefinedGrade)}</span>
-                </p>
-              )}
             </div>
           </div>
           {isMobile ? (
@@ -156,13 +180,18 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade }: De
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
               <Users2 className="w-5 h-5 text-primary" />
             </div>
-            <Label htmlFor="gender" className="text-lg font-semibold">Gender</Label>
+            <div className="flex-1">
+              <Label htmlFor="gender" className="text-lg font-semibold">
+                Gender {predefinedGender && <span className="text-xs text-muted-foreground font-normal ml-2">(Set by your school)</span>}
+              </Label>
+            </div>
           </div>
           {isMobile ? (
             <select
               id="gender"
               value={data.gender || ""}
               onChange={(e) => onUpdate("gender", e.target.value)}
+              disabled={!!predefinedGender}
               className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background/50 border-foreground/20 px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               data-testid="select-gender"
             >
@@ -171,8 +200,8 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade }: De
               <option value="female">Female</option>
             </select>
           ) : (
-            <Select value={data.gender} onValueChange={(value) => onUpdate("gender", value)}>
-              <SelectTrigger className="bg-background/50 border-foreground/20" data-testid="select-gender">
+            <Select value={data.gender} onValueChange={(value) => onUpdate("gender", value)} disabled={!!predefinedGender}>
+              <SelectTrigger className="bg-background/50 border-foreground/20" disabled={!!predefinedGender} data-testid="select-gender">
                 <SelectValue placeholder="Select gender" />
               </SelectTrigger>
               <SelectContent position="popper" className="z-[9999]">
@@ -195,29 +224,44 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade }: De
                 id="consent"
                 checked={data.consentGiven || false}
                 onCheckedChange={(checked) => onUpdate("consentGiven", checked)}
+                disabled={isOrgStudent}
                 className="mt-1"
                 data-testid="checkbox-consent"
               />
               <div className="flex-1">
-                <Label htmlFor="consent" className="text-sm font-body leading-relaxed cursor-pointer">
-                  I agree to the{" "}
-                  <Link href="/terms" className="text-primary hover:underline font-semibold" data-testid="link-consent-terms">
-                    Terms of Use
-                  </Link>
-                  {" "}and{" "}
-                  <Link href="/privacy" className="text-primary hover:underline font-semibold" data-testid="link-consent-privacy">
-                    Privacy Policy
-                  </Link>
-                  . I understand this is an educational tool as described in the{" "}
-                  <Link href="/disclaimer" className="text-primary hover:underline font-semibold" data-testid="link-consent-disclaimer">
-                    Disclaimer
-                  </Link>
-                  .
-                </Label>
+                {isOrgStudent ? (
+                  <Label htmlFor="consent" className="text-sm font-body leading-relaxed">
+                    Your school has provided institutional consent. You agree to the{" "}
+                    <Link href="/terms" className="text-primary hover:underline font-semibold" data-testid="link-consent-terms">
+                      Terms of Use
+                    </Link>
+                    {" "}and{" "}
+                    <Link href="/privacy" className="text-primary hover:underline font-semibold" data-testid="link-consent-privacy">
+                      Privacy Policy
+                    </Link>
+                    .
+                  </Label>
+                ) : (
+                  <Label htmlFor="consent" className="text-sm font-body leading-relaxed cursor-pointer">
+                    I agree to the{" "}
+                    <Link href="/terms" className="text-primary hover:underline font-semibold" data-testid="link-consent-terms">
+                      Terms of Use
+                    </Link>
+                    {" "}and{" "}
+                    <Link href="/privacy" className="text-primary hover:underline font-semibold" data-testid="link-consent-privacy">
+                      Privacy Policy
+                    </Link>
+                    . I understand this is an educational tool as described in the{" "}
+                    <Link href="/disclaimer" className="text-primary hover:underline font-semibold" data-testid="link-consent-disclaimer">
+                      Disclaimer
+                    </Link>
+                    .
+                  </Label>
+                )}
               </div>
             </div>
             
-            {data.age && data.age < 18 && (
+            {!isOrgStudent && data.age && data.age < 18 && (
               <p className="text-xs text-muted-foreground font-body mt-2 ml-7">
                 Note: Users under 18 require parental or institutional consent.
               </p>

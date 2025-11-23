@@ -16,11 +16,14 @@ export function registerAuthRoutes(app: Express) {
       if (user.accountType === 'org_student') {
         user.isPremium = true;
         
-        // Fetch organization member data to get grade and organization name
+        // Fetch organization member data to get pre-filled student info
         const orgMember = await storage.getOrganizationMemberByUserId(userId);
         if (orgMember) {
-          // Add grade to user object
+          // Add all pre-filled fields to user object
           (user as any).predefinedGrade = orgMember.grade;
+          (user as any).predefinedName = orgMember.studentName;
+          (user as any).predefinedAge = orgMember.studentAge;
+          (user as any).predefinedGender = orgMember.studentGender;
           
           // Fetch organization details to get school name
           const organization = await storage.getOrganizationById(orgMember.organizationId);

@@ -391,7 +391,7 @@ export function registerAdminRoutes(app: Express) {
 
       for (const memberData of members) {
         try {
-          const { username, fullName, grade, studentId } = memberData;
+          const { username, fullName, grade, studentId, studentName, studentAge, studentGender } = memberData;
           
           if (!fullName || !grade) {
             throw new Error("Missing required fields: fullName and grade");
@@ -402,6 +402,9 @@ export function registerAdminRoutes(app: Express) {
             fullName,
             grade: grade.toString(),
             studentId: studentId || undefined,
+            studentName: studentName || undefined,
+            studentAge: studentAge ? parseInt(studentAge.toString()) : undefined,
+            studentGender: studentGender || undefined,
             passwordComplexity: passwordComplexity as 'easy' | 'medium' | 'strong',
             organizationId,
           });

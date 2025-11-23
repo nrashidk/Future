@@ -100,9 +100,12 @@ export const organizationMembers = pgTable("organization_members", {
   organizationId: varchar("organization_id").notNull().references(() => organizations.id),
   userId: varchar("user_id").notNull().unique().references(() => users.id), // User can only belong to one organization
   
-  // Student information
+  // Student information (can be pre-filled by school admin)
   studentId: text("student_id"), // School's own student ID
-  grade: text("grade"),
+  studentName: text("student_name"), // Pre-filled student name
+  studentAge: integer("student_age"), // Pre-filled student age
+  studentGender: text("student_gender"), // Pre-filled student gender ('male' or 'female')
+  grade: text("grade"), // Pre-filled grade ('grade8', 'grade9', etc.)
   role: text("role").notNull().default("student"), // 'student' or 'admin'
   
   // Quota tracking

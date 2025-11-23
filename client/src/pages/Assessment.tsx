@@ -77,6 +77,38 @@ export default function Assessment() {
     }
   }, [isLoading, isAuthenticated, isPremiumUser, isGuest, setLocation]);
 
+  // Smart skip logic: Auto-populate demographics and skip to Subjects if all fields pre-filled
+  useEffect(() => {
+    if (!user || currentStep !== 1) return;
+
+    const predefinedGrade = (user as any)?.predefinedGrade;
+    const predefinedName = (user as any)?.predefinedName;
+    const predefinedAge = (user as any)?.predefinedAge;
+    const predefinedGender = (user as any)?.predefinedGender;
+
+    // Check if all demographics fields are pre-filled for org student (explicit null/undefined checks to handle age=0)
+    const allFieldsPreFilled = 
+      predefinedGrade && 
+      predefinedName && 
+      predefinedAge !== null && predefinedAge !== undefined && 
+      predefinedGender;
+
+    if (allFieldsPreFilled && !assessmentData.name) {
+      // Auto-populate demographics data
+      setAssessmentData((prev) => ({
+        ...prev,
+        name: predefinedName,
+        age: predefinedAge,
+        grade: predefinedGrade,
+        gender: predefinedGender,
+        consentGiven: true, // Institutional consent
+      }));
+
+      // Skip to Subjects step (step 2) after state update
+      setTimeout(() => setCurrentStep(2), 0);
+    }
+  }, [user, currentStep, assessmentData.name]);
+
   // Auto-save: Save progress whenever assessment data changes (for authenticated users)
   useEffect(() => {
     if (!isAuthenticated || !assessmentId || currentStep <= 1) {
@@ -359,6 +391,9 @@ export default function Assessment() {
             onUpdate={updateAssessmentData}
             onNext={handleNext}
             predefinedGrade={(user as any)?.predefinedGrade}
+            predefinedName={(user as any)?.predefinedName}
+            predefinedAge={(user as any)?.predefinedAge}
+            predefinedGender={(user as any)?.predefinedGender}
           />
         )}
         

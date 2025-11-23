@@ -598,8 +598,15 @@ function BulkUploadForm({ organizationId, onSuccess }: { organizationId: string;
       const text = await file.text();
       const lines = text.split('\n').filter(line => line.trim());
       const students = lines.slice(1).map(line => {
-        const [fullName, grade, studentId] = line.split(',').map(s => s.trim());
-        return { fullName, grade, studentId };
+        const [fullName, grade, studentId, studentName, studentAge, studentGender] = line.split(',').map(s => s.trim());
+        return { 
+          fullName, 
+          grade, 
+          studentId: studentId || undefined,
+          studentName: studentName || undefined,
+          studentAge: studentAge ? parseInt(studentAge) : undefined,
+          studentGender: studentGender || undefined
+        };
       });
 
       const response = await apiRequest('POST', `/api/admin/organizations/${organizationId}/members/bulk`, {
@@ -626,7 +633,7 @@ function BulkUploadForm({ organizationId, onSuccess }: { organizationId: string;
   });
 
   const handleDownloadTemplate = () => {
-    const csv = "fullName,grade,studentId\nAhmed Ali Mohamed,10,S12345\nFatima Hassan Ali,11,S12346";
+    const csv = "fullName,grade,studentId,studentName,studentAge,studentGender\nAhmed Ali Mohamed,grade10,S12345,Ahmed Ali,15,male\nFatima Hassan Ali,grade11,S12346,Fatima Hassan,16,female";
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -699,7 +706,11 @@ function BulkUploadForm({ organizationId, onSuccess }: { organizationId: string;
         <div className="bg-muted/50 p-4 rounded-lg space-y-3">
           <p className="text-sm font-medium">CSV Format</p>
           <p className="text-xs text-muted-foreground">
-            Your CSV should have the following columns: fullName, grade, studentId
+            Required columns: <span className="font-semibold">fullName, grade</span>
+            <br />
+            Optional columns: <span className="font-semibold">studentId, studentName, studentAge, studentGender</span>
+            <br />
+            <span className="text-xs text-muted-foreground/70">Note: Pre-filling student info (name, age, gender) streamlines the assessment experience</span>
           </p>
           <Button 
             variant="outline" 

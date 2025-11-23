@@ -259,6 +259,9 @@ export interface IStorage {
     grade?: string;
     username?: string;
     studentId?: string;
+    studentName?: string;
+    studentAge?: number;
+    studentGender?: string;
     passwordComplexity?: 'easy' | 'medium' | 'strong';
   }): Promise<{
     user: User;
@@ -1662,6 +1665,9 @@ export class DatabaseStorage implements IStorage {
     grade?: string;
     username?: string;
     studentId?: string;
+    studentName?: string;
+    studentAge?: number;
+    studentGender?: string;
     passwordComplexity?: 'easy' | 'medium' | 'strong';
   }): Promise<{
     user: User;
@@ -1708,6 +1714,9 @@ export class DatabaseStorage implements IStorage {
             userId: user.id,
             grade: userData.grade,
             studentId: userData.studentId,
+            studentName: userData.studentName,
+            studentAge: userData.studentAge,
+            studentGender: userData.studentGender,
             role: 'student',
           })
           .returning();
