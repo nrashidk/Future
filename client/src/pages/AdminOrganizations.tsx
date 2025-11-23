@@ -598,11 +598,11 @@ function BulkUploadForm({ organizationId, onSuccess }: { organizationId: string;
       const text = await file.text();
       const lines = text.split('\n').filter(line => line.trim());
       const students = lines.slice(1).map(line => {
-        const [fullName, grade, studentId, studentName, studentAge, studentGender] = line.split(',').map(s => s.trim());
+        const [fullName, grade, username, studentName, studentAge, studentGender] = line.split(',').map(s => s.trim());
         return { 
           fullName, 
           grade, 
-          studentId: studentId || undefined,
+          username: username || undefined,
           studentName: studentName || undefined,
           studentAge: studentAge ? parseInt(studentAge) : undefined,
           studentGender: studentGender || undefined
@@ -633,7 +633,7 @@ function BulkUploadForm({ organizationId, onSuccess }: { organizationId: string;
   });
 
   const handleDownloadTemplate = () => {
-    const csv = "fullName,grade,studentId,studentName,studentAge,studentGender\nAhmed Ali Mohamed,grade10,S12345,Ahmed Ali,15,male\nFatima Hassan Ali,grade11,S12346,Fatima Hassan,16,female";
+    const csv = "fullName,grade,username,studentName,studentAge,studentGender\nAhmed Ali Mohamed,grade10,ahmed.ali,Ahmed Ali,15,male\nFatima Hassan Ali,grade11,fatima.hassan,Fatima Hassan,16,female";
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -646,9 +646,9 @@ function BulkUploadForm({ organizationId, onSuccess }: { organizationId: string;
   const handleDownloadCredentials = () => {
     if (!uploadResult) return;
     
-    const csv = "username,password,fullName,grade,studentId\n" + 
+    const csv = "username,password,fullName,grade\n" + 
       uploadResult.credentials.map(c => 
-        `${c.username},${c.password},${c.fullName},${c.grade || ''},${c.studentId || ''}`
+        `${c.username},${c.password},${c.fullName},${c.grade || ''}`
       ).join('\n');
     
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -708,9 +708,9 @@ function BulkUploadForm({ organizationId, onSuccess }: { organizationId: string;
           <p className="text-xs text-muted-foreground">
             Required columns: <span className="font-semibold">fullName, grade</span>
             <br />
-            Optional columns: <span className="font-semibold">studentId, studentName, studentAge, studentGender</span>
+            Optional columns: <span className="font-semibold">username</span> (login ID), <span className="font-semibold">studentName, studentAge, studentGender</span> (for assessment pre-fill)
             <br />
-            <span className="text-xs text-muted-foreground/70">Note: Pre-filling student info (name, age, gender) streamlines the assessment experience</span>
+            <span className="text-xs text-muted-foreground/70">Note: If username is not provided, it will be auto-generated. Pre-filling student demographics streamlines the assessment experience.</span>
           </p>
           <Button 
             variant="outline" 
