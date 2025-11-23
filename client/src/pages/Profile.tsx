@@ -230,16 +230,16 @@ export default function Profile() {
                 </>
               )}
 
-              {/* Organization Students - Show assessment count */}
+              {/* Organization Students - Show available assessments */}
               {isOrgStudent && (
                 <div className="pt-4 border-t">
                   <p className="text-sm text-muted-foreground text-center mb-2">
                     You have access to the premium assessment through your school.
                   </p>
                   <div className="flex items-center justify-between mt-3">
-                    <p className="text-sm text-muted-foreground">Assessments Completed</p>
-                    <p className="font-bold text-2xl text-green-600" data-testid="text-student-assessments-completed">
-                      {assessments.filter(a => a.status === 'completed').length}
+                    <p className="text-sm text-muted-foreground">Available Assessments</p>
+                    <p className="font-bold text-2xl text-primary" data-testid="text-student-available-assessments">
+                      {Math.max(0, 1 - assessments.filter(a => a.status === 'completed').length)}
                     </p>
                   </div>
                 </div>
