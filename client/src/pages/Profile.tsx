@@ -315,11 +315,14 @@ export default function Profile() {
                   <ClipboardCheck className="w-5 h-5" />
                   My Assessment History
                 </CardTitle>
-                <CardDescription>
-                  {individualCompletedAssessments} completed assessment{individualCompletedAssessments !== 1 ? 's' : ''}
-                </CardDescription>
               </CardHeader>
               <CardContent>
+                <div className="flex items-center justify-between mb-6 pb-4 border-b">
+                  <p className="text-sm text-muted-foreground">Completed Assessments</p>
+                  <p className="font-bold text-2xl text-green-600" data-testid="text-completed-assessments-count">
+                    {individualCompletedAssessments}
+                  </p>
+                </div>
                 {assessments.length === 0 ? (
                 <div className="text-center py-8">
                   <p className="text-muted-foreground mb-4">You haven't taken any assessments yet.</p>
