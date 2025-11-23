@@ -3,6 +3,9 @@ import { storage } from "../storage";
 import { generateRecommendations } from "../services/matching";
 import { syncWEFSkillsProfile } from "../services/wefOrchestrator";
 import { recommendationsLimiter } from "../middleware/rateLimiter.middleware";
+import { db } from "../db";
+import { recommendations, assessments } from "@shared/schema";
+import { eq } from "drizzle-orm";
 
 export function registerRecommendationsRoutes(app: Express) {
   // Generate recommendations using dynamic matching service
@@ -82,48 +85,46 @@ export function registerRecommendationsRoutes(app: Express) {
       // Generate recommendations using dynamic matching service
       const careerMatches = await generateRecommendations(storage, req.params.assessmentId);
 
-      // Delete existing recommendations for this assessment and create new ones in transaction
-      await storage.deleteRecommendationsByAssessment(req.params.assessmentId);
+      // Use transaction to ensure atomic delete→create→update operations
+      await db.transaction(async (tx) => {
+        // Delete existing recommendations
+        await tx.delete(recommendations).where(eq(recommendations.assessmentId, req.params.assessmentId));
 
-      // Map CareerMatch format to database schema and save
-      const savedRecommendations = [];
-      for (const match of careerMatches) {
-        // Extract component scores to map to legacy schema fields
-        const componentMap = new Map(match.componentScores.map(c => [c.key, c.score]));
-        
-        // Build detailed reasoning from all component scores (including kolb, riasec, cvq, wef)
-        const detailedReasoning = match.componentScores
-          .map(c => `${c.displayName} (${c.weight}%): ${c.score.toFixed(1)}% - ${c.reasoning}`)
-          .join(' | ');
-        
-        const recommendationData = {
-          assessmentId: req.params.assessmentId,
-          careerId: match.career.id,
-          overallMatchScore: match.overallScore,
-          // Map available legacy fields (subjects, interests, vision)
-          subjectMatchScore: componentMap.get('subjects') || 0,
-          interestMatchScore: componentMap.get('interests') || 0,
-          countryVisionAlignment: componentMap.get('vision') || 0,
-          futureMarketDemand: 0, // Deprecated, always 0
-          // Store all component scores in reasoning for audit trail
-          reasoning: detailedReasoning,
-          actionSteps: [`Complete ${match.career.educationLevel}`, `Build skills in: ${match.career.requiredSkills.slice(0, 3).join(', ')}`],
-          requiredEducation: match.career.educationLevel,
-        };
-        
-        const savedRec = await storage.createRecommendation(recommendationData);
-        savedRecommendations.push(savedRec);
-      }
+        // Map CareerMatch format to database schema and save
+        for (const match of careerMatches) {
+          // Extract component scores to map to legacy schema fields
+          const componentMap = new Map(match.componentScores.map(c => [c.key, c.score]));
+          
+          // Build detailed reasoning from all component scores (including kolb, riasec, cvq, wef)
+          const detailedReasoning = match.componentScores
+            .map(c => `${c.displayName} (${c.weight}%): ${c.score.toFixed(1)}% - ${c.reasoning}`)
+            .join(' | ');
+          
+          await tx.insert(recommendations).values({
+            assessmentId: req.params.assessmentId,
+            careerId: match.career.id,
+            overallMatchScore: match.overallScore,
+            // Map available legacy fields (subjects, interests, vision)
+            subjectMatchScore: componentMap.get('subjects') || 0,
+            interestMatchScore: componentMap.get('interests') || 0,
+            countryVisionAlignment: componentMap.get('vision') || 0,
+            futureMarketDemand: 0, // Deprecated, always 0
+            // Store all component scores in reasoning for audit trail
+            reasoning: detailedReasoning,
+            actionSteps: [`Complete ${match.career.educationLevel}`, `Build skills in: ${match.career.requiredSkills.slice(0, 3).join(', ')}`],
+            requiredEducation: match.career.educationLevel,
+          });
+        }
 
-      // Mark assessment as completed
-      await storage.updateAssessment(req.params.assessmentId, {
-        isCompleted: true,
-        completedAt: new Date(),
+        // Mark assessment as completed
+        await tx.update(assessments)
+          .set({ isCompleted: true, completedAt: new Date() })
+          .where(eq(assessments.id, req.params.assessmentId));
       });
 
       res.json({ 
         success: true, 
-        count: savedRecommendations.length,
+        count: careerMatches.length,
         recommendations: careerMatches // Return new format for immediate use
       });
     } catch (error) {

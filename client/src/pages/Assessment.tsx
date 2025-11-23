@@ -109,23 +109,22 @@ export default function Assessment() {
     }
   }, [user, currentStep, assessmentData.name]);
 
-  // Country auto-populate logic: Pre-fill countryId if org has predefined country (don't auto-skip)
+  // Country auto-populate logic: Pre-fill countryId if org has predefined country
+  // This runs when assessment data loads, not when visiting the step
   useEffect(() => {
-    if (!user || assessmentData.countryId) return;
+    if (!user) return;
     
     const predefinedCountryId = (user as any)?.organizationCountryId;
     
-    // Auto-populate country when reaching the country step, but don't skip
-    // This allows students to see what country was selected for them
-    const countryStepNumber = isPremiumUser ? 3 : 5;
-    
-    if (currentStep === countryStepNumber && predefinedCountryId) {
+    // Auto-populate country as soon as assessment loads if org has default country
+    // Only populate if not already set (respects user overrides and existing drafts)
+    if (predefinedCountryId && !assessmentData.countryId) {
       setAssessmentData((prev) => ({
         ...prev,
         countryId: predefinedCountryId,
       }));
     }
-  }, [user, currentStep, isPremiumUser, assessmentData.countryId]);
+  }, [user, assessmentData.countryId]);
 
   // Auto-save: Save progress whenever assessment data changes (for authenticated users)
   useEffect(() => {
