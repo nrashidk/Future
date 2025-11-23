@@ -230,26 +230,18 @@ export default function Profile() {
                 </>
               )}
 
-              {/* Organization Students - Show Start Assessment button */}
-              {isOrgStudent && !assessments.some(a => a.status === 'completed') && (
+              {/* Organization Students - Show assessment count */}
+              {isOrgStudent && (
                 <div className="pt-4 border-t">
-                  <p className="text-sm text-muted-foreground text-center mb-4">
+                  <p className="text-sm text-muted-foreground text-center mb-2">
                     You have access to the premium assessment through your school.
                   </p>
-                  <Button asChild className="w-full" data-testid="button-start-assessment">
-                    <Link href="/assessment">
-                      <ClipboardCheck className="w-4 h-4 mr-2" />
-                      Start Your Assessment
-                    </Link>
-                  </Button>
-                </div>
-              )}
-
-              {isOrgStudent && assessments.some(a => a.status === 'completed') && (
-                <div className="pt-4 border-t">
-                  <p className="text-sm text-muted-foreground text-center">
-                    You have completed your school assessment.
-                  </p>
+                  <div className="flex items-center justify-between mt-3">
+                    <p className="text-sm text-muted-foreground">Assessments Completed</p>
+                    <p className="font-bold text-2xl text-green-600" data-testid="text-student-assessments-completed">
+                      {assessments.filter(a => a.status === 'completed').length}
+                    </p>
+                  </div>
                 </div>
               )}
 
@@ -332,30 +324,47 @@ export default function Profile() {
                 <div className="text-center py-8">
                   <p className="text-muted-foreground mb-4">You haven't taken any assessments yet.</p>
                   <Button asChild data-testid="button-start-first-assessment">
-                    <Link href="/assessment">
+                    <Link href={isOrgStudent ? "/assessment" : "/tier-selection"}>
                       <ClipboardCheck className="w-4 h-4 mr-2" />
                       Start Your First Assessment
                     </Link>
                   </Button>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {assessments.map((assessment) => (
-                    <div key={assessment.id} className="flex items-center justify-between p-3 border rounded-lg hover-elevate" data-testid={`assessment-item-${assessment.id}`}>
-                      <div>
-                        <p className="font-medium">{assessment.name || 'Assessment'}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(assessment.createdAt).toLocaleDateString()} 
-                          {assessment.tier && ` • ${assessment.tier === 'kolb' ? 'Premium' : 'Free'}`}
-                        </p>
-                      </div>
-                      {assessment.status === 'completed' && (
-                        <Badge variant="outline" className="bg-green-500/10 text-green-700 dark:text-green-400">
-                          Completed
-                        </Badge>
-                      )}
+                <div>
+                  {/* Show Continue button if there's an in-progress assessment */}
+                  {assessments.some(a => a.status !== 'completed') && (
+                    <div className="mb-4">
+                      <Button asChild className="w-full" data-testid="button-continue-assessment">
+                        <Link href="/assessment">
+                          <ClipboardCheck className="w-4 h-4 mr-2" />
+                          Continue Your Assessment
+                        </Link>
+                      </Button>
                     </div>
-                  ))}
+                  )}
+                  <div className="space-y-3">
+                    {assessments.map((assessment) => (
+                      <div key={assessment.id} className="flex items-center justify-between p-3 border rounded-lg hover-elevate" data-testid={`assessment-item-${assessment.id}`}>
+                        <div>
+                          <p className="font-medium">{assessment.name || 'Assessment'}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {new Date(assessment.createdAt).toLocaleDateString()} 
+                            {assessment.tier && ` • ${assessment.tier === 'kolb' ? 'Premium' : 'Free'}`}
+                          </p>
+                        </div>
+                        {assessment.status === 'completed' ? (
+                          <Badge variant="outline" className="bg-green-500/10 text-green-700 dark:text-green-400">
+                            Completed
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-orange-500/10 text-orange-700 dark:text-orange-400">
+                            In Progress
+                          </Badge>
+                        )}
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
               </CardContent>
