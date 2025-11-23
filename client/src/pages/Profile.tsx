@@ -53,7 +53,7 @@ export default function Profile() {
 
   // For individual users and org students: fetch their own assessments
   const { data: assessments = [] } = useQuery<Assessment[]>({
-    queryKey: ['/api/assessments'],
+    queryKey: ['/api/assessments/my'],
     enabled: !!user && !isOrgAdmin,
   });
 

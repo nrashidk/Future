@@ -142,6 +142,22 @@ export function registerAssessmentRoutes(app: Express) {
     }
   });
 
+  // Alias endpoint for backward compatibility
+  app.get("/api/assessments", async (req: any, res) => {
+    try {
+      if (!req.isAuthenticated()) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+
+      const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
+      const assessments = await storage.getAssessmentsByUser(userId);
+      res.json(assessments);
+    } catch (error) {
+      console.error("Error fetching assessments:", error);
+      res.status(500).json({ message: "Failed to fetch assessments" });
+    }
+  });
+
   app.patch("/api/assessments/:id", async (req: any, res) => {
     try {
       // Validation: Ensure request body is an object
