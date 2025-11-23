@@ -123,30 +123,33 @@ export default function Landing() {
             </span>
           </div>
 
-          {/* School Logos Section */}
+          {/* School Logos Section - Auto-scrolling */}
           {organizations.length > 0 && (
-            <div className="mt-12 max-w-4xl mx-auto">
-              <p className="text-sm text-muted-foreground mb-6">Trusted by schools across UAE</p>
-              <div className="flex flex-wrap justify-center items-center gap-8">
-                {organizations.slice(0, 6).map((org) => (
-                  <div key={org.id} className="flex flex-col items-center gap-2 opacity-70 hover:opacity-100 transition-opacity">
-                    {org.logoUrl ? (
-                      <img
-                        src={org.logoUrl}
-                        alt={`${org.name} logo`}
-                        className="h-12 w-auto object-contain grayscale hover:grayscale-0 transition-all"
-                        data-testid={`img-org-logo-${org.id}`}
-                      />
-                    ) : (
-                      <div className="h-12 w-24 flex items-center justify-center bg-muted/30 rounded border border-border">
-                        <Building2 className="w-6 h-6 text-muted-foreground" />
-                      </div>
-                    )}
-                    <span className="text-xs text-muted-foreground text-center max-w-[120px] truncate" data-testid={`text-org-name-${org.id}`}>
-                      {org.name}
-                    </span>
-                  </div>
-                ))}
+            <div className="mt-12 w-full">
+              <p className="text-sm text-muted-foreground mb-6 text-center">Trusted by schools across UAE</p>
+              <div className="overflow-hidden">
+                <div className="flex items-center gap-12 animate-scroll">
+                  {/* Duplicate organizations twice for seamless loop */}
+                  {[...organizations, ...organizations].map((org, index) => (
+                    <div key={`${org.id}-${index}`} className="flex flex-col items-center gap-2 opacity-70 hover:opacity-100 transition-opacity flex-shrink-0">
+                      {org.logoUrl ? (
+                        <img
+                          src={org.logoUrl}
+                          alt={`${org.name} logo`}
+                          className="h-12 w-auto object-contain grayscale hover:grayscale-0 transition-all"
+                          data-testid={`img-org-logo-${org.id}-${index}`}
+                        />
+                      ) : (
+                        <div className="h-12 w-24 flex items-center justify-center bg-muted/30 rounded border border-border">
+                          <Building2 className="w-6 h-6 text-muted-foreground" />
+                        </div>
+                      )}
+                      <span className="text-xs text-muted-foreground text-center w-[120px] truncate" data-testid={`text-org-name-${org.id}-${index}`}>
+                        {org.name}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}
