@@ -234,6 +234,7 @@ export interface IStorage {
     amountPaid: number;
   }): Promise<{ user: User; organization: Organization }>;
   getAllOrganizations(): Promise<Organization[]>;
+  getOrganizationsWithLogos(): Promise<Array<{ id: string; name: string; logoUrl: string | null }>>;
   getOrganizationById(id: string): Promise<Organization | undefined>;
   getOrganizationByAdminUserId(adminUserId: string): Promise<Organization | undefined>;
   updateOrganization(id: string, data: Partial<InsertOrganization>): Promise<Organization>;
@@ -1495,6 +1496,18 @@ export class DatabaseStorage implements IStorage {
 
   async getAllOrganizations(): Promise<Organization[]> {
     return db.select().from(organizations).orderBy(desc(organizations.createdAt));
+  }
+
+  async getOrganizationsWithLogos(): Promise<Array<{ id: string; name: string; logoUrl: string | null }>> {
+    return db
+      .select({
+        id: organizations.id,
+        name: organizations.name,
+        logoUrl: organizations.logoUrl,
+      })
+      .from(organizations)
+      .where(sql`${organizations.logoUrl} IS NOT NULL AND ${organizations.logoUrl} != ''`)
+      .orderBy(desc(organizations.createdAt));
   }
 
   async getOrganizationById(id: string): Promise<Organization | undefined> {

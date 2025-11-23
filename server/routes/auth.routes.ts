@@ -25,10 +25,11 @@ export function registerAuthRoutes(app: Express) {
           (user as any).predefinedAge = orgMember.studentAge;
           (user as any).predefinedGender = orgMember.studentGender;
           
-          // Fetch organization details to get school name and country
+          // Fetch organization details to get school name, logo, and country
           const organization = await storage.getOrganizationById(orgMember.organizationId);
           if (organization) {
             (user as any).organizationName = organization.name;
+            (user as any).organizationLogoUrl = organization.logoUrl || null;
             (user as any).organizationCountryId = organization.countryId || null;
           }
         }

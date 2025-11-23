@@ -10,7 +10,7 @@ import {
   Rocket,
   Heart,
   Lightbulb,
-  BarChart3,
+  Building2,
   User,
   LogIn
 } from "lucide-react";
@@ -18,17 +18,25 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 
+interface Organization {
+  id: string;
+  name: string;
+  logoUrl: string | null;
+}
+
 export default function Landing() {
   const { user } = useAuth();
   const { data: analytics, isLoading } = useQuery<{ totalStudents: number }>({
-    queryKey: ['/api/analytics/overview'],
+    queryKey: ['/api/public/student-count'],
+  });
+  
+  const { data: organizations = [] } = useQuery<Organization[]>({
+    queryKey: ['/api/public/organizations'],
   });
 
-  const studentCount = analytics?.totalStudents;
-  const displayCount = isLoading || !studentCount || studentCount === 0 
-    ? "10,000+" 
-    : studentCount.toLocaleString();
-  const isPlural = displayCount === "10,000+" || (studentCount && studentCount !== 1);
+  const studentCount = analytics?.totalStudents ?? 0;
+  const displayCount = isLoading ? "..." : studentCount.toLocaleString();
+  const isPlural = studentCount !== 1;
 
   const handleLogin = () => {
     // Redirect to assessment after login
@@ -53,12 +61,6 @@ export default function Landing() {
               <Link href="/login/student">
                 <LogIn className="w-4 h-4 mr-2" />
                 Login
-              </Link>
-            </Button>
-            <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">
-              <Link href="/analytics">
-                <BarChart3 className="w-4 h-4 mr-2" />
-                Analytics
               </Link>
             </Button>
             {user && (
@@ -120,6 +122,34 @@ export default function Landing() {
               Trusted by {displayCount} student{isPlural ? 's' : ''}
             </span>
           </div>
+
+          {/* School Logos Section */}
+          {organizations.length > 0 && (
+            <div className="mt-12 max-w-4xl mx-auto">
+              <p className="text-sm text-muted-foreground mb-6">Trusted by schools across UAE</p>
+              <div className="flex flex-wrap justify-center items-center gap-8">
+                {organizations.slice(0, 6).map((org) => (
+                  <div key={org.id} className="flex flex-col items-center gap-2 opacity-70 hover:opacity-100 transition-opacity">
+                    {org.logoUrl ? (
+                      <img
+                        src={org.logoUrl}
+                        alt={`${org.name} logo`}
+                        className="h-12 w-auto object-contain grayscale hover:grayscale-0 transition-all"
+                        data-testid={`img-org-logo-${org.id}`}
+                      />
+                    ) : (
+                      <div className="h-12 w-24 flex items-center justify-center bg-muted/30 rounded border border-border">
+                        <Building2 className="w-6 h-6 text-muted-foreground" />
+                      </div>
+                    )}
+                    <span className="text-xs text-muted-foreground text-center max-w-[120px] truncate" data-testid={`text-org-name-${org.id}`}>
+                      {org.name}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

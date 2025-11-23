@@ -12,12 +12,14 @@ import { registerAnalyticsRoutes } from "./routes/analytics.routes";
 import { registerOrganizationRoutes } from "./routes/organization.routes";
 import { registerAdminRoutes } from "./routes/admin.routes";
 import { registerPaymentRoutes } from "./routes/payment.routes";
+import { registerPublicRoutes } from "./routes/public.routes";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication first
   await setupAuth(app);
 
   // Register all route modules
+  registerPublicRoutes(app); // Public routes (no auth required)
   registerAuthRoutes(app);
   registerCountriesRoutes(app);
   registerAssessmentRoutes(app);

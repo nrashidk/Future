@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { GraduationCap, BarChart3, User } from "lucide-react";
+import { GraduationCap, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -14,12 +14,6 @@ export function Header() {
           <span className="font-bold text-lg">Future Pathways</span>
         </Link>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">
-            <Link href="/analytics">
-              <BarChart3 className="w-4 h-4 mr-2" />
-              Analytics
-            </Link>
-          </Button>
           {user && (
             <Button variant="outline" size="sm" asChild data-testid="button-nav-profile">
               <Link href="/profile">

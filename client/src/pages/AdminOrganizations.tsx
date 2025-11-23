@@ -26,6 +26,7 @@ interface Organization {
   adminUserId: string;
   totalLicenses: number;
   usedLicenses: number;
+  logoUrl?: string | null;
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
   createdAt: string;
@@ -56,6 +57,7 @@ export default function AdminOrganizations() {
   const [, navigate] = useLocation();
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [isCreateOrgDialogOpen, setIsCreateOrgDialogOpen] = useState(false);
+  const [isEditOrgDialogOpen, setIsEditOrgDialogOpen] = useState(false);
   const [isCreateMemberDialogOpen, setIsCreateMemberDialogOpen] = useState(false);
   const [isBulkUploadDialogOpen, setIsBulkUploadDialogOpen] = useState(false);
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
@@ -241,13 +243,36 @@ export default function AdminOrganizations() {
                 <Card>
                   <CardHeader>
                     <div className="flex items-start justify-between gap-4">
-                      <div>
-                        <CardTitle>{selectedOrg.name}</CardTitle>
-                        <CardDescription>Organization ID: {selectedOrg.id}</CardDescription>
+                      <div className="flex items-center gap-3">
+                        {selectedOrg.logoUrl && (
+                          <img 
+                            src={selectedOrg.logoUrl} 
+                            alt={`${selectedOrg.name} logo`} 
+                            className="h-12 w-12 object-contain rounded"
+                            data-testid="img-org-logo-display"
+                          />
+                        )}
+                        <div>
+                          <CardTitle>{selectedOrg.name}</CardTitle>
+                          <CardDescription>Organization ID: {selectedOrg.id}</CardDescription>
+                        </div>
                       </div>
-                      <Button variant="outline" size="sm" data-testid="button-edit-organization">
-                        <Edit className="w-4 h-4" />
-                      </Button>
+                      <Dialog open={isEditOrgDialogOpen} onOpenChange={setIsEditOrgDialogOpen}>
+                        <DialogTrigger asChild>
+                          <Button variant="outline" size="sm" data-testid="button-edit-organization">
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <EditOrganizationForm 
+                            organization={selectedOrg}
+                            onSuccess={() => {
+                              setIsEditOrgDialogOpen(false);
+                              queryClient.invalidateQueries({ queryKey: ['/api/admin/organizations'] });
+                            }}
+                          />
+                        </DialogContent>
+                      </Dialog>
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -438,6 +463,7 @@ function CreateOrganizationForm({ onSuccess }: { onSuccess: () => void }) {
     name: "",
     totalLicenses: 50,
     countryId: "" as string | undefined,
+    logoUrl: "",
   });
 
   const { data: countries = [] } = useQuery<Array<{ id: string; name: string }>>({
@@ -446,10 +472,11 @@ function CreateOrganizationForm({ onSuccess }: { onSuccess: () => void }) {
 
   const mutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      // Don't send empty string for countryId, send undefined
+      // Don't send empty string for countryId or logoUrl, send undefined
       const payload = {
         ...data,
         countryId: data.countryId || undefined,
+        logoUrl: data.logoUrl || undefined,
       };
       return apiRequest('POST', '/api/admin/organizations', payload);
     },
@@ -524,11 +551,113 @@ function CreateOrganizationForm({ onSuccess }: { onSuccess: () => void }) {
             If set, all students will automatically use this country and skip the country selection step
           </p>
         </div>
+
+        <div>
+          <Label htmlFor="org-logo">School Logo URL (Optional)</Label>
+          <Input
+            id="org-logo"
+            value={formData.logoUrl}
+            onChange={(e) => setFormData(f => ({ ...f, logoUrl: e.target.value }))}
+            placeholder="https://example.com/logo.png"
+            data-testid="input-org-logo"
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            Add a direct link to your school logo (will be displayed on landing page and student profiles)
+          </p>
+        </div>
       </div>
 
       <div className="flex justify-end gap-2 pt-4">
         <Button type="submit" disabled={mutation.isPending} data-testid="button-submit-organization">
           {mutation.isPending ? "Creating..." : "Create Organization"}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+function EditOrganizationForm({ organization, onSuccess }: { organization: Organization; onSuccess: () => void }) {
+  const { toast } = useToast();
+  const [formData, setFormData] = useState({
+    name: organization.name,
+    logoUrl: organization.logoUrl || "",
+  });
+
+  const mutation = useMutation({
+    mutationFn: async (data: typeof formData) => {
+      const payload = {
+        name: data.name,
+        logoUrl: data.logoUrl || undefined,
+      };
+      return apiRequest('PATCH', `/api/admin/organizations/${organization.id}`, payload);
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "Organization updated successfully" });
+      onSuccess();
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to update organization", variant: "destructive" });
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    mutation.mutate(formData);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <DialogHeader>
+        <DialogTitle>Edit Organization</DialogTitle>
+        <DialogDescription>
+          Update organization details
+        </DialogDescription>
+      </DialogHeader>
+
+      <div className="space-y-4">
+        <div>
+          <Label htmlFor="edit-org-name">Organization Name *</Label>
+          <Input
+            id="edit-org-name"
+            value={formData.name}
+            onChange={(e) => setFormData(f => ({ ...f, name: e.target.value }))}
+            required
+            placeholder="e.g., Al Ain High School"
+            data-testid="input-edit-org-name"
+          />
+        </div>
+
+        <div>
+          <Label htmlFor="edit-org-logo">School Logo URL (Optional)</Label>
+          <Input
+            id="edit-org-logo"
+            value={formData.logoUrl}
+            onChange={(e) => setFormData(f => ({ ...f, logoUrl: e.target.value }))}
+            placeholder="https://example.com/logo.png"
+            data-testid="input-edit-org-logo"
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            Add a direct link to your school logo (will be displayed on landing page and student profiles)
+          </p>
+          {formData.logoUrl && (
+            <div className="mt-3 p-3 border rounded-lg bg-muted/30">
+              <p className="text-xs text-muted-foreground mb-2">Preview:</p>
+              <img 
+                src={formData.logoUrl} 
+                alt="Logo preview" 
+                className="h-16 w-auto object-contain"
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-2 pt-4">
+        <Button type="submit" disabled={mutation.isPending} data-testid="button-submit-edit-organization">
+          {mutation.isPending ? "Updating..." : "Update Organization"}
         </Button>
       </div>
     </form>

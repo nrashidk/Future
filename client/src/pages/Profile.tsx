@@ -161,10 +161,20 @@ export default function Profile() {
                     <div className="space-y-4">
                       {((user as any).organizationName || organization) && (
                         <div>
-                          <p className="text-sm text-muted-foreground">School</p>
-                          <p className="font-medium text-primary" data-testid="text-organization-name">
-                            {(user as any).organizationName || organization?.name}
-                          </p>
+                          <p className="text-sm text-muted-foreground mb-2">School</p>
+                          <div className="flex items-center gap-3">
+                            {(user as any).organizationLogoUrl && (
+                              <img 
+                                src={(user as any).organizationLogoUrl} 
+                                alt="School logo" 
+                                className="h-10 w-10 object-contain rounded"
+                                data-testid="img-org-logo-profile"
+                              />
+                            )}
+                            <p className="font-medium text-primary" data-testid="text-organization-name">
+                              {(user as any).organizationName || organization?.name}
+                            </p>
+                          </div>
                         </div>
                       )}
                       {(user as any).predefinedGrade && (

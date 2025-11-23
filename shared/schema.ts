@@ -69,6 +69,7 @@ export const organizations = pgTable("organizations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   adminUserId: varchar("admin_user_id").notNull().references(() => users.id),
+  logoUrl: text("logo_url"), // School logo URL
   
   // License tracking
   totalLicenses: integer("total_licenses").notNull(),
