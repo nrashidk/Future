@@ -483,6 +483,11 @@ export function registerAdminRoutes(app: Express) {
         return res.status(404).json({ message: "Member not found" });
       }
 
+      // CRITICAL SECURITY: Verify member belongs to the organization in the URL
+      if (member.organizationId !== req.params.id) {
+        return res.status(403).json({ message: "Forbidden: Member does not belong to this organization" });
+      }
+
       if (member.isLocked) {
         return res.status(400).json({ message: "Cannot delete member who has completed an assessment" });
       }
@@ -534,10 +539,19 @@ export function registerAdminRoutes(app: Express) {
         return res.status(400).json({ message: "memberIds must be a non-empty array" });
       }
 
-      // Validate all members exist and are not locked
+      // Validate all members exist, belong to this org, and are not locked
       const members = await Promise.all(
         memberIds.map(id => storage.getOrganizationMemberById(id))
       );
+
+      // CRITICAL SECURITY: Verify all members belong to this organization
+      const foreignMembers = members.filter((m, i) => m && m.organizationId !== req.params.id).map((m, i) => memberIds[i]);
+      if (foreignMembers.length > 0) {
+        return res.status(403).json({ 
+          message: "Forbidden: Some members do not belong to this organization",
+          foreignMembers 
+        });
+      }
 
       const lockedMembers = members.filter((m, i) => m && m.isLocked).map((m, i) => memberIds[i]);
       if (lockedMembers.length > 0) {
