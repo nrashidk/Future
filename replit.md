@@ -31,9 +31,10 @@ The application features a playful, student-friendly sticky notes aesthetic with
 
 ### Feature Specifications
 - **User Authentication**: Dual authentication (Replit Auth and local username/password) with a robust security model and guest access with session migration.
-- **User Profile System**: Personalized profile pages displaying account details, premium status, and assessment history. Organization admins can view organization-wide statistics including license usage, total students, and completed assessments via dedicated API endpoints.
+- **User Profile System**: Personalized profile pages displaying account details, premium status, and assessment history. Organization admins can view organization-wide statistics including license usage, total students, and completed assessments via dedicated API endpoints. Organization students see their school name, predefined grade, and assessment count on their profile.
 - **Dynamic Career Matching Engine**: Modular architecture with pluggable scoring algorithms (subjects, interests, vision, market, Kolb, RIASEC) and configurable weights. Uses bulk data loading and provides smart filtering to return top 5 careers with detailed reasoning.
 - **Country-Specific Data**: Incorporates comprehensive 2030/2050 vision data for 15 countries into the matching algorithm.
+- **Grade Pre-filling & Locking**: Organization students have their grade pre-defined by school admins during account creation. During assessment, the grade field is automatically pre-filled and locked (disabled) to prevent students from selecting incorrect grades, ensuring they receive age-appropriate quiz questions aligned with their actual grade level.
 
 ### System Design Choices
 - **Database Schema**: Comprehensive schema including tables for users, sessions, countries, skills, careers, job market trends, assessments, recommendations, organizations, organization members, and WEF skills data.
@@ -73,6 +74,22 @@ The application features a playful, student-friendly sticky notes aesthetic with
 - **Environment Variable Validation**: Added startup validation for required vars (DATABASE_URL, SESSION_SECRET, SUPERADMIN_EMAILS) with fail-fast behavior
 - **Request Logging**: Integrated morgan middleware with environment-specific logging ('dev' in development, 'combined' in production)
 - **Response Compression**: Added compression middleware to reduce bandwidth usage for large JSON responses
+
+## Recent Improvements (Nov 23, 2025)
+
+### Organization Student Grade Management ✅ COMPLETED
+- **Auth Endpoint Enhancement**: Auth endpoint now fetches and includes `predefinedGrade` and `organizationName` for organization students, eliminating the need for redundant API calls
+- **Profile Page Updates**: 
+  - Organization students now see their school name and grade in the Account Information section
+  - Premium Status section displays "Available Assessments" count instead of "Completed Assessments" to match individual user experience
+  - Assessment History section shows completed assessment count in a prominent format matching the Available Assessments styling
+  - "Continue Assessment" button appears when there's an in-progress assessment
+- **Grade Field Locking**: Demographics step in the assessment flow automatically pre-fills and locks the grade field for organization students, preventing them from selecting incorrect grades and ensuring they receive curriculum-appropriate quiz questions
+- **Bug Fixes**: 
+  - Fixed quiz submission JavaScript error (response structure mismatch: `totalScore` vs `score.overall`)
+  - Simplified quiz results display to show only overall score
+  - Fixed Radix UI Select component to properly respect disabled state by applying `disabled` prop to `SelectTrigger`
+  - Fixed useEffect infinite re-render issue by removing `onUpdate` from dependency array
 
 ## External Dependencies
 - **Database**: PostgreSQL (Neon)
