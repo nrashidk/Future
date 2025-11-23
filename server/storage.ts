@@ -244,6 +244,8 @@ export interface IStorage {
   getOrganizationMemberById(id: string): Promise<OrganizationMember | undefined>;
   getOrganizationMemberByUserId(userId: string): Promise<OrganizationMember | undefined>;
   getOrganizationMembersByOrganizationId(organizationId: string): Promise<OrganizationMember[]>;
+  deleteOrganizationMember(memberId: string): Promise<boolean>;
+  bulkDeleteOrganizationMembers(memberIds: string[]): Promise<number>;
   getOrganizationStats(organizationId: string): Promise<{
     totalMembers: number;
     completedAssessments: number;
@@ -1650,6 +1652,15 @@ export class DatabaseStorage implements IStorage {
       .delete(organizationMembers)
       .where(eq(organizationMembers.id, id));
     return (result.rowCount ?? 0) > 0;
+  }
+
+  async bulkDeleteOrganizationMembers(memberIds: string[]): Promise<number> {
+    if (memberIds.length === 0) return 0;
+    
+    const result = await db
+      .delete(organizationMembers)
+      .where(inArray(organizationMembers.id, memberIds));
+    return result.rowCount ?? 0;
   }
 
   async lockOrganizationMember(id: string): Promise<OrganizationMember> {

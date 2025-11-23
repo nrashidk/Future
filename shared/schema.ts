@@ -76,6 +76,7 @@ export const organizations = pgTable("organizations", {
   
   // Settings
   passwordComplexity: text("password_complexity").notNull().default("medium"), // 'easy', 'medium', 'strong'
+  countryId: varchar("country_id"), // Optional pre-filled country for all students
   
   // Payment info
   purchaseDate: timestamp("purchase_date").defaultNow(),
@@ -90,6 +91,10 @@ export const organizationsRelations = relations(organizations, ({ one, many }) =
   admin: one(users, {
     fields: [organizations.adminUserId],
     references: [users.id],
+  }),
+  country: one(countries, {
+    fields: [organizations.countryId],
+    references: [countries.id],
   }),
   members: many(organizationMembers),
 }));
