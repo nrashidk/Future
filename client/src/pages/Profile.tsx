@@ -49,6 +49,7 @@ export default function Profile() {
   const [, navigate] = useLocation();
 
   const isOrgAdmin = user?.accountType === 'org_admin';
+  const isOrgStudent = user?.accountType === 'org_student';
 
   // For individual users and org students: fetch their own assessments
   const { data: assessments = [] } = useQuery<Assessment[]>({
@@ -56,10 +57,10 @@ export default function Profile() {
     enabled: !!user && !isOrgAdmin,
   });
 
-  // For org admins: fetch organization details
+  // For org admins AND org students: fetch organization details
   const { data: organization, isLoading: isOrgLoading } = useQuery<Organization>({
     queryKey: ['/api/my-organization'],
-    enabled: !!user && isOrgAdmin,
+    enabled: !!user && (isOrgAdmin || isOrgStudent),
   });
 
   // For org admins: fetch organization-wide statistics
@@ -154,9 +155,9 @@ export default function Profile() {
                   <p className="font-medium" data-testid="text-user-username">{user.username}</p>
                 </div>
               )}
-              {isOrgAdmin && organization && (
+              {(isOrgAdmin || isOrgStudent) && organization && (
                 <div>
-                  <p className="text-sm text-muted-foreground">Organization</p>
+                  <p className="text-sm text-muted-foreground">{isOrgAdmin ? 'Organization' : 'School'}</p>
                   <p className="font-medium text-primary" data-testid="text-organization-name">{organization.name}</p>
                 </div>
               )}
@@ -188,7 +189,7 @@ export default function Profile() {
                 )}
               </div>
 
-              {user.isPremium && !isOrgAdmin && (
+              {user.isPremium && !isOrgAdmin && !isOrgStudent && (
                 <>
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-muted-foreground">Purchased Licenses</p>
@@ -227,6 +228,29 @@ export default function Profile() {
                     </div>
                   )}
                 </>
+              )}
+
+              {/* Organization Students - Show Start Assessment button */}
+              {isOrgStudent && !assessments.some(a => a.status === 'completed') && (
+                <div className="pt-4 border-t">
+                  <p className="text-sm text-muted-foreground text-center mb-4">
+                    You have access to the premium assessment through your school.
+                  </p>
+                  <Button asChild className="w-full" data-testid="button-start-assessment">
+                    <Link href="/assessment">
+                      <ClipboardCheck className="w-4 h-4 mr-2" />
+                      Start Your Assessment
+                    </Link>
+                  </Button>
+                </div>
+              )}
+
+              {isOrgStudent && assessments.some(a => a.status === 'completed') && (
+                <div className="pt-4 border-t">
+                  <p className="text-sm text-muted-foreground text-center">
+                    You have completed your school assessment.
+                  </p>
+                </div>
               )}
 
               {isOrgAdmin && isOrgStatsLoading && (
