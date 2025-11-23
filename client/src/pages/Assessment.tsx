@@ -358,6 +358,7 @@ export default function Assessment() {
             data={assessmentData}
             onUpdate={updateAssessmentData}
             onNext={handleNext}
+            predefinedGrade={(user as any)?.predefinedGrade}
           />
         )}
         

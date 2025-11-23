@@ -12,10 +12,20 @@ interface DemographicsStepProps {
   data: any;
   onUpdate: (field: string, value: any) => void;
   onNext: () => void;
+  predefinedGrade?: string | null;
 }
 
-export function DemographicsStep({ data, onUpdate, onNext }: DemographicsStepProps) {
+export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade }: DemographicsStepProps) {
   const [isMobile, setIsMobile] = useState(false);
+  
+  // Pre-fill grade if predefined and not already set
+  useEffect(() => {
+    if (predefinedGrade && !data.grade) {
+      onUpdate("grade", predefinedGrade);
+    }
+    // Only run when predefinedGrade or data.grade changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [predefinedGrade, data.grade]);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -83,13 +93,19 @@ export function DemographicsStep({ data, onUpdate, onNext }: DemographicsStepPro
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
               <GraduationCap className="w-5 h-5 text-primary" />
             </div>
-            <Label htmlFor="grade" className="text-lg font-semibold">Current Grade</Label>
+            <Label htmlFor="grade" className="text-lg font-semibold">
+              Current Grade
+              {predefinedGrade && (
+                <span className="ml-2 text-xs text-muted-foreground font-normal">(Set by your school)</span>
+              )}
+            </Label>
           </div>
           {isMobile ? (
             <select
               id="grade"
               value={data.grade || ""}
               onChange={(e) => onUpdate("grade", e.target.value)}
+              disabled={!!predefinedGrade}
               className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background/50 border-foreground/20 px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               data-testid="select-grade"
             >
@@ -102,8 +118,8 @@ export function DemographicsStep({ data, onUpdate, onNext }: DemographicsStepPro
               <option value="graduated">Recently Graduated</option>
             </select>
           ) : (
-            <Select value={data.grade} onValueChange={(value) => onUpdate("grade", value)}>
-              <SelectTrigger className="bg-background/50 border-foreground/20" data-testid="select-grade">
+            <Select value={data.grade} onValueChange={(value) => onUpdate("grade", value)} disabled={!!predefinedGrade}>
+              <SelectTrigger className="bg-background/50 border-foreground/20" disabled={!!predefinedGrade} data-testid="select-grade">
                 <SelectValue placeholder="Select your grade" />
               </SelectTrigger>
               <SelectContent position="popper" className="z-[9999]">
