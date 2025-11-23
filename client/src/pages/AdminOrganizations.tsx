@@ -16,7 +16,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Home, Plus, Download, Upload, Edit, Trash2, GraduationCap, 
-  Users, Building2, Key, RefreshCw, FileDown, Lock, LockOpen, User
+  Users, Building2, Key, RefreshCw, FileDown, Lock, LockOpen, User, LogOut
 } from "lucide-react";
 import { StickyNote } from "@/components/StickyNote";
 
@@ -117,6 +117,10 @@ export default function AdminOrganizations() {
     );
   };
 
+  const handleLogout = () => {
+    window.location.href = "/api/logout";
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10">
       <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-sm border-b">
@@ -138,12 +142,23 @@ export default function AdminOrganizations() {
               </Link>
             </Button>
             {user && (
-              <Button variant="outline" size="sm" asChild data-testid="button-nav-profile">
-                <Link href="/profile">
-                  <User className="w-4 h-4 mr-2" />
-                  Profile
-                </Link>
-              </Button>
+              <>
+                <Button variant="outline" size="sm" asChild data-testid="button-nav-profile">
+                  <Link href="/profile">
+                    <User className="w-4 h-4 mr-2" />
+                    Profile
+                  </Link>
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleLogout}
+                  data-testid="button-logout-admin-orgs"
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logout
+                </Button>
+              </>
             )}
           </div>
         </div>

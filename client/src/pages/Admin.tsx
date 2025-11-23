@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Home, Plus, Download, Upload, Edit, Trash2, GraduationCap, User } from "lucide-react";
+import { Home, Plus, Download, Upload, Edit, Trash2, GraduationCap, User, LogOut } from "lucide-react";
 
 interface QuizQuestion {
   id: string;
@@ -113,6 +113,10 @@ export default function Admin() {
     }
   };
 
+  const handleLogout = () => {
+    window.location.href = "/api/logout";
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10">
       <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-sm border-b">
@@ -129,12 +133,23 @@ export default function Admin() {
               </Link>
             </Button>
             {user && (
-              <Button variant="outline" size="sm" asChild data-testid="button-nav-profile">
-                <Link href="/profile">
-                  <User className="w-4 h-4 mr-2" />
-                  Profile
-                </Link>
-              </Button>
+              <>
+                <Button variant="outline" size="sm" asChild data-testid="button-nav-profile">
+                  <Link href="/profile">
+                    <User className="w-4 h-4 mr-2" />
+                    Profile
+                  </Link>
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleLogout}
+                  data-testid="button-logout-admin"
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logout
+                </Button>
+              </>
             )}
           </div>
         </div>

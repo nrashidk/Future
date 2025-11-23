@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
-import { GraduationCap, Crown, Users, ClipboardCheck, Home, User } from "lucide-react";
+import { GraduationCap, Crown, Users, ClipboardCheck, Home, User, LogOut } from "lucide-react";
 import { StickyNote } from "@/components/StickyNote";
 
 interface Assessment {
@@ -104,6 +104,10 @@ export default function Profile() {
     }
   };
 
+  const handleLogout = () => {
+    window.location.href = "/api/logout";
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10">
       <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-sm border-b">
@@ -112,12 +116,23 @@ export default function Profile() {
             <GraduationCap className="w-6 h-6 text-primary" />
             <span className="font-bold text-lg">Future Pathways</span>
           </Link>
-          <Button variant="outline" size="sm" asChild data-testid="button-nav-home">
-            <Link href="/">
-              <Home className="w-4 h-4 mr-2" />
-              Home
-            </Link>
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" asChild data-testid="button-nav-home">
+              <Link href="/">
+                <Home className="w-4 h-4 mr-2" />
+                Home
+              </Link>
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleLogout}
+              data-testid="button-logout-profile"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Logout
+            </Button>
+          </div>
         </div>
       </header>
 
