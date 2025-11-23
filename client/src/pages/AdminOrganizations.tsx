@@ -340,11 +340,21 @@ function CreateOrganizationForm({ onSuccess }: { onSuccess: () => void }) {
   const [formData, setFormData] = useState({
     name: "",
     totalLicenses: 50,
+    countryId: "" as string | undefined,
+  });
+
+  const { data: countries = [] } = useQuery<Array<{ id: string; name: string }>>({
+    queryKey: ['/api/countries'],
   });
 
   const mutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      return apiRequest('POST', '/api/admin/organizations', data);
+      // Don't send empty string for countryId, send undefined
+      const payload = {
+        ...data,
+        countryId: data.countryId || undefined,
+      };
+      return apiRequest('POST', '/api/admin/organizations', payload);
     },
     onSuccess: () => {
       toast({ title: "Success", description: "Organization created successfully" });
@@ -393,6 +403,29 @@ function CreateOrganizationForm({ onSuccess }: { onSuccess: () => void }) {
             required
             data-testid="input-total-licenses"
           />
+        </div>
+
+        <div>
+          <Label htmlFor="org-country">Default Country (Optional)</Label>
+          <Select 
+            value={formData.countryId} 
+            onValueChange={(value) => setFormData(f => ({ ...f, countryId: value }))}
+          >
+            <SelectTrigger id="org-country" data-testid="select-org-country">
+              <SelectValue placeholder="Select country (optional)" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">None</SelectItem>
+              {countries.map((country) => (
+                <SelectItem key={country.id} value={country.id}>
+                  {country.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground mt-1">
+            If set, all students will automatically use this country and skip the country selection step
+          </p>
         </div>
       </div>
 

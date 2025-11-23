@@ -109,6 +109,29 @@ export default function Assessment() {
     }
   }, [user, currentStep, assessmentData.name]);
 
+  // Country auto-skip logic: Auto-populate countryId and skip Country step if org has predefined country
+  useEffect(() => {
+    if (!user) return;
+    
+    const predefinedCountryId = (user as any)?.organizationCountryId;
+    
+    // For premium users: Country is step 3, auto-skip to Quiz (step 4)
+    // For free users: Country is step 5, auto-skip to Aspirations (step 6)
+    const countryStepNumber = isPremiumUser ? 3 : 5;
+    const nextStepAfterCountry = isPremiumUser ? 4 : 6;
+    
+    if (currentStep === countryStepNumber && predefinedCountryId && !assessmentData.countryId) {
+      // Auto-populate country
+      setAssessmentData((prev) => ({
+        ...prev,
+        countryId: predefinedCountryId,
+      }));
+      
+      // Skip to next step after country
+      setTimeout(() => setCurrentStep(nextStepAfterCountry), 0);
+    }
+  }, [user, currentStep, isPremiumUser, assessmentData.countryId]);
+
   // Auto-save: Save progress whenever assessment data changes (for authenticated users)
   useEffect(() => {
     if (!isAuthenticated || !assessmentId || currentStep <= 1) {
