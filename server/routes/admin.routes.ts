@@ -500,6 +500,76 @@ export function registerAdminRoutes(app: Express) {
     }
   });
 
+  app.post("/api/admin/organizations/:id/members/bulk-delete", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).isLocal ? (req.user as any).userId : (req.user as any).claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      // Check if user is superadmin
+      const superadminEmails = getSuperadminEmails();
+      const isSuperadmin = 
+        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email)) ||
+        user.role === "superadmin";
+      
+      // Check if user is org admin for THIS specific organization
+      const isOrgAdminForThisOrg = user.accountType === "org_admin";
+      if (isOrgAdminForThisOrg) {
+        const userOrg = await storage.getOrganizationByAdminUserId(userId);
+        if (!userOrg || userOrg.id !== req.params.id) {
+          return res.status(403).json({ message: "Forbidden: Can only access your own organization" });
+        }
+      }
+
+      if (!isSuperadmin && !isOrgAdminForThisOrg) {
+        return res.status(403).json({ message: "Forbidden: Admin access required" });
+      }
+
+      const { memberIds } = req.body;
+      
+      if (!Array.isArray(memberIds) || memberIds.length === 0) {
+        return res.status(400).json({ message: "memberIds must be a non-empty array" });
+      }
+
+      // Validate all members exist and are not locked
+      const members = await Promise.all(
+        memberIds.map(id => storage.getOrganizationMemberById(id))
+      );
+
+      const lockedMembers = members.filter((m, i) => m && m.isLocked).map((m, i) => memberIds[i]);
+      if (lockedMembers.length > 0) {
+        return res.status(400).json({ 
+          message: "Cannot delete members who have completed assessments",
+          lockedMembers 
+        });
+      }
+
+      const validMemberIds = members.filter(m => m !== undefined).map((m: any) => m.id);
+      
+      if (validMemberIds.length === 0) {
+        return res.status(404).json({ message: "No valid members found" });
+      }
+
+      const deletedCount = await storage.bulkDeleteOrganizationMembers(validMemberIds);
+      await storage.updateOrganizationQuota(req.params.id, -deletedCount);
+
+      res.json({ 
+        success: true, 
+        deletedCount,
+        message: `Successfully deleted ${deletedCount} member(s)` 
+      });
+    } catch (error: any) {
+      console.error("Error bulk deleting organization members:", error);
+      if (error.message?.includes('Cannot decrement')) {
+        return res.status(400).json({ message: error.message });
+      }
+      res.status(500).json({ message: "Failed to bulk delete members" });
+    }
+  });
+
   app.post("/api/admin/organizations/:id/members/:memberId/reset-password", isAuthenticated, async (req, res) => {
     try {
       const userId = (req.user as any).isLocal ? (req.user as any).userId : (req.user as any).claims.sub;
