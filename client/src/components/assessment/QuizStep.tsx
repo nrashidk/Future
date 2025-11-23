@@ -65,11 +65,11 @@ export function QuizStep({ assessmentId, onComplete }: QuizStepProps) {
       return await response.json();
     },
     onSuccess: (data) => {
-      setScore(data.score);
+      setScore(data);
       setShowResults(true);
       toast({
         title: "Quiz Completed!",
-        description: `You scored ${data.score.overall}% overall`,
+        description: `You scored ${data.totalScore}% overall`,
       });
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: ["/api/assessments", assessmentId] });
@@ -207,29 +207,11 @@ export function QuizStep({ assessmentId, onComplete }: QuizStepProps) {
           </p>
         </div>
 
-        <div className="max-w-2xl mx-auto grid grid-cols-2 gap-4">
-          <StickyNote color="blue" rotation="1">
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground mb-1">Vision Awareness</p>
-              <p className="text-3xl font-bold">{score.vision}%</p>
-            </div>
-          </StickyNote>
-          <StickyNote color="green" rotation="-1">
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground mb-1">Sector Competency</p>
-              <p className="text-3xl font-bold">{score.sector}%</p>
-            </div>
-          </StickyNote>
-          <StickyNote color="yellow" rotation="1">
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground mb-1">Personal Alignment</p>
-              <p className="text-3xl font-bold">{score.motivation}%</p>
-            </div>
-          </StickyNote>
+        <div className="max-w-md mx-auto">
           <StickyNote color="purple" rotation="-1">
-            <div className="text-center">
-              <p className="text-sm text-muted-foreground mb-1">Overall Score</p>
-              <p className="text-3xl font-bold">{score.overall}%</p>
+            <div className="text-center py-4">
+              <p className="text-sm text-muted-foreground mb-2">Overall Score</p>
+              <p className="text-5xl font-bold">{score.totalScore}%</p>
             </div>
           </StickyNote>
         </div>
