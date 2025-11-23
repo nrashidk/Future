@@ -778,18 +778,18 @@ export default function ResultsPrint() {
               </div>
 
               <div className="bg-background/20 rounded p-3">
-                <div className="font-semibold mb-1">Holland Code (RIASEC)</div>
-                <div className="text-muted-foreground font-body">Holland, J. L. (1997). Making Vocational Choices (3rd ed.).</div>
+                <div className="font-semibold mb-1">UAE National Curriculum</div>
+                <div className="text-muted-foreground font-body">UAE National Curriculum Framework (2023).</div>
               </div>
 
               <div className="bg-background/20 rounded p-3">
-                <div className="font-semibold mb-1">Kolb Learning Styles</div>
-                <div className="text-muted-foreground font-body">Kolb, D. A. (1984). Experiential Learning Theory.</div>
+                <div className="font-semibold mb-1">UAE Centennial 2071</div>
+                <div className="text-muted-foreground font-body">UAE Government Strategic Vision (2017).</div>
               </div>
 
               <div className="bg-background/20 rounded p-3">
-                <div className="font-semibold mb-1">Children's Values Questionnaire</div>
-                <div className="text-muted-foreground font-body">Döring et al. (2015). British Journal of Psychology, 106(4).</div>
+                <div className="font-semibold mb-1">Career Guidance Methodology</div>
+                <div className="text-muted-foreground font-body">Proprietary assessment framework integrating validated methodologies.</div>
               </div>
             </div>
 

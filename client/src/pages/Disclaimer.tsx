@@ -56,7 +56,7 @@ export default function Disclaimer() {
           <section className="space-y-4">
             <h2 className="text-2xl font-bold">5. Research-Based Guidance</h2>
             <p className="text-muted-foreground font-body">
-              Our assessments are based on validated research models including Holland's RIASEC Career Typology, Kolb's Experiential Learning Theory, and the Children's Values Questionnaire (CVQ). Results should be interpreted as guidance, not definitive career predictions.
+              Our assessments are based on validated research models and proprietary methodologies. Results should be interpreted as guidance, not definitive career predictions.
             </p>
           </section>
         </div>

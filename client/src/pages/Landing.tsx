@@ -308,42 +308,33 @@ export default function Landing() {
             </StickyNote>
 
             <StickyNote color="green" rotation="-1" className="p-6">
-              <h4 className="text-lg font-bold mb-2">Holland Code (RIASEC)</h4>
+              <h4 className="text-lg font-bold mb-2">Career Personality Assessment</h4>
               <p className="text-sm text-muted-foreground font-body mb-2">
                 Scientifically-validated personality assessment matching six career themes to individual interests
-              </p>
-              <p className="text-xs text-muted-foreground italic">
-                Source: Holland, J. L. (1997)
               </p>
             </StickyNote>
 
             <StickyNote color="yellow" rotation="2" className="p-6">
-              <h4 className="text-lg font-bold mb-2">Kolb Learning Styles</h4>
+              <h4 className="text-lg font-bold mb-2">Learning Style Assessment</h4>
               <p className="text-sm text-muted-foreground font-body mb-2">
                 Experiential learning theory identifying four distinct learning approaches for personalized study strategies
-              </p>
-              <p className="text-xs text-muted-foreground italic">
-                Source: Kolb, D. A. (1984)
               </p>
             </StickyNote>
 
             <StickyNote color="pink" rotation="-2" className="p-6">
-              <h4 className="text-lg font-bold mb-2">Children's Values Questionnaire</h4>
+              <h4 className="text-lg font-bold mb-2">Personal Values Assessment</h4>
               <p className="text-sm text-muted-foreground font-body mb-2">
                 Cross-culturally validated assessment measuring 10 basic human values for value-based career alignment
-              </p>
-              <p className="text-xs text-muted-foreground italic">
-                Source: Döring et al. (2015)
               </p>
             </StickyNote>
 
             <StickyNote color="purple" rotation="1" className="p-6">
               <h4 className="text-lg font-bold mb-2">National Vision Integration</h4>
               <p className="text-sm text-muted-foreground font-body mb-2">
-                Aligns career paths with country-specific development goals including UAE Centennial 2071 and Saudi Vision 2030
+                Aligns career paths with country-specific development goals including UAE Centennial 2071
               </p>
               <p className="text-xs text-muted-foreground italic">
-                Sources: UAE Centennial 2071 (2017), Saudi Vision 2030 (2016)
+                Source: UAE Centennial 2071 (2017)
               </p>
             </StickyNote>
 
@@ -399,7 +390,7 @@ export default function Landing() {
             © {new Date().getFullYear()} Future Pathways. All Rights Reserved.
           </p>
           <p className="text-xs mt-2">
-            Research-based Career & Learning Platform | Powered by WEF, Holland, Kolb, and other validated frameworks
+            Research-based Career & Learning Platform | Powered by WEF and other validated frameworks
           </p>
         </div>
       </footer>

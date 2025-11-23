@@ -345,7 +345,7 @@ export default function Checkout() {
               Complete Your Purchase
             </h1>
             <p className="text-gray-600 dark:text-gray-300">
-              Unlock Kolb's Premium Assessment for {studentCount} {studentCount === 1 ? 'student' : 'students'}
+              Unlock Premium Assessment for {studentCount} {studentCount === 1 ? 'student' : 'students'}
             </p>
           </div>
 

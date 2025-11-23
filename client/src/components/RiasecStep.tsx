@@ -309,7 +309,7 @@ export default function RiasecStep({ onComplete, onBack }: RiasecStepProps) {
         <Card className="mt-8 p-6 bg-accent/10">
           <h3 className="font-semibold mb-3">About This Assessment</h3>
           <p className="text-sm text-muted-foreground mb-3">
-            The Holland Code (RIASEC) helps identify your career personality across six themes:
+            This assessment helps identify your career personality across six themes:
           </p>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
             {(Object.keys(THEME_INFO) as Theme[]).map(theme => {
