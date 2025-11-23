@@ -270,7 +270,7 @@ export function registerQuizRoutes(app: Express) {
       }
       
       if (quiz.completedAt) {
-        return res.status(400).json({ message: "Quiz already completed" });
+        return res.status(400).json({ message: "This quiz has already been submitted. Please continue to the next step." });
       }
       
       // Get existing responses to get question IDs

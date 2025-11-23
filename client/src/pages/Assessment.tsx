@@ -13,7 +13,7 @@ import CVQStep from "@/components/CVQStep";
 import { CountryStep } from "@/components/assessment/CountryStep";
 import { AspirationsStep } from "@/components/assessment/AspirationsStep";
 import { QuizStep } from "@/components/assessment/QuizStep";
-import { GraduationCap, ArrowLeft, LogIn } from "lucide-react";
+import { GraduationCap, ArrowLeft, LogIn, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface AssessmentData {
@@ -266,17 +266,30 @@ export default function Assessment() {
               <p className="text-sm text-muted-foreground font-body">Career Assessment</p>
             </div>
           </div>
-          {currentStep > 1 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleBack}
-              data-testid="button-back"
-            >
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back
-            </Button>
-          )}
+          <div className="flex gap-2">
+            {currentStep > 1 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleBack}
+                data-testid="button-back"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back
+              </Button>
+            )}
+            {isAuthenticated && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setLocation("/profile")}
+                data-testid="button-profile"
+              >
+                <User className="w-4 h-4 mr-2" />
+                Profile
+              </Button>
+            )}
+          </div>
         </div>
       </div>
 

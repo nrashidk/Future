@@ -76,12 +76,26 @@ export function QuizStep({ assessmentId, onComplete }: QuizStepProps) {
         onComplete();
       }, 3000);
     },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to submit quiz. Please try again.",
-        variant: "destructive"
-      });
+    onError: (error: any) => {
+      const errorMessage = error?.message || "Failed to submit quiz. Please try again.";
+      
+      // If quiz already submitted, auto-advance to next step
+      if (errorMessage.includes("already been submitted")) {
+        toast({
+          title: "Quiz Already Submitted",
+          description: "Moving to the next step...",
+        });
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ["/api/assessments", assessmentId] });
+          onComplete();
+        }, 1500);
+      } else {
+        toast({
+          title: "Error",
+          description: errorMessage,
+          variant: "destructive"
+        });
+      }
     }
   });
 
