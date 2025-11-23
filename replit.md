@@ -26,21 +26,27 @@ The application features a playful, student-friendly sticky notes aesthetic with
   - CVQ submission properly links results to assessment ID to enable recommendation generation
   - All assessment steps implement smooth scrolling to top when navigating between question pages
   - Integrates the WEF 16 Skills Framework, mapping assessments to WEF skills for personalized skill profiles
-- **Career Catalog**: Expanded to 36 diverse careers with job market trends and Holland Code affinity scores for 15 countries.
+- **Career Catalog**: Expanded to 36 diverse careers with job market trends and Holland Code affinity scores for UAE.
 - **Results & Reporting**: Horizontal cascading masonry grid for career recommendations, personalized insights for premium users, and PDF report generation with detailed assessment breakdowns.
 
 ### Feature Specifications
 - **User Authentication**: Dual authentication (Replit Auth and local username/password) with a robust security model and guest access with session migration.
 - **User Profile System**: Personalized profile pages displaying account details, premium status, and assessment history. Organization admins can view organization-wide statistics including license usage, total students, and completed assessments via dedicated API endpoints. Organization students see their school name, predefined grade, and assessment count on their profile.
 - **Dynamic Career Matching Engine**: Modular architecture with pluggable scoring algorithms (subjects, interests, vision, market, Kolb, RIASEC) and configurable weights. Uses bulk data loading and provides smart filtering to return top 5 careers with detailed reasoning.
-- **Country-Specific Data**: Incorporates comprehensive 2030/2050 vision data for 15 countries into the matching algorithm.
+- **Country-Specific Data**: Incorporates comprehensive 2030/2071 vision data for UAE (UAE Centennial 2071) into the matching algorithm.
 - **Grade Pre-filling & Locking**: Organization students have their grade pre-defined by school admins during account creation. During assessment, the grade field is automatically pre-filled and locked (disabled) to prevent students from selecting incorrect grades, ensuring they receive age-appropriate quiz questions aligned with their actual grade level.
 
 ### System Design Choices
 - **Database Schema**: Comprehensive schema including tables for users, sessions, countries, skills, careers, job market trends, assessments, recommendations, organizations, organization members, and WEF skills data.
 - **Group Assessment System**: Features an Admin Dashboard for managing organizations and students, with functionalities for quota tracking, account creation (manual/bulk), and credentials download. Organization admins have access to their organization data via dedicated endpoints (`/api/my-organization`, `/api/my-organization/stats`) showing license usage and member statistics. Implements secure password handling, unique username generation, and atomic SQL-based quota management.
 - **Assessment Component System**: Database-backed tables for managing and mapping assessment types and career affinities.
-- **Quiz Availability**: Subject competency quiz questions are currently available for the UAE curriculum only, with a "coming soon" message for other countries.
+- **Country Availability**: Currently configured for UAE only. All quiz questions are based on UAE curriculum. Other countries have been removed from the database pending future super admin dashboard development.
+- **Future Super Admin Dashboard**: Planned comprehensive admin interface for managing:
+  - Countries and their vision/priority sectors
+  - Subjects and curriculum questions
+  - Assessment components and formulas
+  - Career catalog and WEF skill mappings
+  - Tier configurations and weights
 - **Session Storage**: Utilizes PostgreSQL for reliable session persistence.
 - **Development Workflow**: Employs `npm run db:push` for database migrations and automatic seeding in development. Optimized WEF affinity seeding with intelligent count-based skipping to prevent data loss when new careers/skills are added.
 
@@ -90,6 +96,20 @@ The application features a playful, student-friendly sticky notes aesthetic with
   - Simplified quiz results display to show only overall score
   - Fixed Radix UI Select component to properly respect disabled state by applying `disabled` prop to `SelectTrigger`
   - Fixed useEffect infinite re-render issue by removing `onUpdate` from dependency array
+
+### Student Deletion & Data Integrity ✅ COMPLETED
+- **Single Student Deletion**: Added trash icon button with AlertDialog confirmation in roster table
+- **Bulk Student Deletion**: Multi-select checkboxes with "Select All" functionality and batch deletion
+- **Security Hardening**: Cross-organization deletion prevention (verifies member.organizationId matches request URL)
+- **Transaction Safety**: Wrapped recommendation persistence in atomic db.transaction() to prevent partial writes
+- **Country Auto-Population**: Organizations can set default country during creation; students automatically inherit it during assessment
+- **Recommendation Persistence**: Fixed critical bug where recommendations weren't being saved to database after generation
+
+### UAE-Only Configuration ✅ COMPLETED
+- **Database Cleanup**: Removed all countries except UAE from database (deleted 14 countries, 394 job market trends, 71 quiz questions)
+- **Seed Data Update**: Modified server/seed.ts to only include UAE country data
+- **Rationale**: All quiz questions are UAE curriculum-based, so other countries are currently non-functional
+- **Future Plan**: Super admin dashboard will enable adding new countries with their own curriculum questions and vision data
 
 ## External Dependencies
 - **Database**: PostgreSQL (Neon)
