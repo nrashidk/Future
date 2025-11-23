@@ -398,28 +398,22 @@ export default function Profile() {
                       </Button>
                     </div>
                   )}
-                  <div className="space-y-3">
-                    {assessments.map((assessment) => (
-                      <div key={assessment.id} className="flex items-center justify-between p-3 border rounded-lg hover-elevate" data-testid={`assessment-item-${assessment.id}`}>
-                        <div>
-                          <p className="font-medium">{assessment.name || 'Assessment'}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {new Date(assessment.createdAt).toLocaleDateString()} 
-                            {assessment.tier && ` • ${assessment.tier === 'kolb' ? 'Premium' : 'Free'}`}
-                          </p>
-                        </div>
-                        {assessment.status === 'completed' ? (
-                          <Badge variant="outline" className="bg-green-500/10 text-green-700 dark:text-green-400">
-                            Completed
-                          </Badge>
-                        ) : (
-                          <Badge variant="outline" className="bg-orange-500/10 text-orange-700 dark:text-orange-400">
-                            In Progress
-                          </Badge>
-                        )}
+                  {(() => {
+                    // Get the latest assessment (most recent by createdAt)
+                    const latestAssessment = [...assessments].sort((a, b) => 
+                      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                    )[0];
+                    
+                    return latestAssessment && (
+                      <div className="p-3 border rounded-lg" data-testid={`assessment-item-${latestAssessment.id}`}>
+                        <p className="font-medium">{latestAssessment.name || 'Assessment'}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {new Date(latestAssessment.createdAt).toLocaleDateString()} 
+                          {latestAssessment.tier && ` • ${latestAssessment.tier === 'kolb' ? 'Premium' : 'Free'}`}
+                        </p>
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })()}
                 </div>
               )}
               </CardContent>
