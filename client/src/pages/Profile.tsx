@@ -155,10 +155,18 @@ export default function Profile() {
                   <p className="font-medium" data-testid="text-user-username">{user.username}</p>
                 </div>
               )}
-              {(isOrgAdmin || isOrgStudent) && organization && (
+              {(isOrgAdmin || isOrgStudent) && ((user as any).organizationName || organization) && (
                 <div>
                   <p className="text-sm text-muted-foreground">{isOrgAdmin ? 'Organization' : 'School'}</p>
-                  <p className="font-medium text-primary" data-testid="text-organization-name">{organization.name}</p>
+                  <p className="font-medium text-primary" data-testid="text-organization-name">
+                    {(user as any).organizationName || organization?.name}
+                  </p>
+                </div>
+              )}
+              {isOrgStudent && (user as any).predefinedGrade && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Grade</p>
+                  <p className="font-medium" data-testid="text-student-grade">{(user as any).predefinedGrade}</p>
                 </div>
               )}
               <div>
