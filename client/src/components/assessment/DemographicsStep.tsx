@@ -15,6 +15,19 @@ interface DemographicsStepProps {
   predefinedGrade?: string | null;
 }
 
+// Helper function to convert grade codes to readable labels
+const getGradeLabel = (gradeCode: string): string => {
+  const gradeMap: Record<string, string> = {
+    'grade8': 'Grade 8',
+    'grade9': 'Grade 9',
+    'grade10': 'Grade 10',
+    'grade11': 'Grade 11',
+    'grade12': 'Grade 12',
+    'graduated': 'Recently Graduated'
+  };
+  return gradeMap[gradeCode] || gradeCode;
+};
+
 export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade }: DemographicsStepProps) {
   const [isMobile, setIsMobile] = useState(false);
   
@@ -93,12 +106,16 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade }: De
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
               <GraduationCap className="w-5 h-5 text-primary" />
             </div>
-            <Label htmlFor="grade" className="text-lg font-semibold">
-              Current Grade
+            <div className="flex-1">
+              <Label htmlFor="grade" className="text-lg font-semibold">
+                Current Grade
+              </Label>
               {predefinedGrade && (
-                <span className="ml-2 text-xs text-muted-foreground font-normal">(Set by your school)</span>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Set by your school: <span className="font-semibold text-primary">{getGradeLabel(predefinedGrade)}</span>
+                </p>
               )}
-            </Label>
+            </div>
           </div>
           {isMobile ? (
             <select
