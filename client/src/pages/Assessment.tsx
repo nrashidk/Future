@@ -77,6 +77,60 @@ export default function Assessment() {
     }
   }, [isLoading, isAuthenticated, isPremiumUser, isGuest, setLocation]);
 
+  // Auto-save: Save progress whenever assessment data changes (for authenticated users)
+  useEffect(() => {
+    if (!isAuthenticated || !assessmentId || currentStep <= 1) {
+      return; // Don't auto-save on first step or before assessment is created
+    }
+
+    const timeoutId = setTimeout(async () => {
+      try {
+        const { apiRequest } = await import("@/lib/queryClient");
+        
+        // Map frontend fields to backend schema
+        const backendData: any = {
+          name: assessmentData.name,
+          age: assessmentData.age,
+          grade: assessmentData.grade,
+          favoriteSubjects: assessmentData.favoriteSubjects,
+          interests: assessmentData.interests,
+          countryId: assessmentData.countryId,
+          careerAspirations: assessmentData.careerAspirations || [],
+          strengths: assessmentData.strengths || [],
+          currentStep,
+        };
+        
+        // Only include personalityTraits for free users
+        if (!isPremiumUser) {
+          backendData.personalityTraits = Object.keys(assessmentData.personalityTraits).filter(
+            k => assessmentData.personalityTraits[k]
+          );
+        }
+        
+        // Include premium assessment scores if available
+        if (isPremiumUser) {
+          if (Object.keys(assessmentData.kolbResponses).length > 0) {
+            backendData.kolbResponses = assessmentData.kolbResponses;
+          }
+          if (Object.keys(assessmentData.riasecResponses).length > 0) {
+            backendData.riasecResponses = assessmentData.riasecResponses;
+          }
+          if (Object.keys(assessmentData.cvqResponses).length > 0) {
+            backendData.cvqResponses = assessmentData.cvqResponses;
+          }
+        }
+        
+        // Silently auto-save in background
+        await apiRequest("PATCH", `/api/assessments/${assessmentId}`, backendData);
+      } catch (error) {
+        // Silently fail - don't disturb user with auto-save errors
+        console.error("Auto-save failed:", error);
+      }
+    }, 2000); // Debounce: save 2 seconds after last change
+
+    return () => clearTimeout(timeoutId);
+  }, [assessmentData, assessmentId, currentStep, isAuthenticated, isPremiumUser]);
+
   const updateAssessmentData = (field: string, value: any) => {
     setAssessmentData((prev) => ({ ...prev, [field]: value }));
   };
