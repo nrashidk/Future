@@ -73,6 +73,13 @@ export default function AdminOrganizations() {
 
   const selectedOrg = organizations.find(org => org.id === selectedOrgId);
 
+  // Auto-select first organization for org_admin when organizations load
+  useEffect(() => {
+    if (user?.accountType === 'org_admin' && organizations.length > 0 && !selectedOrgId) {
+      setSelectedOrgId(organizations[0].id);
+    }
+  }, [organizations, selectedOrgId, user?.accountType]);
+
   // Reset selected members when changing organizations
   useEffect(() => {
     setSelectedMemberIds([]);
