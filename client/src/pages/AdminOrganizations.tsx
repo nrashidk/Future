@@ -130,11 +130,13 @@ export default function AdminOrganizations() {
             <span className="font-bold text-lg">Future Pathways</span>
           </Link>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" asChild data-testid="button-nav-questions">
-              <Link href="/admin">
-                Quiz Questions
-              </Link>
-            </Button>
+            {user?.accountType !== 'org_admin' && (
+              <Button variant="outline" size="sm" asChild data-testid="button-nav-questions">
+                <Link href="/admin">
+                  Quiz Questions
+                </Link>
+              </Button>
+            )}
             <Button variant="outline" size="sm" asChild data-testid="button-nav-home">
               <Link href="/">
                 <Home className="w-4 h-4 mr-2" />
