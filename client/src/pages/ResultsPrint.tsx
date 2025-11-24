@@ -453,7 +453,7 @@ export default function ResultsPrint() {
                 </div>
                 <h2 className="text-2xl font-bold mb-1">What Matters Most to You</h2>
                 <p className="text-xs text-muted-foreground font-body">
-                  Based on the Children's Values Questionnaire (CVQ)
+                  Based on our comprehensive values assessment
                 </p>
               </div>
 
@@ -756,46 +756,6 @@ export default function ResultsPrint() {
             </div>
           </StickyNote>
 
-          {/* Research Methodology & Citations */}
-          <div className="mt-8 pt-6 border-t border-border/40">
-            <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-              <BookOpen className="w-5 h-5 text-primary" />
-              How We Made Your Recommendations
-            </h3>
-            
-            <div className="bg-background/30 rounded-lg p-4 mb-4">
-              <p className="text-xs font-body leading-relaxed mb-3">
-                Your career recommendations are based on your assessment answers combined with trusted research about future jobs 
-                and UAE's development goals. We matched your strengths and interests to careers that fit you best.
-              </p>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div className="bg-background/20 rounded p-3">
-                <div className="font-semibold mb-1">Future Skills</div>
-                <div className="text-muted-foreground font-body">World Economic Forum research on skills needed for tomorrow's jobs</div>
-              </div>
-
-              <div className="bg-background/20 rounded p-3">
-                <div className="font-semibold mb-1">Your School Subjects</div>
-                <div className="text-muted-foreground font-body">Based on the UAE National Curriculum you're learning</div>
-              </div>
-
-              <div className="bg-background/20 rounded p-3">
-                <div className="font-semibold mb-1">UAE Vision 2071</div>
-                <div className="text-muted-foreground font-body">Aligned with UAE's goals for the future</div>
-              </div>
-
-              <div className="bg-background/20 rounded p-3">
-                <div className="font-semibold mb-1">Your Personality & Values</div>
-                <div className="text-muted-foreground font-body">Matched careers to what matters most to you</div>
-              </div>
-            </div>
-
-            <div className="mt-3 text-xs text-muted-foreground text-center">
-              <p>These recommendations are personalized based on your unique assessment results.</p>
-            </div>
-          </div>
 
           {/* Footer */}
           <div className="mt-6 text-xs text-center text-muted-foreground">

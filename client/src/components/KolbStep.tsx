@@ -6,7 +6,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
 import { ArrowRight, ArrowLeft } from "lucide-react";
 
-// Kolb Questions (imported from server/questionBanks/kolb.ts structure)
+// Learning Style Assessment Questions
 interface KolbQuestion {
   id: string;
   dimension: 'CE' | 'RO' | 'AC' | 'AE';

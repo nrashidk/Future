@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 
 /**
- * RIASEC (Holland Code) Career Personality Assessment
+ * Career Personality Assessment
  * Integrated into Future Pathways sticky notes design
  * 30 questions across 6 vocational themes: R-I-A-S-E-C
  */

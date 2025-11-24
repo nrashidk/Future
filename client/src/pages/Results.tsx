@@ -462,7 +462,7 @@ export default function Results() {
               <Heart className="w-12 h-12 text-primary mx-auto mb-3" />
               <h2 className="text-3xl font-bold mb-2">What Matters Most to You</h2>
               <p className="text-muted-foreground font-body">
-                Based on the Children's Values Questionnaire (CVQ)
+                Based on our comprehensive values assessment
               </p>
             </div>
 

@@ -31,7 +31,7 @@ export function Footer() {
           © {new Date().getFullYear()} Future Pathways. All Rights Reserved.
         </p>
         <p className="text-xs mt-2">
-          Research-based Career & Learning Platform | Built on validated models by Holland, Kolb, and others
+          Advanced Career & Learning Platform | Built on research-based assessment methodologies
         </p>
       </div>
     </footer>

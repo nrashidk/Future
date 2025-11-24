@@ -22,8 +22,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 
 /**
- * Children's Values Questionnaire (CVQ)
- * Based on Schwartz's Portrait Values Questionnaire (PVQ-21)
+ * Personal Values Assessment
  * Integrated into Future Pathways sticky notes design
  * 21 questions across 7 value domains
  */
