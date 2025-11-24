@@ -38,6 +38,7 @@ interface OrganizationMember {
   organizationId: string;
   grade?: string;
   studentId?: string;
+  studentGender?: string;
   role: string;
   hasCompletedAssessment: boolean;
   isLocked: boolean;
@@ -226,7 +227,7 @@ export default function AdminOrganizations() {
                     </StickyNote>
                   </div>
                 ) : (
-                  <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                  <div className="space-y-2">
                     {organizations.map((org) => (
                       <button
                         key={org.id}
@@ -240,7 +241,7 @@ export default function AdminOrganizations() {
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium truncate">{org.name}</p>
+                            <p className="font-medium">{org.name}</p>
                             <p className="text-xs text-muted-foreground">
                               {org.usedLicenses} / {org.totalLicenses} licenses used
                             </p>
@@ -432,6 +433,7 @@ export default function AdminOrganizations() {
                               </TableHead>
                               <TableHead>Name</TableHead>
                               <TableHead>Username</TableHead>
+                              <TableHead>Gender</TableHead>
                               <TableHead>Grade</TableHead>
                               <TableHead>Student ID</TableHead>
                               <TableHead>Status</TableHead>
@@ -453,6 +455,7 @@ export default function AdminOrganizations() {
                                   {member.user.firstName} {member.user.lastName}
                                 </TableCell>
                                 <TableCell>{member.user.username}</TableCell>
+                                <TableCell className="capitalize">{member.studentGender || '-'}</TableCell>
                                 <TableCell>{member.grade || '-'}</TableCell>
                                 <TableCell>{member.studentId || '-'}</TableCell>
                                 <TableCell>
