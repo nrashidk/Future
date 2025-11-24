@@ -341,7 +341,31 @@ export default function AdminOrganizations() {
                         )}
                       </CardDescription>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        data-testid="button-export-reports"
+                        onClick={() => {
+                          window.open(`/api/admin/organizations/${selectedOrgId}/export/reports`, '_blank');
+                        }}
+                        disabled={members.filter(m => m.isLocked).length === 0}
+                      >
+                        <FileDown className="w-4 h-4 mr-2" />
+                        Export Reports (ZIP)
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        data-testid="button-export-csv"
+                        onClick={() => {
+                          window.open(`/api/admin/organizations/${selectedOrgId}/export/csv`, '_blank');
+                        }}
+                        disabled={members.length === 0}
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        Export Data (CSV)
+                      </Button>
                       {selectedMemberIds.length > 0 && (
                         <AlertDialog>
                           <AlertDialogTrigger asChild>

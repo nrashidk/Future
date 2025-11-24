@@ -693,4 +693,269 @@ export function registerAdminRoutes(app: Express) {
       res.status(500).json({ message: "Failed to export questions" });
     }
   });
+
+  // Bulk Export: Student Reports (PDFs in ZIP)
+  app.get("/api/admin/organizations/:id/export/reports", isAuthenticated, async (req, res) => {
+    let browser: any = null;
+    try {
+      const userId = (req.user as any).isLocal ? (req.user as any).userId : (req.user as any).claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      // Check if user is superadmin
+      const superadminEmails = getSuperadminEmails();
+      const isSuperadmin = 
+        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email)) ||
+        user.role === "superadmin";
+      
+      // Check if user is org admin for THIS specific organization
+      const isOrgAdminForThisOrg = user.accountType === "org_admin";
+      if (isOrgAdminForThisOrg) {
+        const userOrg = await storage.getOrganizationByAdminUserId(userId);
+        if (!userOrg || userOrg.id !== req.params.id) {
+          return res.status(403).json({ message: "Forbidden: Can only access your own organization" });
+        }
+      }
+
+      if (!isSuperadmin && !isOrgAdminForThisOrg) {
+        return res.status(403).json({ message: "Forbidden: Admin access required" });
+      }
+
+      const organizationId = req.params.id;
+      const organization = await storage.getOrganizationById(organizationId);
+      if (!organization) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+
+      // Get all members with completed assessments
+      const members = await storage.getOrganizationMembersByOrganizationId(organizationId);
+      const completedMembers = members.filter(m => m.isLocked);
+
+      if (completedMembers.length === 0) {
+        return res.status(404).json({ message: "No completed assessments found" });
+      }
+
+      console.log(`Generating ${completedMembers.length} PDF reports for organization ${organization.name}...`);
+
+      // Import archiver for creating ZIP files
+      const archiver = (await import("archiver")).default;
+      const archive = archiver("zip", { zlib: { level: 9 } });
+
+      // Set response headers for ZIP download
+      res.setHeader("Content-Type", "application/zip");
+      res.setHeader("Content-Disposition", `attachment; filename="${organization.name.replace(/[^a-zA-Z0-9]/g, '_')}_Reports_${Date.now()}.zip"`);
+
+      // Pipe archive to response
+      archive.pipe(res);
+
+      // Launch browser once for all PDFs
+      const puppeteer = (await import("puppeteer")).default;
+      browser = await puppeteer.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+      });
+
+      // Generate each PDF
+      for (const member of completedMembers) {
+        let page: any = null;
+        try {
+          const memberUser = await storage.getUser(member.userId);
+          if (!memberUser) continue;
+
+          // Find the assessment for this member
+          const assessments = await storage.getAssessmentsByUser(member.userId);
+          const completedAssessment = assessments.find((a: any) => a.isComplete);
+          
+          if (!completedAssessment) continue;
+
+          page = await browser.newPage();
+          const printUrl = `http://localhost:5000/print/results?assessmentId=${completedAssessment.id}`;
+
+          await page.goto(printUrl, {
+            waitUntil: 'networkidle0',
+            timeout: 30000,
+          });
+
+          await page.waitForFunction(() => (window as any).__REPORT_READY__ === true, {
+            timeout: 30000,
+          });
+
+          const pdfBuffer = await page.pdf({
+            format: 'A4',
+            printBackground: true,
+            preferCSSPageSize: true,
+          });
+
+          // Add PDF to archive with safe filename
+          const safeFileName = `${memberUser.username || member.id}_${memberUser.firstName}_${memberUser.lastName}.pdf`.replace(/[^a-zA-Z0-9._-]/g, '_');
+          archive.append(Buffer.from(pdfBuffer), { name: safeFileName });
+
+          console.log(`Generated PDF for ${memberUser.username} (${safeFileName})`);
+        } catch (error) {
+          console.error(`Error generating PDF for member ${member.id}:`, error);
+          // Continue with next member on error
+        } finally {
+          // Always close the page to prevent memory leaks
+          if (page) {
+            try {
+              await page.close();
+            } catch (closeError) {
+              console.error(`Error closing page for member ${member.id}:`, closeError);
+            }
+          }
+        }
+      }
+
+      await browser.close();
+      browser = null;
+
+      // Finalize archive
+      await archive.finalize();
+      console.log(`ZIP archive completed with ${completedMembers.length} reports`);
+    } catch (error) {
+      console.error("Error generating bulk PDF reports:", error);
+      if (browser) {
+        try {
+          await browser.close();
+        } catch (closeError) {
+          console.error("Error closing browser:", closeError);
+        }
+      }
+      res.status(500).json({ message: "Failed to generate bulk PDF reports" });
+    }
+  });
+
+  // Bulk Export: Student Data (CSV)
+  app.get("/api/admin/organizations/:id/export/csv", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).isLocal ? (req.user as any).userId : (req.user as any).claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      // Check if user is superadmin
+      const superadminEmails = getSuperadminEmails();
+      const isSuperadmin = 
+        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email)) ||
+        user.role === "superadmin";
+      
+      // Check if user is org admin for THIS specific organization
+      const isOrgAdminForThisOrg = user.accountType === "org_admin";
+      if (isOrgAdminForThisOrg) {
+        const userOrg = await storage.getOrganizationByAdminUserId(userId);
+        if (!userOrg || userOrg.id !== req.params.id) {
+          return res.status(403).json({ message: "Forbidden: Can only access your own organization" });
+        }
+      }
+
+      if (!isSuperadmin && !isOrgAdminForThisOrg) {
+        return res.status(403).json({ message: "Forbidden: Admin access required" });
+      }
+
+      const organizationId = req.params.id;
+      const organization = await storage.getOrganizationById(organizationId);
+      if (!organization) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+
+      // Get all members
+      const members = await storage.getOrganizationMembersByOrganizationId(organizationId);
+
+      // CSV Header
+      const csvRows = [
+        [
+          "Username",
+          "Full Name",
+          "Grade",
+          "Assessment Status",
+          "Assessment Type",
+          "Country",
+          "Top Career 1",
+          "Top Career 2",
+          "Top Career 3",
+          "Learning Style",
+          "Career Personality (Top)",
+          "Top Value",
+          "Quiz Score (%)",
+          "Completion Date"
+        ].join(",")
+      ];
+
+      // Process each member
+      for (const member of members) {
+        const memberUser = await storage.getUser(member.userId);
+        if (!memberUser) continue;
+
+        const fullName = `${memberUser.firstName} ${memberUser.lastName}`.trim();
+        const assessments = await storage.getAssessmentsByUser(member.userId);
+        const completedAssessment = assessments.find((a: any) => a.isComplete);
+
+        if (!completedAssessment) {
+          // Member without completed assessment
+          csvRows.push([
+            `"${(memberUser.username || '').replace(/"/g, '""')}"`,
+            `"${fullName.replace(/"/g, '""')}"`,
+            `"${member.grade || ''}"`,
+            "Not Started",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            "",
+            ""
+          ].join(","));
+          continue;
+        }
+
+        // Get recommendations
+        const recommendations = await storage.getRecommendationsByAssessment(completedAssessment.id);
+        const topCareers = recommendations.slice(0, 3).map((r: any) => r.career?.title || '');
+
+        // Extract assessment data
+        const learningStyle = (completedAssessment.kolbScores as any)?.learningStyle || '';
+        const riasecScores = completedAssessment.riasecScores as any;
+        const topRiasec = riasecScores ? Object.entries(riasecScores).sort((a: any, b: any) => b[1] - a[1])[0]?.[0] || '' : '';
+        const cvqScores = completedAssessment.cvqScores as any;
+        const topValue = cvqScores ? Object.entries(cvqScores).sort((a: any, b: any) => b[1] - a[1])[0]?.[0] || '' : '';
+        const quizScore = (completedAssessment.quizScore as any)?.overall ? Math.round((completedAssessment.quizScore as any).overall) : 0;
+        const completionDate = completedAssessment.completedAt ? new Date(completedAssessment.completedAt).toLocaleDateString() : '';
+
+        const country = completedAssessment.countryId ? await storage.getCountryById(completedAssessment.countryId) : null;
+
+        csvRows.push([
+          `"${(memberUser.username || '').replace(/"/g, '""')}"`,
+          `"${fullName.replace(/"/g, '""')}"`,
+          `"${member.grade || ''}"`,
+          "Completed",
+          completedAssessment.assessmentType === 'kolb' ? 'Premium' : 'Free',
+          `"${(country?.name || '').replace(/"/g, '""')}"`,
+          `"${(topCareers[0] || '').replace(/"/g, '""')}"`,
+          `"${(topCareers[1] || '').replace(/"/g, '""')}"`,
+          `"${(topCareers[2] || '').replace(/"/g, '""')}"`,
+          `"${learningStyle.replace(/"/g, '""')}"`,
+          `"${topRiasec.replace(/"/g, '""')}"`,
+          `"${topValue.replace(/"/g, '""')}"`,
+          `${quizScore}`,
+          `"${completionDate}"`
+        ].join(","));
+      }
+
+      const csv = csvRows.join("\n");
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader("Content-Disposition", `attachment; filename="${organization.name.replace(/[^a-zA-Z0-9]/g, '_')}_Student_Data_${Date.now()}.csv"`);
+      res.send("\uFEFF" + csv); // Add BOM for Excel compatibility
+    } catch (error) {
+      console.error("Error generating CSV export:", error);
+      res.status(500).json({ message: "Failed to generate CSV export" });
+    }
+  });
 }

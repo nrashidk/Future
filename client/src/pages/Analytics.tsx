@@ -20,7 +20,9 @@ import {
   Briefcase,
   User,
   LogOut,
-  Building2
+  Building2,
+  Download,
+  FileDown
 } from "lucide-react";
 
 interface AnalyticsOverview {
@@ -43,10 +45,23 @@ interface SectorData {
   avgAlignment: number;
 }
 
+interface Organization {
+  id: string;
+  name: string;
+  totalLicenses: number;
+  usedLicenses: number;
+}
+
 export default function Analytics() {
   const { user } = useAuth();
   const [activeCountryId, setActiveCountryId] = useState<string | null>(null);
   const isOrgAdmin = user?.accountType === 'org_admin';
+
+  // For org admins: fetch organization details to get organization ID for exports
+  const { data: organization } = useQuery<Organization>({
+    queryKey: ['/api/my-organization'],
+    enabled: !!user && isOrgAdmin,
+  });
 
   // Countries list with completed assessments (automatically shown)
   const { data: countries, isLoading: countriesLoading } = useQuery<Array<{ countryId: string; countryName: string; studentCount: number }>>({
@@ -180,6 +195,34 @@ export default function Analytics() {
             Real-time insights into student career pathways and trends
           </p>
         </div>
+
+        {/* Export Buttons for Org Admins */}
+        {isOrgAdmin && organization && (
+          <div className="mb-8 flex justify-center gap-3">
+            <Button 
+              variant="outline" 
+              size="default" 
+              data-testid="button-export-reports-analytics"
+              onClick={() => {
+                window.open(`/api/admin/organizations/${organization.id}/export/reports`, '_blank');
+              }}
+            >
+              <FileDown className="w-4 h-4 mr-2" />
+              Export All Student Reports (PDF)
+            </Button>
+            <Button 
+              variant="outline" 
+              size="default" 
+              data-testid="button-export-csv-analytics"
+              onClick={() => {
+                window.open(`/api/admin/organizations/${organization.id}/export/csv`, '_blank');
+              }}
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export Student Data (CSV)
+            </Button>
+          </div>
+        )}
 
         {/* Country Selection - Sticky Notes */}
         <div className="mb-12">
