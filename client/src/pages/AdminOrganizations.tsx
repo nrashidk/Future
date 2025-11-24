@@ -191,8 +191,8 @@ export default function AdminOrganizations() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Organizations List */}
-          <div className="lg:col-span-1">
-            <Card>
+          <div className="lg:col-span-1 flex">
+            <Card className="flex-1 flex flex-col">
               <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-4">
                 <div>
                   <CardTitle className="text-lg">Organizations</CardTitle>
@@ -216,7 +216,7 @@ export default function AdminOrganizations() {
                   </Dialog>
                 )}
               </CardHeader>
-              <CardContent>
+              <CardContent className="flex-1">
                 {orgsLoading ? (
                   <p className="text-sm text-muted-foreground text-center py-8">Loading...</p>
                 ) : organizations.length === 0 ? (
