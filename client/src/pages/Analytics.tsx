@@ -18,7 +18,9 @@ import {
   Home,
   Award,
   Briefcase,
-  User
+  User,
+  LogOut,
+  Building2
 } from "lucide-react";
 
 interface AnalyticsOverview {
@@ -44,6 +46,7 @@ interface SectorData {
 export default function Analytics() {
   const { user } = useAuth();
   const [activeCountryId, setActiveCountryId] = useState<string | null>(null);
+  const isOrgAdmin = user?.accountType === 'org_admin';
 
   // Countries list with completed assessments (automatically shown)
   const { data: countries, isLoading: countriesLoading } = useQuery<Array<{ countryId: string; countryName: string; studentCount: number }>>({
@@ -127,19 +130,40 @@ export default function Analytics() {
             <span className="font-bold text-lg">Future Pathways</span>
           </Link>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" asChild data-testid="button-nav-home">
-              <Link href="/">
-                <Home className="w-4 h-4 mr-2" />
-                Home
-              </Link>
-            </Button>
-            {user && (
-              <Button variant="outline" size="sm" asChild data-testid="button-nav-profile">
-                <Link href="/profile">
-                  <User className="w-4 h-4 mr-2" />
-                  Profile
+            {isOrgAdmin && (
+              <Button variant="outline" size="sm" asChild data-testid="button-nav-organizations">
+                <Link href="/admin/organizations">
+                  <Building2 className="w-4 h-4 mr-2" />
+                  Organizations
                 </Link>
               </Button>
+            )}
+            {!isOrgAdmin && (
+              <Button variant="outline" size="sm" asChild data-testid="button-nav-home">
+                <Link href="/">
+                  <Home className="w-4 h-4 mr-2" />
+                  Home
+                </Link>
+              </Button>
+            )}
+            {user && (
+              <>
+                <Button variant="outline" size="sm" asChild data-testid="button-nav-profile">
+                  <Link href="/profile">
+                    <User className="w-4 h-4 mr-2" />
+                    Profile
+                  </Link>
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => window.location.href = "/api/logout"}
+                  data-testid="button-logout-analytics"
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logout
+                </Button>
+              </>
             )}
           </div>
         </div>

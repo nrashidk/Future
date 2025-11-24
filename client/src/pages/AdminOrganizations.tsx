@@ -16,7 +16,7 @@ import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Home, Plus, Download, Upload, Edit, Trash2, GraduationCap, 
-  Users, Building2, Key, RefreshCw, FileDown, Lock, LockOpen, User, LogOut
+  Users, Building2, Key, RefreshCw, FileDown, Lock, LockOpen, User, LogOut, BarChart
 } from "lucide-react";
 import { StickyNote } from "@/components/StickyNote";
 
@@ -144,12 +144,21 @@ export default function AdminOrganizations() {
                 </Link>
               </Button>
             )}
-            <Button variant="outline" size="sm" asChild data-testid="button-nav-home">
-              <Link href="/">
-                <Home className="w-4 h-4 mr-2" />
-                Home
-              </Link>
-            </Button>
+            {user?.accountType === 'org_admin' ? (
+              <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">
+                <Link href="/analytics">
+                  <BarChart className="w-4 h-4 mr-2" />
+                  Analytics
+                </Link>
+              </Button>
+            ) : (
+              <Button variant="outline" size="sm" asChild data-testid="button-nav-home">
+                <Link href="/">
+                  <Home className="w-4 h-4 mr-2" />
+                  Home
+                </Link>
+              </Button>
+            )}
             {user && (
               <>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-profile">

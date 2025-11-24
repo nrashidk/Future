@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
-import { GraduationCap, Crown, Users, ClipboardCheck, Home, User, LogOut } from "lucide-react";
+import { GraduationCap, Crown, Users, ClipboardCheck, Home, User, LogOut, BarChart } from "lucide-react";
 import { StickyNote } from "@/components/StickyNote";
 
 interface Assessment {
@@ -117,12 +117,21 @@ export default function Profile() {
             <span className="font-bold text-lg">Future Pathways</span>
           </Link>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" asChild data-testid="button-nav-home">
-              <Link href="/">
-                <Home className="w-4 h-4 mr-2" />
-                Home
-              </Link>
-            </Button>
+            {isOrgAdmin ? (
+              <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">
+                <Link href="/analytics">
+                  <BarChart className="w-4 h-4 mr-2" />
+                  Analytics
+                </Link>
+              </Button>
+            ) : (
+              <Button variant="outline" size="sm" asChild data-testid="button-nav-home">
+                <Link href="/">
+                  <Home className="w-4 h-4 mr-2" />
+                  Home
+                </Link>
+              </Button>
+            )}
             <Button 
               variant="outline" 
               size="sm" 
