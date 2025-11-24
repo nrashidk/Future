@@ -302,7 +302,20 @@ export default function Profile() {
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">Status</p>
-                {(user.isPremium || isOrgAdmin) ? (
+                {isOrgAdmin ? (
+                  isOrgStatsLoading ? (
+                    <Badge variant="outline" data-testid="badge-premium-status">Loading...</Badge>
+                  ) : orgStatsError ? (
+                    <Badge variant="outline" data-testid="badge-premium-status">Unavailable</Badge>
+                  ) : orgStats && orgStats.totalLicenses > 0 ? (
+                    <Badge className="bg-yellow-500 hover:bg-yellow-600" data-testid="badge-premium-status">
+                      <Crown className="w-3 h-3 mr-1" />
+                      Premium
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" data-testid="badge-premium-status">Free</Badge>
+                  )
+                ) : user.isPremium ? (
                   <Badge className="bg-yellow-500 hover:bg-yellow-600" data-testid="badge-premium-status">
                     <Crown className="w-3 h-3 mr-1" />
                     Premium
