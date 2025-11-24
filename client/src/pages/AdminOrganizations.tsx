@@ -216,7 +216,7 @@ export default function AdminOrganizations() {
                   </Dialog>
                 )}
               </CardHeader>
-              <CardContent className="min-h-[150px]">
+              <CardContent className="min-h-[140px]">
                 {orgsLoading ? (
                   <p className="text-sm text-muted-foreground text-center py-8">Loading...</p>
                 ) : organizations.length === 0 ? (
