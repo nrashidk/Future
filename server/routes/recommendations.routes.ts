@@ -6,6 +6,12 @@ import { recommendationsLimiter } from "../middleware/rateLimiter.middleware";
 import { db } from "../db";
 import { recommendations, assessments } from "@shared/schema";
 import { eq } from "drizzle-orm";
+import {
+  generateEnhancedReasoning,
+  generateWorkStyleFit,
+  generateStrengthsGrowth,
+  generateEnhancedActionSteps,
+} from "../services/premiumNarratives";
 
 export function registerRecommendationsRoutes(app: Express) {
   // Generate recommendations using dynamic matching service
@@ -95,10 +101,16 @@ export function registerRecommendationsRoutes(app: Express) {
           // Extract component scores to map to legacy schema fields
           const componentMap = new Map(match.componentScores.map(c => [c.key, c.score]));
           
-          // Build detailed reasoning from all component scores (including kolb, riasec, cvq, wef)
-          const detailedReasoning = match.componentScores
+          // ALWAYS store component-based reasoning for audit trail
+          const componentReasoning = match.componentScores
             .map(c => `${c.displayName} (${c.weight}%): ${c.score.toFixed(1)}% - ${c.reasoning}`)
             .join(' | ');
+          
+          // Basic action steps (enhanced narratives generated on-demand at GET time)
+          const basicActionSteps = [
+            `Complete ${match.career.educationLevel}`,
+            `Build skills in: ${match.career.requiredSkills.slice(0, 3).join(', ')}`
+          ];
           
           await tx.insert(recommendations).values({
             assessmentId: req.params.assessmentId,
@@ -109,9 +121,9 @@ export function registerRecommendationsRoutes(app: Express) {
             interestMatchScore: componentMap.get('interests') || 0,
             countryVisionAlignment: componentMap.get('vision') || 0,
             futureMarketDemand: 0, // Deprecated, always 0
-            // Store all component scores in reasoning for audit trail
-            reasoning: detailedReasoning,
-            actionSteps: [`Complete ${match.career.educationLevel}`, `Build skills in: ${match.career.requiredSkills.slice(0, 3).join(', ')}`],
+            // Store component reasoning for audit trail (premium narratives generated dynamically)
+            reasoning: componentReasoning,
+            actionSteps: basicActionSteps,
             requiredEducation: match.career.educationLevel,
           });
         }
@@ -155,10 +167,64 @@ export function registerRecommendationsRoutes(app: Express) {
 
       const recommendations = await storage.getRecommendationsByAssessment(assessmentId);
 
-      // Enrich with career details
+      // Fetch assessment to check tier and generate premium narratives
+      const assessment = await storage.getAssessmentById(assessmentId);
+      const isPremium = assessment?.assessmentType === 'kolb';
+
+      // Fetch CVQ result for premium users (needed for enhanced narratives)
+      const cvqResult = isPremium && assessmentId ? await storage.getCvqResultByAssessmentId(assessmentId) : null;
+
+      // Enrich with career details and generate premium narratives on-demand
       const enriched = await Promise.all(
         recommendations.map(async (rec) => {
           const career = await storage.getCareerById(rec.careerId);
+          
+          // Premium tier: Generate enhanced narratives dynamically (not stored in DB)
+          if (isPremium && assessment && career) {
+            // Defensive null guards before generating narratives
+            const hasKolbData = assessment.kolbScores && typeof assessment.kolbScores === 'object' && 
+              (assessment.kolbScores as any).learningStyle;
+            const hasRiasecData = assessment.riasecScores && typeof assessment.riasecScores === 'object' &&
+              typeof (assessment.riasecScores as any).R === 'number';
+            const hasCvqData = cvqResult?.normalizedScores;
+
+            // Only generate narratives if we have required data
+            if (hasKolbData && hasRiasecData) {
+              try {
+                const narrativeContext = {
+                  assessment,
+                  career,
+                  kolbScores: assessment.kolbScores as any,
+                  riasecScores: assessment.riasecScores as any,
+                  cvqScores: hasCvqData ? (cvqResult.normalizedScores as Record<string, any>) : undefined,
+                  overallScore: rec.overallMatchScore,
+                };
+
+                // Generate premium content
+                const enhancedReasoning = generateEnhancedReasoning(narrativeContext);
+                const workStyleFit = generateWorkStyleFit(narrativeContext);
+                const strengthsGrowth = generateStrengthsGrowth(narrativeContext);
+                const enhancedActionSteps = generateEnhancedActionSteps(narrativeContext);
+
+                // Return enriched recommendation with both component reasoning and premium narratives
+                return {
+                  ...rec,
+                  career,
+                  // Add premium fields (not stored in DB, generated on-demand)
+                  premiumReasoning: enhancedReasoning,
+                  workStyleFit,
+                  strengthsGrowth,
+                  premiumActionSteps: enhancedActionSteps,
+                };
+              } catch (error) {
+                console.error('[Premium Narratives] Error generating for career:', career.id, error);
+                // Fallback: return basic recommendation without premium narratives
+                return { ...rec, career };
+              }
+            }
+          }
+
+          // Free tier or missing premium data: return basic recommendation
           return { ...rec, career };
         })
       );
