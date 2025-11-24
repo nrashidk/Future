@@ -74,6 +74,7 @@ export const organizations = pgTable("organizations", {
   // License tracking
   totalLicenses: integer("total_licenses").notNull(),
   usedLicenses: integer("used_licenses").notNull().default(0),
+  isUnlimitedLicenses: boolean("is_unlimited_licenses").notNull().default(false), // Superadmin can create orgs with unlimited licenses
   
   // Settings
   passwordComplexity: text("password_complexity").notNull().default("medium"), // 'easy', 'medium', 'strong'

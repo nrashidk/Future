@@ -143,25 +143,25 @@ export interface IStorage {
   updateAssessmentQuiz(id: string, data: Partial<InsertAssessmentQuiz>): Promise<AssessmentQuiz>;
 
   // Analytics operations
-  getAnalyticsOverview(countryId?: string): Promise<{
+  getAnalyticsOverview(countryId?: string, organizationId?: string): Promise<{
     totalStudents: number;
     completedAssessments: number;
     countriesBreakdown: Array<{ countryId: string; countryName: string; count: number }>;
     gradeDistribution: Array<{ grade: string; count: number }>;
   }>;
-  getCountryAnalytics(countryId: string): Promise<{
+  getCountryAnalytics(countryId: string, organizationId?: string): Promise<{
     totalStudents: number;
     topCareers: Array<{ careerId: string; careerTitle: string; count: number }>;
     avgVisionAlignment: number;
     popularSubjects: Array<{ subject: string; count: number }>;
   }>;
-  getCareerTrends(countryId?: string): Promise<Array<{
+  getCareerTrends(countryId?: string, organizationId?: string): Promise<Array<{
     careerId: string;
     careerTitle: string;
     recommendationCount: number;
     avgMatchScore: number;
   }>>;
-  getSectorPipeline(countryId?: string): Promise<Array<{
+  getSectorPipeline(countryId?: string, organizationId?: string): Promise<Array<{
     sector: string;
     studentCount: number;
     avgAlignment: number;
@@ -703,13 +703,20 @@ export class DatabaseStorage implements IStorage {
   // Analytics operations
   
   // OPTIMIZED: Uses JOIN and aggregations to eliminate N+1 queries
-  async getAnalyticsOverview(countryId?: string) {
+  async getAnalyticsOverview(countryId?: string, organizationId?: string) {
     // Only count completed assessments for accurate analytics
     const conditions = [eq(assessments.isCompleted, true)];
     
     // Filter by country if specified
     if (countryId) {
       conditions.push(eq(assessments.countryId, countryId));
+    }
+    
+    // Filter by organization if specified (for org_admin access)
+    if (organizationId) {
+      conditions.push(
+        sql`${assessments.userId} IN (SELECT ${organizationMembers.userId} FROM ${organizationMembers} WHERE ${organizationMembers.organizationId} = ${organizationId})`
+      );
     }
     
     // Get total counts with a single query
@@ -758,12 +765,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   // OPTIMIZED: Uses JOINs and aggregations to eliminate N+1 queries
-  async getCountryAnalytics(countryId: string) {
+  async getCountryAnalytics(countryId: string, organizationId?: string) {
+    // Build conditions for filtering
+    const conditions = [eq(assessments.countryId, countryId), eq(assessments.isCompleted, true)];
+    
+    // Filter by organization if specified (for org_admin access)
+    if (organizationId) {
+      conditions.push(
+        sql`${assessments.userId} IN (SELECT ${organizationMembers.userId} FROM ${organizationMembers} WHERE ${organizationMembers.organizationId} = ${organizationId})`
+      );
+    }
+    
     // Get total students count with a single query
     const totalResult = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(assessments)
-      .where(and(eq(assessments.countryId, countryId), eq(assessments.isCompleted, true)));
+      .where(and(...conditions));
     const totalStudents = totalResult[0]?.count || 0;
 
     // Get top careers with JOIN in a single query
@@ -776,7 +793,7 @@ export class DatabaseStorage implements IStorage {
       .from(assessments)
       .innerJoin(recommendations, eq(assessments.id, recommendations.assessmentId))
       .leftJoin(careers, eq(recommendations.careerId, careers.id))
-      .where(and(eq(assessments.countryId, countryId), eq(assessments.isCompleted, true)))
+      .where(and(...conditions))
       .groupBy(recommendations.careerId, careers.title)
       .orderBy(sql`count(*) desc`)
       .limit(10);
@@ -786,14 +803,14 @@ export class DatabaseStorage implements IStorage {
       .select({ avg: sql<number>`avg(${recommendations.countryVisionAlignment})::float` })
       .from(assessments)
       .innerJoin(recommendations, eq(assessments.id, recommendations.assessmentId))
-      .where(and(eq(assessments.countryId, countryId), eq(assessments.isCompleted, true)));
+      .where(and(...conditions));
     const avgVisionAlignment = alignmentResult[0]?.avg || 0;
 
     // Get popular subjects - need to fetch and process since it's an array column
     const subjectsResult = await db
       .select({ favoriteSubjects: assessments.favoriteSubjects })
       .from(assessments)
-      .where(and(eq(assessments.countryId, countryId), eq(assessments.isCompleted, true), isNotNull(assessments.favoriteSubjects)));
+      .where(and(...conditions, isNotNull(assessments.favoriteSubjects)));
 
     const subjectsMap = new Map<string, number>();
     for (const row of subjectsResult) {
@@ -820,11 +837,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   // OPTIMIZED: Uses JOIN and aggregations to eliminate N+1 queries
-  async getCareerTrends(countryId?: string) {
+  async getCareerTrends(countryId?: string, organizationId?: string) {
     // Build conditions for filtering
     const conditions = [eq(assessments.isCompleted, true)];
     if (countryId) {
       conditions.push(eq(assessments.countryId, countryId));
+    }
+    
+    // Filter by organization if specified (for org_admin access)
+    if (organizationId) {
+      conditions.push(
+        sql`${assessments.userId} IN (SELECT ${organizationMembers.userId} FROM ${organizationMembers} WHERE ${organizationMembers.organizationId} = ${organizationId})`
+      );
     }
 
     // Get career trends with JOIN in a single query
@@ -861,16 +885,21 @@ export class DatabaseStorage implements IStorage {
   // - UNNEST prioritySectors array to create one row per sector
   // - GROUP BY sector with COUNT(DISTINCT assessments.id) and AVG(countryVisionAlignment)
   // - This eliminates all in-memory filtering, reducing complexity to O(1) with proper indexing
-  async getSectorPipeline(countryId?: string) {
+  async getSectorPipeline(countryId?: string, organizationId?: string) {
     // Filter countries if countryId specified
     const allCountries = countryId 
       ? [await this.getCountryById(countryId)].filter(Boolean) as typeof this.getAllCountries extends () => Promise<infer T> ? Awaited<T> : never
       : await this.getAllCountries();
 
-    // Fetch completed assessments (filtered by country if specified)
+    // Fetch completed assessments (filtered by country and/or organization if specified)
     const conditions = [eq(assessments.isCompleted, true)];
     if (countryId) {
       conditions.push(eq(assessments.countryId, countryId));
+    }
+    if (organizationId) {
+      conditions.push(
+        sql`${assessments.userId} IN (SELECT ${organizationMembers.userId} FROM ${organizationMembers} WHERE ${organizationMembers.organizationId} = ${organizationId})`
+      );
     }
     const allAssessments = await db.select().from(assessments).where(and(...conditions));
     const allRecs = await db.select().from(recommendations);
@@ -1540,6 +1569,39 @@ export class DatabaseStorage implements IStorage {
       throw new Error('Quota increment must be an integer');
     }
 
+    // Check if organization has unlimited licenses
+    const org = await this.getOrganizationById(id);
+    if (!org) {
+      throw new Error(`Organization ${id} not found`);
+    }
+
+    // If unlimited licenses, just update the usedLicenses counter without checks
+    if (org.isUnlimitedLicenses) {
+      const [organization] = await db
+        .update(organizations)
+        .set({
+          usedLicenses: sql`${organizations.usedLicenses} + ${increment}`,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(organizations.id, id),
+            sql`${organizations.usedLicenses} + ${increment} >= 0` // Only check we don't go below 0
+          )
+        )
+        .returning();
+
+      if (!organization) {
+        const wouldBe = org.usedLicenses + increment;
+        if (wouldBe < 0) {
+          throw new Error(`Cannot decrement quota below 0 (current: ${org.usedLicenses}, increment: ${increment})`);
+        }
+        throw new Error('Quota update failed for unknown reason');
+      }
+      return organization;
+    }
+
+    // Regular quota enforcement for limited licenses
     const [organization] = await db
       .update(organizations)
       .set({
@@ -1556,10 +1618,6 @@ export class DatabaseStorage implements IStorage {
       .returning();
 
     if (!organization) {
-      const org = await this.getOrganizationById(id);
-      if (!org) {
-        throw new Error(`Organization ${id} not found`);
-      }
       const wouldBe = org.usedLicenses + increment;
       if (wouldBe < 0) {
         throw new Error(`Cannot decrement quota below 0 (current: ${org.usedLicenses}, increment: ${increment})`);

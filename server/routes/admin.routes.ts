@@ -161,17 +161,18 @@ export function registerAdminRoutes(app: Express) {
 
   app.post("/api/admin/organizations", isAuthenticated, isAdmin, async (req, res) => {
     try {
-      const { name, adminUserId, totalLicenses } = req.body;
+      const { name, adminUserId, totalLicenses, isUnlimitedLicenses = false } = req.body;
       
-      if (!name || !adminUserId || !totalLicenses) {
-        return res.status(400).json({ message: "Missing required fields: name, adminUserId, totalLicenses" });
+      if (!name || !adminUserId || (!totalLicenses && !isUnlimitedLicenses)) {
+        return res.status(400).json({ message: "Missing required fields: name, adminUserId, and either totalLicenses or isUnlimitedLicenses" });
       }
 
       const organization = await storage.createOrganization({
         name,
         adminUserId,
-        totalLicenses: parseInt(totalLicenses),
+        totalLicenses: isUnlimitedLicenses ? 0 : parseInt(totalLicenses),
         usedLicenses: 0,
+        isUnlimitedLicenses: Boolean(isUnlimitedLicenses),
       });
 
       res.status(201).json(organization);
@@ -196,11 +197,12 @@ export function registerAdminRoutes(app: Express) {
 
   app.patch("/api/admin/organizations/:id", isAuthenticated, isAdmin, async (req, res) => {
     try {
-      const { name, totalLicenses } = req.body;
+      const { name, totalLicenses, isUnlimitedLicenses } = req.body;
       const updates: any = {};
       
       if (name !== undefined) updates.name = name;
       if (totalLicenses !== undefined) updates.totalLicenses = parseInt(totalLicenses);
+      if (isUnlimitedLicenses !== undefined) updates.isUnlimitedLicenses = Boolean(isUnlimitedLicenses);
 
       const organization = await storage.updateOrganization(req.params.id, updates);
       res.json(organization);

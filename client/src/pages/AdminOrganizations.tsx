@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { 
   Home, Plus, Download, Upload, Edit, Trash2, GraduationCap, 
   Users, Building2, Key, RefreshCw, FileDown, Lock, LockOpen, User, LogOut, BarChart
@@ -26,6 +27,7 @@ interface Organization {
   adminUserId: string;
   totalLicenses: number;
   usedLicenses: number;
+  isUnlimitedLicenses: boolean;
   logoUrl?: string | null;
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
@@ -243,11 +245,14 @@ export default function AdminOrganizations() {
                           <div className="flex-1 min-w-0">
                             <p className="font-medium">{org.name}</p>
                             <p className="text-xs text-muted-foreground">
-                              {org.usedLicenses} / {org.totalLicenses} licenses used
+                              {org.isUnlimitedLicenses 
+                                ? `${org.usedLicenses} licenses used (Unlimited)`
+                                : `${org.usedLicenses} / ${org.totalLicenses} licenses used`
+                              }
                             </p>
                           </div>
-                          <Badge variant={org.usedLicenses < org.totalLicenses ? "default" : "secondary"}>
-                            {org.usedLicenses < org.totalLicenses ? "Active" : "Full"}
+                          <Badge variant={org.isUnlimitedLicenses || org.usedLicenses < org.totalLicenses ? "default" : "secondary"}>
+                            {org.isUnlimitedLicenses ? "Unlimited" : (org.usedLicenses < org.totalLicenses ? "Active" : "Full")}
                           </Badge>
                         </div>
                       </button>
@@ -522,6 +527,7 @@ function CreateOrganizationForm({ onSuccess }: { onSuccess: () => void }) {
   const [formData, setFormData] = useState({
     name: "",
     totalLicenses: 50,
+    isUnlimitedLicenses: false,
     countryId: "" as string | undefined,
     logoUrl: "",
   });
@@ -576,18 +582,35 @@ function CreateOrganizationForm({ onSuccess }: { onSuccess: () => void }) {
           />
         </div>
 
-        <div>
-          <Label htmlFor="total-licenses">Total Licenses *</Label>
-          <Input
-            id="total-licenses"
-            type="number"
-            min="1"
-            value={formData.totalLicenses}
-            onChange={(e) => setFormData(f => ({ ...f, totalLicenses: parseInt(e.target.value) }))}
-            required
-            data-testid="input-total-licenses"
+        <div className="flex items-center justify-between rounded-lg border p-4">
+          <div className="space-y-0.5">
+            <Label htmlFor="unlimited-licenses" className="text-base">Unlimited Licenses</Label>
+            <p className="text-sm text-muted-foreground">
+              Allow unlimited student assessments (superadmin only)
+            </p>
+          </div>
+          <Switch
+            id="unlimited-licenses"
+            checked={formData.isUnlimitedLicenses}
+            onCheckedChange={(checked) => setFormData(f => ({ ...f, isUnlimitedLicenses: checked }))}
+            data-testid="switch-unlimited-licenses"
           />
         </div>
+
+        {!formData.isUnlimitedLicenses && (
+          <div>
+            <Label htmlFor="total-licenses">Total Licenses *</Label>
+            <Input
+              id="total-licenses"
+              type="number"
+              min="1"
+              value={formData.totalLicenses}
+              onChange={(e) => setFormData(f => ({ ...f, totalLicenses: parseInt(e.target.value) }))}
+              required
+              data-testid="input-total-licenses"
+            />
+          </div>
+        )}
 
         <div>
           <Label htmlFor="org-country">Default Country (Optional)</Label>
