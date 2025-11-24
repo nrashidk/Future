@@ -207,9 +207,54 @@ export default function Profile() {
                     {getAccountTypeBadge()}
                   </div>
                 </>
+              ) : isOrgAdmin ? (
+                <>
+                  {/* Two-column layout for org admins: name/email on left, username/organization on right */}
+                  <div className="grid grid-cols-2 gap-6">
+                    {/* Left column: Name and Email */}
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Name</p>
+                        <p className="font-medium" data-testid="text-user-name">
+                          {user.firstName || user.lastName ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : 'Not provided'}
+                        </p>
+                      </div>
+                      {user.email && (
+                        <div>
+                          <p className="text-sm text-muted-foreground">Email</p>
+                          <p className="font-medium" data-testid="text-user-email">{user.email}</p>
+                        </div>
+                      )}
+                    </div>
+                    
+                    {/* Right column: Username and Organization */}
+                    <div className="space-y-4">
+                      {user.username && (
+                        <div>
+                          <p className="text-sm text-muted-foreground">Username</p>
+                          <p className="font-medium" data-testid="text-user-username">{user.username}</p>
+                        </div>
+                      )}
+                      {((user as any).organizationName || organization) && (
+                        <div>
+                          <p className="text-sm text-muted-foreground">Organization</p>
+                          <p className="font-medium text-primary" data-testid="text-organization-name">
+                            {(user as any).organizationName || organization?.name}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Third line: Account Type */}
+                  <div className="pt-2 border-t">
+                    <p className="text-sm text-muted-foreground mb-2">Account Type</p>
+                    {getAccountTypeBadge()}
+                  </div>
+                </>
               ) : (
                 <>
-                  {/* Regular layout for non-org students */}
+                  {/* Regular layout for individual users */}
                   <div>
                     <p className="text-sm text-muted-foreground">Name</p>
                     <p className="font-medium" data-testid="text-user-name">
@@ -226,14 +271,6 @@ export default function Profile() {
                     <div>
                       <p className="text-sm text-muted-foreground">Username</p>
                       <p className="font-medium" data-testid="text-user-username">{user.username}</p>
-                    </div>
-                  )}
-                  {isOrgAdmin && ((user as any).organizationName || organization) && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">Organization</p>
-                      <p className="font-medium text-primary" data-testid="text-organization-name">
-                        {(user as any).organizationName || organization?.name}
-                      </p>
                     </div>
                   )}
                   <div>
@@ -256,7 +293,7 @@ export default function Profile() {
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <p className="text-sm text-muted-foreground">Status</p>
-                {user.isPremium ? (
+                {(user.isPremium || isOrgAdmin) ? (
                   <Badge className="bg-yellow-500 hover:bg-yellow-600" data-testid="badge-premium-status">
                     <Crown className="w-3 h-3 mr-1" />
                     Premium
