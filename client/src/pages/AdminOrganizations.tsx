@@ -189,10 +189,10 @@ export default function AdminOrganizations() {
           <p className="text-muted-foreground text-lg">Manage Group Assessment Organizations</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:items-start">
           {/* Organizations List */}
-          <div className="lg:col-span-1 flex">
-            <Card className="flex-1 flex flex-col">
+          <div className="lg:col-span-1">
+            <Card>
               <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-4">
                 <div>
                   <CardTitle className="text-lg">Organizations</CardTitle>
@@ -216,7 +216,7 @@ export default function AdminOrganizations() {
                   </Dialog>
                 )}
               </CardHeader>
-              <CardContent className="flex-1">
+              <CardContent className="min-h-[180px] flex flex-col">
                 {orgsLoading ? (
                   <p className="text-sm text-muted-foreground text-center py-8">Loading...</p>
                 ) : organizations.length === 0 ? (
