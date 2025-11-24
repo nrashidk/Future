@@ -720,14 +720,42 @@ export default function ResultsPrint() {
                   </div>
                 )}
 
-                {/* Why This Career */}
+                {/* Why This Career - Premium or Basic */}
                 <div className="mb-6 p-4 bg-background/30 rounded-lg">
                   <h4 className="font-semibold mb-2 flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-primary" />
                     Why This Career?
                   </h4>
-                  <p className="text-sm font-body text-foreground/90">{rec.reasoning}</p>
+                  <div className="text-sm font-body text-foreground/90 whitespace-pre-line">
+                    {(rec as any).premiumReasoning || rec.reasoning}
+                  </div>
                 </div>
+
+                {/* Work Style Fit - Premium Only */}
+                {(rec as any).workStyleFit && (
+                  <div className="mb-6 p-4 bg-primary/10 rounded-lg border-2 border-primary/20">
+                    <h4 className="font-semibold mb-2 flex items-center gap-2 text-primary">
+                      <CheckCircle2 className="w-4 h-4" />
+                      Your Work Style Fit
+                    </h4>
+                    <div className="text-sm font-body text-foreground/90 whitespace-pre-line">
+                      {(rec as any).workStyleFit}
+                    </div>
+                  </div>
+                )}
+
+                {/* Personal Strengths & Growth Areas - Premium Only */}
+                {(rec as any).strengthsGrowth && (
+                  <div className="mb-6 p-4 bg-primary/10 rounded-lg border-2 border-primary/20">
+                    <h4 className="font-semibold mb-2 flex items-center gap-2 text-primary">
+                      <CheckCircle2 className="w-4 h-4" />
+                      Personal Strengths & Growth Areas
+                    </h4>
+                    <div className="text-sm font-body text-foreground/90 whitespace-pre-line">
+                      {(rec as any).strengthsGrowth}
+                    </div>
+                  </div>
+                )}
 
                 {/* Education Required */}
                 <div className="mb-6">
@@ -738,15 +766,15 @@ export default function ResultsPrint() {
                   <p className="text-sm font-body">{rec.requiredEducation}</p>
                 </div>
 
-                {/* Next Steps */}
-                {rec.actionSteps && rec.actionSteps.length > 0 && (
+                {/* Next Steps - Premium (7-8 steps) or Basic (2-3 steps) */}
+                {(((rec as any).premiumActionSteps && (rec as any).premiumActionSteps.length > 0) || (rec.actionSteps && rec.actionSteps.length > 0)) && (
                   <div>
                     <h4 className="font-semibold mb-2 text-sm">Next Steps</h4>
                     <ul className="space-y-2 text-sm font-body">
-                      {rec.actionSteps.slice(0, 3).map((step: string, idx: number) => (
+                      {((rec as any).premiumActionSteps || rec.actionSteps).map((step: string, idx: number) => (
                         <li key={idx} className="flex items-start gap-2">
-                          <span className="text-primary font-bold">{idx + 1}.</span>
-                          <span>{step}</span>
+                          <span className="text-primary font-bold flex-shrink-0">{idx + 1}.</span>
+                          <span className="whitespace-pre-line">{step}</span>
                         </li>
                       ))}
                     </ul>
