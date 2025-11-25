@@ -77,15 +77,39 @@ if (app.get("env") === "development") {
 
 declare module 'http' {
   interface IncomingMessage {
-    rawBody: unknown
+    rawBody: Buffer
   }
 }
-app.use(express.json({
-  verify: (req, _res, buf) => {
-    req.rawBody = buf;
+
+// Stripe webhook requires raw body for signature verification
+// Must be registered BEFORE express.json() to capture unparsed body
+app.use("/api/webhook/stripe", express.raw({ type: "application/json" }));
+
+// Standard JSON parser for all other routes EXCEPT Stripe webhook
+// Stripe webhook must receive raw body for signature verification
+app.use((req, res, next) => {
+  // Skip JSON parsing for Stripe webhook paths - they need raw body
+  // Use startsWith to handle trailing slashes, query params, etc.
+  if (req.path.startsWith("/api/webhook/stripe")) {
+    return next();
   }
-}));
-app.use(express.urlencoded({ extended: false }));
+  
+  // Apply JSON parser with raw body capture for other routes
+  express.json({
+    verify: (req, _res, buf) => {
+      req.rawBody = buf;
+    }
+  })(req, res, next);
+});
+
+// URL-encoded parser for all routes EXCEPT Stripe webhook
+app.use((req, res, next) => {
+  // Skip URL-encoded parsing for Stripe webhook paths - they need raw body
+  if (req.path.startsWith("/api/webhook/stripe")) {
+    return next();
+  }
+  express.urlencoded({ extended: false })(req, res, next);
+});
 app.use(cookieParser());
 
 // CSRF cookie is set early (just sets a cookie, doesn't validate)

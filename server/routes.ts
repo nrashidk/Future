@@ -16,6 +16,7 @@ import { registerOrganizationRoutes } from "./routes/organization.routes";
 import { registerAdminRoutes } from "./routes/admin.routes";
 import { registerSuperadminRoutes } from "./routes/superadmin.routes";
 import { registerPaymentRoutes } from "./routes/payment.routes";
+import { registerWebhookRoutes } from "./routes/webhook.routes";
 import { registerPublicRoutes } from "./routes/public.routes";
 import { registerFilesRoutes } from "./routes/files.routes";
 
@@ -42,6 +43,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerAdminRoutes(app);
   registerSuperadminRoutes(app);
   registerPaymentRoutes(app);
+  registerWebhookRoutes(app); // Stripe webhooks (signature verified)
   registerFilesRoutes(app);
 
   // Create and return HTTP server

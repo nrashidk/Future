@@ -90,8 +90,9 @@ export function registerPasswordResetRoutes(app: Express) {
         if (user.email) {
           await sendPasswordResetEmail(user.email, token, userName);
         } else {
-          // For organization students without email, log the token (admin can retrieve)
-          console.log(`[Password Reset] Token generated for user ${user.username}:`, token);
+          // SECURITY: Never log tokens. For org students without email, 
+          // admins should use the admin password reset feature instead.
+          console.log(`[Password Reset] Reset requested for user without email: ${user.username}. Admin should use credential management.`);
         }
       }
 

@@ -51,6 +51,9 @@ export const ENV_VARS = {
   OPTIONAL: [
     "STRIPE_SECRET_KEY",
     "STRIPE_PUBLISHABLE_KEY",
+    "STRIPE_WEBHOOK_SECRET", // Required for secure webhook verification
+    "RESEND_API_KEY", // Required for email delivery
+    "APP_URL", // Used in email links
     "NODE_ENV",
   ],
 } as const;

@@ -44,12 +44,13 @@ export function validateCsrf(req: Request, res: Response, next: NextFunction) {
     return next();
   }
   
-  // Exempt authentication and pre-auth endpoints from CSRF
+  // Exempt authentication, webhooks, and pre-auth endpoints from CSRF
   // Note: Password reset request is rate-limited, just sends email (no state change)
   // Password reset action requires CSRF token for defense in depth
+  // Webhooks are exempt because they use their own signature verification
   const exemptPaths = [
     "/api/callback",
-    "/api/webhook",
+    "/api/webhook", // Stripe webhooks use signature verification instead
     "/api/login",
     "/api/login/username",
     "/api/password-reset/request", // Rate-limited, just sends email (no state change)
