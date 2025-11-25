@@ -31,6 +31,12 @@ The application features a playful, student-friendly sticky notes aesthetic with
 - **Data Import/Export**: Bulk student import via CSV with validation and error reporting. Organization data export (students, assessments, analytics) in CSV or JSON format. All imports/exports are tracked in the files table with processing status.
 - **Country Availability**: Currently configured for UAE only, with all quiz questions based on the UAE curriculum.
 - **Security & Performance**: Includes critical security fixes (environment-based superadmin emails, async admin middleware, cryptographic guest tokens, rate limiting, Helmet security headers, role-based access control), performance optimizations (N+1 query elimination, database indexes), and robust input validation.
+- **CSRF Protection**: Double-submit cookie pattern for all state-changing endpoints, with correct middleware ordering and appropriate exemptions.
+- **Guest Token Security**: Guest tokens stored in httpOnly cookies instead of localStorage for XSS protection.
+- **Input Sanitization**: DOMPurify-based sanitization for all user-submitted assessment data.
+- **GDPR Compliance**: User data export (JSON) and account deletion endpoints with proper authentication.
+- **Session Security**: Session timeout reduced to 24 hours for enhanced security.
+- **Password Reset System**: Complete email-based password reset flow with Resend integration, cryptographic tokens (32-byte), 1-hour expiry, one-time use, rate limiting (3 requests/15min for requests, 5 attempts/hour for resets), and CSRF protection.
 - **Code Quality**: Modularized routes, extracted middleware and constants, environment variable validation, request logging, and response compression.
 
 ### System Design Choices
