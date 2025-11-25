@@ -226,7 +226,7 @@ export function registerFilesRoutes(app: Express) {
     }
   });
   
-  // Download file via share token (no authentication required)
+  // Download file via share token (no authentication required, one-time use)
   app.get("/api/files/shared/:token", async (req: Request, res: Response) => {
     try {
       const file = await storage.getFileByShareToken(req.params.token);
@@ -237,6 +237,10 @@ export function registerFilesRoutes(app: Express) {
       
       // Increment download count
       await storage.incrementDownloadCount(file.id);
+      
+      // Invalidate share token after use (one-time download)
+      // This prevents indefinite access via leaked URLs
+      await storage.invalidateShareToken(file.id);
       
       // Send file
       res.download(file.filePath, file.originalFilename);

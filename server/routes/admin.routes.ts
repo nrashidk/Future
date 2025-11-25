@@ -1033,7 +1033,16 @@ export function registerAdminRoutes(app: Express) {
         mimeType = 'application/json';
         filename = `${organization.name.replace(/[^a-zA-Z0-9]/g, '_')}_Students_${Date.now()}.json`;
       } else {
-        // CSV export (reuse existing CSV logic)
+        // CSV export with formula injection protection
+        const sanitizeCSV = (value: string): string => {
+          const val = String(value || '').replace(/"/g, '""');
+          // Neutralize formula injection by prefixing with single quote
+          if (val.length > 0 && /^[=+\-@\t\r]/.test(val)) {
+            return `"'${val}"`;
+          }
+          return `"${val}"`;
+        };
+
         const csvRows = [
           'Username,Full Name,Grade,Status,Created Date'
         ];
@@ -1048,11 +1057,11 @@ export function registerAdminRoutes(app: Express) {
           const createdDate = member.createdAt ? new Date(member.createdAt).toLocaleDateString() : '';
 
           csvRows.push([
-            `"${(memberUser.username || '').replace(/"/g, '""')}"`,
-            `"${fullName.replace(/"/g, '""')}"`,
-            `"${member.grade || ''}"`,
+            sanitizeCSV(memberUser.username || ''),
+            sanitizeCSV(fullName),
+            sanitizeCSV(member.grade || ''),
             completedAssessment ? 'Completed' : 'Pending',
-            `"${createdDate}"`
+            sanitizeCSV(createdDate)
           ].join(","));
         }
 
@@ -1154,6 +1163,16 @@ export function registerAdminRoutes(app: Express) {
         mimeType = 'application/json';
         filename = `${organization.name.replace(/[^a-zA-Z0-9]/g, '_')}_Assessments_${Date.now()}.json`;
       } else {
+        // CSV export with formula injection protection
+        const sanitizeCSV = (value: string): string => {
+          const val = String(value || '').replace(/"/g, '""');
+          // Neutralize formula injection by prefixing with single quote
+          if (val.length > 0 && /^[=+\-@\t\r]/.test(val)) {
+            return `"'${val}"`;
+          }
+          return `"${val}"`;
+        };
+
         const csvRows = [
           'Username,Full Name,Grade,Assessment Type,Completed Date,Top Career 1,Top Career 2,Top Career 3'
         ];
@@ -1161,14 +1180,14 @@ export function registerAdminRoutes(app: Express) {
         for (const data of assessmentsData) {
           const completedDate = data.completedAt ? new Date(data.completedAt).toLocaleDateString() : '';
           csvRows.push([
-            `"${(data.username || '').replace(/"/g, '""')}"`,
-            `"${(data.fullName || '').replace(/"/g, '""')}"`,
-            `"${data.grade || ''}"`,
-            `"${data.assessmentType || ''}"`,
-            `"${completedDate}"`,
-            `"${(data.topCareer1 || '').replace(/"/g, '""')}"`,
-            `"${(data.topCareer2 || '').replace(/"/g, '""')}"`,
-            `"${(data.topCareer3 || '').replace(/"/g, '""')}"`,
+            sanitizeCSV(data.username || ''),
+            sanitizeCSV(data.fullName || ''),
+            sanitizeCSV(data.grade || ''),
+            sanitizeCSV(data.assessmentType || ''),
+            sanitizeCSV(completedDate),
+            sanitizeCSV(data.topCareer1 || ''),
+            sanitizeCSV(data.topCareer2 || ''),
+            sanitizeCSV(data.topCareer3 || ''),
           ].join(","));
         }
 
@@ -1370,13 +1389,21 @@ export function registerAdminRoutes(app: Express) {
         results.failed
       );
 
-      // Save credentials to a secure CSV file
+      // Save credentials to a secure CSV file with formula injection protection
       let credentialsFile = null;
       if (results.credentials.length > 0) {
+        const sanitizeCSV = (value: string): string => {
+          const val = String(value || '').replace(/"/g, '""');
+          if (val.length > 0 && /^[=+\-@\t\r]/.test(val)) {
+            return `"'${val}"`;
+          }
+          return `"${val}"`;
+        };
+
         const credentialsCsv = [
           'Username,Password,Full Name,Grade',
           ...results.credentials.map(c => 
-            `"${c.username}","${c.password}","${c.fullName}","${c.grade}"`
+            `${sanitizeCSV(c.username)},${sanitizeCSV(c.password)},${sanitizeCSV(c.fullName)},${sanitizeCSV(c.grade)}`
           )
         ].join('\n');
 

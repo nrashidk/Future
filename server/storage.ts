@@ -287,6 +287,7 @@ export interface IStorage {
   updateFileProcessingStatus(id: string, status: 'pending' | 'processing' | 'completed' | 'failed', error?: string, processedRecords?: number, failedRecords?: number): Promise<File>;
   deleteFile(id: string): Promise<boolean>;
   generateShareToken(fileId: string, expiryHours?: number): Promise<{ shareToken: string; expiry: Date }>;
+  invalidateShareToken(fileId: string): Promise<void>;
   incrementDownloadCount(id: string): Promise<File>;
 }
 
@@ -1944,6 +1945,17 @@ export class DatabaseStorage implements IStorage {
       .where(eq(files.id, fileId));
 
     return { shareToken, expiry };
+  }
+
+  async invalidateShareToken(fileId: string): Promise<void> {
+    await db
+      .update(files)
+      .set({
+        shareToken: null,
+        shareTokenExpiry: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(files.id, fileId));
   }
 
   async incrementDownloadCount(id: string): Promise<File> {
