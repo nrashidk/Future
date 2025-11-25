@@ -1539,7 +1539,6 @@ export async function seedDatabase() {
 
       console.log("✓ Test organization admin created:");
       console.log(`  📧 Username: schooladmin`);
-      console.log(`  🔑 Password: ${adminPassword}`);
       console.log(`  🏫 Organization: ${testOrg.name}`);
       console.log(`  📊 Total Licenses: ${testOrg.totalLicenses}`);
     } else {
