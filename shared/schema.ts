@@ -116,6 +116,7 @@ export const organizationMembers = pgTable("organization_members", {
   studentGender: text("student_gender"), // Pre-filled student gender ('male' or 'female')
   grade: text("grade"), // Pre-filled grade ('grade8', 'grade9', etc.)
   role: text("role").notNull().default("student"), // 'student' or 'admin'
+  isPrimaryAdmin: boolean("is_primary_admin").notNull().default(false), // True for the original admin created with the organization
   
   // Quota tracking
   hasCompletedAssessment: boolean("has_completed_assessment").notNull().default(false),
@@ -837,3 +838,48 @@ export const insertFileSchema = createInsertSchema(files).omit({
   failedRecords: true,
 });
 export type InsertFile = z.infer<typeof insertFileSchema>;
+
+// Organization Events (Audit Trail for License Changes, Admin Actions)
+export const organizationEvents = pgTable("organization_events", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id),
+  
+  // Event metadata
+  eventType: text("event_type").notNull(), // 'license_added', 'license_removed', 'unlimited_enabled', 'unlimited_disabled', 'admin_added', 'admin_removed', 'admin_promoted', 'student_created', 'student_deleted', 'password_reset'
+  eventDescription: text("event_description").notNull(),
+  
+  // Actor information
+  performedBy: varchar("performed_by").notNull().references(() => users.id),
+  performedByRole: text("performed_by_role").notNull(), // 'superadmin', 'org_admin', 'primary_admin'
+  
+  // Change details (JSON for flexibility)
+  previousValue: jsonb("previous_value"), // e.g., { licenses: 50 }
+  newValue: jsonb("new_value"), // e.g., { licenses: 75 }
+  affectedUserId: varchar("affected_user_id").references(() => users.id), // For admin/student actions
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_org_events_organization").on(table.organizationId),
+  index("idx_org_events_type").on(table.eventType),
+  index("idx_org_events_performed_by").on(table.performedBy),
+  index("idx_org_events_created_at").on(table.createdAt),
+]);
+
+export const organizationEventsRelations = relations(organizationEvents, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [organizationEvents.organizationId],
+    references: [organizations.id],
+  }),
+  performer: one(users, {
+    fields: [organizationEvents.performedBy],
+    references: [users.id],
+  }),
+}));
+
+export type OrganizationEvent = typeof organizationEvents.$inferSelect;
+export const insertOrganizationEventSchema = createInsertSchema(organizationEvents).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertOrganizationEvent = z.infer<typeof insertOrganizationEventSchema>;

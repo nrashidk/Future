@@ -14,6 +14,7 @@ import ResultsPrint from "@/pages/ResultsPrint";
 import Analytics from "@/pages/Analytics";
 import Admin from "@/pages/Admin";
 import AdminOrganizations from "@/pages/AdminOrganizations";
+import SuperadminDashboard from "@/pages/SuperadminDashboard";
 import StudentLogin from "@/pages/StudentLogin";
 import AuthCallback from "@/pages/AuthCallback";
 import PrivacyPolicy from "@/pages/PrivacyPolicy";
@@ -38,6 +39,7 @@ function Router() {
       <Route path="/profile" component={Profile} />
       <Route path="/admin" component={Admin} />
       <Route path="/admin/organizations" component={AdminOrganizations} />
+      <Route path="/superadmin" component={SuperadminDashboard} />
       <Route path="/login/student" component={StudentLogin} />
       <Route path="/auth/callback" component={AuthCallback} />
       <Route path="/privacy" component={PrivacyPolicy} />

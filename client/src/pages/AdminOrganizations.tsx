@@ -185,338 +185,325 @@ export default function AdminOrganizations() {
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto py-12 px-4">
-        <div className="mb-12 text-center">
+      <div className="max-w-7xl mx-auto py-12 px-4 space-y-8">
+        <div className="text-center">
           <h1 className="text-4xl md:text-5xl font-bold mb-4">Organizations Dashboard</h1>
           <p className="text-muted-foreground text-lg">Manage Group Assessment Organizations</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:items-start">
-          {/* Organizations List */}
-          <div className="lg:col-span-1">
+        {/* Organization Selector */}
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 pb-4">
+            <div>
+              <CardTitle className="text-lg">Select Organization</CardTitle>
+              <CardDescription>{organizations.length} organization{organizations.length !== 1 ? 's' : ''}</CardDescription>
+            </div>
+            {user?.accountType !== 'org_admin' && (
+              <Dialog open={isCreateOrgDialogOpen} onOpenChange={setIsCreateOrgDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button size="sm" data-testid="button-create-organization">
+                    <Plus className="w-4 h-4 mr-2" />
+                    New Organization
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <CreateOrganizationForm 
+                    onSuccess={() => {
+                      setIsCreateOrgDialogOpen(false);
+                      queryClient.invalidateQueries({ queryKey: ['/api/admin/organizations'] });
+                    }}
+                  />
+                </DialogContent>
+              </Dialog>
+            )}
+          </CardHeader>
+          <CardContent>
+            {orgsLoading ? (
+              <p className="text-sm text-muted-foreground text-center py-4">Loading organizations...</p>
+            ) : organizations.length === 0 ? (
+              <div className="text-center py-8">
+                <StickyNote color="yellow" rotation="1" className="mx-auto mb-4">
+                  <Building2 className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
+                  <p className="text-sm text-muted-foreground">No organizations yet</p>
+                </StickyNote>
+              </div>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {organizations.map((org) => (
+                  <Button
+                    key={org.id}
+                    variant={selectedOrgId === org.id ? "default" : "outline"}
+                    onClick={() => setSelectedOrgId(org.id)}
+                    className="flex items-center gap-2"
+                    data-testid={`org-item-${org.id}`}
+                  >
+                    <Building2 className="w-4 h-4" />
+                    <span>{org.name}</span>
+                    <Badge variant={selectedOrgId === org.id ? "secondary" : (org.isUnlimitedLicenses || org.usedLicenses < org.totalLicenses ? "default" : "secondary")} className="ml-1">
+                      {org.isUnlimitedLicenses ? "Unlimited" : `${org.usedLicenses}/${org.totalLicenses}`}
+                    </Badge>
+                  </Button>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {!selectedOrg ? (
+          <Card className="flex items-center justify-center py-16">
+            <CardContent className="text-center">
+              <StickyNote color="blue" rotation="-1" className="mx-auto">
+                <Users className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
+                <p className="text-muted-foreground">
+                  Select an organization above to view details
+                </p>
+              </StickyNote>
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            {/* Organization Details - Centered */}
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-4">
-                <div>
-                  <CardTitle className="text-lg">Organizations</CardTitle>
-                  <CardDescription>{organizations.length} total</CardDescription>
-                </div>
-                {user?.accountType !== 'org_admin' && (
-                  <Dialog open={isCreateOrgDialogOpen} onOpenChange={setIsCreateOrgDialogOpen}>
+              <CardHeader>
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    {selectedOrg.logoUrl && (
+                      <img 
+                        src={selectedOrg.logoUrl} 
+                        alt={`${selectedOrg.name} logo`} 
+                        className="h-12 w-12 object-contain rounded"
+                        data-testid="img-org-logo-display"
+                      />
+                    )}
+                    <div>
+                      <CardTitle className="text-2xl">{selectedOrg.name}</CardTitle>
+                      <CardDescription>Organization ID: {selectedOrg.id}</CardDescription>
+                    </div>
+                  </div>
+                  <Dialog open={isEditOrgDialogOpen} onOpenChange={setIsEditOrgDialogOpen}>
                     <DialogTrigger asChild>
-                      <Button size="sm" data-testid="button-create-organization">
-                        <Plus className="w-4 h-4" />
+                      <Button variant="outline" size="sm" data-testid="button-edit-organization">
+                        <Edit className="w-4 h-4 mr-2" />
+                        Edit Details
                       </Button>
                     </DialogTrigger>
                     <DialogContent>
-                      <CreateOrganizationForm 
+                      <EditOrganizationForm 
+                        organization={selectedOrg}
                         onSuccess={() => {
-                          setIsCreateOrgDialogOpen(false);
+                          setIsEditOrgDialogOpen(false);
                           queryClient.invalidateQueries({ queryKey: ['/api/admin/organizations'] });
                         }}
                       />
                     </DialogContent>
                   </Dialog>
-                )}
+                </div>
               </CardHeader>
-              <CardContent className="min-h-[130px]">
-                {orgsLoading ? (
-                  <p className="text-sm text-muted-foreground text-center py-8">Loading...</p>
-                ) : organizations.length === 0 ? (
+            </Card>
+
+            {/* Licenses Section */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <StickyNote color="green" rotation="1" className="p-6">
+                <p className="text-sm text-muted-foreground mb-2">Total Licenses</p>
+                <p className="text-3xl font-bold">
+                  {selectedOrg.isUnlimitedLicenses ? "Unlimited" : selectedOrg.totalLicenses}
+                </p>
+              </StickyNote>
+              <StickyNote color="blue" rotation="-1" className="p-6">
+                <p className="text-sm text-muted-foreground mb-2">Used Licenses</p>
+                <p className="text-3xl font-bold">{selectedOrg.usedLicenses}</p>
+              </StickyNote>
+              <StickyNote color="yellow" rotation="2" className="p-6">
+                <p className="text-sm text-muted-foreground mb-2">Available</p>
+                <p className="text-3xl font-bold">
+                  {selectedOrg.isUnlimitedLicenses ? "Unlimited" : (selectedOrg.totalLicenses - selectedOrg.usedLicenses)}
+                </p>
+              </StickyNote>
+            </div>
+
+            {/* Students Roster - Full Width */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 pb-4 flex-wrap">
+                <div>
+                  <CardTitle className="text-lg">Student Roster</CardTitle>
+                  <CardDescription>
+                    {members.length} students
+                    {selectedMemberIds.length > 0 && (
+                      <span className="text-primary font-medium ml-2">
+                        ({selectedMemberIds.length} selected)
+                      </span>
+                    )}
+                  </CardDescription>
+                </div>
+                <div className="flex gap-2 flex-wrap">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    data-testid="button-export-reports"
+                    onClick={() => {
+                      window.open(`/api/admin/organizations/${selectedOrgId}/export/reports`, '_blank');
+                    }}
+                    disabled={members.filter(m => m.isLocked).length === 0}
+                  >
+                    <FileDown className="w-4 h-4 mr-2" />
+                    Export Reports (ZIP)
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    data-testid="button-export-csv"
+                    onClick={() => {
+                      window.open(`/api/admin/organizations/${selectedOrgId}/export/csv`, '_blank');
+                    }}
+                    disabled={members.length === 0}
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Export Data (CSV)
+                  </Button>
+                  {selectedMemberIds.length > 0 && (
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" size="sm" data-testid="button-bulk-delete">
+                          <Trash2 className="w-4 h-4 mr-2" />
+                          Delete Selected ({selectedMemberIds.length})
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete {selectedMemberIds.length} Students</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete {selectedMemberIds.length} selected student(s)? This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction 
+                            onClick={() => bulkDeleteMutation.mutate(selectedMemberIds)}
+                            className="bg-destructive hover:bg-destructive/90"
+                            data-testid="button-confirm-bulk-delete"
+                          >
+                            Delete {selectedMemberIds.length} Students
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
+                  <Dialog open={isBulkUploadDialogOpen} onOpenChange={setIsBulkUploadDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" size="sm" data-testid="button-bulk-upload">
+                        <Upload className="w-4 h-4 mr-2" />
+                        CSV Upload
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-w-2xl">
+                      <BulkUploadForm 
+                        organizationId={selectedOrg.id}
+                        onSuccess={() => {
+                          setIsBulkUploadDialogOpen(false);
+                          queryClient.invalidateQueries({ queryKey: ['/api/admin/organizations', selectedOrgId, 'members'] });
+                          queryClient.invalidateQueries({ queryKey: ['/api/admin/organizations'] });
+                        }}
+                      />
+                    </DialogContent>
+                  </Dialog>
+                  <Dialog open={isCreateMemberDialogOpen} onOpenChange={setIsCreateMemberDialogOpen}>
+                    <DialogTrigger asChild>
+                      <Button size="sm" data-testid="button-create-member">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Student
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <CreateMemberForm 
+                        organizationId={selectedOrg.id}
+                        onSuccess={() => {
+                          setIsCreateMemberDialogOpen(false);
+                          queryClient.invalidateQueries({ queryKey: ['/api/admin/organizations', selectedOrgId, 'members'] });
+                          queryClient.invalidateQueries({ queryKey: ['/api/admin/organizations'] });
+                        }}
+                      />
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {membersLoading ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">Loading students...</p>
+                ) : members.length === 0 ? (
                   <div className="text-center py-8">
-                    <StickyNote color="yellow" rotation="1" className="mx-auto mb-4">
-                      <Building2 className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">No organizations yet</p>
+                    <StickyNote color="purple" rotation="-2" className="mx-auto">
+                      <Users className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">No students yet</p>
+                      <p className="text-xs text-muted-foreground mt-1">Add students to get started</p>
                     </StickyNote>
                   </div>
                 ) : (
-                  <div className="space-y-2">
-                    {organizations.map((org) => (
-                      <button
-                        key={org.id}
-                        onClick={() => setSelectedOrgId(org.id)}
-                        className={`w-full text-left p-3 rounded-lg border transition-all hover-elevate ${
-                          selectedOrgId === org.id 
-                            ? 'bg-primary/10 border-primary' 
-                            : 'border-border'
-                        }`}
-                        data-testid={`org-item-${org.id}`}
-                      >
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium">{org.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {org.isUnlimitedLicenses 
-                                ? `${org.usedLicenses} licenses used (Unlimited)`
-                                : `${org.usedLicenses} / ${org.totalLicenses} licenses used`
-                              }
-                            </p>
-                          </div>
-                          <Badge variant={org.isUnlimitedLicenses || org.usedLicenses < org.totalLicenses ? "default" : "secondary"}>
-                            {org.isUnlimitedLicenses ? "Unlimited" : (org.usedLicenses < org.totalLicenses ? "Active" : "Full")}
-                          </Badge>
-                        </div>
-                      </button>
-                    ))}
+                  <div className="rounded-md border overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-12">
+                            <Checkbox
+                              checked={selectedMemberIds.length > 0 && selectedMemberIds.length === members.filter(m => !m.isLocked).length}
+                              onCheckedChange={toggleAllMembers}
+                              data-testid="checkbox-select-all"
+                            />
+                          </TableHead>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Username</TableHead>
+                          <TableHead>Gender</TableHead>
+                          <TableHead>Grade</TableHead>
+                          <TableHead>Student ID</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {members.map((member) => (
+                          <TableRow key={member.id} data-testid={`member-row-${member.id}`}>
+                            <TableCell>
+                              <Checkbox
+                                checked={selectedMemberIds.includes(member.id)}
+                                onCheckedChange={() => toggleMember(member.id)}
+                                disabled={member.isLocked}
+                                data-testid={`checkbox-member-${member.id}`}
+                              />
+                            </TableCell>
+                            <TableCell className="font-medium">
+                              {member.user.firstName} {member.user.lastName}
+                            </TableCell>
+                            <TableCell>{member.user.username}</TableCell>
+                            <TableCell className="capitalize">{member.studentGender || '-'}</TableCell>
+                            <TableCell>{member.grade || '-'}</TableCell>
+                            <TableCell>{member.studentId || '-'}</TableCell>
+                            <TableCell>
+                              <div className="flex gap-1">
+                                {member.isLocked && (
+                                  <Badge variant="secondary" className="text-xs">
+                                    <Lock className="w-3 h-3 mr-1" />
+                                    Locked
+                                  </Badge>
+                                )}
+                                {member.hasCompletedAssessment ? (
+                                  <Badge variant="default" className="text-xs">Completed</Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-xs">Pending</Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <MemberActions member={member} organizationId={selectedOrg.id} />
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
                   </div>
                 )}
               </CardContent>
             </Card>
-          </div>
-
-          {/* Organization Details & Members */}
-          <div className="lg:col-span-2">
-            {!selectedOrg ? (
-              <Card className="h-full flex items-center justify-center">
-                <CardContent className="text-center py-16">
-                  <StickyNote color="blue" rotation="-1" className="mx-auto">
-                    <Users className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
-                    <p className="text-muted-foreground">
-                      Select an organization to view details
-                    </p>
-                  </StickyNote>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-6">
-                {/* Organization Header */}
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex items-center gap-3">
-                        {selectedOrg.logoUrl && (
-                          <img 
-                            src={selectedOrg.logoUrl} 
-                            alt={`${selectedOrg.name} logo`} 
-                            className="h-12 w-12 object-contain rounded"
-                            data-testid="img-org-logo-display"
-                          />
-                        )}
-                        <div>
-                          <CardTitle>{selectedOrg.name}</CardTitle>
-                          <CardDescription>Organization ID: {selectedOrg.id}</CardDescription>
-                        </div>
-                      </div>
-                      <Dialog open={isEditOrgDialogOpen} onOpenChange={setIsEditOrgDialogOpen}>
-                        <DialogTrigger asChild>
-                          <Button variant="outline" size="sm" data-testid="button-edit-organization">
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <EditOrganizationForm 
-                            organization={selectedOrg}
-                            onSuccess={() => {
-                              setIsEditOrgDialogOpen(false);
-                              queryClient.invalidateQueries({ queryKey: ['/api/admin/organizations'] });
-                            }}
-                          />
-                        </DialogContent>
-                      </Dialog>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-3 gap-4">
-                      <StickyNote color="green" rotation="1">
-                        <p className="text-xs text-muted-foreground mb-1">Total Licenses</p>
-                        <p className="text-2xl font-bold">{selectedOrg.totalLicenses}</p>
-                      </StickyNote>
-                      <StickyNote color="blue" rotation="-1">
-                        <p className="text-xs text-muted-foreground mb-1">Used</p>
-                        <p className="text-2xl font-bold">{selectedOrg.usedLicenses}</p>
-                      </StickyNote>
-                      <StickyNote color="yellow" rotation="2">
-                        <p className="text-xs text-muted-foreground mb-1">Available</p>
-                        <p className="text-2xl font-bold">{selectedOrg.totalLicenses - selectedOrg.usedLicenses}</p>
-                      </StickyNote>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Students Roster */}
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between gap-2 space-y-0 pb-4">
-                    <div>
-                      <CardTitle className="text-lg">Student Roster</CardTitle>
-                      <CardDescription>
-                        {members.length} students
-                        {selectedMemberIds.length > 0 && (
-                          <span className="text-primary font-medium ml-2">
-                            ({selectedMemberIds.length} selected)
-                          </span>
-                        )}
-                      </CardDescription>
-                    </div>
-                    <div className="flex gap-2 flex-wrap">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        data-testid="button-export-reports"
-                        onClick={() => {
-                          window.open(`/api/admin/organizations/${selectedOrgId}/export/reports`, '_blank');
-                        }}
-                        disabled={members.filter(m => m.isLocked).length === 0}
-                      >
-                        <FileDown className="w-4 h-4 mr-2" />
-                        Export Reports (ZIP)
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        data-testid="button-export-csv"
-                        onClick={() => {
-                          window.open(`/api/admin/organizations/${selectedOrgId}/export/csv`, '_blank');
-                        }}
-                        disabled={members.length === 0}
-                      >
-                        <Download className="w-4 h-4 mr-2" />
-                        Export Data (CSV)
-                      </Button>
-                      {selectedMemberIds.length > 0 && (
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="destructive" size="sm" data-testid="button-bulk-delete">
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Delete Selected ({selectedMemberIds.length})
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete {selectedMemberIds.length} Students</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete {selectedMemberIds.length} selected student(s)? This action cannot be undone.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction 
-                                onClick={() => bulkDeleteMutation.mutate(selectedMemberIds)}
-                                className="bg-destructive hover:bg-destructive/90"
-                                data-testid="button-confirm-bulk-delete"
-                              >
-                                Delete {selectedMemberIds.length} Students
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      )}
-                      <Dialog open={isBulkUploadDialogOpen} onOpenChange={setIsBulkUploadDialogOpen}>
-                        <DialogTrigger asChild>
-                          <Button variant="outline" size="sm" data-testid="button-bulk-upload">
-                            <Upload className="w-4 h-4 mr-2" />
-                            CSV Upload
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="max-w-2xl">
-                          <BulkUploadForm 
-                            organizationId={selectedOrg.id}
-                            onSuccess={() => {
-                              setIsBulkUploadDialogOpen(false);
-                              queryClient.invalidateQueries({ queryKey: ['/api/admin/organizations', selectedOrgId, 'members'] });
-                              queryClient.invalidateQueries({ queryKey: ['/api/admin/organizations'] });
-                            }}
-                          />
-                        </DialogContent>
-                      </Dialog>
-                      <Dialog open={isCreateMemberDialogOpen} onOpenChange={setIsCreateMemberDialogOpen}>
-                        <DialogTrigger asChild>
-                          <Button size="sm" data-testid="button-create-member">
-                            <Plus className="w-4 h-4 mr-2" />
-                            Add Student
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <CreateMemberForm 
-                            organizationId={selectedOrg.id}
-                            onSuccess={() => {
-                              setIsCreateMemberDialogOpen(false);
-                              queryClient.invalidateQueries({ queryKey: ['/api/admin/organizations', selectedOrgId, 'members'] });
-                              queryClient.invalidateQueries({ queryKey: ['/api/admin/organizations'] });
-                            }}
-                          />
-                        </DialogContent>
-                      </Dialog>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    {membersLoading ? (
-                      <p className="text-sm text-muted-foreground text-center py-8">Loading students...</p>
-                    ) : members.length === 0 ? (
-                      <div className="text-center py-8">
-                        <StickyNote color="purple" rotation="-2" className="mx-auto">
-                          <Users className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
-                          <p className="text-sm text-muted-foreground">No students yet</p>
-                          <p className="text-xs text-muted-foreground mt-1">Add students to get started</p>
-                        </StickyNote>
-                      </div>
-                    ) : (
-                      <div className="rounded-md border">
-                        <Table>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead className="w-12">
-                                <Checkbox
-                                  checked={selectedMemberIds.length > 0 && selectedMemberIds.length === members.filter(m => !m.isLocked).length}
-                                  onCheckedChange={toggleAllMembers}
-                                  data-testid="checkbox-select-all"
-                                />
-                              </TableHead>
-                              <TableHead>Name</TableHead>
-                              <TableHead>Username</TableHead>
-                              <TableHead>Gender</TableHead>
-                              <TableHead>Grade</TableHead>
-                              <TableHead>Student ID</TableHead>
-                              <TableHead>Status</TableHead>
-                              <TableHead className="text-right">Actions</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {members.map((member) => (
-                              <TableRow key={member.id} data-testid={`member-row-${member.id}`}>
-                                <TableCell>
-                                  <Checkbox
-                                    checked={selectedMemberIds.includes(member.id)}
-                                    onCheckedChange={() => toggleMember(member.id)}
-                                    disabled={member.isLocked}
-                                    data-testid={`checkbox-member-${member.id}`}
-                                  />
-                                </TableCell>
-                                <TableCell className="font-medium">
-                                  {member.user.firstName} {member.user.lastName}
-                                </TableCell>
-                                <TableCell>{member.user.username}</TableCell>
-                                <TableCell className="capitalize">{member.studentGender || '-'}</TableCell>
-                                <TableCell>{member.grade || '-'}</TableCell>
-                                <TableCell>{member.studentId || '-'}</TableCell>
-                                <TableCell>
-                                  <div className="flex gap-1">
-                                    {member.isLocked && (
-                                      <Badge variant="secondary" className="text-xs">
-                                        <Lock className="w-3 h-3 mr-1" />
-                                        Locked
-                                      </Badge>
-                                    )}
-                                    {member.hasCompletedAssessment ? (
-                                      <Badge variant="default" className="text-xs">Completed</Badge>
-                                    ) : (
-                                      <Badge variant="outline" className="text-xs">Pending</Badge>
-                                    )}
-                                  </div>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  <MemberActions member={member} organizationId={selectedOrg.id} />
-                                </TableCell>
-                              </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            )}
-          </div>
-        </div>
+          </>
+        )}
       </div>
     </div>
   );

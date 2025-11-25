@@ -21,6 +21,7 @@ import {
   countryPrioritySectors,
   countrySectorWefSkills,
   files,
+  organizationEvents,
   type User,
   type UpsertUser,
   type Country,
@@ -65,6 +66,8 @@ import {
   type InsertCountrySectorWefSkill,
   type File,
   type InsertFile,
+  type OrganizationEvent,
+  type InsertOrganizationEvent,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, count, avg, sql, inArray, isNotNull } from "drizzle-orm";
@@ -289,6 +292,12 @@ export interface IStorage {
   generateShareToken(fileId: string, expiryHours?: number): Promise<{ shareToken: string; expiry: Date }>;
   invalidateShareToken(fileId: string): Promise<void>;
   incrementDownloadCount(id: string): Promise<File>;
+
+  // Organization events (audit logging)
+  createOrganizationEvent(event: InsertOrganizationEvent): Promise<OrganizationEvent>;
+  getOrganizationEvents(organizationId: string, limit?: number): Promise<OrganizationEvent[]>;
+  getAllOrganizationEvents(limit?: number): Promise<OrganizationEvent[]>;
+  getOrganizationEventsByType(organizationId: string, eventType: string): Promise<OrganizationEvent[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1968,6 +1977,40 @@ export class DatabaseStorage implements IStorage {
       .where(eq(files.id, id))
       .returning();
     return file;
+  }
+
+  // Organization events (audit logging)
+  async createOrganizationEvent(event: InsertOrganizationEvent): Promise<OrganizationEvent> {
+    const [created] = await db.insert(organizationEvents).values(event).returning();
+    return created;
+  }
+
+  async getOrganizationEvents(organizationId: string, limit: number = 50): Promise<OrganizationEvent[]> {
+    return db
+      .select()
+      .from(organizationEvents)
+      .where(eq(organizationEvents.organizationId, organizationId))
+      .orderBy(desc(organizationEvents.createdAt))
+      .limit(limit);
+  }
+
+  async getAllOrganizationEvents(limit: number = 100): Promise<OrganizationEvent[]> {
+    return db
+      .select()
+      .from(organizationEvents)
+      .orderBy(desc(organizationEvents.createdAt))
+      .limit(limit);
+  }
+
+  async getOrganizationEventsByType(organizationId: string, eventType: string): Promise<OrganizationEvent[]> {
+    return db
+      .select()
+      .from(organizationEvents)
+      .where(and(
+        eq(organizationEvents.organizationId, organizationId),
+        eq(organizationEvents.eventType, eventType)
+      ))
+      .orderBy(desc(organizationEvents.createdAt));
   }
 }
 

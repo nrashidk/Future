@@ -11,6 +11,7 @@ import { registerCareersRoutes } from "./routes/careers.routes";
 import { registerAnalyticsRoutes } from "./routes/analytics.routes";
 import { registerOrganizationRoutes } from "./routes/organization.routes";
 import { registerAdminRoutes } from "./routes/admin.routes";
+import { registerSuperadminRoutes } from "./routes/superadmin.routes";
 import { registerPaymentRoutes } from "./routes/payment.routes";
 import { registerPublicRoutes } from "./routes/public.routes";
 import { registerFilesRoutes } from "./routes/files.routes";
@@ -31,6 +32,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerAnalyticsRoutes(app);
   registerOrganizationRoutes(app);
   registerAdminRoutes(app);
+  registerSuperadminRoutes(app);
   registerPaymentRoutes(app);
   registerFilesRoutes(app);
 
