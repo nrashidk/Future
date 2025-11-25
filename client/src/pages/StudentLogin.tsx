@@ -56,7 +56,9 @@ export default function StudentLogin() {
         });
         
         // Redirect based on user role
-        if (userData.role === 'admin') {
+        if (userData.role === 'admin' || userData.role === 'superadmin') {
+          navigate("/admin/organizations");
+        } else if (userData.role === 'org_admin') {
           navigate("/admin/organizations");
         } else {
           navigate("/assessment");
