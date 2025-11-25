@@ -13,6 +13,7 @@ import { registerOrganizationRoutes } from "./routes/organization.routes";
 import { registerAdminRoutes } from "./routes/admin.routes";
 import { registerPaymentRoutes } from "./routes/payment.routes";
 import { registerPublicRoutes } from "./routes/public.routes";
+import { registerFilesRoutes } from "./routes/files.routes";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication first
@@ -31,6 +32,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerOrganizationRoutes(app);
   registerAdminRoutes(app);
   registerPaymentRoutes(app);
+  registerFilesRoutes(app);
 
   // Create and return HTTP server
   const httpServer = createServer(app);

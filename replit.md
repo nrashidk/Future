@@ -24,16 +24,21 @@ The application features a playful, student-friendly sticky notes aesthetic with
 - **User Profile System**: Displays account details, premium status, and assessment history. Organization admins can view organization-wide statistics and manage students.
 - **Dynamic Career Matching Engine**: Modular architecture with pluggable, configurable scoring algorithms (subjects, interests, vision, market, Kolb, RIASEC) and smart filtering. Incorporates comprehensive UAE 2030/2071 vision data.
 - **Grade Management**: For organization students, grade is pre-filled and locked during assessments based on school admin configuration.
-- **Group Assessment System**: Features an Admin Dashboard for managing organizations and students, with functionalities for quota tracking, account creation (manual/bulk), and credentials download. Includes secure password handling and atomic SQL-based quota management. Organization admins can export student reports (PDF) and data (CSV).
+- **Group Assessment System**: Features an Admin Dashboard for managing organizations and students, with functionalities for quota tracking, account creation (manual/bulk), credentials download, and unlimited license support for superadmins. Includes secure password handling and atomic SQL-based quota management. Organization admins can export student reports (PDF) and data (CSV).
+- **Unlimited Licenses**: Superadmins can create organizations with unlimited assessment licenses, bypassing quota restrictions while still tracking usage metrics.
+- **Analytics System**: Secure, role-based analytics endpoints providing nationwide data for superadmins and organization-scoped data for org_admins. Includes overview, country breakdowns, career trends, and grade distributions.
+- **File Management System**: Comprehensive file upload, storage, and tracking system with support for CSV, JSON, PDF, Excel files. Features secure file sharing via time-limited tokens, download tracking, and processing status monitoring.
+- **Data Import/Export**: Bulk student import via CSV with validation and error reporting. Organization data export (students, assessments, analytics) in CSV or JSON format. All imports/exports are tracked in the files table with processing status.
 - **Country Availability**: Currently configured for UAE only, with all quiz questions based on the UAE curriculum.
-- **Security & Performance**: Includes critical security fixes (environment-based superadmin emails, async admin middleware, cryptographic guest tokens, rate limiting, Helmet security headers), performance optimizations (N+1 query elimination, database indexes), and robust input validation.
+- **Security & Performance**: Includes critical security fixes (environment-based superadmin emails, async admin middleware, cryptographic guest tokens, rate limiting, Helmet security headers, role-based access control), performance optimizations (N+1 query elimination, database indexes), and robust input validation.
 - **Code Quality**: Modularized routes, extracted middleware and constants, environment variable validation, request logging, and response compression.
 
 ### System Design Choices
-- **Database Schema**: Comprehensive schema covering users, sessions, countries, skills, careers, job market trends, assessments, recommendations, organizations, organization members, and WEF skills data.
+- **Database Schema**: Comprehensive schema covering users, sessions, countries, skills, careers, job market trends, assessments, recommendations, organizations, organization members, WEF skills data, and file management.
 - **Session Storage**: Utilizes PostgreSQL for reliable session persistence.
 - **Development Workflow**: Employs `npm run db:push` for migrations and automatic seeding, with optimized WEF affinity seeding.
 - **Premium Narrative Service**: Dynamic generation of premium narratives at fetch time to keep the database lean and allow flexible updates.
+- **File Storage Architecture**: Server-side file storage in `uploads/` directory with database metadata tracking. Supports multiple file types (CSV, JSON, PDF, Excel, ZIP) with secure access control and share token system.
 
 ## External Dependencies
 - **Database**: PostgreSQL (Neon)
@@ -44,4 +49,14 @@ The application features a playful, student-friendly sticky notes aesthetic with
 - **Backend Libraries**: Express.js, TypeScript, Helmet, express-rate-limit
 - **PDF Generation**: Puppeteer (for report generation)
 - **Archiving**: Archiver library (for bulk report export)
+- **File Upload**: Multer (for handling multipart/form-data file uploads)
+
+## Recent Changes (November 2025)
+### Unlimited Licenses & Advanced Data Management
+- Added unlimited licenses feature for organizations (superadmin-only)
+- Implemented secure role-based analytics with organization-scoped access
+- Created comprehensive file management system with upload, download, and sharing
+- Built bulk student import from CSV with validation and error reporting
+- Added organization data export (students, assessments) in CSV/JSON formats
+- Enhanced security with proper access control on all new endpoints
 ```

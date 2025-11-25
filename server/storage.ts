@@ -20,6 +20,7 @@ import {
   organizationMembers,
   countryPrioritySectors,
   countrySectorWefSkills,
+  files,
   type User,
   type UpsertUser,
   type Country,
@@ -62,6 +63,8 @@ import {
   type InsertCountryPrioritySector,
   type CountrySectorWefSkill,
   type InsertCountrySectorWefSkill,
+  type File,
+  type InsertFile,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, count, avg, sql, inArray, isNotNull } from "drizzle-orm";
@@ -272,6 +275,19 @@ export interface IStorage {
     member: OrganizationMember;
     password: string;
   }>;
+
+  // File management operations
+  createFile(file: InsertFile): Promise<File>;
+  getFileById(id: string): Promise<File | undefined>;
+  getFilesByOrganization(organizationId: string): Promise<File[]>;
+  getFilesByUploader(userId: string): Promise<File[]>;
+  getAllFiles(): Promise<File[]>;
+  getFileByShareToken(shareToken: string): Promise<File | undefined>;
+  updateFile(id: string, data: Partial<InsertFile>): Promise<File>;
+  updateFileProcessingStatus(id: string, status: 'pending' | 'processing' | 'completed' | 'failed', error?: string, processedRecords?: number, failedRecords?: number): Promise<File>;
+  deleteFile(id: string): Promise<boolean>;
+  generateShareToken(fileId: string, expiryHours?: number): Promise<{ shareToken: string; expiry: Date }>;
+  incrementDownloadCount(id: string): Promise<File>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1824,6 +1840,122 @@ export class DatabaseStorage implements IStorage {
     }
 
     throw new Error('Failed to generate unique username after 10 attempts');
+  }
+
+  // File management operations
+  async createFile(fileData: InsertFile): Promise<File> {
+    const [file] = await db.insert(files).values(fileData).returning();
+    return file;
+  }
+
+  async getFileById(id: string): Promise<File | undefined> {
+    const [file] = await db.select().from(files).where(eq(files.id, id));
+    return file;
+  }
+
+  async getFilesByOrganization(organizationId: string): Promise<File[]> {
+    return await db
+      .select()
+      .from(files)
+      .where(eq(files.organizationId, organizationId))
+      .orderBy(desc(files.createdAt));
+  }
+
+  async getFilesByUploader(userId: string): Promise<File[]> {
+    return await db
+      .select()
+      .from(files)
+      .where(eq(files.uploadedBy, userId))
+      .orderBy(desc(files.createdAt));
+  }
+
+  async getAllFiles(): Promise<File[]> {
+    return await db
+      .select()
+      .from(files)
+      .orderBy(desc(files.createdAt));
+  }
+
+  async getFileByShareToken(shareToken: string): Promise<File | undefined> {
+    const [file] = await db
+      .select()
+      .from(files)
+      .where(eq(files.shareToken, shareToken));
+    
+    // Check if share token is expired
+    if (file && file.shareTokenExpiry && new Date() > file.shareTokenExpiry) {
+      return undefined;
+    }
+    
+    return file;
+  }
+
+  async updateFile(id: string, data: Partial<InsertFile>): Promise<File> {
+    const [file] = await db
+      .update(files)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(files.id, id))
+      .returning();
+    return file;
+  }
+
+  async updateFileProcessingStatus(
+    id: string,
+    status: 'pending' | 'processing' | 'completed' | 'failed',
+    error?: string,
+    processedRecords?: number,
+    failedRecords?: number
+  ): Promise<File> {
+    const updateData: any = {
+      processingStatus: status,
+      updatedAt: new Date(),
+    };
+    
+    if (error !== undefined) updateData.processingError = error;
+    if (processedRecords !== undefined) updateData.processedRecords = processedRecords;
+    if (failedRecords !== undefined) updateData.failedRecords = failedRecords;
+
+    const [file] = await db
+      .update(files)
+      .set(updateData)
+      .where(eq(files.id, id))
+      .returning();
+    return file;
+  }
+
+  async deleteFile(id: string): Promise<boolean> {
+    const result = await db.delete(files).where(eq(files.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async generateShareToken(fileId: string, expiryHours: number = 72): Promise<{ shareToken: string; expiry: Date }> {
+    const crypto = await import('crypto');
+    const shareToken = crypto.randomBytes(32).toString('hex');
+    const expiry = new Date();
+    expiry.setHours(expiry.getHours() + expiryHours);
+
+    await db
+      .update(files)
+      .set({
+        shareToken,
+        shareTokenExpiry: expiry,
+        updatedAt: new Date(),
+      })
+      .where(eq(files.id, fileId));
+
+    return { shareToken, expiry };
+  }
+
+  async incrementDownloadCount(id: string): Promise<File> {
+    const [file] = await db
+      .update(files)
+      .set({
+        downloadCount: sql`${files.downloadCount} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(eq(files.id, id))
+      .returning();
+    return file;
   }
 }
 

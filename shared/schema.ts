@@ -54,6 +54,7 @@ export const users = pgTable("users", {
 
 export const usersRelations = relations(users, ({ many, one }) => ({
   assessments: many(assessments),
+  uploadedFiles: many(files),
   organizationMembership: one(organizationMembers, {
     fields: [users.id],
     references: [organizationMembers.userId],
@@ -99,6 +100,7 @@ export const organizationsRelations = relations(organizations, ({ one, many }) =
     references: [countries.id],
   }),
   members: many(organizationMembers),
+  files: many(files),
 }));
 
 // Organization Members (Students in schools)
@@ -771,3 +773,67 @@ export const insertCountrySectorWefSkillSchema = createInsertSchema(countrySecto
   createdAt: true,
 });
 export type InsertCountrySectorWefSkill = z.infer<typeof insertCountrySectorWefSkillSchema>;
+
+// Files table for data import/export and file sharing
+export const files = pgTable("files", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  
+  // File metadata
+  filename: text("filename").notNull(),
+  originalFilename: text("original_filename").notNull(),
+  mimeType: text("mime_type").notNull(),
+  fileSize: integer("file_size").notNull(), // Size in bytes
+  filePath: text("file_path").notNull(), // Server path to file
+  
+  // File categorization
+  fileType: text("file_type").notNull(), // 'import_data', 'export_data', 'analytics_report', 'shared_document'
+  category: text("category"), // Additional categorization (e.g., 'student_import', 'assessment_export', 'monthly_report')
+  description: text("description"),
+  
+  // Ownership and association
+  uploadedBy: varchar("uploaded_by").notNull().references(() => users.id),
+  organizationId: varchar("organization_id").references(() => organizations.id), // Null for system-wide files
+  
+  // Access control
+  isPublic: boolean("is_public").notNull().default(false),
+  shareToken: varchar("share_token").unique(), // For secure sharing links
+  shareTokenExpiry: timestamp("share_token_expiry"),
+  downloadCount: integer("download_count").notNull().default(0),
+  
+  // Processing status (for imports)
+  processingStatus: text("processing_status").notNull().default("pending"), // 'pending', 'processing', 'completed', 'failed'
+  processingError: text("processing_error"),
+  processedRecords: integer("processed_records").default(0),
+  failedRecords: integer("failed_records").default(0),
+  
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("idx_files_uploaded_by").on(table.uploadedBy),
+  index("idx_files_organization").on(table.organizationId),
+  index("idx_files_type").on(table.fileType),
+  index("idx_files_share_token").on(table.shareToken),
+]);
+
+export const filesRelations = relations(files, ({ one }) => ({
+  uploader: one(users, {
+    fields: [files.uploadedBy],
+    references: [users.id],
+  }),
+  organization: one(organizations, {
+    fields: [files.organizationId],
+    references: [organizations.id],
+  }),
+}));
+
+export type File = typeof files.$inferSelect;
+export const insertFileSchema = createInsertSchema(files).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  downloadCount: true,
+  processingStatus: true,
+  processedRecords: true,
+  failedRecords: true,
+});
+export type InsertFile = z.infer<typeof insertFileSchema>;

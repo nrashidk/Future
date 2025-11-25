@@ -1,9 +1,29 @@
 import type { Express } from "express";
+import multer from "multer";
+import path from "path";
 import { storage } from "../storage";
 import { isAuthenticated } from "../replitAuth";
 import { isAdmin, isOrgAdmin } from "../middleware/auth.middleware";
 import { insertQuizQuestionSchema } from "@shared/schema";
 import { z } from "zod";
+
+// Configure multer for file uploads
+const upload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      cb(null, path.join(process.cwd(), 'uploads'));
+    },
+    filename: (req, file, cb) => {
+      const uniqueSuffix = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+      const ext = path.extname(file.originalname);
+      const basename = path.basename(file.originalname, ext);
+      cb(null, `${basename}-${uniqueSuffix}${ext}`);
+    },
+  }),
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB limit
+  },
+});
 
 /**
  * Get superadmin emails from environment variable
@@ -958,6 +978,457 @@ export function registerAdminRoutes(app: Express) {
     } catch (error) {
       console.error("Error generating CSV export:", error);
       res.status(500).json({ message: "Failed to generate CSV export" });
+    }
+  });
+
+  // Export organization students data as file (CSV or JSON) - saved to files table
+  app.post("/api/admin/organizations/:id/export-students", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
+      const { format = 'csv' } = req.body; // 'csv' or 'json'
+      
+      const organization = await storage.getOrganizationById(req.params.id);
+      if (!organization) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+
+      const members = await storage.getOrganizationMembersByOrganizationId(req.params.id);
+      
+      const fs = await import('fs/promises');
+      const path = await import('path');
+      const uploadsDir = path.default.join(process.cwd(), 'uploads');
+      await fs.default.mkdir(uploadsDir, { recursive: true });
+
+      let fileContent: string;
+      let mimeType: string;
+      let filename: string;
+
+      if (format === 'json') {
+        // JSON export with full member details
+        const exportData = [];
+        for (const member of members) {
+          const memberUser = await storage.getUser(member.userId);
+          if (!memberUser) continue;
+
+          const fullName = [memberUser.firstName, memberUser.lastName].filter(Boolean).join(' ');
+          const assessments = await storage.getAssessmentsByUser(member.userId);
+          const completedAssessment = assessments.find(a => a.isCompleted);
+
+          exportData.push({
+            username: memberUser.username,
+            fullName,
+            grade: member.grade,
+            studentId: member.studentId,
+            studentName: member.studentName,
+            studentAge: member.studentAge,
+            studentGender: member.studentGender,
+            status: completedAssessment ? 'completed' : 'pending',
+            assessmentType: completedAssessment?.assessmentType,
+            completedAt: completedAssessment?.completedAt,
+            createdAt: member.createdAt,
+          });
+        }
+
+        fileContent = JSON.stringify(exportData, null, 2);
+        mimeType = 'application/json';
+        filename = `${organization.name.replace(/[^a-zA-Z0-9]/g, '_')}_Students_${Date.now()}.json`;
+      } else {
+        // CSV export (reuse existing CSV logic)
+        const csvRows = [
+          'Username,Full Name,Grade,Status,Created Date'
+        ];
+
+        for (const member of members) {
+          const memberUser = await storage.getUser(member.userId);
+          if (!memberUser) continue;
+
+          const fullName = [memberUser.firstName, memberUser.lastName].filter(Boolean).join(' ');
+          const assessments = await storage.getAssessmentsByUser(member.userId);
+          const completedAssessment = assessments.find(a => a.isCompleted);
+          const createdDate = member.createdAt ? new Date(member.createdAt).toLocaleDateString() : '';
+
+          csvRows.push([
+            `"${(memberUser.username || '').replace(/"/g, '""')}"`,
+            `"${fullName.replace(/"/g, '""')}"`,
+            `"${member.grade || ''}"`,
+            completedAssessment ? 'Completed' : 'Pending',
+            `"${createdDate}"`
+          ].join(","));
+        }
+
+        fileContent = "\uFEFF" + csvRows.join("\n"); // Add BOM for Excel
+        mimeType = 'text/csv';
+        filename = `${organization.name.replace(/[^a-zA-Z0-9]/g, '_')}_Students_${Date.now()}.csv`;
+      }
+
+      // Save file to disk
+      const filePath = path.default.join(uploadsDir, filename);
+      await fs.default.writeFile(filePath, fileContent, 'utf-8');
+
+      // Save file metadata to database
+      const file = await storage.createFile({
+        filename,
+        originalFilename: filename,
+        mimeType,
+        fileSize: Buffer.byteLength(fileContent, 'utf-8'),
+        filePath,
+        fileType: 'export_data',
+        category: 'student_export',
+        description: `Student export for ${organization.name}`,
+        uploadedBy: userId,
+        organizationId: organization.id,
+        isPublic: false,
+      });
+
+      res.json({
+        success: true,
+        file,
+        message: 'Student data exported successfully',
+      });
+    } catch (error) {
+      console.error("Error exporting student data:", error);
+      res.status(500).json({ message: "Failed to export student data" });
+    }
+  });
+
+  // Export organization assessments data
+  app.post("/api/admin/organizations/:id/export-assessments", isAuthenticated, isAdmin, async (req: any, res) => {
+    try {
+      const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
+      const { format = 'csv' } = req.body;
+      
+      const organization = await storage.getOrganizationById(req.params.id);
+      if (!organization) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+
+      const members = await storage.getOrganizationMembersByOrganizationId(req.params.id);
+      
+      const fs = await import('fs/promises');
+      const path = await import('path');
+      const uploadsDir = path.default.join(process.cwd(), 'uploads');
+      await fs.default.mkdir(uploadsDir, { recursive: true });
+
+      const assessmentsData = [];
+
+      for (const member of members) {
+        const memberUser = await storage.getUser(member.userId);
+        if (!memberUser) continue;
+
+        const assessments = await storage.getAssessmentsByUser(member.userId);
+        const completedAssessment = assessments.find(a => a.isCompleted);
+        
+        if (completedAssessment) {
+          const recommendations = await storage.getRecommendationsByAssessment(completedAssessment.id);
+          
+          // Get career names for top 3 recommendations
+          const topCareerNames: string[] = [];
+          for (let i = 0; i < Math.min(3, recommendations.length); i++) {
+            const career = await storage.getCareerById(recommendations[i].careerId);
+            topCareerNames.push(career?.title || '');
+          }
+
+          assessmentsData.push({
+            username: memberUser.username || '',
+            fullName: [memberUser.firstName, memberUser.lastName].filter(Boolean).join(' '),
+            grade: completedAssessment.grade,
+            assessmentType: completedAssessment.assessmentType,
+            completedAt: completedAssessment.completedAt,
+            topCareer1: topCareerNames[0] || '',
+            topCareer2: topCareerNames[1] || '',
+            topCareer3: topCareerNames[2] || '',
+            kolbScores: completedAssessment.kolbScores,
+            riasecScores: completedAssessment.riasecScores,
+            cvqScores: completedAssessment.cvqScores,
+            quizScore: completedAssessment.quizScore,
+          });
+        }
+      }
+
+      let fileContent: string;
+      let mimeType: string;
+      let filename: string;
+
+      if (format === 'json') {
+        fileContent = JSON.stringify(assessmentsData, null, 2);
+        mimeType = 'application/json';
+        filename = `${organization.name.replace(/[^a-zA-Z0-9]/g, '_')}_Assessments_${Date.now()}.json`;
+      } else {
+        const csvRows = [
+          'Username,Full Name,Grade,Assessment Type,Completed Date,Top Career 1,Top Career 2,Top Career 3'
+        ];
+
+        for (const data of assessmentsData) {
+          const completedDate = data.completedAt ? new Date(data.completedAt).toLocaleDateString() : '';
+          csvRows.push([
+            `"${(data.username || '').replace(/"/g, '""')}"`,
+            `"${(data.fullName || '').replace(/"/g, '""')}"`,
+            `"${data.grade || ''}"`,
+            `"${data.assessmentType || ''}"`,
+            `"${completedDate}"`,
+            `"${(data.topCareer1 || '').replace(/"/g, '""')}"`,
+            `"${(data.topCareer2 || '').replace(/"/g, '""')}"`,
+            `"${(data.topCareer3 || '').replace(/"/g, '""')}"`,
+          ].join(","));
+        }
+
+        fileContent = "\uFEFF" + csvRows.join("\n");
+        mimeType = 'text/csv';
+        filename = `${organization.name.replace(/[^a-zA-Z0-9]/g, '_')}_Assessments_${Date.now()}.csv`;
+      }
+
+      const filePath = path.default.join(uploadsDir, filename);
+      await fs.default.writeFile(filePath, fileContent, 'utf-8');
+
+      const file = await storage.createFile({
+        filename,
+        originalFilename: filename,
+        mimeType,
+        fileSize: Buffer.byteLength(fileContent, 'utf-8'),
+        filePath,
+        fileType: 'export_data',
+        category: 'assessment_export',
+        description: `Assessment export for ${organization.name}`,
+        uploadedBy: userId,
+        organizationId: organization.id,
+        isPublic: false,
+      });
+
+      res.json({
+        success: true,
+        file,
+        message: 'Assessment data exported successfully',
+      });
+    } catch (error) {
+      console.error("Error exporting assessment data:", error);
+      res.status(500).json({ message: "Failed to export assessment data" });
+    }
+  });
+
+  // Bulk import students from CSV file
+  app.post("/api/admin/organizations/:id/import-students", isAuthenticated, isAdmin, upload.single("file"), async (req: any, res) => {
+    const fileId = req.body.fileId; // Optional: if file was already uploaded via files API
+    
+    try {
+      const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
+      
+      const organization = await storage.getOrganizationById(req.params.id);
+      if (!organization) {
+        if (req.file) {
+          const fs = await import('fs/promises');
+          await fs.default.unlink(req.file.path).catch(() => {});
+        }
+        return res.status(404).json({ message: "Organization not found" });
+      }
+
+      if (!req.file && !fileId) {
+        return res.status(400).json({ message: "No CSV file provided" });
+      }
+
+      let filePath: string;
+      let fileRecord: any;
+
+      // If fileId provided, use existing file from files table
+      if (fileId) {
+        fileRecord = await storage.getFileById(fileId);
+        if (!fileRecord) {
+          return res.status(404).json({ message: "File not found" });
+        }
+        filePath = fileRecord.filePath;
+        
+        // Update processing status
+        await storage.updateFileProcessingStatus(fileId, 'processing');
+      } else {
+        // Save uploaded file to files table
+        filePath = req.file!.path;
+        fileRecord = await storage.createFile({
+          filename: req.file!.filename,
+          originalFilename: req.file!.originalname,
+          mimeType: req.file!.mimetype,
+          fileSize: req.file!.size,
+          filePath,
+          fileType: 'import_data',
+          category: 'student_import',
+          description: `Student bulk import for ${organization.name}`,
+          uploadedBy: userId,
+          organizationId: organization.id,
+          isPublic: false,
+        });
+        
+        await storage.updateFileProcessingStatus(fileRecord.id, 'processing');
+      }
+
+      // Parse CSV file
+      const fs = await import('fs/promises');
+      const csvContent = await fs.default.readFile(filePath, 'utf-8');
+      const lines = csvContent.split('\n').filter(line => line.trim());
+      
+      if (lines.length < 2) {
+        await storage.updateFileProcessingStatus(fileRecord.id, 'failed', 'CSV file is empty or has no data rows');
+        return res.status(400).json({ message: "CSV file is empty or has no data rows" });
+      }
+
+      // Sanitize CSV field to prevent formula injection
+      const sanitizeCSVField = (field: string): string => {
+        const trimmed = field.trim();
+        // Remove leading characters that could trigger formula execution
+        if (trimmed.length > 0 && /^[=+\-@\t\r]/.test(trimmed)) {
+          return `'${trimmed}`;
+        }
+        return trimmed;
+      };
+
+      // Parse header row (expected: fullName, grade, studentId, studentName, studentAge, studentGender)
+      const headers = lines[0].split(',').map(h => sanitizeCSVField(h.replace(/"/g, '')));
+      const requiredHeaders = ['fullName'];
+      const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
+      
+      if (missingHeaders.length > 0) {
+        await storage.updateFileProcessingStatus(fileRecord.id, 'failed', `Missing required columns: ${missingHeaders.join(', ')}`);
+        return res.status(400).json({ message: `Missing required columns: ${missingHeaders.join(', ')}` });
+      }
+
+      const results = {
+        success: 0,
+        failed: 0,
+        errors: [] as string[],
+        credentials: [] as Array<{ username: string; password: string; fullName: string; grade: string }>,
+      };
+
+      // Process each row
+      for (let i = 1; i < lines.length; i++) {
+        const row = lines[i];
+        if (!row.trim()) continue;
+
+        try {
+          // Simple CSV parsing (handles quoted values)
+          const values: string[] = [];
+          let currentValue = '';
+          let insideQuotes = false;
+
+          for (let char of row) {
+            if (char === '"') {
+              insideQuotes = !insideQuotes;
+            } else if (char === ',' && !insideQuotes) {
+              values.push(sanitizeCSVField(currentValue.trim()));
+              currentValue = '';
+            } else {
+              currentValue += char;
+            }
+          }
+          values.push(sanitizeCSVField(currentValue.trim())); // Push last value with sanitization
+
+          const rowData: any = {};
+          headers.forEach((header, index) => {
+            rowData[header] = values[index]?.replace(/^"|"$/g, '') || '';
+          });
+
+          // Validate required fields
+          if (!rowData.fullName) {
+            results.failed++;
+            results.errors.push(`Row ${i + 1}: Missing fullName`);
+            continue;
+          }
+
+          // Create user with credentials
+          const result = await storage.createUserWithCredentials({
+            organizationId: organization.id,
+            fullName: rowData.fullName,
+            grade: rowData.grade || '',
+            studentId: rowData.studentId || '',
+            studentName: rowData.studentName || '',
+            studentAge: rowData.studentAge ? parseInt(rowData.studentAge) : undefined,
+            studentGender: rowData.studentGender || '',
+            passwordComplexity: organization.passwordComplexity as any,
+          });
+
+          // Update quota
+          await storage.updateOrganizationQuota(organization.id, 1);
+
+          results.success++;
+          results.credentials.push({
+            username: result.user.username || '',
+            password: result.password,
+            fullName: rowData.fullName,
+            grade: rowData.grade || '',
+          });
+        } catch (error: any) {
+          results.failed++;
+          const errorMsg = error.message?.includes('Quota exceeded') 
+            ? `Row ${i + 1}: Quota exceeded` 
+            : `Row ${i + 1}: ${error.message || 'Unknown error'}`;
+          results.errors.push(errorMsg);
+        }
+      }
+
+      // Update file processing status
+      await storage.updateFileProcessingStatus(
+        fileRecord.id,
+        results.failed === 0 ? 'completed' : 'completed',
+        results.errors.length > 0 ? results.errors.join('; ') : undefined,
+        results.success,
+        results.failed
+      );
+
+      // Save credentials to a secure CSV file
+      let credentialsFile = null;
+      if (results.credentials.length > 0) {
+        const credentialsCsv = [
+          'Username,Password,Full Name,Grade',
+          ...results.credentials.map(c => 
+            `"${c.username}","${c.password}","${c.fullName}","${c.grade}"`
+          )
+        ].join('\n');
+
+        const path = await import('path');
+        const uploadsDir = path.default.join(process.cwd(), 'uploads');
+        await fs.default.mkdir(uploadsDir, { recursive: true });
+        
+        const credentialsFilename = `${organization.name.replace(/[^a-zA-Z0-9]/g, '_')}_Credentials_${Date.now()}.csv`;
+        const credentialsFilePath = path.default.join(uploadsDir, credentialsFilename);
+        await fs.default.writeFile(credentialsFilePath, '\uFEFF' + credentialsCsv, 'utf-8');
+
+        credentialsFile = await storage.createFile({
+          filename: credentialsFilename,
+          originalFilename: credentialsFilename,
+          mimeType: 'text/csv',
+          fileSize: Buffer.byteLength(credentialsCsv, 'utf-8'),
+          filePath: credentialsFilePath,
+          fileType: 'export_data',
+          category: 'credentials',
+          description: `Student credentials for bulk import into ${organization.name}`,
+          uploadedBy: userId,
+          organizationId: organization.id,
+          isPublic: false,
+        });
+      }
+
+      res.json({
+        success: true,
+        message: `Import completed: ${results.success} succeeded, ${results.failed} failed`,
+        stats: {
+          success: results.success,
+          failed: results.failed,
+          errors: results.errors,
+        },
+        importFile: fileRecord,
+        credentialsFile, // Download this file to get usernames/passwords
+      });
+    } catch (error: any) {
+      console.error("Error importing students:", error);
+      
+      // Update file processing status if we have a file record
+      if (fileId) {
+        await storage.updateFileProcessingStatus(fileId, 'failed', error.message || 'Unknown error').catch(() => {});
+      }
+      
+      // Clean up uploaded file
+      if (req.file) {
+        const fs = await import('fs/promises');
+        await fs.default.unlink(req.file.path).catch(() => {});
+      }
+      
+      res.status(500).json({ message: "Failed to import students" });
     }
   });
 }
