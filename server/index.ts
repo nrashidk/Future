@@ -2,9 +2,11 @@ import express, { type Request, Response, NextFunction } from "express";
 import helmet from "helmet";
 import morgan from "morgan";
 import compression from "compression";
+import cookieParser from "cookie-parser";
 import { validateEnvironmentVariables } from "./utils/env-validation";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { csrfProtection, validateCsrf, csrfTokenEndpoint } from "./middleware/csrf.middleware";
 
 // Validate environment variables before starting the application
 validateEnvironmentVariables();
@@ -84,6 +86,13 @@ app.use(express.json({
   }
 }));
 app.use(express.urlencoded({ extended: false }));
+app.use(cookieParser());
+
+// CSRF cookie is set early (just sets a cookie, doesn't validate)
+app.use(csrfProtection);
+
+// CSRF token endpoint must be available before authentication for initial token fetch
+app.get("/api/csrf-token", csrfTokenEndpoint);
 
 app.use((req, res, next) => {
   const start = Date.now();

@@ -241,14 +241,9 @@ export default function Assessment() {
           const response = await apiRequest("PATCH", `/api/assessments/${assessmentId}`, backendData);
           assessment = await response.json();
         } else {
-          // Create new assessment
+          // Create new assessment (guest token is now stored in httpOnly cookie automatically)
           const response = await apiRequest("POST", "/api/assessments", backendData);
           assessment = await response.json();
-          
-          // Store guest token if needed (for subsequent API calls)
-          if (assessment.guestToken && !isAuthenticated) {
-            localStorage.setItem("guestToken", assessment.guestToken);
-          }
         }
         
         console.log("Assessment saved:", assessment);

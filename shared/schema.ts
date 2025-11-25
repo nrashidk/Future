@@ -63,6 +63,24 @@ export const usersRelations = relations(users, ({ many, one }) => ({
     fields: [users.id],
     references: [organizations.adminUserId],
   }),
+  passwordResetTokens: many(passwordResetTokens),
+}));
+
+// Password Reset Tokens - for secure password reset flow
+export const passwordResetTokens = pgTable("password_reset_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  token: varchar("token").notNull().unique(), // Cryptographically secure random token
+  expiresAt: timestamp("expires_at").notNull(), // Token expiration (typically 1 hour)
+  usedAt: timestamp("used_at"), // When the token was used (null if not used)
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const passwordResetTokensRelations = relations(passwordResetTokens, ({ one }) => ({
+  user: one(users, {
+    fields: [passwordResetTokens.userId],
+    references: [users.id],
+  }),
 }));
 
 // Organizations (Schools/Institutions)

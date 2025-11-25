@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { GraduationCap } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 
@@ -144,6 +144,14 @@ export default function StudentLogin() {
               >
                 {isLoading ? "Logging in..." : "Login"}
               </Button>
+              
+              <div className="text-center">
+                <Link href="/forgot-password">
+                  <Button variant="link" className="text-sm px-0" data-testid="link-forgot-password">
+                    Forgot your password?
+                  </Button>
+                </Link>
+              </div>
             </form>
           </Form>
         </CardContent>

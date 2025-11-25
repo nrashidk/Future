@@ -8,7 +8,8 @@ export function registerQuizRoutes(app: Express) {
   app.post("/api/assessments/:assessmentId/quiz/generate", async (req: any, res) => {
     try {
       const { assessmentId } = req.params;
-      const { guestToken } = req.body;
+      // Support both body param (legacy) and httpOnly cookie (secure)
+      const guestToken = req.body.guestToken || req.cookies?.guest_token;
       
       // Get assessment to check authorization and get grade/country
       const assessment = await storage.getAssessmentById(assessmentId);
@@ -219,7 +220,9 @@ export function registerQuizRoutes(app: Express) {
   app.post("/api/assessments/:assessmentId/quiz/submit", async (req: any, res) => {
     try {
       const { assessmentId } = req.params;
-      const { responses: userResponses, guestToken } = req.body;
+      const { responses: userResponses } = req.body;
+      // Support both body param (legacy) and httpOnly cookie (secure)
+      const guestToken = req.body.guestToken || req.cookies?.guest_token;
       
       // Validation: Check if responses is an array
       if (!Array.isArray(userResponses)) {

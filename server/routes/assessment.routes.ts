@@ -7,6 +7,7 @@ import { z } from "zod";
 import { calculateKolbScores } from "../questionBanks/kolb";
 import { calculateRiasecScores } from "../questionBanks/riasec";
 import { normalizeSubjects } from "../utils/subjects";
+import { sanitizeRequestBody } from "../utils/sanitize";
 
 /**
  * Normalize assessment payload before validation
@@ -53,8 +54,11 @@ function normalizeAssessmentPayload(body: any): { normalized?: any; error?: stri
 export function registerAssessmentRoutes(app: Express) {
   app.post("/api/assessments", async (req: any, res) => {
     try {
+      // Sanitize user input to prevent XSS
+      const sanitizedBody = sanitizeRequestBody(req.body);
+      
       // Normalize payload before validation
-      const normalizationResult = normalizeAssessmentPayload(req.body);
+      const normalizationResult = normalizeAssessmentPayload(sanitizedBody);
       if (normalizationResult.error) {
         return res.status(400).json({ message: normalizationResult.error });
       }
@@ -113,11 +117,19 @@ export function registerAssessmentRoutes(app: Express) {
         assessmentType
       });
 
-      // Return guest token to frontend for subsequent requests
-      res.json({
-        ...assessment,
-        guestToken: isGuest ? guestToken : undefined
-      });
+      // Set guest token in httpOnly cookie for security (prevents XSS token theft)
+      if (isGuest && guestToken) {
+        res.cookie("guest_token", guestToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "strict",
+          path: "/",
+          maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        });
+      }
+
+      // Return assessment without exposing guest token in response body
+      res.json(assessment);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid data", errors: error.errors });
@@ -165,6 +177,9 @@ export function registerAssessmentRoutes(app: Express) {
         return res.status(400).json({ message: "Request body must be an object" });
       }
       
+      // Sanitize user input to prevent XSS
+      const sanitizedBody = sanitizeRequestBody(req.body);
+      
       // Define allowed fields for assessment updates
       const allowedFields = [
         'name', 'age', 'grade', 'gender', 'countryId', 'favoriteSubjects', 
@@ -176,7 +191,7 @@ export function registerAssessmentRoutes(app: Express) {
       ];
       
       // Validation: Check for disallowed fields
-      const providedFields = Object.keys(req.body);
+      const providedFields = Object.keys(sanitizedBody);
       const disallowedFields = providedFields.filter(field => !allowedFields.includes(field));
       if (disallowedFields.length > 0) {
         return res.status(400).json({ 
@@ -185,7 +200,7 @@ export function registerAssessmentRoutes(app: Express) {
       }
       
       // Normalize payload before processing
-      const normalizationResult = normalizeAssessmentPayload(req.body);
+      const normalizationResult = normalizeAssessmentPayload(sanitizedBody);
       if (normalizationResult.error) {
         return res.status(400).json({ message: normalizationResult.error });
       }

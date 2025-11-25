@@ -149,7 +149,8 @@ export function registerRecommendationsRoutes(app: Express) {
   app.get("/api/recommendations", async (req: any, res) => {
     try {
       let assessmentId = req.query.assessmentId as string | undefined;
-      const guestToken = req.query.guestToken as string | undefined;
+      // Support both query param (legacy) and httpOnly cookie (secure)
+      const guestToken = (req.query.guestToken as string | undefined) || req.cookies?.guest_token;
 
       // If no assessmentId but guestToken provided, try to find guest assessment
       if (!assessmentId && guestToken) {

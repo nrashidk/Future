@@ -1,7 +1,10 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { setupAuth } from "./replitAuth";
+import { validateCsrf } from "./middleware/csrf.middleware";
 import { registerAuthRoutes } from "./routes/auth.routes";
+import { registerUserRoutes } from "./routes/user.routes";
+import { registerPasswordResetRoutes } from "./routes/password-reset.routes";
 import { registerCountriesRoutes } from "./routes/countries.routes";
 import { registerAssessmentRoutes } from "./routes/assessment.routes";
 import { registerQuizRoutes } from "./routes/quiz.routes";
@@ -17,12 +20,17 @@ import { registerPublicRoutes } from "./routes/public.routes";
 import { registerFilesRoutes } from "./routes/files.routes";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Setup authentication first
+  // Setup authentication first (must be before CSRF validation)
   await setupAuth(app);
+
+  // CSRF validation runs after auth setup so req.isAuthenticated() is available
+  app.use(validateCsrf);
 
   // Register all route modules
   registerPublicRoutes(app); // Public routes (no auth required)
   registerAuthRoutes(app);
+  registerUserRoutes(app); // GDPR compliance: data export and deletion
+  registerPasswordResetRoutes(app); // Password reset flow
   registerCountriesRoutes(app);
   registerAssessmentRoutes(app);
   registerQuizRoutes(app);

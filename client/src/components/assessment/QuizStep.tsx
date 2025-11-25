@@ -33,15 +33,11 @@ export function QuizStep({ assessmentId, onComplete }: QuizStepProps) {
   const [showResults, setShowResults] = useState(false);
   const [score, setScore] = useState<any>(null);
 
-  // Generate/fetch quiz
+  // Generate/fetch quiz (guest token is sent via httpOnly cookie automatically)
   const { data: quizData, isLoading: isGenerating, error: generationError } = useQuery({
     queryKey: ["/api/assessments", assessmentId, "quiz"],
     queryFn: async () => {
-      // Retrieve guest token from localStorage for authorization
-      const guestToken = localStorage.getItem("guestToken");
-      const response = await apiRequest("POST", `/api/assessments/${assessmentId}/quiz/generate`, {
-        guestToken: guestToken || undefined
-      });
+      const response = await apiRequest("POST", `/api/assessments/${assessmentId}/quiz/generate`, {});
       return await response.json();
     }
   });
@@ -53,14 +49,11 @@ export function QuizStep({ assessmentId, onComplete }: QuizStepProps) {
     }
   }, [quizData, showResults, onComplete]);
 
-  // Submit quiz mutation
+  // Submit quiz mutation (guest token is sent via httpOnly cookie automatically)
   const submitMutation = useMutation({
     mutationFn: async (quizResponses: QuizResponse[]) => {
-      // Retrieve guest token from localStorage for authorization
-      const guestToken = localStorage.getItem("guestToken");
       const response = await apiRequest("POST", `/api/assessments/${assessmentId}/quiz/submit`, {
-        responses: quizResponses,
-        guestToken: guestToken || undefined
+        responses: quizResponses
       });
       return await response.json();
     },
