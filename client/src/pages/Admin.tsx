@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Home, Plus, Download, Upload, Edit, Trash2, GraduationCap, User, LogOut } from "lucide-react";
+import { Home, Plus, Download, Upload, Edit, Trash2, GraduationCap, User, LogOut, Building2, Shield } from "lucide-react";
 
 interface QuizQuestion {
   id: string;
@@ -132,6 +132,22 @@ export default function Admin() {
                 Home
               </Link>
             </Button>
+            {user?.accountType === 'superadmin' && (
+              <>
+                <Button variant="outline" size="sm" asChild data-testid="button-nav-superadmin">
+                  <Link href="/superadmin">
+                    <Shield className="w-4 h-4 mr-2" />
+                    Dashboard
+                  </Link>
+                </Button>
+                <Button variant="outline" size="sm" asChild data-testid="button-nav-schools">
+                  <Link href="/admin/organizations">
+                    <Building2 className="w-4 h-4 mr-2" />
+                    Schools
+                  </Link>
+                </Button>
+              </>
+            )}
             {user && (
               <>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-profile">
@@ -320,14 +336,17 @@ export default function Admin() {
                   <div className="space-y-2">
                     <p className="text-sm font-medium">Options:</p>
                     <ul className="list-disc list-inside space-y-1">
-                      {question.options.map((option, i) => (
-                        <li 
-                          key={i}
-                          className={option === question.correctAnswer ? "text-green-600 font-medium" : ""}
-                        >
-                          {option} {option === question.correctAnswer && "(Correct)"}
-                        </li>
-                      ))}
+                      {question.options.map((option, i) => {
+                        const optionText = typeof option === 'string' ? option : (option as any)?.text || '';
+                        return (
+                          <li 
+                            key={i}
+                            className={optionText === question.correctAnswer ? "text-green-600 font-medium" : ""}
+                          >
+                            {optionText} {optionText === question.correctAnswer && "(Correct)"}
+                          </li>
+                        );
+                      })}
                     </ul>
                     {question.explanation && (
                       <div className="mt-3 p-3 bg-muted rounded">

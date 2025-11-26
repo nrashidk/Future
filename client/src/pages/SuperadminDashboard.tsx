@@ -17,7 +17,7 @@ import {
   Building2, Users, GraduationCap, Key, Search, Filter, 
   Plus, Download, Edit, Trash2, UserPlus, Crown, Shield,
   TrendingUp, AlertCircle, CheckCircle, Clock, Home, User, LogOut,
-  ChevronUp, ChevronDown, History, Infinity, BarChart, Copy
+  ChevronUp, ChevronDown, History, Infinity, BarChart, Copy, FileQuestion
 } from "lucide-react";
 
 interface Metrics {
@@ -336,22 +336,28 @@ export default function SuperadminDashboard() {
             <Badge variant="secondary">Superadmin</Badge>
           </Link>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" asChild data-testid="button-nav-org-admin">
+            <Button variant="outline" size="sm" asChild data-testid="button-nav-home">
+              <Link href="/">
+                <Home className="w-4 h-4 mr-2" />
+                Home
+              </Link>
+            </Button>
+            <Button variant="outline" size="sm" asChild data-testid="button-nav-schools">
               <Link href="/admin/organizations">
                 <Building2 className="w-4 h-4 mr-2" />
-                Org View
+                Schools
+              </Link>
+            </Button>
+            <Button variant="outline" size="sm" asChild data-testid="button-nav-questions">
+              <Link href="/admin">
+                <FileQuestion className="w-4 h-4 mr-2" />
+                Quiz Questions
               </Link>
             </Button>
             <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">
               <Link href="/analytics">
                 <BarChart className="w-4 h-4 mr-2" />
                 Analytics
-              </Link>
-            </Button>
-            <Button variant="outline" size="sm" asChild data-testid="button-nav-home">
-              <Link href="/">
-                <Home className="w-4 h-4 mr-2" />
-                Home
               </Link>
             </Button>
             <Button variant="outline" size="sm" asChild data-testid="button-nav-profile">

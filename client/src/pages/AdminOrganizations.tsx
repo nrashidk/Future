@@ -17,7 +17,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { 
   Home, Plus, Download, Upload, Edit, Trash2, GraduationCap, 
-  Users, Building2, Key, RefreshCw, FileDown, Lock, LockOpen, User, LogOut, BarChart
+  Users, Building2, Key, RefreshCw, FileDown, Lock, LockOpen, User, LogOut, BarChart, Shield, FileQuestion
 } from "lucide-react";
 import { StickyNote } from "@/components/StickyNote";
 
@@ -140,25 +140,33 @@ export default function AdminOrganizations() {
             <span className="font-bold text-lg">Future Pathways</span>
           </Link>
           <div className="flex gap-2">
-            {user?.accountType !== 'org_admin' && (
-              <Button variant="outline" size="sm" asChild data-testid="button-nav-questions">
-                <Link href="/admin">
-                  Quiz Questions
-                </Link>
-              </Button>
+            <Button variant="outline" size="sm" asChild data-testid="button-nav-home">
+              <Link href="/">
+                <Home className="w-4 h-4 mr-2" />
+                Home
+              </Link>
+            </Button>
+            {user?.accountType === 'superadmin' && (
+              <>
+                <Button variant="outline" size="sm" asChild data-testid="button-nav-superadmin">
+                  <Link href="/superadmin">
+                    <Shield className="w-4 h-4 mr-2" />
+                    Dashboard
+                  </Link>
+                </Button>
+                <Button variant="outline" size="sm" asChild data-testid="button-nav-questions">
+                  <Link href="/admin">
+                    <FileQuestion className="w-4 h-4 mr-2" />
+                    Quiz Questions
+                  </Link>
+                </Button>
+              </>
             )}
-            {user?.accountType === 'org_admin' ? (
+            {user?.accountType === 'org_admin' && (
               <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">
                 <Link href="/analytics">
                   <BarChart className="w-4 h-4 mr-2" />
                   Analytics
-                </Link>
-              </Button>
-            ) : (
-              <Button variant="outline" size="sm" asChild data-testid="button-nav-home">
-                <Link href="/">
-                  <Home className="w-4 h-4 mr-2" />
-                  Home
                 </Link>
               </Button>
             )}
