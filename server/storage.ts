@@ -1554,6 +1554,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getOrganizationsWithLogos(): Promise<Array<{ id: string; name: string; logoUrl: string | null }>> {
+    // Return all organizations for the public landing page marquee
+    // Organizations without logos will show a placeholder icon with their name
     return db
       .select({
         id: organizations.id,
@@ -1561,7 +1563,6 @@ export class DatabaseStorage implements IStorage {
         logoUrl: organizations.logoUrl,
       })
       .from(organizations)
-      .where(sql`${organizations.logoUrl} IS NOT NULL AND ${organizations.logoUrl} != ''`)
       .orderBy(desc(organizations.createdAt));
   }
 
