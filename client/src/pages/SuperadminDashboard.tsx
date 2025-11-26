@@ -171,7 +171,8 @@ export default function SuperadminDashboard() {
 
   const addAdminMutation = useMutation({
     mutationFn: async (data: typeof newAdminForm) => {
-      return apiRequest('POST', `/api/superadmin/organizations/${selectedOrgId}/admins`, data);
+      const res = await apiRequest('POST', `/api/superadmin/organizations/${selectedOrgId}/admins`, data);
+      return res.json();
     },
     onSuccess: (data: any) => {
       toast({ 
