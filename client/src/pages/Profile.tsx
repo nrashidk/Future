@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
-import { GraduationCap, Crown, Users, ClipboardCheck, Home, User, LogOut, BarChart } from "lucide-react";
+import { GraduationCap, Crown, Users, ClipboardCheck, Home, User, LogOut, BarChart, Shield, Building2, FileQuestion } from "lucide-react";
 import { StickyNote } from "@/components/StickyNote";
 
 interface Assessment {
@@ -50,6 +50,7 @@ export default function Profile() {
 
   const isOrgAdmin = user?.accountType === 'org_admin';
   const isOrgStudent = user?.accountType === 'org_student';
+  const isSuperadmin = user?.accountType === 'superadmin';
 
   // For individual users and org students: fetch their own assessments
   const { data: assessments = [] } = useQuery<Assessment[]>({
@@ -95,10 +96,12 @@ export default function Profile() {
 
   const getAccountTypeBadge = () => {
     switch (user.accountType) {
+      case 'superadmin':
+        return <Badge className="bg-red-500 hover:bg-red-600" data-testid="badge-account-type"><Shield className="w-3 h-3 mr-1" /> Superadmin</Badge>;
       case 'org_admin':
-        return <Badge className="bg-purple-500 hover:bg-purple-600" data-testid="badge-account-type"><Users className="w-3 h-3 mr-1" /> Organization Admin</Badge>;
+        return <Badge className="bg-purple-500 hover:bg-purple-600" data-testid="badge-account-type"><Users className="w-3 h-3 mr-1" /> School Admin</Badge>;
       case 'org_student':
-        return <Badge variant="secondary" data-testid="badge-account-type"><Users className="w-3 h-3 mr-1" /> Organization Student</Badge>;
+        return <Badge variant="secondary" data-testid="badge-account-type"><Users className="w-3 h-3 mr-1" /> School Student</Badge>;
       default:
         return <Badge variant="outline" data-testid="badge-account-type"><User className="w-3 h-3 mr-1" /> Individual Account</Badge>;
     }
@@ -117,14 +120,51 @@ export default function Profile() {
             <span className="font-bold text-lg">Future Pathways</span>
           </Link>
           <div className="flex gap-2">
-            {isOrgAdmin ? (
-              <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">
-                <Link href="/analytics">
-                  <BarChart className="w-4 h-4 mr-2" />
-                  Analytics
-                </Link>
-              </Button>
-            ) : (
+            {isSuperadmin && (
+              <>
+                <Button variant="outline" size="sm" asChild data-testid="button-nav-superadmin">
+                  <Link href="/superadmin">
+                    <Shield className="w-4 h-4 mr-2" />
+                    Dashboard
+                  </Link>
+                </Button>
+                <Button variant="outline" size="sm" asChild data-testid="button-nav-schools">
+                  <Link href="/admin/organizations">
+                    <Building2 className="w-4 h-4 mr-2" />
+                    Schools
+                  </Link>
+                </Button>
+                <Button variant="outline" size="sm" asChild data-testid="button-nav-questions">
+                  <Link href="/admin">
+                    <FileQuestion className="w-4 h-4 mr-2" />
+                    Quiz Questions
+                  </Link>
+                </Button>
+                <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">
+                  <Link href="/analytics">
+                    <BarChart className="w-4 h-4 mr-2" />
+                    Analytics
+                  </Link>
+                </Button>
+              </>
+            )}
+            {isOrgAdmin && (
+              <>
+                <Button variant="outline" size="sm" asChild data-testid="button-nav-schools">
+                  <Link href="/admin/organizations">
+                    <Building2 className="w-4 h-4 mr-2" />
+                    Schools
+                  </Link>
+                </Button>
+                <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">
+                  <Link href="/analytics">
+                    <BarChart className="w-4 h-4 mr-2" />
+                    Analytics
+                  </Link>
+                </Button>
+              </>
+            )}
+            {!isSuperadmin && !isOrgAdmin && (
               <Button variant="outline" size="sm" asChild data-testid="button-nav-home">
                 <Link href="/">
                   <Home className="w-4 h-4 mr-2" />
@@ -291,7 +331,8 @@ export default function Profile() {
             </CardContent>
           </StickyNote>
 
-          {/* Premium Status */}
+          {/* Premium Status - Hidden for superadmins */}
+          {!isSuperadmin && (
           <StickyNote rotation="1" color="blue">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -442,9 +483,10 @@ export default function Profile() {
               )}
             </CardContent>
           </StickyNote>
+          )}
 
-          {/* Assessment History - Only show for individual users */}
-          {!isOrgAdmin && (
+          {/* Assessment History - Only show for non-admin users */}
+          {!isOrgAdmin && !isSuperadmin && (
             <StickyNote rotation="-1" color="pink">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
