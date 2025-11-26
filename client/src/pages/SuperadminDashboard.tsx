@@ -17,7 +17,7 @@ import {
   Building2, Users, GraduationCap, Key, Search, Filter, 
   Plus, Download, Edit, Trash2, UserPlus, Crown, Shield,
   TrendingUp, AlertCircle, CheckCircle, Clock, Home, User, LogOut,
-  ChevronUp, ChevronDown, History, Infinity, BarChart
+  ChevronUp, ChevronDown, History, Infinity, BarChart, Copy
 } from "lucide-react";
 
 interface Metrics {
@@ -118,6 +118,9 @@ export default function SuperadminDashboard() {
     username: "",
   });
   
+  const [createdAdminCredentials, setCreatedAdminCredentials] = useState<{ username: string; password: string } | null>(null);
+  const [isCredentialsModalOpen, setIsCredentialsModalOpen] = useState(false);
+  
   const [licenseForm, setLicenseForm] = useState({
     totalLicenses: 0,
     isUnlimited: false,
@@ -175,11 +178,12 @@ export default function SuperadminDashboard() {
       return res.json();
     },
     onSuccess: (data: any) => {
-      toast({ 
-        title: "Admin Added", 
-        description: `Created admin: ${data.credentials.username} / ${data.credentials.password}. Save these credentials!`,
+      setCreatedAdminCredentials({ 
+        username: data.credentials.username, 
+        password: data.credentials.password 
       });
       setIsAddAdminModalOpen(false);
+      setIsCredentialsModalOpen(true);
       setNewAdminForm({ firstName: "", lastName: "", email: "", phone: "", username: "" });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations', selectedOrgId, 'admins'] });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations'] });
@@ -816,6 +820,72 @@ export default function SuperadminDashboard() {
               data-testid="button-submit-add-admin"
             >
               {addAdminMutation.isPending ? "Creating..." : "Create Admin"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Admin Credentials Modal */}
+      <Dialog open={isCredentialsModalOpen} onOpenChange={setIsCredentialsModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Admin Account Created</DialogTitle>
+            <DialogDescription>
+              Save these credentials securely - they won't be shown again!
+            </DialogDescription>
+          </DialogHeader>
+          {createdAdminCredentials && (
+            <div className="space-y-4">
+              <div className="p-4 bg-muted rounded-lg space-y-3">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Username</p>
+                  <p className="font-mono font-bold text-lg" data-testid="text-created-username">{createdAdminCredentials.username}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Password</p>
+                  <p className="font-mono font-bold text-lg" data-testid="text-created-password">{createdAdminCredentials.password}</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    navigator.clipboard.writeText(`Username: ${createdAdminCredentials.username}\nPassword: ${createdAdminCredentials.password}`);
+                    toast({ title: "Copied!", description: "Credentials copied to clipboard" });
+                  }}
+                  data-testid="button-copy-credentials"
+                >
+                  <Copy className="w-4 h-4 mr-2" />
+                  Copy to Clipboard
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={() => {
+                    const content = `Username: ${createdAdminCredentials.username}\nPassword: ${createdAdminCredentials.password}`;
+                    const blob = new Blob([content], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${createdAdminCredentials.username}-credentials.txt`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                  data-testid="button-download-credentials"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Download
+                </Button>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={() => {
+              setIsCredentialsModalOpen(false);
+              setCreatedAdminCredentials(null);
+              toast({ title: "Admin Added", description: "The new admin can now log in with their credentials" });
+            }} data-testid="button-close-credentials">
+              Done
             </Button>
           </DialogFooter>
         </DialogContent>
