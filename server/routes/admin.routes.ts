@@ -198,7 +198,7 @@ export function registerAdminRoutes(app: Express) {
       res.status(201).json(organization);
     } catch (error) {
       console.error("Error creating organization:", error);
-      res.status(500).json({ message: "Failed to create organization" });
+      res.status(500).json({ message: "Failed to create school" });
     }
   });
 
@@ -206,12 +206,12 @@ export function registerAdminRoutes(app: Express) {
     try {
       const organization = await storage.getOrganizationById(req.params.id);
       if (!organization) {
-        return res.status(404).json({ message: "Organization not found" });
+        return res.status(404).json({ message: "School not found" });
       }
       res.json(organization);
     } catch (error) {
       console.error("Error fetching organization:", error);
-      res.status(500).json({ message: "Failed to fetch organization" });
+      res.status(500).json({ message: "Failed to fetch school" });
     }
   });
 
@@ -228,7 +228,7 @@ export function registerAdminRoutes(app: Express) {
       res.json(organization);
     } catch (error) {
       console.error("Error updating organization:", error);
-      res.status(500).json({ message: "Failed to update organization" });
+      res.status(500).json({ message: "Failed to update school" });
     }
   });
 
@@ -394,7 +394,7 @@ export function registerAdminRoutes(app: Express) {
 
       const org = await storage.getOrganizationById(organizationId);
       if (!org) {
-        return res.status(404).json({ message: "Organization not found" });
+        return res.status(404).json({ message: "School not found" });
       }
 
       const availableLicenses = org.totalLicenses - org.usedLicenses;
@@ -749,7 +749,7 @@ export function registerAdminRoutes(app: Express) {
       const organizationId = req.params.id;
       const organization = await storage.getOrganizationById(organizationId);
       if (!organization) {
-        return res.status(404).json({ message: "Organization not found" });
+        return res.status(404).json({ message: "School not found" });
       }
 
       // Get all members with completed assessments
@@ -882,7 +882,7 @@ export function registerAdminRoutes(app: Express) {
       const organizationId = req.params.id;
       const organization = await storage.getOrganizationById(organizationId);
       if (!organization) {
-        return res.status(404).json({ message: "Organization not found" });
+        return res.status(404).json({ message: "School not found" });
       }
 
       // Get all members
@@ -989,7 +989,7 @@ export function registerAdminRoutes(app: Express) {
       
       const organization = await storage.getOrganizationById(req.params.id);
       if (!organization) {
-        return res.status(404).json({ message: "Organization not found" });
+        return res.status(404).json({ message: "School not found" });
       }
 
       const members = await storage.getOrganizationMembersByOrganizationId(req.params.id);
@@ -1108,7 +1108,7 @@ export function registerAdminRoutes(app: Express) {
       
       const organization = await storage.getOrganizationById(req.params.id);
       if (!organization) {
-        return res.status(404).json({ message: "Organization not found" });
+        return res.status(404).json({ message: "School not found" });
       }
 
       const members = await storage.getOrganizationMembersByOrganizationId(req.params.id);
@@ -1237,7 +1237,7 @@ export function registerAdminRoutes(app: Express) {
           const fs = await import('fs/promises');
           await fs.default.unlink(req.file.path).catch(() => {});
         }
-        return res.status(404).json({ message: "Organization not found" });
+        return res.status(404).json({ message: "School not found" });
       }
 
       if (!req.file && !fileId) {

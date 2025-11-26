@@ -139,7 +139,18 @@ export default function SuperadminDashboard() {
   });
 
   const { data: organizations = [], isLoading: orgsLoading } = useQuery<OrganizationWithDetails[]>({
-    queryKey: ['/api/superadmin/organizations', searchQuery, licenseFilter, sortBy, sortOrder],
+    queryKey: ['/api/superadmin/organizations', { search: searchQuery, licenseStatus: licenseFilter, sortBy, sortOrder }],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (searchQuery) params.set('search', searchQuery);
+      if (licenseFilter && licenseFilter !== 'all') params.set('licenseStatus', licenseFilter);
+      if (sortBy) params.set('sortBy', sortBy);
+      if (sortOrder) params.set('sortOrder', sortOrder);
+      const url = `/api/superadmin/organizations${params.toString() ? `?${params.toString()}` : ''}`;
+      const res = await fetch(url, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch schools');
+      return res.json();
+    },
   });
 
   const { data: orgAdmins = [], isLoading: adminsLoading } = useQuery<AdminDetail[]>({
@@ -182,7 +193,7 @@ export default function SuperadminDashboard() {
       return apiRequest('DELETE', `/api/superadmin/organizations/${selectedOrgId}/admins/${memberId}`);
     },
     onSuccess: () => {
-      toast({ title: "Admin Removed", description: "Admin has been removed from the organization" });
+      toast({ title: "Admin Removed", description: "Admin has been removed from the school" });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations', selectedOrgId, 'admins'] });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations'] });
     },
@@ -226,7 +237,7 @@ export default function SuperadminDashboard() {
     },
     onSuccess: (data: any) => {
       toast({ 
-        title: "Organization Created", 
+        title: "School Created", 
         description: `Created ${data.organization.name} with admin: ${data.admin.credentials.username} / ${data.admin.credentials.password}`,
       });
       setIsCreateOrgModalOpen(false);
@@ -243,7 +254,7 @@ export default function SuperadminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/metrics'] });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to create organization", variant: "destructive" });
+      toast({ title: "Error", description: error.message || "Failed to create school", variant: "destructive" });
     },
   });
 
@@ -356,11 +367,11 @@ export default function SuperadminDashboard() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">Superadmin Dashboard</h1>
-            <p className="text-muted-foreground">Manage all organizations, licenses, and administrators</p>
+            <p className="text-muted-foreground">Manage all schools, licenses, and administrators</p>
           </div>
-          <Button onClick={() => setIsCreateOrgModalOpen(true)} data-testid="button-create-org">
+          <Button onClick={() => setIsCreateOrgModalOpen(true)} data-testid="button-create-school">
             <Plus className="w-4 h-4 mr-2" />
-            Create Organization
+            Create School
           </Button>
         </div>
 
@@ -390,7 +401,7 @@ export default function SuperadminDashboard() {
                 {metricsLoading ? "..." : metrics?.totalAdmins || 0}
               </div>
               <p className="text-xs text-muted-foreground">
-                Across all organizations
+                Across all schools
               </p>
             </CardContent>
           </Card>
@@ -428,7 +439,7 @@ export default function SuperadminDashboard() {
 
         <Tabs defaultValue="organizations" className="space-y-4">
           <TabsList>
-            <TabsTrigger value="organizations" data-testid="tab-organizations">Organizations</TabsTrigger>
+            <TabsTrigger value="organizations" data-testid="tab-schools">Schools</TabsTrigger>
             <TabsTrigger value="activity" data-testid="tab-activity">Recent Activity</TabsTrigger>
           </TabsList>
 
@@ -437,14 +448,14 @@ export default function SuperadminDashboard() {
               <CardHeader>
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
-                    <CardTitle>Organizations Directory</CardTitle>
+                    <CardTitle>Schools Directory</CardTitle>
                     <CardDescription>Manage all schools and their licenses</CardDescription>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <Input
-                        placeholder="Search organizations..."
+                        placeholder="Search schools..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="pl-9 w-64"
@@ -474,9 +485,9 @@ export default function SuperadminDashboard() {
               </CardHeader>
               <CardContent>
                 {orgsLoading ? (
-                  <div className="text-center py-8 text-muted-foreground">Loading organizations...</div>
+                  <div className="text-center py-8 text-muted-foreground">Loading schools...</div>
                 ) : sortedOrgs.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">No organizations found</div>
+                  <div className="text-center py-8 text-muted-foreground">No schools found</div>
                 ) : (
                   <div className="overflow-x-auto">
                     <Table>
@@ -490,7 +501,7 @@ export default function SuperadminDashboard() {
                             }}
                           >
                             <div className="flex items-center gap-1">
-                              Organization
+                              School
                               {sortBy === "name" && (sortOrder === "asc" ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />)}
                             </div>
                           </TableHead>
@@ -622,7 +633,7 @@ export default function SuperadminDashboard() {
             <Card>
               <CardHeader>
                 <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>Audit log of recent changes across all organizations</CardDescription>
+                <CardDescription>Audit log of recent changes across all schools</CardDescription>
               </CardHeader>
               <CardContent>
                 {allEvents.length === 0 ? (
@@ -635,7 +646,7 @@ export default function SuperadminDashboard() {
                         <div className="flex-1 min-w-0">
                           <div className="font-medium">{event.eventDescription}</div>
                           <div className="text-sm text-muted-foreground">
-                            {event.organization?.name || "Unknown Organization"}
+                            {event.organization?.name || "Unknown School"}
                           </div>
                           <div className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
                             <span>By {event.performer?.username || "Unknown"}</span>
@@ -656,7 +667,7 @@ export default function SuperadminDashboard() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Manage Admins - {selectedOrg?.name}</DialogTitle>
-            <DialogDescription>View and manage administrators for this organization</DialogDescription>
+            <DialogDescription>View and manage administrators for this school</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="flex justify-end">
@@ -813,7 +824,7 @@ export default function SuperadminDashboard() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Manage Licenses - {selectedOrg?.name}</DialogTitle>
-            <DialogDescription>Adjust license allocation for this organization</DialogDescription>
+            <DialogDescription>Adjust license allocation for this school</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="p-4 bg-muted rounded-lg">
@@ -896,7 +907,7 @@ export default function SuperadminDashboard() {
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Activity History - {selectedOrg?.name}</DialogTitle>
-            <DialogDescription>Recent changes and events for this organization</DialogDescription>
+            <DialogDescription>Recent changes and events for this school</DialogDescription>
           </DialogHeader>
           <div className="max-h-96 overflow-y-auto">
             {eventsLoading ? (
@@ -926,12 +937,12 @@ export default function SuperadminDashboard() {
       <Dialog open={isCreateOrgModalOpen} onOpenChange={setIsCreateOrgModalOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Create New Organization</DialogTitle>
+            <DialogTitle>Create New School</DialogTitle>
             <DialogDescription>Create a new school with a primary administrator account</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="orgName">Organization Name *</Label>
+              <Label htmlFor="orgName">School Name *</Label>
               <Input
                 id="orgName"
                 value={newOrgForm.organizationName}
@@ -1012,7 +1023,7 @@ export default function SuperadminDashboard() {
               disabled={!newOrgForm.organizationName || !newOrgForm.adminFirstName || !newOrgForm.adminLastName || createOrgMutation.isPending}
               data-testid="button-submit-create-org"
             >
-              {createOrgMutation.isPending ? "Creating..." : "Create Organization"}
+              {createOrgMutation.isPending ? "Creating..." : "Create School"}
             </Button>
           </DialogFooter>
         </DialogContent>

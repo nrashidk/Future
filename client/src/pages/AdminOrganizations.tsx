@@ -187,23 +187,23 @@ export default function AdminOrganizations() {
 
       <div className="max-w-7xl mx-auto py-12 px-4 space-y-8">
         <div className="text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">Organizations Dashboard</h1>
-          <p className="text-muted-foreground text-lg">Manage Group Assessment Organizations</p>
+          <h1 className="text-4xl md:text-5xl font-bold mb-4">Schools Dashboard</h1>
+          <p className="text-muted-foreground text-lg">Manage Group Assessment Schools</p>
         </div>
 
         {/* Organization Selector */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 pb-4">
             <div>
-              <CardTitle className="text-lg">Select Organization</CardTitle>
-              <CardDescription>{organizations.length} organization{organizations.length !== 1 ? 's' : ''}</CardDescription>
+              <CardTitle className="text-lg">Select School</CardTitle>
+              <CardDescription>{organizations.length} school{organizations.length !== 1 ? 's' : ''}</CardDescription>
             </div>
             {user?.accountType !== 'org_admin' && (
               <Dialog open={isCreateOrgDialogOpen} onOpenChange={setIsCreateOrgDialogOpen}>
                 <DialogTrigger asChild>
-                  <Button size="sm" data-testid="button-create-organization">
+                  <Button size="sm" data-testid="button-create-school">
                     <Plus className="w-4 h-4 mr-2" />
-                    New Organization
+                    New School
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
@@ -219,12 +219,12 @@ export default function AdminOrganizations() {
           </CardHeader>
           <CardContent>
             {orgsLoading ? (
-              <p className="text-sm text-muted-foreground text-center py-4">Loading organizations...</p>
+              <p className="text-sm text-muted-foreground text-center py-4">Loading schools...</p>
             ) : organizations.length === 0 ? (
               <div className="text-center py-8">
                 <StickyNote color="yellow" rotation="1" className="mx-auto mb-4">
                   <Building2 className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">No organizations yet</p>
+                  <p className="text-sm text-muted-foreground">No schools yet</p>
                 </StickyNote>
               </div>
             ) : (
@@ -255,7 +255,7 @@ export default function AdminOrganizations() {
               <StickyNote color="blue" rotation="-1" className="mx-auto">
                 <Users className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
                 <p className="text-muted-foreground">
-                  Select an organization above to view details
+                  Select a school above to view details
                 </p>
               </StickyNote>
             </CardContent>
@@ -277,12 +277,12 @@ export default function AdminOrganizations() {
                     )}
                     <div>
                       <CardTitle className="text-2xl">{selectedOrg.name}</CardTitle>
-                      <CardDescription>Organization ID: {selectedOrg.id}</CardDescription>
+                      <CardDescription>School ID: {selectedOrg.id}</CardDescription>
                     </div>
                   </div>
                   <Dialog open={isEditOrgDialogOpen} onOpenChange={setIsEditOrgDialogOpen}>
                     <DialogTrigger asChild>
-                      <Button variant="outline" size="sm" data-testid="button-edit-organization">
+                      <Button variant="outline" size="sm" data-testid="button-edit-school">
                         <Edit className="w-4 h-4 mr-2" />
                         Edit Details
                       </Button>
@@ -534,11 +534,11 @@ function CreateOrganizationForm({ onSuccess }: { onSuccess: () => void }) {
       return apiRequest('POST', '/api/admin/organizations', payload);
     },
     onSuccess: () => {
-      toast({ title: "Success", description: "Organization created successfully" });
+      toast({ title: "Success", description: "School created successfully" });
       onSuccess();
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to create organization", variant: "destructive" });
+      toast({ title: "Error", description: "Failed to create school", variant: "destructive" });
     },
   });
 
@@ -550,15 +550,15 @@ function CreateOrganizationForm({ onSuccess }: { onSuccess: () => void }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <DialogHeader>
-        <DialogTitle>Create Organization</DialogTitle>
+        <DialogTitle>Create School</DialogTitle>
         <DialogDescription>
-          Add a new school or organization for group assessments
+          Add a new school for group assessments
         </DialogDescription>
       </DialogHeader>
 
       <div className="space-y-4">
         <div>
-          <Label htmlFor="org-name">Organization Name *</Label>
+          <Label htmlFor="org-name">School Name *</Label>
           <Input
             id="org-name"
             value={formData.name}
@@ -638,8 +638,8 @@ function CreateOrganizationForm({ onSuccess }: { onSuccess: () => void }) {
       </div>
 
       <div className="flex justify-end gap-2 pt-4">
-        <Button type="submit" disabled={mutation.isPending} data-testid="button-submit-organization">
-          {mutation.isPending ? "Creating..." : "Create Organization"}
+        <Button type="submit" disabled={mutation.isPending} data-testid="button-submit-school">
+          {mutation.isPending ? "Creating..." : "Create School"}
         </Button>
       </div>
     </form>
@@ -662,11 +662,11 @@ function EditOrganizationForm({ organization, onSuccess }: { organization: Organ
       return apiRequest('PATCH', `/api/admin/organizations/${organization.id}`, payload);
     },
     onSuccess: () => {
-      toast({ title: "Success", description: "Organization updated successfully" });
+      toast({ title: "Success", description: "School updated successfully" });
       onSuccess();
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to update organization", variant: "destructive" });
+      toast({ title: "Error", description: "Failed to update school", variant: "destructive" });
     },
   });
 
@@ -678,15 +678,15 @@ function EditOrganizationForm({ organization, onSuccess }: { organization: Organ
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <DialogHeader>
-        <DialogTitle>Edit Organization</DialogTitle>
+        <DialogTitle>Edit School</DialogTitle>
         <DialogDescription>
-          Update organization details
+          Update school details
         </DialogDescription>
       </DialogHeader>
 
       <div className="space-y-4">
         <div>
-          <Label htmlFor="edit-org-name">Organization Name *</Label>
+          <Label htmlFor="edit-org-name">School Name *</Label>
           <Input
             id="edit-org-name"
             value={formData.name}
@@ -726,8 +726,8 @@ function EditOrganizationForm({ organization, onSuccess }: { organization: Organ
       </div>
 
       <div className="flex justify-end gap-2 pt-4">
-        <Button type="submit" disabled={mutation.isPending} data-testid="button-submit-edit-organization">
-          {mutation.isPending ? "Updating..." : "Update Organization"}
+        <Button type="submit" disabled={mutation.isPending} data-testid="button-submit-edit-school">
+          {mutation.isPending ? "Updating..." : "Update School"}
         </Button>
       </div>
     </form>

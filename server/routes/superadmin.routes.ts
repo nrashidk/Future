@@ -198,7 +198,7 @@ export function registerSuperadminRoutes(app: Express) {
       res.json(orgWithDetails);
     } catch (error) {
       console.error("Error fetching organizations directory:", error);
-      res.status(500).json({ message: "Failed to fetch organizations" });
+      res.status(500).json({ message: "Failed to fetch schools" });
     }
   });
 
@@ -210,7 +210,7 @@ export function registerSuperadminRoutes(app: Express) {
     try {
       const org = await storage.getOrganizationById(req.params.id);
       if (!org) {
-        return res.status(404).json({ message: "Organization not found" });
+        return res.status(404).json({ message: "School not found" });
       }
       
       const members = await storage.getOrganizationMembersByOrganizationId(req.params.id);
@@ -237,8 +237,8 @@ export function registerSuperadminRoutes(app: Express) {
       
       res.json(adminDetails);
     } catch (error) {
-      console.error("Error fetching organization admins:", error);
-      res.status(500).json({ message: "Failed to fetch organization admins" });
+      console.error("Error fetching school admins:", error);
+      res.status(500).json({ message: "Failed to fetch school admins" });
     }
   });
 
@@ -247,7 +247,7 @@ export function registerSuperadminRoutes(app: Express) {
     try {
       const org = await storage.getOrganizationById(req.params.id);
       if (!org) {
-        return res.status(404).json({ message: "Organization not found" });
+        return res.status(404).json({ message: "School not found" });
       }
       
       const { firstName, lastName, email, phone, username } = req.body;
@@ -326,19 +326,19 @@ export function registerSuperadminRoutes(app: Express) {
         },
       });
     } catch (error) {
-      console.error("Error adding organization admin:", error);
-      res.status(500).json({ message: "Failed to add organization admin" });
+      console.error("Error adding school admin:", error);
+      res.status(500).json({ message: "Failed to add school admin" });
     }
   });
 
-  // Remove admin from organization
+  // Remove admin from school
   app.delete("/api/superadmin/organizations/:orgId/admins/:memberId", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
     try {
       const { orgId, memberId } = req.params;
       
       const org = await storage.getOrganizationById(orgId);
       if (!org) {
-        return res.status(404).json({ message: "Organization not found" });
+        return res.status(404).json({ message: "School not found" });
       }
       
       const members = await storage.getOrganizationMembersByOrganizationId(orgId);
@@ -354,7 +354,7 @@ export function registerSuperadminRoutes(app: Express) {
       
       const admins = members.filter(m => m.role === "admin");
       if (admins.length <= 1) {
-        return res.status(400).json({ message: "Cannot remove the last admin from an organization" });
+        return res.status(400).json({ message: "Cannot remove the last admin from a school" });
       }
       
       const removedUser = await storage.getUser(adminToRemove.userId);
@@ -374,8 +374,8 @@ export function registerSuperadminRoutes(app: Express) {
       
       res.json({ success: true, message: "Admin removed successfully" });
     } catch (error) {
-      console.error("Error removing organization admin:", error);
-      res.status(500).json({ message: "Failed to remove organization admin" });
+      console.error("Error removing school admin:", error);
+      res.status(500).json({ message: "Failed to remove school admin" });
     }
   });
 
@@ -386,7 +386,7 @@ export function registerSuperadminRoutes(app: Express) {
       
       const org = await storage.getOrganizationById(orgId);
       if (!org) {
-        return res.status(404).json({ message: "Organization not found" });
+        return res.status(404).json({ message: "School not found" });
       }
       
       const members = await storage.getOrganizationMembersByOrganizationId(orgId);
@@ -432,7 +432,7 @@ export function registerSuperadminRoutes(app: Express) {
     try {
       const org = await storage.getOrganizationById(req.params.id);
       if (!org) {
-        return res.status(404).json({ message: "Organization not found" });
+        return res.status(404).json({ message: "School not found" });
       }
       
       const { totalLicenses, isUnlimitedLicenses, adjustment } = req.body;
@@ -531,7 +531,7 @@ export function registerSuperadminRoutes(app: Express) {
     try {
       const org = await storage.getOrganizationById(req.params.id);
       if (!org) {
-        return res.status(404).json({ message: "Organization not found" });
+        return res.status(404).json({ message: "School not found" });
       }
       
       const limit = req.query.limit ? parseInt(req.query.limit as string) : 50;
@@ -707,7 +707,7 @@ export function registerSuperadminRoutes(app: Express) {
       });
     } catch (error) {
       console.error("Error creating organization with admin:", error);
-      res.status(500).json({ message: "Failed to create organization" });
+      res.status(500).json({ message: "Failed to create school" });
     }
   });
 
@@ -818,7 +818,7 @@ export function registerSuperadminRoutes(app: Express) {
           const org = await storage.getOrganizationById(orgId);
           if (!org) {
             results.failed++;
-            results.errors.push({ orgId, error: "Organization not found" });
+            results.errors.push({ orgId, error: "School not found" });
             continue;
           }
           

@@ -137,14 +137,14 @@ export default function Landing() {
                           src={org.logoUrl}
                           alt={`${org.name} logo`}
                           className="h-12 w-auto object-contain grayscale hover:grayscale-0 transition-all"
-                          data-testid={`img-org-logo-${org.id}-${index}`}
+                          data-testid={`img-school-logo-${org.id}-${index}`}
                         />
                       ) : (
                         <div className="h-12 w-24 flex items-center justify-center bg-muted/30 rounded border border-border">
                           <Building2 className="w-6 h-6 text-muted-foreground" />
                         </div>
                       )}
-                      <span className="text-xs text-muted-foreground text-center w-[120px] truncate" data-testid={`text-org-name-${org.id}-${index}`}>
+                      <span className="text-xs text-muted-foreground text-center w-[120px] truncate" data-testid={`text-school-name-${org.id}-${index}`}>
                         {org.name}
                       </span>
                     </div>

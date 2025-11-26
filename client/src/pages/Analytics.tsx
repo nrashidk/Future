@@ -146,10 +146,10 @@ export default function Analytics() {
           </Link>
           <div className="flex gap-2">
             {isOrgAdmin && (
-              <Button variant="outline" size="sm" asChild data-testid="button-nav-organizations">
+              <Button variant="outline" size="sm" asChild data-testid="button-nav-schools">
                 <Link href="/admin/organizations">
                   <Building2 className="w-4 h-4 mr-2" />
-                  Organizations
+                  Schools
                 </Link>
               </Button>
             )}
