@@ -39,6 +39,7 @@
   --sticky-blue: 207 100% 94%;
   --sticky-green: 120 60% 95%;
   --sticky-purple: 280 60% 96%;
+  --sticky-orange: 25 100% 90%;
   --destructive: 0 72% 48%;
   --destructive-foreground: 0 0% 98%;
   --input: 210 15% 70%;
@@ -129,6 +130,7 @@
   --sticky-blue: 207 60% 25%;
   --sticky-green: 120 40% 25%;
   --sticky-purple: 280 40% 25%;
+  --sticky-orange: 25 80% 25%;
   --destructive: 0 72% 48%;
   --destructive-foreground: 0 0% 98%;
   --input: 215 18% 35%;

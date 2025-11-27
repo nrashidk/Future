@@ -80,6 +80,7 @@ export default {
         "sticky-blue": "hsl(var(--sticky-blue) / <alpha-value>)",
         "sticky-green": "hsl(var(--sticky-green) / <alpha-value>)",
         "sticky-purple": "hsl(var(--sticky-purple) / <alpha-value>)",
+        "sticky-orange": "hsl(var(--sticky-orange) / <alpha-value>)",
         status: {
           online: "rgb(34 197 94)",
           away: "rgb(245 158 11)",

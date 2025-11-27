@@ -3,7 +3,7 @@ import { LucideIcon } from "lucide-react";
 
 interface StickyNoteProps {
   children: React.ReactNode;
-  color?: "yellow" | "pink" | "blue" | "green" | "purple";
+  color?: "yellow" | "pink" | "blue" | "green" | "purple" | "orange";
   rotation?: "-2" | "-1" | "0" | "1" | "2";
   className?: string;
   icon?: LucideIcon;
@@ -17,6 +17,7 @@ const colorClasses = {
   blue: "bg-sticky-blue",
   green: "bg-sticky-green",
   purple: "bg-sticky-purple",
+  orange: "bg-sticky-orange",
 };
 
 const rotationClasses = {

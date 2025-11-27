@@ -394,11 +394,24 @@ function QuestionForm({
     return normalized;
   };
   
+  const normalizedOptions = normalizeOptions(question?.options);
+  const savedCorrectAnswer = question?.correctAnswer || "";
+  
+  const findMatchingOption = (answer: string, options: string[]): string => {
+    if (!answer) return "";
+    const trimmedAnswer = answer.trim();
+    const exactMatch = options.find(o => o === trimmedAnswer);
+    if (exactMatch) return exactMatch;
+    const caseInsensitiveMatch = options.find(o => o.toLowerCase() === trimmedAnswer.toLowerCase());
+    if (caseInsensitiveMatch) return caseInsensitiveMatch;
+    return answer;
+  };
+  
   const [formData, setFormData] = useState({
     question: question?.question || "",
     questionType: question?.questionType || "multiple_choice",
-    options: normalizeOptions(question?.options),
-    correctAnswer: question?.correctAnswer || "",
+    options: normalizedOptions,
+    correctAnswer: findMatchingOption(savedCorrectAnswer, normalizedOptions),
     explanation: question?.explanation || "",
     subject: question?.subject || "",
     gradeBand: question?.gradeBand || "",
