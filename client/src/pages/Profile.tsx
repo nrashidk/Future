@@ -164,6 +164,12 @@ export default function Profile() {
                 </Button>
               </>
             )}
+            <Button variant="outline" size="sm" asChild data-testid="button-nav-profile">
+              <Link href="/profile">
+                <User className="w-4 h-4 mr-2" />
+                Profile
+              </Link>
+            </Button>
             <Button 
               variant="outline" 
               size="sm" 
