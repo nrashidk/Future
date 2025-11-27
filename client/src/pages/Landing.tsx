@@ -329,16 +329,7 @@ export default function Landing() {
           </p>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-            <StickyNote color="blue" rotation="1" className="p-6">
-              <h4 className="text-lg font-bold mb-2">WEF Future Skills Framework</h4>
-              <p className="text-sm text-muted-foreground font-body mb-2">
-                World Economic Forum's 16 essential future-ready skills across Foundational Literacies and Core Competencies
-              </p>
-              <p className="text-xs text-muted-foreground italic">
-                Source: Future of Jobs Report 2025
-              </p>
-            </StickyNote>
-
+            {/* Row 1: Assessments without sources */}
             <StickyNote color="green" rotation="-1" className="p-6">
               <h4 className="text-lg font-bold mb-2">Career Personality Assessment</h4>
               <p className="text-sm text-muted-foreground font-body mb-2">
@@ -357,6 +348,17 @@ export default function Landing() {
               <h4 className="text-lg font-bold mb-2">Personal Values Assessment</h4>
               <p className="text-sm text-muted-foreground font-body mb-2">
                 Cross-culturally validated assessment measuring 10 basic human values for value-based career alignment
+              </p>
+            </StickyNote>
+
+            {/* Row 2: Items with source references */}
+            <StickyNote color="blue" rotation="1" className="p-6">
+              <h4 className="text-lg font-bold mb-2">WEF Future Skills Framework</h4>
+              <p className="text-sm text-muted-foreground font-body mb-2">
+                World Economic Forum's 16 essential future-ready skills across Foundational Literacies and Core Competencies
+              </p>
+              <p className="text-xs text-muted-foreground italic">
+                Source: Future of Jobs Report 2025
               </p>
             </StickyNote>
 
