@@ -348,13 +348,18 @@ export default function Admin() {
                     <p className="text-sm font-medium">Options:</p>
                     <ul className="list-disc list-inside space-y-1">
                       {question.options.map((option, i) => {
-                        const optionText = typeof option === 'string' ? option : (option as any)?.text || '';
+                        const isObject = typeof option === 'object' && option !== null;
+                        const optionText = isObject ? (option as any)?.text || '' : String(option || '');
+                        const optionId = isObject ? (option as any)?.id || '' : '';
+                        const isCorrect = isObject 
+                          ? (optionId === question.correctAnswer || optionText === question.correctAnswer)
+                          : (optionText === question.correctAnswer);
                         return (
                           <li 
                             key={i}
-                            className={optionText === question.correctAnswer ? "text-green-600 font-medium" : ""}
+                            className={isCorrect ? "text-green-600 font-medium" : ""}
                           >
-                            {optionText} {optionText === question.correctAnswer && "(Correct)"}
+                            {optionText} {isCorrect && "(Correct)"}
                           </li>
                         );
                       })}
@@ -389,16 +394,35 @@ function QuestionForm({
   
   const normalizeOptions = (opts: any): string[] => {
     if (!opts || !Array.isArray(opts)) return ["", "", "", ""];
-    const normalized = opts.map(o => typeof o === 'string' ? o : String(o || ''));
+    const normalized = opts.map(o => {
+      if (typeof o === 'string') return o;
+      if (typeof o === 'object' && o !== null && 'text' in o) return String(o.text || '');
+      return String(o || '');
+    });
     while (normalized.length < 4) normalized.push("");
     return normalized;
   };
   
+  const getOptionIdMap = (opts: any): Map<string, string> => {
+    const map = new Map<string, string>();
+    if (!opts || !Array.isArray(opts)) return map;
+    opts.forEach(o => {
+      if (typeof o === 'object' && o !== null && 'id' in o && 'text' in o) {
+        map.set(o.id, String(o.text || ''));
+      }
+    });
+    return map;
+  };
+  
   const normalizedOptions = normalizeOptions(question?.options);
+  const optionIdMap = getOptionIdMap(question?.options);
   const savedCorrectAnswer = question?.correctAnswer || "";
   
-  const findMatchingOption = (answer: string, options: string[]): string => {
+  const findMatchingOption = (answer: string, options: string[], idMap: Map<string, string>): string => {
     if (!answer) return "";
+    if (idMap.has(answer)) {
+      return idMap.get(answer) || "";
+    }
     const trimmedAnswer = answer.trim();
     const exactMatch = options.find(o => o === trimmedAnswer);
     if (exactMatch) return exactMatch;
@@ -411,7 +435,7 @@ function QuestionForm({
     question: question?.question || "",
     questionType: question?.questionType || "multiple_choice",
     options: normalizedOptions,
-    correctAnswer: findMatchingOption(savedCorrectAnswer, normalizedOptions),
+    correctAnswer: findMatchingOption(savedCorrectAnswer, normalizedOptions, optionIdMap),
     explanation: question?.explanation || "",
     subject: question?.subject || "",
     gradeBand: question?.gradeBand || "",
