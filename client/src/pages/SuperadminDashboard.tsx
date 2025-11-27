@@ -336,12 +336,6 @@ export default function SuperadminDashboard() {
             <Badge variant="secondary">Superadmin</Badge>
           </Link>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" asChild data-testid="button-nav-home">
-              <Link href="/">
-                <Home className="w-4 h-4 mr-2" />
-                Home
-              </Link>
-            </Button>
             <Button variant="outline" size="sm" asChild data-testid="button-nav-schools">
               <Link href="/admin/organizations">
                 <Building2 className="w-4 h-4 mr-2" />
@@ -351,7 +345,7 @@ export default function SuperadminDashboard() {
             <Button variant="outline" size="sm" asChild data-testid="button-nav-questions">
               <Link href="/admin">
                 <FileQuestion className="w-4 h-4 mr-2" />
-                Quiz Questions
+                Quiz Dashboard
               </Link>
             </Button>
             <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">

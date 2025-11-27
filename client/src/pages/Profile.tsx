@@ -125,7 +125,7 @@ export default function Profile() {
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-superadmin">
                   <Link href="/superadmin">
                     <Shield className="w-4 h-4 mr-2" />
-                    Dashboard
+                    Super Admin
                   </Link>
                 </Button>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-schools">
@@ -137,7 +137,7 @@ export default function Profile() {
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-questions">
                   <Link href="/admin">
                     <FileQuestion className="w-4 h-4 mr-2" />
-                    Quiz Questions
+                    Quiz Dashboard
                   </Link>
                 </Button>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">
@@ -163,14 +163,6 @@ export default function Profile() {
                   </Link>
                 </Button>
               </>
-            )}
-            {!isSuperadmin && !isOrgAdmin && (
-              <Button variant="outline" size="sm" asChild data-testid="button-nav-home">
-                <Link href="/">
-                  <Home className="w-4 h-4 mr-2" />
-                  Home
-                </Link>
-              </Button>
             )}
             <Button 
               variant="outline" 

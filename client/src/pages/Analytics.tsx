@@ -153,7 +153,7 @@ export default function Analytics() {
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-superadmin">
                   <Link href="/superadmin">
                     <Shield className="w-4 h-4 mr-2" />
-                    Dashboard
+                    Super Admin
                   </Link>
                 </Button>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-schools">
@@ -165,7 +165,7 @@ export default function Analytics() {
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-questions">
                   <Link href="/admin">
                     <FileQuestion className="w-4 h-4 mr-2" />
-                    Quiz Questions
+                    Quiz Dashboard
                   </Link>
                 </Button>
               </>
@@ -175,14 +175,6 @@ export default function Analytics() {
                 <Link href="/admin/organizations">
                   <Building2 className="w-4 h-4 mr-2" />
                   Schools
-                </Link>
-              </Button>
-            )}
-            {!isSuperadmin && !isOrgAdmin && (
-              <Button variant="outline" size="sm" asChild data-testid="button-nav-home">
-                <Link href="/">
-                  <Home className="w-4 h-4 mr-2" />
-                  Home
                 </Link>
               </Button>
             )}

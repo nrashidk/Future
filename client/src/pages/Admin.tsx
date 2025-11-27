@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Home, Plus, Download, Upload, Edit, Trash2, GraduationCap, User, LogOut, Building2, Shield } from "lucide-react";
+import { Home, Plus, Download, Upload, Edit, Trash2, GraduationCap, User, LogOut, Building2, Shield, BarChart } from "lucide-react";
 
 interface QuizQuestion {
   id: string;
@@ -126,24 +126,24 @@ export default function Admin() {
             <span className="font-bold text-lg">Future Pathways</span>
           </Link>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" asChild data-testid="button-nav-home">
-              <Link href="/">
-                <Home className="w-4 h-4 mr-2" />
-                Home
-              </Link>
-            </Button>
             {user?.accountType === 'superadmin' && (
               <>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-superadmin">
                   <Link href="/superadmin">
                     <Shield className="w-4 h-4 mr-2" />
-                    Dashboard
+                    Super Admin
                   </Link>
                 </Button>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-schools">
                   <Link href="/admin/organizations">
                     <Building2 className="w-4 h-4 mr-2" />
                     Schools
+                  </Link>
+                </Button>
+                <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">
+                  <Link href="/analytics">
+                    <BarChart className="w-4 h-4 mr-2" />
+                    Analytics
                   </Link>
                 </Button>
               </>
@@ -173,7 +173,7 @@ export default function Admin() {
 
       <div className="max-w-7xl mx-auto py-12 px-4">
         <div className="mb-12 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">Super Admin Dashboard</h1>
+          <h1 className="text-4xl md:text-5xl font-bold mb-4">Quiz Dashboard</h1>
           <p className="text-muted-foreground text-lg">Manage Quiz Question Bank</p>
         </div>
 

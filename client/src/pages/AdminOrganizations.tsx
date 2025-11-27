@@ -140,24 +140,24 @@ export default function AdminOrganizations() {
             <span className="font-bold text-lg">Future Pathways</span>
           </Link>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" asChild data-testid="button-nav-home">
-              <Link href="/">
-                <Home className="w-4 h-4 mr-2" />
-                Home
-              </Link>
-            </Button>
             {user?.accountType === 'superadmin' && (
               <>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-superadmin">
                   <Link href="/superadmin">
                     <Shield className="w-4 h-4 mr-2" />
-                    Dashboard
+                    Super Admin
                   </Link>
                 </Button>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-questions">
                   <Link href="/admin">
                     <FileQuestion className="w-4 h-4 mr-2" />
-                    Quiz Questions
+                    Quiz Dashboard
+                  </Link>
+                </Button>
+                <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">
+                  <Link href="/analytics">
+                    <BarChart className="w-4 h-4 mr-2" />
+                    Analytics
                   </Link>
                 </Button>
               </>
