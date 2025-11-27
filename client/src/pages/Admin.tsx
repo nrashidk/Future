@@ -179,7 +179,10 @@ export default function Admin() {
 
       <div className="max-w-7xl mx-auto py-12 px-4">
         <div className="mb-12 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">Quiz Dashboard</h1>
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <FileQuestion className="w-12 h-12 text-primary" />
+            <h1 className="text-4xl md:text-5xl font-bold">Quiz Dashboard</h1>
+          </div>
           <p className="text-muted-foreground text-lg">Manage Quiz Question Bank</p>
         </div>
 

@@ -209,7 +209,10 @@ export default function AdminOrganizations() {
 
       <div className="max-w-7xl mx-auto py-12 px-4 space-y-8">
         <div className="text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">Schools Dashboard</h1>
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <Building2 className="w-12 h-12 text-primary" />
+            <h1 className="text-4xl md:text-5xl font-bold">Schools Dashboard</h1>
+          </div>
           <p className="text-muted-foreground text-lg">Manage Group Assessment Schools</p>
         </div>
 
