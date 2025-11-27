@@ -370,7 +370,7 @@ export default function Landing() {
               </p>
             </StickyNote>
 
-            <StickyNote color="yellow" rotation="-1" className="p-6">
+            <StickyNote color="green" rotation="-1" className="p-6">
               <h4 className="text-lg font-bold mb-2">Curriculum-Aligned Assessments</h4>
               <p className="text-sm text-muted-foreground font-body mb-2">
                 240 grade-differentiated questions covering core subjects aligned with UAE national curriculum standards
