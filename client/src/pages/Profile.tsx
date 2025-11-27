@@ -137,7 +137,7 @@ export default function Profile() {
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-questions">
                   <Link href="/admin">
                     <FileQuestion className="w-4 h-4 mr-2" />
-                    Quiz Dashboard
+                    Quiz
                   </Link>
                 </Button>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">

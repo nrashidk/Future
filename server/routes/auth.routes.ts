@@ -2,6 +2,13 @@ import type { Express } from "express";
 import { isAuthenticated } from "../replitAuth";
 import { storage } from "../storage";
 
+function getSuperadminEmails(): string[] {
+  return (process.env.SUPERADMIN_EMAILS || "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+}
+
 export function registerAuthRoutes(app: Express) {
   app.get("/api/auth/user", isAuthenticated, async (req: any, res) => {
     try {
@@ -10,6 +17,17 @@ export function registerAuthRoutes(app: Express) {
       
       if (!user) {
         return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Check if user is a superadmin based on email or role
+      const superadminEmails = getSuperadminEmails();
+      const isSuperadmin = 
+        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email.toLowerCase())) ||
+        user.role === "superadmin" ||
+        user.accountType === "superadmin";
+      
+      if (isSuperadmin) {
+        user.accountType = "superadmin";
       }
       
       // Organization students should be treated as premium users since they have school access
