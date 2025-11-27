@@ -377,7 +377,7 @@ export default function SuperadminDashboard() {
       <main className="max-w-7xl mx-auto px-4 py-8 space-y-8">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Superadmin Dashboard</h1>
+            <h1 className="text-4xl md:text-5xl font-bold mb-4">Super Admin Dashboard</h1>
             <p className="text-muted-foreground">Manage all schools, licenses, and administrators</p>
           </div>
           <Button onClick={() => setIsCreateOrgModalOpen(true)} data-testid="button-create-school">
