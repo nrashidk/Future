@@ -147,6 +147,8 @@ export default function Analytics() {
           <Link href="/" className="flex items-center gap-2 hover-elevate rounded-lg px-3 py-2">
             <GraduationCap className="w-6 h-6 text-primary" />
             <span className="font-bold text-lg">Future Pathways</span>
+            {isSuperadmin && <Badge variant="secondary">Superadmin</Badge>}
+            {isOrgAdmin && <Badge variant="secondary">School Admin</Badge>}
           </Link>
           <div className="flex gap-2">
             {isSuperadmin && (

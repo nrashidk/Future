@@ -138,6 +138,8 @@ export default function AdminOrganizations() {
           <Link href="/" className="flex items-center gap-2 hover-elevate rounded-lg px-3 py-2">
             <GraduationCap className="w-6 h-6 text-primary" />
             <span className="font-bold text-lg">Future Pathways</span>
+            {user?.accountType === 'superadmin' && <Badge variant="secondary">Superadmin</Badge>}
+            {user?.accountType === 'org_admin' && <Badge variant="secondary">School Admin</Badge>}
           </Link>
           <div className="flex gap-2">
             {user?.accountType === 'superadmin' && (

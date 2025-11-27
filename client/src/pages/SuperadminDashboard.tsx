@@ -374,8 +374,8 @@ export default function SuperadminDashboard() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-8 space-y-8">
-        <div className="text-center mb-8">
+      <main className="max-w-7xl mx-auto px-4 py-12 space-y-8">
+        <div className="mb-12 text-center">
           <div className="flex items-center justify-center gap-3 mb-4">
             <Shield className="w-12 h-12 text-primary" />
             <h1 className="text-4xl md:text-5xl font-bold">Super Admin Dashboard</h1>

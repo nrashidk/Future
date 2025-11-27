@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -124,6 +125,7 @@ export default function Admin() {
           <Link href="/" className="flex items-center gap-2 hover-elevate rounded-lg px-3 py-2">
             <GraduationCap className="w-6 h-6 text-primary" />
             <span className="font-bold text-lg">Future Pathways</span>
+            {user?.accountType === 'superadmin' && <Badge variant="secondary">Superadmin</Badge>}
           </Link>
           <div className="flex gap-2">
             {user?.accountType === 'superadmin' && (
