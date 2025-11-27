@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Home, Plus, Download, Upload, Edit, Trash2, GraduationCap, User, LogOut, Building2, Shield, BarChart } from "lucide-react";
+import { Home, Plus, Download, Upload, Edit, Trash2, GraduationCap, User, LogOut, Building2, Shield, BarChart, FileQuestion } from "lucide-react";
 
 interface QuizQuestion {
   id: string;
@@ -138,6 +138,12 @@ export default function Admin() {
                   <Link href="/admin/organizations">
                     <Building2 className="w-4 h-4 mr-2" />
                     Schools
+                  </Link>
+                </Button>
+                <Button variant="outline" size="sm" asChild data-testid="button-nav-questions">
+                  <Link href="/admin">
+                    <FileQuestion className="w-4 h-4 mr-2" />
+                    Quiz
                   </Link>
                 </Button>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">

@@ -148,6 +148,12 @@ export default function AdminOrganizations() {
                     Super Admin
                   </Link>
                 </Button>
+                <Button variant="outline" size="sm" asChild data-testid="button-nav-schools">
+                  <Link href="/admin/organizations">
+                    <Building2 className="w-4 h-4 mr-2" />
+                    Schools
+                  </Link>
+                </Button>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-questions">
                   <Link href="/admin">
                     <FileQuestion className="w-4 h-4 mr-2" />
@@ -163,12 +169,20 @@ export default function AdminOrganizations() {
               </>
             )}
             {user?.accountType === 'org_admin' && (
-              <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">
-                <Link href="/analytics">
-                  <BarChart className="w-4 h-4 mr-2" />
-                  Analytics
-                </Link>
-              </Button>
+              <>
+                <Button variant="outline" size="sm" asChild data-testid="button-nav-schools">
+                  <Link href="/admin/organizations">
+                    <Building2 className="w-4 h-4 mr-2" />
+                    Schools
+                  </Link>
+                </Button>
+                <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">
+                  <Link href="/analytics">
+                    <BarChart className="w-4 h-4 mr-2" />
+                    Analytics
+                  </Link>
+                </Button>
+              </>
             )}
             {user && (
               <>

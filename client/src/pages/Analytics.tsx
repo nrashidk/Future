@@ -13,6 +13,7 @@ import {
   Target,
   CheckCircle,
   BarChart3,
+  BarChart,
   Sparkles,
   GraduationCap,
   Home,
@@ -168,15 +169,29 @@ export default function Analytics() {
                     Quiz
                   </Link>
                 </Button>
+                <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">
+                  <Link href="/analytics">
+                    <BarChart className="w-4 h-4 mr-2" />
+                    Analytics
+                  </Link>
+                </Button>
               </>
             )}
             {isOrgAdmin && (
-              <Button variant="outline" size="sm" asChild data-testid="button-nav-schools">
-                <Link href="/admin/organizations">
-                  <Building2 className="w-4 h-4 mr-2" />
-                  Schools
-                </Link>
-              </Button>
+              <>
+                <Button variant="outline" size="sm" asChild data-testid="button-nav-schools">
+                  <Link href="/admin/organizations">
+                    <Building2 className="w-4 h-4 mr-2" />
+                    Schools
+                  </Link>
+                </Button>
+                <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">
+                  <Link href="/analytics">
+                    <BarChart className="w-4 h-4 mr-2" />
+                    Analytics
+                  </Link>
+                </Button>
+              </>
             )}
             {user && (
               <>
