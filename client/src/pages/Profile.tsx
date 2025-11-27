@@ -185,7 +185,10 @@ export default function Profile() {
 
       <div className="max-w-4xl mx-auto py-12 px-4">
         <div className="mb-12 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">My Profile</h1>
+          <div className="flex items-center justify-center gap-3 mb-4">
+            <User className="w-12 h-12 text-primary" />
+            <h1 className="text-4xl md:text-5xl font-bold">My Profile</h1>
+          </div>
           <p className="text-muted-foreground text-lg">Manage your account and view your progress</p>
         </div>
 

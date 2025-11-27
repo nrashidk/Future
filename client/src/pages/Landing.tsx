@@ -126,7 +126,6 @@ export default function Landing() {
           {/* School Logos Section - Auto-scrolling */}
           {organizations.length > 0 && (
             <div className="mt-12 w-full">
-              <p className="text-sm text-muted-foreground mb-6 text-center">Trusted by schools across UAE</p>
               <div className="overflow-hidden">
                 <div className="flex items-center gap-12 animate-scroll">
                   {/* Duplicate organizations twice for seamless loop */}
