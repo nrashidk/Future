@@ -381,10 +381,18 @@ function QuestionForm({
   countries: Array<{ id: string; name: string }>;
 }) {
   const { toast } = useToast();
+  
+  const normalizeOptions = (opts: any): string[] => {
+    if (!opts || !Array.isArray(opts)) return ["", "", "", ""];
+    const normalized = opts.map(o => typeof o === 'string' ? o : String(o || ''));
+    while (normalized.length < 4) normalized.push("");
+    return normalized;
+  };
+  
   const [formData, setFormData] = useState({
     question: question?.question || "",
     questionType: question?.questionType || "multiple_choice",
-    options: question?.options || ["", "", "", ""],
+    options: normalizeOptions(question?.options),
     correctAnswer: question?.correctAnswer || "",
     explanation: question?.explanation || "",
     subject: question?.subject || "",
@@ -404,7 +412,7 @@ function QuestionForm({
       
       return apiRequest(method, url, {
         ...data,
-        options: data.options.filter(o => o.trim()),
+        options: data.options.filter(o => typeof o === 'string' && o.trim()),
       });
     },
     onSuccess: () => {
@@ -563,7 +571,7 @@ function QuestionForm({
               <SelectValue placeholder="Select correct answer" />
             </SelectTrigger>
             <SelectContent>
-              {formData.options.filter(o => o.trim()).map((option, index) => (
+              {formData.options.filter(o => typeof o === 'string' && o.trim()).map((option, index) => (
                 <SelectItem key={index} value={option}>{option}</SelectItem>
               ))}
             </SelectContent>
