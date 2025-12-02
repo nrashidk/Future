@@ -50,12 +50,29 @@ The application features a playful, student-friendly sticky notes aesthetic with
 - **Database**: PostgreSQL (Neon)
 - **Authentication**: Replit Auth (OpenID Connect)
 - **Payment Gateway**: Stripe
+- **LLM Provider**: OpenAI (customer-provided API key for platform portability)
 - **ORM**: Drizzle ORM
 - **Frontend Libraries**: React, TypeScript, Tailwind CSS, TanStack Query, Wouter
 - **Backend Libraries**: Express.js, TypeScript, Helmet, express-rate-limit
 - **PDF Generation**: Puppeteer (for report generation)
 - **Archiving**: Archiver library (for bulk report export)
 - **File Upload**: Multer (for handling multipart/form-data file uploads)
+
+## Recent Changes (December 2025)
+### Configurable Scoring Methodology & LLM Integration
+- **Configurable Scoring System**: Database-backed scoring methodology allowing superadmins to adjust calculation weights and criteria for Free, Premium, and School tiers without code changes
+- **LLM Integration**: OpenAI integration using customer's own API key for platform portability, with secure credential storage and configurable prompt templates
+- **Education Pathways Feature**: LLM-generated personalized university and program recommendations for premium users, with links to CAA-verified UAE institutions (https://caa.ae)
+- **Superadmin Scoring UI**: New "Scoring Methodology" tab for managing tier weights, component configurations, and LLM prompt templates
+- **Audit Logging**: Comprehensive audit trail for all scoring configuration changes
+- **Enhanced Security**: Rate-limited LLM endpoints, proper authentication and ownership checks, guest token validation
+
+### Database Schema Additions
+- `scoring_tiers`: Configurable assessment tiers (Free/Premium/School)
+- `tier_component_weights`: Component weights per tier with validation constraints
+- `llm_prompts`: Customizable LLM prompt templates by feature type
+- `llm_credentials`: Secure storage for API keys with encryption
+- `scoring_config_audit_log`: Audit trail for configuration changes
 
 ## Recent Changes (November 2025)
 ### Unlimited Licenses & Advanced Data Management
@@ -65,4 +82,3 @@ The application features a playful, student-friendly sticky notes aesthetic with
 - Built bulk student import from CSV with validation and error reporting
 - Added organization data export (students, assessments) in CSV/JSON formats
 - Enhanced security with proper access control on all new endpoints
-```
