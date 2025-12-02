@@ -18,6 +18,7 @@ import type {
   Country
 } from "../../shared/schema";
 import { type AssessmentTier, getEffectiveWeight } from "./tierWeights";
+import { getEffectiveWeightFromDb, getTierConfig } from "./scoringConfig";
 import { 
   INTEREST_LEXICON, 
   INTEREST_MATCHING_WEIGHTS, 
@@ -153,8 +154,12 @@ async function hydrateMatchingContext(
   const allComponents = await storage.getAllAssessmentComponents();
   const tier: AssessmentTier = assessment.assessmentType as AssessmentTier;
   
+  // Try to get weights from database first, fallback to hardcoded
+  const tierConfig = await getTierConfig(storage, tier);
+  const useDbConfig = tierConfig !== null && tierConfig.totalWeight >= 95; // Use DB if weights are valid
+  
   // Filter components and apply tier-specific weight overrides
-  const activeComponents = allComponents
+  const activeComponentsPromises = allComponents
     .filter(component => {
       // Only include active components
       if (!component.isActive) return false;
@@ -166,15 +171,26 @@ async function hydrateMatchingContext(
       
       return true;
     })
-    .map(component => {
-      // Apply tier-specific weight override
-      const effectiveWeight = getEffectiveWeight(tier, component.key, component.weight);
+    .map(async component => {
+      // Apply tier-specific weight override (database-first, then hardcoded fallback)
+      let effectiveWeight: number;
+      
+      if (useDbConfig && tierConfig) {
+        const dbWeight = tierConfig.weights.get(component.key);
+        effectiveWeight = (dbWeight?.isEnabled && dbWeight.weight > 0) ? dbWeight.weight : 0;
+      } else {
+        // Fallback to hardcoded weights
+        effectiveWeight = getEffectiveWeight(tier, component.key, component.weight);
+      }
+      
       return {
         ...component,
         weight: effectiveWeight, // Use effective weight for this tier
       };
-    })
-    .filter(component => component.weight > 0); // Remove components with 0 weight
+    });
+  
+  const resolvedComponents = await Promise.all(activeComponentsPromises);
+  const activeComponents = resolvedComponents.filter(component => component.weight > 0); // Remove components with 0 weight
 
   // Bulk fetch career affinities for all careers and active components
   const careerIds = careers.map(c => c.id);

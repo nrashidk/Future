@@ -861,4 +861,313 @@ export function registerSuperadminRoutes(app: Express) {
       res.status(500).json({ message: "Failed to bulk adjust licenses" });
     }
   });
+
+  // ===============================
+  // SCORING METHODOLOGY MANAGEMENT
+  // ===============================
+  
+  // Get scoring config summary (tiers, weights, validation)
+  app.get("/api/superadmin/scoring-config", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const { getScoringConfigSummary } = await import("../services/scoringConfig");
+      const summary = await getScoringConfigSummary(storage);
+      res.json(summary);
+    } catch (error) {
+      console.error("Error fetching scoring config:", error);
+      res.status(500).json({ message: "Failed to fetch scoring configuration" });
+    }
+  });
+
+  // Update tier component weights
+  app.patch("/api/superadmin/scoring-config/tiers/:tierKey/weights", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const { tierKey } = req.params;
+      const { weights } = req.body;
+      
+      if (!weights || typeof weights !== "object") {
+        return res.status(400).json({ message: "Weights object is required" });
+      }
+      
+      // Validate weights sum to 100%
+      let enabledWeightSum = 0;
+      for (const [key, config] of Object.entries(weights)) {
+        const cfg = config as { weight: number; isEnabled: boolean };
+        if (cfg.isEnabled) {
+          enabledWeightSum += cfg.weight;
+        }
+      }
+      
+      if (Math.abs(enabledWeightSum - 100) > 0.01) {
+        return res.status(400).json({ 
+          message: `Enabled weights must sum to 100%. Current sum: ${enabledWeightSum}%` 
+        });
+      }
+      
+      // Get tier ID
+      const tier = await storage.getScoringTierByKey(tierKey);
+      if (!tier) {
+        return res.status(404).json({ message: "Tier not found" });
+      }
+      
+      // Get all components for component ID lookup
+      const components = await storage.getAllAssessmentComponents();
+      const componentByKey = new Map(components.map(c => [c.key, c]));
+      
+      const currentUser = (req as any).currentUser;
+      const previousWeights = await storage.getTierComponentWeights(tier.id);
+      const previousWeightMap = new Map(
+        previousWeights.map(w => {
+          const component = components.find(c => c.id === w.componentId);
+          return [component?.key || "", { weight: w.weight, isEnabled: w.isEnabled }];
+        })
+      );
+      
+      // Update each weight
+      for (const [componentKey, config] of Object.entries(weights)) {
+        const cfg = config as { weight: number; isEnabled: boolean };
+        const component = componentByKey.get(componentKey);
+        if (!component) continue;
+        
+        await storage.upsertTierComponentWeight({
+          tierId: tier.id,
+          componentId: component.id,
+          weight: cfg.weight,
+          isEnabled: cfg.isEnabled,
+        });
+      }
+      
+      // Log the change
+      await storage.createScoringConfigChangeLog({
+        changedBy: currentUser.id,
+        changeType: "tier_weights_updated",
+        entityType: "tier",
+        entityId: tier.id,
+        previousValue: Object.fromEntries(previousWeightMap),
+        newValue: weights,
+        changeDescription: (req.body.changeReason as string) || null,
+      });
+      
+      // Invalidate cache
+      const { invalidateScoringConfigCache } = await import("../services/scoringConfig");
+      invalidateScoringConfigCache();
+      
+      res.json({ success: true, message: "Tier weights updated successfully" });
+    } catch (error) {
+      console.error("Error updating tier weights:", error);
+      res.status(500).json({ message: "Failed to update tier weights" });
+    }
+  });
+
+  // Get all LLM prompt templates
+  app.get("/api/superadmin/llm-prompts", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const prompts = await storage.getAllLlmPromptTemplates();
+      res.json(prompts);
+    } catch (error) {
+      console.error("Error fetching LLM prompts:", error);
+      res.status(500).json({ message: "Failed to fetch LLM prompts" });
+    }
+  });
+
+  // Update LLM prompt template
+  app.patch("/api/superadmin/llm-prompts/:id", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { systemPrompt, userPromptTemplate, model, maxTokens, temperature, isActive } = req.body;
+      
+      const updates: Record<string, any> = {};
+      if (systemPrompt !== undefined) updates.systemPrompt = systemPrompt;
+      if (userPromptTemplate !== undefined) updates.userPromptTemplate = userPromptTemplate;
+      if (model !== undefined) updates.model = model;
+      if (maxTokens !== undefined) updates.maxTokens = maxTokens;
+      if (temperature !== undefined) updates.temperature = temperature;
+      if (isActive !== undefined) updates.isActive = isActive;
+      
+      const updated = await storage.updateLlmPromptTemplate(id, updates);
+      
+      const currentUser = (req as any).currentUser;
+      await storage.createScoringConfigChangeLog({
+        changedBy: currentUser.id,
+        changeType: "prompt_updated",
+        entityType: "llm_prompt",
+        entityId: id,
+        previousValue: null,
+        newValue: updates,
+        changeDescription: (req.body.changeReason as string) || null,
+      });
+      
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating LLM prompt:", error);
+      res.status(500).json({ message: "Failed to update LLM prompt" });
+    }
+  });
+
+  // ===============================
+  // API CREDENTIALS MANAGEMENT
+  // ===============================
+  
+  // Get all API credentials (without exposing full keys)
+  app.get("/api/superadmin/api-credentials", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const credentials = await storage.getAllApiCredentials();
+      
+      // Mask API keys for security
+      const masked = credentials.map(cred => ({
+        id: cred.id,
+        provider: cred.provider,
+        apiKeyMasked: cred.apiKey ? `${cred.apiKey.substring(0, 8)}...${cred.apiKey.substring(cred.apiKey.length - 4)}` : null,
+        isActive: cred.isActive,
+        lastTestedAt: cred.lastTestedAt,
+        lastTestResult: cred.lastTestResult,
+        createdAt: cred.createdAt,
+        updatedAt: cred.updatedAt,
+      }));
+      
+      res.json(masked);
+    } catch (error) {
+      console.error("Error fetching API credentials:", error);
+      res.status(500).json({ message: "Failed to fetch API credentials" });
+    }
+  });
+
+  // Upsert API credential
+  app.post("/api/superadmin/api-credentials", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const { provider, apiKey, isActive } = req.body;
+      
+      if (!provider || !apiKey) {
+        return res.status(400).json({ message: "Provider and API key are required" });
+      }
+      
+      const credential = await storage.upsertApiCredential({
+        provider,
+        apiKey,
+        isActive: isActive !== false,
+      });
+      
+      const currentUser = (req as any).currentUser;
+      await storage.createScoringConfigChangeLog({
+        changedBy: currentUser.id,
+        changeType: "api_key_updated",
+        entityType: "api_credential",
+        entityId: credential.id,
+        previousValue: null,
+        newValue: { provider, isActive: credential.isActive },
+        changeDescription: null,
+      });
+      
+      res.json({
+        id: credential.id,
+        provider: credential.provider,
+        apiKeyMasked: `${apiKey.substring(0, 8)}...${apiKey.substring(apiKey.length - 4)}`,
+        isActive: credential.isActive,
+        createdAt: credential.createdAt,
+      });
+    } catch (error) {
+      console.error("Error saving API credential:", error);
+      res.status(500).json({ message: "Failed to save API credential" });
+    }
+  });
+
+  // Test API credential
+  app.post("/api/superadmin/api-credentials/:provider/test", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const { provider } = req.params;
+      
+      const credential = await storage.getApiCredential(provider);
+      if (!credential) {
+        return res.status(404).json({ message: "API credential not found" });
+      }
+      
+      let testResult = "success";
+      let testMessage = "API key is valid";
+      
+      if (provider === "openai") {
+        try {
+          const response = await fetch("https://api.openai.com/v1/models", {
+            headers: {
+              Authorization: `Bearer ${credential.apiKey}`,
+            },
+          });
+          
+          if (!response.ok) {
+            testResult = "failed";
+            testMessage = `API returned status ${response.status}`;
+          }
+        } catch (error) {
+          testResult = "failed";
+          testMessage = error instanceof Error ? error.message : "Connection failed";
+        }
+      }
+      
+      await storage.updateApiCredentialTestResult(provider, testResult);
+      
+      res.json({
+        success: testResult === "success",
+        result: testResult,
+        message: testMessage,
+      });
+    } catch (error) {
+      console.error("Error testing API credential:", error);
+      res.status(500).json({ message: "Failed to test API credential" });
+    }
+  });
+
+  // Delete API credential
+  app.delete("/api/superadmin/api-credentials/:provider", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const { provider } = req.params;
+      
+      const deleted = await storage.deleteApiCredential(provider);
+      if (!deleted) {
+        return res.status(404).json({ message: "API credential not found" });
+      }
+      
+      const currentUser = (req as any).currentUser;
+      await storage.createScoringConfigChangeLog({
+        changedBy: currentUser.id,
+        changeType: "api_key_deleted",
+        entityType: "api_credential",
+        entityId: provider,
+        previousValue: { provider },
+        newValue: null,
+        changeDescription: null,
+      });
+      
+      res.json({ success: true, message: "API credential deleted" });
+    } catch (error) {
+      console.error("Error deleting API credential:", error);
+      res.status(500).json({ message: "Failed to delete API credential" });
+    }
+  });
+
+  // ===============================
+  // SCORING CONFIG AUDIT LOG
+  // ===============================
+  
+  app.get("/api/superadmin/scoring-config/changelog", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 100;
+      const logs = await storage.getScoringConfigChangeLogs(limit);
+      
+      const logsWithUser = await Promise.all(logs.map(async (log) => {
+        const user = await storage.getUser(log.changedBy);
+        return {
+          ...log,
+          changedByUser: user ? {
+            id: user.id,
+            username: user.username,
+            firstName: user.firstName,
+            lastName: user.lastName,
+          } : null,
+        };
+      }));
+      
+      res.json(logsWithUser);
+    } catch (error) {
+      console.error("Error fetching scoring config changelog:", error);
+      res.status(500).json({ message: "Failed to fetch changelog" });
+    }
+  });
 }

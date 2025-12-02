@@ -22,6 +22,12 @@ import {
   countrySectorWefSkills,
   files,
   organizationEvents,
+  scoringTiers,
+  tierComponentWeights,
+  componentParameters,
+  llmPromptTemplates,
+  apiCredentials,
+  scoringConfigChangeLog,
   type User,
   type UpsertUser,
   type Country,
@@ -68,6 +74,18 @@ import {
   type InsertFile,
   type OrganizationEvent,
   type InsertOrganizationEvent,
+  type ScoringTier,
+  type InsertScoringTier,
+  type TierComponentWeight,
+  type InsertTierComponentWeight,
+  type ComponentParameter,
+  type InsertComponentParameter,
+  type LlmPromptTemplate,
+  type InsertLlmPromptTemplate,
+  type ApiCredential,
+  type InsertApiCredential,
+  type ScoringConfigChangeLog,
+  type InsertScoringConfigChangeLog,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, desc, count, avg, sql, inArray, isNotNull } from "drizzle-orm";
@@ -298,6 +316,42 @@ export interface IStorage {
   getOrganizationEvents(organizationId: string, limit?: number): Promise<OrganizationEvent[]>;
   getAllOrganizationEvents(limit?: number): Promise<OrganizationEvent[]>;
   getOrganizationEventsByType(organizationId: string, eventType: string): Promise<OrganizationEvent[]>;
+
+  // Scoring Configuration operations
+  getAllScoringTiers(): Promise<ScoringTier[]>;
+  getScoringTierByKey(key: string): Promise<ScoringTier | undefined>;
+  createScoringTier(tier: InsertScoringTier): Promise<ScoringTier>;
+  updateScoringTier(id: string, tier: Partial<InsertScoringTier>): Promise<ScoringTier>;
+  
+  // Tier Component Weights operations
+  getTierComponentWeights(tierId: string): Promise<TierComponentWeight[]>;
+  getAllTierComponentWeights(): Promise<TierComponentWeight[]>;
+  upsertTierComponentWeight(data: InsertTierComponentWeight): Promise<TierComponentWeight>;
+  updateTierComponentWeight(id: string, data: Partial<InsertTierComponentWeight>): Promise<TierComponentWeight>;
+  
+  // Component Parameters operations
+  getComponentParameters(componentId: string): Promise<ComponentParameter[]>;
+  getAllComponentParameters(): Promise<ComponentParameter[]>;
+  upsertComponentParameter(data: InsertComponentParameter): Promise<ComponentParameter>;
+  updateComponentParameter(id: string, data: Partial<InsertComponentParameter>): Promise<ComponentParameter>;
+  deleteComponentParameter(id: string): Promise<boolean>;
+  
+  // LLM Prompt Templates operations
+  getAllLlmPromptTemplates(): Promise<LlmPromptTemplate[]>;
+  getLlmPromptTemplateByKey(key: string): Promise<LlmPromptTemplate | undefined>;
+  createLlmPromptTemplate(template: InsertLlmPromptTemplate): Promise<LlmPromptTemplate>;
+  updateLlmPromptTemplate(id: string, template: Partial<InsertLlmPromptTemplate>): Promise<LlmPromptTemplate>;
+  
+  // API Credentials operations
+  getApiCredential(provider: string): Promise<ApiCredential | undefined>;
+  getAllApiCredentials(): Promise<ApiCredential[]>;
+  upsertApiCredential(data: InsertApiCredential): Promise<ApiCredential>;
+  updateApiCredentialTestResult(provider: string, result: string): Promise<ApiCredential>;
+  deleteApiCredential(provider: string): Promise<boolean>;
+  
+  // Scoring Config Change Log operations
+  createScoringConfigChangeLog(log: InsertScoringConfigChangeLog): Promise<ScoringConfigChangeLog>;
+  getScoringConfigChangeLogs(limit?: number): Promise<ScoringConfigChangeLog[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2012,6 +2066,169 @@ export class DatabaseStorage implements IStorage {
         eq(organizationEvents.eventType, eventType)
       ))
       .orderBy(desc(organizationEvents.createdAt));
+  }
+
+  // Scoring Configuration operations
+  async getAllScoringTiers(): Promise<ScoringTier[]> {
+    return db.select().from(scoringTiers).orderBy(scoringTiers.displayOrder);
+  }
+
+  async getScoringTierByKey(key: string): Promise<ScoringTier | undefined> {
+    const [tier] = await db.select().from(scoringTiers).where(eq(scoringTiers.key, key));
+    return tier;
+  }
+
+  async createScoringTier(tier: InsertScoringTier): Promise<ScoringTier> {
+    const [created] = await db.insert(scoringTiers).values(tier).returning();
+    return created;
+  }
+
+  async updateScoringTier(id: string, tier: Partial<InsertScoringTier>): Promise<ScoringTier> {
+    const [updated] = await db
+      .update(scoringTiers)
+      .set({ ...tier, updatedAt: new Date() })
+      .where(eq(scoringTiers.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Tier Component Weights operations
+  async getTierComponentWeights(tierId: string): Promise<TierComponentWeight[]> {
+    return db.select().from(tierComponentWeights).where(eq(tierComponentWeights.tierId, tierId));
+  }
+
+  async getAllTierComponentWeights(): Promise<TierComponentWeight[]> {
+    return db.select().from(tierComponentWeights);
+  }
+
+  async upsertTierComponentWeight(data: InsertTierComponentWeight): Promise<TierComponentWeight> {
+    const [result] = await db
+      .insert(tierComponentWeights)
+      .values(data)
+      .onConflictDoUpdate({
+        target: [tierComponentWeights.tierId, tierComponentWeights.componentId],
+        set: { weight: data.weight, isEnabled: data.isEnabled, updatedAt: new Date() },
+      })
+      .returning();
+    return result;
+  }
+
+  async updateTierComponentWeight(id: string, data: Partial<InsertTierComponentWeight>): Promise<TierComponentWeight> {
+    const [updated] = await db
+      .update(tierComponentWeights)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(tierComponentWeights.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Component Parameters operations
+  async getComponentParameters(componentId: string): Promise<ComponentParameter[]> {
+    return db.select().from(componentParameters).where(eq(componentParameters.componentId, componentId));
+  }
+
+  async getAllComponentParameters(): Promise<ComponentParameter[]> {
+    return db.select().from(componentParameters);
+  }
+
+  async upsertComponentParameter(data: InsertComponentParameter): Promise<ComponentParameter> {
+    const [result] = await db
+      .insert(componentParameters)
+      .values(data)
+      .onConflictDoUpdate({
+        target: [componentParameters.componentId, componentParameters.parameterKey],
+        set: { parameterValue: data.parameterValue, parameterType: data.parameterType, description: data.description, updatedAt: new Date() },
+      })
+      .returning();
+    return result;
+  }
+
+  async updateComponentParameter(id: string, data: Partial<InsertComponentParameter>): Promise<ComponentParameter> {
+    const [updated] = await db
+      .update(componentParameters)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(componentParameters.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteComponentParameter(id: string): Promise<boolean> {
+    const result = await db.delete(componentParameters).where(eq(componentParameters.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  // LLM Prompt Templates operations
+  async getAllLlmPromptTemplates(): Promise<LlmPromptTemplate[]> {
+    return db.select().from(llmPromptTemplates).orderBy(llmPromptTemplates.key);
+  }
+
+  async getLlmPromptTemplateByKey(key: string): Promise<LlmPromptTemplate | undefined> {
+    const [template] = await db.select().from(llmPromptTemplates).where(eq(llmPromptTemplates.key, key));
+    return template;
+  }
+
+  async createLlmPromptTemplate(template: InsertLlmPromptTemplate): Promise<LlmPromptTemplate> {
+    const [created] = await db.insert(llmPromptTemplates).values(template).returning();
+    return created;
+  }
+
+  async updateLlmPromptTemplate(id: string, template: Partial<InsertLlmPromptTemplate>): Promise<LlmPromptTemplate> {
+    const [updated] = await db
+      .update(llmPromptTemplates)
+      .set({ ...template, updatedAt: new Date() })
+      .where(eq(llmPromptTemplates.id, id))
+      .returning();
+    return updated;
+  }
+
+  // API Credentials operations
+  async getApiCredential(provider: string): Promise<ApiCredential | undefined> {
+    const [credential] = await db.select().from(apiCredentials).where(eq(apiCredentials.provider, provider));
+    return credential;
+  }
+
+  async getAllApiCredentials(): Promise<ApiCredential[]> {
+    return db.select().from(apiCredentials);
+  }
+
+  async upsertApiCredential(data: InsertApiCredential): Promise<ApiCredential> {
+    const [result] = await db
+      .insert(apiCredentials)
+      .values(data)
+      .onConflictDoUpdate({
+        target: [apiCredentials.provider],
+        set: { apiKey: data.apiKey, isActive: data.isActive, updatedAt: new Date() },
+      })
+      .returning();
+    return result;
+  }
+
+  async updateApiCredentialTestResult(provider: string, result: string): Promise<ApiCredential> {
+    const [updated] = await db
+      .update(apiCredentials)
+      .set({ lastTestedAt: new Date(), lastTestResult: result, updatedAt: new Date() })
+      .where(eq(apiCredentials.provider, provider))
+      .returning();
+    return updated;
+  }
+
+  async deleteApiCredential(provider: string): Promise<boolean> {
+    const result = await db.delete(apiCredentials).where(eq(apiCredentials.provider, provider));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  // Scoring Config Change Log operations
+  async createScoringConfigChangeLog(log: InsertScoringConfigChangeLog): Promise<ScoringConfigChangeLog> {
+    const [created] = await db.insert(scoringConfigChangeLog).values(log).returning();
+    return created;
+  }
+
+  async getScoringConfigChangeLogs(limit: number = 100): Promise<ScoringConfigChangeLog[]> {
+    return db
+      .select()
+      .from(scoringConfigChangeLog)
+      .orderBy(desc(scoringConfigChangeLog.createdAt))
+      .limit(limit);
   }
 }
 

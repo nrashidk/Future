@@ -901,3 +901,166 @@ export const insertOrganizationEventSchema = createInsertSchema(organizationEven
   createdAt: true,
 });
 export type InsertOrganizationEvent = z.infer<typeof insertOrganizationEventSchema>;
+
+// =============================================================================
+// SCORING METHODOLOGY CONFIGURATION (Superadmin-managed)
+// =============================================================================
+
+// Scoring Tiers - defines Free vs Premium tier configurations
+export const scoringTiers = pgTable("scoring_tiers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: text("key").notNull().unique(), // 'basic', 'kolb', 'group'
+  name: text("name").notNull(), // 'Free Assessment', 'Premium Assessment', etc.
+  description: text("description"),
+  isActive: boolean("is_active").notNull().default(true),
+  displayOrder: integer("display_order").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Tier Component Weights - per-tier weight configuration for each component
+export const tierComponentWeights = pgTable("tier_component_weights", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  tierId: varchar("tier_id").notNull().references(() => scoringTiers.id, { onDelete: "cascade" }),
+  componentId: varchar("component_id").notNull().references(() => assessmentComponents.id, { onDelete: "cascade" }),
+  weight: real("weight").notNull().default(0), // Percentage weight (0-100)
+  isEnabled: boolean("is_enabled").notNull().default(true), // Whether this component is active for this tier
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("idx_tier_component_unique").on(table.tierId, table.componentId),
+]);
+
+export const tierComponentWeightsRelations = relations(tierComponentWeights, ({ one }) => ({
+  tier: one(scoringTiers, {
+    fields: [tierComponentWeights.tierId],
+    references: [scoringTiers.id],
+  }),
+  component: one(assessmentComponents, {
+    fields: [tierComponentWeights.componentId],
+    references: [assessmentComponents.id],
+  }),
+}));
+
+// Component Parameters - fine-tuning parameters for each component (thresholds, multipliers, etc.)
+export const componentParameters = pgTable("component_parameters", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  componentId: varchar("component_id").notNull().references(() => assessmentComponents.id, { onDelete: "cascade" }),
+  parameterKey: text("parameter_key").notNull(), // e.g., 'threshold', 'multiplier', 'minScore'
+  parameterValue: text("parameter_value").notNull(), // Stored as string, parsed based on type
+  parameterType: text("parameter_type").notNull().default("number"), // 'number', 'string', 'boolean', 'json'
+  description: text("description"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("idx_component_parameter_unique").on(table.componentId, table.parameterKey),
+]);
+
+export const componentParametersRelations = relations(componentParameters, ({ one }) => ({
+  component: one(assessmentComponents, {
+    fields: [componentParameters.componentId],
+    references: [assessmentComponents.id],
+  }),
+}));
+
+// LLM Prompt Templates - configurable prompts for premium narrative generation
+export const llmPromptTemplates = pgTable("llm_prompt_templates", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: text("key").notNull().unique(), // 'career_reasoning', 'work_style_fit', 'strengths_growth', 'action_steps', 'education_pathways'
+  name: text("name").notNull(), // User-friendly name
+  description: text("description"),
+  systemPrompt: text("system_prompt").notNull(), // System context for LLM
+  userPromptTemplate: text("user_prompt_template").notNull(), // Template with {{placeholders}}
+  model: text("model").notNull().default("gpt-4o"), // LLM model to use
+  maxTokens: integer("max_tokens").notNull().default(1000),
+  temperature: real("temperature").notNull().default(0.7),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// API Credentials - secure storage for external API keys
+export const apiCredentials = pgTable("api_credentials", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  provider: text("provider").notNull().unique(), // 'openai', 'anthropic', etc.
+  apiKey: text("api_key").notNull(), // Encrypted API key
+  isActive: boolean("is_active").notNull().default(true),
+  lastTestedAt: timestamp("last_tested_at"),
+  lastTestResult: text("last_test_result"), // 'success', 'failed', error message
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Scoring Configuration Change Log - audit trail
+export const scoringConfigChangeLog = pgTable("scoring_config_change_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  changedBy: varchar("changed_by").notNull().references(() => users.id),
+  changeType: text("change_type").notNull(), // 'tier_weight', 'component_parameter', 'prompt_template', 'api_credential'
+  entityType: text("entity_type").notNull(), // 'tier_component_weight', 'component_parameter', 'llm_prompt_template', 'api_credential'
+  entityId: varchar("entity_id").notNull(),
+  previousValue: jsonb("previous_value"),
+  newValue: jsonb("new_value"),
+  changeDescription: text("change_description"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_scoring_change_log_changed_by").on(table.changedBy),
+  index("idx_scoring_change_log_entity").on(table.entityType, table.entityId),
+  index("idx_scoring_change_log_created_at").on(table.createdAt),
+]);
+
+export const scoringConfigChangeLogRelations = relations(scoringConfigChangeLog, ({ one }) => ({
+  changer: one(users, {
+    fields: [scoringConfigChangeLog.changedBy],
+    references: [users.id],
+  }),
+}));
+
+// Type exports for new tables
+export type ScoringTier = typeof scoringTiers.$inferSelect;
+export const insertScoringTierSchema = createInsertSchema(scoringTiers).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertScoringTier = z.infer<typeof insertScoringTierSchema>;
+
+export type TierComponentWeight = typeof tierComponentWeights.$inferSelect;
+export const insertTierComponentWeightSchema = createInsertSchema(tierComponentWeights).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertTierComponentWeight = z.infer<typeof insertTierComponentWeightSchema>;
+
+export type ComponentParameter = typeof componentParameters.$inferSelect;
+export const insertComponentParameterSchema = createInsertSchema(componentParameters).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertComponentParameter = z.infer<typeof insertComponentParameterSchema>;
+
+export type LlmPromptTemplate = typeof llmPromptTemplates.$inferSelect;
+export const insertLlmPromptTemplateSchema = createInsertSchema(llmPromptTemplates).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertLlmPromptTemplate = z.infer<typeof insertLlmPromptTemplateSchema>;
+
+export type ApiCredential = typeof apiCredentials.$inferSelect;
+export const insertApiCredentialSchema = createInsertSchema(apiCredentials).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  lastTestedAt: true,
+  lastTestResult: true,
+});
+export type InsertApiCredential = z.infer<typeof insertApiCredentialSchema>;
+
+export type ScoringConfigChangeLog = typeof scoringConfigChangeLog.$inferSelect;
+export const insertScoringConfigChangeLogSchema = createInsertSchema(scoringConfigChangeLog).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertScoringConfigChangeLog = z.infer<typeof insertScoringConfigChangeLogSchema>;

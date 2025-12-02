@@ -1548,5 +1548,187 @@ export async function seedDatabase() {
     console.error("  Error creating test admin:", error.message);
   }
 
+  // Seed Scoring Tiers and Tier Component Weights
+  console.log("\n⚙️ Seeding scoring methodology configuration...");
+  
+  // Define scoring tiers (matching tierWeights.ts)
+  const tiersToSeed = [
+    {
+      key: "basic",
+      name: "Free Assessment",
+      description: "Basic career assessment using subject preferences, interests, and vision alignment",
+      isActive: true,
+      displayOrder: 0,
+    },
+    {
+      key: "kolb",
+      name: "Premium Assessment",
+      description: "Comprehensive career assessment including personality, learning style, and values assessments",
+      isActive: true,
+      displayOrder: 1,
+    },
+    {
+      key: "group",
+      name: "School Assessment",
+      description: "Premium assessment for school/organization students",
+      isActive: true,
+      displayOrder: 2,
+    },
+  ];
+  
+  // Seed tiers
+  const seededTiers: Record<string, any> = {};
+  for (const tierData of tiersToSeed) {
+    try {
+      const tier = await storage.createScoringTier(tierData);
+      seededTiers[tierData.key] = tier;
+      console.log(`✓ Created scoring tier: ${tier.name}`);
+    } catch (error: any) {
+      if (error?.message?.includes('unique') || error?.code === '23505') {
+        const existing = await storage.getScoringTierByKey(tierData.key);
+        if (existing) {
+          seededTiers[tierData.key] = existing;
+          console.log(`  Scoring tier ${tierData.name} already exists`);
+        }
+      } else {
+        console.error(`  Error creating tier ${tierData.name}:`, error);
+      }
+    }
+  }
+  
+  // Define tier-specific component weights (migrating from tierWeights.ts)
+  const tierWeightConfigs: Record<string, Record<string, { weight: number; isEnabled: boolean }>> = {
+    basic: {
+      subjects: { weight: 35, isEnabled: true },
+      interests: { weight: 35, isEnabled: true },
+      vision: { weight: 30, isEnabled: true },
+      riasec: { weight: 0, isEnabled: false },
+      cvq: { weight: 0, isEnabled: false },
+      kolb: { weight: 0, isEnabled: false },
+      market: { weight: 0, isEnabled: false },
+    },
+    kolb: {
+      subjects: { weight: 20, isEnabled: true },
+      interests: { weight: 0, isEnabled: false },
+      vision: { weight: 20, isEnabled: true },
+      riasec: { weight: 30, isEnabled: true },
+      cvq: { weight: 20, isEnabled: true },
+      kolb: { weight: 10, isEnabled: true },
+      market: { weight: 0, isEnabled: false },
+    },
+    group: {
+      subjects: { weight: 20, isEnabled: true },
+      interests: { weight: 0, isEnabled: false },
+      vision: { weight: 20, isEnabled: true },
+      riasec: { weight: 30, isEnabled: true },
+      cvq: { weight: 20, isEnabled: true },
+      kolb: { weight: 10, isEnabled: true },
+      market: { weight: 0, isEnabled: false },
+    },
+  };
+  
+  // Seed tier component weights
+  for (const [tierKey, componentWeights] of Object.entries(tierWeightConfigs)) {
+    const tier = seededTiers[tierKey];
+    if (!tier) continue;
+    
+    for (const [componentKey, config] of Object.entries(componentWeights)) {
+      const component = seededComponents[componentKey];
+      if (!component) continue;
+      
+      try {
+        await storage.upsertTierComponentWeight({
+          tierId: tier.id,
+          componentId: component.id,
+          weight: config.weight,
+          isEnabled: config.isEnabled,
+        });
+      } catch (error: any) {
+        console.error(`  Error setting weight for ${tierKey}/${componentKey}:`, error.message);
+      }
+    }
+    console.log(`✓ Configured weights for tier: ${tier.name}`);
+  }
+  
+  // Seed LLM Prompt Templates for premium reports
+  console.log("\n📝 Seeding LLM prompt templates...");
+  
+  const promptTemplates = [
+    {
+      key: "career_reasoning",
+      name: "Why This Career?",
+      description: "Generates personalized explanation of why a career matches the student",
+      systemPrompt: `You are a career guidance counselor for school students aged 13-18 in the UAE. Your role is to explain career matches in an encouraging, age-appropriate way. Be specific about how the student's assessment results connect to the career.`,
+      userPromptTemplate: `Based on the following student assessment data, explain why {{careerTitle}} is a good career match for this student.
+
+Student Assessment Data:
+- Overall Match Score: {{overallScore}}%
+- Learning Style: {{learningStyle}}
+- Top RIASEC Themes: {{riasecTop3}}
+- Top Personal Values: {{cvqTop3}}
+- Favorite Subjects: {{favoriteSubjects}}
+
+Career Information:
+- Title: {{careerTitle}}
+- Category: {{careerCategory}}
+- Required Skills: {{requiredSkills}}
+
+Write 4-5 paragraphs explaining:
+1. Why this career matches their personality and interests
+2. How their learning style fits the work environment
+3. How their values align with this career path
+4. Their subject strengths and skill development opportunities
+5. Growth potential and future outlook in the UAE`,
+      model: "gpt-4o",
+      maxTokens: 1000,
+      temperature: 0.7,
+      isActive: true,
+    },
+    {
+      key: "education_pathways",
+      name: "Education Pathways",
+      description: "Recommends educational programs and universities for the career path",
+      systemPrompt: `You are an educational advisor helping UAE school students plan their higher education journey. Provide practical, actionable guidance about programs, universities, and preparation steps. Always reference official UAE education resources.`,
+      userPromptTemplate: `Based on the student's career interest in {{careerTitle}}, recommend educational pathways.
+
+Student Information:
+- Grade Level: {{gradeLevel}}
+- Favorite Subjects: {{favoriteSubjects}}
+- Learning Style: {{learningStyle}}
+
+Career Requirements:
+- Education Level: {{educationLevel}}
+- Required Skills: {{requiredSkills}}
+- Related Subjects: {{relatedSubjects}}
+
+Provide guidance on:
+1. Recommended degree programs (bachelor's, master's if applicable)
+2. Key subjects to focus on in remaining school years
+3. Extracurricular activities that would strengthen applications
+4. Preparation timeline (what to do now, next year, before university)
+
+Important: Direct students to verify program accreditation at:
+- UAE Commission for Academic Accreditation: https://caa.ae/Pages/Institutes/All.aspx
+- Accredited Programs: https://caa.ae/Pages/Programs/All.aspx`,
+      model: "gpt-4o",
+      maxTokens: 800,
+      temperature: 0.7,
+      isActive: true,
+    },
+  ];
+  
+  for (const template of promptTemplates) {
+    try {
+      await storage.createLlmPromptTemplate(template);
+      console.log(`✓ Created prompt template: ${template.name}`);
+    } catch (error: any) {
+      if (error?.message?.includes('unique') || error?.code === '23505') {
+        console.log(`  Prompt template ${template.name} already exists`);
+      } else {
+        console.error(`  Error creating template ${template.name}:`, error.message);
+      }
+    }
+  }
+
   console.log("\n✅ Database seeded successfully!");
 }

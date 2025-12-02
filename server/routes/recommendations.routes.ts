@@ -331,4 +331,110 @@ export function registerRecommendationsRoutes(app: Express) {
       res.status(500).json({ message: "Failed to generate PDF report" });
     }
   });
+
+  // Education Pathways - LLM-generated university/program recommendations
+  // Protected with rate limiting to prevent LLM abuse
+  app.get("/api/recommendations/:assessmentId/education-pathways/:careerId", recommendationsLimiter, async (req: any, res) => {
+    try {
+      const { assessmentId, careerId } = req.params;
+
+      const assessment = await storage.getAssessmentById(assessmentId);
+      if (!assessment) {
+        return res.status(404).json({ message: "Assessment not found" });
+      }
+
+      // AUTHORIZATION: Verify ownership - must be authenticated user OR valid guest token
+      const guestToken = req.cookies?.guest_token || req.query.guestToken;
+      let isAuthorized = false;
+
+      if (assessment.userId) {
+        // User-owned assessment: require proper authentication
+        if (typeof req.isAuthenticated === 'function' && req.isAuthenticated() && req.user) {
+          const userId = req.user.isLocal ? req.user.userId : req.user.claims?.sub;
+          if (userId && userId === assessment.userId) {
+            isAuthorized = true;
+          }
+        }
+      } else if (guestToken && typeof guestToken === 'string' && guestToken.startsWith('guest_')) {
+        // Guest assessment: validate token format and lookup session
+        const guestAssessment = await storage.getAssessmentByGuestToken(guestToken);
+        if (guestAssessment && guestAssessment.id === assessmentId) {
+          isAuthorized = true;
+        }
+      }
+
+      // If neither authenticated user nor valid guest, require auth
+      if (!isAuthorized) {
+        // Determine appropriate error based on context
+        if (assessment.userId) {
+          return res.status(401).json({ message: "Authentication required to access this assessment" });
+        }
+        return res.status(403).json({ message: "Invalid session. Please complete the assessment first." });
+      }
+
+      // Only available for premium assessments
+      if (assessment.assessmentType !== 'kolb') {
+        return res.status(403).json({ 
+          message: "Education Pathways is a premium feature",
+          isPremium: false
+        });
+      }
+
+      const career = await storage.getCareerById(careerId);
+      if (!career) {
+        return res.status(404).json({ message: "Career not found" });
+      }
+
+      // Get the recommendation for this career
+      const recommendations = await storage.getRecommendationsByAssessment(assessmentId);
+      const recommendation = recommendations.find(r => r.careerId === careerId);
+      if (!recommendation) {
+        return res.status(404).json({ message: "Recommendation not found for this career" });
+      }
+
+      // Import LLM service
+      const { generateEducationPathwaysNarrative, isLlmServiceAvailable } = await import("../services/llmNarrativeService");
+
+      // Check if LLM service is available
+      const llmAvailable = await isLlmServiceAvailable(storage);
+      if (!llmAvailable) {
+        return res.status(503).json({ 
+          message: "AI service is not configured. Please contact the administrator.",
+          llmConfigured: false
+        });
+      }
+
+      // Generate education pathways narrative
+      const result = await generateEducationPathwaysNarrative(
+        storage,
+        assessment,
+        career,
+        recommendation.overallMatchScore
+      );
+
+      if (!result.success) {
+        console.error("[Education Pathways] LLM error:", result.error);
+        return res.status(500).json({ 
+          message: "Failed to generate education pathways",
+          error: result.error
+        });
+      }
+
+      res.json({
+        success: true,
+        careerId,
+        careerTitle: career.title,
+        educationPathways: result.narrative,
+        model: result.model,
+        tokensUsed: result.tokensUsed,
+        caaLinks: {
+          institutions: "https://caa.ae/Pages/Institutes/All.aspx",
+          programs: "https://caa.ae/Pages/Programs/All.aspx"
+        }
+      });
+    } catch (error) {
+      console.error("Error generating education pathways:", error);
+      res.status(500).json({ message: "Failed to generate education pathways" });
+    }
+  });
 }
