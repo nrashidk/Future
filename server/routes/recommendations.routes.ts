@@ -289,17 +289,56 @@ export function registerRecommendationsRoutes(app: Express) {
       const guestTokenParam = assessment.guestSessionId ? `&guestToken=${assessment.guestSessionId}` : '';
       const printUrl = `${baseUrl}/print/results?assessmentId=${assessment.id}${guestTokenParam}`;
       
-      // SECURITY: Validate URL to prevent SSRF attacks
-      const allowedHosts = ['localhost', '127.0.0.1'];
-      const hostFromReq = req.get('host')?.split(':')[0];
-      if (hostFromReq && !hostFromReq.includes('.replit.app') && !hostFromReq.includes('.repl.co')) {
-        allowedHosts.push(hostFromReq);
-      }
+      // SECURITY: Comprehensive URL validation to prevent SSRF attacks
       try {
         const parsedUrl = new URL(printUrl);
-        const isReplitHost = parsedUrl.hostname.includes('.replit.app') || parsedUrl.hostname.includes('.repl.co');
+        
+        // Only allow http/https protocols (block file://, data://, javascript://, etc.)
+        if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+          throw new Error('Only http/https protocols are allowed');
+        }
+        
+        // Enforce port restriction to prevent port scanning
+        const allowedPort = process.env.PORT || '5000';
+        const urlPort = parsedUrl.port || (parsedUrl.protocol === 'https:' ? '443' : '80');
+        // Allow our app port or standard https (443) for production Replit deployments
+        const allowedPorts = [allowedPort, '443', '80', ''];
+        if (!allowedPorts.includes(parsedUrl.port)) {
+          throw new Error(`Port ${urlPort} is not allowed`);
+        }
+        
+        // Build allowed hosts list
+        const allowedHosts = ['localhost', '127.0.0.1'];
+        const isReplitHost = parsedUrl.hostname.endsWith('.replit.app') || 
+                             parsedUrl.hostname.endsWith('.repl.co') ||
+                             parsedUrl.hostname.endsWith('.replit.dev');
+        
+        // In production, also allow the current host (for Replit deployments)
+        const reqHost = req.get('host')?.split(':')[0];
+        if (reqHost && (isReplitHost || reqHost === 'localhost' || reqHost === '127.0.0.1')) {
+          allowedHosts.push(reqHost);
+        }
+        
         if (!allowedHosts.includes(parsedUrl.hostname) && !isReplitHost) {
-          throw new Error('Invalid PDF generation URL');
+          throw new Error('Host not in allowed list');
+        }
+        
+        // Block attempts to use IP representation tricks
+        const host = parsedUrl.hostname.toLowerCase();
+        if (host.includes('0x') || host.includes('%') || host.includes('::')) {
+          throw new Error('IP representation tricks are not allowed');
+        }
+        
+        // Block private/internal IP ranges in numeric form
+        const ipPatterns = [
+          /^10\./,                    // 10.0.0.0/8
+          /^172\.(1[6-9]|2[0-9]|3[01])\./, // 172.16.0.0/12
+          /^192\.168\./,              // 192.168.0.0/16
+          /^169\.254\./,              // Link-local
+          /^0\./,                     // 0.0.0.0/8
+        ];
+        if (ipPatterns.some(pattern => pattern.test(parsedUrl.hostname))) {
+          throw new Error('Private IP ranges are not allowed');
         }
       } catch (e) {
         console.error('URL validation failed:', e);

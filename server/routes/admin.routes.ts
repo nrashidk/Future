@@ -782,16 +782,35 @@ export function registerAdminRoutes(app: Express) {
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
       });
 
-      // SECURITY: Validate PDF generation URLs to prevent SSRF attacks
-      const allowedHosts = ['localhost', '127.0.0.1'];
+      // SECURITY: Comprehensive URL validation to prevent SSRF attacks
       const validatePdfUrl = (url: string) => {
         try {
           const parsedUrl = new URL(url);
+          
+          // Only allow http/https protocols (block file://, data://, javascript://, etc.)
+          if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+            throw new Error('Only http/https protocols are allowed');
+          }
+          
+          // Only allow localhost for PDF generation (internal service only)
+          const allowedHosts = ['localhost', '127.0.0.1'];
           if (!allowedHosts.includes(parsedUrl.hostname)) {
-            throw new Error(`Invalid PDF generation URL: ${url}`);
+            throw new Error('Only localhost URLs are allowed for PDF generation');
+          }
+          
+          // Block attempts to use IP representation tricks
+          const host = parsedUrl.hostname.toLowerCase();
+          if (host.includes('0x') || host.includes('%') || host.includes('::')) {
+            throw new Error('IP representation tricks are not allowed');
+          }
+          
+          // Only allow specific port
+          const allowedPort = process.env.PORT || '5000';
+          if (parsedUrl.port && parsedUrl.port !== allowedPort) {
+            throw new Error(`Only port ${allowedPort} is allowed`);
           }
         } catch (e) {
-          throw new Error(`Invalid PDF generation URL: ${url}`);
+          throw new Error(`Invalid PDF generation URL: ${(e as Error).message}`);
         }
       };
 
