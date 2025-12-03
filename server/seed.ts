@@ -1208,15 +1208,6 @@ export async function seedDatabase() {
       requiresPremium: true,
       displayOrder: 5,
     },
-    {
-      name: "Market Demand",
-      key: "market",
-      description: "[DEPRECATED] Job market trends - replaced by CVQ in Nov 2025",
-      weight: 0,
-      isActive: false, // REMOVED
-      requiresPremium: false,
-      displayOrder: 99,
-    },
   ];
   
   // Seed or update all components
@@ -1605,7 +1596,6 @@ export async function seedDatabase() {
       riasec: { weight: 0, isEnabled: false },
       cvq: { weight: 0, isEnabled: false },
       kolb: { weight: 0, isEnabled: false },
-      market: { weight: 0, isEnabled: false },
     },
     kolb: {
       subjects: { weight: 20, isEnabled: true },
@@ -1614,7 +1604,6 @@ export async function seedDatabase() {
       riasec: { weight: 30, isEnabled: true },
       cvq: { weight: 20, isEnabled: true },
       kolb: { weight: 10, isEnabled: true },
-      market: { weight: 0, isEnabled: false },
     },
     group: {
       subjects: { weight: 20, isEnabled: true },
@@ -1623,7 +1612,6 @@ export async function seedDatabase() {
       riasec: { weight: 30, isEnabled: true },
       cvq: { weight: 20, isEnabled: true },
       kolb: { weight: 10, isEnabled: true },
-      market: { weight: 0, isEnabled: false },
     },
   };
   

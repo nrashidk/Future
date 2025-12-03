@@ -19,7 +19,6 @@ export const TIER_WEIGHT_OVERRIDES: Record<AssessmentTier, Record<string, number
     riasec: undefined, // Not available
     cvq: undefined,    // Not available
     kolb: undefined,   // Not available
-    market: undefined, // Deprecated
   },
   
   // Premium tier (Kolb/Individual assessment): Uses all components
@@ -30,7 +29,6 @@ export const TIER_WEIGHT_OVERRIDES: Record<AssessmentTier, Record<string, number
     riasec: 30,        // Primary personality assessment
     cvq: 20,           // Values assessment
     kolb: 10,          // Learning style assessment
-    market: undefined, // Deprecated
   },
   
   // Group assessment tier: Same as kolb for now
@@ -41,7 +39,6 @@ export const TIER_WEIGHT_OVERRIDES: Record<AssessmentTier, Record<string, number
     riasec: 30,
     cvq: 20,
     kolb: 10,
-    market: undefined,
   },
 };
 
