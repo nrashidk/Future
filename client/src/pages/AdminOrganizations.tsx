@@ -65,10 +65,15 @@ export default function AdminOrganizations() {
   const [isCreateMemberDialogOpen, setIsCreateMemberDialogOpen] = useState(false);
   const [isBulkUploadDialogOpen, setIsBulkUploadDialogOpen] = useState(false);
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
+  const [schoolSearchQuery, setSchoolSearchQuery] = useState("");
 
   const { data: organizations = [], isLoading: orgsLoading } = useQuery<Organization[]>({
     queryKey: ['/api/admin/organizations'],
   });
+
+  const filteredOrganizations = organizations.filter((org) =>
+    org.name.toLowerCase().includes(schoolSearchQuery.toLowerCase())
+  );
 
   const { data: members = [], isLoading: membersLoading } = useQuery<OrganizationMember[]>({
     queryKey: ['/api/admin/organizations', selectedOrgId, 'members'],
@@ -256,22 +261,43 @@ export default function AdminOrganizations() {
                 </StickyNote>
               </div>
             ) : (
-              <div className="flex flex-wrap gap-2">
-                {organizations.map((org) => (
-                  <Button
-                    key={org.id}
-                    variant={selectedOrgId === org.id ? "default" : "outline"}
-                    onClick={() => setSelectedOrgId(org.id)}
-                    className="flex items-center gap-2"
-                    data-testid={`org-item-${org.id}`}
-                  >
-                    <Building2 className="w-4 h-4" />
-                    <span>{org.name}</span>
-                    <Badge variant={selectedOrgId === org.id ? "secondary" : (org.isUnlimitedLicenses || org.usedLicenses < org.totalLicenses ? "default" : "secondary")} className="ml-1">
-                      {org.isUnlimitedLicenses ? "Unlimited" : `${org.usedLicenses}/${org.totalLicenses}`}
-                    </Badge>
-                  </Button>
-                ))}
+              <div className="space-y-4">
+                {organizations.length > 3 && (
+                  <div className="relative">
+                    <Input
+                      placeholder="Search schools..."
+                      value={schoolSearchQuery}
+                      onChange={(e) => setSchoolSearchQuery(e.target.value)}
+                      className="max-w-sm"
+                      data-testid="input-search-schools"
+                    />
+                    {schoolSearchQuery && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Showing {filteredOrganizations.length} of {organizations.length} schools
+                      </p>
+                    )}
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  {filteredOrganizations.map((org) => (
+                    <Button
+                      key={org.id}
+                      variant={selectedOrgId === org.id ? "default" : "outline"}
+                      onClick={() => setSelectedOrgId(org.id)}
+                      className="flex items-center gap-2"
+                      data-testid={`org-item-${org.id}`}
+                    >
+                      <Building2 className="w-4 h-4" />
+                      <span>{org.name}</span>
+                      <Badge variant={selectedOrgId === org.id ? "secondary" : (org.isUnlimitedLicenses || org.usedLicenses < org.totalLicenses ? "default" : "secondary")} className="ml-1">
+                        {org.isUnlimitedLicenses ? "Unlimited" : `${org.usedLicenses}/${org.totalLicenses}`}
+                      </Badge>
+                    </Button>
+                  ))}
+                  {filteredOrganizations.length === 0 && schoolSearchQuery && (
+                    <p className="text-sm text-muted-foreground py-2">No schools match "{schoolSearchQuery}"</p>
+                  )}
+                </div>
               </div>
             )}
           </CardContent>
@@ -600,6 +626,32 @@ function CreateOrganizationForm({ onSuccess }: { onSuccess: () => void }) {
     }
   };
 
+  const handleDownloadCredentials = () => {
+    if (createdCredentials) {
+      const content = `Future Pathways - School Admin Credentials
+============================================
+
+School Name: ${createdCredentials.organizationName}
+Admin Username: ${createdCredentials.username}
+Admin Password: ${createdCredentials.password}
+
+Login URL: ${window.location.origin}/student-login
+
+IMPORTANT: Keep this file secure. The password cannot be recovered.
+`;
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${createdCredentials.organizationName.replace(/\s+/g, '_')}_admin_credentials.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast({ title: "Downloaded", description: "Credentials file downloaded" });
+    }
+  };
+
   if (createdCredentials) {
     return (
       <div className="space-y-4">
@@ -626,6 +678,10 @@ function CreateOrganizationForm({ onSuccess }: { onSuccess: () => void }) {
         </div>
 
         <div className="flex justify-end gap-2 pt-4">
+          <Button variant="outline" onClick={handleDownloadCredentials} data-testid="button-download-credentials">
+            <Download className="w-4 h-4 mr-2" />
+            Download
+          </Button>
           <Button variant="outline" onClick={handleCopyCredentials} data-testid="button-copy-credentials">
             Copy Credentials
           </Button>
