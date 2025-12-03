@@ -85,6 +85,8 @@ export default function AdminOrganizations() {
   const [isBulkUploadDialogOpen, setIsBulkUploadDialogOpen] = useState(false);
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   const [schoolSearchQuery, setSchoolSearchQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState<"all" | "admin" | "student">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "not_active" | "active" | "in_progress" | "completed">("all");
 
   const { data: organizations = [], isLoading: orgsLoading } = useQuery<Organization[]>({
     queryKey: ['/api/admin/organizations'],
@@ -108,9 +110,11 @@ export default function AdminOrganizations() {
     }
   }, [organizations, selectedOrgId, user?.accountType]);
 
-  // Reset selected members when changing organizations
+  // Reset selected members and filters when changing organizations
   useEffect(() => {
     setSelectedMemberIds([]);
+    setRoleFilter("all");
+    setStatusFilter("all");
   }, [selectedOrgId]);
 
   // Bulk delete mutation
@@ -133,8 +137,26 @@ export default function AdminOrganizations() {
     },
   });
 
+  // Filter members based on role and status
+  const filteredMembers = members.filter(member => {
+    // Role filter
+    if (roleFilter === "admin" && member.role !== "admin") return false;
+    if (roleFilter === "student" && member.role === "admin") return false;
+    
+    // Status filter (only applies to non-admin members)
+    if (statusFilter !== "all" && member.role !== "admin") {
+      const status = getMemberStatus(member);
+      if (statusFilter === "not_active" && status.label !== "Not Active") return false;
+      if (statusFilter === "active" && status.label !== "Active") return false;
+      if (statusFilter === "in_progress" && status.label !== "In Progress") return false;
+      if (statusFilter === "completed" && status.label !== "Completed") return false;
+    }
+    
+    return true;
+  });
+
   // Check/uncheck all members (excluding admins and locked members)
-  const selectableMembers = members.filter(m => !m.isLocked && m.role !== 'admin');
+  const selectableMembers = filteredMembers.filter(m => !m.isLocked && m.role !== 'admin');
   const toggleAllMembers = () => {
     if (selectedMemberIds.length === selectableMembers.length) {
       setSelectedMemberIds([]);
@@ -396,17 +418,45 @@ export default function AdminOrganizations() {
 
             {/* Students Roster - Full Width */}
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 pb-4 flex-wrap">
-                <div>
-                  <CardTitle className="text-lg">Student Roster</CardTitle>
-                  <CardDescription>
-                    {members.length} students
-                    {selectedMemberIds.length > 0 && (
-                      <span className="text-primary font-medium ml-2">
-                        ({selectedMemberIds.length} selected)
-                      </span>
-                    )}
-                  </CardDescription>
+              <CardHeader className="space-y-4 pb-4">
+                <div className="flex flex-row items-center justify-between gap-4 flex-wrap">
+                  <div>
+                    <CardTitle className="text-lg">Student Roster</CardTitle>
+                    <CardDescription>
+                      {filteredMembers.length === members.length 
+                        ? `${members.length} members`
+                        : `Showing ${filteredMembers.length} of ${members.length} members`}
+                      {selectedMemberIds.length > 0 && (
+                        <span className="text-primary font-medium ml-2">
+                          ({selectedMemberIds.length} selected)
+                        </span>
+                      )}
+                    </CardDescription>
+                  </div>
+                  <div className="flex gap-2 flex-wrap items-center">
+                    <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v as typeof roleFilter)}>
+                      <SelectTrigger className="w-[130px]" data-testid="select-role-filter">
+                        <SelectValue placeholder="Filter by role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Roles</SelectItem>
+                        <SelectItem value="admin">Admins Only</SelectItem>
+                        <SelectItem value="student">Students Only</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
+                      <SelectTrigger className="w-[140px]" data-testid="select-status-filter">
+                        <SelectValue placeholder="Filter by status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Status</SelectItem>
+                        <SelectItem value="not_active">Not Active</SelectItem>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="in_progress">In Progress</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div className="flex gap-2 flex-wrap">
                   <Button 
@@ -510,6 +560,17 @@ export default function AdminOrganizations() {
                       <p className="text-xs text-muted-foreground mt-1">Add students to get started</p>
                     </StickyNote>
                   </div>
+                ) : filteredMembers.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-sm text-muted-foreground">No members match the current filters</p>
+                    <Button 
+                      variant="ghost" 
+                      onClick={() => { setRoleFilter("all"); setStatusFilter("all"); }}
+                      className="mt-2 text-primary"
+                    >
+                      Clear filters
+                    </Button>
+                  </div>
                 ) : (
                   <div className="rounded-md border overflow-x-auto">
                     <Table>
@@ -533,7 +594,7 @@ export default function AdminOrganizations() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {members.map((member) => (
+                        {filteredMembers.map((member) => (
                           <TableRow key={member.id} data-testid={`member-row-${member.id}`}>
                             <TableCell>
                               <Checkbox

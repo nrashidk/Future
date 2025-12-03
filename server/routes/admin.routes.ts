@@ -888,12 +888,24 @@ export function registerAdminRoutes(app: Express) {
       // Get all members
       const members = await storage.getOrganizationMembersByOrganizationId(organizationId);
 
+      // Helper function to determine member status
+      const getMemberStatus = (member: any, memberUser: any, hasCompletedAssessment: boolean, hasInProgressAssessment: boolean) => {
+        if (member.role === 'admin') return 'Admin';
+        if (hasCompletedAssessment) return 'Completed';
+        if (hasInProgressAssessment) return 'In Progress';
+        if (memberUser.lastLoginAt) return 'Active';
+        return 'Not Active';
+      };
+
       // CSV Header
       const csvRows = [
         [
           "Username",
           "Full Name",
+          "Role",
           "Grade",
+          "Last Login",
+          "Status",
           "Assessment Status",
           "Assessment Type",
           "Country",
@@ -916,14 +928,21 @@ export function registerAdminRoutes(app: Express) {
         const fullName = `${memberUser.firstName} ${memberUser.lastName}`.trim();
         const assessments = await storage.getAssessmentsByUser(member.userId);
         const completedAssessment = assessments.find((a: any) => a.isComplete);
+        const inProgressAssessment = assessments.find((a: any) => !a.isComplete);
+        const lastLogin = memberUser.lastLoginAt ? new Date(memberUser.lastLoginAt).toLocaleDateString() : '';
+        const role = member.role === 'admin' ? 'Admin' : 'Student';
+        const status = getMemberStatus(member, memberUser, !!completedAssessment, !!inProgressAssessment);
 
         if (!completedAssessment) {
           // Member without completed assessment
           csvRows.push([
             `"${(memberUser.username || '').replace(/"/g, '""')}"`,
             `"${fullName.replace(/"/g, '""')}"`,
+            `"${role}"`,
             `"${member.grade || ''}"`,
-            "Not Started",
+            `"${lastLogin}"`,
+            `"${status}"`,
+            member.role === 'admin' ? 'N/A' : (inProgressAssessment ? 'In Progress' : 'Not Started'),
             "",
             "",
             "",
@@ -956,7 +975,10 @@ export function registerAdminRoutes(app: Express) {
         csvRows.push([
           `"${(memberUser.username || '').replace(/"/g, '""')}"`,
           `"${fullName.replace(/"/g, '""')}"`,
+          `"${role}"`,
           `"${member.grade || ''}"`,
+          `"${lastLogin}"`,
+          `"${status}"`,
           "Completed",
           completedAssessment.assessmentType === 'kolb' ? 'Premium' : 'Free',
           `"${(country?.name || '').replace(/"/g, '""')}"`,
