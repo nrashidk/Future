@@ -59,6 +59,13 @@ The application features a playful, student-friendly sticky notes aesthetic with
 - **File Upload**: Multer (for handling multipart/form-data file uploads)
 
 ## Recent Changes (December 2025)
+### Admin/Student Roster Enhancements
+- **Activity Tracking**: Added `lastLoginAt` field to users table, tracked on both local and OIDC login
+- **Status Indicators**: Activity-aware status badges for roster members: "Admin" (school admin), "Not Active" (never logged in), "Active" (logged in, no assessment), "In Progress" (started assessment), "Completed" (finished assessment)
+- **Roster Filtering**: Filter roster by role (Admin/Student) and status (Not Active, Active, In Progress, Completed)
+- **Admin Protection**: Admin users marked with shield icon badge, cannot be selected or deleted in bulk actions
+- **CSV Export Enhancements**: Export now includes Role, Last Login, and Status fields for comprehensive reporting
+
 ### Configurable Scoring Methodology & LLM Integration
 - **Configurable Scoring System**: Database-backed scoring methodology allowing superadmins to adjust calculation weights and criteria for Free, Premium, and School tiers without code changes
 - **LLM Integration**: OpenAI integration using customer's own API key for platform portability, with secure credential storage and configurable prompt templates
