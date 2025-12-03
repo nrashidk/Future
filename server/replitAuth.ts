@@ -103,7 +103,12 @@ export async function setupAuth(app: Express) {
   ) => {
     const user = {};
     updateUserSession(user, tokens);
-    await upsertUser(tokens.claims());
+    const claims = tokens.claims();
+    if (claims) {
+      await upsertUser(claims);
+      // Update lastLoginAt for activity tracking
+      await storage.updateUser(claims["sub"], { lastLoginAt: new Date() });
+    }
     verified(null, user);
   };
 
@@ -138,6 +143,9 @@ export async function setupAuth(app: Express) {
         if (!isValid) {
           return done(null, false, { message: 'Invalid username or password' });
         }
+
+        // Update lastLoginAt for activity tracking
+        await storage.updateUser(user.id, { lastLoginAt: new Date() });
 
         return done(null, {
           userId: user.id,

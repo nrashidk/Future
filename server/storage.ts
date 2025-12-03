@@ -112,6 +112,7 @@ export interface IStorage {
     purchasedLicenses?: number;
     stripeCustomerId?: string | null;
   }): Promise<User>;
+  updateUser(userId: string, data: Partial<{ firstName: string; lastName: string; lastLoginAt: Date }>): Promise<User>;
 
   // Country operations
   getAllCountries(): Promise<Country[]>;
@@ -471,6 +472,23 @@ export class DatabaseStorage implements IStorage {
         isPremium: true,
         stripeCustomerId: stripeCustomerId,
         paymentDate: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning();
+    
+    if (!user) {
+      throw new Error(`User not found: ${userId}`);
+    }
+    
+    return user;
+  }
+
+  async updateUser(userId: string, data: Partial<{ firstName: string; lastName: string; lastLoginAt: Date }>): Promise<User> {
+    const [user] = await db
+      .update(users)
+      .set({
+        ...data,
         updatedAt: new Date(),
       })
       .where(eq(users.id, userId))
@@ -1758,6 +1776,7 @@ export class DatabaseStorage implements IStorage {
           firstName: users.firstName,
           lastName: users.lastName,
           email: users.email,
+          lastLoginAt: users.lastLoginAt,
         },
       })
       .from(organizationMembers)
@@ -1765,7 +1784,37 @@ export class DatabaseStorage implements IStorage {
       .where(eq(organizationMembers.organizationId, organizationId))
       .orderBy(desc(organizationMembers.createdAt));
     
-    return members;
+    // Get assessment status for each member (to detect "in progress" assessments)
+    const memberUserIds = members.map(m => m.userId);
+    const memberAssessments = memberUserIds.length > 0 
+      ? await db
+          .select({
+            userId: assessments.userId,
+            isCompleted: assessments.isCompleted,
+          })
+          .from(assessments)
+          .where(inArray(assessments.userId, memberUserIds))
+      : [];
+    
+    // Create a map of userId -> hasStartedAssessment (has any assessment, completed or not)
+    const assessmentStatusMap = new Map<string, { hasStarted: boolean; hasInProgress: boolean }>();
+    for (const assessment of memberAssessments) {
+      if (assessment.userId) {
+        const existing = assessmentStatusMap.get(assessment.userId) || { hasStarted: false, hasInProgress: false };
+        existing.hasStarted = true;
+        if (!assessment.isCompleted) {
+          existing.hasInProgress = true;
+        }
+        assessmentStatusMap.set(assessment.userId, existing);
+      }
+    }
+    
+    // Enrich members with assessment status
+    return members.map(member => ({
+      ...member,
+      hasStartedAssessment: assessmentStatusMap.get(member.userId)?.hasStarted || false,
+      hasInProgressAssessment: assessmentStatusMap.get(member.userId)?.hasInProgress || false,
+    }));
   }
 
   async getOrganizationStats(organizationId: string): Promise<{

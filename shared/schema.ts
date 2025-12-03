@@ -48,6 +48,9 @@ export const users = pgTable("users", {
   stripeCustomerId: varchar("stripe_customer_id"),
   paymentDate: timestamp("payment_date"),
   
+  // Activity tracking
+  lastLoginAt: timestamp("last_login_at"), // Track last login time for activity status
+  
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

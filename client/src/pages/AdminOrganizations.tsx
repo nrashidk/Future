@@ -44,6 +44,8 @@ interface OrganizationMember {
   studentGender?: string;
   role: string;
   hasCompletedAssessment: boolean;
+  hasStartedAssessment: boolean;
+  hasInProgressAssessment: boolean;
   isLocked: boolean;
   passwordLastReset?: string;
   passwordResetBy?: string;
@@ -52,7 +54,24 @@ interface OrganizationMember {
     username: string;
     firstName: string;
     lastName: string;
+    lastLoginAt?: string;
   };
+}
+
+function getMemberStatus(member: OrganizationMember): { label: string; variant: "default" | "secondary" | "outline" | "destructive"; description: string } {
+  if (member.role === 'admin') {
+    return { label: 'Admin', variant: 'secondary', description: 'School administrator (no assessment)' };
+  }
+  if (member.hasCompletedAssessment) {
+    return { label: 'Completed', variant: 'default', description: 'Assessment completed' };
+  }
+  if (member.hasInProgressAssessment) {
+    return { label: 'In Progress', variant: 'outline', description: 'Assessment started but not finished' };
+  }
+  if (member.user.lastLoginAt) {
+    return { label: 'Active', variant: 'outline', description: 'Logged in, not started assessment' };
+  }
+  return { label: 'Not Active', variant: 'secondary', description: 'Never logged in' };
 }
 
 export default function AdminOrganizations() {
@@ -114,13 +133,13 @@ export default function AdminOrganizations() {
     },
   });
 
-  // Check/uncheck all members
+  // Check/uncheck all members (excluding admins and locked members)
+  const selectableMembers = members.filter(m => !m.isLocked && m.role !== 'admin');
   const toggleAllMembers = () => {
-    const unlockedMembers = members.filter(m => !m.isLocked);
-    if (selectedMemberIds.length === unlockedMembers.length) {
+    if (selectedMemberIds.length === selectableMembers.length) {
       setSelectedMemberIds([]);
     } else {
-      setSelectedMemberIds(unlockedMembers.map(m => m.id));
+      setSelectedMemberIds(selectableMembers.map(m => m.id));
     }
   };
 
@@ -498,8 +517,9 @@ export default function AdminOrganizations() {
                         <TableRow>
                           <TableHead className="w-12">
                             <Checkbox
-                              checked={selectedMemberIds.length > 0 && selectedMemberIds.length === members.filter(m => !m.isLocked).length}
+                              checked={selectableMembers.length > 0 && selectedMemberIds.length === selectableMembers.length}
                               onCheckedChange={toggleAllMembers}
+                              disabled={selectableMembers.length === 0}
                               data-testid="checkbox-select-all"
                             />
                           </TableHead>
@@ -519,7 +539,7 @@ export default function AdminOrganizations() {
                               <Checkbox
                                 checked={selectedMemberIds.includes(member.id)}
                                 onCheckedChange={() => toggleMember(member.id)}
-                                disabled={member.isLocked}
+                                disabled={member.isLocked || member.role === 'admin'}
                                 data-testid={`checkbox-member-${member.id}`}
                               />
                             </TableCell>
@@ -531,18 +551,26 @@ export default function AdminOrganizations() {
                             <TableCell>{member.grade || '-'}</TableCell>
                             <TableCell>{member.studentId || '-'}</TableCell>
                             <TableCell>
-                              <div className="flex gap-1">
+                              <div className="flex gap-1 flex-wrap">
                                 {member.isLocked && (
                                   <Badge variant="secondary" className="text-xs">
                                     <Lock className="w-3 h-3 mr-1" />
                                     Locked
                                   </Badge>
                                 )}
-                                {member.hasCompletedAssessment ? (
-                                  <Badge variant="default" className="text-xs">Completed</Badge>
-                                ) : (
-                                  <Badge variant="outline" className="text-xs">Pending</Badge>
-                                )}
+                                {(() => {
+                                  const status = getMemberStatus(member);
+                                  return (
+                                    <Badge 
+                                      variant={status.variant} 
+                                      className="text-xs"
+                                      title={status.description}
+                                    >
+                                      {member.role === 'admin' && <Shield className="w-3 h-3 mr-1" />}
+                                      {status.label}
+                                    </Badge>
+                                  );
+                                })()}
                               </div>
                             </TableCell>
                             <TableCell className="text-right">
@@ -1413,36 +1441,38 @@ function MemberActions({ member, organizationId }: { member: OrganizationMember;
         </DialogContent>
       </Dialog>
 
-      <AlertDialog>
-        <AlertDialogTrigger asChild>
-          <Button 
-            variant="ghost" 
-            size="icon"
-            disabled={member.isLocked}
-            data-testid={`button-delete-member-${member.id}`}
-          >
-            <Trash2 className="w-4 h-4 text-destructive" />
-          </Button>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Student</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete <span className="font-semibold">{member.user.firstName} {member.user.lastName}</span>? This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={() => deleteMutation.mutate()}
-              className="bg-destructive hover:bg-destructive/90"
-              data-testid={`button-confirm-delete-${member.id}`}
+      {member.role !== 'admin' && (
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="icon"
+              disabled={member.isLocked}
+              data-testid={`button-delete-member-${member.id}`}
             >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              <Trash2 className="w-4 h-4 text-destructive" />
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Student</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete <span className="font-semibold">{member.user.firstName} {member.user.lastName}</span>? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={() => deleteMutation.mutate()}
+                className="bg-destructive hover:bg-destructive/90"
+                data-testid={`button-confirm-delete-${member.id}`}
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </div>
   );
 }
