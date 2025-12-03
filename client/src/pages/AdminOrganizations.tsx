@@ -317,7 +317,7 @@ export default function AdminOrganizations() {
               </div>
             ) : (
               <div className="space-y-4">
-                {organizations.length > 3 && (
+                {organizations.length > 0 && (
                   <div className="space-y-3">
                     {/* Search input */}
                     <div className="relative">
