@@ -576,8 +576,8 @@ function CreateOrganizationForm({ onSuccess }: { onSuccess: () => void }) {
     onSuccess: async (response) => {
       const result = await response.json();
       setCreatedCredentials({
-        username: result.admin.user.username,
-        password: result.admin.password,
+        username: result.admin.credentials.username,
+        password: result.admin.credentials.password,
         organizationName: result.organization.name,
       });
       toast({ title: "Success", description: "School and admin created successfully" });
