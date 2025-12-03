@@ -542,7 +542,7 @@ function CreateOrganizationForm({ onSuccess }: { onSuccess: () => void }) {
     name: "",
     totalLicenses: 50,
     isUnlimitedLicenses: false,
-    countryId: "" as string | undefined,
+    countryId: "none" as string,
     logoUrl: "",
   });
 
@@ -555,7 +555,7 @@ function CreateOrganizationForm({ onSuccess }: { onSuccess: () => void }) {
       // Don't send empty string for countryId or logoUrl, send undefined
       const payload = {
         ...data,
-        countryId: data.countryId || undefined,
+        countryId: data.countryId === "none" ? undefined : data.countryId,
         logoUrl: data.logoUrl || undefined,
       };
       return apiRequest('POST', '/api/admin/organizations', payload);
@@ -636,7 +636,7 @@ function CreateOrganizationForm({ onSuccess }: { onSuccess: () => void }) {
               <SelectValue placeholder="Select country (optional)" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">None</SelectItem>
+              <SelectItem value="none">None</SelectItem>
               {countries.map((country) => (
                 <SelectItem key={country.id} value={country.id}>
                   {country.name}
