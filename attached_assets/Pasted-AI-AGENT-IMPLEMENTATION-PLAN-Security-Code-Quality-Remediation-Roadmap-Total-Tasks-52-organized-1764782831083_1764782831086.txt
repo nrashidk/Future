@@ -1,0 +1,474 @@
+AI AGENT IMPLEMENTATION PLAN
+Security & Code Quality Remediation Roadmap
+Total Tasks: 52 organized in 3 phases
+Estimated Duration: 12-17 weeks
+Priority: Critical → High → Medium
+
+📋 EXECUTION PRINCIPLES FOR AI AGENTS
+Sequential Execution: Complete tasks in order within each phase
+Verification Required: Run verification commands after each task
+Commit Granularity: Commit after each completed task
+Error Handling: Log errors and request human intervention if blocked
+Testing: Run relevant tests after each code change
+No Assumptions: Never use placeholder values or guess parameters
+🚨 PHASE 1: CRITICAL SECURITY FIXES (Week 1-2)
+TASK-001: Set Up Environment Encryption Key
+Effort: 30 minutes
+Files: .env, .env.example
+
+# Generate 32-byte key
+openssl rand -hex 32
+
+# Add to .env
+DB_ENCRYPTION_KEY=<generated_hex_key>
+
+Verify: Key is exactly 64 hex characters
+
+TASK-002: Create Encryption Utility Module
+Effort: 2 hours
+File: /server/utils/encryption.ts (new)
+
+Create encryption/decryption utilities:
+
+import crypto from 'crypto';
+
+const ALGORITHM = 'aes-256-gcm';
+const KEY_BUFFER = Buffer.from(process.env.DB_ENCRYPTION_KEY, 'hex');
+
+export function encryptApiKey(plaintext: string) {
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv(ALGORITHM, KEY_BUFFER, iv);
+  let encrypted = cipher.update(plaintext, 'utf8', 'hex');
+  encrypted += cipher.final('hex');
+  const tag = cipher.getAuthTag();
+  return { encrypted, iv: iv.toString('hex'), tag: tag.toString('hex') };
+}
+
+export function decryptApiKey(encryptedData) {
+  const decipher = crypto.createDecipheriv(
+    ALGORITHM, KEY_BUFFER, Buffer.from(encryptedData.iv, 'hex')
+  );
+  decipher.setAuthTag(Buffer.from(encryptedData.tag, 'hex'));
+  let decrypted = decipher.update(encryptedData.encrypted, 'hex', 'utf8');
+  decrypted += decipher.final('utf8');
+  return decrypted;
+}
+
+Verify: Unit tests pass
+
+TASK-003: Update Database Schema for Encrypted Keys
+Effort: 1 hour
+File: /shared/schema.ts
+
+Update apiCredentials table to store encrypted format:
+
+apiKey: text("api_key").notNull(), // Stores: "encrypted:iv:tag"
+
+Run migration: npm run db:generate
+
+TASK-004: Update Storage Layer for Encryption
+Effort: 3 hours
+File: /server/storage.ts
+
+Update methods (lines 2184-2218):
+
+async upsertApiCredential({ provider, apiKey, ... }) {
+  const encrypted = encryptApiKey(apiKey);
+  const encryptedString = serializeEncrypted(encrypted);
+  // Store encryptedString in database
+}
+
+async getApiCredential(provider: string) {
+  const credential = await db.select()...;
+  const decryptedKey = decryptApiKey(deserializeEncrypted(credential.apiKey));
+  return decryptedKey;
+}
+
+Verify: npm run build succeeds
+
+TASK-005: Migrate Existing Plaintext Keys
+Effort: 2 hours
+File: /scripts/encrypt-existing-keys.ts (new)
+
+Create migration script to encrypt all existing API keys in database.
+
+Verify: Check database - all keys should contain : separators
+
+TASK-006: Fix Privilege Escalation in upsertUser
+Effort: 3 hours
+File: /server/storage.ts (line 456)
+
+Critical: Remove ability to update roles via upsertUser:
+
+async upsertUser(userData: UpsertUser) {
+  const safeFields = ['email', 'firstName', 'lastName', 'phone', 'profileImageUrl'];
+  // Filter to only safe fields
+  // NEVER allow role or accountType updates
+}
+
+// New admin-only method
+async updateUserRole(targetUserId, newRole, adminUserId) {
+  const admin = await this.getUser(adminUserId);
+  if (admin?.role !== 'superadmin') {
+    throw new Error('Unauthorized: Superadmin access required');
+  }
+  // Update role with audit logging
+}
+
+TASK-007: Update Routes to Use New Role Methods
+Effort: 2 hours
+Files: /server/routes/admin.routes.ts, /server/routes/superadmin.routes.ts
+
+Replace all upsertUser calls that include role or accountType with new secure methods.
+
+Verify: grep -n "upsertUser" server/routes/*.routes.ts | grep -E "(role|accountType)" returns 0 results
+
+TASK-008: Fix Session Fixation
+Effort: 1 hour
+Files: /server/replitAuth.ts, /server/routes/auth.routes.ts
+
+Add session regeneration after login:
+
+req.logIn(user, (err) => {
+  if (err) return res.status(500).json({ message: "Login failed" });
+  
+  // Regenerate session ID to prevent fixation
+  req.session.regenerate((err) => {
+    if (err) return res.status(500).json({ message: "Session error" });
+    req.session.passport = { user };
+    req.session.save(() => res.json({ success: true }));
+  });
+});
+
+TASK-009: Re-enable Puppeteer Sandbox
+Effort: 1 hour
+File: /server/routes/admin.routes.ts (line 778)
+
+Critical: Remove unsafe flags and add URL validation:
+
+browser = await puppeteer.launch({
+  headless: true,
+  args: ['--disable-dev-shm-usage'],
+  // REMOVED: '--no-sandbox', '--disable-setuid-sandbox'
+});
+
+// Validate URL before navigation
+const allowedHosts = ['localhost', '127.0.0.1', req.get('host')];
+const parsedUrl = new URL(printUrl);
+if (!allowedHosts.includes(parsedUrl.hostname)) {
+  throw new Error('Invalid PDF generation URL');
+}
+
+TASK-010: Implement Structured Logging with PII Redaction
+Effort: 6 hours
+File: /server/utils/logger.ts (new)
+
+Install Winston: npm install winston
+
+Create logger with automatic PII redaction:
+
+const PII_PATTERNS = [
+  { pattern: /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, replacement: '[EMAIL]' },
+  { pattern: /"password"\s*:\s*"[^"]*"/gi, replacement: '"password":"[REDACTED]"' },
+  { pattern: /"apiKey"\s*:\s*"[^"]*"/gi, replacement: '"apiKey":"[REDACTED]"' },
+  // ... more patterns
+];
+
+export const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    redactPII(), // Custom format
+    winston.format.json()
+  ),
+  transports: [
+    new winston.transports.File({ filename: 'logs/error.log', level: 'error' }),
+    new winston.transports.File({ filename: 'logs/combined.log' }),
+  ],
+});
+
+Create /logs directory and add to .gitignore
+
+TASK-011: Replace console.log in Authentication Files
+Effort: 2 hours
+Files: /server/replitAuth.ts (21 occurrences), /server/routes/auth.routes.ts (15 occurrences)
+
+Replace all console statements:
+
+// BEFORE
+console.log('🔐 Login initiated - returnTo:', returnTo);
+
+// AFTER
+import logger from './utils/logger';
+logger.info('Login initiated', { returnTo });
+
+Verify: grep -n "console\." server/replitAuth.ts server/routes/auth.routes.ts returns 0
+
+TASK-012: Replace console.log in All Route Files
+Effort: 4 hours
+Files: /server/routes/*.routes.ts (14 files, 274 total occurrences)
+
+Systematically replace all console statements with structured logging.
+
+Priority order:
+
+payment.routes.ts (sensitive payment data)
+password-reset.routes.ts (tokens)
+assessment.routes.ts
+admin.routes.ts
+All other route files
+Verify: grep -r "console\." server/ --include="*.ts" | wc -l returns ~0-10
+
+✅ PHASE 1 COMPLETION CHECKPOINT
+Verify before Phase 2:
+
+ All critical security fixes implemented
+ API keys encrypted in database
+ No privilege escalation vulnerabilities
+ Session fixation patched
+ Puppeteer sandbox enabled
+ Structured logging active (no PII in logs)
+ Application builds without errors
+ Manual testing of login, assessment, payment
+🔧 PHASE 2: HIGH-PRIORITY FIXES (Week 3-6)
+TASK-013: Set Up Test Infrastructure
+Effort: 4 hours
+
+Install dependencies:
+
+npm install --save-dev jest @types/jest ts-jest @testing-library/react
+npm install --save-dev playwright @playwright/test
+
+Configure Jest and Playwright, create test directories:
+
+server/__tests__/unit/
+server/__tests__/integration/
+e2e/
+
+TASK-014: Write Tests for Encryption Utilities
+Effort: 2 hours
+File: /server/utils/__tests__/encryption.test.ts
+
+Comprehensive tests for encryption/decryption functions.
+
+Target: 100% coverage for encryption utilities
+
+TASK-015: Write Storage Security Tests
+Effort: 3 hours
+File: /server/__tests__/integration/storage-security.test.ts
+
+Test privilege escalation protection:
+
+Verify upsertUser cannot modify role or accountType
+Verify only superadmin can update roles
+Verify authorization checks work
+TASK-016: Fix N+1 Query in getSectorPipeline
+Effort: 1 day
+File: /server/storage.ts (line 958-1000)
+
+Critical Performance Issue: Replace nested loops with SQL JOIN:
+
+async getSectorPipeline(countryId?: string) {
+  return db
+    .select({
+      sector: sql`unnest(${countries.prioritySectors})`,
+      studentCount: count(distinct(assessments.id)),
+      avgAlignment: avg(recommendations.countryVisionAlignment)
+    })
+    .from(assessments)
+    .innerJoin(recommendations, eq(assessments.id, recommendations.assessmentId))
+    .groupBy(sql`unnest(${countries.prioritySectors})`);
+}
+
+TASK-017: Add Missing Database Indexes
+Effort: 1 day
+File: /shared/schema.ts
+
+Add indexes for common queries:
+
+export const assessments = pgTable("assessments", {
+  // ... columns
+}, (table) => [
+  index("idx_guest_session").on(table.guestSessionId),
+  index("idx_user_completed").on(table.userId, table.isCompleted),
+  index("idx_completed_at").on(table.completedAt),
+]);
+
+Run migration and verify query performance improvement.
+
+TASK-018-020: Additional Performance Tasks
+Implement query result caching (Redis or in-memory)
+Optimize PDF generation (resource limits, timeout)
+Add database connection pooling
+TASK-021: Strengthen Password Requirements
+Effort: 2 days
+File: /server/routes/password-reset.routes.ts (line 159)
+
+Install: npm install zxcvbn
+
+Implement strong password validation:
+
+import zxcvbn from 'zxcvbn';
+
+function validatePassword(password: string) {
+  if (password.length < 12) {
+    return { valid: false, message: "Password must be at least 12 characters" };
+  }
+  
+  const result = zxcvbn(password);
+  if (result.score < 3) {
+    return { valid: false, message: result.feedback.warning };
+  }
+  
+  // Check against breached passwords (HaveIBeenPwned API)
+  const breached = await checkBreachedPassword(password);
+  if (breached) {
+    return { valid: false, message: "Password exposed in data breach" };
+  }
+  
+  return { valid: true };
+}
+
+TASK-022-025: Authentication Improvements
+Add account lockout after 5 failed login attempts
+Implement MFA support (TOTP)
+Invalidate all sessions on password change
+Add "remember me" functionality
+TASK-026: Add Organization Access Validation
+Effort: 1 day
+File: /server/routes/admin.routes.ts (line 508)
+
+Fix IDOR vulnerability:
+
+// Before existing check, add:
+const requestingUserId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
+const requestingUserOrg = await storage.getOrganizationByAdminUserId(requestingUserId);
+
+if (!isSuperadmin && (!requestingUserOrg || requestingUserOrg.id !== req.params.id)) {
+  return res.status(403).json({ message: "Forbidden: Cannot access this organization" });
+}
+
+Apply to all organization management endpoints.
+
+TASK-027-030: Authorization Improvements
+Prevent IDOR in all member operations
+Add authorization checks to assessment endpoints
+Implement resource ownership validation
+Add audit logging for admin actions
+TASK-031: Add Zod Validation to All Endpoints
+Effort: 3 days
+Files: All route files
+
+Install: npm install zod
+
+Create validation schemas:
+
+import { z } from 'zod';
+
+const createAssessmentSchema = z.object({
+  demographics: z.object({
+    age: z.number().min(13).max(100),
+    gender: z.enum(['male', 'female', 'other', 'prefer_not_to_say']),
+    // ...
+  }),
+  subjects: z.array(z.string()).min(1).max(20),
+  // ...
+});
+
+app.post('/api/assessments', async (req, res) => {
+  try {
+    const validated = createAssessmentSchema.parse(req.body);
+    // Use validated data
+  } catch (error) {
+    return res.status(400).json({ message: "Invalid input", errors: error.errors });
+  }
+});
+
+TASK-032-035: Input Validation Tasks
+File content validation (check magic bytes, not just MIME)
+CSV import validation
+Request size limits (10MB max)
+SQL injection audit (verify all queries use parameterization)
+🎨 PHASE 3: UX, COMPLIANCE & CODE QUALITY (Week 7-12)
+TASK-036-040: Mobile & Accessibility
+Fix admin dashboard mobile layout (responsive tables, navigation)
+Add skeleton loading states to all pages
+Implement React error boundaries
+WCAG 2.1 AA compliance audit (ARIA labels, keyboard nav, color contrast)
+Add screen reader testing
+TASK-041-045: Privacy & GDPR Compliance
+Implement consent management UI
+Create DSAR endpoints (GET /api/user/:id/data-export)
+Implement right to be forgotten (DELETE /api/user/:id/forget)
+Add cookie consent banner
+Encrypt all data exports (CSV, PDF)
+TASK-046: Break Up Storage God Object
+Effort: 1 week
+File: /server/storage.ts (2,235 lines → split into repositories)
+
+Create domain repositories:
+
+server/repositories/
+  ├── UserRepository.ts
+  ├── AssessmentRepository.ts
+  ├── CareerRepository.ts
+  ├── OrganizationRepository.ts
+  ├── AnalyticsRepository.ts
+  └── PaymentRepository.ts
+
+TASK-047-050: Code Quality Improvements
+Replace remaining 191 'any' types with proper definitions
+Standardize error response format across all endpoints
+Add OpenAPI/Swagger documentation
+Implement more granular rate limiting
+TASK-051-052: Comprehensive Testing
+Achieve 70%+ test coverage for critical paths
+E2E tests for main flows (guest assessment, payment, admin dashboard)
+📊 SUCCESS METRICS BY PHASE
+Phase 1 Complete (Week 2):
+✅ 0 critical security vulnerabilities
+✅ All API keys encrypted in database
+✅ 0 console.log statements with PII
+✅ Session fixation patched
+Phase 2 Complete (Week 6):
+✅ 70%+ test coverage for critical paths
+✅ 0 N+1 queries in analytics
+✅ 12+ character passwords with complexity checks
+✅ IDOR vulnerabilities fixed
+Phase 3 Complete (Week 12):
+✅ GDPR compliance features implemented
+✅ WCAG 2.1 AA accessibility compliance
+✅ Mobile responsive (tested on 3+ devices)
+✅ Production-ready codebase
+🔄 VERIFICATION WORKFLOW
+After each task:
+
+# 1. Build check
+npm run build
+
+# 2. Type check
+npm run type-check || tsc --noEmit
+
+# 3. Run tests
+npm test
+
+# 4. Commit
+git add .
+git commit -m "[TASK-XXX] Description of change"
+
+💰 EFFORT ESTIMATES
+Phase	Tasks	Estimated Time	Priority
+Phase 1	12 tasks	2 weeks	CRITICAL
+Phase 2	23 tasks	4 weeks	HIGH
+Phase 3	17 tasks	6 weeks	MEDIUM
+TOTAL	52 tasks	12 weeks	-
+Minimum Viable Fix (Critical only): 2-3 weeks
+
+🎯 AGENT EXECUTION STRATEGY
+Start with Phase 1 (Critical) - Do not proceed to Phase 2 until all Phase 1 tasks complete
+Verify after each task - Run build, tests, manual checks
+Commit frequently - One commit per completed task with descriptive message
+Handle errors gracefully - If blocked, log error details and request human intervention
+No assumptions - Never guess parameter values or skip verification steps
+Document as you go - Update inline comments for complex changes
+This plan provides a clear, systematic path to remediate all identified security vulnerabilities, improve code quality, and prepare the application for production launch. Each task is concrete, measurable, and includes specific file locations and verification steps.
