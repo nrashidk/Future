@@ -8,6 +8,10 @@ import { hashPassword } from "../utils/passwordHash";
 import { sendPasswordResetEmail, isEmailConfigured } from "../services/email";
 import { sanitizeString } from "../utils/sanitize";
 import rateLimit from "express-rate-limit";
+import zxcvbn from "zxcvbn";
+
+// Minimum password strength score (0-4 scale, 3 = "good")
+const MIN_PASSWORD_SCORE = 3;
 
 // Rate limit password reset requests to prevent abuse
 const resetRequestLimiter = rateLimit({
@@ -155,9 +159,28 @@ export function registerPasswordResetRoutes(app: Express) {
         return res.status(400).json({ message: "Token and new password are required" });
       }
 
-      // Validate password strength
+      // SECURITY: Validate password strength using zxcvbn
+      // Score 0-4: 0=too guessable, 1=very guessable, 2=somewhat guessable, 3=safely unguessable, 4=very unguessable
       if (newPassword.length < 8) {
-        return res.status(400).json({ message: "Password must be at least 8 characters" });
+        return res.status(400).json({ 
+          message: "Password must be at least 8 characters",
+          passwordStrength: { score: 0, feedback: "Password is too short" }
+        });
+      }
+      
+      const passwordAnalysis = zxcvbn(newPassword);
+      if (passwordAnalysis.score < MIN_PASSWORD_SCORE) {
+        const suggestions = passwordAnalysis.feedback.suggestions || [];
+        const warning = passwordAnalysis.feedback.warning || "";
+        return res.status(400).json({ 
+          message: warning || "Password is too weak. Please choose a stronger password.",
+          passwordStrength: {
+            score: passwordAnalysis.score,
+            feedback: warning,
+            suggestions,
+            crackTime: passwordAnalysis.crack_times_display.offline_slow_hashing_1e4_per_second
+          }
+        });
       }
 
       // Find valid token

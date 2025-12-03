@@ -54,6 +54,7 @@
     "@types/morgan": "^1.9.10",
     "@types/multer": "^2.0.0",
     "@types/pdfkit": "^0.17.3",
+    "@types/zxcvbn": "^4.4.5",
     "archiver": "^7.0.1",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
@@ -100,7 +101,8 @@
     "wouter": "^3.3.5",
     "ws": "^8.18.0",
     "zod": "^3.24.2",
-    "zod-validation-error": "^3.4.0"
+    "zod-validation-error": "^3.4.0",
+    "zxcvbn": "^4.4.2"
   },
   "devDependencies": {
     "@replit/vite-plugin-cartographer": "^0.4.2",
