@@ -5,10 +5,44 @@
  */
 
 import type { Express } from "express";
+import { z } from "zod";
 import { storage } from "../storage";
 import { isAuthenticated } from "../replitAuth";
 import { researchCountryData, generateCountryQuizQuestions, generateSectorWefMappings } from "../services/llmCountryService";
 import rateLimit from "express-rate-limit";
+
+const createCountrySchema = z.object({
+  id: z.string().min(1).max(50).regex(/^[a-z0-9-]+$/, "ID must be lowercase alphanumeric with hyphens"),
+  name: z.string().min(1).max(100),
+  code: z.string().length(3).regex(/^[A-Z]+$/, "Code must be 3 uppercase letters"),
+  abbreviation: z.string().max(10).optional().nullable(),
+  autoPopulate: z.boolean().optional().default(false),
+});
+
+const updateCountrySchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  code: z.string().length(3).regex(/^[A-Z]+$/).optional(),
+  abbreviation: z.string().max(10).nullable().optional(),
+  mission: z.string().max(2000).optional(),
+  vision: z.string().max(2000).optional(),
+  visionPlan: z.string().max(100).nullable().optional(),
+  prioritySectors: z.array(z.string()).optional(),
+  nationalGoals: z.array(z.string()).optional(),
+  educationSystem: z.string().max(1000).nullable().optional(),
+  universitiesLink: z.string().url().nullable().optional().or(z.literal("")),
+  universitiesLinkLabel: z.string().max(100).nullable().optional(),
+  curricula: z.array(z.string()).nullable().optional(),
+  subjects: z.array(z.string()).nullable().optional(),
+  gradeLevels: z.array(z.string()).nullable().optional(),
+  isActive: z.boolean().optional(),
+});
+
+const generateQuestionsSchema = z.object({
+  subject: z.string().min(1).max(50),
+  grade: z.number().min(8).max(12),
+  curriculum: z.string().min(1).max(50),
+  count: z.number().min(1).max(50).default(10),
+});
 
 const getSuperadminEmails = (): string[] => {
   return (process.env.SUPERADMIN_EMAILS || "")
@@ -57,17 +91,17 @@ export function registerCountryRoutes(app: Express) {
         return res.status(403).json({ message: "Forbidden: Superadmin access required" });
       }
 
-      const { 
-        id, 
-        name, 
-        code, 
-        abbreviation,
-        autoPopulate = false 
-      } = req.body;
-
-      if (!id || !name || !code) {
-        return res.status(400).json({ message: "ID, name, and code are required" });
+      const parseResult = createCountrySchema.safeParse({
+        ...req.body,
+        code: req.body.code?.toUpperCase(),
+      });
+      
+      if (!parseResult.success) {
+        const errors = parseResult.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join(", ");
+        return res.status(400).json({ message: `Validation error: ${errors}` });
       }
+      
+      const { id, name, code, abbreviation, autoPopulate } = parseResult.data;
 
       const existing = await storage.getCountryById(id);
       if (existing) {
@@ -171,11 +205,21 @@ export function registerCountryRoutes(app: Express) {
       }
 
       const { id } = req.params;
-      const updates = req.body;
+      
+      const parseResult = updateCountrySchema.safeParse(req.body);
+      if (!parseResult.success) {
+        const errors = parseResult.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join(", ");
+        return res.status(400).json({ message: `Validation error: ${errors}` });
+      }
 
       const existing = await storage.getCountryById(id);
       if (!existing) {
         return res.status(404).json({ message: "Country not found" });
+      }
+
+      const updates = parseResult.data;
+      if (updates.universitiesLink === "") {
+        updates.universitiesLink = null;
       }
 
       const country = await storage.updateCountry(id, updates);
@@ -219,11 +263,14 @@ export function registerCountryRoutes(app: Express) {
       }
 
       const { id } = req.params;
-      const { subject, grade, curriculum, count = 10 } = req.body;
-
-      if (!subject || !grade) {
-        return res.status(400).json({ message: "Subject and grade are required" });
+      
+      const parseResult = generateQuestionsSchema.safeParse(req.body);
+      if (!parseResult.success) {
+        const errors = parseResult.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join(", ");
+        return res.status(400).json({ message: `Validation error: ${errors}` });
       }
+      
+      const { subject, grade, curriculum, count } = parseResult.data;
 
       const country = await storage.getCountryById(id);
       if (!country) {

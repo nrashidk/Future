@@ -219,6 +219,15 @@ export default function CountryManagement() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {countries.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <Globe className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p className="text-lg font-medium">No Countries Added</p>
+              <p className="text-sm mt-2">
+                Click "Add Country" to add a new country with AI-powered data population.
+              </p>
+            </div>
+          ) : (
           <Table>
             <TableHeader>
               <TableRow>
@@ -339,6 +348,7 @@ export default function CountryManagement() {
               ))}
             </TableBody>
           </Table>
+          )}
         </CardContent>
       </Card>
 

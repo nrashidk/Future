@@ -57,6 +57,7 @@ const DEFAULT_MODEL = "gpt-4o";
 const MAX_TOKENS_RESEARCH = 2000;
 const MAX_TOKENS_QUESTIONS = 3000;
 const TEMPERATURE = 0.7;
+const API_TIMEOUT_MS = 60000;
 
 async function callOpenAI(
   apiKey: string,
@@ -64,36 +65,79 @@ async function callOpenAI(
   userPrompt: string,
   maxTokens: number
 ): Promise<{ content: string; tokensUsed: number }> {
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model: DEFAULT_MODEL,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      max_tokens: maxTokens,
-      temperature: TEMPERATURE,
-      response_format: { type: "json_object" },
-    }),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
+  
+  try {
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: DEFAULT_MODEL,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        max_tokens: maxTokens,
+        temperature: TEMPERATURE,
+        response_format: { type: "json_object" },
+      }),
+      signal: controller.signal,
+    });
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(
-      `OpenAI API error: ${response.status} - ${errorData.error?.message || "Unknown error"}`
-    );
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      let errorMessage = "Unknown error";
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error?.message || errorMessage;
+      } catch {
+        errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+      }
+      throw new Error(`OpenAI API error: ${response.status} - ${errorMessage}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || "";
+    const tokensUsed = data.usage?.total_tokens || 0;
+
+    return { content, tokensUsed };
+  } catch (error: any) {
+    clearTimeout(timeoutId);
+    if (error.name === "AbortError") {
+      throw new Error("OpenAI API request timed out after 60 seconds");
+    }
+    throw error;
   }
+}
 
-  const data = await response.json();
-  const content = data.choices?.[0]?.message?.content || "";
-  const tokensUsed = data.usage?.total_tokens || 0;
-
-  return { content, tokensUsed };
+function safeParseJSON<T>(content: string, defaultValue: T): T {
+  if (!content || content.trim() === "") {
+    return defaultValue;
+  }
+  
+  try {
+    const result = JSON.parse(content);
+    if (result && typeof result === "object") {
+      return result as T;
+    }
+    return defaultValue;
+  } catch (error) {
+    console.error("Failed to parse LLM JSON response:", error);
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      try {
+        return JSON.parse(jsonMatch[0]) as T;
+      } catch {
+        return defaultValue;
+      }
+    }
+    return defaultValue;
+  }
 }
 
 /**
@@ -147,7 +191,30 @@ Focus on accurate, verifiable information. For subjects, use the actual names us
       MAX_TOKENS_RESEARCH
     );
 
-    const data = JSON.parse(content) as CountryData;
+    const defaultData: CountryData = {
+      mission: "",
+      vision: "",
+      visionPlan: "",
+      prioritySectors: [],
+      nationalGoals: [],
+      educationSystem: "",
+      universitiesLink: "",
+      universitiesLinkLabel: "",
+      curricula: [],
+      subjects: ["Mathematics", "Science", "English", "Social Studies", "Computer Science"],
+      gradeLevels: ["8", "9", "10", "11", "12"],
+      targets: [],
+    };
+
+    const data = safeParseJSON<CountryData>(content, defaultData);
+    
+    if (!data.mission && !data.vision && !data.visionPlan) {
+      return {
+        success: false,
+        error: "Failed to parse country data from AI response",
+        tokensUsed,
+      };
+    }
 
     return {
       success: true,
@@ -232,7 +299,15 @@ Respond with JSON in this format:
       MAX_TOKENS_QUESTIONS
     );
 
-    const parsed = JSON.parse(content) as { questions: GeneratedQuestion[] };
+    const parsed = safeParseJSON<{ questions: GeneratedQuestion[] }>(content, { questions: [] });
+    
+    if (!parsed.questions || parsed.questions.length === 0) {
+      return {
+        success: false,
+        error: "Failed to parse quiz questions from AI response",
+        tokensUsed,
+      };
+    }
 
     return {
       success: true,
@@ -306,9 +381,16 @@ Respond with JSON:
       1500
     );
 
-    const parsed = JSON.parse(content) as {
+    const parsed = safeParseJSON<{
       mappings: Array<{ sector: string; wefSkills: string[]; importanceScore: number }>;
-    };
+    }>(content, { mappings: [] });
+    
+    if (!parsed.mappings || parsed.mappings.length === 0) {
+      return {
+        success: false,
+        error: "Failed to parse sector mappings from AI response",
+      };
+    }
 
     return {
       success: true,
