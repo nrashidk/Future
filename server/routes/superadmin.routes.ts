@@ -958,6 +958,49 @@ export function registerSuperadminRoutes(app: Express) {
     }
   });
 
+  // Toggle tier active status
+  app.patch("/api/superadmin/scoring-config/tiers/:tierKey/toggle-active", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const { tierKey } = req.params;
+      const { isActive } = req.body;
+      
+      if (typeof isActive !== "boolean") {
+        return res.status(400).json({ message: "isActive must be a boolean" });
+      }
+      
+      // Get tier
+      const tier = await storage.getScoringTierByKey(tierKey);
+      if (!tier) {
+        return res.status(404).json({ message: "Tier not found" });
+      }
+      
+      const currentUser = (req as any).currentUser;
+      
+      // Update tier active status
+      await storage.updateScoringTier(tier.id, { isActive });
+      
+      // Log the change
+      await storage.createScoringConfigChangeLog({
+        changedBy: currentUser.id,
+        changeType: "tier_status_updated",
+        entityType: "tier",
+        entityId: tier.id,
+        previousValue: { isActive: tier.isActive },
+        newValue: { isActive },
+        changeDescription: `${isActive ? 'Activated' : 'Deactivated'} ${tier.name} tier`,
+      });
+      
+      // Invalidate cache
+      const { invalidateScoringConfigCache } = await import("../services/scoringConfig");
+      invalidateScoringConfigCache();
+      
+      res.json({ success: true, message: `Tier ${isActive ? 'activated' : 'deactivated'} successfully` });
+    } catch (error) {
+      console.error("Error toggling tier status:", error);
+      res.status(500).json({ message: "Failed to toggle tier status" });
+    }
+  });
+
   // Get all LLM prompt templates
   app.get("/api/superadmin/llm-prompts", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
     try {
