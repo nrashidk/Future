@@ -85,6 +85,7 @@ export default function AdminOrganizations() {
   const [isBulkUploadDialogOpen, setIsBulkUploadDialogOpen] = useState(false);
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   const [schoolSearchQuery, setSchoolSearchQuery] = useState("");
+  const [letterFilter, setLetterFilter] = useState<string | null>(null);
   const [roleFilter, setRoleFilter] = useState<"all" | "admin" | "student">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "not_active" | "active" | "in_progress" | "completed">("all");
 
@@ -92,9 +93,22 @@ export default function AdminOrganizations() {
     queryKey: ['/api/admin/organizations'],
   });
 
-  const filteredOrganizations = organizations.filter((org) =>
-    org.name.toLowerCase().includes(schoolSearchQuery.toLowerCase())
-  );
+  // Get unique first letters from organization names for the A-Z filter
+  const availableLetters = Array.from(
+    new Set(organizations.map(org => org.name.charAt(0).toUpperCase()))
+  ).sort();
+
+  const filteredOrganizations = organizations.filter((org) => {
+    // Apply search filter
+    if (schoolSearchQuery && !org.name.toLowerCase().includes(schoolSearchQuery.toLowerCase())) {
+      return false;
+    }
+    // Apply letter filter
+    if (letterFilter && !org.name.toUpperCase().startsWith(letterFilter)) {
+      return false;
+    }
+    return true;
+  });
 
   const { data: members = [], isLoading: membersLoading } = useQuery<OrganizationMember[]>({
     queryKey: ['/api/admin/organizations', selectedOrgId, 'members'],
@@ -304,17 +318,56 @@ export default function AdminOrganizations() {
             ) : (
               <div className="space-y-4">
                 {organizations.length > 3 && (
-                  <div className="relative">
-                    <Input
-                      placeholder="Search schools..."
-                      value={schoolSearchQuery}
-                      onChange={(e) => setSchoolSearchQuery(e.target.value)}
-                      className="max-w-sm"
-                      data-testid="input-search-schools"
-                    />
-                    {schoolSearchQuery && (
-                      <p className="text-xs text-muted-foreground mt-1">
+                  <div className="space-y-3">
+                    {/* Search input */}
+                    <div className="relative">
+                      <Input
+                        placeholder="Search schools..."
+                        value={schoolSearchQuery}
+                        onChange={(e) => {
+                          setSchoolSearchQuery(e.target.value);
+                          if (e.target.value) setLetterFilter(null); // Clear letter filter when searching
+                        }}
+                        className="max-w-sm"
+                        data-testid="input-search-schools"
+                      />
+                    </div>
+                    
+                    {/* A-Z Letter Filter */}
+                    <div className="flex flex-wrap gap-1 items-center">
+                      <span className="text-xs text-muted-foreground mr-2">Filter by letter:</span>
+                      <Button
+                        variant={letterFilter === null ? "default" : "ghost"}
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        onClick={() => setLetterFilter(null)}
+                        data-testid="letter-filter-all"
+                      >
+                        All
+                      </Button>
+                      {availableLetters.map((letter) => (
+                        <Button
+                          key={letter}
+                          variant={letterFilter === letter ? "default" : "ghost"}
+                          size="sm"
+                          className="h-7 w-7 p-0 text-xs"
+                          onClick={() => {
+                            setLetterFilter(letter);
+                            setSchoolSearchQuery(""); // Clear search when selecting a letter
+                          }}
+                          data-testid={`letter-filter-${letter}`}
+                        >
+                          {letter}
+                        </Button>
+                      ))}
+                    </div>
+                    
+                    {/* Filter status */}
+                    {(schoolSearchQuery || letterFilter) && (
+                      <p className="text-xs text-muted-foreground">
                         Showing {filteredOrganizations.length} of {organizations.length} schools
+                        {letterFilter && ` starting with "${letterFilter}"`}
+                        {schoolSearchQuery && ` matching "${schoolSearchQuery}"`}
                       </p>
                     )}
                   </div>
@@ -335,8 +388,20 @@ export default function AdminOrganizations() {
                       </Badge>
                     </Button>
                   ))}
-                  {filteredOrganizations.length === 0 && schoolSearchQuery && (
-                    <p className="text-sm text-muted-foreground py-2">No schools match "{schoolSearchQuery}"</p>
+                  {filteredOrganizations.length === 0 && (schoolSearchQuery || letterFilter) && (
+                    <div className="text-center py-4 w-full">
+                      <p className="text-sm text-muted-foreground">
+                        No schools found {letterFilter && `starting with "${letterFilter}"`}{schoolSearchQuery && ` matching "${schoolSearchQuery}"`}
+                      </p>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className="mt-2 text-primary"
+                        onClick={() => { setLetterFilter(null); setSchoolSearchQuery(""); }}
+                      >
+                        Clear filters
+                      </Button>
+                    </div>
                   )}
                 </div>
               </div>
