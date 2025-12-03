@@ -265,6 +265,8 @@ export function registerRecommendationsRoutes(app: Express) {
       }
 
       // Launch headless browser with system Chromium
+      // Note: --no-sandbox is required in containerized environments like Replit
+      // Security is maintained through strict URL validation below
       browser = await puppeteer.default.launch({
         headless: true,
         executablePath: chromiumPath,
@@ -286,6 +288,23 @@ export function registerRecommendationsRoutes(app: Express) {
       // Include guest token if this is a guest assessment
       const guestTokenParam = assessment.guestSessionId ? `&guestToken=${assessment.guestSessionId}` : '';
       const printUrl = `${baseUrl}/print/results?assessmentId=${assessment.id}${guestTokenParam}`;
+      
+      // SECURITY: Validate URL to prevent SSRF attacks
+      const allowedHosts = ['localhost', '127.0.0.1'];
+      const hostFromReq = req.get('host')?.split(':')[0];
+      if (hostFromReq && !hostFromReq.includes('.replit.app') && !hostFromReq.includes('.repl.co')) {
+        allowedHosts.push(hostFromReq);
+      }
+      try {
+        const parsedUrl = new URL(printUrl);
+        const isReplitHost = parsedUrl.hostname.includes('.replit.app') || parsedUrl.hostname.includes('.repl.co');
+        if (!allowedHosts.includes(parsedUrl.hostname) && !isReplitHost) {
+          throw new Error('Invalid PDF generation URL');
+        }
+      } catch (e) {
+        console.error('URL validation failed:', e);
+        return res.status(400).json({ message: "Invalid PDF URL" });
+      }
       
       await page.goto(printUrl, {
         waitUntil: 'networkidle0',

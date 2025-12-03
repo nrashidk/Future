@@ -1,4 +1,9 @@
 import {
+  encryptAndSerialize,
+  deserializeAndDecrypt,
+  isEncryptedFormat,
+} from "./utils/encryption";
+import {
   users,
   countries,
   skills,
@@ -96,6 +101,7 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
+  updateUserRole(targetUserId: string, newRole: 'user' | 'superadmin', newAccountType?: 'individual' | 'org_admin' | 'org_student' | null): Promise<User>;
   updateUserPremiumStatus(userId: string, stripeCustomerId: string | null): Promise<User>;
   createStandaloneUser(userData: {
     firstName: string;
@@ -451,17 +457,57 @@ export class DatabaseStorage implements IStorage {
   }
 
   async upsertUser(userData: UpsertUser): Promise<User> {
+    // SECURITY: Filter out sensitive fields to prevent privilege escalation
+    // role and accountType should only be updated via dedicated admin methods
+    const SAFE_UPDATE_FIELDS = [
+      'email', 'firstName', 'lastName', 'phone', 'profileImageUrl',
+      'passwordHash', 'isPremium', 'purchasedLicenses', 'usedLicenses',
+      'stripeCustomerId', 'paymentDate', 'lastLoginAt', 'username'
+    ];
+    
+    const safeUpdateData: Record<string, any> = { updatedAt: new Date() };
+    for (const key of SAFE_UPDATE_FIELDS) {
+      if (key in userData && (userData as any)[key] !== undefined) {
+        safeUpdateData[key] = (userData as any)[key];
+      }
+    }
+    
     const [user] = await db
       .insert(users)
       .values(userData)
       .onConflictDoUpdate({
         target: users.id,
-        set: {
-          ...userData,
-          updatedAt: new Date(),
-        },
+        set: safeUpdateData,
       })
       .returning();
+    return user;
+  }
+
+  // Admin-only method to update user role (requires superadmin verification at route level)
+  async updateUserRole(
+    targetUserId: string,
+    newRole: 'user' | 'superadmin',
+    newAccountType?: 'individual' | 'org_admin' | 'org_student' | null
+  ): Promise<User> {
+    const updates: Record<string, any> = {
+      role: newRole,
+      updatedAt: new Date(),
+    };
+    
+    if (newAccountType !== undefined) {
+      updates.accountType = newAccountType;
+    }
+    
+    const [user] = await db
+      .update(users)
+      .set(updates)
+      .where(eq(users.id, targetUserId))
+      .returning();
+    
+    if (!user) {
+      throw new Error(`User not found: ${targetUserId}`);
+    }
+    
     return user;
   }
 
@@ -2233,23 +2279,56 @@ export class DatabaseStorage implements IStorage {
   // API Credentials operations
   async getApiCredential(provider: string): Promise<ApiCredential | undefined> {
     const [credential] = await db.select().from(apiCredentials).where(eq(apiCredentials.provider, provider));
+    if (!credential) return undefined;
+    
+    // Decrypt API key if it's in encrypted format
+    if (credential.apiKey && isEncryptedFormat(credential.apiKey)) {
+      try {
+        const decryptedKey = deserializeAndDecrypt(credential.apiKey);
+        return { ...credential, apiKey: decryptedKey };
+      } catch (error) {
+        console.error(`Failed to decrypt API key for provider ${provider}:`, error);
+        return undefined;
+      }
+    }
+    
+    // Return as-is for legacy plaintext keys (will be migrated)
     return credential;
   }
 
   async getAllApiCredentials(): Promise<ApiCredential[]> {
-    return db.select().from(apiCredentials);
+    const credentials = await db.select().from(apiCredentials);
+    
+    // Decrypt all API keys
+    return credentials.map(credential => {
+      if (credential.apiKey && isEncryptedFormat(credential.apiKey)) {
+        try {
+          const decryptedKey = deserializeAndDecrypt(credential.apiKey);
+          return { ...credential, apiKey: decryptedKey };
+        } catch (error) {
+          console.error(`Failed to decrypt API key for provider ${credential.provider}:`, error);
+          return { ...credential, apiKey: '' }; // Return empty for failed decryption
+        }
+      }
+      return credential;
+    });
   }
 
   async upsertApiCredential(data: InsertApiCredential): Promise<ApiCredential> {
+    // Encrypt the API key before storing
+    const encryptedApiKey = encryptAndSerialize(data.apiKey);
+    
     const [result] = await db
       .insert(apiCredentials)
-      .values(data)
+      .values({ ...data, apiKey: encryptedApiKey })
       .onConflictDoUpdate({
         target: [apiCredentials.provider],
-        set: { apiKey: data.apiKey, isActive: data.isActive, updatedAt: new Date() },
+        set: { apiKey: encryptedApiKey, isActive: data.isActive, updatedAt: new Date() },
       })
       .returning();
-    return result;
+    
+    // Return with decrypted key for immediate use
+    return { ...result, apiKey: data.apiKey };
   }
 
   async updateApiCredentialTestResult(provider: string, result: string): Promise<ApiCredential> {

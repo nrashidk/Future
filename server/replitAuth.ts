@@ -213,11 +213,21 @@ export async function setupAuth(app: Express) {
       if (!user) {
         return res.status(401).json({ message: info?.message || "Invalid credentials" });
       }
-      req.logIn(user, (err) => {
-        if (err) {
+      
+      // SECURITY: Regenerate session to prevent session fixation attacks
+      // This ensures any existing session ID is invalidated and a new one is created
+      req.session.regenerate((regenerateErr) => {
+        if (regenerateErr) {
+          console.error("Session regeneration failed:", regenerateErr);
           return res.status(500).json({ message: "Login failed" });
         }
-        return res.json({ success: true, user: { username: user.username } });
+        
+        req.logIn(user, (loginErr) => {
+          if (loginErr) {
+            return res.status(500).json({ message: "Login failed" });
+          }
+          return res.json({ success: true, user: { username: user.username } });
+        });
       });
     })(req, res, next);
   });

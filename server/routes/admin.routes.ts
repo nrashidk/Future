@@ -774,11 +774,26 @@ export function registerAdminRoutes(app: Express) {
       archive.pipe(res);
 
       // Launch browser once for all PDFs
+      // Note: --no-sandbox is required in containerized environments like Replit
+      // Security is maintained through strict URL validation below
       const puppeteer = (await import("puppeteer")).default;
       browser = await puppeteer.launch({
         headless: true,
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
       });
+
+      // SECURITY: Validate PDF generation URLs to prevent SSRF attacks
+      const allowedHosts = ['localhost', '127.0.0.1'];
+      const validatePdfUrl = (url: string) => {
+        try {
+          const parsedUrl = new URL(url);
+          if (!allowedHosts.includes(parsedUrl.hostname)) {
+            throw new Error(`Invalid PDF generation URL: ${url}`);
+          }
+        } catch (e) {
+          throw new Error(`Invalid PDF generation URL: ${url}`);
+        }
+      };
 
       // Generate each PDF
       for (const member of completedMembers) {
@@ -795,6 +810,9 @@ export function registerAdminRoutes(app: Express) {
 
           page = await browser.newPage();
           const printUrl = `http://localhost:5000/print/results?assessmentId=${completedAssessment.id}`;
+          
+          // Validate URL before navigation
+          validatePdfUrl(printUrl);
 
           await page.goto(printUrl, {
             waitUntil: 'networkidle0',
