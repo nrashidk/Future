@@ -124,6 +124,8 @@ export interface IStorage {
   getAllCountries(): Promise<Country[]>;
   getCountryById(id: string): Promise<Country | undefined>;
   createCountry(country: InsertCountry): Promise<Country>;
+  updateCountry(id: string, data: Partial<InsertCountry>): Promise<Country>;
+  deleteCountry(id: string): Promise<boolean>;
 
   // Skills operations
   getAllSkills(): Promise<Skill[]>;
@@ -157,6 +159,15 @@ export interface IStorage {
   createQuizQuestion(question: InsertQuizQuestion): Promise<QuizQuestion>;
   getAllQuizQuestions(): Promise<QuizQuestion[]>;
   getQuizQuestionsByGradeAndCountry(gradeBand: string, countryId: string | null): Promise<QuizQuestion[]>;
+  getQuizQuestionsByFilters(filters: {
+    countryId?: string | null;
+    subject?: string;
+    grade?: number;
+    gradeBand?: string;
+    curriculum?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<QuizQuestion[]>;
   getQuizQuestions(filters: {
     countryId?: string;
     subject?: string;
@@ -562,6 +573,28 @@ export class DatabaseStorage implements IStorage {
     return country;
   }
 
+  async updateCountry(id: string, data: Partial<InsertCountry>): Promise<Country> {
+    const [country] = await db
+      .update(countries)
+      .set({
+        ...data,
+        updatedAt: new Date(),
+      })
+      .where(eq(countries.id, id))
+      .returning();
+    
+    if (!country) {
+      throw new Error(`Country not found: ${id}`);
+    }
+    
+    return country;
+  }
+
+  async deleteCountry(id: string): Promise<boolean> {
+    const result = await db.delete(countries).where(eq(countries.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
   // Skills operations
   async getAllSkills(): Promise<Skill[]> {
     return await db.select().from(skills);
@@ -714,7 +747,6 @@ export class DatabaseStorage implements IStorage {
 
   async getQuizQuestionsByGradeAndCountry(gradeBand: string, countryId: string | null): Promise<QuizQuestion[]> {
     if (countryId) {
-      // Return both country-specific AND global questions for the given grade band
       const countrySpecific = await db
         .select()
         .from(quizQuestions)
@@ -737,7 +769,6 @@ export class DatabaseStorage implements IStorage {
       
       return [...countrySpecific, ...globalQuestions];
     } else {
-      // Only return global questions if no country specified
       return await db
         .select()
         .from(quizQuestions)
@@ -748,6 +779,60 @@ export class DatabaseStorage implements IStorage {
           )
         );
     }
+  }
+
+  async getQuizQuestionsByFilters(filters: {
+    countryId?: string | null;
+    subject?: string;
+    grade?: number;
+    gradeBand?: string;
+    curriculum?: string;
+    limit?: number;
+    offset?: number;
+  }): Promise<QuizQuestion[]> {
+    const conditions: any[] = [];
+    
+    if (filters.countryId !== undefined) {
+      if (filters.countryId === null) {
+        conditions.push(sql`${quizQuestions.countryId} IS NULL`);
+      } else {
+        conditions.push(
+          or(
+            eq(quizQuestions.countryId, filters.countryId),
+            sql`${quizQuestions.countryId} IS NULL`
+          )
+        );
+      }
+    }
+    
+    if (filters.subject) {
+      conditions.push(eq(quizQuestions.subject, filters.subject));
+    }
+    
+    if (filters.grade !== undefined) {
+      conditions.push(eq(quizQuestions.grade, filters.grade));
+    } else if (filters.gradeBand) {
+      conditions.push(eq(quizQuestions.gradeBand, filters.gradeBand));
+    }
+    
+    if (filters.curriculum) {
+      conditions.push(eq(quizQuestions.curriculum, filters.curriculum));
+    }
+    
+    let query = db.select().from(quizQuestions);
+    
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+    
+    if (filters.limit) {
+      query = query.limit(filters.limit) as any;
+    }
+    if (filters.offset) {
+      query = query.offset(filters.offset) as any;
+    }
+    
+    return await query;
   }
 
   async getQuizQuestions(filters: {
