@@ -15,6 +15,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
+import { Separator } from "@/components/ui/separator";
 import { 
   Home, Plus, Download, Upload, Edit, Trash2, GraduationCap, 
   Users, Building2, Key, RefreshCw, FileDown, Lock, LockOpen, User, LogOut, BarChart, Shield, FileQuestion
@@ -539,12 +540,20 @@ export default function AdminOrganizations() {
 function CreateOrganizationForm({ onSuccess }: { onSuccess: () => void }) {
   const { toast } = useToast();
   const [formData, setFormData] = useState({
-    name: "",
+    organizationName: "",
     totalLicenses: 50,
     isUnlimitedLicenses: false,
     countryId: "none" as string,
-    logoUrl: "",
+    adminFirstName: "",
+    adminLastName: "",
+    adminEmail: "",
+    adminUsername: "",
   });
+  const [createdCredentials, setCreatedCredentials] = useState<{
+    username: string;
+    password: string;
+    organizationName: string;
+  } | null>(null);
 
   const { data: countries = [] } = useQuery<Array<{ id: string; name: string }>>({
     queryKey: ['/api/countries'],
@@ -552,20 +561,29 @@ function CreateOrganizationForm({ onSuccess }: { onSuccess: () => void }) {
 
   const mutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      // Don't send empty string for countryId or logoUrl, send undefined
       const payload = {
-        ...data,
+        organizationName: data.organizationName,
+        totalLicenses: data.totalLicenses,
+        isUnlimitedLicenses: data.isUnlimitedLicenses,
         countryId: data.countryId === "none" ? undefined : data.countryId,
-        logoUrl: data.logoUrl || undefined,
+        adminFirstName: data.adminFirstName,
+        adminLastName: data.adminLastName,
+        adminEmail: data.adminEmail || undefined,
+        adminUsername: data.adminUsername || undefined,
       };
-      return apiRequest('POST', '/api/admin/organizations', payload);
+      return apiRequest('POST', '/api/superadmin/organizations/create-with-admin', payload);
     },
-    onSuccess: () => {
-      toast({ title: "Success", description: "School created successfully" });
-      onSuccess();
+    onSuccess: async (response) => {
+      const result = await response.json();
+      setCreatedCredentials({
+        username: result.admin.user.username,
+        password: result.admin.password,
+        organizationName: result.organization.name,
+      });
+      toast({ title: "Success", description: "School and admin created successfully" });
     },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to create school", variant: "destructive" });
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message || "Failed to create school", variant: "destructive" });
     },
   });
 
@@ -574,12 +592,57 @@ function CreateOrganizationForm({ onSuccess }: { onSuccess: () => void }) {
     mutation.mutate(formData);
   };
 
+  const handleCopyCredentials = () => {
+    if (createdCredentials) {
+      const text = `School: ${createdCredentials.organizationName}\nUsername: ${createdCredentials.username}\nPassword: ${createdCredentials.password}`;
+      navigator.clipboard.writeText(text);
+      toast({ title: "Copied", description: "Credentials copied to clipboard" });
+    }
+  };
+
+  if (createdCredentials) {
+    return (
+      <div className="space-y-4">
+        <DialogHeader>
+          <DialogTitle>School Created Successfully</DialogTitle>
+          <DialogDescription>
+            Save the admin credentials below - the password cannot be recovered
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="rounded-lg border p-4 bg-muted/50 space-y-3">
+          <div>
+            <Label className="text-xs text-muted-foreground">School Name</Label>
+            <p className="font-medium">{createdCredentials.organizationName}</p>
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">Admin Username</Label>
+            <p className="font-mono font-medium">{createdCredentials.username}</p>
+          </div>
+          <div>
+            <Label className="text-xs text-muted-foreground">Admin Password</Label>
+            <p className="font-mono font-medium text-primary">{createdCredentials.password}</p>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-4">
+          <Button variant="outline" onClick={handleCopyCredentials} data-testid="button-copy-credentials">
+            Copy Credentials
+          </Button>
+          <Button onClick={onSuccess} data-testid="button-done">
+            Done
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <DialogHeader>
         <DialogTitle>Create School</DialogTitle>
         <DialogDescription>
-          Add a new school for group assessments
+          Add a new school with an admin account for group assessments
         </DialogDescription>
       </DialogHeader>
 
@@ -588,8 +651,8 @@ function CreateOrganizationForm({ onSuccess }: { onSuccess: () => void }) {
           <Label htmlFor="org-name">School Name *</Label>
           <Input
             id="org-name"
-            value={formData.name}
-            onChange={(e) => setFormData(f => ({ ...f, name: e.target.value }))}
+            value={formData.organizationName}
+            onChange={(e) => setFormData(f => ({ ...f, organizationName: e.target.value }))}
             required
             placeholder="e.g., Al Ain High School"
             data-testid="input-org-name"
@@ -649,18 +712,64 @@ function CreateOrganizationForm({ onSuccess }: { onSuccess: () => void }) {
           </p>
         </div>
 
+        <Separator />
+
         <div>
-          <Label htmlFor="org-logo">School Logo URL (Optional)</Label>
-          <Input
-            id="org-logo"
-            value={formData.logoUrl}
-            onChange={(e) => setFormData(f => ({ ...f, logoUrl: e.target.value }))}
-            placeholder="https://example.com/logo.png"
-            data-testid="input-org-logo"
-          />
-          <p className="text-xs text-muted-foreground mt-1">
-            Add a direct link to your school logo (will be displayed on landing page and student profiles)
+          <h4 className="font-medium mb-3">School Admin Account</h4>
+          <p className="text-sm text-muted-foreground mb-4">
+            Create an admin account that can manage students and view reports
           </p>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="admin-first-name">First Name *</Label>
+              <Input
+                id="admin-first-name"
+                value={formData.adminFirstName}
+                onChange={(e) => setFormData(f => ({ ...f, adminFirstName: e.target.value }))}
+                required
+                placeholder="John"
+                data-testid="input-admin-first-name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="admin-last-name">Last Name *</Label>
+              <Input
+                id="admin-last-name"
+                value={formData.adminLastName}
+                onChange={(e) => setFormData(f => ({ ...f, adminLastName: e.target.value }))}
+                required
+                placeholder="Smith"
+                data-testid="input-admin-last-name"
+              />
+            </div>
+          </div>
+
+          <div className="mt-3">
+            <Label htmlFor="admin-email">Email (Optional)</Label>
+            <Input
+              id="admin-email"
+              type="email"
+              value={formData.adminEmail}
+              onChange={(e) => setFormData(f => ({ ...f, adminEmail: e.target.value }))}
+              placeholder="admin@school.ae"
+              data-testid="input-admin-email"
+            />
+          </div>
+
+          <div className="mt-3">
+            <Label htmlFor="admin-username">Username (Optional)</Label>
+            <Input
+              id="admin-username"
+              value={formData.adminUsername}
+              onChange={(e) => setFormData(f => ({ ...f, adminUsername: e.target.value }))}
+              placeholder="Leave blank to auto-generate"
+              data-testid="input-admin-username"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              If not provided, a username will be generated from the admin's name
+            </p>
+          </div>
         </div>
       </div>
 
