@@ -14,14 +14,14 @@ import rateLimit from "express-rate-limit";
 const createCountrySchema = z.object({
   id: z.string().min(1).max(50).regex(/^[a-z0-9-]+$/, "ID must be lowercase alphanumeric with hyphens"),
   name: z.string().min(1).max(100),
-  code: z.string().length(3).regex(/^[A-Z]+$/, "Code must be 3 uppercase letters"),
+  code: z.string().min(2).max(3).regex(/^[A-Z]+$/, "Code must be 2-3 uppercase letters"),
   abbreviation: z.string().max(10).optional().nullable(),
   autoPopulate: z.boolean().optional().default(false),
 });
 
 const updateCountrySchema = z.object({
   name: z.string().min(1).max(100).optional(),
-  code: z.string().length(3).regex(/^[A-Z]+$/).optional(),
+  code: z.string().min(2).max(3).regex(/^[A-Z]+$/).optional(),
   abbreviation: z.string().max(10).nullable().optional(),
   mission: z.string().max(2000).optional(),
   vision: z.string().max(2000).optional(),

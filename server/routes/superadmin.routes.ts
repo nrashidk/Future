@@ -1611,7 +1611,7 @@ export function registerSuperadminRoutes(app: Express) {
 
   app.post("/api/superadmin/careers", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
     try {
-      const { title, description, requiredSkills, relatedSubjects, category, educationLevel, averageSalary, growthOutlook, icon, valuesProfile, onetCode } = req.body;
+      const { title, description, requiredSkills, relatedSubjects, category, educationLevel, averageSalary, growthOutlook, icon, valuesProfile, onetCode, countryId } = req.body;
       
       if (!title || !description || !requiredSkills || !relatedSubjects || !category || !educationLevel || !growthOutlook) {
         return res.status(400).json({ message: "Missing required fields" });
@@ -1629,6 +1629,7 @@ export function registerSuperadminRoutes(app: Express) {
         icon: icon || null,
         valuesProfile: valuesProfile || null,
         onetCode: onetCode || null,
+        countryId: countryId || null,
       });
       
       res.status(201).json(career);
@@ -1645,7 +1646,7 @@ export function registerSuperadminRoutes(app: Express) {
         return res.status(404).json({ message: "Career not found" });
       }
       
-      const { title, description, requiredSkills, relatedSubjects, category, educationLevel, averageSalary, growthOutlook, icon, valuesProfile, onetCode } = req.body;
+      const { title, description, requiredSkills, relatedSubjects, category, educationLevel, averageSalary, growthOutlook, icon, valuesProfile, onetCode, countryId } = req.body;
       
       const updates: Record<string, any> = {};
       if (title !== undefined) updates.title = title;
@@ -1659,6 +1660,7 @@ export function registerSuperadminRoutes(app: Express) {
       if (icon !== undefined) updates.icon = icon;
       if (valuesProfile !== undefined) updates.valuesProfile = valuesProfile;
       if (onetCode !== undefined) updates.onetCode = onetCode;
+      if (countryId !== undefined) updates.countryId = countryId || null;
       
       const updated = await storage.updateCareer(req.params.id, updates);
       res.json(updated);

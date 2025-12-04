@@ -159,7 +159,14 @@ interface Career {
   averageSalary: string | null;
   growthOutlook: string;
   icon: string | null;
+  countryId: string | null;
   createdAt: string;
+}
+
+interface Country {
+  id: string;
+  name: string;
+  code: string;
 }
 
 export default function SuperadminDashboard() {
@@ -358,6 +365,12 @@ export default function SuperadminDashboard() {
     averageSalary: "",
     growthOutlook: "",
     icon: "",
+    countryId: "",
+  });
+
+  // Countries query for career management
+  const { data: countries = [] } = useQuery<Country[]>({
+    queryKey: ['/api/admin/countries'],
   });
 
   // New queries for additional features
@@ -531,7 +544,7 @@ export default function SuperadminDashboard() {
   };
 
   const resetCareerForm = () => {
-    setCareerForm({ title: "", description: "", requiredSkills: "", relatedSubjects: "", category: "", educationLevel: "", averageSalary: "", growthOutlook: "", icon: "" });
+    setCareerForm({ title: "", description: "", requiredSkills: "", relatedSubjects: "", category: "", educationLevel: "", averageSalary: "", growthOutlook: "", icon: "", countryId: "" });
   };
 
   const openDeleteOrgModal = (orgId: string) => {
@@ -571,6 +584,7 @@ export default function SuperadminDashboard() {
       averageSalary: career.averageSalary || "",
       growthOutlook: career.growthOutlook,
       icon: career.icon || "",
+      countryId: career.countryId || "",
     });
     setIsCareerModalOpen(true);
   };
@@ -2119,6 +2133,25 @@ export default function SuperadminDashboard() {
                   data-testid="input-career-icon"
                 />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="career-country">Country (optional - leave empty for global)</Label>
+              <Select value={careerForm.countryId} onValueChange={(v) => setCareerForm({ ...careerForm, countryId: v })}>
+                <SelectTrigger data-testid="select-career-country">
+                  <SelectValue placeholder="Global (all countries)" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Global (all countries)</SelectItem>
+                  {countries.map((country) => (
+                    <SelectItem key={country.id} value={country.id}>
+                      {country.name} ({country.code})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Select a country to make this career only available for that country's students
+              </p>
             </div>
           </div>
           <DialogFooter>

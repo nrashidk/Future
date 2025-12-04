@@ -363,6 +363,9 @@ export const careers = pgTable("careers", {
   growthOutlook: text("growth_outlook").notNull(),
   icon: text("icon"),
   
+  // Country-specific careers (null = global/available everywhere)
+  countryId: varchar("country_id").references(() => countries.id),
+  
   // CVQ (Personal Values) integration - O*NET derived
   valuesProfile: jsonb("values_profile"), // { achievement: 80, honesty: 90, kindness: 75, ... }
   onetCode: varchar("onet_code", { length: 15 }), // O*NET-SOC code (e.g., "17-2199.11")
@@ -370,9 +373,14 @@ export const careers = pgTable("careers", {
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => [
   index("careers_onet_code_idx").on(table.onetCode),
+  index("careers_country_id_idx").on(table.countryId),
 ]);
 
-export const careersRelations = relations(careers, ({ many }) => ({
+export const careersRelations = relations(careers, ({ one, many }) => ({
+  country: one(countries, {
+    fields: [careers.countryId],
+    references: [countries.id],
+  }),
   jobMarketTrends: many(jobMarketTrends),
   wefSkillAffinities: many(careerWefSkillAffinities),
 }));
