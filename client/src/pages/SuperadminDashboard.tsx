@@ -1272,7 +1272,7 @@ export default function SuperadminDashboard() {
                           </div>
                           <div className="text-sm text-muted-foreground mt-1 line-clamp-2">{announcement.content}</div>
                           <div className="text-xs text-muted-foreground mt-2 flex gap-4">
-                            <span>Audience: {announcement.targetAudience}</span>
+                            <span>Audience: {announcement.targetAudience === 'all' ? 'All Users' : announcement.targetAudience === 'students' ? 'School Students' : announcement.targetAudience === 'org_admins' ? 'School Admins' : announcement.targetAudience === 'premium' ? 'Premium Users' : announcement.targetAudience}</span>
                             {announcement.expiresAt && <span>Expires: {new Date(announcement.expiresAt).toLocaleDateString()}</span>}
                             <span>Created: {new Date(announcement.createdAt).toLocaleDateString()}</span>
                           </div>
@@ -1970,9 +1970,9 @@ export default function SuperadminDashboard() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Users</SelectItem>
-                    <SelectItem value="students">Students Only</SelectItem>
-                    <SelectItem value="admins">Admins Only</SelectItem>
-                    <SelectItem value="schools">School Users</SelectItem>
+                    <SelectItem value="students">School Students Only</SelectItem>
+                    <SelectItem value="org_admins">School Admins Only</SelectItem>
+                    <SelectItem value="premium">Premium Users Only</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
