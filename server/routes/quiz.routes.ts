@@ -3,26 +3,78 @@ import { storage } from "../storage";
 import { transformQuizQuestionForFrontend, shuffleQuestions, shuffleOptions } from "../utils/quiz";
 import { normalizeSubjects } from "../utils/subjects";
 
+interface QuizDistributionConfig {
+  baseQuestionsPerSubject: number;
+  priorityBonus: number;
+  maxQuestionsPerSubject: number;
+  tierMultiplier: number;
+}
+
+const TIER_CONFIGS: Record<string, QuizDistributionConfig> = {
+  free: {
+    baseQuestionsPerSubject: 2,
+    priorityBonus: 2,
+    maxQuestionsPerSubject: 4,
+    tierMultiplier: 1,
+  },
+  premium: {
+    baseQuestionsPerSubject: 3,
+    priorityBonus: 2,
+    maxQuestionsPerSubject: 5,
+    tierMultiplier: 1.2,
+  },
+  school: {
+    baseQuestionsPerSubject: 3,
+    priorityBonus: 2,
+    maxQuestionsPerSubject: 5,
+    tierMultiplier: 1.2,
+  },
+};
+
+function calculateQuizDistribution(
+  favoriteSubjects: string[],
+  prioritySubjects: string[],
+  tier: 'free' | 'premium' | 'school'
+): Map<string, number> {
+  const config = TIER_CONFIGS[tier];
+  const distribution = new Map<string, number>();
+  
+  for (const subject of favoriteSubjects) {
+    const isPriority = prioritySubjects.includes(subject);
+    let questionsForSubject = config.baseQuestionsPerSubject;
+    
+    if (isPriority) {
+      questionsForSubject += config.priorityBonus;
+    }
+    
+    questionsForSubject = Math.min(questionsForSubject, config.maxQuestionsPerSubject);
+    distribution.set(subject, questionsForSubject);
+  }
+  
+  return distribution;
+}
+
+function getTotalQuestionsFromDistribution(distribution: Map<string, number>): number {
+  let total = 0;
+  distribution.forEach(count => total += count);
+  return total;
+}
+
 export function registerQuizRoutes(app: Express) {
-  // POST /api/assessments/:assessmentId/quiz/generate - Generate quiz for assessment
   app.post("/api/assessments/:assessmentId/quiz/generate", async (req: any, res) => {
     try {
       const { assessmentId } = req.params;
-      // Support both body param (legacy) and httpOnly cookie (secure)
       const guestToken = req.body.guestToken || req.cookies?.guest_token;
       
-      // Get assessment to check authorization and get grade/country
       const assessment = await storage.getAssessmentById(assessmentId);
       if (!assessment) {
         return res.status(404).json({ message: "Assessment not found" });
       }
       
-      // Authorization: Check if user owns assessment or has valid guest token
       const userId = req.isAuthenticated() ? (req.user.isLocal ? req.user.userId : req.user.claims.sub) : null;
       const isOwner = req.isAuthenticated() && assessment.userId === userId;
       const isGuestOwner = assessment.isGuest && guestToken && assessment.guestSessionId === guestToken;
       
-      // Debug logging
       console.log("Quiz Generate Auth Debug:", {
         isAuthenticated: req.isAuthenticated(),
         assessmentIsGuest: assessment.isGuest,
@@ -36,14 +88,11 @@ export function registerQuizRoutes(app: Express) {
         return res.status(403).json({ message: "Unauthorized to generate quiz for this assessment" });
       }
       
-      // Check if quiz already exists - idempotent operation
       const existingQuiz = await storage.getAssessmentQuizByAssessmentId(assessmentId);
       if (existingQuiz) {
-        // Fetch quiz responses to get question IDs
         const responses = await storage.getQuizResponsesByQuizId(existingQuiz.id);
         const questionIds = responses.map(r => r.questionId);
         
-        // Fetch full question details
         const allQuestions = await storage.getAllQuizQuestions();
         const questions = allQuestions
           .filter(q => questionIds.includes(q.id))
@@ -57,11 +106,9 @@ export function registerQuizRoutes(app: Express) {
         });
       }
       
-      // Get question pool based on individual grade, curriculum, and student's country
       const studentGrade = assessment.grade ? parseInt(assessment.grade as string) : null;
       const curriculum = (assessment as any).curriculum || null;
       
-      // Try to get questions using individual grade (primary approach)
       let questionPool: any[] = [];
       
       if (studentGrade && curriculum) {
@@ -73,7 +120,6 @@ export function registerQuizRoutes(app: Express) {
         console.log(`Found ${questionPool.length} questions for grade ${studentGrade}, curriculum ${curriculum}, country ${assessment.countryId}`);
       }
       
-      // Fallback: try individual grade without curriculum filter
       if (questionPool.length === 0 && studentGrade) {
         questionPool = await storage.getQuizQuestionsByFilters({
           countryId: assessment.countryId,
@@ -82,7 +128,6 @@ export function registerQuizRoutes(app: Express) {
         console.log(`Fallback: Found ${questionPool.length} questions for grade ${studentGrade}, country ${assessment.countryId}`);
       }
       
-      // Fallback: try global questions (countryId = null) for the same grade
       if (questionPool.length === 0 && studentGrade) {
         questionPool = await storage.getQuizQuestionsByFilters({
           countryId: null,
@@ -91,7 +136,6 @@ export function registerQuizRoutes(app: Express) {
         console.log(`Global fallback: Found ${questionPool.length} questions for grade ${studentGrade}, global`);
       }
       
-      // Fallback: if no questions for exact grade, try nearby grades (grade ± 1)
       if (questionPool.length === 0 && studentGrade) {
         const nearbyGrades = [studentGrade - 1, studentGrade + 1].filter(g => g >= 8 && g <= 12);
         for (const nearbyGrade of nearbyGrades) {
@@ -109,9 +153,8 @@ export function registerQuizRoutes(app: Express) {
         return res.status(400).json({ message: "No quiz questions available for this grade level and country" });
       }
       
-      // Filter questions by student's favorite subjects
-      // Defensively normalize subjects for legacy assessments that might have non-canonical subjects
       const favoriteSubjects = normalizeSubjects((assessment.favoriteSubjects as string[]) || []);
+      const prioritySubjects = normalizeSubjects(((assessment as any).prioritySubjects as string[]) || []);
       const subjectQuestions = questionPool.filter(q => favoriteSubjects.includes(q.subject));
       
       if (subjectQuestions.length === 0) {
@@ -120,54 +163,52 @@ export function registerQuizRoutes(app: Express) {
         });
       }
       
-      // Ensure we have enough questions for a valid quiz
-      const TARGET_QUESTIONS = 6;
-      if (subjectQuestions.length < TARGET_QUESTIONS) {
-        return res.status(400).json({ 
-          message: `Not enough questions available for your favorite subjects. We need at least ${TARGET_QUESTIONS} questions, but only found ${subjectQuestions.length}. Please select more subjects or contact support.`,
-          availableQuestions: subjectQuestions.length,
-          requiredQuestions: TARGET_QUESTIONS
-        });
+      let user = null;
+      if (assessment.userId) {
+        user = await storage.getUser(assessment.userId);
       }
+      const tier: 'free' | 'premium' | 'school' = user?.isPremium 
+        ? (user.organizationId ? 'school' : 'premium') 
+        : 'free';
       
-      // Randomly select exactly 6 questions from favorite subjects
-      // Try to distribute evenly across subjects if possible
+      const distribution = calculateQuizDistribution(favoriteSubjects, prioritySubjects, tier);
+      const targetTotal = getTotalQuestionsFromDistribution(distribution);
+      
+      console.log(`Quiz distribution for ${tier} tier:`, Object.fromEntries(distribution));
+      console.log(`Target total questions: ${targetTotal}`);
+      
       const selectedQuestions: any[] = [];
-      const questionsPerSubject = Math.floor(TARGET_QUESTIONS / favoriteSubjects.length);
-      const remainder = TARGET_QUESTIONS % favoriteSubjects.length;
       
-      for (let i = 0; i < favoriteSubjects.length; i++) {
-        const subject = favoriteSubjects[i];
+      for (const [subject, targetCount] of distribution) {
         const questionsForSubject = subjectQuestions.filter(q => q.subject === subject);
-        const count = questionsPerSubject + (i < remainder ? 1 : 0);
         const shuffled = shuffleQuestions(questionsForSubject);
-        selectedQuestions.push(...shuffled.slice(0, Math.min(count, questionsForSubject.length)));
+        const available = Math.min(targetCount, shuffled.length);
+        selectedQuestions.push(...shuffled.slice(0, available));
+        
+        if (available < targetCount) {
+          console.log(`Warning: Only ${available} questions available for ${subject}, wanted ${targetCount}`);
+        }
       }
       
-      // If we still need more questions (edge case), add random ones from pool
-      if (selectedQuestions.length < TARGET_QUESTIONS) {
+      const MIN_QUESTIONS = 6;
+      if (selectedQuestions.length < MIN_QUESTIONS) {
         const remaining = subjectQuestions.filter(q => !selectedQuestions.some(sq => sq.id === q.id));
-        const needed = TARGET_QUESTIONS - selectedQuestions.length;
+        const needed = MIN_QUESTIONS - selectedQuestions.length;
         const shuffled = shuffleQuestions(remaining);
         selectedQuestions.push(...shuffled.slice(0, needed));
+        
+        if (selectedQuestions.length < MIN_QUESTIONS) {
+          return res.status(400).json({ 
+            message: `Not enough questions available for your subjects. We need at least ${MIN_QUESTIONS} questions, but only found ${selectedQuestions.length}. Please select more subjects or contact support.`,
+            availableQuestions: selectedQuestions.length,
+            requiredQuestions: MIN_QUESTIONS
+          });
+        }
       }
       
-      // Shuffle final selection to avoid predictable ordering
       const finalShuffledQuestions = shuffleQuestions(selectedQuestions);
-      
-      // Final validation: ensure we have exactly TARGET_QUESTIONS
-      if (finalShuffledQuestions.length < TARGET_QUESTIONS) {
-        return res.status(400).json({ 
-          message: `Unable to generate complete quiz. Only ${finalShuffledQuestions.length} questions available for your subjects.`,
-          availableQuestions: finalShuffledQuestions.length,
-          requiredQuestions: TARGET_QUESTIONS
-        });
-      }
-      
-      // Shuffle answer options for each question
       const questionsWithShuffledOptions = finalShuffledQuestions.map(q => shuffleOptions(q));
       
-      // Create assessment quiz record with empty subject scores
       const quiz = await storage.createAssessmentQuiz({
         assessmentId,
         questionsCount: questionsWithShuffledOptions.length,
@@ -175,7 +216,6 @@ export function registerQuizRoutes(app: Express) {
         subjectScores: {}
       });
       
-      // Create placeholder quiz_responses for each selected question
       for (const question of questionsWithShuffledOptions) {
         await storage.createQuizResponse({
           assessmentQuizId: quiz.id,
@@ -186,47 +226,53 @@ export function registerQuizRoutes(app: Express) {
         });
       }
       
-      // Transform questions for frontend (format options and hide answers)
       const questionsForFrontend = questionsWithShuffledOptions.map(transformQuizQuestionForFrontend);
       
-      res.json({ quizId: quiz.id, questions: questionsForFrontend, responses: [], completed: false });
+      const distributionInfo = Object.fromEntries(
+        Array.from(distribution).map(([subject, target]) => {
+          const actual = selectedQuestions.filter(q => q.subject === subject).length;
+          return [subject, { target, actual, isPriority: prioritySubjects.includes(subject) }];
+        })
+      );
+      
+      res.json({ 
+        quizId: quiz.id, 
+        questions: questionsForFrontend, 
+        responses: [], 
+        completed: false,
+        distribution: distributionInfo,
+        totalQuestions: questionsWithShuffledOptions.length
+      });
     } catch (error) {
       console.error("Error generating quiz:", error);
       res.status(500).json({ message: "Failed to generate quiz" });
     }
   });
   
-  // GET /api/assessments/:assessmentId/quiz - Get existing quiz
   app.get("/api/assessments/:assessmentId/quiz", async (req: any, res) => {
     try {
       const { assessmentId } = req.params;
       
-      // Get assessment to check authorization
       const assessment = await storage.getAssessmentById(assessmentId);
       if (!assessment) {
         return res.status(404).json({ message: "Assessment not found" });
       }
       
-      // Authorization check
       const userId = req.isAuthenticated() ? (req.user.isLocal ? req.user.userId : req.user.claims.sub) : null;
       const isOwner = req.isAuthenticated() && assessment.userId === userId;
-      // Note: GET quiz doesn't require guest token as quiz data is already safe (no correct answers exposed)
       const isGuestOwner = assessment.isGuest;
       if (!isOwner && !isGuestOwner) {
         return res.status(403).json({ message: "Unauthorized to view this quiz" });
       }
       
-      // Get quiz
       const quiz = await storage.getAssessmentQuizByAssessmentId(assessmentId);
       if (!quiz) {
         return res.status(404).json({ message: "Quiz not found for this assessment" });
       }
       
-      // Get responses
       const responses = await storage.getQuizResponsesByQuizId(quiz.id);
       const questionIds = responses.map(r => r.questionId);
       
-      // Fetch full question details
       const allQuestions = await storage.getAllQuizQuestions();
       const questions = allQuestions
         .filter(q => questionIds.includes(q.id))
@@ -246,25 +292,20 @@ export function registerQuizRoutes(app: Express) {
     }
   });
   
-  // POST /api/assessments/:assessmentId/quiz/submit - Submit quiz responses and calculate score
   app.post("/api/assessments/:assessmentId/quiz/submit", async (req: any, res) => {
     try {
       const { assessmentId } = req.params;
       const { responses: userResponses } = req.body;
-      // Support both body param (legacy) and httpOnly cookie (secure)
       const guestToken = req.body.guestToken || req.cookies?.guest_token;
       
-      // Validation: Check if responses is an array
       if (!Array.isArray(userResponses)) {
         return res.status(400).json({ message: "Responses must be an array" });
       }
       
-      // Validation: Check for empty responses
       if (userResponses.length === 0) {
         return res.status(400).json({ message: "Responses array cannot be empty" });
       }
       
-      // Validation: Check each response has required fields
       for (const response of userResponses) {
         if (!response.questionId || response.answer === undefined || response.answer === null) {
           return res.status(400).json({ message: "Each response must have questionId and answer" });
@@ -274,20 +315,17 @@ export function registerQuizRoutes(app: Express) {
         }
       }
       
-      // Validation: Check for duplicate question IDs
       const answeredIds = userResponses.map((r: any) => r.questionId);
       const uniqueIds = new Set(answeredIds);
       if (answeredIds.length !== uniqueIds.size) {
         return res.status(400).json({ message: "Duplicate question IDs in submission" });
       }
       
-      // Get assessment to check authorization
       const assessment = await storage.getAssessmentById(assessmentId);
       if (!assessment) {
         return res.status(404).json({ message: "Assessment not found" });
       }
       
-      // Authorization: Check if user owns assessment or has valid guest token
       const userId = req.isAuthenticated() ? (req.user.isLocal ? req.user.userId : req.user.claims.sub) : null;
       const isOwner = req.isAuthenticated() && assessment.userId === userId;
       const isGuestOwner = assessment.isGuest && guestToken && assessment.guestSessionId === guestToken;
@@ -296,7 +334,6 @@ export function registerQuizRoutes(app: Express) {
         return res.status(403).json({ message: "Unauthorized to submit quiz for this assessment" });
       }
       
-      // Get quiz
       const quiz = await storage.getAssessmentQuizByAssessmentId(assessmentId);
       if (!quiz) {
         return res.status(404).json({ message: "Quiz not found" });
@@ -306,28 +343,23 @@ export function registerQuizRoutes(app: Express) {
         return res.status(400).json({ message: "This quiz has already been submitted. Please continue to the next step." });
       }
       
-      // Get existing responses to get question IDs
       const existingResponses = await storage.getQuizResponsesByQuizId(quiz.id);
       const questionIds = existingResponses.map(r => r.questionId);
       
-      // Validation: Check all submitted question IDs belong to this quiz
       const invalidIds = answeredIds.filter(id => !questionIds.includes(id));
       if (invalidIds.length > 0) {
         return res.status(400).json({ message: `Invalid question IDs: ${invalidIds.join(', ')}` });
       }
       
-      // Fetch full question details
       const allQuestions = await storage.getAllQuizQuestions();
       const questions = allQuestions.filter(q => questionIds.includes(q.id));
       
-      // Validate all questions are answered
       const missingAnswers = questionIds.filter((id: string) => !answeredIds.includes(id));
       
       if (missingAnswers.length > 0) {
         return res.status(400).json({ message: "All questions must be answered" });
       }
       
-      // Calculate per-subject competency scores
       const subjectScores: Record<string, { correct: number; total: number; percentage: number }> = {};
       let totalCorrect = 0;
       let totalQuestions = 0;
@@ -336,16 +368,13 @@ export function registerQuizRoutes(app: Express) {
         const question = questions.find((q: any) => q.id === userResponse.questionId);
         if (!question) continue;
         
-        // Validate answer format (correctAnswer for multiple_choice questions)
         if (question.questionType === "multiple_choice" && !question.correctAnswer) {
           console.error(`Question ${question.id} missing correctAnswer`);
           continue;
         }
         
-        // Update existing quiz_response with the answer
         const existingResponse = existingResponses.find(r => r.questionId === question.id);
         if (existingResponse) {
-          // Calculate if answer is correct
           const isCorrect = userResponse.answer.trim().toLowerCase() === question.correctAnswer.trim().toLowerCase();
           
           await storage.updateQuizResponse(existingResponse.id, {
@@ -354,7 +383,6 @@ export function registerQuizRoutes(app: Express) {
             score: isCorrect ? 1 : 0
           });
           
-          // Track per-subject scores
           if (!subjectScores[question.subject]) {
             subjectScores[question.subject] = { correct: 0, total: 0, percentage: 0 };
           }
@@ -367,23 +395,19 @@ export function registerQuizRoutes(app: Express) {
         }
       }
       
-      // Calculate percentages for each subject
       for (const subject in subjectScores) {
         const { correct, total } = subjectScores[subject];
         subjectScores[subject].percentage = Math.round((correct / total) * 100);
       }
       
-      // Calculate overall score
       const overallScore = Math.round((totalCorrect / totalQuestions) * 100);
       
-      // Update quiz with scores and mark as completed
       await storage.updateAssessmentQuiz(quiz.id, {
         totalScore: overallScore,
         subjectScores,
         completedAt: new Date()
       });
       
-      // Update assessment with quiz score and subject competencies
       await storage.updateAssessment(assessmentId, {
         quizScore: overallScore,
         subjectCompetencies: subjectScores

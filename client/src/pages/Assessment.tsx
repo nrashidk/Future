@@ -207,6 +207,7 @@ export default function Assessment() {
           age: assessmentData.age,
           grade: assessmentData.grade,
           favoriteSubjects: assessmentData.favoriteSubjects,
+          prioritySubjects: assessmentData.prioritySubjects || [],
           interests: assessmentData.interests,
           countryId: assessmentData.countryId,
           careerAspirations: assessmentData.careerAspirations || [],
