@@ -1,0 +1,507 @@
+import { useState } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient, apiRequest } from "@/lib/queryClient";
+import { StickyNote } from "@/components/StickyNote";
+import { 
+  ClipboardCheck, Eye, CheckCircle, XCircle, AlertCircle, 
+  Clock, Building2, User, Calendar, MessageSquare,
+  ChevronRight, ChevronDown, GraduationCap, HelpCircle
+} from "lucide-react";
+
+interface Question {
+  question: string;
+  options: string[];
+  correctAnswer: string;
+  explanation?: string;
+  topic: string;
+  difficulty: "easy" | "medium" | "hard";
+  cognitiveLevel: "knowledge" | "comprehension" | "application" | "analysis";
+}
+
+interface Submission {
+  id: string;
+  organizationId: string;
+  organizationName?: string;
+  submittedByUserId: string;
+  submittedByName?: string;
+  countryId: string;
+  countryName?: string;
+  curriculum: string;
+  subject: string;
+  grade: number;
+  questions: Question[];
+  status: "pending" | "in_review" | "approved" | "rejected" | "needs_changes";
+  questionCount: number;
+  approvedCount: number;
+  creditsAwarded: number;
+  reviewerFeedback?: string;
+  reviewedByUserId?: string;
+  createdAt: string;
+  reviewedAt?: string;
+}
+
+interface ReviewStats {
+  totalPending: number;
+  totalInReview: number;
+  totalApproved: number;
+  totalRejected: number;
+  avgReviewTime: number;
+}
+
+function getStatusBadge(status: string) {
+  switch (status) {
+    case "pending":
+      return <Badge variant="secondary"><Clock className="w-3 h-3 mr-1" />Pending</Badge>;
+    case "in_review":
+      return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200"><HelpCircle className="w-3 h-3 mr-1" />In Review</Badge>;
+    case "approved":
+      return <Badge className="bg-green-500"><CheckCircle className="w-3 h-3 mr-1" />Approved</Badge>;
+    case "rejected":
+      return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />Rejected</Badge>;
+    case "needs_changes":
+      return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200"><AlertCircle className="w-3 h-3 mr-1" />Needs Changes</Badge>;
+    default:
+      return <Badge variant="secondary">{status}</Badge>;
+  }
+}
+
+function QuestionCard({ question, index, isSelected, onToggle }: { 
+  question: Question; 
+  index: number; 
+  isSelected: boolean;
+  onToggle: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="border rounded-lg p-4 space-y-3">
+      <div className="flex items-start gap-3">
+        <Checkbox 
+          checked={isSelected} 
+          onCheckedChange={onToggle}
+          data-testid={`checkbox-question-${index}`}
+        />
+        <div className="flex-1">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-sm font-medium text-muted-foreground">Q{index + 1}</span>
+            <Badge variant="outline" className="text-xs">{question.topic}</Badge>
+            <Badge variant="secondary" className="text-xs capitalize">{question.difficulty}</Badge>
+            <Badge variant="secondary" className="text-xs">{question.cognitiveLevel}</Badge>
+          </div>
+          <p className="font-medium">{question.question}</p>
+          
+          <Button
+            variant="ghost"
+            size="sm"
+            className="mt-2 p-0 h-auto text-primary"
+            onClick={() => setExpanded(!expanded)}
+            data-testid={`button-expand-question-${index}`}
+          >
+            {expanded ? <ChevronDown className="w-4 h-4 mr-1" /> : <ChevronRight className="w-4 h-4 mr-1" />}
+            {expanded ? "Hide details" : "Show details"}
+          </Button>
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="ml-7 space-y-3 border-l-2 pl-4">
+          <div>
+            <p className="text-sm text-muted-foreground mb-2">Options:</p>
+            <div className="space-y-1">
+              {question.options.map((opt, i) => (
+                <div 
+                  key={i} 
+                  className={`text-sm p-2 rounded ${opt === question.correctAnswer ? 'bg-green-100 text-green-800 font-medium' : 'bg-muted'}`}
+                >
+                  {String.fromCharCode(65 + i)}. {opt}
+                  {opt === question.correctAnswer && <CheckCircle className="w-3 h-3 inline ml-2" />}
+                </div>
+              ))}
+            </div>
+          </div>
+          {question.explanation && (
+            <div>
+              <p className="text-sm text-muted-foreground mb-1">Explanation:</p>
+              <p className="text-sm bg-blue-50 p-2 rounded">{question.explanation}</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function ContributionReviewQueue() {
+  const { toast } = useToast();
+  const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
+  const [selectedQuestions, setSelectedQuestions] = useState<Set<number>>(new Set());
+  const [feedback, setFeedback] = useState("");
+  const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
+
+  const { data: submissions = [], isLoading } = useQuery<Submission[]>({
+    queryKey: ['/api/contributions/admin/pending'],
+  });
+
+  const { data: stats } = useQuery<ReviewStats>({
+    queryKey: ['/api/contributions/admin/stats'],
+  });
+
+  const claimMutation = useMutation({
+    mutationFn: async (submissionId: string) => {
+      return apiRequest('POST', `/api/contributions/admin/${submissionId}/claim`);
+    },
+    onSuccess: () => {
+      toast({ title: "Submission Claimed", description: "You can now review this submission." });
+      queryClient.invalidateQueries({ queryKey: ['/api/contributions/admin/pending'] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Failed to claim", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const reviewMutation = useMutation({
+    mutationFn: async ({ submissionId, status, feedback, approvedQuestionIds }: { 
+      submissionId: string; 
+      status: "approved" | "rejected" | "needs_changes";
+      feedback?: string;
+      approvedQuestionIds?: number[];
+    }) => {
+      return apiRequest('POST', `/api/contributions/admin/${submissionId}/review`, {
+        status,
+        feedback,
+        approvedQuestionIds,
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "Review Complete", description: "The submission has been reviewed." });
+      setIsReviewDialogOpen(false);
+      setSelectedSubmission(null);
+      setSelectedQuestions(new Set());
+      setFeedback("");
+      queryClient.invalidateQueries({ queryKey: ['/api/contributions/admin/pending'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/contributions/admin/stats'] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Review Failed", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const openReviewDialog = (submission: Submission) => {
+    setSelectedSubmission(submission);
+    setSelectedQuestions(new Set(submission.questions.map((_, i) => i)));
+    setFeedback("");
+    setIsReviewDialogOpen(true);
+  };
+
+  const toggleQuestion = (index: number) => {
+    const newSelected = new Set(selectedQuestions);
+    if (newSelected.has(index)) {
+      newSelected.delete(index);
+    } else {
+      newSelected.add(index);
+    }
+    setSelectedQuestions(newSelected);
+  };
+
+  const selectAllQuestions = () => {
+    if (selectedSubmission) {
+      setSelectedQuestions(new Set(selectedSubmission.questions.map((_, i) => i)));
+    }
+  };
+
+  const deselectAllQuestions = () => {
+    setSelectedQuestions(new Set());
+  };
+
+  const handleApprove = () => {
+    if (!selectedSubmission) return;
+    reviewMutation.mutate({
+      submissionId: selectedSubmission.id,
+      status: "approved",
+      feedback: feedback || undefined,
+      approvedQuestionIds: Array.from(selectedQuestions),
+    });
+  };
+
+  const handleReject = () => {
+    if (!selectedSubmission) return;
+    if (!feedback.trim()) {
+      toast({ title: "Feedback required", description: "Please provide feedback for rejection.", variant: "destructive" });
+      return;
+    }
+    reviewMutation.mutate({
+      submissionId: selectedSubmission.id,
+      status: "rejected",
+      feedback,
+    });
+  };
+
+  const handleNeedsChanges = () => {
+    if (!selectedSubmission) return;
+    if (!feedback.trim()) {
+      toast({ title: "Feedback required", description: "Please describe what changes are needed.", variant: "destructive" });
+      return;
+    }
+    reviewMutation.mutate({
+      submissionId: selectedSubmission.id,
+      status: "needs_changes",
+      feedback,
+    });
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <StickyNote color="yellow" rotation="1" className="p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Clock className="w-5 h-5 text-yellow-600" />
+            <span className="text-sm text-muted-foreground">Pending Review</span>
+          </div>
+          <p className="text-3xl font-bold">{stats?.totalPending ?? 0}</p>
+        </StickyNote>
+
+        <StickyNote color="blue" rotation="-1" className="p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <HelpCircle className="w-5 h-5 text-blue-600" />
+            <span className="text-sm text-muted-foreground">In Review</span>
+          </div>
+          <p className="text-3xl font-bold">{stats?.totalInReview ?? 0}</p>
+        </StickyNote>
+
+        <StickyNote color="green" rotation="2" className="p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <CheckCircle className="w-5 h-5 text-green-600" />
+            <span className="text-sm text-muted-foreground">Approved</span>
+          </div>
+          <p className="text-3xl font-bold">{stats?.totalApproved ?? 0}</p>
+        </StickyNote>
+
+        <StickyNote color="pink" rotation="-2" className="p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <XCircle className="w-5 h-5 text-pink-600" />
+            <span className="text-sm text-muted-foreground">Rejected</span>
+          </div>
+          <p className="text-3xl font-bold">{stats?.totalRejected ?? 0}</p>
+        </StickyNote>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <ClipboardCheck className="w-6 h-6" />
+            <div>
+              <CardTitle>Contribution Review Queue</CardTitle>
+              <CardDescription>Review and approve quiz question submissions from schools</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+              <p className="text-muted-foreground mt-2">Loading submissions...</p>
+            </div>
+          ) : submissions.length === 0 ? (
+            <div className="text-center py-8">
+              <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
+              <p className="text-muted-foreground">No submissions pending review</p>
+              <p className="text-sm text-muted-foreground">Great job! All caught up.</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>School</TableHead>
+                  <TableHead>Subject</TableHead>
+                  <TableHead>Grade</TableHead>
+                  <TableHead>Questions</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Submitted</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {submissions.map((sub) => (
+                  <TableRow key={sub.id} data-testid={`row-review-${sub.id}`}>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Building2 className="w-4 h-4 text-muted-foreground" />
+                        <div>
+                          <p className="font-medium">{sub.organizationName || sub.organizationId}</p>
+                          <p className="text-xs text-muted-foreground">{sub.submittedByName || "Unknown"}</p>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium">{sub.subject}</p>
+                        <p className="text-xs text-muted-foreground">{sub.curriculum}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        <GraduationCap className="w-3 h-3 mr-1" />
+                        Grade {sub.grade}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{sub.questionCount}</TableCell>
+                    <TableCell>{getStatusBadge(sub.status)}</TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {new Date(sub.createdAt).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        {sub.status === "pending" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => claimMutation.mutate(sub.id)}
+                            disabled={claimMutation.isPending}
+                            data-testid={`button-claim-${sub.id}`}
+                          >
+                            Claim
+                          </Button>
+                        )}
+                        {(sub.status === "pending" || sub.status === "in_review") && (
+                          <Button
+                            size="sm"
+                            onClick={() => openReviewDialog(sub)}
+                            data-testid={`button-review-${sub.id}`}
+                          >
+                            <Eye className="w-4 h-4 mr-1" />
+                            Review
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={isReviewDialogOpen} onOpenChange={setIsReviewDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          {selectedSubmission && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <ClipboardCheck className="w-5 h-5" />
+                  Review Submission
+                </DialogTitle>
+                <DialogDescription>
+                  Review questions from {selectedSubmission.organizationName || selectedSubmission.organizationId}
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4 py-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-muted rounded-lg">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Subject</p>
+                    <p className="font-medium">{selectedSubmission.subject}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Curriculum</p>
+                    <p className="font-medium">{selectedSubmission.curriculum}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Grade</p>
+                    <p className="font-medium">Grade {selectedSubmission.grade}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Country</p>
+                    <p className="font-medium">{selectedSubmission.countryName || selectedSubmission.countryId}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">
+                      {selectedQuestions.size} of {selectedSubmission.questions.length} selected
+                    </span>
+                    <Button variant="ghost" size="sm" onClick={selectAllQuestions}>Select All</Button>
+                    <Button variant="ghost" size="sm" onClick={deselectAllQuestions}>Deselect All</Button>
+                  </div>
+                  <Badge variant="secondary">
+                    Potential Credits: {Math.floor(selectedQuestions.size / 5)}
+                  </Badge>
+                </div>
+
+                <div className="space-y-4 max-h-[400px] overflow-y-auto">
+                  {selectedSubmission.questions.map((q, i) => (
+                    <QuestionCard
+                      key={i}
+                      question={q}
+                      index={i}
+                      isSelected={selectedQuestions.has(i)}
+                      onToggle={() => toggleQuestion(i)}
+                    />
+                  ))}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Feedback for School (optional for approval, required for rejection)</Label>
+                  <Textarea
+                    placeholder="Provide feedback about the submission..."
+                    value={feedback}
+                    onChange={(e) => setFeedback(e.target.value)}
+                    className="min-h-[100px]"
+                    data-testid="input-review-feedback"
+                  />
+                </div>
+              </div>
+
+              <DialogFooter className="flex-col sm:flex-row gap-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsReviewDialogOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  variant="outline"
+                  className="text-yellow-600 border-yellow-300 hover:bg-yellow-50"
+                  onClick={handleNeedsChanges}
+                  disabled={reviewMutation.isPending}
+                  data-testid="button-needs-changes"
+                >
+                  <AlertCircle className="w-4 h-4 mr-2" />
+                  Needs Changes
+                </Button>
+                <Button 
+                  variant="destructive"
+                  onClick={handleReject}
+                  disabled={reviewMutation.isPending}
+                  data-testid="button-reject"
+                >
+                  <XCircle className="w-4 h-4 mr-2" />
+                  Reject
+                </Button>
+                <Button 
+                  className="bg-green-600 hover:bg-green-700"
+                  onClick={handleApprove}
+                  disabled={reviewMutation.isPending || selectedQuestions.size === 0}
+                  data-testid="button-approve"
+                >
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Approve ({selectedQuestions.size} questions)
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

@@ -18,9 +18,10 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { 
   Home, Plus, Download, Upload, Edit, Trash2, GraduationCap, 
-  Users, Building2, Key, RefreshCw, FileDown, Lock, LockOpen, User, LogOut, BarChart, Shield, FileQuestion
+  Users, Building2, Key, RefreshCw, FileDown, Lock, LockOpen, User, LogOut, BarChart, Shield, FileQuestion, Gift
 } from "lucide-react";
 import { StickyNote } from "@/components/StickyNote";
+import ContributeQuestions from "@/components/admin/ContributeQuestions";
 
 interface Organization {
   id: string;
@@ -710,6 +711,24 @@ export default function AdminOrganizations() {
                 )}
               </CardContent>
             </Card>
+
+            {/* Contribute Questions Section - Only for org_admin */}
+            {user?.accountType === 'org_admin' && (
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center gap-3">
+                    <Gift className="w-6 h-6 text-primary" />
+                    <div>
+                      <CardTitle>Contribute Questions & Earn Credits</CardTitle>
+                      <CardDescription>Submit quiz questions to earn free assessment credits for your school</CardDescription>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <ContributeQuestions />
+                </CardContent>
+              </Card>
+            )}
           </>
         )}
       </div>

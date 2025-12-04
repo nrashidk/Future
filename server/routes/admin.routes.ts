@@ -304,6 +304,14 @@ export function registerAdminRoutes(app: Express) {
         return res.status(400).json({ message: "Missing required fields: fullName, grade" });
       }
 
+      // Check available capacity
+      const capacity = await storage.getOrganizationAvailableCapacity(organizationId);
+      if (!capacity.isUnlimited && capacity.totalAvailable < 1) {
+        return res.status(400).json({ 
+          message: "No available capacity. All licenses and reward credits have been used." 
+        });
+      }
+
       const result = await storage.createUserWithCredentials({
         username,
         fullName,
@@ -312,12 +320,16 @@ export function registerAdminRoutes(app: Express) {
         organizationId,
       });
 
-      await storage.updateOrganizationQuota(organizationId, 1);
+      // Consume license with reward credits priority
+      const { type } = await storage.consumeLicenseWithRewardPriority(organizationId);
 
-      res.status(201).json(result);
+      res.status(201).json({
+        ...result,
+        licenseType: type, // 'reward' or 'paid'
+      });
     } catch (error: any) {
       console.error("Error creating organization member:", error);
-      if (error.message?.includes('Quota exceeded')) {
+      if (error.message?.includes('Quota exceeded') || error.message?.includes('capacity')) {
         return res.status(400).json({ message: error.message });
       }
       res.status(500).json({ message: "Failed to create organization member" });
@@ -397,16 +409,19 @@ export function registerAdminRoutes(app: Express) {
         return res.status(404).json({ message: "School not found" });
       }
 
-      const availableLicenses = org.totalLicenses - org.usedLicenses;
-      if (members.length > availableLicenses) {
+      // Check total available capacity (reward credits + paid licenses)
+      const capacity = await storage.getOrganizationAvailableCapacity(organizationId);
+      if (!capacity.isUnlimited && members.length > capacity.totalAvailable) {
         return res.status(400).json({ 
-          message: `Insufficient licenses: attempting to add ${members.length} students but only ${availableLicenses} licenses available` 
+          message: `Insufficient capacity: attempting to add ${members.length} students but only ${capacity.totalAvailable} available (${capacity.availableRewardCredits} reward credits + ${capacity.availablePaidLicenses} paid licenses)` 
         });
       }
 
       const results = {
         success: 0,
         failed: 0,
+        rewardCreditsUsed: 0,
+        paidLicensesUsed: 0,
         errors: [] as any[],
         credentials: [] as any[],
       };
@@ -431,7 +446,13 @@ export function registerAdminRoutes(app: Express) {
             organizationId,
           });
 
-          await storage.updateOrganizationQuota(organizationId, 1);
+          // Consume license with reward credits priority
+          const { type } = await storage.consumeLicenseWithRewardPriority(organizationId);
+          if (type === 'reward') {
+            results.rewardCreditsUsed++;
+          } else {
+            results.paidLicensesUsed++;
+          }
 
           results.success++;
           results.credentials.push({
@@ -1420,8 +1441,8 @@ export function registerAdminRoutes(app: Express) {
             passwordComplexity: organization.passwordComplexity as any,
           });
 
-          // Update quota
-          await storage.updateOrganizationQuota(organization.id, 1);
+          // Consume license with reward credits priority
+          await storage.consumeLicenseWithRewardPriority(organization.id);
 
           results.success++;
           results.credentials.push({

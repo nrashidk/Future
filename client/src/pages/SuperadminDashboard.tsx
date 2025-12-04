@@ -18,10 +18,11 @@ import {
   Plus, Download, Edit, Trash2, UserPlus, Crown, Shield,
   TrendingUp, AlertCircle, CheckCircle, Clock, Home, User, LogOut,
   ChevronUp, ChevronDown, History, Infinity, BarChart, Copy, FileQuestion,
-  Settings, Globe
+  Settings, Globe, Gift
 } from "lucide-react";
 import ScoringConfigEditor from "@/components/admin/ScoringConfigEditor";
 import CountryManagement from "@/components/admin/CountryManagement";
+import ContributionReviewQueue from "@/components/admin/ContributionReviewQueue";
 
 interface Metrics {
   totalSchools: number;
@@ -466,6 +467,10 @@ export default function SuperadminDashboard() {
               <Settings className="w-4 h-4 mr-2" />
               Scoring Methodology
             </TabsTrigger>
+            <TabsTrigger value="contributions" data-testid="tab-contributions">
+              <Gift className="w-4 h-4 mr-2" />
+              Contributions
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="organizations" className="space-y-4">
@@ -692,6 +697,10 @@ export default function SuperadminDashboard() {
 
           <TabsContent value="scoring" className="space-y-4">
             <ScoringConfigEditor />
+          </TabsContent>
+
+          <TabsContent value="contributions" className="space-y-4">
+            <ContributionReviewQueue />
           </TabsContent>
         </Tabs>
       </main>

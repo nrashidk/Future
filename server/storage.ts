@@ -99,7 +99,7 @@ import {
   type InsertScoringConfigChangeLog,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, desc, count, avg, sql, inArray, isNotNull } from "drizzle-orm";
+import { eq, and, or, desc, count, avg, sql, inArray, isNotNull, gte } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
@@ -383,6 +383,7 @@ export interface IStorage {
   getContributionSubmissionsByOrg(organizationId: string): Promise<ContributionSubmission[]>;
   getAllPendingContributionSubmissions(): Promise<ContributionSubmission[]>;
   updateContributionSubmission(id: string, data: Partial<ContributionSubmission>): Promise<ContributionSubmission>;
+  getOrganizationDailySubmissionCount(organizationId: string): Promise<number>;
   
   // Contribution Reward operations
   createContributionReward(reward: InsertContributionReward): Promise<ContributionReward>;
@@ -1889,6 +1890,71 @@ export class DatabaseStorage implements IStorage {
     return organization;
   }
 
+  /**
+   * Consume a license for an organization with reward credits priority.
+   * First tries to use available reward credits, falls back to paid licenses.
+   * Returns which type of license was consumed.
+   */
+  async consumeLicenseWithRewardPriority(organizationId: string): Promise<{ type: 'reward' | 'paid'; organization: Organization }> {
+    const org = await this.getOrganizationById(organizationId);
+    if (!org) {
+      throw new Error(`Organization ${organizationId} not found`);
+    }
+
+    // Calculate available reward credits
+    const availableRewardCredits = (org.rewardCredits || 0) - (org.rewardCreditsUsed || 0);
+
+    // Try to use reward credit first
+    if (availableRewardCredits > 0) {
+      const [organization] = await db
+        .update(organizations)
+        .set({
+          rewardCreditsUsed: sql`COALESCE(${organizations.rewardCreditsUsed}, 0) + 1`,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(organizations.id, organizationId),
+            sql`COALESCE(${organizations.rewardCredits}, 0) - COALESCE(${organizations.rewardCreditsUsed}, 0) >= 1`
+          )
+        )
+        .returning();
+
+      if (organization) {
+        return { type: 'reward', organization };
+      }
+    }
+
+    // Fall back to paid license
+    const organization = await this.updateOrganizationQuota(organizationId, 1);
+    return { type: 'paid', organization };
+  }
+
+  /**
+   * Check if organization has available capacity (reward credits + paid licenses)
+   */
+  async getOrganizationAvailableCapacity(organizationId: string): Promise<{
+    availableRewardCredits: number;
+    availablePaidLicenses: number;
+    totalAvailable: number;
+    isUnlimited: boolean;
+  }> {
+    const org = await this.getOrganizationById(organizationId);
+    if (!org) {
+      throw new Error(`Organization ${organizationId} not found`);
+    }
+
+    const availableRewardCredits = Math.max(0, (org.rewardCredits || 0) - (org.rewardCreditsUsed || 0));
+    const availablePaidLicenses = org.isUnlimitedLicenses ? Infinity : Math.max(0, org.totalLicenses - org.usedLicenses);
+
+    return {
+      availableRewardCredits,
+      availablePaidLicenses: org.isUnlimitedLicenses ? Infinity : availablePaidLicenses,
+      totalAvailable: org.isUnlimitedLicenses ? Infinity : availableRewardCredits + availablePaidLicenses,
+      isUnlimited: org.isUnlimitedLicenses || false,
+    };
+  }
+
   // Organization Member operations
   async createOrganizationMember(memberData: InsertOrganizationMember): Promise<OrganizationMember> {
     const [member] = await db
@@ -2514,6 +2580,20 @@ export class DatabaseStorage implements IStorage {
       .where(eq(contributionSubmissions.id, id))
       .returning();
     return updated;
+  }
+
+  async getOrganizationDailySubmissionCount(organizationId: string): Promise<number> {
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const result = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(contributionSubmissions)
+      .where(
+        and(
+          eq(contributionSubmissions.organizationId, organizationId),
+          gte(contributionSubmissions.createdAt, oneDayAgo)
+        )
+      );
+    return result[0]?.count || 0;
   }
 
   // ============================================

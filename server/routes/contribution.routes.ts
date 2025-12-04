@@ -2,7 +2,6 @@ import { Router, Request, Response, NextFunction } from "express";
 import { storage } from "../storage";
 import { z } from "zod";
 import { isAuthenticated } from "../replitAuth";
-import rateLimit from "express-rate-limit";
 import DOMPurify from "isomorphic-dompurify";
 import type { ContributionSubmission } from "@shared/schema";
 
@@ -33,21 +32,11 @@ function checkSuperadmin(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
-// Rate limiter for submissions (3 per day per org)
-const submissionLimiter = rateLimit({
-  windowMs: 24 * 60 * 60 * 1000, // 24 hours
-  max: 3,
-  keyGenerator: (req: Request) => {
-    const user = req.user as any;
-    return user?.organizationId || req.ip || 'unknown';
-  },
-  message: { error: "Maximum 3 submissions per day. Please try again tomorrow." },
-});
-
 // Reward configuration
 const QUESTIONS_PER_CREDIT = 5; // 5 approved questions = 1 assessment credit
 const MAX_MONTHLY_CREDITS = 50; // Maximum credits per month per organization
 const MAX_QUESTIONS_PER_SUBMISSION = 50;
+const MAX_SUBMISSIONS_PER_DAY = 3; // Per organization (not per user)
 
 // Validation schemas
 const questionSchema = z.object({
@@ -176,10 +165,18 @@ router.get("/submissions", isAuthenticated, checkOrgAdmin, async (req: Request, 
 });
 
 // Submit questions for review
-router.post("/submit", isAuthenticated, checkOrgAdmin, submissionLimiter, async (req: Request, res: Response) => {
+router.post("/submit", isAuthenticated, checkOrgAdmin, async (req: Request, res: Response) => {
   try {
     const member = (req as any).orgMember;
     const user = req.user as any;
+    
+    // Organization-scoped rate limiting (3 submissions per day per org)
+    const dailySubmissionCount = await storage.getOrganizationDailySubmissionCount(member.organizationId);
+    if (dailySubmissionCount >= MAX_SUBMISSIONS_PER_DAY) {
+      return res.status(429).json({ 
+        error: "Maximum 3 submissions per day per school. Please try again tomorrow." 
+      });
+    }
     
     // Validate input
     const parsed = submitQuestionsSchema.safeParse(req.body);
