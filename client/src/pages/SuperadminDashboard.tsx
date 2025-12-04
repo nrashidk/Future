@@ -2136,12 +2136,12 @@ export default function SuperadminDashboard() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="career-country">Country (optional - leave empty for global)</Label>
-              <Select value={careerForm.countryId} onValueChange={(v) => setCareerForm({ ...careerForm, countryId: v })}>
+              <Select value={careerForm.countryId || "_global"} onValueChange={(v) => setCareerForm({ ...careerForm, countryId: v === "_global" ? "" : v })}>
                 <SelectTrigger data-testid="select-career-country">
                   <SelectValue placeholder="Global (all countries)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Global (all countries)</SelectItem>
+                  <SelectItem value="_global">Global (all countries)</SelectItem>
                   {countries.map((country) => (
                     <SelectItem key={country.id} value={country.id}>
                       {country.name} ({country.code})
