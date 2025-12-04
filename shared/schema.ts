@@ -427,6 +427,7 @@ export const assessments = pgTable("assessments", {
   // Assessment data
   assessmentType: text("assessment_type").notNull().default("basic"), // 'basic' or 'kolb'
   favoriteSubjects: text("favorite_subjects").array().notNull(),
+  prioritySubjects: text("priority_subjects").array(), // Up to 3 subjects marked as priority (get more quiz questions)
   interests: text("interests").array().notNull(),
   personalityTraits: jsonb("personality_traits"),
   careerAspirations: text("career_aspirations").array(),

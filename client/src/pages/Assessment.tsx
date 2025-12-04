@@ -23,6 +23,7 @@ interface AssessmentData {
   gender: string;
   consentGiven: boolean;
   favoriteSubjects: string[];
+  prioritySubjects: string[]; // Up to 3 subjects marked as priority (get more quiz questions)
   interests: string[];
   personalityTraits: Record<string, number>;
   kolbResponses: Record<string, number>; // Kolb ELT responses (premium users only)
@@ -53,6 +54,7 @@ export default function Assessment() {
     gender: "",
     consentGiven: false,
     favoriteSubjects: [],
+    prioritySubjects: [],
     interests: [],
     personalityTraits: {},
     kolbResponses: {},
@@ -142,6 +144,7 @@ export default function Assessment() {
           age: assessmentData.age,
           grade: assessmentData.grade,
           favoriteSubjects: assessmentData.favoriteSubjects,
+          prioritySubjects: assessmentData.prioritySubjects || [],
           interests: assessmentData.interests,
           countryId: assessmentData.countryId,
           careerAspirations: assessmentData.careerAspirations || [],
