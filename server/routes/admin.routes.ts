@@ -627,6 +627,104 @@ export function registerAdminRoutes(app: Express) {
     }
   });
 
+  // Bulk reset passwords for organization members
+  app.post("/api/admin/organizations/:id/members/bulk-reset-passwords", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).isLocal ? (req.user as any).userId : (req.user as any).claims.sub;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      // Check if user is superadmin
+      const superadminEmails = getSuperadminEmails();
+      const isSuperadmin = 
+        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email)) ||
+        user.role === "superadmin";
+      
+      // Check if user is org admin for THIS specific organization
+      const isOrgAdminForThisOrg = user.accountType === "org_admin";
+      if (isOrgAdminForThisOrg) {
+        const userOrg = await storage.getOrganizationByAdminUserId(userId);
+        if (!userOrg || userOrg.id !== req.params.id) {
+          return res.status(403).json({ message: "Forbidden: Can only access your own organization" });
+        }
+      }
+
+      if (!isSuperadmin && !isOrgAdminForThisOrg) {
+        return res.status(403).json({ message: "Forbidden: Admin access required" });
+      }
+
+      const { memberIds } = req.body;
+      
+      if (!Array.isArray(memberIds) || memberIds.length === 0) {
+        return res.status(400).json({ message: "memberIds must be a non-empty array" });
+      }
+
+      if (memberIds.length > 100) {
+        return res.status(400).json({ message: "Maximum 100 members per batch" });
+      }
+
+      const { generatePassword } = await import("../utils/passwordGenerator");
+      const { hashPassword } = await import("../utils/passwordHash");
+
+      const results = await Promise.all(memberIds.map(async (memberId: string) => {
+        try {
+          const member = await storage.getOrganizationMemberById(memberId);
+          if (!member) {
+            return { userId: memberId, username: null, newPassword: null, success: false, error: "Member not found" };
+          }
+          
+          // CRITICAL SECURITY: Verify member belongs to this organization
+          if (member.organizationId !== req.params.id) {
+            return { userId: memberId, username: null, newPassword: null, success: false, error: "Member does not belong to this organization" };
+          }
+          
+          const memberUser = await storage.getUser(member.userId);
+          if (!memberUser) {
+            return { userId: memberId, username: null, newPassword: null, success: false, error: "User not found" };
+          }
+          
+          if (!memberUser.username || !memberUser.passwordHash) {
+            return { userId: memberId, username: memberUser.username, newPassword: null, success: false, error: "User does not have local credentials" };
+          }
+          
+          const newPassword = generatePassword("strong");
+          const passwordHash = await hashPassword(newPassword);
+          
+          await storage.upsertUser({
+            ...memberUser,
+            passwordHash,
+          });
+          
+          // Update the member's password reset tracking
+          await storage.updateOrganizationMember(memberId, {
+            passwordLastResetAt: new Date(),
+            passwordLastResetBy: userId,
+          });
+          
+          return { userId: memberId, username: memberUser.username, newPassword, success: true };
+        } catch (error: any) {
+          return { userId: memberId, username: null, newPassword: null, success: false, error: error.message || "Unknown error" };
+        }
+      }));
+      
+      res.json({ 
+        success: true, 
+        results,
+        summary: {
+          total: results.length,
+          succeeded: results.filter(r => r.success).length,
+          failed: results.filter(r => !r.success).length,
+        }
+      });
+    } catch (error) {
+      console.error("Error bulk resetting passwords:", error);
+      res.status(500).json({ message: "Failed to bulk reset passwords" });
+    }
+  });
+
   app.post("/api/admin/organizations/:id/members/:memberId/reset-password", isAuthenticated, async (req, res) => {
     try {
       const userId = (req.user as any).isLocal ? (req.user as any).userId : (req.user as any).claims.sub;

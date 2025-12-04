@@ -92,6 +92,8 @@ export default function AdminOrganizations() {
   const [letterFilter, setLetterFilter] = useState<string | null>(null);
   const [roleFilter, setRoleFilter] = useState<"all" | "admin" | "student">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "not_active" | "active" | "in_progress" | "completed">("all");
+  const [bulkResetResults, setBulkResetResults] = useState<Array<{ userId: string; username: string | null; newPassword: string | null; success: boolean; error?: string }>>([]);
+  const [isBulkResetResultsModalOpen, setIsBulkResetResultsModalOpen] = useState(false);
 
   const { data: organizations = [], isLoading: orgsLoading } = useQuery<Organization[]>({
     queryKey: ['/api/admin/organizations'],
@@ -150,6 +152,34 @@ export default function AdminOrganizations() {
       toast({ 
         title: "Error", 
         description: error.message || "Failed to delete students", 
+        variant: "destructive" 
+      });
+    },
+  });
+
+  // Bulk reset passwords mutation
+  const bulkResetPasswordsMutation = useMutation({
+    mutationFn: async (memberIds: string[]) => {
+      const res = await apiRequest('POST', `/api/admin/organizations/${selectedOrgId}/members/bulk-reset-passwords`, { memberIds });
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      const successCount = data.results.filter((r: any) => r.success).length;
+      const failCount = data.results.filter((r: any) => !r.success).length;
+      toast({ 
+        title: "Bulk Password Reset Complete", 
+        description: `${successCount} succeeded, ${failCount} failed`,
+        variant: failCount > 0 ? "destructive" : "default"
+      });
+      setBulkResetResults(data.results);
+      setIsBulkResetResultsModalOpen(true);
+      setSelectedMemberIds([]);
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/organizations', selectedOrgId, 'members'] });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to reset passwords", 
         variant: "destructive" 
       });
     },
@@ -563,33 +593,98 @@ export default function AdminOrganizations() {
                     Export Data (CSV)
                   </Button>
                   {selectedMemberIds.length > 0 && (
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="sm" data-testid="button-bulk-delete">
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Delete Selected ({selectedMemberIds.length})
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Delete {selectedMemberIds.length} Students</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Are you sure you want to delete {selectedMemberIds.length} selected student(s)? This action cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction 
-                            onClick={() => bulkDeleteMutation.mutate(selectedMemberIds)}
-                            className="bg-destructive hover:bg-destructive/90"
-                            data-testid="button-confirm-bulk-delete"
-                          >
-                            Delete {selectedMemberIds.length} Students
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
+                    <div className="flex gap-2">
+                      <Button 
+                        size="sm" 
+                        variant="outline"
+                        onClick={() => bulkResetPasswordsMutation.mutate(selectedMemberIds)}
+                        disabled={bulkResetPasswordsMutation.isPending}
+                        data-testid="button-bulk-reset-passwords"
+                      >
+                        <Key className="w-4 h-4 mr-2" />
+                        Reset Passwords ({selectedMemberIds.length})
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive" size="sm" data-testid="button-bulk-delete">
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Delete Selected ({selectedMemberIds.length})
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete {selectedMemberIds.length} Students</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete {selectedMemberIds.length} selected student(s)? This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction 
+                              onClick={() => bulkDeleteMutation.mutate(selectedMemberIds)}
+                              className="bg-destructive hover:bg-destructive/90"
+                              data-testid="button-confirm-bulk-delete"
+                            >
+                              Delete {selectedMemberIds.length} Students
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setSelectedMemberIds([])}
+                        data-testid="button-clear-selection"
+                      >
+                        Clear
+                      </Button>
+                    </div>
                   )}
+                  <Dialog open={isBulkResetResultsModalOpen} onOpenChange={setIsBulkResetResultsModalOpen}>
+                    <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>Bulk Password Reset Results</DialogTitle>
+                        <DialogDescription>
+                          Copy and save these credentials. They will not be shown again.
+                        </DialogDescription>
+                      </DialogHeader>
+                      <div className="space-y-2">
+                        {bulkResetResults.map((result, index) => (
+                          <div key={index} className={`p-3 rounded-md border ${result.success ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800' : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800'}`}>
+                            {result.success ? (
+                              <div className="flex justify-between items-center">
+                                <span className="font-medium">{result.username}</span>
+                                <code className="bg-muted px-2 py-1 rounded text-sm">{result.newPassword}</code>
+                              </div>
+                            ) : (
+                              <div className="text-red-600 dark:text-red-400">
+                                {result.username || result.userId}: {result.error}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex justify-end gap-2 mt-4">
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            const text = bulkResetResults
+                              .filter(r => r.success)
+                              .map(r => `${r.username}: ${r.newPassword}`)
+                              .join('\n');
+                            navigator.clipboard.writeText(text);
+                            toast({ title: "Copied", description: "Credentials copied to clipboard" });
+                          }}
+                          data-testid="button-copy-bulk-credentials"
+                        >
+                          Copy All
+                        </Button>
+                        <Button onClick={() => setIsBulkResetResultsModalOpen(false)} data-testid="button-close-bulk-results">
+                          Close
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                   <Dialog open={isBulkUploadDialogOpen} onOpenChange={setIsBulkUploadDialogOpen}>
                     <DialogTrigger asChild>
                       <Button variant="outline" size="sm" data-testid="button-bulk-upload">
