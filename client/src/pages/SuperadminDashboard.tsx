@@ -172,6 +172,8 @@ interface Country {
 export default function SuperadminDashboard() {
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
+  const [studentSearchQuery, setStudentSearchQuery] = useState("");
+  const [userTypeFilter, setUserTypeFilter] = useState<string>("all");
   const [licenseFilter, setLicenseFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("name");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
@@ -1030,7 +1032,29 @@ export default function SuperadminDashboard() {
                     <CardTitle>All Users</CardTitle>
                     <CardDescription>View all students, school admins, and premium users with assessment history</CardDescription>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search users..."
+                        value={studentSearchQuery}
+                        onChange={(e) => setStudentSearchQuery(e.target.value)}
+                        className="pl-9 w-64"
+                        data-testid="input-search-students"
+                      />
+                    </div>
+                    <Select value={userTypeFilter} onValueChange={setUserTypeFilter}>
+                      <SelectTrigger className="w-40" data-testid="select-user-type-filter">
+                        <Filter className="w-4 h-4 mr-2" />
+                        <SelectValue placeholder="Filter" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Types</SelectItem>
+                        <SelectItem value="students">School Students</SelectItem>
+                        <SelectItem value="org_admins">School Admins</SelectItem>
+                        <SelectItem value="premium">Premium Users</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <Button variant="outline" size="sm" asChild data-testid="button-export-students">
                       <a href="/api/superadmin/export/students?format=csv" download>
                         <Download className="w-4 h-4 mr-2" />
@@ -1042,9 +1066,22 @@ export default function SuperadminDashboard() {
               </CardHeader>
               <CardContent>
                 {studentsLoading ? (
-                  <div className="text-center py-8 text-muted-foreground">Loading students...</div>
-                ) : students.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">No students found</div>
+                  <div className="text-center py-8 text-muted-foreground">Loading users...</div>
+                ) : students.filter((s) => {
+                  const searchLower = studentSearchQuery.toLowerCase();
+                  const matchesSearch = !studentSearchQuery || 
+                    (s.user.firstName?.toLowerCase().includes(searchLower)) ||
+                    (s.user.lastName?.toLowerCase().includes(searchLower)) ||
+                    (s.user.email?.toLowerCase().includes(searchLower)) ||
+                    (s.user.username?.toLowerCase().includes(searchLower)) ||
+                    (s.organizationName?.toLowerCase().includes(searchLower));
+                  const matchesType = userTypeFilter === 'all' ||
+                    (userTypeFilter === 'students' && s.user.accountType === 'org_student') ||
+                    (userTypeFilter === 'org_admins' && s.user.accountType === 'org_admin') ||
+                    (userTypeFilter === 'premium' && s.user.accountType === 'individual' && s.user.isPremium);
+                  return matchesSearch && matchesType;
+                }).length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">No users found</div>
                 ) : (
                   <div className="overflow-x-auto">
                     <Table>
@@ -1058,7 +1095,20 @@ export default function SuperadminDashboard() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {students.map((student) => (
+                        {students.filter((s) => {
+                          const searchLower = studentSearchQuery.toLowerCase();
+                          const matchesSearch = !studentSearchQuery || 
+                            (s.user.firstName?.toLowerCase().includes(searchLower)) ||
+                            (s.user.lastName?.toLowerCase().includes(searchLower)) ||
+                            (s.user.email?.toLowerCase().includes(searchLower)) ||
+                            (s.user.username?.toLowerCase().includes(searchLower)) ||
+                            (s.organizationName?.toLowerCase().includes(searchLower));
+                          const matchesType = userTypeFilter === 'all' ||
+                            (userTypeFilter === 'students' && s.user.accountType === 'org_student') ||
+                            (userTypeFilter === 'org_admins' && s.user.accountType === 'org_admin') ||
+                            (userTypeFilter === 'premium' && s.user.accountType === 'individual' && s.user.isPremium);
+                          return matchesSearch && matchesType;
+                        }).map((student) => (
                           <TableRow key={student.user.id}>
                             <TableCell>
                               <div className="font-medium">
@@ -1072,10 +1122,10 @@ export default function SuperadminDashboard() {
                             <TableCell>
                               <div className="flex flex-col">
                                 <Badge 
-                                  variant={student.user.accountType === 'org_admin' ? 'destructive' : student.user.isPremium ? 'default' : 'secondary'}
+                                  variant={student.user.accountType === 'org_admin' ? 'destructive' : 'default'}
                                   className="w-fit"
                                 >
-                                  {student.user.accountType === 'org_admin' ? 'Admin' : student.user.accountType === 'org_student' ? 'Student' : student.user.isPremium ? 'Premium' : 'Free'}
+                                  {student.user.accountType === 'org_admin' ? 'Admin' : student.user.accountType === 'org_student' ? 'Student' : 'Premium'}
                                 </Badge>
                                 <span className="text-xs text-muted-foreground mt-1">
                                   School: {student.organizationName || "Individual"}

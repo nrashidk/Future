@@ -2921,7 +2921,7 @@ export class DatabaseStorage implements IStorage {
         or(
           eq(users.accountType, 'org_student'),
           eq(users.accountType, 'org_admin'),
-          eq(users.accountType, 'individual')
+          and(eq(users.accountType, 'individual'), eq(users.isPremium, true))
         )
       )
       .groupBy(users.id, organizations.name)
