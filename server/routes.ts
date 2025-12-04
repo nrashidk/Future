@@ -20,6 +20,7 @@ import { registerWebhookRoutes } from "./routes/webhook.routes";
 import { registerPublicRoutes } from "./routes/public.routes";
 import { registerFilesRoutes } from "./routes/files.routes";
 import { registerCountryRoutes } from "./routes/country.routes";
+import contributionRoutes from "./routes/contribution.routes";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication first (must be before CSRF validation)
@@ -47,6 +48,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerWebhookRoutes(app); // Stripe webhooks (signature verified)
   registerFilesRoutes(app);
   registerCountryRoutes(app); // Country management (superadmin)
+  app.use("/api/contributions", contributionRoutes); // School rewards system
 
   // Create and return HTTP server
   const httpServer = createServer(app);

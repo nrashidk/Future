@@ -33,6 +33,8 @@ import {
   llmPromptTemplates,
   apiCredentials,
   scoringConfigChangeLog,
+  contributionSubmissions,
+  contributionRewards,
   type User,
   type UpsertUser,
   type Country,
@@ -73,6 +75,10 @@ import {
   type InsertOrganizationMember,
   type CountryPrioritySector,
   type InsertCountryPrioritySector,
+  type ContributionSubmission,
+  type InsertContributionSubmission,
+  type ContributionReward,
+  type InsertContributionReward,
   type CountrySectorWefSkill,
   type InsertCountrySectorWefSkill,
   type File,
@@ -93,7 +99,7 @@ import {
   type InsertScoringConfigChangeLog,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, count, avg, sql, inArray, isNotNull } from "drizzle-orm";
+import { eq, and, or, desc, count, avg, sql, inArray, isNotNull } from "drizzle-orm";
 
 export interface IStorage {
   // User operations (mandatory for Replit Auth)
@@ -370,6 +376,28 @@ export interface IStorage {
   // Scoring Config Change Log operations
   createScoringConfigChangeLog(log: InsertScoringConfigChangeLog): Promise<ScoringConfigChangeLog>;
   getScoringConfigChangeLogs(limit?: number): Promise<ScoringConfigChangeLog[]>;
+
+  // Contribution Submission operations
+  createContributionSubmission(submission: InsertContributionSubmission): Promise<ContributionSubmission>;
+  getContributionSubmission(id: string): Promise<ContributionSubmission | undefined>;
+  getContributionSubmissionsByOrg(organizationId: string): Promise<ContributionSubmission[]>;
+  getAllPendingContributionSubmissions(): Promise<ContributionSubmission[]>;
+  updateContributionSubmission(id: string, data: Partial<ContributionSubmission>): Promise<ContributionSubmission>;
+  
+  // Contribution Reward operations
+  createContributionReward(reward: InsertContributionReward): Promise<ContributionReward>;
+  getContributionRewardsByOrg(organizationId: string): Promise<ContributionReward[]>;
+  getContributionStats(): Promise<{
+    totalSubmissions: number;
+    pendingSubmissions: number;
+    approvedSubmissions: number;
+    totalQuestionsApproved: number;
+    totalCreditsAwarded: number;
+    topContributors: Array<{ organizationId: string; organizationName: string; questionsApproved: number; creditsEarned: number }>;
+  }>;
+
+  // Quiz questions by country/grade (for duplicate detection)
+  getQuizQuestionsByCountryAndGrade(countryId: string, grade: number, subject: string): Promise<QuizQuestion[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2442,6 +2470,133 @@ export class DatabaseStorage implements IStorage {
       .from(scoringConfigChangeLog)
       .orderBy(desc(scoringConfigChangeLog.createdAt))
       .limit(limit);
+  }
+
+  // ============================================
+  // Contribution Submission operations
+  // ============================================
+
+  async createContributionSubmission(submission: InsertContributionSubmission): Promise<ContributionSubmission> {
+    const [created] = await db.insert(contributionSubmissions).values(submission).returning();
+    return created;
+  }
+
+  async getContributionSubmission(id: string): Promise<ContributionSubmission | undefined> {
+    const [submission] = await db.select().from(contributionSubmissions).where(eq(contributionSubmissions.id, id));
+    return submission;
+  }
+
+  async getContributionSubmissionsByOrg(organizationId: string): Promise<ContributionSubmission[]> {
+    return db
+      .select()
+      .from(contributionSubmissions)
+      .where(eq(contributionSubmissions.organizationId, organizationId))
+      .orderBy(desc(contributionSubmissions.createdAt));
+  }
+
+  async getAllPendingContributionSubmissions(): Promise<ContributionSubmission[]> {
+    return db
+      .select()
+      .from(contributionSubmissions)
+      .where(
+        or(
+          eq(contributionSubmissions.status, "pending"),
+          eq(contributionSubmissions.status, "in_review")
+        )
+      )
+      .orderBy(contributionSubmissions.createdAt);
+  }
+
+  async updateContributionSubmission(id: string, data: Partial<ContributionSubmission>): Promise<ContributionSubmission> {
+    const [updated] = await db
+      .update(contributionSubmissions)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(contributionSubmissions.id, id))
+      .returning();
+    return updated;
+  }
+
+  // ============================================
+  // Contribution Reward operations
+  // ============================================
+
+  async createContributionReward(reward: InsertContributionReward): Promise<ContributionReward> {
+    const [created] = await db.insert(contributionRewards).values(reward).returning();
+    return created;
+  }
+
+  async getContributionRewardsByOrg(organizationId: string): Promise<ContributionReward[]> {
+    return db
+      .select()
+      .from(contributionRewards)
+      .where(eq(contributionRewards.organizationId, organizationId))
+      .orderBy(desc(contributionRewards.createdAt));
+  }
+
+  async getContributionStats(): Promise<{
+    totalSubmissions: number;
+    pendingSubmissions: number;
+    approvedSubmissions: number;
+    totalQuestionsApproved: number;
+    totalCreditsAwarded: number;
+    topContributors: Array<{ organizationId: string; organizationName: string; questionsApproved: number; creditsEarned: number }>;
+  }> {
+    const allSubmissions = await db.select().from(contributionSubmissions);
+    const allRewards = await db.select().from(contributionRewards);
+    const allOrgs = await db.select().from(organizations);
+    
+    const orgMap = new Map(allOrgs.map(org => [org.id, org.name]));
+    
+    const totalSubmissions = allSubmissions.length;
+    const pendingSubmissions = allSubmissions.filter(s => s.status === "pending" || s.status === "in_review").length;
+    const approvedSubmissions = allSubmissions.filter(s => s.status === "approved").length;
+    const totalQuestionsApproved = allSubmissions.reduce((sum, s) => sum + (s.approvedCount || 0), 0);
+    const totalCreditsAwarded = allRewards.reduce((sum, r) => sum + r.creditsAwarded, 0);
+    
+    // Calculate top contributors
+    const orgStats = new Map<string, { questionsApproved: number; creditsEarned: number }>();
+    for (const submission of allSubmissions) {
+      const current = orgStats.get(submission.organizationId) || { questionsApproved: 0, creditsEarned: 0 };
+      current.questionsApproved += submission.approvedCount || 0;
+      current.creditsEarned += submission.creditsAwarded || 0;
+      orgStats.set(submission.organizationId, current);
+    }
+    
+    const topContributors = Array.from(orgStats.entries())
+      .map(([orgId, stats]) => ({
+        organizationId: orgId,
+        organizationName: orgMap.get(orgId) || "Unknown",
+        questionsApproved: stats.questionsApproved,
+        creditsEarned: stats.creditsEarned,
+      }))
+      .sort((a, b) => b.questionsApproved - a.questionsApproved)
+      .slice(0, 10);
+
+    return {
+      totalSubmissions,
+      pendingSubmissions,
+      approvedSubmissions,
+      totalQuestionsApproved,
+      totalCreditsAwarded,
+      topContributors,
+    };
+  }
+
+  // ============================================
+  // Quiz questions by country/grade (for duplicate detection)
+  // ============================================
+
+  async getQuizQuestionsByCountryAndGrade(countryId: string, grade: number, subject: string): Promise<QuizQuestion[]> {
+    return db
+      .select()
+      .from(quizQuestions)
+      .where(
+        and(
+          eq(quizQuestions.countryId, countryId),
+          eq(quizQuestions.grade, grade),
+          eq(quizQuestions.subject, subject)
+        )
+      );
   }
 }
 
