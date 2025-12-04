@@ -1225,3 +1225,27 @@ export const insertContributionRewardSchema = createInsertSchema(contributionRew
   createdAt: true,
 });
 export type InsertContributionReward = z.infer<typeof insertContributionRewardSchema>;
+
+// System Configuration - superadmin-managed settings
+export const systemConfig = pgTable("system_config", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  key: varchar("key", { length: 100 }).notNull().unique(),
+  value: text("value").notNull(),
+  description: text("description"),
+  category: varchar("category", { length: 50 }).notNull().default("general"),
+  dataType: varchar("data_type", { length: 20 }).notNull().default("string"), // string, number, boolean, json
+  updatedByUserId: varchar("updated_by_user_id").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("system_config_key_idx").on(table.key),
+  index("system_config_category_idx").on(table.category),
+]);
+
+export type SystemConfig = typeof systemConfig.$inferSelect;
+export const insertSystemConfigSchema = createInsertSchema(systemConfig).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertSystemConfig = z.infer<typeof insertSystemConfigSchema>;

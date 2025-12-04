@@ -35,6 +35,7 @@ import {
   scoringConfigChangeLog,
   contributionSubmissions,
   contributionRewards,
+  systemConfig,
   type User,
   type UpsertUser,
   type Country,
@@ -79,6 +80,8 @@ import {
   type InsertContributionSubmission,
   type ContributionReward,
   type InsertContributionReward,
+  type SystemConfig,
+  type InsertSystemConfig,
   type CountrySectorWefSkill,
   type InsertCountrySectorWefSkill,
   type File,
@@ -400,6 +403,12 @@ export interface IStorage {
 
   // Quiz questions by country/grade (for duplicate detection)
   getQuizQuestionsByCountryAndGrade(countryId: string, grade: number, subject: string): Promise<QuizQuestion[]>;
+
+  // System Configuration operations
+  getSystemConfig(key: string): Promise<SystemConfig | undefined>;
+  getAllSystemConfigs(category?: string): Promise<SystemConfig[]>;
+  upsertSystemConfig(key: string, value: string, updatedByUserId?: string): Promise<SystemConfig>;
+  deleteSystemConfig(key: string): Promise<boolean>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2686,6 +2695,66 @@ export class DatabaseStorage implements IStorage {
           eq(quizQuestions.subject, subject)
         )
       );
+  }
+
+  // ============================================
+  // System Configuration operations
+  // ============================================
+
+  async getSystemConfig(key: string): Promise<SystemConfig | undefined> {
+    const [config] = await db
+      .select()
+      .from(systemConfig)
+      .where(eq(systemConfig.key, key));
+    return config;
+  }
+
+  async getAllSystemConfigs(category?: string): Promise<SystemConfig[]> {
+    if (category) {
+      return db
+        .select()
+        .from(systemConfig)
+        .where(eq(systemConfig.category, category))
+        .orderBy(systemConfig.key);
+    }
+    return db
+      .select()
+      .from(systemConfig)
+      .orderBy(systemConfig.category, systemConfig.key);
+  }
+
+  async upsertSystemConfig(key: string, value: string, updatedByUserId?: string): Promise<SystemConfig> {
+    const existing = await this.getSystemConfig(key);
+    
+    if (existing) {
+      const [updated] = await db
+        .update(systemConfig)
+        .set({
+          value,
+          updatedByUserId,
+          updatedAt: new Date(),
+        })
+        .where(eq(systemConfig.key, key))
+        .returning();
+      return updated;
+    }
+    
+    const [created] = await db
+      .insert(systemConfig)
+      .values({
+        key,
+        value,
+        updatedByUserId,
+      })
+      .returning();
+    return created;
+  }
+
+  async deleteSystemConfig(key: string): Promise<boolean> {
+    const result = await db
+      .delete(systemConfig)
+      .where(eq(systemConfig.key, key));
+    return (result.rowCount ?? 0) > 0;
   }
 }
 

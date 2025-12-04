@@ -11,10 +11,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { StickyNote } from "@/components/StickyNote";
+import { Input } from "@/components/ui/input";
 import { 
   ClipboardCheck, Eye, CheckCircle, XCircle, AlertCircle, 
   Clock, Building2, User, Calendar, MessageSquare,
-  ChevronRight, ChevronDown, GraduationCap, HelpCircle
+  ChevronRight, ChevronDown, GraduationCap, HelpCircle, Settings, Save, X
 } from "lucide-react";
 
 interface Question {
@@ -76,6 +77,13 @@ interface ReviewStats {
   totalApproved: number;
   totalRejected: number;
   avgReviewTime: number;
+}
+
+interface RewardSettings {
+  maxYearlyCredits: number;
+  questionsPerCredit: number;
+  maxQuestionsPerSubmission: number;
+  maxSubmissionsPerDay: number;
 }
 
 function getStatusBadge(status: string) {
@@ -177,6 +185,8 @@ export default function ContributionReviewQueue() {
   const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
   const [allocatingOrgId, setAllocatingOrgId] = useState<string | null>(null);
   const [creditsToAllocate, setCreditsToAllocate] = useState<number>(0);
+  const [editingMaxCredits, setEditingMaxCredits] = useState(false);
+  const [newMaxCredits, setNewMaxCredits] = useState<number>(50);
 
   const { data: submissions = [], isLoading } = useQuery<Submission[]>({
     queryKey: ['/api/contributions/admin/pending'],
@@ -188,6 +198,29 @@ export default function ContributionReviewQueue() {
 
   const { data: pendingRewardsOrgs = [] } = useQuery<OrganizationWithPendingRewards[]>({
     queryKey: ['/api/contributions/admin/pending-rewards'],
+  });
+
+  const { data: settings } = useQuery<RewardSettings>({
+    queryKey: ['/api/contributions/admin/settings'],
+  });
+
+  const updateSettingsMutation = useMutation({
+    mutationFn: async (maxYearlyCredits: number) => {
+      return apiRequest('POST', '/api/contributions/admin/settings', {
+        maxYearlyCredits,
+      });
+    },
+    onSuccess: (data: any) => {
+      toast({ 
+        title: "Settings Updated", 
+        description: data.message || `Max yearly credits updated.` 
+      });
+      setEditingMaxCredits(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/contributions/admin/settings'] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Update Failed", description: error.message, variant: "destructive" });
+    },
   });
 
   const allocateRewardMutation = useMutation({
@@ -351,6 +384,87 @@ export default function ContributionReviewQueue() {
           <p className="text-3xl font-bold">{stats?.totalRejected ?? 0}</p>
         </StickyNote>
       </div>
+
+      {/* Reward Settings Card */}
+      <Card>
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Settings className="w-5 h-5" />
+              <div>
+                <CardTitle className="text-lg">Reward Settings</CardTitle>
+                <CardDescription>Configure school contribution reward limits</CardDescription>
+              </div>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="space-y-2">
+              <Label className="text-sm text-muted-foreground">Max Yearly Credits per School</Label>
+              {editingMaxCredits ? (
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min={1}
+                    max={1000}
+                    value={newMaxCredits}
+                    onChange={(e) => setNewMaxCredits(parseInt(e.target.value) || 50)}
+                    className="w-24"
+                    data-testid="input-max-yearly-credits"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={() => updateSettingsMutation.mutate(newMaxCredits)}
+                    disabled={updateSettingsMutation.isPending}
+                    data-testid="button-save-max-credits"
+                  >
+                    <Save className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setEditingMaxCredits(false);
+                      setNewMaxCredits(settings?.maxYearlyCredits ?? 50);
+                    }}
+                    data-testid="button-cancel-edit-credits"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl font-bold">{settings?.maxYearlyCredits ?? 50}</span>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setNewMaxCredits(settings?.maxYearlyCredits ?? 50);
+                      setEditingMaxCredits(true);
+                    }}
+                    data-testid="button-edit-max-credits"
+                  >
+                    <Settings className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm text-muted-foreground">Questions per Credit</Label>
+              <p className="text-2xl font-bold">{settings?.questionsPerCredit ?? 5}</p>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm text-muted-foreground">Max Questions/Submission</Label>
+              <p className="text-2xl font-bold">{settings?.maxQuestionsPerSubmission ?? 50}</p>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm text-muted-foreground">Max Submissions/Day</Label>
+              <p className="text-2xl font-bold">{settings?.maxSubmissionsPerDay ?? 3}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

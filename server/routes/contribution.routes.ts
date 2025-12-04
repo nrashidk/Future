@@ -34,9 +34,24 @@ function checkSuperadmin(req: Request, res: Response, next: NextFunction) {
 
 // Reward configuration
 const QUESTIONS_PER_CREDIT = 5; // 5 approved questions = 1 assessment credit
-const MAX_YEARLY_CREDITS = 50; // Maximum credits per YEAR per organization
+const DEFAULT_MAX_YEARLY_CREDITS = 50; // Default maximum credits per YEAR per organization
 const MAX_QUESTIONS_PER_SUBMISSION = 50;
 const MAX_SUBMISSIONS_PER_DAY = 3; // Per organization (not per user)
+
+// System config keys
+const CONFIG_MAX_YEARLY_CREDITS = "rewards.max_yearly_credits";
+
+// Helper to get configurable max yearly credits
+async function getMaxYearlyCredits(): Promise<number> {
+  const config = await storage.getSystemConfig(CONFIG_MAX_YEARLY_CREDITS);
+  if (config) {
+    const value = parseInt(config.value, 10);
+    if (!isNaN(value) && value > 0) {
+      return value;
+    }
+  }
+  return DEFAULT_MAX_YEARLY_CREDITS;
+}
 
 // LLM Verification Service
 async function verifyQuestionsWithLLM(questions: any[], subject: string, grade: number, curriculum: string): Promise<{
@@ -196,15 +211,18 @@ router.get("/balance", isAuthenticated, checkOrgAdmin, async (req: Request, res:
     const totalApproved = submissions.reduce((sum, s) => sum + (s.approvedCount || 0), 0);
     const totalCreditsEarned = submissions.reduce((sum, s) => sum + (s.creditsAwarded || 0), 0);
 
+    // Get configurable max yearly credits
+    const maxYearlyCredits = await getMaxYearlyCredits();
+
     res.json({
       rewardCredits: org.rewardCredits || 0,
       pendingRewardCredits: (org as any).pendingRewardCredits || 0,
       rewardCreditsUsed: org.rewardCreditsUsed || 0,
       availableCredits: (org.rewardCredits || 0) - (org.rewardCreditsUsed || 0),
       yearlyCreditsEarned: yearlyCount,
-      yearlyCreditsRemaining: MAX_YEARLY_CREDITS - yearlyCount,
+      yearlyCreditsRemaining: maxYearlyCredits - yearlyCount,
       questionsPerCredit: QUESTIONS_PER_CREDIT,
-      maxYearlyCredits: MAX_YEARLY_CREDITS,
+      maxYearlyCredits: maxYearlyCredits,
       currentYear: currentYear,
       approvedUnallocatedCount: approvedUnallocated.length,
       stats: {
@@ -462,8 +480,9 @@ router.post("/admin/review/:id", isAuthenticated, checkSuperadmin, async (req: R
         const org = await storage.getOrganizationById(submission.organizationId);
         if (org) {
           // Check yearly cap
+          const maxYearlyCredits = await getMaxYearlyCredits();
           const currentYearlyCredits = (org as any).yearlyContributionCount || 0;
-          const remainingCap = MAX_YEARLY_CREDITS - currentYearlyCredits;
+          const remainingCap = maxYearlyCredits - currentYearlyCredits;
           const actualCredits = Math.min(creditsAwarded, remainingCap);
 
           if (actualCredits > 0) {
@@ -557,12 +576,13 @@ router.post("/admin/org/:orgId/allocate-reward", isAuthenticated, checkSuperadmi
       yearlyCount = 0;
     }
     
-    const remainingYearlyCap = MAX_YEARLY_CREDITS - yearlyCount;
+    const maxYearlyCredits = await getMaxYearlyCredits();
+    const remainingYearlyCap = maxYearlyCredits - yearlyCount;
     const actualCredits = Math.min(credits, remainingYearlyCap);
     
     if (actualCredits <= 0) {
       return res.status(400).json({ 
-        error: `This school has reached the maximum ${MAX_YEARLY_CREDITS} reward credits for ${currentYear}` 
+        error: `This school has reached the maximum ${maxYearlyCredits} reward credits for ${currentYear}` 
       });
     }
     
@@ -605,11 +625,58 @@ router.post("/admin/org/:orgId/allocate-reward", isAuthenticated, checkSuperadmi
       creditsAllocated: actualCredits,
       newTotalRewardCredits: (org.rewardCredits || 0) + actualCredits,
       yearlyCreditsUsed: yearlyCount + actualCredits,
-      yearlyCreditsRemaining: MAX_YEARLY_CREDITS - (yearlyCount + actualCredits),
+      yearlyCreditsRemaining: maxYearlyCredits - (yearlyCount + actualCredits),
     });
   } catch (error) {
     console.error("Error allocating reward:", error);
     res.status(500).json({ error: "Failed to allocate reward" });
+  }
+});
+
+// Get current reward settings (superadmin)
+router.get("/admin/settings", isAuthenticated, checkSuperadmin, async (req: Request, res: Response) => {
+  try {
+    const maxYearlyCredits = await getMaxYearlyCredits();
+    res.json({
+      maxYearlyCredits,
+      questionsPerCredit: QUESTIONS_PER_CREDIT,
+      maxQuestionsPerSubmission: MAX_QUESTIONS_PER_SUBMISSION,
+      maxSubmissionsPerDay: MAX_SUBMISSIONS_PER_DAY,
+    });
+  } catch (error) {
+    console.error("Error getting settings:", error);
+    res.status(500).json({ error: "Failed to get settings" });
+  }
+});
+
+// Update reward settings (superadmin)
+const updateSettingsSchema = z.object({
+  maxYearlyCredits: z.number().int().min(1).max(1000),
+});
+
+router.post("/admin/settings", isAuthenticated, checkSuperadmin, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    const parsed = updateSettingsSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
+    }
+
+    const { maxYearlyCredits } = parsed.data;
+
+    await storage.upsertSystemConfig(
+      CONFIG_MAX_YEARLY_CREDITS,
+      String(maxYearlyCredits),
+      user.id
+    );
+
+    res.json({
+      message: `Max yearly credits updated to ${maxYearlyCredits}`,
+      maxYearlyCredits,
+    });
+  } catch (error) {
+    console.error("Error updating settings:", error);
+    res.status(500).json({ error: "Failed to update settings" });
   }
 });
 
