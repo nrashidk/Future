@@ -296,8 +296,6 @@ export function registerCountryRoutes(app: Express) {
       let created = 0;
       for (const q of result.questions || []) {
         try {
-          const gradeBand = grade >= 10 ? "10-12" : "8-9";
-          
           await storage.createQuizQuestion({
             question: q.question,
             questionType: q.questionType,
@@ -305,8 +303,7 @@ export function registerCountryRoutes(app: Express) {
             correctAnswer: q.correctAnswer,
             explanation: q.explanation,
             subject: q.subject,
-            gradeBand,
-            grade: q.grade,
+            grade: q.grade, // Individual grade (8-12) - primary field
             countryId: id,
             curriculum: q.curriculum,
             topic: q.topic,

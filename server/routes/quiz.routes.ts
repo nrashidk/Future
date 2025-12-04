@@ -57,12 +57,11 @@ export function registerQuizRoutes(app: Express) {
         });
       }
       
-      // Get question pool based on grade, curriculum, and student's country
+      // Get question pool based on individual grade, curriculum, and student's country
       const studentGrade = assessment.grade ? parseInt(assessment.grade as string) : null;
-      const gradeBand = studentGrade && studentGrade >= 10 ? "10-12" : "8-9";
       const curriculum = (assessment as any).curriculum || null;
       
-      // Try to get individual grade + curriculum specific questions first
+      // Try to get questions using individual grade (primary approach)
       let questionPool: any[] = [];
       
       if (studentGrade && curriculum) {
@@ -83,22 +82,27 @@ export function registerQuizRoutes(app: Express) {
         console.log(`Fallback: Found ${questionPool.length} questions for grade ${studentGrade}, country ${assessment.countryId}`);
       }
       
-      // Fallback: try legacy gradeBand approach
-      if (questionPool.length === 0) {
-        questionPool = await storage.getQuizQuestionsByGradeAndCountry(gradeBand, assessment.countryId);
-        console.log(`Legacy fallback: Found ${questionPool.length} questions for gradeBand ${gradeBand}, country ${assessment.countryId}`);
+      // Fallback: try global questions (countryId = null) for the same grade
+      if (questionPool.length === 0 && studentGrade) {
+        questionPool = await storage.getQuizQuestionsByFilters({
+          countryId: null,
+          grade: studentGrade,
+        });
+        console.log(`Global fallback: Found ${questionPool.length} questions for grade ${studentGrade}, global`);
       }
       
-      // Fallback: if no country-specific questions exist, try UAE questions as default
-      if (questionPool.length === 0 && assessment.countryId !== 'uae') {
-        console.log(`No questions found for country ${assessment.countryId}, falling back to UAE curriculum`);
-        questionPool = await storage.getQuizQuestionsByGradeAndCountry(gradeBand, 'uae');
-      }
-      
-      // Fallback: if still no questions, try global questions (countryId = null)
-      if (questionPool.length === 0) {
-        console.log(`No country questions found, falling back to global questions`);
-        questionPool = await storage.getQuizQuestionsByGradeAndCountry(gradeBand, null);
+      // Fallback: if no questions for exact grade, try nearby grades (grade ± 1)
+      if (questionPool.length === 0 && studentGrade) {
+        const nearbyGrades = [studentGrade - 1, studentGrade + 1].filter(g => g >= 8 && g <= 12);
+        for (const nearbyGrade of nearbyGrades) {
+          questionPool = await storage.getQuizQuestionsByFilters({
+            grade: nearbyGrade,
+          });
+          if (questionPool.length > 0) {
+            console.log(`Nearby grade fallback: Found ${questionPool.length} questions for grade ${nearbyGrade}`);
+            break;
+          }
+        }
       }
       
       if (questionPool.length === 0) {

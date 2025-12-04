@@ -460,8 +460,7 @@ router.post("/admin/review/:id", isAuthenticated, checkSuperadmin, async (req: R
             correctAnswer: q.correctAnswer,
             explanation: q.explanation || null,
             subject: submission.subject,
-            gradeBand: submission.grade <= 9 ? "8-9" : "10-12",
-            grade: submission.grade,
+            grade: submission.grade, // Individual grade (8-12) - primary field
             countryId: submission.countryId,
             curriculum: submission.curriculum,
             topic: q.topic,

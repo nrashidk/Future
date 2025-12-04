@@ -1,6 +1,6 @@
 import { storage } from "./storage";
 import { uaeQuestionBank } from "./questionBanks/uae";
-import { validateLegacyQuestionBank, checkLegacyCoverage, flattenLegacyQuestionBank } from "../shared/questionTypes";
+import { validateQuestionBank, checkCoverage, flattenQuestionBank } from "../shared/questionTypes";
 import { RIASEC_CAREER_AFFINITIES } from "./riasecAffinities";
 import { seedCVQItems } from "./cvq-seed";
 import { WEF_16_SKILLS, CAREER_WEF_SKILL_AFFINITIES } from "./wefSkillsData";
@@ -1103,20 +1103,20 @@ export async function seedDatabase() {
   // Seed UAE curriculum questions
   console.log("📚 Seeding UAE curriculum questions...");
   
-  // Validate question bank (using legacy format)
-  const validation = validateLegacyQuestionBank(uaeQuestionBank);
+  // Validate question bank
+  const validation = validateQuestionBank(uaeQuestionBank);
   if (!validation.valid) {
     console.error("❌ UAE question bank validation failed:");
     validation.errors.forEach(err => console.error(`  - ${err}`));
     throw new Error("Invalid question bank");
   }
   
-  // Check coverage (using legacy format)
-  const coverage = checkLegacyCoverage(uaeQuestionBank);
+  // Check coverage
+  const coverage = checkCoverage(uaeQuestionBank);
   console.log(`✓ Total questions: ${coverage.totalQuestions}`);
   console.log(`✓ Coverage by subject:`);
   Object.entries(coverage.bySubject).forEach(([subject, counts]) => {
-    console.log(`  - ${subject}: Grade 8-9 (${counts["8-9"]}), Grade 10-12 (${counts["10-12"]}), Total (${counts.total})`);
+    console.log(`  - ${subject}: Grade 8 (${counts["8"]}), Grade 9 (${counts["9"]}), Grade 10 (${counts["10"]}), Grade 11 (${counts["11"]}), Grade 12 (${counts["12"]}), Total (${counts.total})`);
   });
   
   if (coverage.warnings.length > 0) {
@@ -1124,8 +1124,8 @@ export async function seedDatabase() {
     coverage.warnings.forEach(w => console.log(`  - ${w}`));
   }
   
-  // Flatten all questions for seeding (using legacy format helper)
-  const allQuestions = flattenLegacyQuestionBank(uaeQuestionBank);
+  // Flatten all questions for seeding
+  const allQuestions = flattenQuestionBank(uaeQuestionBank);
   
   const existingQuestions = await storage.getAllQuizQuestions?.() || [];
   const existingQuestionTexts = new Set(existingQuestions.map((q: any) => q.question));
@@ -1146,8 +1146,7 @@ export async function seedDatabase() {
           correctAnswer: question.correctAnswer,
           explanation: question.explanation,
           subject: question.subject,
-          gradeBand: question.gradeBand || "8-9",
-          grade: numericGrade,
+          grade: numericGrade!,
           countryId: null,
           topic: question.topic,
           difficulty: question.difficulty,

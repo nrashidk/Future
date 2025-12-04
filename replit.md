@@ -59,6 +59,22 @@ The application features a playful, student-friendly sticky notes aesthetic with
 - **File Upload**: Multer (for handling multipart/form-data file uploads)
 
 ## Recent Changes (December 2025)
+### Individual Grade System Migration
+- **Complete Migration from Grade Bands to Individual Grades**: Migrated the entire system from grade bands ("8-9", "10-12") to individual grade levels (8, 9, 10, 11, 12)
+- **Question Bank Conversion**: All 6 UAE subject question banks (Mathematics, Science, English, Arabic, Social Studies, Computer Science) converted to use individual grades
+- **Database Schema Updates**: 
+  - `quiz_questions.grade` column is now NOT NULL (primary field for targeting)
+  - `quiz_questions.gradeBand` column is now nullable (deprecated, kept for legacy compatibility only)
+- **Question Distribution**: Each subject now has 40 questions distributed as: Grade 8 (10), Grade 9 (10), Grade 10 (7), Grade 11 (7), Grade 12 (6)
+- **Quiz Generation Logic**: Updated to use individual grades as the primary approach with intelligent fallbacks:
+  1. Exact grade + curriculum + country
+  2. Exact grade + country (no curriculum filter)
+  3. Exact grade + global questions
+  4. Nearby grades (±1) as final fallback
+- **Contribution System**: Updated to create questions with individual grade only (no gradeBand)
+- **Country Question Generation**: Updated LLM-generated questions to use individual grades
+- **Type System Updates**: `shared/questionTypes.ts` now uses `GradeLevel` type ("8" | "9" | "10" | "11" | "12") with helper functions `flattenQuestionBank`, `validateQuestionBank`, `checkCoverage`
+
 ### School Rewards System (Manual Allocation Workflow)
 - **LLM Pre-Verification**: Questions are verified by OpenAI before human review
 - **Yearly Tracking**: Configurable credits per year limit (default: 50), resets on year change

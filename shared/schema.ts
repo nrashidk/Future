@@ -518,8 +518,8 @@ export const quizQuestions = pgTable("quiz_questions", {
   
   // Subject-based metadata
   subject: text("subject").notNull(), // Mathematics, Science, English, Arabic, Social Studies, Computer Science
-  gradeBand: text("grade_band").notNull(), // 8-9 or 10-12 (legacy, kept for backward compatibility)
-  grade: integer("grade"), // Individual grade level (8, 9, 10, 11, 12) - new field for precise targeting
+  gradeBand: text("grade_band"), // 8-9 or 10-12 (DEPRECATED - kept for legacy compatibility only, nullable)
+  grade: integer("grade").notNull(), // Individual grade level (8, 9, 10, 11, 12) - primary field for targeting
   countryId: varchar("country_id").references(() => countries.id), // NULL = global questions, or country-specific
   curriculum: text("curriculum"), // Curriculum type (e.g., 'National', 'CBSE', 'IB', 'American') - null = applies to all
   topic: text("topic").notNull(), // Specific curriculum topic (e.g., "Algebra", "Photosynthesis")
