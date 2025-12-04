@@ -296,6 +296,20 @@ export default function SuperadminDashboard() {
     },
   });
 
+  const impersonateMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await apiRequest('POST', `/api/superadmin/impersonate/${userId}`);
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      toast({ title: "Impersonation Started", description: data.message || "Now impersonating user" });
+      window.location.href = '/';
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to impersonate user", variant: "destructive" });
+    },
+  });
+
   const updateLicensesMutation = useMutation({
     mutationFn: async (data: { totalLicenses?: number; isUnlimitedLicenses?: boolean; adjustment?: number }) => {
       return apiRequest('PATCH', `/api/superadmin/organizations/${selectedOrgId}/licenses`, data);
@@ -1122,7 +1136,7 @@ export default function SuperadminDashboard() {
                             <TableCell>
                               <div className="flex flex-col">
                                 <Badge 
-                                  variant={student.user.accountType === 'org_admin' ? 'destructive' : 'default'}
+                                  variant={student.user.accountType === 'org_admin' ? 'destructive' : student.user.accountType === 'org_student' ? 'secondary' : 'default'}
                                   className="w-fit"
                                 >
                                   {student.user.accountType === 'org_admin' ? 'Admin' : student.user.accountType === 'org_student' ? 'Student' : 'Premium'}
@@ -1160,6 +1174,26 @@ export default function SuperadminDashboard() {
                                 >
                                   <a href={`/api/superadmin/students/${student.user.id}/results`} target="_blank" rel="noopener noreferrer">
                                     <Eye className="w-4 h-4" />
+                                  </a>
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => impersonateMutation.mutate(student.user.id)}
+                                  title="Impersonate User"
+                                  data-testid={`button-impersonate-${student.user.id}`}
+                                >
+                                  <UserCog className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  asChild
+                                  title="View Assessments"
+                                  data-testid={`button-view-assessments-${student.user.id}`}
+                                >
+                                  <a href={`/api/superadmin/students/${student.user.id}/assessments`} target="_blank" rel="noopener noreferrer">
+                                    <History className="w-4 h-4" />
                                   </a>
                                 </Button>
                               </div>
