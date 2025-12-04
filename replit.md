@@ -61,12 +61,13 @@ The application features a playful, student-friendly sticky notes aesthetic with
 ## Recent Changes (December 2025)
 ### School Rewards System (Manual Allocation Workflow)
 - **LLM Pre-Verification**: Questions are verified by OpenAI before human review
-- **Yearly Tracking**: 50 credits per year limit (changed from monthly), resets on year change
+- **Yearly Tracking**: Configurable credits per year limit (default: 50), resets on year change
+- **Configurable Settings**: Superadmin can adjust max yearly credits via UI (stored in `systemConfig` table)
 - **Manual Allocation Flow**: Submit → LLM verify → Superadmin review → Pending rewards → Manual allocation
 - **Pending Rewards System**: Approved contributions add to `pendingRewardCredits`, superadmin allocates manually
-- **Contribution Review Queue**: Shows LLM verification score, pending rewards section for allocation
+- **Contribution Review Queue**: Shows LLM verification score, pending rewards section for allocation, and configurable reward settings
 - **Organization Badges**: "Pending Reward" badge on organization list when credits await allocation
-- **Frontend Updates**: Yearly progress tracking, pending rewards notification card, allocation UI
+- **Frontend Updates**: Yearly progress tracking, pending rewards notification card, allocation UI, settings panel
 - **Rate Limiting**: 3 submissions per day per organization, 50 questions max per submission
 
 ### Admin/Student Roster Enhancements
