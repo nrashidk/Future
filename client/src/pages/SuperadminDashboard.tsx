@@ -1027,8 +1027,8 @@ export default function SuperadminDashboard() {
               <CardHeader>
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
-                    <CardTitle>All Students</CardTitle>
-                    <CardDescription>View students across all schools with assessment history</CardDescription>
+                    <CardTitle>All Users</CardTitle>
+                    <CardDescription>View all students, school admins, and premium users with assessment history</CardDescription>
                   </div>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" asChild data-testid="button-export-students">
@@ -1052,8 +1052,7 @@ export default function SuperadminDashboard() {
                         <TableRow>
                           <TableHead>Name</TableHead>
                           <TableHead>Username</TableHead>
-                          <TableHead>School</TableHead>
-                          <TableHead>Type</TableHead>
+                          <TableHead>User Type</TableHead>
                           <TableHead>Assessments</TableHead>
                           <TableHead>Actions</TableHead>
                         </TableRow>
@@ -1070,11 +1069,18 @@ export default function SuperadminDashboard() {
                               )}
                             </TableCell>
                             <TableCell>{student.user.username || "-"}</TableCell>
-                            <TableCell>{student.organizationName || "Individual"}</TableCell>
                             <TableCell>
-                              <Badge variant={student.user.isPremium ? "default" : "secondary"}>
-                                {student.user.isPremium ? "Premium" : "Free"}
-                              </Badge>
+                              <div className="flex flex-col">
+                                <Badge 
+                                  variant={student.user.accountType === 'org_admin' ? 'destructive' : student.user.isPremium ? 'default' : 'secondary'}
+                                  className="w-fit"
+                                >
+                                  {student.user.accountType === 'org_admin' ? 'Admin' : student.user.accountType === 'org_student' ? 'Student' : student.user.isPremium ? 'Premium' : 'Free'}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground mt-1">
+                                  School: {student.organizationName || "Individual"}
+                                </span>
+                              </div>
                             </TableCell>
                             <TableCell>
                               <div className="font-medium">{student.assessmentCount}</div>

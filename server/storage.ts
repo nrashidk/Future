@@ -2920,6 +2920,7 @@ export class DatabaseStorage implements IStorage {
       .where(
         or(
           eq(users.accountType, 'org_student'),
+          eq(users.accountType, 'org_admin'),
           eq(users.accountType, 'individual')
         )
       )
