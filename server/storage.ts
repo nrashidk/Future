@@ -396,6 +396,7 @@ export interface IStorage {
     totalCreditsAwarded: number;
     topContributors: Array<{ organizationId: string; organizationName: string; questionsApproved: number; creditsEarned: number }>;
   }>;
+  getOrganizationsWithPendingRewards(): Promise<Organization[]>;
 
   // Quiz questions by country/grade (for duplicate detection)
   getQuizQuestionsByCountryAndGrade(countryId: string, grade: number, subject: string): Promise<QuizQuestion[]>;
@@ -2660,6 +2661,14 @@ export class DatabaseStorage implements IStorage {
       totalCreditsAwarded,
       topContributors,
     };
+  }
+
+  async getOrganizationsWithPendingRewards(): Promise<Organization[]> {
+    // Get all organizations that have pending reward credits > 0
+    return db
+      .select()
+      .from(organizations)
+      .where(sql`${organizations.pendingRewardCredits} > 0`);
   }
 
   // ============================================

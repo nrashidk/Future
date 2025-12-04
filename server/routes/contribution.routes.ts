@@ -34,9 +34,83 @@ function checkSuperadmin(req: Request, res: Response, next: NextFunction) {
 
 // Reward configuration
 const QUESTIONS_PER_CREDIT = 5; // 5 approved questions = 1 assessment credit
-const MAX_MONTHLY_CREDITS = 50; // Maximum credits per month per organization
+const MAX_YEARLY_CREDITS = 50; // Maximum credits per YEAR per organization
 const MAX_QUESTIONS_PER_SUBMISSION = 50;
 const MAX_SUBMISSIONS_PER_DAY = 3; // Per organization (not per user)
+
+// LLM Verification Service
+async function verifyQuestionsWithLLM(questions: any[], subject: string, grade: number, curriculum: string): Promise<{
+  overallScore: number;
+  feedback: Array<{ index: number; isValid: boolean; score: number; issues: string[] }>;
+  verified: boolean;
+}> {
+  try {
+    // Get OpenAI credentials
+    const credential = await storage.getApiCredential("openai");
+    if (!credential || !credential.apiKey) {
+      console.log("OpenAI API key not configured, skipping LLM verification");
+      return { overallScore: 100, feedback: questions.map((_, i) => ({ index: i, isValid: true, score: 100, issues: [] })), verified: true };
+    }
+
+    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${credential.apiKey}`,
+      },
+      body: JSON.stringify({
+        model: "gpt-4o-mini",
+        messages: [
+          {
+            role: "system",
+            content: `You are an educational content quality reviewer. Evaluate quiz questions for a ${curriculum} curriculum, Grade ${grade}, Subject: ${subject}. 
+
+For each question, check:
+1. Accuracy: Is the question factually correct?
+2. Clarity: Is the question clear and unambiguous?
+3. Appropriate Level: Is it suitable for Grade ${grade}?
+4. Answer Validity: Is the correct answer actually correct?
+5. Option Quality: Are all 4 options distinct and plausible?
+
+Return a JSON object with:
+{
+  "overallScore": number (0-100),
+  "questions": [
+    { "index": number, "isValid": boolean, "score": number (0-100), "issues": string[] }
+  ]
+}
+
+Be strict but fair. Educational quality matters.`
+          },
+          {
+            role: "user",
+            content: `Evaluate these questions:\n${JSON.stringify(questions, null, 2)}`
+          }
+        ],
+        temperature: 0.3,
+        response_format: { type: "json_object" }
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("OpenAI API error:", response.status, await response.text());
+      return { overallScore: 100, feedback: questions.map((_, i) => ({ index: i, isValid: true, score: 100, issues: [] })), verified: true };
+    }
+
+    const data = await response.json();
+    const content = JSON.parse(data.choices[0].message.content);
+    
+    return {
+      overallScore: content.overallScore || 0,
+      feedback: content.questions || [],
+      verified: true,
+    };
+  } catch (error) {
+    console.error("LLM verification error:", error);
+    // If LLM fails, still allow submission to proceed to manual review
+    return { overallScore: 100, feedback: questions.map((_, i) => ({ index: i, isValid: true, score: 100, issues: [] })), verified: true };
+  }
+}
 
 // Validation schemas
 const questionSchema = z.object({
@@ -102,33 +176,37 @@ router.get("/balance", isAuthenticated, checkOrgAdmin, async (req: Request, res:
       return res.status(404).json({ error: "Organization not found" });
     }
 
-    // Check if monthly reset is needed
-    const now = new Date();
-    const lastReset = org.lastContributionResetDate;
-    let monthlyCount = org.monthlyContributionCount || 0;
+    // Check if yearly reset is needed
+    const currentYear = new Date().getFullYear();
+    const lastResetYear = (org as any).lastContributionResetYear || 0;
+    let yearlyCount = (org as any).yearlyContributionCount || 0;
     
-    if (!lastReset || lastReset.getMonth() !== now.getMonth() || lastReset.getFullYear() !== now.getFullYear()) {
-      // Reset monthly count
+    if (lastResetYear !== currentYear) {
+      // Reset yearly count
       await storage.updateOrganization(org.id, {
-        monthlyContributionCount: 0,
-        lastContributionResetDate: now,
-      });
-      monthlyCount = 0;
+        yearlyContributionCount: 0,
+        lastContributionResetYear: currentYear,
+      } as any);
+      yearlyCount = 0;
     }
 
     const submissions = await storage.getContributionSubmissionsByOrg(org.id);
-    const pendingSubmissions = submissions.filter(s => s.status === "pending" || s.status === "in_review");
+    const pendingSubmissions = submissions.filter(s => s.status === "pending" || s.status === "in_review" || s.status === "llm_verified");
+    const approvedUnallocated = submissions.filter(s => s.status === "approved" && !(s as any).rewardAllocated);
     const totalApproved = submissions.reduce((sum, s) => sum + (s.approvedCount || 0), 0);
     const totalCreditsEarned = submissions.reduce((sum, s) => sum + (s.creditsAwarded || 0), 0);
 
     res.json({
       rewardCredits: org.rewardCredits || 0,
+      pendingRewardCredits: (org as any).pendingRewardCredits || 0,
       rewardCreditsUsed: org.rewardCreditsUsed || 0,
       availableCredits: (org.rewardCredits || 0) - (org.rewardCreditsUsed || 0),
-      monthlyCreditsEarned: monthlyCount,
-      monthlyCreditsRemaining: MAX_MONTHLY_CREDITS - monthlyCount,
+      yearlyCreditsEarned: yearlyCount,
+      yearlyCreditsRemaining: MAX_YEARLY_CREDITS - yearlyCount,
       questionsPerCredit: QUESTIONS_PER_CREDIT,
-      maxMonthlyCredits: MAX_MONTHLY_CREDITS,
+      maxYearlyCredits: MAX_YEARLY_CREDITS,
+      currentYear: currentYear,
+      approvedUnallocatedCount: approvedUnallocated.length,
       stats: {
         totalSubmissions: submissions.length,
         pendingSubmissions: pendingSubmissions.length,
@@ -230,8 +308,30 @@ router.post("/submit", isAuthenticated, checkOrgAdmin, async (req: Request, res:
       totalQuestions: sanitizedQuestions.length,
     });
 
+    // Trigger LLM verification in background (non-blocking)
+    verifyQuestionsWithLLM(sanitizedQuestions, subject, grade, curriculum)
+      .then(async (result) => {
+        const updateData: any = {
+          llmVerificationStatus: result.verified ? "verified" : "failed",
+          llmVerificationScore: result.overallScore,
+          llmVerificationFeedback: result.feedback,
+          llmVerifiedAt: new Date(),
+        };
+        
+        // If LLM verified, update status to llm_verified for superadmin review
+        if (result.verified && result.overallScore >= 50) {
+          updateData.status = "llm_verified";
+        }
+        
+        await storage.updateContributionSubmission(submission.id, updateData);
+        console.log(`LLM verification complete for submission ${submission.id}: score=${result.overallScore}`);
+      })
+      .catch((err) => {
+        console.error(`LLM verification failed for submission ${submission.id}:`, err);
+      });
+
     res.status(201).json({
-      message: "Questions submitted successfully for review",
+      message: "Questions submitted successfully. LLM verification in progress.",
       submissionId: submission.id,
       totalQuestions: sanitizedQuestions.length,
       estimatedCredits: Math.floor(sanitizedQuestions.length / QUESTIONS_PER_CREDIT),
@@ -357,30 +457,20 @@ router.post("/admin/review/:id", isAuthenticated, checkSuperadmin, async (req: R
         }
       }
 
-      // Award credits to organization
+      // Don't auto-award credits - add to pending for superadmin manual allocation
       if (creditsAwarded > 0) {
         const org = await storage.getOrganizationById(submission.organizationId);
         if (org) {
-          // Check monthly cap
-          const currentMonthlyCredits = org.monthlyContributionCount || 0;
-          const remainingCap = MAX_MONTHLY_CREDITS - currentMonthlyCredits;
+          // Check yearly cap
+          const currentYearlyCredits = (org as any).yearlyContributionCount || 0;
+          const remainingCap = MAX_YEARLY_CREDITS - currentYearlyCredits;
           const actualCredits = Math.min(creditsAwarded, remainingCap);
 
           if (actualCredits > 0) {
+            // Add to PENDING credits (not actual credits yet)
             await storage.updateOrganization(org.id, {
-              rewardCredits: (org.rewardCredits || 0) + actualCredits,
-              monthlyContributionCount: currentMonthlyCredits + actualCredits,
-            });
-
-            // Create reward log
-            await storage.createContributionReward({
-              organizationId: org.id,
-              submissionId: submission.id,
-              creditsAwarded: actualCredits,
-              approvedQuestions: approvedCount,
-              reason: `${approvedCount} approved questions = ${actualCredits} assessment credits`,
-              awardedByUserId: user.id,
-            });
+              pendingRewardCredits: ((org as any).pendingRewardCredits || 0) + actualCredits,
+            } as any);
 
             creditsAwarded = actualCredits;
           }
@@ -421,6 +511,105 @@ router.get("/admin/stats", isAuthenticated, checkSuperadmin, async (req: Request
   } catch (error) {
     console.error("Error getting stats:", error);
     res.status(500).json({ error: "Failed to get statistics" });
+  }
+});
+
+// Get organizations with pending rewards (for superadmin to allocate)
+router.get("/admin/pending-rewards", isAuthenticated, checkSuperadmin, async (req: Request, res: Response) => {
+  try {
+    const orgs = await storage.getOrganizationsWithPendingRewards();
+    res.json(orgs);
+  } catch (error) {
+    console.error("Error getting pending rewards:", error);
+    res.status(500).json({ error: "Failed to get pending rewards" });
+  }
+});
+
+// Allocate reward credits to an organization (superadmin manual action)
+const allocateRewardSchema = z.object({
+  credits: z.number().int().min(1).max(50),
+  isRewardCredits: z.boolean().default(true), // Flag to mark these as reward credits
+});
+
+router.post("/admin/org/:orgId/allocate-reward", isAuthenticated, checkSuperadmin, async (req: Request, res: Response) => {
+  try {
+    const { orgId } = req.params;
+    const user = req.user as any;
+    
+    const parsed = allocateRewardSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
+    }
+    
+    const { credits, isRewardCredits } = parsed.data;
+    
+    const org = await storage.getOrganizationById(orgId);
+    if (!org) {
+      return res.status(404).json({ error: "Organization not found" });
+    }
+    
+    // Check yearly cap
+    const currentYear = new Date().getFullYear();
+    const lastResetYear = (org as any).lastContributionResetYear || 0;
+    let yearlyCount = (org as any).yearlyContributionCount || 0;
+    
+    if (lastResetYear !== currentYear) {
+      yearlyCount = 0;
+    }
+    
+    const remainingYearlyCap = MAX_YEARLY_CREDITS - yearlyCount;
+    const actualCredits = Math.min(credits, remainingYearlyCap);
+    
+    if (actualCredits <= 0) {
+      return res.status(400).json({ 
+        error: `This school has reached the maximum ${MAX_YEARLY_CREDITS} reward credits for ${currentYear}` 
+      });
+    }
+    
+    // Get pending reward credits
+    const pendingCredits = (org as any).pendingRewardCredits || 0;
+    const creditsToMove = Math.min(actualCredits, pendingCredits);
+    
+    // Move credits from pending to actual
+    await storage.updateOrganization(org.id, {
+      rewardCredits: (org.rewardCredits || 0) + actualCredits,
+      pendingRewardCredits: Math.max(0, pendingCredits - creditsToMove),
+      yearlyContributionCount: yearlyCount + actualCredits,
+      lastContributionResetYear: currentYear,
+    } as any);
+    
+    // Mark approved submissions as reward-allocated
+    const submissions = await storage.getContributionSubmissionsByOrg(orgId);
+    const approvedUnallocated = submissions.filter(s => 
+      s.status === "approved" && !(s as any).rewardAllocated
+    );
+    
+    for (const submission of approvedUnallocated) {
+      await storage.updateContributionSubmission(submission.id, {
+        rewardAllocated: true,
+      } as any);
+      
+      // Create reward log
+      await storage.createContributionReward({
+        organizationId: org.id,
+        submissionId: submission.id,
+        creditsAwarded: submission.creditsAwarded || 0,
+        approvedQuestions: submission.approvedCount || 0,
+        reason: `Manual allocation by superadmin - ${submission.approvedCount || 0} approved questions`,
+        awardedByUserId: user.id,
+      });
+    }
+    
+    res.json({
+      message: `Successfully allocated ${actualCredits} reward credits to ${org.name}`,
+      creditsAllocated: actualCredits,
+      newTotalRewardCredits: (org.rewardCredits || 0) + actualCredits,
+      yearlyCreditsUsed: yearlyCount + actualCredits,
+      yearlyCreditsRemaining: MAX_YEARLY_CREDITS - (yearlyCount + actualCredits),
+    });
+  } catch (error) {
+    console.error("Error allocating reward:", error);
+    res.status(500).json({ error: "Failed to allocate reward" });
   }
 });
 

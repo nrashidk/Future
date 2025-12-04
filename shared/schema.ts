@@ -99,10 +99,11 @@ export const organizations = pgTable("organizations", {
   isUnlimitedLicenses: boolean("is_unlimited_licenses").notNull().default(false), // Superadmin can create orgs with unlimited licenses
   
   // Reward credits from quiz contributions (5 approved questions = 1 assessment credit)
-  rewardCredits: integer("reward_credits").notNull().default(0),
+  rewardCredits: integer("reward_credits").notNull().default(0), // Allocated by superadmin
   rewardCreditsUsed: integer("reward_credits_used").notNull().default(0),
-  monthlyContributionCount: integer("monthly_contribution_count").notNull().default(0), // Reset monthly
-  lastContributionResetDate: timestamp("last_contribution_reset_date"),
+  pendingRewardCredits: integer("pending_reward_credits").notNull().default(0), // Approved but not yet allocated
+  yearlyContributionCount: integer("yearly_contribution_count").notNull().default(0), // Reset yearly, max 50/year
+  lastContributionResetYear: integer("last_contribution_reset_year"), // Year of last reset (e.g., 2025)
   
   // Settings
   passwordComplexity: text("password_complexity").notNull().default("medium"), // 'easy', 'medium', 'strong'
@@ -1124,8 +1125,14 @@ export const contributionSubmissions = pgTable("contribution_submissions", {
   questions: jsonb("questions").notNull(), // Array of question objects
   totalQuestions: integer("total_questions").notNull(),
   
-  // Review status
-  status: text("status").notNull().default("pending"), // pending, in_review, approved, rejected, needs_changes
+  // LLM Pre-verification (automatic quality check)
+  llmVerificationStatus: text("llm_verification_status").default("pending"), // pending, verified, failed
+  llmVerificationScore: integer("llm_verification_score"), // 0-100 quality score
+  llmVerificationFeedback: jsonb("llm_verification_feedback"), // Per-question feedback from LLM
+  llmVerifiedAt: timestamp("llm_verified_at"),
+  
+  // Review status (manual superadmin review after LLM verification)
+  status: text("status").notNull().default("pending"), // pending, llm_verified, in_review, approved, rejected, needs_changes
   reviewedByUserId: varchar("reviewed_by_user_id").references(() => users.id),
   reviewedAt: timestamp("reviewed_at"),
   reviewFeedback: text("review_feedback"), // Reviewer comments
@@ -1134,6 +1141,7 @@ export const contributionSubmissions = pgTable("contribution_submissions", {
   approvedCount: integer("approved_count").default(0),
   rejectedCount: integer("rejected_count").default(0),
   creditsAwarded: integer("credits_awarded").default(0), // Assessment credits earned (approved / 5)
+  rewardAllocated: boolean("reward_allocated").notNull().default(false), // Has superadmin allocated the reward?
   
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

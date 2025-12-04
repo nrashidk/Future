@@ -34,6 +34,8 @@ interface Organization {
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
   createdAt: string;
+  pendingRewardCredits?: number;
+  rewardCredits?: number;
 }
 
 interface OrganizationMember {
@@ -387,6 +389,12 @@ export default function AdminOrganizations() {
                       <Badge variant={selectedOrgId === org.id ? "secondary" : (org.isUnlimitedLicenses || org.usedLicenses < org.totalLicenses ? "default" : "secondary")} className="ml-1">
                         {org.isUnlimitedLicenses ? "Unlimited" : `${org.usedLicenses}/${org.totalLicenses}`}
                       </Badge>
+                      {(org.pendingRewardCredits ?? 0) > 0 && (
+                        <Badge variant="outline" className="ml-1 bg-orange-50 text-orange-700 border-orange-200">
+                          <Gift className="w-3 h-3 mr-1" />
+                          {org.pendingRewardCredits} pending
+                        </Badge>
+                      )}
                     </Button>
                   ))}
                   {filteredOrganizations.length === 0 && (schoolSearchQuery || letterFilter) && (

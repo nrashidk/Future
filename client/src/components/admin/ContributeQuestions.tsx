@@ -21,12 +21,15 @@ import {
 
 interface CreditBalance {
   rewardCredits: number;
+  pendingRewardCredits: number;
   rewardCreditsUsed: number;
   availableCredits: number;
-  monthlyCreditsEarned: number;
-  monthlyCreditsRemaining: number;
+  yearlyCreditsEarned: number;
+  yearlyCreditsRemaining: number;
   questionsPerCredit: number;
-  maxMonthlyCredits: number;
+  maxYearlyCredits: number;
+  currentYear: number;
+  approvedUnallocatedCount: number;
   stats: {
     totalSubmissions: number;
     pendingSubmissions: number;
@@ -42,13 +45,14 @@ interface Submission {
   curriculum: string;
   subject: string;
   grade: number;
-  status: "pending" | "in_review" | "approved" | "rejected" | "needs_changes";
+  status: "pending" | "llm_verified" | "in_review" | "approved" | "rejected" | "needs_changes";
   questionCount: number;
   approvedCount: number;
   creditsAwarded: number;
   reviewerFeedback?: string;
   createdAt: string;
   reviewedAt?: string;
+  llmVerificationScore?: number;
 }
 
 interface Country {
@@ -85,7 +89,9 @@ const DIFFICULTIES = [
 function getStatusBadge(status: string) {
   switch (status) {
     case "pending":
-      return <Badge variant="secondary"><Clock className="w-3 h-3 mr-1" />Pending</Badge>;
+      return <Badge variant="secondary"><Clock className="w-3 h-3 mr-1" />Pending Review</Badge>;
+    case "llm_verified":
+      return <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200"><CheckCircle className="w-3 h-3 mr-1" />Quality Checked</Badge>;
     case "in_review":
       return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200"><HelpCircle className="w-3 h-3 mr-1" />In Review</Badge>;
     case "approved":
@@ -216,7 +222,7 @@ export default function ContributeQuestions() {
     });
   };
 
-  const monthlyProgress = balance ? (balance.monthlyCreditsEarned / balance.maxMonthlyCredits) * 100 : 0;
+  const yearlyProgress = balance ? (balance.yearlyCreditsEarned / balance.maxYearlyCredits) * 100 : 0;
 
   return (
     <div className="space-y-6">
@@ -233,10 +239,10 @@ export default function ContributeQuestions() {
         <StickyNote color="blue" rotation="-1" className="p-4">
           <div className="flex items-center gap-2 mb-2">
             <Star className="w-5 h-5 text-blue-600" />
-            <span className="text-sm text-muted-foreground">Total Earned</span>
+            <span className="text-sm text-muted-foreground">Pending Rewards</span>
           </div>
-          <p className="text-3xl font-bold">{balance?.stats.totalCreditsEarned ?? 0}</p>
-          <p className="text-xs text-muted-foreground mt-1">Credits earned all time</p>
+          <p className="text-3xl font-bold">{balance?.pendingRewardCredits ?? 0}</p>
+          <p className="text-xs text-muted-foreground mt-1">Waiting for allocation</p>
         </StickyNote>
 
         <StickyNote color="yellow" rotation="2" className="p-4">
@@ -258,13 +264,30 @@ export default function ContributeQuestions() {
         </StickyNote>
       </div>
 
+      {/* Pending rewards notification */}
+      {(balance?.pendingRewardCredits ?? 0) > 0 && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardContent className="py-4">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-5 h-5 text-orange-500" />
+              <div>
+                <p className="font-medium text-orange-700">Rewards Pending Allocation</p>
+                <p className="text-sm text-orange-600">
+                  Your school has {balance?.pendingRewardCredits} credits approved and waiting for allocation by an administrator.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
               <CardTitle className="flex items-center gap-2">
                 <TrendingUp className="w-5 h-5" />
-                Monthly Progress
+                {balance?.currentYear ?? new Date().getFullYear()} Progress
               </CardTitle>
               <CardDescription>
                 {balance?.questionsPerCredit ?? 5} approved questions = 1 free assessment credit
@@ -272,14 +295,14 @@ export default function ContributeQuestions() {
             </div>
             <Badge variant="outline" className="text-sm">
               <Calendar className="w-3 h-3 mr-1" />
-              {balance?.monthlyCreditsEarned ?? 0} / {balance?.maxMonthlyCredits ?? 50} credits this month
+              {balance?.yearlyCreditsEarned ?? 0} / {balance?.maxYearlyCredits ?? 50} credits this year
             </Badge>
           </div>
         </CardHeader>
         <CardContent>
-          <Progress value={monthlyProgress} className="h-3" />
+          <Progress value={yearlyProgress} className="h-3" />
           <p className="text-xs text-muted-foreground mt-2">
-            {balance?.monthlyCreditsRemaining ?? 50} credits remaining this month
+            {balance?.yearlyCreditsRemaining ?? 50} credits remaining this year
           </p>
         </CardContent>
       </Card>

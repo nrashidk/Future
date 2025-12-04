@@ -59,6 +59,16 @@ The application features a playful, student-friendly sticky notes aesthetic with
 - **File Upload**: Multer (for handling multipart/form-data file uploads)
 
 ## Recent Changes (December 2025)
+### School Rewards System (Manual Allocation Workflow)
+- **LLM Pre-Verification**: Questions are verified by OpenAI before human review
+- **Yearly Tracking**: 50 credits per year limit (changed from monthly), resets on year change
+- **Manual Allocation Flow**: Submit → LLM verify → Superadmin review → Pending rewards → Manual allocation
+- **Pending Rewards System**: Approved contributions add to `pendingRewardCredits`, superadmin allocates manually
+- **Contribution Review Queue**: Shows LLM verification score, pending rewards section for allocation
+- **Organization Badges**: "Pending Reward" badge on organization list when credits await allocation
+- **Frontend Updates**: Yearly progress tracking, pending rewards notification card, allocation UI
+- **Rate Limiting**: 3 submissions per day per organization, 50 questions max per submission
+
 ### Admin/Student Roster Enhancements
 - **Activity Tracking**: Added `lastLoginAt` field to users table, tracked on both local and OIDC login
 - **Status Indicators**: Activity-aware status badges for roster members: "Admin" (school admin), "Not Active" (never logged in), "Active" (logged in, no assessment), "In Progress" (started assessment), "Completed" (finished assessment)

@@ -27,6 +27,13 @@ interface Question {
   cognitiveLevel: "knowledge" | "comprehension" | "application" | "analysis";
 }
 
+interface LlmQuestionFeedback {
+  index: number;
+  isValid: boolean;
+  score: number;
+  issues: string[];
+}
+
 interface Submission {
   id: string;
   organizationId: string;
@@ -39,7 +46,7 @@ interface Submission {
   subject: string;
   grade: number;
   questions: Question[];
-  status: "pending" | "in_review" | "approved" | "rejected" | "needs_changes";
+  status: "pending" | "llm_verified" | "in_review" | "approved" | "rejected" | "needs_changes";
   questionCount: number;
   approvedCount: number;
   creditsAwarded: number;
@@ -47,6 +54,20 @@ interface Submission {
   reviewedByUserId?: string;
   createdAt: string;
   reviewedAt?: string;
+  // LLM verification fields
+  llmVerificationStatus?: "pending" | "verified" | "failed";
+  llmVerificationScore?: number;
+  llmVerificationFeedback?: LlmQuestionFeedback[];
+  llmVerifiedAt?: string;
+  rewardAllocated?: boolean;
+}
+
+interface OrganizationWithPendingRewards {
+  id: string;
+  name: string;
+  pendingRewardCredits: number;
+  rewardCredits: number;
+  yearlyContributionCount: number;
 }
 
 interface ReviewStats {
@@ -60,7 +81,9 @@ interface ReviewStats {
 function getStatusBadge(status: string) {
   switch (status) {
     case "pending":
-      return <Badge variant="secondary"><Clock className="w-3 h-3 mr-1" />Pending</Badge>;
+      return <Badge variant="secondary"><Clock className="w-3 h-3 mr-1" />Pending LLM Check</Badge>;
+    case "llm_verified":
+      return <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200"><CheckCircle className="w-3 h-3 mr-1" />LLM Verified</Badge>;
     case "in_review":
       return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200"><HelpCircle className="w-3 h-3 mr-1" />In Review</Badge>;
     case "approved":
@@ -72,6 +95,12 @@ function getStatusBadge(status: string) {
     default:
       return <Badge variant="secondary">{status}</Badge>;
   }
+}
+
+function getLlmScoreBadge(score?: number) {
+  if (score === undefined) return null;
+  const color = score >= 80 ? "bg-green-100 text-green-800" : score >= 50 ? "bg-yellow-100 text-yellow-800" : "bg-red-100 text-red-800";
+  return <Badge variant="outline" className={color}>LLM Score: {score}%</Badge>;
 }
 
 function QuestionCard({ question, index, isSelected, onToggle }: { 
@@ -146,6 +175,8 @@ export default function ContributionReviewQueue() {
   const [selectedQuestions, setSelectedQuestions] = useState<Set<number>>(new Set());
   const [feedback, setFeedback] = useState("");
   const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
+  const [allocatingOrgId, setAllocatingOrgId] = useState<string | null>(null);
+  const [creditsToAllocate, setCreditsToAllocate] = useState<number>(0);
 
   const { data: submissions = [], isLoading } = useQuery<Submission[]>({
     queryKey: ['/api/contributions/admin/pending'],
@@ -153,6 +184,33 @@ export default function ContributionReviewQueue() {
 
   const { data: stats } = useQuery<ReviewStats>({
     queryKey: ['/api/contributions/admin/stats'],
+  });
+
+  const { data: pendingRewardsOrgs = [] } = useQuery<OrganizationWithPendingRewards[]>({
+    queryKey: ['/api/contributions/admin/pending-rewards'],
+  });
+
+  const allocateRewardMutation = useMutation({
+    mutationFn: async ({ orgId, credits }: { orgId: string; credits: number }) => {
+      return apiRequest('POST', `/api/contributions/admin/org/${orgId}/allocate-reward`, {
+        credits,
+        isRewardCredits: true,
+      });
+    },
+    onSuccess: (data: any) => {
+      toast({ 
+        title: "Rewards Allocated", 
+        description: data.message || `Credits successfully allocated.` 
+      });
+      setAllocatingOrgId(null);
+      setCreditsToAllocate(0);
+      queryClient.invalidateQueries({ queryKey: ['/api/contributions/admin/pending-rewards'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/contributions/admin/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/organizations'] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Allocation Failed", description: error.message, variant: "destructive" });
+    },
   });
 
   const claimMutation = useMutation({
@@ -354,13 +412,18 @@ export default function ContributionReviewQueue() {
                       </Badge>
                     </TableCell>
                     <TableCell>{sub.questionCount}</TableCell>
-                    <TableCell>{getStatusBadge(sub.status)}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        {getStatusBadge(sub.status)}
+                        {getLlmScoreBadge(sub.llmVerificationScore)}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-muted-foreground text-sm">
                       {new Date(sub.createdAt).toLocaleDateString()}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        {sub.status === "pending" && (
+                        {(sub.status === "pending" || sub.status === "llm_verified") && (
                           <Button
                             size="sm"
                             variant="outline"
@@ -371,7 +434,7 @@ export default function ContributionReviewQueue() {
                             Claim
                           </Button>
                         )}
-                        {(sub.status === "pending" || sub.status === "in_review") && (
+                        {(sub.status === "pending" || sub.status === "llm_verified" || sub.status === "in_review") && (
                           <Button
                             size="sm"
                             onClick={() => openReviewDialog(sub)}
@@ -390,6 +453,99 @@ export default function ContributionReviewQueue() {
           )}
         </CardContent>
       </Card>
+
+      {/* Pending Rewards Section - Schools waiting for reward allocation */}
+      {pendingRewardsOrgs.length > 0 && (
+        <Card>
+          <CardHeader>
+            <div className="flex items-center gap-3">
+              <AlertCircle className="w-6 h-6 text-orange-500" />
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  Pending Reward Allocation
+                  <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
+                    {pendingRewardsOrgs.length} schools
+                  </Badge>
+                </CardTitle>
+                <CardDescription>Schools with approved contributions waiting for reward credits</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>School</TableHead>
+                  <TableHead>Pending Credits</TableHead>
+                  <TableHead>Current Credits</TableHead>
+                  <TableHead>Year Used</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {pendingRewardsOrgs.map((org) => (
+                  <TableRow key={org.id} data-testid={`row-pending-reward-${org.id}`}>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Building2 className="w-4 h-4 text-muted-foreground" />
+                        <span className="font-medium">{org.name}</span>
+                        <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
+                          Pending Reward
+                        </Badge>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className="font-bold text-orange-600">{org.pendingRewardCredits}</span>
+                    </TableCell>
+                    <TableCell>{org.rewardCredits || 0}</TableCell>
+                    <TableCell>{org.yearlyContributionCount || 0} / 50</TableCell>
+                    <TableCell className="text-right">
+                      {allocatingOrgId === org.id ? (
+                        <div className="flex items-center justify-end gap-2">
+                          <input
+                            type="number"
+                            min="1"
+                            max={Math.min(org.pendingRewardCredits, 50 - (org.yearlyContributionCount || 0))}
+                            value={creditsToAllocate}
+                            onChange={(e) => setCreditsToAllocate(parseInt(e.target.value) || 0)}
+                            className="w-16 h-8 border rounded px-2 text-center"
+                            data-testid={`input-credits-${org.id}`}
+                          />
+                          <Button
+                            size="sm"
+                            onClick={() => allocateRewardMutation.mutate({ orgId: org.id, credits: creditsToAllocate })}
+                            disabled={allocateRewardMutation.isPending || creditsToAllocate < 1}
+                            data-testid={`button-confirm-allocate-${org.id}`}
+                          >
+                            Confirm
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => { setAllocatingOrgId(null); setCreditsToAllocate(0); }}
+                            data-testid={`button-cancel-allocate-${org.id}`}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      ) : (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => { setAllocatingOrgId(org.id); setCreditsToAllocate(org.pendingRewardCredits); }}
+                          data-testid={`button-allocate-${org.id}`}
+                        >
+                          Allocate Credits
+                        </Button>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       <Dialog open={isReviewDialogOpen} onOpenChange={setIsReviewDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
