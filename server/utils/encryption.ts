@@ -42,7 +42,8 @@ export function decryptApiKey(encryptedData: EncryptedData): string {
   const decipher = crypto.createDecipheriv(
     ALGORITHM,
     keyBuffer,
-    Buffer.from(encryptedData.iv, 'hex')
+    Buffer.from(encryptedData.iv, 'hex'),
+    { authTagLength: AUTH_TAG_LENGTH }
   );
   decipher.setAuthTag(Buffer.from(encryptedData.tag, 'hex'));
   
