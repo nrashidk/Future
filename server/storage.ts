@@ -36,6 +36,7 @@ import {
   contributionSubmissions,
   contributionRewards,
   systemConfig,
+  systemAnnouncements,
   type User,
   type UpsertUser,
   type Country,
@@ -100,6 +101,8 @@ import {
   type InsertApiCredential,
   type ScoringConfigChangeLog,
   type InsertScoringConfigChangeLog,
+  type SystemAnnouncement,
+  type InsertSystemAnnouncement,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, avg, sql, inArray, isNotNull, gte } from "drizzle-orm";
@@ -144,6 +147,8 @@ export interface IStorage {
   createCareer(career: InsertCareer): Promise<Career>;
   getAllCareers(): Promise<Career[]>;
   getCareerById(id: string): Promise<Career | undefined>;
+  updateCareer(id: string, data: Partial<InsertCareer>): Promise<Career>;
+  deleteCareer(id: string): Promise<boolean>;
 
   // Job Market Trends operations
   createJobMarketTrend(trend: InsertJobMarketTrend): Promise<JobMarketTrend>;
@@ -290,6 +295,7 @@ export interface IStorage {
   getOrganizationByAdminUserId(adminUserId: string): Promise<Organization | undefined>;
   updateOrganization(id: string, data: Partial<InsertOrganization>): Promise<Organization>;
   updateOrganizationQuota(id: string, increment: number): Promise<Organization>;
+  deleteOrganization(id: string): Promise<boolean>;
 
   // Organization Member operations
   createOrganizationMember(member: InsertOrganizationMember): Promise<OrganizationMember>;
@@ -409,6 +415,23 @@ export interface IStorage {
   getAllSystemConfigs(category?: string): Promise<SystemConfig[]>;
   upsertSystemConfig(key: string, value: string, updatedByUserId?: string): Promise<SystemConfig>;
   deleteSystemConfig(key: string): Promise<boolean>;
+  
+  // System Announcements operations
+  createSystemAnnouncement(announcement: InsertSystemAnnouncement): Promise<SystemAnnouncement>;
+  getSystemAnnouncement(id: string): Promise<SystemAnnouncement | undefined>;
+  getAllSystemAnnouncements(): Promise<SystemAnnouncement[]>;
+  getActiveSystemAnnouncements(targetAudience?: string): Promise<SystemAnnouncement[]>;
+  updateSystemAnnouncement(id: string, data: Partial<InsertSystemAnnouncement>): Promise<SystemAnnouncement>;
+  deleteSystemAnnouncement(id: string): Promise<boolean>;
+  
+  // Global user search (for superadmin)
+  searchAllUsers(query: string, limit?: number): Promise<User[]>;
+  getAllStudentsWithAssessments(): Promise<Array<{
+    user: User;
+    organizationName: string | null;
+    assessmentCount: number;
+    latestAssessmentDate: Date | null;
+  }>>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2755,6 +2778,160 @@ export class DatabaseStorage implements IStorage {
       .delete(systemConfig)
       .where(eq(systemConfig.key, key));
     return (result.rowCount ?? 0) > 0;
+  }
+
+  // ============================================
+  // Career CRUD operations
+  // ============================================
+
+  async updateCareer(id: string, data: Partial<InsertCareer>): Promise<Career> {
+    const [updated] = await db
+      .update(careers)
+      .set(data)
+      .where(eq(careers.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteCareer(id: string): Promise<boolean> {
+    const result = await db
+      .delete(careers)
+      .where(eq(careers.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  // ============================================
+  // Organization deletion
+  // ============================================
+
+  async deleteOrganization(id: string): Promise<boolean> {
+    const result = await db
+      .delete(organizations)
+      .where(eq(organizations.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  // ============================================
+  // System Announcements operations
+  // ============================================
+
+  async createSystemAnnouncement(announcement: InsertSystemAnnouncement): Promise<SystemAnnouncement> {
+    const [created] = await db
+      .insert(systemAnnouncements)
+      .values(announcement)
+      .returning();
+    return created;
+  }
+
+  async getSystemAnnouncement(id: string): Promise<SystemAnnouncement | undefined> {
+    const [announcement] = await db
+      .select()
+      .from(systemAnnouncements)
+      .where(eq(systemAnnouncements.id, id));
+    return announcement;
+  }
+
+  async getAllSystemAnnouncements(): Promise<SystemAnnouncement[]> {
+    return db
+      .select()
+      .from(systemAnnouncements)
+      .orderBy(desc(systemAnnouncements.isPinned), desc(systemAnnouncements.createdAt));
+  }
+
+  async getActiveSystemAnnouncements(targetAudience?: string): Promise<SystemAnnouncement[]> {
+    const now = new Date();
+    const conditions = [
+      eq(systemAnnouncements.isActive, true),
+      or(
+        sql`${systemAnnouncements.expiresAt} IS NULL`,
+        gte(systemAnnouncements.expiresAt, now)
+      )
+    ];
+    
+    if (targetAudience && targetAudience !== 'all') {
+      conditions.push(
+        or(
+          eq(systemAnnouncements.targetAudience, 'all'),
+          eq(systemAnnouncements.targetAudience, targetAudience)
+        )
+      );
+    }
+    
+    return db
+      .select()
+      .from(systemAnnouncements)
+      .where(and(...conditions))
+      .orderBy(desc(systemAnnouncements.isPinned), desc(systemAnnouncements.createdAt));
+  }
+
+  async updateSystemAnnouncement(id: string, data: Partial<InsertSystemAnnouncement>): Promise<SystemAnnouncement> {
+    const [updated] = await db
+      .update(systemAnnouncements)
+      .set({ ...data, updatedAt: new Date() })
+      .where(eq(systemAnnouncements.id, id))
+      .returning();
+    return updated;
+  }
+
+  async deleteSystemAnnouncement(id: string): Promise<boolean> {
+    const result = await db
+      .delete(systemAnnouncements)
+      .where(eq(systemAnnouncements.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  // ============================================
+  // Global user search (for superadmin)
+  // ============================================
+
+  async searchAllUsers(query: string, limit: number = 50): Promise<User[]> {
+    const searchPattern = `%${query.toLowerCase()}%`;
+    return db
+      .select()
+      .from(users)
+      .where(
+        or(
+          sql`LOWER(${users.username}) LIKE ${searchPattern}`,
+          sql`LOWER(${users.email}) LIKE ${searchPattern}`,
+          sql`LOWER(${users.firstName}) LIKE ${searchPattern}`,
+          sql`LOWER(${users.lastName}) LIKE ${searchPattern}`
+        )
+      )
+      .limit(limit);
+  }
+
+  async getAllStudentsWithAssessments(): Promise<Array<{
+    user: User;
+    organizationName: string | null;
+    assessmentCount: number;
+    latestAssessmentDate: Date | null;
+  }>> {
+    const results = await db
+      .select({
+        user: users,
+        organizationName: organizations.name,
+        assessmentCount: count(assessments.id),
+        latestAssessmentDate: sql<Date | null>`MAX(${assessments.createdAt})`,
+      })
+      .from(users)
+      .leftJoin(organizationMembers, eq(users.id, organizationMembers.userId))
+      .leftJoin(organizations, eq(organizationMembers.organizationId, organizations.id))
+      .leftJoin(assessments, eq(users.id, assessments.userId))
+      .where(
+        or(
+          eq(users.accountType, 'org_student'),
+          eq(users.accountType, 'individual')
+        )
+      )
+      .groupBy(users.id, organizations.name)
+      .orderBy(desc(sql`MAX(${assessments.createdAt})`));
+    
+    return results.map(r => ({
+      user: r.user,
+      organizationName: r.organizationName,
+      assessmentCount: Number(r.assessmentCount),
+      latestAssessmentDate: r.latestAssessmentDate,
+    }));
   }
 }
 

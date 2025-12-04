@@ -1249,3 +1249,36 @@ export const insertSystemConfigSchema = createInsertSchema(systemConfig).omit({
   updatedAt: true,
 });
 export type InsertSystemConfig = z.infer<typeof insertSystemConfigSchema>;
+
+// System Announcements - broadcast messages to all users/schools
+export const systemAnnouncements = pgTable("system_announcements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  title: text("title").notNull(),
+  content: text("content").notNull(),
+  type: varchar("type", { length: 20 }).notNull().default("info"), // info, warning, success, error
+  targetAudience: varchar("target_audience", { length: 30 }).notNull().default("all"), // all, org_admins, students, premium
+  isActive: boolean("is_active").notNull().default(true),
+  isPinned: boolean("is_pinned").notNull().default(false), // Pinned announcements show at top
+  expiresAt: timestamp("expires_at"), // Optional expiration date
+  createdByUserId: varchar("created_by_user_id").notNull().references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  index("system_announcements_active_idx").on(table.isActive),
+  index("system_announcements_target_idx").on(table.targetAudience),
+]);
+
+export const systemAnnouncementsRelations = relations(systemAnnouncements, ({ one }) => ({
+  createdBy: one(users, {
+    fields: [systemAnnouncements.createdByUserId],
+    references: [users.id],
+  }),
+}));
+
+export type SystemAnnouncement = typeof systemAnnouncements.$inferSelect;
+export const insertSystemAnnouncementSchema = createInsertSchema(systemAnnouncements).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertSystemAnnouncement = z.infer<typeof insertSystemAnnouncementSchema>;

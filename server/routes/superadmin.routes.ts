@@ -1213,4 +1213,511 @@ export function registerSuperadminRoutes(app: Express) {
       res.status(500).json({ message: "Failed to fetch changelog" });
     }
   });
+
+  // ===============================
+  // DELETE ORGANIZATION
+  // ===============================
+  
+  app.delete("/api/superadmin/organizations/:id", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const org = await storage.getOrganizationById(req.params.id);
+      if (!org) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+      
+      const members = await storage.getOrganizationMembersByOrganizationId(req.params.id);
+      if (members.length > 0) {
+        for (const member of members) {
+          await storage.deleteOrganizationMember(member.id);
+        }
+      }
+      
+      const deleted = await storage.deleteOrganization(req.params.id);
+      if (!deleted) {
+        return res.status(500).json({ message: "Failed to delete organization" });
+      }
+      
+      const currentUser = (req as any).currentUser;
+      await storage.createOrganizationEvent({
+        organizationId: req.params.id,
+        eventType: "organization_deleted",
+        eventDescription: `Organization "${org.name}" was deleted`,
+        performedBy: currentUser.id,
+        performedByRole: "superadmin",
+        previousValue: { name: org.name, totalLicenses: org.totalLicenses },
+        newValue: null,
+      });
+      
+      res.json({ success: true, message: "Organization deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting organization:", error);
+      res.status(500).json({ message: "Failed to delete organization" });
+    }
+  });
+
+  // ===============================
+  // GLOBAL PASSWORD RESET (ANY USER)
+  // ===============================
+  
+  app.post("/api/superadmin/users/:userId/reset-password", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.params.userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      if (!user.username || !user.passwordHash) {
+        return res.status(400).json({ message: "User does not have local credentials (may be OAuth user)" });
+      }
+      
+      const { generatePassword } = await import("../utils/passwordGenerator");
+      const { hashPassword } = await import("../utils/passwordHash");
+      
+      const newPassword = generatePassword("strong");
+      const passwordHash = await hashPassword(newPassword);
+      
+      await storage.upsertUser({
+        ...user,
+        passwordHash,
+      });
+      
+      res.json({ 
+        success: true, 
+        username: user.username,
+        newPassword,
+        message: "Password reset successfully" 
+      });
+    } catch (error) {
+      console.error("Error resetting password:", error);
+      res.status(500).json({ message: "Failed to reset password" });
+    }
+  });
+
+  // ===============================
+  // STUDENT RESULTS VIEWER
+  // ===============================
+  
+  app.get("/api/superadmin/students", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const students = await storage.getAllStudentsWithAssessments();
+      res.json(students);
+    } catch (error) {
+      console.error("Error fetching students:", error);
+      res.status(500).json({ message: "Failed to fetch students" });
+    }
+  });
+
+  app.get("/api/superadmin/students/:userId/assessments", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const user = await storage.getUser(req.params.userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const assessments = await storage.getAssessmentsByUser(req.params.userId);
+      
+      const assessmentsWithDetails = await Promise.all(assessments.map(async (assessment) => {
+        const recommendations = await storage.getRecommendationsByAssessment(assessment.id);
+        return {
+          ...assessment,
+          recommendations: recommendations.slice(0, 5),
+        };
+      }));
+      
+      res.json({
+        user: {
+          id: user.id,
+          username: user.username,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          accountType: user.accountType,
+        },
+        assessments: assessmentsWithDetails,
+      });
+    } catch (error) {
+      console.error("Error fetching student assessments:", error);
+      res.status(500).json({ message: "Failed to fetch student assessments" });
+    }
+  });
+
+  // ===============================
+  // CROSS-ORG DATA EXPORT
+  // ===============================
+  
+  app.get("/api/superadmin/export/all-students", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const format = req.query.format === "json" ? "json" : "csv";
+      const students = await storage.getAllStudentsWithAssessments();
+      
+      const exportData = students.map(s => ({
+        userId: s.user.id,
+        username: s.user.username,
+        firstName: s.user.firstName,
+        lastName: s.user.lastName,
+        email: s.user.email,
+        accountType: s.user.accountType,
+        organizationName: s.organizationName || "Individual",
+        assessmentCount: s.assessmentCount,
+        latestAssessmentDate: s.latestAssessmentDate ? new Date(s.latestAssessmentDate).toISOString() : null,
+        isPremium: s.user.isPremium,
+        createdAt: s.user.createdAt,
+      }));
+      
+      if (format === "json") {
+        res.json(exportData);
+      } else {
+        const sanitize = (value: any): string => {
+          if (value === null || value === undefined) return "";
+          const str = String(value);
+          const sanitized = str.replace(/^[=+\-@\t\r]+/, "'$&");
+          if (sanitized.includes(",") || sanitized.includes('"') || sanitized.includes("\n")) {
+            return `"${sanitized.replace(/"/g, '""')}"`;
+          }
+          return sanitized;
+        };
+        
+        const headers = [
+          "User ID", "Username", "First Name", "Last Name", "Email", 
+          "Account Type", "Organization", "Assessment Count", "Latest Assessment", 
+          "Is Premium", "Created At"
+        ];
+        
+        const rows = exportData.map(s => [
+          sanitize(s.userId),
+          sanitize(s.username),
+          sanitize(s.firstName),
+          sanitize(s.lastName),
+          sanitize(s.email),
+          sanitize(s.accountType),
+          sanitize(s.organizationName),
+          sanitize(s.assessmentCount),
+          sanitize(s.latestAssessmentDate),
+          sanitize(s.isPremium),
+          sanitize(s.createdAt),
+        ].join(","));
+        
+        const csv = [headers.join(","), ...rows].join("\n");
+        res.setHeader("Content-Type", "text/csv");
+        res.setHeader("Content-Disposition", `attachment; filename=all-students-${Date.now()}.csv`);
+        res.send(csv);
+      }
+    } catch (error) {
+      console.error("Error exporting all students:", error);
+      res.status(500).json({ message: "Failed to export student data" });
+    }
+  });
+
+  // ===============================
+  // FILE MANAGEMENT
+  // ===============================
+  
+  app.get("/api/superadmin/files", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const files = await storage.getAllFiles();
+      res.json(files);
+    } catch (error) {
+      console.error("Error fetching files:", error);
+      res.status(500).json({ message: "Failed to fetch files" });
+    }
+  });
+
+  app.delete("/api/superadmin/files/:id", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const file = await storage.getFileById(req.params.id);
+      if (!file) {
+        return res.status(404).json({ message: "File not found" });
+      }
+      
+      const fs = await import("fs/promises");
+      try {
+        await fs.unlink(file.filePath);
+      } catch (e) {
+        console.warn("Could not delete file from disk:", e);
+      }
+      
+      await storage.deleteFile(req.params.id);
+      res.json({ success: true, message: "File deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting file:", error);
+      res.status(500).json({ message: "Failed to delete file" });
+    }
+  });
+
+  // ===============================
+  // USER IMPERSONATION
+  // ===============================
+  
+  app.post("/api/superadmin/impersonate/:userId", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const targetUser = await storage.getUser(req.params.userId);
+      if (!targetUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      const currentUser = (req as any).currentUser;
+      
+      (req.session as any).impersonating = {
+        originalUserId: currentUser.id,
+        targetUserId: targetUser.id,
+        startedAt: new Date().toISOString(),
+      };
+      
+      res.json({ 
+        success: true, 
+        message: `Now impersonating ${targetUser.username || targetUser.email}`,
+        targetUser: {
+          id: targetUser.id,
+          username: targetUser.username,
+          email: targetUser.email,
+          firstName: targetUser.firstName,
+          lastName: targetUser.lastName,
+          accountType: targetUser.accountType,
+        }
+      });
+    } catch (error) {
+      console.error("Error starting impersonation:", error);
+      res.status(500).json({ message: "Failed to start impersonation" });
+    }
+  });
+
+  app.post("/api/superadmin/stop-impersonation", isAuthenticated, async (req, res) => {
+    try {
+      if (!(req.session as any).impersonating) {
+        return res.status(400).json({ message: "Not currently impersonating anyone" });
+      }
+      
+      delete (req.session as any).impersonating;
+      res.json({ success: true, message: "Stopped impersonation" });
+    } catch (error) {
+      console.error("Error stopping impersonation:", error);
+      res.status(500).json({ message: "Failed to stop impersonation" });
+    }
+  });
+
+  // ===============================
+  // SYSTEM ANNOUNCEMENTS
+  // ===============================
+  
+  app.get("/api/superadmin/announcements", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const announcements = await storage.getAllSystemAnnouncements();
+      res.json(announcements);
+    } catch (error) {
+      console.error("Error fetching announcements:", error);
+      res.status(500).json({ message: "Failed to fetch announcements" });
+    }
+  });
+
+  app.post("/api/superadmin/announcements", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const { title, content, type, targetAudience, isPinned, expiresAt } = req.body;
+      
+      if (!title || !content) {
+        return res.status(400).json({ message: "Title and content are required" });
+      }
+      
+      const currentUser = (req as any).currentUser;
+      
+      const announcement = await storage.createSystemAnnouncement({
+        title,
+        content,
+        type: type || "info",
+        targetAudience: targetAudience || "all",
+        isPinned: isPinned || false,
+        expiresAt: expiresAt ? new Date(expiresAt) : null,
+        createdByUserId: currentUser.id,
+        isActive: true,
+      });
+      
+      res.status(201).json(announcement);
+    } catch (error) {
+      console.error("Error creating announcement:", error);
+      res.status(500).json({ message: "Failed to create announcement" });
+    }
+  });
+
+  app.patch("/api/superadmin/announcements/:id", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const existing = await storage.getSystemAnnouncement(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "Announcement not found" });
+      }
+      
+      const { title, content, type, targetAudience, isPinned, isActive, expiresAt } = req.body;
+      
+      const updates: Record<string, any> = {};
+      if (title !== undefined) updates.title = title;
+      if (content !== undefined) updates.content = content;
+      if (type !== undefined) updates.type = type;
+      if (targetAudience !== undefined) updates.targetAudience = targetAudience;
+      if (isPinned !== undefined) updates.isPinned = isPinned;
+      if (isActive !== undefined) updates.isActive = isActive;
+      if (expiresAt !== undefined) updates.expiresAt = expiresAt ? new Date(expiresAt) : null;
+      
+      const updated = await storage.updateSystemAnnouncement(req.params.id, updates);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating announcement:", error);
+      res.status(500).json({ message: "Failed to update announcement" });
+    }
+  });
+
+  app.delete("/api/superadmin/announcements/:id", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const deleted = await storage.deleteSystemAnnouncement(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Announcement not found" });
+      }
+      res.json({ success: true, message: "Announcement deleted" });
+    } catch (error) {
+      console.error("Error deleting announcement:", error);
+      res.status(500).json({ message: "Failed to delete announcement" });
+    }
+  });
+
+  // Public endpoint for users to get active announcements
+  app.get("/api/announcements", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).isLocal ? (req.user as any).userId : (req.user as any).claims.sub;
+      const user = await storage.getUser(userId);
+      
+      let targetAudience = "all";
+      if (user?.accountType === "org_admin") targetAudience = "org_admins";
+      else if (user?.accountType === "org_student") targetAudience = "students";
+      else if (user?.isPremium) targetAudience = "premium";
+      
+      const announcements = await storage.getActiveSystemAnnouncements(targetAudience);
+      res.json(announcements);
+    } catch (error) {
+      console.error("Error fetching active announcements:", error);
+      res.status(500).json({ message: "Failed to fetch announcements" });
+    }
+  });
+
+  // ===============================
+  // CAREER MANAGEMENT
+  // ===============================
+  
+  app.get("/api/superadmin/careers", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const careers = await storage.getAllCareers();
+      res.json(careers);
+    } catch (error) {
+      console.error("Error fetching careers:", error);
+      res.status(500).json({ message: "Failed to fetch careers" });
+    }
+  });
+
+  app.post("/api/superadmin/careers", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const { title, description, requiredSkills, relatedSubjects, category, educationLevel, averageSalary, growthOutlook, icon, valuesProfile, onetCode } = req.body;
+      
+      if (!title || !description || !requiredSkills || !relatedSubjects || !category || !educationLevel || !growthOutlook) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+      
+      const career = await storage.createCareer({
+        title,
+        description,
+        requiredSkills: Array.isArray(requiredSkills) ? requiredSkills : [requiredSkills],
+        relatedSubjects: Array.isArray(relatedSubjects) ? relatedSubjects : [relatedSubjects],
+        category,
+        educationLevel,
+        averageSalary: averageSalary || null,
+        growthOutlook,
+        icon: icon || null,
+        valuesProfile: valuesProfile || null,
+        onetCode: onetCode || null,
+      });
+      
+      res.status(201).json(career);
+    } catch (error) {
+      console.error("Error creating career:", error);
+      res.status(500).json({ message: "Failed to create career" });
+    }
+  });
+
+  app.patch("/api/superadmin/careers/:id", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const existing = await storage.getCareerById(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "Career not found" });
+      }
+      
+      const { title, description, requiredSkills, relatedSubjects, category, educationLevel, averageSalary, growthOutlook, icon, valuesProfile, onetCode } = req.body;
+      
+      const updates: Record<string, any> = {};
+      if (title !== undefined) updates.title = title;
+      if (description !== undefined) updates.description = description;
+      if (requiredSkills !== undefined) updates.requiredSkills = Array.isArray(requiredSkills) ? requiredSkills : [requiredSkills];
+      if (relatedSubjects !== undefined) updates.relatedSubjects = Array.isArray(relatedSubjects) ? relatedSubjects : [relatedSubjects];
+      if (category !== undefined) updates.category = category;
+      if (educationLevel !== undefined) updates.educationLevel = educationLevel;
+      if (averageSalary !== undefined) updates.averageSalary = averageSalary;
+      if (growthOutlook !== undefined) updates.growthOutlook = growthOutlook;
+      if (icon !== undefined) updates.icon = icon;
+      if (valuesProfile !== undefined) updates.valuesProfile = valuesProfile;
+      if (onetCode !== undefined) updates.onetCode = onetCode;
+      
+      const updated = await storage.updateCareer(req.params.id, updates);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating career:", error);
+      res.status(500).json({ message: "Failed to update career" });
+    }
+  });
+
+  app.delete("/api/superadmin/careers/:id", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const deleted = await storage.deleteCareer(req.params.id);
+      if (!deleted) {
+        return res.status(404).json({ message: "Career not found" });
+      }
+      res.json({ success: true, message: "Career deleted" });
+    } catch (error) {
+      console.error("Error deleting career:", error);
+      res.status(500).json({ message: "Failed to delete career" });
+    }
+  });
+
+  // ===============================
+  // GLOBAL USER SEARCH
+  // ===============================
+  
+  app.get("/api/superadmin/users/search", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const query = req.query.q as string;
+      if (!query || query.length < 2) {
+        return res.status(400).json({ message: "Search query must be at least 2 characters" });
+      }
+      
+      const users = await storage.searchAllUsers(query);
+      
+      const usersWithOrg = await Promise.all(users.map(async (user) => {
+        const membership = await storage.getOrganizationMemberByUserId(user.id);
+        let organizationName = null;
+        if (membership) {
+          const org = await storage.getOrganizationById(membership.organizationId);
+          organizationName = org?.name || null;
+        }
+        return {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          accountType: user.accountType,
+          isPremium: user.isPremium,
+          organizationName,
+          createdAt: user.createdAt,
+        };
+      }));
+      
+      res.json(usersWithOrg);
+    } catch (error) {
+      console.error("Error searching users:", error);
+      res.status(500).json({ message: "Failed to search users" });
+    }
+  });
 }

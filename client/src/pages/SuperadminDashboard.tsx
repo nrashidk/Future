@@ -13,12 +13,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { 
   Building2, Users, GraduationCap, Key, Search, Filter, 
   Plus, Download, Edit, Trash2, UserPlus, Crown, Shield,
   TrendingUp, AlertCircle, CheckCircle, Clock, Home, User, LogOut,
   ChevronUp, ChevronDown, History, Infinity, BarChart, Copy, FileQuestion,
-  Settings, Globe, Gift
+  Settings, Globe, Gift, FileText, Megaphone, Briefcase, Eye, RefreshCw,
+  UserCog, Info, AlertTriangle, XCircle
 } from "lucide-react";
 import ScoringConfigEditor from "@/components/admin/ScoringConfigEditor";
 import CountryManagement from "@/components/admin/CountryManagement";
@@ -98,6 +100,66 @@ interface AuditEvent {
     id: string;
     name: string;
   } | null;
+}
+
+interface StudentWithAssessment {
+  user: {
+    id: string;
+    username: string | null;
+    email: string | null;
+    firstName: string | null;
+    lastName: string | null;
+    accountType: string;
+    isPremium: boolean;
+    createdAt: string;
+  };
+  organizationName: string | null;
+  assessmentCount: number;
+  latestAssessmentDate: string | null;
+}
+
+interface FileRecord {
+  id: string;
+  filename: string;
+  originalFilename: string;
+  mimeType: string;
+  fileSize: number;
+  fileType: string;
+  category: string | null;
+  description: string | null;
+  uploadedBy: string;
+  organizationId: string | null;
+  isPublic: boolean;
+  downloadCount: number;
+  processingStatus: string | null;
+  createdAt: string;
+}
+
+interface SystemAnnouncement {
+  id: string;
+  title: string;
+  content: string;
+  type: string;
+  targetAudience: string;
+  isActive: boolean;
+  isPinned: boolean;
+  expiresAt: string | null;
+  createdByUserId: string;
+  createdAt: string;
+}
+
+interface Career {
+  id: string;
+  title: string;
+  description: string;
+  requiredSkills: string[];
+  relatedSubjects: string[];
+  category: string;
+  educationLevel: string;
+  averageSalary: string | null;
+  growthOutlook: string;
+  icon: string | null;
+  createdAt: string;
 }
 
 export default function SuperadminDashboard() {
@@ -266,6 +328,267 @@ export default function SuperadminDashboard() {
       toast({ title: "Error", description: error.message || "Failed to create school", variant: "destructive" });
     },
   });
+
+  // New state for additional features
+  const [isDeleteOrgModalOpen, setIsDeleteOrgModalOpen] = useState(false);
+  const [deleteOrgConfirmName, setDeleteOrgConfirmName] = useState("");
+  const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  const [resetPasswordResult, setResetPasswordResult] = useState<{ username: string; newPassword: string } | null>(null);
+  const [userSearchQuery, setUserSearchQuery] = useState("");
+  const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
+  const [editingAnnouncement, setEditingAnnouncement] = useState<SystemAnnouncement | null>(null);
+  const [announcementForm, setAnnouncementForm] = useState({
+    title: "",
+    content: "",
+    type: "info",
+    targetAudience: "all",
+    isPinned: false,
+    expiresAt: "",
+  });
+  const [isCareerModalOpen, setIsCareerModalOpen] = useState(false);
+  const [editingCareer, setEditingCareer] = useState<Career | null>(null);
+  const [careerForm, setCareerForm] = useState({
+    title: "",
+    description: "",
+    requiredSkills: "",
+    relatedSubjects: "",
+    category: "",
+    educationLevel: "",
+    averageSalary: "",
+    growthOutlook: "",
+    icon: "",
+  });
+
+  // New queries for additional features
+  const { data: students = [], isLoading: studentsLoading } = useQuery<StudentWithAssessment[]>({
+    queryKey: ['/api/superadmin/students'],
+  });
+
+  const { data: files = [], isLoading: filesLoading } = useQuery<FileRecord[]>({
+    queryKey: ['/api/superadmin/files'],
+  });
+
+  const { data: announcements = [], isLoading: announcementsLoading } = useQuery<SystemAnnouncement[]>({
+    queryKey: ['/api/superadmin/announcements'],
+  });
+
+  const { data: careers = [], isLoading: careersLoading } = useQuery<Career[]>({
+    queryKey: ['/api/superadmin/careers'],
+  });
+
+  const { data: searchedUsers = [] } = useQuery<any[]>({
+    queryKey: ['/api/superadmin/users/search', userSearchQuery],
+    enabled: userSearchQuery.length >= 2,
+  });
+
+  // Delete organization mutation
+  const deleteOrgMutation = useMutation({
+    mutationFn: async (orgId: string) => {
+      return apiRequest('DELETE', `/api/superadmin/organizations/${orgId}`);
+    },
+    onSuccess: () => {
+      toast({ title: "School Deleted", description: "The school and all its members have been deleted" });
+      setIsDeleteOrgModalOpen(false);
+      setDeleteOrgConfirmName("");
+      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/metrics'] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to delete school", variant: "destructive" });
+    },
+  });
+
+  // Reset password mutation
+  const resetPasswordMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const res = await apiRequest('POST', `/api/superadmin/users/${userId}/reset-password`);
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      setResetPasswordResult({ username: data.username, newPassword: data.newPassword });
+      toast({ title: "Password Reset", description: "New password has been generated" });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to reset password", variant: "destructive" });
+    },
+  });
+
+  // Delete file mutation
+  const deleteFileMutation = useMutation({
+    mutationFn: async (fileId: string) => {
+      return apiRequest('DELETE', `/api/superadmin/files/${fileId}`);
+    },
+    onSuccess: () => {
+      toast({ title: "File Deleted", description: "File has been deleted" });
+      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/files'] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to delete file", variant: "destructive" });
+    },
+  });
+
+  // Announcement mutations
+  const createAnnouncementMutation = useMutation({
+    mutationFn: async (data: typeof announcementForm) => {
+      return apiRequest('POST', '/api/superadmin/announcements', data);
+    },
+    onSuccess: () => {
+      toast({ title: "Announcement Created", description: "New announcement has been created" });
+      setIsAnnouncementModalOpen(false);
+      resetAnnouncementForm();
+      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/announcements'] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to create announcement", variant: "destructive" });
+    },
+  });
+
+  const updateAnnouncementMutation = useMutation({
+    mutationFn: async ({ id, ...data }: { id: string } & Partial<typeof announcementForm>) => {
+      return apiRequest('PATCH', `/api/superadmin/announcements/${id}`, data);
+    },
+    onSuccess: () => {
+      toast({ title: "Announcement Updated", description: "Announcement has been updated" });
+      setIsAnnouncementModalOpen(false);
+      setEditingAnnouncement(null);
+      resetAnnouncementForm();
+      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/announcements'] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to update announcement", variant: "destructive" });
+    },
+  });
+
+  const deleteAnnouncementMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest('DELETE', `/api/superadmin/announcements/${id}`);
+    },
+    onSuccess: () => {
+      toast({ title: "Announcement Deleted", description: "Announcement has been deleted" });
+      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/announcements'] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to delete announcement", variant: "destructive" });
+    },
+  });
+
+  // Career mutations
+  const createCareerMutation = useMutation({
+    mutationFn: async (data: typeof careerForm) => {
+      return apiRequest('POST', '/api/superadmin/careers', {
+        ...data,
+        requiredSkills: data.requiredSkills.split(',').map(s => s.trim()).filter(Boolean),
+        relatedSubjects: data.relatedSubjects.split(',').map(s => s.trim()).filter(Boolean),
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "Career Created", description: "New career has been added" });
+      setIsCareerModalOpen(false);
+      resetCareerForm();
+      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/careers'] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to create career", variant: "destructive" });
+    },
+  });
+
+  const updateCareerMutation = useMutation({
+    mutationFn: async ({ id, ...data }: { id: string } & typeof careerForm) => {
+      return apiRequest('PATCH', `/api/superadmin/careers/${id}`, {
+        ...data,
+        requiredSkills: data.requiredSkills.split(',').map(s => s.trim()).filter(Boolean),
+        relatedSubjects: data.relatedSubjects.split(',').map(s => s.trim()).filter(Boolean),
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "Career Updated", description: "Career has been updated" });
+      setIsCareerModalOpen(false);
+      setEditingCareer(null);
+      resetCareerForm();
+      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/careers'] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to update career", variant: "destructive" });
+    },
+  });
+
+  const deleteCareerMutation = useMutation({
+    mutationFn: async (id: string) => {
+      return apiRequest('DELETE', `/api/superadmin/careers/${id}`);
+    },
+    onSuccess: () => {
+      toast({ title: "Career Deleted", description: "Career has been deleted" });
+      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/careers'] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to delete career", variant: "destructive" });
+    },
+  });
+
+  const resetAnnouncementForm = () => {
+    setAnnouncementForm({ title: "", content: "", type: "info", targetAudience: "all", isPinned: false, expiresAt: "" });
+  };
+
+  const resetCareerForm = () => {
+    setCareerForm({ title: "", description: "", requiredSkills: "", relatedSubjects: "", category: "", educationLevel: "", averageSalary: "", growthOutlook: "", icon: "" });
+  };
+
+  const openDeleteOrgModal = (orgId: string) => {
+    setSelectedOrgId(orgId);
+    setDeleteOrgConfirmName("");
+    setIsDeleteOrgModalOpen(true);
+  };
+
+  const openResetPasswordModal = (userId: string) => {
+    setSelectedUserId(userId);
+    setResetPasswordResult(null);
+    setIsResetPasswordModalOpen(true);
+  };
+
+  const openEditAnnouncement = (announcement: SystemAnnouncement) => {
+    setEditingAnnouncement(announcement);
+    setAnnouncementForm({
+      title: announcement.title,
+      content: announcement.content,
+      type: announcement.type,
+      targetAudience: announcement.targetAudience,
+      isPinned: announcement.isPinned,
+      expiresAt: announcement.expiresAt || "",
+    });
+    setIsAnnouncementModalOpen(true);
+  };
+
+  const openEditCareer = (career: Career) => {
+    setEditingCareer(career);
+    setCareerForm({
+      title: career.title,
+      description: career.description,
+      requiredSkills: career.requiredSkills.join(', '),
+      relatedSubjects: career.relatedSubjects.join(', '),
+      category: career.category,
+      educationLevel: career.educationLevel,
+      averageSalary: career.averageSalary || "",
+      growthOutlook: career.growthOutlook,
+      icon: career.icon || "",
+    });
+    setIsCareerModalOpen(true);
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const getAnnouncementTypeIcon = (type: string) => {
+    switch (type) {
+      case "warning": return <AlertTriangle className="w-4 h-4 text-yellow-500" />;
+      case "error": return <XCircle className="w-4 h-4 text-red-500" />;
+      case "success": return <CheckCircle className="w-4 h-4 text-green-500" />;
+      default: return <Info className="w-4 h-4 text-blue-500" />;
+    }
+  };
 
   const openAdminsModal = (orgId: string) => {
     setSelectedOrgId(orgId);
@@ -456,16 +779,32 @@ export default function SuperadminDashboard() {
         </div>
 
         <Tabs defaultValue="organizations" className="space-y-4">
-          <TabsList>
+          <TabsList className="flex-wrap">
             <TabsTrigger value="organizations" data-testid="tab-schools">Schools</TabsTrigger>
+            <TabsTrigger value="students" data-testid="tab-students">
+              <Users className="w-4 h-4 mr-2" />
+              Students
+            </TabsTrigger>
             <TabsTrigger value="activity" data-testid="tab-activity">Recent Activity</TabsTrigger>
+            <TabsTrigger value="files" data-testid="tab-files">
+              <FileText className="w-4 h-4 mr-2" />
+              Files
+            </TabsTrigger>
+            <TabsTrigger value="announcements" data-testid="tab-announcements">
+              <Megaphone className="w-4 h-4 mr-2" />
+              Announcements
+            </TabsTrigger>
+            <TabsTrigger value="careers" data-testid="tab-careers">
+              <Briefcase className="w-4 h-4 mr-2" />
+              Careers
+            </TabsTrigger>
             <TabsTrigger value="countries" data-testid="tab-countries">
               <Globe className="w-4 h-4 mr-2" />
               Countries
             </TabsTrigger>
             <TabsTrigger value="scoring" data-testid="tab-scoring">
               <Settings className="w-4 h-4 mr-2" />
-              Scoring Methodology
+              Scoring
             </TabsTrigger>
             <TabsTrigger value="contributions" data-testid="tab-contributions">
               <Gift className="w-4 h-4 mr-2" />
@@ -647,6 +986,112 @@ export default function SuperadminDashboard() {
                                 >
                                   <History className="w-4 h-4" />
                                 </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => openDeleteOrgModal(org.id)}
+                                  title="Delete School"
+                                  className="text-destructive hover:text-destructive"
+                                  data-testid={`button-delete-org-${org.id}`}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="students" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <CardTitle>All Students</CardTitle>
+                    <CardDescription>View students across all schools with assessment history</CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" asChild data-testid="button-export-students">
+                      <a href="/api/superadmin/export/students?format=csv" download>
+                        <Download className="w-4 h-4 mr-2" />
+                        Export CSV
+                      </a>
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {studentsLoading ? (
+                  <div className="text-center py-8 text-muted-foreground">Loading students...</div>
+                ) : students.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">No students found</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Username</TableHead>
+                          <TableHead>School</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Assessments</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {students.map((student) => (
+                          <TableRow key={student.user.id}>
+                            <TableCell>
+                              <div className="font-medium">
+                                {student.user.firstName} {student.user.lastName}
+                              </div>
+                              {student.user.email && (
+                                <div className="text-xs text-muted-foreground">{student.user.email}</div>
+                              )}
+                            </TableCell>
+                            <TableCell>{student.user.username || "-"}</TableCell>
+                            <TableCell>{student.organizationName || "Individual"}</TableCell>
+                            <TableCell>
+                              <Badge variant={student.user.isPremium ? "default" : "secondary"}>
+                                {student.user.isPremium ? "Premium" : "Free"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="font-medium">{student.assessmentCount}</div>
+                              {student.latestAssessmentDate && (
+                                <div className="text-xs text-muted-foreground">
+                                  Last: {new Date(student.latestAssessmentDate).toLocaleDateString()}
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => openResetPasswordModal(student.user.id)}
+                                  title="Reset Password"
+                                  data-testid={`button-reset-password-${student.user.id}`}
+                                >
+                                  <Key className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  asChild
+                                  title="View Results"
+                                  data-testid={`button-view-results-${student.user.id}`}
+                                >
+                                  <a href={`/api/superadmin/students/${student.user.id}/results`} target="_blank" rel="noopener noreferrer">
+                                    <Eye className="w-4 h-4" />
+                                  </a>
+                                </Button>
                               </div>
                             </TableCell>
                           </TableRow>
@@ -685,6 +1130,225 @@ export default function SuperadminDashboard() {
                         </div>
                       </div>
                     ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="files" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <CardTitle>File Management</CardTitle>
+                    <CardDescription>View and manage all uploaded files</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {filesLoading ? (
+                  <div className="text-center py-8 text-muted-foreground">Loading files...</div>
+                ) : files.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">No files found</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Filename</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Size</TableHead>
+                          <TableHead>Downloads</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Uploaded</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {files.map((file) => (
+                          <TableRow key={file.id}>
+                            <TableCell>
+                              <div className="font-medium truncate max-w-[200px]" title={file.originalFilename}>
+                                {file.originalFilename}
+                              </div>
+                              {file.description && (
+                                <div className="text-xs text-muted-foreground truncate max-w-[200px]">
+                                  {file.description}
+                                </div>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline">{file.fileType}</Badge>
+                            </TableCell>
+                            <TableCell>{formatFileSize(file.fileSize)}</TableCell>
+                            <TableCell>{file.downloadCount}</TableCell>
+                            <TableCell>
+                              <Badge variant={file.processingStatus === "completed" ? "default" : "secondary"}>
+                                {file.processingStatus || "pending"}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground text-sm">
+                              {new Date(file.createdAt).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-1">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  asChild
+                                  title="Download"
+                                  data-testid={`button-download-file-${file.id}`}
+                                >
+                                  <a href={`/api/files/${file.id}/download`} download>
+                                    <Download className="w-4 h-4" />
+                                  </a>
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => deleteFileMutation.mutate(file.id)}
+                                  title="Delete"
+                                  className="text-destructive hover:text-destructive"
+                                  data-testid={`button-delete-file-${file.id}`}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="announcements" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <CardTitle>System Announcements</CardTitle>
+                    <CardDescription>Create and manage announcements visible to users</CardDescription>
+                  </div>
+                  <Button onClick={() => { resetAnnouncementForm(); setEditingAnnouncement(null); setIsAnnouncementModalOpen(true); }} data-testid="button-new-announcement">
+                    <Plus className="w-4 h-4 mr-2" />
+                    New Announcement
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {announcementsLoading ? (
+                  <div className="text-center py-8 text-muted-foreground">Loading announcements...</div>
+                ) : announcements.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">No announcements yet</div>
+                ) : (
+                  <div className="space-y-4">
+                    {announcements.map((announcement) => (
+                      <div key={announcement.id} className="flex items-start gap-4 p-4 rounded-lg border hover-elevate">
+                        <div className="mt-1">{getAnnouncementTypeIcon(announcement.type)}</div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium">{announcement.title}</span>
+                            {announcement.isPinned && <Badge variant="secondary">Pinned</Badge>}
+                            {!announcement.isActive && <Badge variant="outline">Inactive</Badge>}
+                          </div>
+                          <div className="text-sm text-muted-foreground mt-1 line-clamp-2">{announcement.content}</div>
+                          <div className="text-xs text-muted-foreground mt-2 flex gap-4">
+                            <span>Audience: {announcement.targetAudience}</span>
+                            {announcement.expiresAt && <span>Expires: {new Date(announcement.expiresAt).toLocaleDateString()}</span>}
+                            <span>Created: {new Date(announcement.createdAt).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => openEditAnnouncement(announcement)} title="Edit" data-testid={`button-edit-announcement-${announcement.id}`}>
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => deleteAnnouncementMutation.mutate(announcement.id)} title="Delete" className="text-destructive hover:text-destructive" data-testid={`button-delete-announcement-${announcement.id}`}>
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="careers" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <CardTitle>Career Management</CardTitle>
+                    <CardDescription>Add, edit, or remove careers from the system</CardDescription>
+                  </div>
+                  <Button onClick={() => { resetCareerForm(); setEditingCareer(null); setIsCareerModalOpen(true); }} data-testid="button-new-career">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Career
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {careersLoading ? (
+                  <div className="text-center py-8 text-muted-foreground">Loading careers...</div>
+                ) : careers.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">No careers found</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Title</TableHead>
+                          <TableHead>Category</TableHead>
+                          <TableHead>Education</TableHead>
+                          <TableHead>Growth</TableHead>
+                          <TableHead>Skills</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {careers.map((career) => (
+                          <TableRow key={career.id}>
+                            <TableCell>
+                              <div className="font-medium">{career.title}</div>
+                              <div className="text-xs text-muted-foreground truncate max-w-[200px]">{career.description.substring(0, 50)}...</div>
+                            </TableCell>
+                            <TableCell><Badge variant="outline">{career.category}</Badge></TableCell>
+                            <TableCell>{career.educationLevel}</TableCell>
+                            <TableCell>
+                              <Badge variant={career.growthOutlook === "high" ? "default" : career.growthOutlook === "medium" ? "secondary" : "outline"}>
+                                {career.growthOutlook}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-wrap gap-1 max-w-[150px]">
+                                {career.requiredSkills.slice(0, 2).map((skill, i) => (
+                                  <Badge key={i} variant="secondary" className="text-xs">{skill}</Badge>
+                                ))}
+                                {career.requiredSkills.length > 2 && (
+                                  <Badge variant="outline" className="text-xs">+{career.requiredSkills.length - 2}</Badge>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex gap-1">
+                                <Button variant="ghost" size="icon" onClick={() => openEditCareer(career)} title="Edit" data-testid={`button-edit-career-${career.id}`}>
+                                  <Edit className="w-4 h-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" onClick={() => deleteCareerMutation.mutate(career.id)} title="Delete" className="text-destructive hover:text-destructive" data-testid={`button-delete-career-${career.id}`}>
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
                   </div>
                 )}
               </CardContent>
@@ -1132,6 +1796,345 @@ export default function SuperadminDashboard() {
               data-testid="button-submit-create-org"
             >
               {createOrgMutation.isPending ? "Creating..." : "Create School"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Organization Modal */}
+      <Dialog open={isDeleteOrgModalOpen} onOpenChange={setIsDeleteOrgModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-destructive">Delete School</DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. This will permanently delete the school,
+              all admins, students, and their assessment data.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="p-4 bg-destructive/10 rounded-lg border border-destructive/20">
+              <p className="text-sm font-medium">You are about to delete:</p>
+              <p className="text-lg font-bold mt-1">{selectedOrg?.name}</p>
+              <div className="mt-2 text-sm text-muted-foreground">
+                <p>{selectedOrg?.studentCount || 0} students</p>
+                <p>{selectedOrg?.adminCount || 0} admins</p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Type the school name to confirm:</Label>
+              <Input
+                value={deleteOrgConfirmName}
+                onChange={(e) => setDeleteOrgConfirmName(e.target.value)}
+                placeholder={selectedOrg?.name}
+                data-testid="input-confirm-delete-org"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDeleteOrgModalOpen(false)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={() => selectedOrgId && deleteOrgMutation.mutate(selectedOrgId)}
+              disabled={deleteOrgConfirmName !== selectedOrg?.name || deleteOrgMutation.isPending}
+              data-testid="button-confirm-delete-org"
+            >
+              {deleteOrgMutation.isPending ? "Deleting..." : "Delete School"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset Password Modal */}
+      <Dialog open={isResetPasswordModalOpen} onOpenChange={setIsResetPasswordModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset User Password</DialogTitle>
+            <DialogDescription>
+              Generate a new password for this user. The current password will be replaced.
+            </DialogDescription>
+          </DialogHeader>
+          {resetPasswordResult ? (
+            <div className="space-y-4">
+              <div className="p-4 bg-muted rounded-lg space-y-3">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Username</p>
+                  <p className="font-mono font-bold text-lg">{resetPasswordResult.username}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">New Password</p>
+                  <p className="font-mono font-bold text-lg" data-testid="text-new-password">{resetPasswordResult.newPassword}</p>
+                </div>
+              </div>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  navigator.clipboard.writeText(`Username: ${resetPasswordResult.username}\nNew Password: ${resetPasswordResult.newPassword}`);
+                  toast({ title: "Copied!", description: "Credentials copied to clipboard" });
+                }}
+                data-testid="button-copy-new-password"
+              >
+                <Copy className="w-4 h-4 mr-2" />
+                Copy to Clipboard
+              </Button>
+            </div>
+          ) : (
+            <div className="text-center py-4">
+              <p className="text-muted-foreground">Click below to generate a new password for this user.</p>
+            </div>
+          )}
+          <DialogFooter>
+            {resetPasswordResult ? (
+              <Button onClick={() => setIsResetPasswordModalOpen(false)} data-testid="button-close-reset-password">Done</Button>
+            ) : (
+              <>
+                <Button variant="outline" onClick={() => setIsResetPasswordModalOpen(false)}>Cancel</Button>
+                <Button
+                  onClick={() => selectedUserId && resetPasswordMutation.mutate(selectedUserId)}
+                  disabled={resetPasswordMutation.isPending}
+                  data-testid="button-reset-password"
+                >
+                  {resetPasswordMutation.isPending ? "Resetting..." : "Reset Password"}
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Announcement Modal */}
+      <Dialog open={isAnnouncementModalOpen} onOpenChange={setIsAnnouncementModalOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{editingAnnouncement ? "Edit Announcement" : "New Announcement"}</DialogTitle>
+            <DialogDescription>
+              {editingAnnouncement ? "Update the announcement details" : "Create a new announcement visible to users"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="announcement-title">Title *</Label>
+              <Input
+                id="announcement-title"
+                value={announcementForm.title}
+                onChange={(e) => setAnnouncementForm({ ...announcementForm, title: e.target.value })}
+                placeholder="Announcement title"
+                data-testid="input-announcement-title"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="announcement-content">Content *</Label>
+              <Textarea
+                id="announcement-content"
+                value={announcementForm.content}
+                onChange={(e) => setAnnouncementForm({ ...announcementForm, content: e.target.value })}
+                placeholder="Announcement content"
+                rows={4}
+                data-testid="input-announcement-content"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="announcement-type">Type</Label>
+                <Select value={announcementForm.type} onValueChange={(v) => setAnnouncementForm({ ...announcementForm, type: v })}>
+                  <SelectTrigger data-testid="select-announcement-type">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="info">Info</SelectItem>
+                    <SelectItem value="warning">Warning</SelectItem>
+                    <SelectItem value="success">Success</SelectItem>
+                    <SelectItem value="error">Error</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="announcement-audience">Target Audience</Label>
+                <Select value={announcementForm.targetAudience} onValueChange={(v) => setAnnouncementForm({ ...announcementForm, targetAudience: v })}>
+                  <SelectTrigger data-testid="select-announcement-audience">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Users</SelectItem>
+                    <SelectItem value="students">Students Only</SelectItem>
+                    <SelectItem value="admins">Admins Only</SelectItem>
+                    <SelectItem value="schools">School Users</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="announcement-pinned"
+                  checked={announcementForm.isPinned}
+                  onCheckedChange={(c) => setAnnouncementForm({ ...announcementForm, isPinned: c })}
+                  data-testid="switch-announcement-pinned"
+                />
+                <Label htmlFor="announcement-pinned">Pin to top</Label>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="announcement-expires">Expires (optional)</Label>
+              <Input
+                id="announcement-expires"
+                type="date"
+                value={announcementForm.expiresAt}
+                onChange={(e) => setAnnouncementForm({ ...announcementForm, expiresAt: e.target.value })}
+                data-testid="input-announcement-expires"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setIsAnnouncementModalOpen(false); setEditingAnnouncement(null); }}>Cancel</Button>
+            <Button
+              onClick={() => {
+                if (editingAnnouncement) {
+                  updateAnnouncementMutation.mutate({ id: editingAnnouncement.id, ...announcementForm });
+                } else {
+                  createAnnouncementMutation.mutate(announcementForm);
+                }
+              }}
+              disabled={!announcementForm.title || !announcementForm.content || createAnnouncementMutation.isPending || updateAnnouncementMutation.isPending}
+              data-testid="button-save-announcement"
+            >
+              {(createAnnouncementMutation.isPending || updateAnnouncementMutation.isPending) ? "Saving..." : (editingAnnouncement ? "Update" : "Create")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Career Modal */}
+      <Dialog open={isCareerModalOpen} onOpenChange={setIsCareerModalOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{editingCareer ? "Edit Career" : "Add Career"}</DialogTitle>
+            <DialogDescription>
+              {editingCareer ? "Update career information" : "Add a new career to the system"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="career-title">Title *</Label>
+                <Input
+                  id="career-title"
+                  value={careerForm.title}
+                  onChange={(e) => setCareerForm({ ...careerForm, title: e.target.value })}
+                  placeholder="e.g., Software Engineer"
+                  data-testid="input-career-title"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="career-category">Category *</Label>
+                <Input
+                  id="career-category"
+                  value={careerForm.category}
+                  onChange={(e) => setCareerForm({ ...careerForm, category: e.target.value })}
+                  placeholder="e.g., Technology"
+                  data-testid="input-career-category"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="career-description">Description *</Label>
+              <Textarea
+                id="career-description"
+                value={careerForm.description}
+                onChange={(e) => setCareerForm({ ...careerForm, description: e.target.value })}
+                placeholder="Career description"
+                rows={3}
+                data-testid="input-career-description"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="career-education">Education Level *</Label>
+                <Select value={careerForm.educationLevel} onValueChange={(v) => setCareerForm({ ...careerForm, educationLevel: v })}>
+                  <SelectTrigger data-testid="select-career-education">
+                    <SelectValue placeholder="Select level" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="high_school">High School</SelectItem>
+                    <SelectItem value="diploma">Diploma</SelectItem>
+                    <SelectItem value="bachelors">Bachelor's Degree</SelectItem>
+                    <SelectItem value="masters">Master's Degree</SelectItem>
+                    <SelectItem value="doctorate">Doctorate</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="career-growth">Growth Outlook *</Label>
+                <Select value={careerForm.growthOutlook} onValueChange={(v) => setCareerForm({ ...careerForm, growthOutlook: v })}>
+                  <SelectTrigger data-testid="select-career-growth">
+                    <SelectValue placeholder="Select outlook" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="high">High Growth</SelectItem>
+                    <SelectItem value="medium">Medium Growth</SelectItem>
+                    <SelectItem value="low">Low Growth</SelectItem>
+                    <SelectItem value="declining">Declining</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="career-skills">Required Skills (comma-separated)</Label>
+              <Input
+                id="career-skills"
+                value={careerForm.requiredSkills}
+                onChange={(e) => setCareerForm({ ...careerForm, requiredSkills: e.target.value })}
+                placeholder="e.g., Programming, Problem Solving, Communication"
+                data-testid="input-career-skills"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="career-subjects">Related Subjects (comma-separated)</Label>
+              <Input
+                id="career-subjects"
+                value={careerForm.relatedSubjects}
+                onChange={(e) => setCareerForm({ ...careerForm, relatedSubjects: e.target.value })}
+                placeholder="e.g., Mathematics, Physics, Computer Science"
+                data-testid="input-career-subjects"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="career-salary">Average Salary (optional)</Label>
+                <Input
+                  id="career-salary"
+                  value={careerForm.averageSalary}
+                  onChange={(e) => setCareerForm({ ...careerForm, averageSalary: e.target.value })}
+                  placeholder="e.g., AED 180,000/year"
+                  data-testid="input-career-salary"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="career-icon">Icon (optional)</Label>
+                <Input
+                  id="career-icon"
+                  value={careerForm.icon}
+                  onChange={(e) => setCareerForm({ ...careerForm, icon: e.target.value })}
+                  placeholder="e.g., laptop"
+                  data-testid="input-career-icon"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setIsCareerModalOpen(false); setEditingCareer(null); }}>Cancel</Button>
+            <Button
+              onClick={() => {
+                if (editingCareer) {
+                  updateCareerMutation.mutate({ id: editingCareer.id, ...careerForm });
+                } else {
+                  createCareerMutation.mutate(careerForm);
+                }
+              }}
+              disabled={!careerForm.title || !careerForm.description || !careerForm.category || !careerForm.educationLevel || !careerForm.growthOutlook || createCareerMutation.isPending || updateCareerMutation.isPending}
+              data-testid="button-save-career"
+            >
+              {(createCareerMutation.isPending || updateCareerMutation.isPending) ? "Saving..." : (editingCareer ? "Update" : "Add Career")}
             </Button>
           </DialogFooter>
         </DialogContent>
