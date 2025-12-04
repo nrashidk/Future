@@ -164,11 +164,16 @@ export function registerQuizRoutes(app: Express) {
       }
       
       let user = null;
+      let isSchoolUser = false;
       if (assessment.userId) {
         user = await storage.getUser(assessment.userId);
+        if (user) {
+          const orgMember = await storage.getOrganizationMemberByUserId(user.id);
+          isSchoolUser = !!orgMember;
+        }
       }
       const tier: 'free' | 'premium' | 'school' = user?.isPremium 
-        ? (user.organizationId ? 'school' : 'premium') 
+        ? (isSchoolUser ? 'school' : 'premium') 
         : 'free';
       
       const distribution = calculateQuizDistribution(favoriteSubjects, prioritySubjects, tier);
@@ -179,7 +184,7 @@ export function registerQuizRoutes(app: Express) {
       
       const selectedQuestions: any[] = [];
       
-      for (const [subject, targetCount] of distribution) {
+      for (const [subject, targetCount] of Array.from(distribution)) {
         const questionsForSubject = subjectQuestions.filter(q => q.subject === subject);
         const shuffled = shuffleQuestions(questionsForSubject);
         const available = Math.min(targetCount, shuffled.length);
