@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { StickyNote } from "@/components/StickyNote";
 import ContributeQuestions from "@/components/admin/ContributeQuestions";
+import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 
 interface Organization {
   id: string;
@@ -272,6 +273,10 @@ export default function AdminOrganizations() {
           </div>
         </div>
       </header>
+
+      <div className="max-w-7xl mx-auto px-4 pt-4">
+        <AnnouncementBanner />
+      </div>
 
       <div className="max-w-7xl mx-auto py-12 px-4 space-y-8">
         <div className="text-center">

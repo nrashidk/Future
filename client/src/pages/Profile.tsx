@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { GraduationCap, Crown, Users, ClipboardCheck, Home, User, LogOut, BarChart, Shield, Building2, FileQuestion } from "lucide-react";
 import { StickyNote } from "@/components/StickyNote";
+import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 
 interface Assessment {
   id: string;
@@ -184,6 +185,10 @@ export default function Profile() {
           </div>
         </div>
       </header>
+
+      <div className="max-w-4xl mx-auto px-4 pt-4">
+        <AnnouncementBanner />
+      </div>
 
       <div className="max-w-4xl mx-auto py-12 px-4">
         <div className="mb-12 text-center">

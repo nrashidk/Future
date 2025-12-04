@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Home, Plus, Download, Upload, Edit, Trash2, GraduationCap, User, LogOut, Building2, Shield, BarChart, FileQuestion } from "lucide-react";
+import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 
 interface QuizQuestion {
   id: string;
@@ -178,6 +179,10 @@ export default function Admin() {
           </div>
         </div>
       </header>
+
+      <div className="max-w-7xl mx-auto px-4 pt-4">
+        <AnnouncementBanner />
+      </div>
 
       <div className="max-w-7xl mx-auto py-12 px-4">
         <div className="mb-12 text-center">
