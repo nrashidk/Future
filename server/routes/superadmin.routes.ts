@@ -1294,6 +1294,122 @@ export function registerSuperadminRoutes(app: Express) {
   });
 
   // ===============================
+  // BULK OPERATIONS
+  // ===============================
+  
+  const bulkUserIdsSchema = z.object({
+    userIds: z.array(z.string().min(1)).min(1, "At least one user ID is required").max(100, "Maximum 100 users per batch"),
+  });
+
+  app.post("/api/superadmin/users/bulk/reset-passwords", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const validation = bulkUserIdsSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ message: validation.error.errors[0]?.message || "Invalid request body" });
+      }
+      const { userIds } = validation.data;
+      
+      const { generatePassword } = await import("../utils/passwordGenerator");
+      const { hashPassword } = await import("../utils/passwordHash");
+      
+      const results = await Promise.all(userIds.map(async (userId: string) => {
+        try {
+          const user = await storage.getUser(userId);
+          if (!user) {
+            return { userId, username: null, newPassword: null, success: false, error: "User not found" };
+          }
+          
+          if (!user.username || !user.passwordHash) {
+            return { userId, username: user.username, newPassword: null, success: false, error: "User does not have local credentials" };
+          }
+          
+          const newPassword = generatePassword("strong");
+          const passwordHash = await hashPassword(newPassword);
+          
+          await storage.upsertUser({
+            ...user,
+            passwordHash,
+          });
+          
+          return { userId, username: user.username, newPassword, success: true };
+        } catch (error: any) {
+          return { userId, username: null, newPassword: null, success: false, error: error.message || "Unknown error" };
+        }
+      }));
+      
+      res.json({ 
+        success: true, 
+        results,
+        summary: {
+          total: results.length,
+          succeeded: results.filter(r => r.success).length,
+          failed: results.filter(r => !r.success).length,
+        }
+      });
+    } catch (error) {
+      console.error("Error bulk resetting passwords:", error);
+      res.status(500).json({ message: "Failed to bulk reset passwords" });
+    }
+  });
+
+  const bulkOrgIdsSchema = z.object({
+    orgIds: z.array(z.string().min(1)).min(1, "At least one organization ID is required").max(50, "Maximum 50 organizations per batch"),
+  });
+
+  app.post("/api/superadmin/organizations/bulk/delete", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const validation = bulkOrgIdsSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({ message: validation.error.errors[0]?.message || "Invalid request body" });
+      }
+      const { orgIds } = validation.data;
+      
+      const currentUser = (req as any).currentUser;
+      
+      const results = await Promise.all(orgIds.map(async (orgId: string) => {
+        try {
+          const org = await storage.getOrganization(orgId);
+          if (!org) {
+            return { orgId, name: null, success: false, error: "Organization not found" };
+          }
+          
+          const deleted = await storage.deleteOrganization(orgId);
+          if (!deleted) {
+            return { orgId, name: org.name, success: false, error: "Failed to delete" };
+          }
+          
+          await storage.createOrganizationEvent({
+            organizationId: orgId,
+            eventType: "organization_deleted",
+            eventDescription: `Organization "${org.name}" was deleted (bulk operation)`,
+            performedBy: currentUser.id,
+            performedByRole: "superadmin",
+            previousValue: { name: org.name, totalLicenses: org.totalLicenses },
+            newValue: null,
+          });
+          
+          return { orgId, name: org.name, success: true };
+        } catch (error: any) {
+          return { orgId, name: null, success: false, error: error.message || "Unknown error" };
+        }
+      }));
+      
+      res.json({ 
+        success: true, 
+        results,
+        summary: {
+          total: results.length,
+          succeeded: results.filter(r => r.success).length,
+          failed: results.filter(r => !r.success).length,
+        }
+      });
+    } catch (error) {
+      console.error("Error bulk deleting organizations:", error);
+      res.status(500).json({ message: "Failed to bulk delete organizations" });
+    }
+  });
+
+  // ===============================
   // STUDENT RESULTS VIEWER
   // ===============================
   

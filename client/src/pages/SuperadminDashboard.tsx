@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import { 
   Building2, Users, GraduationCap, Key, Search, Filter, 
   Plus, Download, Edit, Trash2, UserPlus, Crown, Shield,
@@ -178,6 +179,12 @@ export default function SuperadminDashboard() {
   const [sortBy, setSortBy] = useState<string>("name");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   
+  // Bulk selection states
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
+  const [selectedOrgIds, setSelectedOrgIds] = useState<Set<string>>(new Set());
+  const [bulkResetResults, setBulkResetResults] = useState<Array<{ userId: string; username: string; newPassword: string; success: boolean; error?: string }> | null>(null);
+  const [isBulkResultsModalOpen, setIsBulkResultsModalOpen] = useState(false);
+  
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [isAdminsModalOpen, setIsAdminsModalOpen] = useState(false);
   const [isLicenseModalOpen, setIsLicenseModalOpen] = useState(false);
@@ -307,6 +314,52 @@ export default function SuperadminDashboard() {
     },
     onError: (error: any) => {
       toast({ title: "Error", description: error.message || "Failed to impersonate user", variant: "destructive" });
+    },
+  });
+
+  const bulkResetPasswordsMutation = useMutation({
+    mutationFn: async (userIds: string[]) => {
+      const res = await apiRequest('POST', '/api/superadmin/users/bulk/reset-passwords', { userIds });
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      const successCount = data.results.filter((r: any) => r.success).length;
+      const failCount = data.results.filter((r: any) => !r.success).length;
+      toast({ 
+        title: "Bulk Password Reset Complete", 
+        description: `${successCount} succeeded, ${failCount} failed`,
+        variant: failCount > 0 ? "destructive" : "default"
+      });
+      setBulkResetResults(data.results);
+      setIsBulkResultsModalOpen(true);
+      setSelectedUserIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/students'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations'] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to reset passwords", variant: "destructive" });
+    },
+  });
+
+  const bulkDeleteOrgsMutation = useMutation({
+    mutationFn: async (orgIds: string[]) => {
+      const res = await apiRequest('POST', '/api/superadmin/organizations/bulk/delete', { orgIds });
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      const successCount = data.results.filter((r: any) => r.success).length;
+      const failCount = data.results.filter((r: any) => !r.success).length;
+      toast({ 
+        title: "Bulk Delete Complete", 
+        description: `${successCount} schools deleted, ${failCount} failed`,
+        variant: failCount > 0 ? "destructive" : "default"
+      });
+      setSelectedOrgIds(new Set());
+      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/metrics'] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to delete schools", variant: "destructive" });
     },
   });
 
@@ -883,6 +936,35 @@ export default function SuperadminDashboard() {
                 </div>
               </CardHeader>
               <CardContent>
+                {selectedOrgIds.size > 0 && (
+                  <div className="flex items-center gap-4 p-3 mb-4 bg-muted rounded-lg">
+                    <span className="text-sm font-medium">{selectedOrgIds.size} school(s) selected</span>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => {
+                          if (confirm(`Are you sure you want to delete ${selectedOrgIds.size} school(s)? This action cannot be undone.`)) {
+                            bulkDeleteOrgsMutation.mutate(Array.from(selectedOrgIds));
+                          }
+                        }}
+                        disabled={bulkDeleteOrgsMutation.isPending}
+                        data-testid="button-bulk-delete-orgs"
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete Schools
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setSelectedOrgIds(new Set())}
+                        data-testid="button-clear-org-selection"
+                      >
+                        Clear Selection
+                      </Button>
+                    </div>
+                  </div>
+                )}
                 {orgsLoading ? (
                   <div className="text-center py-8 text-muted-foreground">Loading schools...</div>
                 ) : sortedOrgs.length === 0 ? (
@@ -892,6 +974,19 @@ export default function SuperadminDashboard() {
                     <Table>
                       <TableHeader>
                         <TableRow>
+                          <TableHead className="w-12">
+                            <Checkbox
+                              checked={sortedOrgs.length > 0 && sortedOrgs.every(org => selectedOrgIds.has(org.id))}
+                              onCheckedChange={(checked) => {
+                                if (checked) {
+                                  setSelectedOrgIds(new Set(sortedOrgs.map(org => org.id)));
+                                } else {
+                                  setSelectedOrgIds(new Set());
+                                }
+                              }}
+                              data-testid="checkbox-select-all-orgs"
+                            />
+                          </TableHead>
                           <TableHead 
                             className="cursor-pointer hover-elevate"
                             onClick={() => {
@@ -936,6 +1031,21 @@ export default function SuperadminDashboard() {
                       <TableBody>
                         {sortedOrgs.map((org) => (
                           <TableRow key={org.id} data-testid={`row-org-${org.id}`}>
+                            <TableCell>
+                              <Checkbox
+                                checked={selectedOrgIds.has(org.id)}
+                                onCheckedChange={(checked) => {
+                                  const newSet = new Set(selectedOrgIds);
+                                  if (checked) {
+                                    newSet.add(org.id);
+                                  } else {
+                                    newSet.delete(org.id);
+                                  }
+                                  setSelectedOrgIds(newSet);
+                                }}
+                                data-testid={`checkbox-org-${org.id}`}
+                              />
+                            </TableCell>
                             <TableCell>
                               <div className="font-medium">{org.name}</div>
                               <div className="text-xs text-muted-foreground">
@@ -1079,108 +1189,152 @@ export default function SuperadminDashboard() {
                 </div>
               </CardHeader>
               <CardContent>
+                {selectedUserIds.size > 0 && (
+                  <div className="flex items-center gap-4 p-3 mb-4 bg-muted rounded-lg">
+                    <span className="text-sm font-medium">{selectedUserIds.size} user(s) selected</span>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => bulkResetPasswordsMutation.mutate(Array.from(selectedUserIds))}
+                        disabled={bulkResetPasswordsMutation.isPending}
+                        data-testid="button-bulk-reset-passwords"
+                      >
+                        <Key className="w-4 h-4 mr-2" />
+                        Reset Passwords
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setSelectedUserIds(new Set())}
+                        data-testid="button-clear-user-selection"
+                      >
+                        Clear Selection
+                      </Button>
+                    </div>
+                  </div>
+                )}
                 {studentsLoading ? (
                   <div className="text-center py-8 text-muted-foreground">Loading users...</div>
-                ) : students.filter((s) => {
-                  const searchLower = studentSearchQuery.toLowerCase();
-                  const matchesSearch = !studentSearchQuery || 
-                    (s.user.firstName?.toLowerCase().includes(searchLower)) ||
-                    (s.user.lastName?.toLowerCase().includes(searchLower)) ||
-                    (s.user.email?.toLowerCase().includes(searchLower)) ||
-                    (s.user.username?.toLowerCase().includes(searchLower)) ||
-                    (s.organizationName?.toLowerCase().includes(searchLower));
-                  const matchesType = userTypeFilter === 'all' ||
-                    (userTypeFilter === 'students' && s.user.accountType === 'org_student') ||
-                    (userTypeFilter === 'org_admins' && s.user.accountType === 'org_admin') ||
-                    (userTypeFilter === 'premium' && s.user.accountType === 'individual' && s.user.isPremium);
-                  return matchesSearch && matchesType;
-                }).length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">No users found</div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Username</TableHead>
-                          <TableHead>User Type</TableHead>
-                          <TableHead>Assessments</TableHead>
-                          <TableHead>Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {students.filter((s) => {
-                          const searchLower = studentSearchQuery.toLowerCase();
-                          const matchesSearch = !studentSearchQuery || 
-                            (s.user.firstName?.toLowerCase().includes(searchLower)) ||
-                            (s.user.lastName?.toLowerCase().includes(searchLower)) ||
-                            (s.user.email?.toLowerCase().includes(searchLower)) ||
-                            (s.user.username?.toLowerCase().includes(searchLower)) ||
-                            (s.organizationName?.toLowerCase().includes(searchLower));
-                          const matchesType = userTypeFilter === 'all' ||
-                            (userTypeFilter === 'students' && s.user.accountType === 'org_student') ||
-                            (userTypeFilter === 'org_admins' && s.user.accountType === 'org_admin') ||
-                            (userTypeFilter === 'premium' && s.user.accountType === 'individual' && s.user.isPremium);
-                          return matchesSearch && matchesType;
-                        }).map((student) => (
-                          <TableRow key={student.user.id}>
-                            <TableCell>
-                              <div className="font-medium">
-                                {student.user.firstName} {student.user.lastName}
-                              </div>
-                              {student.user.email && (
-                                <div className="text-xs text-muted-foreground">{student.user.email}</div>
-                              )}
-                            </TableCell>
-                            <TableCell>{student.user.username || "-"}</TableCell>
-                            <TableCell>
-                              <div className="flex flex-col">
-                                <Badge 
-                                  variant={student.user.accountType === 'org_admin' ? 'destructive' : student.user.accountType === 'org_student' ? 'secondary' : 'default'}
-                                  className="w-fit"
-                                >
-                                  {student.user.accountType === 'org_admin' ? 'Admin' : student.user.accountType === 'org_student' ? 'Student' : 'Premium'}
-                                </Badge>
-                                <span className="text-xs text-muted-foreground mt-1">
-                                  School: {student.organizationName || "Individual"}
-                                </span>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="font-medium">{student.assessmentCount}</div>
-                              {student.latestAssessmentDate && (
-                                <div className="text-xs text-muted-foreground">
-                                  Last: {new Date(student.latestAssessmentDate).toLocaleDateString()}
+                ) : (() => {
+                  const filteredStudents = students.filter((s) => {
+                    const searchLower = studentSearchQuery.toLowerCase();
+                    const matchesSearch = !studentSearchQuery || 
+                      (s.user.firstName?.toLowerCase().includes(searchLower)) ||
+                      (s.user.lastName?.toLowerCase().includes(searchLower)) ||
+                      (s.user.email?.toLowerCase().includes(searchLower)) ||
+                      (s.user.username?.toLowerCase().includes(searchLower)) ||
+                      (s.organizationName?.toLowerCase().includes(searchLower));
+                    const matchesType = userTypeFilter === 'all' ||
+                      (userTypeFilter === 'students' && s.user.accountType === 'org_student') ||
+                      (userTypeFilter === 'org_admins' && s.user.accountType === 'org_admin') ||
+                      (userTypeFilter === 'premium' && s.user.accountType === 'individual' && s.user.isPremium);
+                    return matchesSearch && matchesType;
+                  });
+                  const allFilteredSelected = filteredStudents.length > 0 && filteredStudents.every(s => selectedUserIds.has(s.user.id));
+                  
+                  return filteredStudents.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">No users found</div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-12">
+                              <Checkbox
+                                checked={allFilteredSelected}
+                                onCheckedChange={(checked) => {
+                                  if (checked) {
+                                    setSelectedUserIds(new Set(filteredStudents.map(s => s.user.id)));
+                                  } else {
+                                    setSelectedUserIds(new Set());
+                                  }
+                                }}
+                                data-testid="checkbox-select-all-users"
+                              />
+                            </TableHead>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Username</TableHead>
+                            <TableHead>User Type</TableHead>
+                            <TableHead>Assessments</TableHead>
+                            <TableHead>Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {filteredStudents.map((student) => (
+                            <TableRow key={student.user.id}>
+                              <TableCell>
+                                <Checkbox
+                                  checked={selectedUserIds.has(student.user.id)}
+                                  onCheckedChange={(checked) => {
+                                    const newSet = new Set(selectedUserIds);
+                                    if (checked) {
+                                      newSet.add(student.user.id);
+                                    } else {
+                                      newSet.delete(student.user.id);
+                                    }
+                                    setSelectedUserIds(newSet);
+                                  }}
+                                  data-testid={`checkbox-user-${student.user.id}`}
+                                />
+                              </TableCell>
+                              <TableCell>
+                                <div className="font-medium">
+                                  {student.user.firstName} {student.user.lastName}
                                 </div>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => openResetPasswordModal(student.user.id)}
-                                  title="Reset Password"
-                                  data-testid={`button-reset-password-${student.user.id}`}
-                                >
-                                  <Key className="w-4 h-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  asChild
-                                  title="View Results"
-                                  data-testid={`button-view-results-${student.user.id}`}
-                                >
-                                  <a href={`/api/superadmin/students/${student.user.id}/results`} target="_blank" rel="noopener noreferrer">
-                                    <Eye className="w-4 h-4" />
-                                  </a>
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => impersonateMutation.mutate(student.user.id)}
-                                  title="Impersonate User"
+                                {student.user.email && (
+                                  <div className="text-xs text-muted-foreground">{student.user.email}</div>
+                                )}
+                              </TableCell>
+                              <TableCell>{student.user.username || "-"}</TableCell>
+                              <TableCell>
+                                <div className="flex flex-col">
+                                  <Badge 
+                                    variant={student.user.accountType === 'org_admin' ? 'destructive' : student.user.accountType === 'org_student' ? 'secondary' : 'default'}
+                                    className="w-fit"
+                                  >
+                                    {student.user.accountType === 'org_admin' ? 'Admin' : student.user.accountType === 'org_student' ? 'Student' : 'Premium'}
+                                  </Badge>
+                                  <span className="text-xs text-muted-foreground mt-1">
+                                    School: {student.organizationName || "Individual"}
+                                  </span>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="font-medium">{student.assessmentCount}</div>
+                                {student.latestAssessmentDate && (
+                                  <div className="text-xs text-muted-foreground">
+                                    Last: {new Date(student.latestAssessmentDate).toLocaleDateString()}
+                                  </div>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex gap-1">
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => openResetPasswordModal(student.user.id)}
+                                    title="Reset Password"
+                                    data-testid={`button-reset-password-${student.user.id}`}
+                                  >
+                                    <Key className="w-4 h-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    asChild
+                                    title="View Results"
+                                    data-testid={`button-view-results-${student.user.id}`}
+                                  >
+                                    <a href={`/api/superadmin/students/${student.user.id}/results`} target="_blank" rel="noopener noreferrer">
+                                      <Eye className="w-4 h-4" />
+                                    </a>
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => impersonateMutation.mutate(student.user.id)}
+                                    title="Impersonate User"
                                   data-testid={`button-impersonate-${student.user.id}`}
                                 >
                                   <UserCog className="w-4 h-4" />
@@ -1203,7 +1357,8 @@ export default function SuperadminDashboard() {
                       </TableBody>
                     </Table>
                   </div>
-                )}
+                  );
+                })()}
               </CardContent>
             </Card>
           </TabsContent>
