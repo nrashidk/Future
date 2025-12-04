@@ -23,7 +23,7 @@ interface QuizQuestion {
   correctAnswer: string;
   explanation?: string;
   subject: string;
-  gradeBand: string;
+  grade: string;
   countryId?: string;
   topic: string;
   difficulty: string;
@@ -31,7 +31,7 @@ interface QuizQuestion {
 }
 
 const SUBJECTS = ["Mathematics", "Science", "English", "Arabic", "Social Studies", "Computer Science"];
-const GRADE_BANDS = ["8-9", "10-12"];
+const GRADES = ["8", "9", "10", "11", "12"];
 const DIFFICULTIES = ["easy", "medium", "hard"];
 const COGNITIVE_LEVELS = ["knowledge", "comprehension", "application", "analysis"];
 
@@ -45,7 +45,7 @@ export default function Admin() {
   const [filters, setFilters] = useState({
     countryId: "all",
     subject: "all",
-    gradeBand: "all",
+    grade: "all",
   });
   const [editingQuestion, setEditingQuestion] = useState<QuizQuestion | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -57,7 +57,7 @@ export default function Admin() {
       const params = new URLSearchParams();
       if (filters.countryId && filters.countryId !== 'all') params.set('countryId', filters.countryId);
       if (filters.subject && filters.subject !== 'all') params.set('subject', filters.subject);
-      if (filters.gradeBand && filters.gradeBand !== 'all') params.set('gradeBand', filters.gradeBand);
+      if (filters.grade && filters.grade !== 'all') params.set('grade', filters.grade);
       const queryString = params.toString();
       const url = queryString ? `/api/admin/questions?${queryString}` : '/api/admin/questions';
       
@@ -87,10 +87,11 @@ export default function Admin() {
 
   const handleExport = async (format: 'csv' | 'json') => {
     try {
-      const params = new URLSearchParams({
-        format,
-        ...filters,
-      });
+      const params = new URLSearchParams();
+      params.set('format', format);
+      if (filters.countryId && filters.countryId !== 'all') params.set('countryId', filters.countryId);
+      if (filters.subject && filters.subject !== 'all') params.set('subject', filters.subject);
+      if (filters.grade && filters.grade !== 'all') params.set('grade', filters.grade);
       window.location.href = `/api/admin/questions/export?${params.toString()}`;
       toast({ title: "Success", description: `Questions exported as ${format.toUpperCase()}` });
     } catch (error) {
@@ -225,14 +226,14 @@ export default function Admin() {
           </div>
 
           <div className="flex-1 min-w-[200px]">
-            <Label htmlFor="filter-grade">Grade Band</Label>
-            <Select value={filters.gradeBand} onValueChange={(value) => setFilters(f => ({ ...f, gradeBand: value }))}>
+            <Label htmlFor="filter-grade">Grade</Label>
+            <Select value={filters.grade} onValueChange={(value) => setFilters(f => ({ ...f, grade: value }))}>
               <SelectTrigger id="filter-grade" data-testid="select-filter-grade">
                 <SelectValue placeholder="All Grades" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Grades</SelectItem>
-                {GRADE_BANDS.map(g => (
+                {GRADES.map(g => (
                   <SelectItem key={g} value={g}>Grade {g}</SelectItem>
                 ))}
               </SelectContent>
@@ -300,7 +301,7 @@ export default function Admin() {
                           {question.subject}
                         </span>
                         <span className="bg-accent/50 px-2 py-1 rounded text-xs">
-                          Grade {question.gradeBand}
+                          Grade {question.grade}
                         </span>
                         <span className="bg-muted px-2 py-1 rounded text-xs">
                           {question.difficulty}
@@ -443,7 +444,7 @@ function QuestionForm({
     correctAnswer: findMatchingOption(savedCorrectAnswer, normalizedOptions, optionIdMap),
     explanation: question?.explanation || "",
     subject: question?.subject || "",
-    gradeBand: question?.gradeBand || "",
+    grade: question?.grade?.toString() || "",
     countryId: question?.countryId || "all",
     topic: question?.topic || "",
     difficulty: question?.difficulty || "",
@@ -451,7 +452,7 @@ function QuestionForm({
   });
 
   const mutation = useMutation({
-    mutationFn: async (data: Omit<typeof formData, 'countryId'> & { countryId: string | null }) => {
+    mutationFn: async (data: Omit<typeof formData, 'countryId' | 'grade'> & { countryId: string | null; grade: number | null }) => {
       const url = question 
         ? `/api/admin/questions/${question.id}`
         : '/api/admin/questions';
@@ -476,6 +477,7 @@ function QuestionForm({
     mutation.mutate({
       ...formData,
       countryId: normalizeCountryId(formData.countryId),
+      grade: formData.grade ? parseInt(formData.grade, 10) : null,
     });
   };
 
@@ -523,13 +525,13 @@ function QuestionForm({
           </div>
 
           <div>
-            <Label htmlFor="gradeBand">Grade Band *</Label>
-            <Select value={formData.gradeBand} onValueChange={(value) => setFormData(f => ({ ...f, gradeBand: value }))} required>
-              <SelectTrigger id="gradeBand" data-testid="select-gradeBand">
+            <Label htmlFor="grade">Grade *</Label>
+            <Select value={formData.grade} onValueChange={(value) => setFormData(f => ({ ...f, grade: value }))} required>
+              <SelectTrigger id="grade" data-testid="select-grade">
                 <SelectValue placeholder="Select grade" />
               </SelectTrigger>
               <SelectContent>
-                {GRADE_BANDS.map(g => (
+                {GRADES.map(g => (
                   <SelectItem key={g} value={g}>Grade {g}</SelectItem>
                 ))}
               </SelectContent>

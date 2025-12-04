@@ -1,6 +1,6 @@
-import type { SubjectQuestionBank } from "../../../shared/questionTypes";
+import type { LegacySubjectQuestionBank } from "../../../shared/questionTypes";
 
-export const computerScience: SubjectQuestionBank = {
+export const computerScience: LegacySubjectQuestionBank = {
   subject: "Computer Science",
   grades: {
     "8-9": [

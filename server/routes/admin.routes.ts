@@ -39,11 +39,12 @@ export function registerAdminRoutes(app: Express) {
   // Super Admin Endpoints - Quiz Question Management
   app.get("/api/admin/questions", isAuthenticated, isAdmin, async (req, res) => {
     try {
-      const { countryId, subject, gradeBand, limit, offset } = req.query;
+      const { countryId, subject, grade, gradeBand, limit, offset } = req.query;
       
       const questions = await storage.getQuizQuestions({
         countryId: countryId as string,
         subject: subject as string,
+        grade: grade ? parseInt(grade as string) : undefined,
         gradeBand: gradeBand as string,
         limit: limit ? parseInt(limit as string) : undefined,
         offset: offset ? parseInt(offset as string) : undefined,
@@ -790,17 +791,18 @@ export function registerAdminRoutes(app: Express) {
 
   app.get("/api/admin/questions/export", isAuthenticated, isAdmin, async (req, res) => {
     try {
-      const { countryId, subject, gradeBand, format } = req.query;
+      const { countryId, subject, grade, gradeBand, format } = req.query;
       
       const questions = await storage.getQuizQuestions({
         countryId: countryId as string,
         subject: subject as string,
+        grade: grade ? parseInt(grade as string) : undefined,
         gradeBand: gradeBand as string,
       });
 
       if (format === "csv") {
         const csvRows = [
-          ["Question", "Type", "Subject", "Grade Band", "Country", "Topic", "Difficulty", "Cognitive Level", "Correct Answer", "Options (JSON)", "Explanation"].join(",")
+          ["Question", "Type", "Subject", "Grade", "Grade Band (Legacy)", "Country", "Topic", "Difficulty", "Cognitive Level", "Correct Answer", "Options (JSON)", "Explanation"].join(",")
         ];
 
         questions.forEach((q: any) => {
@@ -808,7 +810,8 @@ export function registerAdminRoutes(app: Express) {
             `"${q.question.replace(/"/g, '""')}"`,
             q.questionType,
             q.subject,
-            q.gradeBand,
+            q.grade || "",
+            q.gradeBand || "",
             q.countryId || "global",
             q.topic,
             q.difficulty,

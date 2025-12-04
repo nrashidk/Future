@@ -1,6 +1,6 @@
 import { storage } from "./storage";
 import { uaeQuestionBank } from "./questionBanks/uae";
-import { validateQuestionBank, checkCoverage } from "../shared/questionTypes";
+import { validateLegacyQuestionBank, checkLegacyCoverage, flattenLegacyQuestionBank } from "../shared/questionTypes";
 import { RIASEC_CAREER_AFFINITIES } from "./riasecAffinities";
 import { seedCVQItems } from "./cvq-seed";
 import { WEF_16_SKILLS, CAREER_WEF_SKILL_AFFINITIES } from "./wefSkillsData";
@@ -1103,16 +1103,16 @@ export async function seedDatabase() {
   // Seed UAE curriculum questions
   console.log("📚 Seeding UAE curriculum questions...");
   
-  // Validate question bank
-  const validation = validateQuestionBank(uaeQuestionBank);
+  // Validate question bank (using legacy format)
+  const validation = validateLegacyQuestionBank(uaeQuestionBank);
   if (!validation.valid) {
     console.error("❌ UAE question bank validation failed:");
     validation.errors.forEach(err => console.error(`  - ${err}`));
     throw new Error("Invalid question bank");
   }
   
-  // Check coverage
-  const coverage = checkCoverage(uaeQuestionBank);
+  // Check coverage (using legacy format)
+  const coverage = checkLegacyCoverage(uaeQuestionBank);
   console.log(`✓ Total questions: ${coverage.totalQuestions}`);
   console.log(`✓ Coverage by subject:`);
   Object.entries(coverage.bySubject).forEach(([subject, counts]) => {
@@ -1124,11 +1124,8 @@ export async function seedDatabase() {
     coverage.warnings.forEach(w => console.log(`  - ${w}`));
   }
   
-  // Flatten all questions for seeding
-  const allQuestions = uaeQuestionBank.subjects.flatMap(subject => [
-    ...subject.grades["8-9"],
-    ...subject.grades["10-12"]
-  ]);
+  // Flatten all questions for seeding (using legacy format helper)
+  const allQuestions = flattenLegacyQuestionBank(uaeQuestionBank);
   
   const existingQuestions = await storage.getAllQuizQuestions?.() || [];
   const existingQuestionTexts = new Set(existingQuestions.map((q: any) => q.question));
@@ -1138,7 +1135,24 @@ export async function seedDatabase() {
     if (!existingQuestionTexts.has(question.question)) {
       try {
         // Set countryId to null to make questions global (subject competency is universal)
-        await storage.createQuizQuestion({ ...question, countryId: null });
+        // Convert string grade to numeric grade for database compatibility
+        const numericGrade = question.grade ? parseInt(question.grade) : null;
+        
+        // Extract only the fields that match InsertQuizQuestion schema
+        await storage.createQuizQuestion({ 
+          question: question.question,
+          questionType: question.questionType,
+          options: question.options,
+          correctAnswer: question.correctAnswer,
+          explanation: question.explanation,
+          subject: question.subject,
+          gradeBand: question.gradeBand || "8-9",
+          grade: numericGrade,
+          countryId: null,
+          topic: question.topic,
+          difficulty: question.difficulty,
+          cognitiveLevel: question.cognitiveLevel,
+        });
         createdCount++;
       } catch (error) {
         console.log(`Error creating quiz question:`, error);

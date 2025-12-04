@@ -185,6 +185,7 @@ export interface IStorage {
   getQuizQuestions(filters: {
     countryId?: string;
     subject?: string;
+    grade?: number;
     gradeBand?: string;
     limit?: number;
     offset?: number;
@@ -900,6 +901,7 @@ export class DatabaseStorage implements IStorage {
   async getQuizQuestions(filters: {
     countryId?: string;
     subject?: string;
+    grade?: number;
     gradeBand?: string;
     limit?: number;
     offset?: number;
@@ -913,7 +915,9 @@ export class DatabaseStorage implements IStorage {
     if (filters.subject) {
       conditions.push(eq(quizQuestions.subject, filters.subject));
     }
-    if (filters.gradeBand) {
+    if (filters.grade !== undefined) {
+      conditions.push(eq(quizQuestions.grade, filters.grade));
+    } else if (filters.gradeBand) {
       conditions.push(eq(quizQuestions.gradeBand, filters.gradeBand));
     }
     
