@@ -25,9 +25,16 @@ interface QuizQuestion {
   subject: string;
   grade: string;
   countryId?: string;
+  curriculum?: string;
   topic: string;
   difficulty: string;
   cognitiveLevel: string;
+}
+
+interface Country {
+  id: string;
+  name: string;
+  curricula?: string[];
 }
 
 const SUBJECTS = ["Mathematics", "Science", "English", "Arabic", "Social Studies", "Computer Science"];
@@ -44,6 +51,7 @@ export default function Admin() {
   const { toast } = useToast();
   const [filters, setFilters] = useState({
     countryId: "all",
+    curriculum: "all",
     subject: "all",
     grade: "all",
   });
@@ -56,6 +64,7 @@ export default function Admin() {
     queryFn: async () => {
       const params = new URLSearchParams();
       if (filters.countryId && filters.countryId !== 'all') params.set('countryId', filters.countryId);
+      if (filters.curriculum && filters.curriculum !== 'all') params.set('curriculum', filters.curriculum);
       if (filters.subject && filters.subject !== 'all') params.set('subject', filters.subject);
       if (filters.grade && filters.grade !== 'all') params.set('grade', filters.grade);
       const queryString = params.toString();
@@ -68,9 +77,12 @@ export default function Admin() {
     enabled: true,
   });
 
-  const { data: countries = [] } = useQuery<Array<{ id: string; name: string }>>({
+  const { data: countries = [] } = useQuery<Country[]>({
     queryKey: ['/api/countries'],
   });
+
+  const selectedCountry = countries.find(c => c.id === filters.countryId);
+  const availableCurricula = selectedCountry?.curricula || [];
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -90,6 +102,7 @@ export default function Admin() {
       const params = new URLSearchParams();
       params.set('format', format);
       if (filters.countryId && filters.countryId !== 'all') params.set('countryId', filters.countryId);
+      if (filters.curriculum && filters.curriculum !== 'all') params.set('curriculum', filters.curriculum);
       if (filters.subject && filters.subject !== 'all') params.set('subject', filters.subject);
       if (filters.grade && filters.grade !== 'all') params.set('grade', filters.grade);
       window.location.href = `/api/admin/questions/export?${params.toString()}`;
@@ -197,7 +210,7 @@ export default function Admin() {
         <div className="mb-8 flex flex-wrap gap-4 items-end">
           <div className="flex-1 min-w-[200px]">
             <Label htmlFor="filter-country">Country</Label>
-            <Select value={filters.countryId} onValueChange={(value) => setFilters(f => ({ ...f, countryId: value }))}>
+            <Select value={filters.countryId} onValueChange={(value) => setFilters(f => ({ ...f, countryId: value, curriculum: "all" }))}>
               <SelectTrigger id="filter-country" data-testid="select-filter-country">
                 <SelectValue placeholder="All Countries" />
               </SelectTrigger>
@@ -209,6 +222,23 @@ export default function Admin() {
               </SelectContent>
             </Select>
           </div>
+
+          {availableCurricula.length > 0 && (
+            <div className="flex-1 min-w-[200px]">
+              <Label htmlFor="filter-curriculum">Curriculum</Label>
+              <Select value={filters.curriculum} onValueChange={(value) => setFilters(f => ({ ...f, curriculum: value }))}>
+                <SelectTrigger id="filter-curriculum" data-testid="select-filter-curriculum">
+                  <SelectValue placeholder="All Curricula" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Curricula</SelectItem>
+                  {availableCurricula.map((curriculum: string) => (
+                    <SelectItem key={curriculum} value={curriculum}>{curriculum}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           <div className="flex-1 min-w-[200px]">
             <Label htmlFor="filter-subject">Subject</Label>
@@ -303,6 +333,11 @@ export default function Admin() {
                         <span className="bg-accent/50 px-2 py-1 rounded text-xs">
                           Grade {question.grade}
                         </span>
+                        {question.curriculum && (
+                          <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-2 py-1 rounded text-xs">
+                            {question.curriculum}
+                          </span>
+                        )}
                         <span className="bg-muted px-2 py-1 rounded text-xs">
                           {question.difficulty}
                         </span>

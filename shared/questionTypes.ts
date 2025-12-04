@@ -11,6 +11,7 @@ export interface QuizQuestionSeed {
   subject: string;
   grade: GradeLevel;
   countryId: string;
+  curriculum: string; // Curriculum type (e.g., 'MoE National', 'CBSE', 'IB')
   topic: string;
   difficulty: "easy" | "medium" | "hard";
   cognitiveLevel: "knowledge" | "comprehension" | "application" | "analysis";
@@ -30,6 +31,7 @@ export interface SubjectQuestionBank {
 export interface CountryQuestionBank {
   countryId: string;
   countryName: string;
+  curriculum: string; // Curriculum type (e.g., 'MoE National', 'CBSE', 'IB')
   subjects: SubjectQuestionBank[];
 }
 
@@ -39,7 +41,12 @@ export function flattenQuestionBank(bank: CountryQuestionBank): QuizQuestionSeed
   bank.subjects.forEach(subject => {
     ALL_GRADES.forEach(grade => {
       (subject.grades[grade] || []).forEach(q => {
-        questions.push({ ...q, grade });
+        questions.push({ 
+          ...q, 
+          grade,
+          countryId: bank.countryId,
+          curriculum: bank.curriculum,
+        });
       });
     });
   });

@@ -108,6 +108,7 @@ export const organizations = pgTable("organizations", {
   // Settings
   passwordComplexity: text("password_complexity").notNull().default("medium"), // 'easy', 'medium', 'strong'
   countryId: varchar("country_id"), // Optional pre-filled country for all students
+  curriculum: text("curriculum"), // Selected curriculum for this school (e.g., 'MoE National', 'CBSE', 'IB', 'American')
   
   // Payment info
   purchaseDate: timestamp("purchase_date").defaultNow(),
@@ -423,6 +424,7 @@ export const assessments = pgTable("assessments", {
   grade: text("grade"),
   gender: text("gender"),
   countryId: varchar("country_id").references(() => countries.id),
+  curriculum: text("curriculum"), // Selected curriculum for this assessment (e.g., 'MoE National', 'CBSE', 'IB')
   
   // Assessment data
   assessmentType: text("assessment_type").notNull().default("basic"), // 'basic' or 'kolb'

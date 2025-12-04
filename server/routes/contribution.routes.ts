@@ -291,6 +291,21 @@ router.post("/submit", isAuthenticated, checkOrgAdmin, async (req: Request, res:
       return res.status(400).json({ error: "Invalid country" });
     }
 
+    // Validate curriculum is valid for the selected country
+    if (curriculum && country.curricula && !country.curricula.includes(curriculum)) {
+      return res.status(400).json({ 
+        error: `Invalid curriculum '${curriculum}' for ${country.name}. Valid options: ${country.curricula.join(", ")}` 
+      });
+    }
+
+    // If organization has a curriculum set, validate the submission matches
+    const organization = await storage.getOrganizationById(member.organizationId);
+    if (organization?.curriculum && curriculum && organization.curriculum !== curriculum) {
+      return res.status(400).json({ 
+        error: `Submitted curriculum '${curriculum}' does not match your school's curriculum '${organization.curriculum}'.` 
+      });
+    }
+
     // Sanitize all questions
     const sanitizedQuestions = questions.map(sanitizeQuestion);
 

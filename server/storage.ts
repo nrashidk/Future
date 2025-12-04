@@ -900,6 +900,7 @@ export class DatabaseStorage implements IStorage {
 
   async getQuizQuestions(filters: {
     countryId?: string;
+    curriculum?: string;
     subject?: string;
     grade?: number;
     gradeBand?: string;
@@ -911,6 +912,9 @@ export class DatabaseStorage implements IStorage {
     const conditions: any[] = [];
     if (filters.countryId) {
       conditions.push(eq(quizQuestions.countryId, filters.countryId));
+    }
+    if (filters.curriculum) {
+      conditions.push(eq(quizQuestions.curriculum, filters.curriculum));
     }
     if (filters.subject) {
       conditions.push(eq(quizQuestions.subject, filters.subject));

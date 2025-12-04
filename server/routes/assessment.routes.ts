@@ -99,6 +99,26 @@ export function registerAssessmentRoutes(app: Express) {
         }
       }
 
+      // For organization students, inherit curriculum from their organization
+      let assessmentCurriculum = validatedData.curriculum;
+      let organizationId = validatedData.organizationId;
+      
+      if (userId) {
+        const user = await storage.getUser(userId);
+        if (user?.accountType === "org_student") {
+          const orgMember = await storage.getOrganizationMemberByUserId(userId);
+          if (orgMember) {
+            organizationId = orgMember.organizationId;
+            const organization = await storage.getOrganizationById(orgMember.organizationId);
+            if (organization?.curriculum) {
+              // Override curriculum with organization's curriculum for org students
+              assessmentCurriculum = organization.curriculum;
+              console.log(`[Assessment] Org student ${userId} inheriting curriculum from organization: ${assessmentCurriculum}`);
+            }
+          }
+        }
+      }
+
       const assessment = await storage.createAssessment({
         ...validatedData,
         userId,
@@ -107,6 +127,8 @@ export function registerAssessmentRoutes(app: Express) {
         assessmentType,
         kolbScores,
         riasecScores,
+        curriculum: assessmentCurriculum,
+        organizationId,
       });
 
       // Debug logging

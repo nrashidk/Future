@@ -601,6 +601,7 @@ export function registerSuperadminRoutes(app: Express) {
         totalLicenses, 
         isUnlimitedLicenses,
         countryId,
+        curriculum,
         adminFirstName, 
         adminLastName, 
         adminEmail, 
@@ -663,6 +664,7 @@ export function registerSuperadminRoutes(app: Express) {
         usedLicenses: 0,
         isUnlimitedLicenses: Boolean(isUnlimitedLicenses),
         countryId: countryId || null,
+        curriculum: curriculum || null,
       });
       
       const member = await storage.createOrganizationMember({

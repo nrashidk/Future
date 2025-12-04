@@ -39,10 +39,11 @@ export function registerAdminRoutes(app: Express) {
   // Super Admin Endpoints - Quiz Question Management
   app.get("/api/admin/questions", isAuthenticated, isAdmin, async (req, res) => {
     try {
-      const { countryId, subject, grade, gradeBand, limit, offset } = req.query;
+      const { countryId, curriculum, subject, grade, gradeBand, limit, offset } = req.query;
       
       const questions = await storage.getQuizQuestions({
         countryId: countryId as string,
+        curriculum: curriculum as string,
         subject: subject as string,
         grade: grade ? parseInt(grade as string) : undefined,
         gradeBand: gradeBand as string,
@@ -218,12 +219,15 @@ export function registerAdminRoutes(app: Express) {
 
   app.patch("/api/admin/organizations/:id", isAuthenticated, isAdmin, async (req, res) => {
     try {
-      const { name, totalLicenses, isUnlimitedLicenses } = req.body;
+      const { name, totalLicenses, isUnlimitedLicenses, logoUrl, countryId, curriculum } = req.body;
       const updates: any = {};
       
       if (name !== undefined) updates.name = name;
       if (totalLicenses !== undefined) updates.totalLicenses = parseInt(totalLicenses);
       if (isUnlimitedLicenses !== undefined) updates.isUnlimitedLicenses = Boolean(isUnlimitedLicenses);
+      if (logoUrl !== undefined) updates.logoUrl = logoUrl;
+      if (countryId !== undefined) updates.countryId = countryId;
+      if (curriculum !== undefined) updates.curriculum = curriculum;
 
       const organization = await storage.updateOrganization(req.params.id, updates);
       res.json(organization);
@@ -791,10 +795,11 @@ export function registerAdminRoutes(app: Express) {
 
   app.get("/api/admin/questions/export", isAuthenticated, isAdmin, async (req, res) => {
     try {
-      const { countryId, subject, grade, gradeBand, format } = req.query;
+      const { countryId, curriculum, subject, grade, gradeBand, format } = req.query;
       
       const questions = await storage.getQuizQuestions({
         countryId: countryId as string,
+        curriculum: curriculum as string,
         subject: subject as string,
         grade: grade ? parseInt(grade as string) : undefined,
         gradeBand: gradeBand as string,
@@ -802,7 +807,7 @@ export function registerAdminRoutes(app: Express) {
 
       if (format === "csv") {
         const csvRows = [
-          ["Question", "Type", "Subject", "Grade", "Grade Band (Legacy)", "Country", "Topic", "Difficulty", "Cognitive Level", "Correct Answer", "Options (JSON)", "Explanation"].join(",")
+          ["Question", "Type", "Subject", "Grade", "Grade Band (Legacy)", "Country", "Curriculum", "Topic", "Difficulty", "Cognitive Level", "Correct Answer", "Options (JSON)", "Explanation"].join(",")
         ];
 
         questions.forEach((q: any) => {
@@ -813,6 +818,7 @@ export function registerAdminRoutes(app: Express) {
             q.grade || "",
             q.gradeBand || "",
             q.countryId || "global",
+            q.curriculum || "",
             q.topic,
             q.difficulty,
             q.cognitiveLevel,

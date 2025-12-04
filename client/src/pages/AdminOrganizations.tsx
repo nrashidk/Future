@@ -32,11 +32,19 @@ interface Organization {
   usedLicenses: number;
   isUnlimitedLicenses: boolean;
   logoUrl?: string | null;
+  countryId?: string | null;
+  curriculum?: string | null;
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
   createdAt: string;
   pendingRewardCredits?: number;
   rewardCredits?: number;
+}
+
+interface Country {
+  id: string;
+  name: string;
+  curricula?: string[] | null;
 }
 
 interface OrganizationMember {
@@ -851,6 +859,7 @@ function CreateOrganizationForm({ onSuccess }: { onSuccess: () => void }) {
     totalLicenses: 50,
     isUnlimitedLicenses: false,
     countryId: "none" as string,
+    curriculum: "" as string,
     adminFirstName: "",
     adminLastName: "",
     adminEmail: "",
@@ -862,9 +871,12 @@ function CreateOrganizationForm({ onSuccess }: { onSuccess: () => void }) {
     organizationName: string;
   } | null>(null);
 
-  const { data: countries = [] } = useQuery<Array<{ id: string; name: string }>>({
+  const { data: countries = [] } = useQuery<Country[]>({
     queryKey: ['/api/countries'],
   });
+
+  const selectedCountry = countries.find(c => c.id === formData.countryId);
+  const availableCurricula = selectedCountry?.curricula || [];
 
   const mutation = useMutation({
     mutationFn: async (data: typeof formData) => {
@@ -873,6 +885,7 @@ function CreateOrganizationForm({ onSuccess }: { onSuccess: () => void }) {
         totalLicenses: data.totalLicenses,
         isUnlimitedLicenses: data.isUnlimitedLicenses,
         countryId: data.countryId === "none" ? undefined : data.countryId,
+        curriculum: data.curriculum || undefined,
         adminFirstName: data.adminFirstName,
         adminLastName: data.adminLastName,
         adminEmail: data.adminEmail || undefined,
@@ -1030,7 +1043,7 @@ IMPORTANT: Keep this file secure. The password cannot be recovered.
           <Label htmlFor="org-country">Default Country (Optional)</Label>
           <Select 
             value={formData.countryId} 
-            onValueChange={(value) => setFormData(f => ({ ...f, countryId: value }))}
+            onValueChange={(value) => setFormData(f => ({ ...f, countryId: value, curriculum: "" }))}
           >
             <SelectTrigger id="org-country" data-testid="select-org-country">
               <SelectValue placeholder="Select country (optional)" />
@@ -1048,6 +1061,30 @@ IMPORTANT: Keep this file secure. The password cannot be recovered.
             If set, all students will automatically use this country and skip the country selection step
           </p>
         </div>
+
+        {formData.countryId !== "none" && availableCurricula.length > 0 && (
+          <div>
+            <Label htmlFor="org-curriculum">School Curriculum *</Label>
+            <Select 
+              value={formData.curriculum} 
+              onValueChange={(value) => setFormData(f => ({ ...f, curriculum: value }))}
+            >
+              <SelectTrigger id="org-curriculum" data-testid="select-org-curriculum">
+                <SelectValue placeholder="Select curriculum" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableCurricula.map((curriculum) => (
+                  <SelectItem key={curriculum} value={curriculum}>
+                    {curriculum}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground mt-1">
+              Students will receive quiz questions aligned with this curriculum
+            </p>
+          </div>
+        )}
 
         <Separator />
 
@@ -1124,13 +1161,24 @@ function EditOrganizationForm({ organization, onSuccess }: { organization: Organ
   const [formData, setFormData] = useState({
     name: organization.name,
     logoUrl: organization.logoUrl || "",
+    countryId: organization.countryId || "none",
+    curriculum: organization.curriculum || "",
   });
+
+  const { data: countries = [] } = useQuery<Country[]>({
+    queryKey: ['/api/countries'],
+  });
+
+  const selectedCountry = countries.find(c => c.id === formData.countryId);
+  const availableCurricula = selectedCountry?.curricula || [];
 
   const mutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       const payload = {
         name: data.name,
         logoUrl: data.logoUrl || undefined,
+        countryId: data.countryId === "none" ? null : data.countryId,
+        curriculum: data.curriculum || null,
       };
       return apiRequest('PATCH', `/api/admin/organizations/${organization.id}`, payload);
     },
@@ -1196,6 +1244,50 @@ function EditOrganizationForm({ organization, onSuccess }: { organization: Organ
             </div>
           )}
         </div>
+
+        <div>
+          <Label htmlFor="edit-org-country">Default Country</Label>
+          <Select 
+            value={formData.countryId} 
+            onValueChange={(value) => setFormData(f => ({ ...f, countryId: value, curriculum: "" }))}
+          >
+            <SelectTrigger id="edit-org-country" data-testid="select-edit-org-country">
+              <SelectValue placeholder="Select country (optional)" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">None</SelectItem>
+              {countries.map((country) => (
+                <SelectItem key={country.id} value={country.id}>
+                  {country.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {formData.countryId !== "none" && availableCurricula.length > 0 && (
+          <div>
+            <Label htmlFor="edit-org-curriculum">School Curriculum</Label>
+            <Select 
+              value={formData.curriculum} 
+              onValueChange={(value) => setFormData(f => ({ ...f, curriculum: value }))}
+            >
+              <SelectTrigger id="edit-org-curriculum" data-testid="select-edit-org-curriculum">
+                <SelectValue placeholder="Select curriculum" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableCurricula.map((curriculum) => (
+                  <SelectItem key={curriculum} value={curriculum}>
+                    {curriculum}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground mt-1">
+              Students will receive quiz questions aligned with this curriculum
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="flex justify-end gap-2 pt-4">

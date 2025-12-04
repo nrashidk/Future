@@ -9,6 +9,7 @@ import { computerScience } from "./computerScience";
 export const uaeQuestionBank: CountryQuestionBank = {
   countryId: "uae",
   countryName: "United Arab Emirates",
+  curriculum: "MoE National", // UAE Ministry of Education National Curriculum
   subjects: [
     mathematics,
     science,

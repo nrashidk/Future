@@ -1134,7 +1134,7 @@ export async function seedDatabase() {
   for (const question of allQuestions) {
     if (!existingQuestionTexts.has(question.question)) {
       try {
-        // Set countryId to null to make questions global (subject competency is universal)
+        // Use countryId and curriculum from the question bank
         // Convert string grade to numeric grade for database compatibility
         const numericGrade = question.grade ? parseInt(question.grade) : null;
         
@@ -1147,7 +1147,8 @@ export async function seedDatabase() {
           explanation: question.explanation,
           subject: question.subject,
           grade: numericGrade!,
-          countryId: null,
+          countryId: question.countryId, // Now properly links to UAE country
+          curriculum: question.curriculum, // MoE National curriculum
           topic: question.topic,
           difficulty: question.difficulty,
           cognitiveLevel: question.cognitiveLevel,

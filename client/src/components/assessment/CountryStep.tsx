@@ -14,6 +14,7 @@ interface CountryStepProps {
 
 export function CountryStep({ data, onUpdate, onNext }: CountryStepProps) {
   const [selectedCountryId, setSelectedCountryId] = useState(data.countryId || "");
+  const [selectedCurriculum, setSelectedCurriculum] = useState(data.curriculum || "");
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   
   const isMobile = typeof window !== 'undefined' && (
@@ -39,13 +40,23 @@ export function CountryStep({ data, onUpdate, onNext }: CountryStepProps) {
     enabled: !!selectedCountryId,
   });
 
+  const availableCurricula = countryDetails?.curricula || [];
+
   const handleCountryChange = (countryId: string) => {
     setSelectedCountryId(countryId);
+    setSelectedCurriculum(""); // Reset curriculum when country changes
     onUpdate("countryId", countryId);
+    onUpdate("curriculum", "");
     setIsDetailsOpen(false);
   };
 
-  const canProceed = !!selectedCountryId;
+  const handleCurriculumChange = (curriculum: string) => {
+    setSelectedCurriculum(curriculum);
+    onUpdate("curriculum", curriculum);
+  };
+
+  // Can proceed if country is selected AND (either no curricula available OR curriculum is selected)
+  const canProceed = !!selectedCountryId && (availableCurricula.length === 0 || !!selectedCurriculum);
 
   if (countriesLoading) {
     return (
@@ -134,6 +145,50 @@ export function CountryStep({ data, onUpdate, onNext }: CountryStepProps) {
           </Select>
         )}
       </StickyNote>
+
+      {selectedCountryId && availableCurricula.length > 0 && (
+        <StickyNote color="green" rotation="-1" className="max-w-2xl mx-auto animate-in fade-in duration-300">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+              <Target className="w-6 h-6 text-primary" />
+            </div>
+            <div>
+              <h3 className="text-xl font-semibold">Select Your Curriculum</h3>
+              <p className="text-sm text-foreground/70 font-body">
+                Choose the curriculum that matches your school's educational program
+              </p>
+            </div>
+          </div>
+          {isMobile ? (
+            <select
+              value={selectedCurriculum}
+              onChange={(e) => handleCurriculumChange(e.target.value)}
+              className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background/50 border-foreground/20 px-3 py-2 text-lg ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              data-testid="select-curriculum"
+            >
+              <option value="">Choose your curriculum</option>
+              {availableCurricula.map((curriculum: string) => (
+                <option key={curriculum} value={curriculum}>
+                  {curriculum}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <Select value={selectedCurriculum} onValueChange={handleCurriculumChange}>
+              <SelectTrigger className="bg-background/50 border-foreground/20 text-lg" data-testid="select-curriculum">
+                <SelectValue placeholder="Choose your curriculum" />
+              </SelectTrigger>
+              <SelectContent position="popper" className="z-[9999] max-h-[300px]">
+                {availableCurricula.map((curriculum: string) => (
+                  <SelectItem key={curriculum} value={curriculum}>
+                    {curriculum}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </StickyNote>
+      )}
 
       {countryDetails && (
         <div className="space-y-6 max-w-2xl mx-auto animate-in fade-in duration-500">
