@@ -46,6 +46,7 @@ export default function CountryManagement() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isGenerateQuestionsOpen, setIsGenerateQuestionsOpen] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState<Country | null>(null);
+  const [repopulatingCountryId, setRepopulatingCountryId] = useState<string | null>(null);
   
   const [newCountryForm, setNewCountryForm] = useState({
     id: "",
@@ -131,9 +132,11 @@ export default function CountryManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/countries'] });
+      setRepopulatingCountryId(null);
       toast({ title: "Success", description: "Country data refreshed with latest information" });
     },
     onError: (error: any) => {
+      setRepopulatingCountryId(null);
       toast({ 
         title: "Error", 
         description: error.message || "Failed to refresh country data", 
@@ -141,6 +144,11 @@ export default function CountryManagement() {
       });
     },
   });
+  
+  const handleRepopulate = (countryId: string) => {
+    setRepopulatingCountryId(countryId);
+    repopulateMutation.mutate(countryId);
+  };
 
   const generateQuestionsMutation = useMutation({
     mutationFn: async ({ countryId, ...data }: { countryId: string; subject: string; grade: number; curriculum: string; count: number }) => {
@@ -309,12 +317,12 @@ export default function CountryManagement() {
                       <Button 
                         size="icon" 
                         variant="ghost"
-                        onClick={() => repopulateMutation.mutate(country.id)}
-                        disabled={repopulateMutation.isPending}
+                        onClick={() => handleRepopulate(country.id)}
+                        disabled={repopulatingCountryId !== null}
                         title="Refresh with AI"
                         data-testid={`button-refresh-${country.id}`}
                       >
-                        <RefreshCw className={`w-4 h-4 ${repopulateMutation.isPending ? 'animate-spin' : ''}`} />
+                        <RefreshCw className={`w-4 h-4 ${repopulatingCountryId === country.id ? 'animate-spin' : ''}`} />
                       </Button>
                       <Button 
                         size="icon" 
