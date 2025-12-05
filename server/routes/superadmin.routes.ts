@@ -2,6 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { storage } from "../storage";
 import { isAuthenticated } from "../replitAuth";
 import { z } from "zod";
+import { clearSubjectCache } from "../utils/subjects";
 
 const getSuperadminEmails = (): string[] => {
   return (process.env.SUPERADMIN_EMAILS || "")
@@ -1919,6 +1920,9 @@ export function registerSuperadminRoutes(app: Express) {
         isActive: isActive ?? true,
       });
       
+      // Clear subject alias cache so new subject and aliases are immediately available
+      clearSubjectCache();
+      
       res.status(201).json(subject);
     } catch (error) {
       console.error("Error creating subject:", error);
@@ -1954,6 +1958,10 @@ export function registerSuperadminRoutes(app: Express) {
       if (isActive !== undefined) updates.isActive = isActive;
       
       const updated = await storage.updateSubject(req.params.id, updates);
+      
+      // Clear subject alias cache so updated aliases are immediately available
+      clearSubjectCache();
+      
       res.json(updated);
     } catch (error) {
       console.error("Error updating subject:", error);
@@ -1977,6 +1985,9 @@ export function registerSuperadminRoutes(app: Express) {
       if (!deleted) {
         return res.status(500).json({ message: "Failed to delete subject" });
       }
+      
+      // Clear subject alias cache so deleted subject is no longer available
+      clearSubjectCache();
       
       res.json({ success: true, message: "Subject deleted" });
     } catch (error) {
@@ -2027,6 +2038,11 @@ export function registerSuperadminRoutes(app: Express) {
           isActive: true,
         });
         clonedSubjects.push(cloned);
+      }
+      
+      // Clear subject alias cache so cloned subjects are immediately available
+      if (clonedSubjects.length > 0) {
+        clearSubjectCache();
       }
       
       res.json({ 

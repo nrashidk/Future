@@ -298,6 +298,19 @@ router.post("/submit", isAuthenticated, checkOrgAdmin, async (req: Request, res:
       });
     }
 
+    // Validate subject exists for the selected country and curriculum
+    if (curriculum) {
+      const validSubject = await storage.getSubjectByCode(countryId, curriculum, subject);
+      if (!validSubject) {
+        // Try to get available subjects for better error message
+        const availableSubjects = await storage.getSubjectsByCurriculum(countryId, curriculum);
+        const subjectList = availableSubjects.map(s => s.code).join(", ");
+        return res.status(400).json({ 
+          error: `Invalid subject '${subject}' for ${curriculum} curriculum. ${subjectList ? `Valid options: ${subjectList}` : "No subjects available for this curriculum."}` 
+        });
+      }
+    }
+
     // If organization has a curriculum set, validate the submission matches
     const organization = await storage.getOrganizationById(member.organizationId);
     if (organization?.curriculum && curriculum && organization.curriculum !== curriculum) {

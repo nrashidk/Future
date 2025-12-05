@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { storage } from "../storage";
 import { transformQuizQuestionForFrontend, shuffleQuestions, shuffleOptions } from "../utils/quiz";
-import { normalizeSubjects } from "../utils/subjects";
+import { normalizeSubjectsAsync } from "../utils/subjects";
 
 interface QuizDistributionConfig {
   baseQuestionsPerSubject: number;
@@ -153,8 +153,18 @@ export function registerQuizRoutes(app: Express) {
         return res.status(400).json({ message: "No quiz questions available for this grade level and country" });
       }
       
-      const favoriteSubjects = normalizeSubjects((assessment.favoriteSubjects as string[]) || []);
-      const prioritySubjects = normalizeSubjects(((assessment as any).prioritySubjects as string[]) || []);
+      // Normalize subjects using curriculum-aware async function for better alias resolution
+      // curriculum variable is already defined above (line 110)
+      const favoriteSubjects = await normalizeSubjectsAsync(
+        (assessment.favoriteSubjects as string[]) || [],
+        assessment.countryId,
+        curriculum || undefined
+      );
+      const prioritySubjects = await normalizeSubjectsAsync(
+        ((assessment as any).prioritySubjects as string[]) || [],
+        assessment.countryId,
+        curriculum || undefined
+      );
       const subjectQuestions = questionPool.filter(q => favoriteSubjects.includes(q.subject));
       
       if (subjectQuestions.length === 0) {

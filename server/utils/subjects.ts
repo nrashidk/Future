@@ -1,10 +1,15 @@
 /**
  * Subject normalization utilities
  * Maps user-selected subjects to canonical quiz database subjects
+ * 
+ * This module provides both a static fallback mapping and dynamic 
+ * database-driven alias resolution for curriculum-specific subjects.
  */
 
-// Canonical subjects that exist in quiz_questions database
-const CANONICAL_SUBJECTS = [
+import { storage } from "../storage";
+
+// Default canonical subjects that exist in quiz_questions database
+const DEFAULT_CANONICAL_SUBJECTS = [
   'Mathematics',
   'Science',
   'English',
@@ -13,8 +18,9 @@ const CANONICAL_SUBJECTS = [
   'Computer Science'
 ] as const;
 
-// Mapping from common subject names to canonical quiz subjects
-const SUBJECT_MAP: Record<string, string> = {
+// Fallback mapping from common subject names to canonical quiz subjects
+// This is used when database subjects are not available
+const DEFAULT_SUBJECT_MAP: Record<string, string> = {
   // Science variants
   'Physics': 'Science',
   'Chemistry': 'Science',
@@ -36,7 +42,7 @@ const SUBJECT_MAP: Record<string, string> = {
   'IT': 'Computer Science',
   'Technology': 'Computer Science',
   
-  // Mathematics variants (already canonical, but adding common aliases)
+  // Mathematics variants
   'Math': 'Mathematics',
   'Maths': 'Mathematics',
   'Calculus': 'Mathematics',
@@ -49,18 +55,143 @@ const SUBJECT_MAP: Record<string, string> = {
   'Writing': 'English',
   
   // Arabic variants
-  'Arabic Language': 'Arabic'
+  'Arabic Language': 'Arabic',
+  
+  // Art variants
+  'Art': 'Art',
+  'Art & Design': 'Art',
+  'Visual Arts': 'Art',
+  
+  // Music variants
+  'Music': 'Music',
+  'Performing Arts': 'Music',
+  
+  // Business variants
+  'Business': 'Business',
+  'Business Studies': 'Business'
 };
 
+// Cache for subject alias mappings
+let subjectAliasCache: Record<string, string> | null = null;
+let cacheTimestamp: number = 0;
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 /**
- * Normalize a single subject to its canonical form
+ * Build subject alias map from database
+ * Creates a mapping from alias names to canonical subject names
+ * Note: We map to subject.name (e.g., "Mathematics") which is what quiz questions use
  */
-export function normalizeSubject(subject: string): string {
-  return SUBJECT_MAP[subject] || subject;
+async function buildSubjectAliasMap(countryId?: string | null, curriculum?: string | null): Promise<Record<string, string>> {
+  try {
+    // Get subjects from database
+    let subjects;
+    if (countryId && curriculum) {
+      subjects = await storage.getSubjectsByCurriculum(countryId, curriculum);
+    } else if (countryId) {
+      subjects = await storage.getSubjectsByCountry(countryId);
+    } else {
+      subjects = await storage.getAllSubjects();
+    }
+    
+    const aliasMap: Record<string, string> = {};
+    
+    for (const subject of subjects) {
+      // Canonical identifier is subject.name (e.g., "Mathematics")
+      // This matches what's stored in quiz questions
+      const canonicalName = subject.name;
+      
+      // Map the subject's own name to canonical (case-insensitive)
+      aliasMap[subject.name.toLowerCase()] = canonicalName;
+      // Map the code to canonical
+      aliasMap[subject.code.toLowerCase()] = canonicalName;
+      
+      // Map each alias to the canonical subject name
+      if (subject.aliases && Array.isArray(subject.aliases)) {
+        for (const alias of subject.aliases) {
+          aliasMap[alias.toLowerCase()] = canonicalName;
+        }
+      }
+    }
+    
+    return aliasMap;
+  } catch (error) {
+    console.warn("Failed to build subject alias map from database, using fallback:", error);
+    return {};
+  }
 }
 
 /**
- * Normalize an array of subjects, removing duplicates after normalization
+ * Get cached or fresh subject alias map
+ */
+async function getSubjectAliasMap(countryId?: string | null, curriculum?: string | null): Promise<Record<string, string>> {
+  const now = Date.now();
+  
+  // Return cached if still valid (only for non-specific lookups)
+  if (!countryId && !curriculum && subjectAliasCache && (now - cacheTimestamp) < CACHE_TTL) {
+    return subjectAliasCache;
+  }
+  
+  const aliasMap = await buildSubjectAliasMap(countryId, curriculum);
+  
+  // Only cache non-specific lookups
+  if (!countryId && !curriculum) {
+    subjectAliasCache = aliasMap;
+    cacheTimestamp = now;
+  }
+  
+  return aliasMap;
+}
+
+/**
+ * Normalize a single subject to its canonical form using database aliases
+ * Falls back to static mapping if database lookup fails
+ */
+export async function normalizeSubjectAsync(
+  subject: string, 
+  countryId?: string | null, 
+  curriculum?: string | null
+): Promise<string> {
+  const aliasMap = await getSubjectAliasMap(countryId, curriculum);
+  
+  // Try database aliases first (case-insensitive)
+  const lowerSubject = subject.toLowerCase();
+  if (aliasMap[lowerSubject]) {
+    return aliasMap[lowerSubject];
+  }
+  
+  // Fall back to static mapping
+  if (DEFAULT_SUBJECT_MAP[subject]) {
+    return DEFAULT_SUBJECT_MAP[subject];
+  }
+  
+  // Return original if no mapping found
+  return subject;
+}
+
+/**
+ * Synchronous normalize - uses static fallback only
+ * For backward compatibility with existing code
+ */
+export function normalizeSubject(subject: string): string {
+  return DEFAULT_SUBJECT_MAP[subject] || subject;
+}
+
+/**
+ * Normalize an array of subjects using database aliases
+ */
+export async function normalizeSubjectsAsync(
+  subjects: string[],
+  countryId?: string | null,
+  curriculum?: string | null
+): Promise<string[]> {
+  const normalizedPromises = subjects.map(s => normalizeSubjectAsync(s, countryId, curriculum));
+  const normalized = await Promise.all(normalizedPromises);
+  return Array.from(new Set(normalized)); // Remove duplicates
+}
+
+/**
+ * Synchronous normalize - uses static fallback only
+ * For backward compatibility with existing code
  */
 export function normalizeSubjects(subjects: string[]): string[] {
   const normalized = subjects.map(normalizeSubject);
@@ -71,5 +202,26 @@ export function normalizeSubjects(subjects: string[]): string[] {
  * Get canonical subjects list
  */
 export function getCanonicalSubjects(): readonly string[] {
-  return CANONICAL_SUBJECTS;
+  return DEFAULT_CANONICAL_SUBJECTS;
+}
+
+/**
+ * Get available subjects for a curriculum from database
+ */
+export async function getAvailableSubjects(countryId: string, curriculum: string): Promise<string[]> {
+  try {
+    const subjects = await storage.getSubjectsByCurriculum(countryId, curriculum);
+    return subjects.map(s => s.name);
+  } catch (error) {
+    console.warn("Failed to get subjects from database, using fallback:", error);
+    return [...DEFAULT_CANONICAL_SUBJECTS];
+  }
+}
+
+/**
+ * Clear subject alias cache (useful after subject updates)
+ */
+export function clearSubjectCache(): void {
+  subjectAliasCache = null;
+  cacheTimestamp = 0;
 }

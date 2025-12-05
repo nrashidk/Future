@@ -61,6 +61,26 @@ export function registerAdminRoutes(app: Express) {
   app.post("/api/admin/questions", isAuthenticated, isAdmin, async (req, res) => {
     try {
       const validatedData = insertQuizQuestionSchema.parse(req.body);
+      
+      // Validate subject exists for the curriculum if both are provided
+      if (validatedData.countryId && validatedData.curriculum && validatedData.subject) {
+        const validSubject = await storage.getSubjectByCode(
+          validatedData.countryId, 
+          validatedData.curriculum, 
+          validatedData.subject
+        );
+        if (!validSubject) {
+          const availableSubjects = await storage.getSubjectsByCurriculum(
+            validatedData.countryId, 
+            validatedData.curriculum
+          );
+          const subjectList = availableSubjects.map(s => s.code).join(", ");
+          return res.status(400).json({ 
+            message: `Invalid subject '${validatedData.subject}' for ${validatedData.curriculum} curriculum.${subjectList ? ` Valid options: ${subjectList}` : " No subjects available for this curriculum."}`
+          });
+        }
+      }
+      
       const question = await storage.createQuizQuestion(validatedData);
       res.status(201).json(question);
     } catch (error) {
@@ -120,6 +140,24 @@ export function registerAdminRoutes(app: Express) {
       for (const questionData of questions) {
         try {
           const validatedData = insertQuizQuestionSchema.parse(questionData);
+          
+          // Validate subject exists for the curriculum if both are provided
+          if (validatedData.countryId && validatedData.curriculum && validatedData.subject) {
+            const validSubject = await storage.getSubjectByCode(
+              validatedData.countryId, 
+              validatedData.curriculum, 
+              validatedData.subject
+            );
+            if (!validSubject) {
+              results.failed++;
+              results.errors.push({
+                question: questionData.question?.substring(0, 50) + "...",
+                error: `Invalid subject '${validatedData.subject}' for ${validatedData.curriculum} curriculum`,
+              });
+              continue;
+            }
+          }
+          
           await storage.createQuizQuestion(validatedData);
           results.success++;
         } catch (error) {
