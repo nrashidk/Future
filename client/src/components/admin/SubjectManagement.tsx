@@ -261,15 +261,15 @@ export default function SubjectManagement() {
         <div className="flex flex-wrap gap-4">
           <div className="flex-1 min-w-[200px]">
             <Label>Filter by Country</Label>
-            <Select value={selectedCountry} onValueChange={(value) => {
-              setSelectedCountry(value);
+            <Select value={selectedCountry || "__all__"} onValueChange={(value) => {
+              setSelectedCountry(value === "__all__" ? "" : value);
               setSelectedCurriculum("");
             }}>
               <SelectTrigger data-testid="select-filter-country">
                 <SelectValue placeholder="All countries" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All countries</SelectItem>
+                <SelectItem value="__all__">All countries</SelectItem>
                 {countries.map(country => (
                   <SelectItem key={country.id} value={country.id}>
                     {country.abbreviation || country.name}
@@ -282,12 +282,12 @@ export default function SubjectManagement() {
           {selectedCountry && selectedCountryData?.curricula && selectedCountryData.curricula.length > 0 && (
             <div className="flex-1 min-w-[200px]">
               <Label>Filter by Curriculum</Label>
-              <Select value={selectedCurriculum} onValueChange={setSelectedCurriculum}>
+              <Select value={selectedCurriculum || "__all__"} onValueChange={(value) => setSelectedCurriculum(value === "__all__" ? "" : value)}>
                 <SelectTrigger data-testid="select-filter-curriculum">
                   <SelectValue placeholder="All curricula" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All curricula</SelectItem>
+                  <SelectItem value="__all__">All curricula</SelectItem>
                   {selectedCountryData.curricula.map(curriculum => (
                     <SelectItem key={curriculum} value={curriculum}>
                       {curriculum}
