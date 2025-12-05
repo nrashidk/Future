@@ -1938,24 +1938,37 @@ export function registerSuperadminRoutes(app: Express) {
         return res.status(404).json({ message: "Subject not found" });
       }
       
-      const { name, code, description, aliases, displayOrder, icon, isActive } = req.body;
+      const { name, code, description, aliases, displayOrder, icon, isActive, countryId, curriculum } = req.body;
       
-      // If code is being changed, check for duplicates
-      if (code && code !== subject.code) {
-        const existing = await storage.getSubjectByCode(subject.countryId, subject.curriculum, code);
+      // Determine the effective country and curriculum for uniqueness check
+      const effectiveCountryId = countryId || subject.countryId;
+      const effectiveCurriculum = curriculum || subject.curriculum;
+      const effectiveCode = code ? code.toLowerCase().replace(/\s+/g, '_') : subject.code;
+      
+      // Check for duplicates if country, curriculum, or code is changing
+      const isChangingScope = (countryId && countryId !== subject.countryId) || 
+                              (curriculum && curriculum !== subject.curriculum) ||
+                              (code && effectiveCode !== subject.code);
+      
+      if (isChangingScope) {
+        const existing = await storage.getSubjectByCode(effectiveCountryId, effectiveCurriculum, effectiveCode);
         if (existing && existing.id !== subject.id) {
-          return res.status(400).json({ message: `Subject with code '${code}' already exists for this curriculum` });
+          return res.status(409).json({ 
+            message: `Subject with code '${effectiveCode}' already exists for ${effectiveCurriculum} curriculum` 
+          });
         }
       }
       
       const updates: any = {};
       if (name !== undefined) updates.name = name;
-      if (code !== undefined) updates.code = code.toLowerCase().replace(/\s+/g, '_');
+      if (code !== undefined) updates.code = effectiveCode;
       if (description !== undefined) updates.description = description;
       if (aliases !== undefined) updates.aliases = aliases;
       if (displayOrder !== undefined) updates.displayOrder = displayOrder;
       if (icon !== undefined) updates.icon = icon;
       if (isActive !== undefined) updates.isActive = isActive;
+      if (countryId !== undefined) updates.countryId = countryId;
+      if (curriculum !== undefined) updates.curriculum = curriculum;
       
       const updated = await storage.updateSubject(req.params.id, updates);
       

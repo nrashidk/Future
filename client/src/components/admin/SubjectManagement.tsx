@@ -532,18 +532,49 @@ export default function SubjectManagement() {
           <DialogHeader>
             <DialogTitle>Edit Subject</DialogTitle>
             <DialogDescription>
-              Update the subject details. Country and curriculum cannot be changed.
+              Update the subject details. Changing curriculum will affect which questions use this subject.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Country</Label>
-                <Input value={countries.find(c => c.id === formData.countryId)?.name || formData.countryId} disabled />
+                <Label>Country *</Label>
+                <Select 
+                  value={formData.countryId} 
+                  onValueChange={(value) => {
+                    setFormData(prev => ({ ...prev, countryId: value, curriculum: "" }));
+                  }}
+                >
+                  <SelectTrigger data-testid="select-edit-country">
+                    <SelectValue placeholder="Select country" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {countries.map(country => (
+                      <SelectItem key={country.id} value={country.id}>
+                        {country.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
-                <Label>Curriculum</Label>
-                <Input value={formData.curriculum} disabled />
+                <Label>Curriculum *</Label>
+                <Select 
+                  value={formData.curriculum} 
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, curriculum: value }))}
+                  disabled={!formData.countryId}
+                >
+                  <SelectTrigger data-testid="select-edit-curriculum">
+                    <SelectValue placeholder="Select curriculum" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {countries.find(c => c.id === formData.countryId)?.curricula?.map(curriculum => (
+                      <SelectItem key={curriculum} value={curriculum}>
+                        {curriculum}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
             
