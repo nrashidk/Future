@@ -91,7 +91,7 @@ export default function StudentLogin() {
               <GraduationCap className="h-12 w-12 text-primary" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold">Student Login</CardTitle>
+          <CardTitle className="text-2xl font-bold">Login</CardTitle>
           <CardDescription>
             Enter the username and password provided by your school
           </CardDescription>
