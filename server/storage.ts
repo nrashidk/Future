@@ -151,6 +151,8 @@ export interface IStorage {
   updateSubject(id: string, data: Partial<InsertSubject>): Promise<Subject>;
   deleteSubject(id: string): Promise<boolean>;
   getSubjectByCode(countryId: string, curriculum: string, code: string): Promise<Subject | undefined>;
+  renameCurriculumInSubjects(countryId: string, oldName: string, newName: string): Promise<number>;
+  renameCurriculumInQuizQuestions(countryId: string, oldName: string, newName: string): Promise<number>;
 
   // Skills operations
   getAllSkills(): Promise<Skill[]>;
@@ -742,6 +744,35 @@ export class DatabaseStorage implements IStorage {
         )
       );
     return subject;
+  }
+
+  async renameCurriculumInSubjects(countryId: string, oldName: string, newName: string): Promise<number> {
+    const result = await db
+      .update(subjects)
+      .set({ 
+        curriculum: newName,
+        updatedAt: new Date()
+      })
+      .where(
+        and(
+          eq(subjects.countryId, countryId),
+          eq(subjects.curriculum, oldName)
+        )
+      );
+    return result.rowCount ?? 0;
+  }
+
+  async renameCurriculumInQuizQuestions(countryId: string, oldName: string, newName: string): Promise<number> {
+    const result = await db
+      .update(quizQuestions)
+      .set({ curriculum: newName })
+      .where(
+        and(
+          eq(quizQuestions.countryId, countryId),
+          eq(quizQuestions.curriculum, oldName)
+        )
+      );
+    return result.rowCount ?? 0;
   }
 
   // Skills operations

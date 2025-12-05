@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { 
   Globe, Plus, Edit, Trash2, Sparkles, BookOpen, 
-  CheckCircle, Clock, RefreshCw, Loader2
+  CheckCircle, Clock, RefreshCw, Loader2, ArrowRightLeft
 } from "lucide-react";
 
 interface Country {
@@ -61,6 +61,13 @@ export default function CountryManagement() {
     grade: "9",
     curriculum: "National",
     count: 10,
+  });
+  
+  const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
+  const [renameForm, setRenameForm] = useState({
+    countryId: "",
+    oldName: "",
+    newName: "",
   });
 
   const { data: countries = [], isLoading } = useQuery<Country[]>({
@@ -171,6 +178,30 @@ export default function CountryManagement() {
     },
   });
 
+  const renameCurriculumMutation = useMutation({
+    mutationFn: async ({ countryId, oldName, newName }: { countryId: string; oldName: string; newName: string }) => {
+      return apiRequest('POST', `/api/superadmin/countries/${countryId}/curricula/rename`, { oldName, newName });
+    },
+    onSuccess: (response) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/countries'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/countries'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/subjects'] });
+      setIsRenameModalOpen(false);
+      setRenameForm({ countryId: "", oldName: "", newName: "" });
+      toast({ 
+        title: "Curriculum Renamed", 
+        description: `Updated ${response.updated?.subjects || 0} subjects and ${response.updated?.questions || 0} questions`
+      });
+    },
+    onError: (error: any) => {
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to rename curriculum", 
+        variant: "destructive" 
+      });
+    },
+  });
+
   const handleCreateCountry = () => {
     if (!newCountryForm.id || !newCountryForm.name || !newCountryForm.code) {
       toast({ title: "Error", description: "ID, name, and code are required", variant: "destructive" });
@@ -210,10 +241,16 @@ export default function CountryManagement() {
             Add and manage countries with their vision, curricula, and quiz questions
           </p>
         </div>
-        <Button onClick={() => setIsCreateModalOpen(true)} data-testid="button-add-country">
-          <Plus className="w-4 h-4 mr-2" />
-          Add Country
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setIsRenameModalOpen(true)} data-testid="button-rename-curriculum">
+            <ArrowRightLeft className="w-4 h-4 mr-2" />
+            Rename Curriculum
+          </Button>
+          <Button onClick={() => setIsCreateModalOpen(true)} data-testid="button-add-country">
+            <Plus className="w-4 h-4 mr-2" />
+            Add Country
+          </Button>
+        </div>
       </div>
 
       <Card>
@@ -690,6 +727,88 @@ export default function CountryManagement() {
                 <>
                   <Sparkles className="w-4 h-4 mr-2" />
                   Generate Questions
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isRenameModalOpen} onOpenChange={setIsRenameModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename Curriculum</DialogTitle>
+            <DialogDescription>
+              Rename a curriculum and automatically update all associated subjects and quiz questions.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Country</Label>
+              <Select 
+                value={renameForm.countryId} 
+                onValueChange={(value) => {
+                  setRenameForm(f => ({ ...f, countryId: value, oldName: "", newName: "" }));
+                }}
+              >
+                <SelectTrigger data-testid="select-rename-country">
+                  <SelectValue placeholder="Select country" />
+                </SelectTrigger>
+                <SelectContent>
+                  {countries.map((country) => (
+                    <SelectItem key={country.id} value={country.id}>{country.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {renameForm.countryId && (
+              <>
+                <div>
+                  <Label>Current Curriculum Name</Label>
+                  <Select 
+                    value={renameForm.oldName} 
+                    onValueChange={(value) => setRenameForm(f => ({ ...f, oldName: value, newName: value }))}
+                  >
+                    <SelectTrigger data-testid="select-rename-old">
+                      <SelectValue placeholder="Select curriculum to rename" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {countries.find(c => c.id === renameForm.countryId)?.curricula?.map((c) => (
+                        <SelectItem key={c} value={c}>{c}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>New Curriculum Name</Label>
+                  <Input
+                    placeholder="Enter new name"
+                    value={renameForm.newName}
+                    onChange={(e) => setRenameForm(f => ({ ...f, newName: e.target.value }))}
+                    data-testid="input-rename-new"
+                  />
+                </div>
+              </>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsRenameModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => renameCurriculumMutation.mutate(renameForm)}
+              disabled={renameCurriculumMutation.isPending || !renameForm.countryId || !renameForm.oldName || !renameForm.newName || renameForm.oldName === renameForm.newName}
+              data-testid="button-rename-curriculum"
+            >
+              {renameCurriculumMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Renaming...
+                </>
+              ) : (
+                <>
+                  <ArrowRightLeft className="w-4 h-4 mr-2" />
+                  Rename Curriculum
                 </>
               )}
             </Button>

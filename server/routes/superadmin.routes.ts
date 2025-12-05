@@ -2069,4 +2069,65 @@ export function registerSuperadminRoutes(app: Express) {
       res.status(500).json({ message: "Failed to clone subjects" });
     }
   });
+
+  // ===============================
+  // CURRICULUM RENAME
+  // ===============================
+
+  // Rename a curriculum - updates country, subjects, and quiz questions
+  app.post("/api/superadmin/countries/:countryId/curricula/rename", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const { countryId } = req.params;
+      const { oldName, newName } = req.body;
+      
+      if (!oldName || !newName) {
+        return res.status(400).json({ message: "Both oldName and newName are required" });
+      }
+      
+      if (oldName === newName) {
+        return res.status(400).json({ message: "New name must be different from old name" });
+      }
+      
+      // Get the country
+      const country = await storage.getCountryById(countryId);
+      if (!country) {
+        return res.status(404).json({ message: "Country not found" });
+      }
+      
+      // Check if old curriculum exists in country
+      if (!country.curricula?.includes(oldName)) {
+        return res.status(400).json({ message: `Curriculum '${oldName}' not found in this country` });
+      }
+      
+      // Check if new name already exists
+      if (country.curricula?.includes(newName)) {
+        return res.status(409).json({ message: `Curriculum '${newName}' already exists in this country` });
+      }
+      
+      // Update country's curricula array
+      const newCurricula = country.curricula.map(c => c === oldName ? newName : c);
+      await storage.updateCountry(countryId, { curricula: newCurricula });
+      
+      // Update all subjects with this curriculum
+      const subjectsUpdated = await storage.renameCurriculumInSubjects(countryId, oldName, newName);
+      
+      // Update all quiz questions with this curriculum
+      const questionsUpdated = await storage.renameCurriculumInQuizQuestions(countryId, oldName, newName);
+      
+      // Clear subject cache
+      clearSubjectCache();
+      
+      res.json({
+        success: true,
+        message: `Curriculum renamed from '${oldName}' to '${newName}'`,
+        updated: {
+          subjects: subjectsUpdated,
+          questions: questionsUpdated
+        }
+      });
+    } catch (error) {
+      console.error("Error renaming curriculum:", error);
+      res.status(500).json({ message: "Failed to rename curriculum" });
+    }
+  });
 }
