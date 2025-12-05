@@ -38,7 +38,14 @@ export async function seedDatabase() {
         economic: [
           { metric: "GDP", value: "AED 3 trillion", year: 2031, focusArea: "Economy" }
         ]
-      }
+      },
+      // Curriculum configuration for UAE
+      educationSystem: "The UAE follows a K-12 education system with the Ministry of Education (MoE) National Curriculum. International schools offer British, American, IB, and other curricula.",
+      curricula: ["MoE National", "British", "American", "IB"],
+      gradeLevels: ["8", "9", "10", "11", "12"],
+      universitiesLink: "https://caa.ae",
+      universitiesLinkLabel: "CAA Accredited Universities",
+      isActive: true,
     },
   ];
 
@@ -48,6 +55,86 @@ export async function seedDatabase() {
       console.log(`✓ Created country: ${country.name}`);
     } catch (error) {
       console.log(`Country ${country.name} already exists`);
+    }
+  }
+
+  // Seed Subjects (curriculum-scoped)
+  const subjects = [
+    // UAE MoE National Curriculum subjects
+    {
+      name: "Mathematics",
+      code: "mathematics",
+      countryId: "uae",
+      curriculum: "MoE National",
+      description: "UAE Ministry of Education Mathematics curriculum covering algebra, geometry, calculus, and statistics",
+      aliases: ["Math", "Maths", "Calculus", "Algebra", "Geometry"],
+      displayOrder: 1,
+      isActive: true,
+    },
+    {
+      name: "Science",
+      code: "science",
+      countryId: "uae",
+      curriculum: "MoE National",
+      description: "UAE Ministry of Education integrated Science curriculum covering physics, chemistry, and biology",
+      aliases: ["Physics", "Chemistry", "Biology", "Physical Science", "Life Science"],
+      displayOrder: 2,
+      isActive: true,
+    },
+    {
+      name: "English",
+      code: "english",
+      countryId: "uae",
+      curriculum: "MoE National",
+      description: "UAE Ministry of Education English Language curriculum covering reading, writing, grammar, and literature",
+      aliases: ["English Language", "Literature", "Writing"],
+      displayOrder: 3,
+      isActive: true,
+    },
+    {
+      name: "Arabic",
+      code: "arabic",
+      countryId: "uae",
+      curriculum: "MoE National",
+      description: "UAE Ministry of Education Arabic Language curriculum covering reading, writing, grammar, and Arabic literature",
+      aliases: ["Arabic Language"],
+      displayOrder: 4,
+      isActive: true,
+    },
+    {
+      name: "Social Studies",
+      code: "social_studies",
+      countryId: "uae",
+      curriculum: "MoE National",
+      description: "UAE Ministry of Education Social Studies curriculum covering UAE history, geography, civics, and Islamic studies",
+      aliases: ["History", "Geography", "Civics", "Government", "Economics", "Sociology"],
+      displayOrder: 5,
+      isActive: true,
+    },
+    {
+      name: "Computer Science",
+      code: "computer_science",
+      countryId: "uae",
+      curriculum: "MoE National",
+      description: "UAE Ministry of Education Computer Science and IT curriculum covering programming, digital literacy, and technology",
+      aliases: ["Programming", "Coding", "IT", "Technology"],
+      displayOrder: 6,
+      isActive: true,
+    },
+  ];
+
+  for (const subject of subjects) {
+    try {
+      // Check if subject already exists
+      const existing = await storage.getSubjectByCode(subject.countryId, subject.curriculum, subject.code);
+      if (!existing) {
+        await storage.createSubject(subject);
+        console.log(`✓ Created subject: ${subject.name} (${subject.curriculum})`);
+      } else {
+        console.log(`Subject ${subject.name} (${subject.curriculum}) already exists`);
+      }
+    } catch (error) {
+      console.log(`Subject ${subject.name} already exists or error:`, error);
     }
   }
 

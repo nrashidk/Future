@@ -1370,7 +1370,7 @@ export function registerSuperadminRoutes(app: Express) {
       
       const results = await Promise.all(orgIds.map(async (orgId: string) => {
         try {
-          const org = await storage.getOrganization(orgId);
+          const org = await storage.getOrganizationById(orgId);
           if (!org) {
             return { orgId, name: null, success: false, error: "Organization not found" };
           }
@@ -1838,6 +1838,206 @@ export function registerSuperadminRoutes(app: Express) {
     } catch (error) {
       console.error("Error searching users:", error);
       res.status(500).json({ message: "Failed to search users" });
+    }
+  });
+
+  // ===============================
+  // SUBJECT MANAGEMENT (Curriculum-scoped)
+  // ===============================
+
+  // Get all subjects (with optional filters)
+  app.get("/api/superadmin/subjects", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const { countryId, curriculum } = req.query;
+      
+      let subjects;
+      if (countryId && curriculum) {
+        subjects = await storage.getSubjectsByCurriculum(countryId as string, curriculum as string);
+      } else if (countryId) {
+        subjects = await storage.getSubjectsByCountry(countryId as string);
+      } else {
+        subjects = await storage.getAllSubjects();
+      }
+      
+      res.json(subjects);
+    } catch (error) {
+      console.error("Error fetching subjects:", error);
+      res.status(500).json({ message: "Failed to fetch subjects" });
+    }
+  });
+
+  // Get a single subject by ID
+  app.get("/api/superadmin/subjects/:id", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const subject = await storage.getSubjectById(req.params.id);
+      if (!subject) {
+        return res.status(404).json({ message: "Subject not found" });
+      }
+      res.json(subject);
+    } catch (error) {
+      console.error("Error fetching subject:", error);
+      res.status(500).json({ message: "Failed to fetch subject" });
+    }
+  });
+
+  // Create a new subject
+  app.post("/api/superadmin/subjects", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const { name, code, countryId, curriculum, description, aliases, displayOrder, icon, isActive } = req.body;
+      
+      // Validate required fields
+      if (!name || !code || !countryId || !curriculum) {
+        return res.status(400).json({ message: "Name, code, countryId, and curriculum are required" });
+      }
+      
+      // Check if country exists
+      const country = await storage.getCountryById(countryId);
+      if (!country) {
+        return res.status(400).json({ message: "Country not found" });
+      }
+      
+      // Check if curriculum is valid for this country
+      if (country.curricula && !country.curricula.includes(curriculum)) {
+        return res.status(400).json({ message: `Curriculum '${curriculum}' is not available for this country` });
+      }
+      
+      // Check if subject with same code already exists for this curriculum
+      const existing = await storage.getSubjectByCode(countryId, curriculum, code);
+      if (existing) {
+        return res.status(400).json({ message: `Subject with code '${code}' already exists for this curriculum` });
+      }
+      
+      const subject = await storage.createSubject({
+        name,
+        code: code.toLowerCase().replace(/\s+/g, '_'),
+        countryId,
+        curriculum,
+        description: description || null,
+        aliases: aliases || [],
+        displayOrder: displayOrder ?? 0,
+        icon: icon || null,
+        isActive: isActive ?? true,
+      });
+      
+      res.status(201).json(subject);
+    } catch (error) {
+      console.error("Error creating subject:", error);
+      res.status(500).json({ message: "Failed to create subject" });
+    }
+  });
+
+  // Update a subject
+  app.patch("/api/superadmin/subjects/:id", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const subject = await storage.getSubjectById(req.params.id);
+      if (!subject) {
+        return res.status(404).json({ message: "Subject not found" });
+      }
+      
+      const { name, code, description, aliases, displayOrder, icon, isActive } = req.body;
+      
+      // If code is being changed, check for duplicates
+      if (code && code !== subject.code) {
+        const existing = await storage.getSubjectByCode(subject.countryId, subject.curriculum, code);
+        if (existing && existing.id !== subject.id) {
+          return res.status(400).json({ message: `Subject with code '${code}' already exists for this curriculum` });
+        }
+      }
+      
+      const updates: any = {};
+      if (name !== undefined) updates.name = name;
+      if (code !== undefined) updates.code = code.toLowerCase().replace(/\s+/g, '_');
+      if (description !== undefined) updates.description = description;
+      if (aliases !== undefined) updates.aliases = aliases;
+      if (displayOrder !== undefined) updates.displayOrder = displayOrder;
+      if (icon !== undefined) updates.icon = icon;
+      if (isActive !== undefined) updates.isActive = isActive;
+      
+      const updated = await storage.updateSubject(req.params.id, updates);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error updating subject:", error);
+      res.status(500).json({ message: "Failed to update subject" });
+    }
+  });
+
+  // Delete a subject
+  app.delete("/api/superadmin/subjects/:id", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const subject = await storage.getSubjectById(req.params.id);
+      if (!subject) {
+        return res.status(404).json({ message: "Subject not found" });
+      }
+      
+      // TODO: Check if there are any quiz questions using this subject before deleting
+      // For now, we allow deletion but log a warning
+      console.log(`Deleting subject: ${subject.name} (${subject.code}) for ${subject.curriculum}`);
+      
+      const deleted = await storage.deleteSubject(req.params.id);
+      if (!deleted) {
+        return res.status(500).json({ message: "Failed to delete subject" });
+      }
+      
+      res.json({ success: true, message: "Subject deleted" });
+    } catch (error) {
+      console.error("Error deleting subject:", error);
+      res.status(500).json({ message: "Failed to delete subject" });
+    }
+  });
+
+  // Clone subjects from one curriculum to another
+  app.post("/api/superadmin/subjects/clone", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const { sourceCountryId, sourceCurriculum, targetCountryId, targetCurriculum } = req.body;
+      
+      if (!sourceCountryId || !sourceCurriculum || !targetCountryId || !targetCurriculum) {
+        return res.status(400).json({ message: "Source and target country/curriculum are required" });
+      }
+      
+      // Get source subjects
+      const sourceSubjects = await storage.getSubjectsByCurriculum(sourceCountryId, sourceCurriculum);
+      if (sourceSubjects.length === 0) {
+        return res.status(400).json({ message: "No subjects found in source curriculum" });
+      }
+      
+      // Check target country exists
+      const targetCountry = await storage.getCountryById(targetCountryId);
+      if (!targetCountry) {
+        return res.status(400).json({ message: "Target country not found" });
+      }
+      
+      // Clone each subject
+      const clonedSubjects = [];
+      for (const source of sourceSubjects) {
+        // Check if already exists in target
+        const existing = await storage.getSubjectByCode(targetCountryId, targetCurriculum, source.code);
+        if (existing) {
+          continue; // Skip if already exists
+        }
+        
+        const cloned = await storage.createSubject({
+          name: source.name,
+          code: source.code,
+          countryId: targetCountryId,
+          curriculum: targetCurriculum,
+          description: source.description,
+          aliases: source.aliases || [],
+          displayOrder: source.displayOrder,
+          icon: source.icon,
+          isActive: true,
+        });
+        clonedSubjects.push(cloned);
+      }
+      
+      res.json({ 
+        success: true, 
+        cloned: clonedSubjects.length, 
+        skipped: sourceSubjects.length - clonedSubjects.length,
+        subjects: clonedSubjects 
+      });
+    } catch (error) {
+      console.error("Error cloning subjects:", error);
+      res.status(500).json({ message: "Failed to clone subjects" });
     }
   });
 }

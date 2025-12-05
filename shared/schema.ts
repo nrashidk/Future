@@ -205,7 +205,44 @@ export const countriesRelations = relations(countries, ({ many }) => ({
   assessments: many(assessments),
   jobMarketTrends: many(jobMarketTrends),
   prioritySectors: many(countryPrioritySectors),
+  subjects: many(subjects),
 }));
+
+// Curriculum-scoped subjects for quiz questions
+// Each curriculum can have its own set of subjects with different content
+export const subjects = pgTable("subjects", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(), // Display name (e.g., "Mathematics")
+  code: varchar("code", { length: 50 }).notNull(), // Slug/key (e.g., "mathematics")
+  countryId: varchar("country_id").notNull().references(() => countries.id),
+  curriculum: text("curriculum").notNull(), // e.g., 'MoE National', 'British', 'IB', 'American'
+  description: text("description"), // Brief description of the subject
+  aliases: text("aliases").array(), // Alternative names that map to this subject (e.g., ['Math', 'Maths'])
+  displayOrder: integer("display_order").notNull().default(0), // Order in UI
+  isActive: boolean("is_active").notNull().default(true), // Whether subject is available
+  icon: text("icon"), // Lucide icon name for UI
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("subjects_curriculum_code_idx").on(table.countryId, table.curriculum, table.code),
+  index("subjects_country_curriculum_idx").on(table.countryId, table.curriculum),
+]);
+
+export const subjectsRelations = relations(subjects, ({ one }) => ({
+  country: one(countries, {
+    fields: [subjects.countryId],
+    references: [countries.id],
+  }),
+}));
+
+// Insert/Select types for subjects
+export const insertSubjectSchema = createInsertSchema(subjects).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertSubject = z.infer<typeof insertSubjectSchema>;
+export type Subject = typeof subjects.$inferSelect;
 
 // Future skills taxonomy (legacy - kept for backward compatibility)
 // NOTE: WEF skills framework now uses wef_skills table for normalized WEF-specific data

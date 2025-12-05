@@ -26,6 +26,7 @@ import {
 import ScoringConfigEditor from "@/components/admin/ScoringConfigEditor";
 import CountryManagement from "@/components/admin/CountryManagement";
 import ContributionReviewQueue from "@/components/admin/ContributionReviewQueue";
+import SubjectManagement from "@/components/admin/SubjectManagement";
 
 interface Metrics {
   totalSchools: number;
@@ -885,6 +886,10 @@ export default function SuperadminDashboard() {
               <Globe className="w-4 h-4 mr-2" />
               Countries
             </TabsTrigger>
+            <TabsTrigger value="subjects" data-testid="tab-subjects">
+              <GraduationCap className="w-4 h-4 mr-2" />
+              Subjects
+            </TabsTrigger>
             <TabsTrigger value="scoring" data-testid="tab-scoring">
               <Settings className="w-4 h-4 mr-2" />
               Scoring
@@ -1616,6 +1621,10 @@ export default function SuperadminDashboard() {
 
           <TabsContent value="countries" className="space-y-4">
             <CountryManagement />
+          </TabsContent>
+
+          <TabsContent value="subjects" className="space-y-4">
+            <SubjectManagement />
           </TabsContent>
 
           <TabsContent value="scoring" className="space-y-4">

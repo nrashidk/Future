@@ -6,6 +6,7 @@ import {
 import {
   users,
   countries,
+  subjects,
   skills,
   careers,
   jobMarketTrends,
@@ -41,6 +42,8 @@ import {
   type UpsertUser,
   type Country,
   type InsertCountry,
+  type Subject,
+  type InsertSubject,
   type Skill,
   type InsertSkill,
   type Career,
@@ -138,6 +141,16 @@ export interface IStorage {
   createCountry(country: InsertCountry): Promise<Country>;
   updateCountry(id: string, data: Partial<InsertCountry>): Promise<Country>;
   deleteCountry(id: string): Promise<boolean>;
+
+  // Subject operations (curriculum-scoped)
+  getAllSubjects(): Promise<Subject[]>;
+  getSubjectById(id: string): Promise<Subject | undefined>;
+  getSubjectsByCurriculum(countryId: string, curriculum: string): Promise<Subject[]>;
+  getSubjectsByCountry(countryId: string): Promise<Subject[]>;
+  createSubject(subject: InsertSubject): Promise<Subject>;
+  updateSubject(id: string, data: Partial<InsertSubject>): Promise<Subject>;
+  deleteSubject(id: string): Promise<boolean>;
+  getSubjectByCode(countryId: string, curriculum: string, code: string): Promise<Subject | undefined>;
 
   // Skills operations
   getAllSkills(): Promise<Skill[]>;
@@ -656,6 +669,79 @@ export class DatabaseStorage implements IStorage {
   async deleteCountry(id: string): Promise<boolean> {
     const result = await db.delete(countries).where(eq(countries.id, id));
     return (result.rowCount ?? 0) > 0;
+  }
+
+  // Subject operations (curriculum-scoped)
+  async getAllSubjects(): Promise<Subject[]> {
+    return await db.select().from(subjects).orderBy(subjects.displayOrder);
+  }
+
+  async getSubjectById(id: string): Promise<Subject | undefined> {
+    const [subject] = await db.select().from(subjects).where(eq(subjects.id, id));
+    return subject;
+  }
+
+  async getSubjectsByCurriculum(countryId: string, curriculum: string): Promise<Subject[]> {
+    return await db
+      .select()
+      .from(subjects)
+      .where(
+        and(
+          eq(subjects.countryId, countryId),
+          eq(subjects.curriculum, curriculum),
+          eq(subjects.isActive, true)
+        )
+      )
+      .orderBy(subjects.displayOrder);
+  }
+
+  async getSubjectsByCountry(countryId: string): Promise<Subject[]> {
+    return await db
+      .select()
+      .from(subjects)
+      .where(eq(subjects.countryId, countryId))
+      .orderBy(subjects.displayOrder);
+  }
+
+  async createSubject(subjectData: InsertSubject): Promise<Subject> {
+    const [subject] = await db.insert(subjects).values(subjectData).returning();
+    return subject;
+  }
+
+  async updateSubject(id: string, data: Partial<InsertSubject>): Promise<Subject> {
+    const [subject] = await db
+      .update(subjects)
+      .set({
+        ...data,
+        updatedAt: new Date(),
+      })
+      .where(eq(subjects.id, id))
+      .returning();
+    
+    if (!subject) {
+      throw new Error(`Subject not found: ${id}`);
+    }
+    
+    return subject;
+  }
+
+  async deleteSubject(id: string): Promise<boolean> {
+    const result = await db.delete(subjects).where(eq(subjects.id, id));
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  async getSubjectByCode(countryId: string, curriculum: string, code: string): Promise<Subject | undefined> {
+    const [subject] = await db
+      .select()
+      .from(subjects)
+      .where(
+        and(
+          eq(subjects.countryId, countryId),
+          eq(subjects.curriculum, curriculum),
+          eq(subjects.code, code)
+        )
+      );
+    return subject;
   }
 
   // Skills operations
