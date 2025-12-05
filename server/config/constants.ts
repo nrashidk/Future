@@ -55,5 +55,6 @@ export const ENV_VARS = {
     "RESEND_API_KEY", // Required for email delivery
     "APP_URL", // Used in email links
     "NODE_ENV",
+    "DB_ENCRYPTION_KEY", // Required for LLM credential encryption (64 hex chars)
   ],
 } as const;
