@@ -4,14 +4,16 @@ import { storage } from "../storage";
 import { db } from "../db";
 import { users, assessments, recommendations, assessmentQuizzes, quizResponses, cvqResults } from "@shared/schema";
 import { eq } from "drizzle-orm";
+import { dataExportLimiter } from "../middleware/rateLimiter.middleware";
 
 export function registerUserRoutes(app: Express) {
   /**
    * GET /api/users/me/export
    * GDPR Data Export: Returns all user data in a structured JSON format
    * Allows users to download a copy of their personal data
+   * Rate limited to 5 requests per hour to prevent abuse
    */
-  app.get("/api/users/me/export", isAuthenticated, async (req: any, res) => {
+  app.get("/api/users/me/export", isAuthenticated, dataExportLimiter, async (req: any, res) => {
     try {
       const userId = req.user.userId;
       

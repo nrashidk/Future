@@ -103,7 +103,7 @@ export default function Login() {
             </Link>
           </p>
           <p className="text-sm text-muted-foreground">
-            School student? Use the username and password provided by your school.
+            Have login credentials? Use the email sign-in option above.
           </p>
           <Button
             variant="ghost"

@@ -102,7 +102,7 @@ export default function Profile() {
       case 'org_admin':
         return <Badge className="bg-purple-500 hover:bg-purple-600" data-testid="badge-account-type"><Users className="w-3 h-3 mr-1" /> School Admin</Badge>;
       case 'org_student':
-        return <Badge variant="secondary" data-testid="badge-account-type"><Users className="w-3 h-3 mr-1" /> School Student</Badge>;
+        return <Badge variant="secondary" data-testid="badge-account-type"><User className="w-3 h-3 mr-1" /> Member</Badge>;
       default:
         return <Badge variant="outline" data-testid="badge-account-type"><User className="w-3 h-3 mr-1" /> Individual Account</Badge>;
     }

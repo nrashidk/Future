@@ -14,6 +14,16 @@ export const RATE_LIMITS = {
     MAX_REQUESTS: 20,
     MESSAGE: "Too many recommendation requests. Please try again later.",
   },
+  DATA_EXPORT: {
+    WINDOW_MS: 60 * 60 * 1000, // 1 hour
+    MAX_REQUESTS: 5,
+    MESSAGE: "Too many export requests. Please try again later.",
+  },
+  ORG_CREATION: {
+    WINDOW_MS: 60 * 60 * 1000, // 1 hour
+    MAX_REQUESTS: 10,
+    MESSAGE: "Too many organization creation requests. Please try again later.",
+  },
 } as const;
 
 export const ASSESSMENT_LIMITS = {

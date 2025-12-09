@@ -46,6 +46,9 @@ app.use(helmet({
       ],
       fontSrc: ["'self'", "data:"],
       objectSrc: ["'none'"],
+      formAction: ["'self'"],
+      frameAncestors: ["'self'"],
+      baseUri: ["'self'"],
       upgradeInsecureRequests: [],
     },
   },
@@ -62,7 +65,21 @@ app.use(helmet({
   referrerPolicy: {
     policy: 'strict-origin-when-cross-origin',
   },
+  // Prevent MIME type sniffing
+  noSniff: true,
+  // Cross-origin policies for enhanced security
+  crossOriginOpenerPolicy: { policy: "same-origin-allow-popups" }, // Allow OAuth popups
+  crossOriginResourcePolicy: { policy: "same-origin" },
 }));
+
+// Permissions Policy header (replaces Feature-Policy)
+app.use((_req, res, next) => {
+  res.setHeader(
+    "Permissions-Policy",
+    "geolocation=(), microphone=(), camera=(), payment=(self \"https://js.stripe.com\")"
+  );
+  next();
+});
 
 // Response compression middleware
 app.use(compression());

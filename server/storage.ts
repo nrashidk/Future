@@ -108,7 +108,7 @@ import {
   type InsertSystemAnnouncement,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, desc, count, avg, sql, inArray, isNotNull, gte } from "drizzle-orm";
+import { eq, and, or, desc, count, avg, sql, inArray, isNotNull, gte, type SQL } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -340,7 +340,7 @@ export interface IStorage {
     studentName?: string;
     studentAge?: number;
     studentGender?: string;
-    passwordComplexity?: 'easy' | 'medium' | 'strong';
+    passwordComplexity?: 'medium' | 'strong';
   }): Promise<{
     user: User;
     member: OrganizationMember;
@@ -1331,24 +1331,16 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  // TODO: PERFORMANCE OPTIMIZATION NEEDED - N+1 Query Pattern
-  // This function has nested loop N+1 issues:
-  // 1. Fetches all assessments and all recommendations globally (line 378-379)
-  // 2. Filters assessments and recommendations in memory for each sector (line 386-389)
-  // 3. Nested loops over countries and their sectors create O(n*m*k) complexity
-  // RECOMMENDED FIX: Use SQL-first approach:
-  // - JOIN assessments with recommendations and countries
-  // - UNNEST prioritySectors array to create one row per sector
-  // - GROUP BY sector with COUNT(DISTINCT assessments.id) and AVG(countryVisionAlignment)
-  // - This eliminates all in-memory filtering, reducing complexity to O(1) with proper indexing
+  // OPTIMIZED: Uses SQL-first approach with UNNEST to eliminate N+1 queries
+  // Previous implementation had O(n*m*k) complexity from nested loops
+  // New implementation uses single query with UNNEST and aggregation
   async getSectorPipeline(countryId?: string, organizationId?: string) {
-    // Filter countries if countryId specified
-    const allCountries = countryId 
-      ? [await this.getCountryById(countryId)].filter(Boolean) as typeof this.getAllCountries extends () => Promise<infer T> ? Awaited<T> : never
-      : await this.getAllCountries();
-
-    // Fetch completed assessments (filtered by country and/or organization if specified)
-    const conditions = [eq(assessments.isCompleted, true)];
+    // Build SQL query that:
+    // 1. JOINs countries, assessments, and recommendations
+    // 2. Uses UNNEST to expand priority_sectors array into rows
+    // 3. Groups by sector and aggregates counts/averages
+    const conditions: SQL[] = [eq(assessments.isCompleted, true)];
+    
     if (countryId) {
       conditions.push(eq(assessments.countryId, countryId));
     }
@@ -1357,48 +1349,41 @@ export class DatabaseStorage implements IStorage {
         sql`${assessments.userId} IN (SELECT ${organizationMembers.userId} FROM ${organizationMembers} WHERE ${organizationMembers.organizationId} = ${organizationId})`
       );
     }
-    const allAssessments = await db.select().from(assessments).where(and(...conditions));
-    const allRecs = await db.select().from(recommendations);
 
-    const sectorsMap = new Map<string, { studentCount: number; totalAlignment: number; alignmentCount: number }>();
+    // Use optimized query with UNNEST for sector expansion
+    const result = await db.execute(sql`
+      WITH country_sectors AS (
+        SELECT 
+          c.id as country_id,
+          unnest(c.priority_sectors) as sector
+        FROM countries c
+        ${countryId ? sql`WHERE c.id = ${countryId}` : sql``}
+      ),
+      filtered_assessments AS (
+        SELECT a.*
+        FROM assessments a
+        WHERE a.is_completed = true
+        ${countryId ? sql`AND a.country_id = ${countryId}` : sql``}
+        ${organizationId ? sql`AND a.user_id IN (
+          SELECT om.user_id FROM organization_members om WHERE om.organization_id = ${organizationId}
+        )` : sql``}
+      )
+      SELECT 
+        cs.sector,
+        COUNT(DISTINCT fa.id)::int as student_count,
+        COALESCE(AVG(r.country_vision_alignment), 0)::float as avg_alignment
+      FROM country_sectors cs
+      LEFT JOIN filtered_assessments fa ON fa.country_id = cs.country_id
+      LEFT JOIN recommendations r ON r.assessment_id = fa.id
+      GROUP BY cs.sector
+      ORDER BY student_count DESC
+    `);
 
-    for (const country of allCountries) {
-      if (country.prioritySectors) {
-        for (const sector of country.prioritySectors) {
-          const countryAssessments = allAssessments.filter(a => a.countryId === country.id);
-          const countryRecs = allRecs.filter(rec => 
-            countryAssessments.some(a => a.id === rec.assessmentId)
-          );
-
-          const existing = sectorsMap.get(sector);
-          if (existing) {
-            existing.studentCount += countryAssessments.length;
-            for (const rec of countryRecs) {
-              existing.totalAlignment += rec.countryVisionAlignment;
-              existing.alignmentCount++;
-            }
-          } else {
-            let totalAlignment = 0;
-            for (const rec of countryRecs) {
-              totalAlignment += rec.countryVisionAlignment;
-            }
-            sectorsMap.set(sector, {
-              studentCount: countryAssessments.length,
-              totalAlignment,
-              alignmentCount: countryRecs.length
-            });
-          }
-        }
-      }
-    }
-
-    return Array.from(sectorsMap.entries())
-      .map(([sector, data]) => ({
-        sector,
-        studentCount: data.studentCount,
-        avgAlignment: data.alignmentCount > 0 ? data.totalAlignment / data.alignmentCount : 0
-      }))
-      .sort((a, b) => b.studentCount - a.studentCount);
+    return (result.rows as any[]).map(row => ({
+      sector: row.sector,
+      studentCount: row.student_count || 0,
+      avgAlignment: row.avg_alignment || 0
+    }));
   }
 
   // Assessment Component operations
@@ -2312,7 +2297,7 @@ export class DatabaseStorage implements IStorage {
     studentName?: string;
     studentAge?: number;
     studentGender?: string;
-    passwordComplexity?: 'easy' | 'medium' | 'strong';
+    passwordComplexity?: 'medium' | 'strong';
   }): Promise<{
     user: User;
     member: OrganizationMember;

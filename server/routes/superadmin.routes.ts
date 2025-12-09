@@ -3,6 +3,7 @@ import { storage } from "../storage";
 import { isAuthenticated } from "../auth";
 import { z } from "zod";
 import { clearSubjectCache } from "../utils/subjects";
+import { dataExportLimiter, orgCreationLimiter } from "../middleware/rateLimiter.middleware";
 
 const getSuperadminEmails = (): string[] => {
   return (process.env.SUPERADMIN_EMAILS || "")
@@ -595,7 +596,7 @@ export function registerSuperadminRoutes(app: Express) {
   // CREATE ORGANIZATION WITH ADMIN
   // ===============================
   
-  app.post("/api/superadmin/organizations/create-with-admin", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+  app.post("/api/superadmin/organizations/create-with-admin", isAuthenticated, isSuperadminMiddleware, orgCreationLimiter, async (req, res) => {
     try {
       const { 
         organizationName, 
@@ -718,7 +719,7 @@ export function registerSuperadminRoutes(app: Express) {
   // BULK OPERATIONS
   // ===============================
   
-  app.get("/api/superadmin/export/organizations", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+  app.get("/api/superadmin/export/organizations", isAuthenticated, isSuperadminMiddleware, dataExportLimiter, async (req, res) => {
     try {
       const format = req.query.format === "json" ? "json" : "csv";
       const organizations = await storage.getAllOrganizations();
@@ -1464,7 +1465,7 @@ export function registerSuperadminRoutes(app: Express) {
   // CROSS-ORG DATA EXPORT
   // ===============================
   
-  app.get("/api/superadmin/export/all-students", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+  app.get("/api/superadmin/export/all-students", isAuthenticated, isSuperadminMiddleware, dataExportLimiter, async (req, res) => {
     try {
       const format = req.query.format === "json" ? "json" : "csv";
       const students = await storage.getAllStudentsWithAssessments();

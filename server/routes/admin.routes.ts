@@ -4,6 +4,7 @@ import path from "path";
 import { storage } from "../storage";
 import { isAuthenticated } from "../auth";
 import { isAdmin, isOrgAdmin } from "../middleware/auth.middleware";
+import { dataExportLimiter } from "../middleware/rateLimiter.middleware";
 import { insertQuizQuestionSchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -359,7 +360,7 @@ export function registerAdminRoutes(app: Express) {
         username,
         fullName,
         grade: grade.toString(),
-        passwordComplexity: passwordComplexity as 'easy' | 'medium' | 'strong',
+        passwordComplexity: passwordComplexity as 'medium' | 'strong',
         organizationId,
       });
 
@@ -442,9 +443,9 @@ export function registerAdminRoutes(app: Express) {
         }
       }
       
-      // Validation: Check passwordComplexity is valid
-      if (passwordComplexity && !['easy', 'medium', 'strong'].includes(passwordComplexity)) {
-        return res.status(400).json({ message: "Invalid passwordComplexity. Must be 'easy', 'medium', or 'strong'" });
+      // Validation: Check passwordComplexity is valid (only medium and strong allowed for security)
+      if (passwordComplexity && !['medium', 'strong'].includes(passwordComplexity)) {
+        return res.status(400).json({ message: "Invalid passwordComplexity. Must be 'medium' or 'strong'" });
       }
 
       const org = await storage.getOrganizationById(organizationId);
@@ -485,7 +486,7 @@ export function registerAdminRoutes(app: Express) {
             studentName: studentName || undefined,
             studentAge: studentAge ? parseInt(studentAge.toString()) : undefined,
             studentGender: studentGender || undefined,
-            passwordComplexity: passwordComplexity as 'easy' | 'medium' | 'strong',
+            passwordComplexity: passwordComplexity as 'medium' | 'strong',
             organizationId,
           });
 
@@ -812,7 +813,7 @@ export function registerAdminRoutes(app: Express) {
       const { generatePassword } = await import("../utils/passwordGenerator");
       const { hashPassword } = await import("../utils/passwordHash");
 
-      const newPassword = generatePassword(passwordComplexity as 'easy' | 'medium' | 'strong');
+      const newPassword = generatePassword(passwordComplexity as 'medium' | 'strong');
       const passwordHash = await hashPassword(newPassword);
 
       await storage.upsertUser({
@@ -831,7 +832,7 @@ export function registerAdminRoutes(app: Express) {
     }
   });
 
-  app.get("/api/admin/questions/export", isAuthenticated, isAdmin, async (req, res) => {
+  app.get("/api/admin/questions/export", isAuthenticated, isAdmin, dataExportLimiter, async (req, res) => {
     try {
       const { countryId, curriculum, subject, grade, gradeBand, format } = req.query;
       
@@ -883,7 +884,7 @@ export function registerAdminRoutes(app: Express) {
   });
 
   // Bulk Export: Student Reports (PDFs in ZIP)
-  app.get("/api/admin/organizations/:id/export/reports", isAuthenticated, async (req, res) => {
+  app.get("/api/admin/organizations/:id/export/reports", isAuthenticated, dataExportLimiter, async (req, res) => {
     let browser: any = null;
     try {
       const userId = (req.user as any).userId;
@@ -1054,7 +1055,7 @@ export function registerAdminRoutes(app: Express) {
   });
 
   // Bulk Export: Student Data (CSV)
-  app.get("/api/admin/organizations/:id/export/csv", isAuthenticated, async (req, res) => {
+  app.get("/api/admin/organizations/:id/export/csv", isAuthenticated, dataExportLimiter, async (req, res) => {
     try {
       const userId = (req.user as any).userId;
       const user = await storage.getUser(userId);
@@ -1207,7 +1208,7 @@ export function registerAdminRoutes(app: Express) {
   });
 
   // Export organization students data as file (CSV or JSON) - saved to files table
-  app.post("/api/admin/organizations/:id/export-students", isAuthenticated, isAdmin, async (req: any, res) => {
+  app.post("/api/admin/organizations/:id/export-students", isAuthenticated, isAdmin, dataExportLimiter, async (req: any, res) => {
     try {
       const userId = req.user.userId;
       const { format = 'csv' } = req.body; // 'csv' or 'json'
@@ -1326,7 +1327,7 @@ export function registerAdminRoutes(app: Express) {
   });
 
   // Export organization assessments data
-  app.post("/api/admin/organizations/:id/export-assessments", isAuthenticated, isAdmin, async (req: any, res) => {
+  app.post("/api/admin/organizations/:id/export-assessments", isAuthenticated, isAdmin, dataExportLimiter, async (req: any, res) => {
     try {
       const userId = req.user.userId;
       const { format = 'csv' } = req.body;
