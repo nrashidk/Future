@@ -52,10 +52,12 @@ async function upsertOAuthUser(
   lastName: string | undefined,
   profileImageUrl: string | undefined
 ) {
+  const normalizedEmail = email ? email.toLowerCase() : '';
+  
   let user = await storage.getUserByOAuthProvider(provider, providerId);
   
   if (!user) {
-    const emailUser = email ? await storage.getUserByEmail(email) : null;
+    const emailUser = normalizedEmail ? await storage.getUserByEmail(normalizedEmail) : null;
     if (emailUser) {
       await storage.updateUser(emailUser.id, {
         oauthProvider: provider,
@@ -66,13 +68,13 @@ async function upsertOAuthUser(
     } else {
       const superadminEmails = (process.env.SUPERADMIN_EMAILS || "")
         .split(",")
-        .map(e => e.trim())
+        .map(e => e.trim().toLowerCase())
         .filter(e => e.length > 0);
       
-      const role = email && superadminEmails.includes(email) ? "superadmin" : "user";
+      const role = normalizedEmail && superadminEmails.includes(normalizedEmail) ? "superadmin" : "user";
       
       const newUser = await storage.upsertUser({
-        email: email || undefined,
+        email: normalizedEmail || undefined,
         firstName: firstName,
         lastName: lastName,
         profileImageUrl: profileImageUrl,
@@ -256,8 +258,10 @@ export async function setupAuth(app: Express) {
       }
 
       const { email, password, firstName, lastName } = result.data;
+      
+      const normalizedEmail = email.toLowerCase();
 
-      const existingUser = await storage.getUserByEmail(email);
+      const existingUser = await storage.getUserByEmail(normalizedEmail);
       if (existingUser) {
         return res.status(400).json({ message: "An account with this email already exists" });
       }
@@ -266,13 +270,13 @@ export async function setupAuth(app: Express) {
       
       const superadminEmails = (process.env.SUPERADMIN_EMAILS || "")
         .split(",")
-        .map(e => e.trim())
+        .map(e => e.trim().toLowerCase())
         .filter(e => e.length > 0);
       
-      const role = superadminEmails.includes(email) ? "superadmin" : "user";
+      const role = superadminEmails.includes(normalizedEmail) ? "superadmin" : "user";
 
       const user = await storage.upsertUser({
-        email,
+        email: normalizedEmail,
         firstName,
         lastName,
         passwordHash,
