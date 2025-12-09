@@ -449,6 +449,34 @@ export interface IStorage {
     assessmentCount: number;
     latestAssessmentDate: Date | null;
   }>>;
+  
+  // Multi-grade progress tracking
+  getStudentAssessmentProgression(userId: string): Promise<Array<{
+    assessment: Assessment;
+    recommendations: Recommendation[];
+    careerNames: string[];
+  }>>;
+  getStudentCareerEvolution(userId: string): Promise<Array<{
+    grade: string;
+    completedAt: Date | null;
+    topCareers: Array<{ careerId: string; careerName: string; matchScore: number }>;
+    kolbScores: any;
+    riasecScores: any;
+    interests: string[];
+  }>>;
+  getOrganizationGradeProgress(organizationId: string): Promise<{
+    gradeStats: Array<{
+      grade: string;
+      totalStudents: number;
+      completedAssessments: number;
+      avgMatchScore: number;
+    }>;
+    studentProgress: Array<{
+      userId: string;
+      studentName: string;
+      assessmentsByGrade: Array<{ grade: string; completedAt: Date | null; topCareer: string | null }>;
+    }>;
+  }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -3070,6 +3098,224 @@ export class DatabaseStorage implements IStorage {
       assessmentCount: Number(r.assessmentCount),
       latestAssessmentDate: r.latestAssessmentDate,
     }));
+  }
+
+  // ============================================
+  // Multi-grade progress tracking
+  // ============================================
+
+  async getStudentAssessmentProgression(userId: string): Promise<Array<{
+    assessment: Assessment;
+    recommendations: Recommendation[];
+    careerNames: string[];
+  }>> {
+    // Get all completed assessments for the user, ordered by grade
+    const userAssessments = await db
+      .select()
+      .from(assessments)
+      .where(and(
+        eq(assessments.userId, userId),
+        eq(assessments.isCompleted, true)
+      ))
+      .orderBy(assessments.grade, assessments.completedAt);
+
+    const result: Array<{
+      assessment: Assessment;
+      recommendations: Recommendation[];
+      careerNames: string[];
+    }> = [];
+
+    for (const assessment of userAssessments) {
+      const recs = await db
+        .select()
+        .from(recommendations)
+        .where(eq(recommendations.assessmentId, assessment.id))
+        .orderBy(desc(recommendations.overallMatchScore))
+        .limit(5);
+
+      const careerIds = recs.map(r => r.careerId);
+      let careerNames: string[] = [];
+      
+      if (careerIds.length > 0) {
+        const careerData = await db
+          .select({ id: careers.id, title: careers.title })
+          .from(careers)
+          .where(inArray(careers.id, careerIds));
+        
+        careerNames = recs.map(r => 
+          careerData.find(c => c.id === r.careerId)?.title || 'Unknown'
+        );
+      }
+
+      result.push({
+        assessment,
+        recommendations: recs,
+        careerNames,
+      });
+    }
+
+    return result;
+  }
+
+  async getStudentCareerEvolution(userId: string): Promise<Array<{
+    grade: string;
+    completedAt: Date | null;
+    topCareers: Array<{ careerId: string; careerName: string; matchScore: number }>;
+    kolbScores: any;
+    riasecScores: any;
+    interests: string[];
+  }>> {
+    const progression = await this.getStudentAssessmentProgression(userId);
+    
+    return progression.map(({ assessment, recommendations, careerNames }) => ({
+      grade: assessment.grade || 'Unknown',
+      completedAt: assessment.completedAt,
+      topCareers: recommendations.slice(0, 3).map((rec, i) => ({
+        careerId: rec.careerId,
+        careerName: careerNames[i] || 'Unknown',
+        matchScore: rec.overallMatchScore,
+      })),
+      kolbScores: assessment.kolbScores,
+      riasecScores: assessment.riasecScores,
+      interests: assessment.interests || [],
+    }));
+  }
+
+  async getOrganizationGradeProgress(organizationId: string): Promise<{
+    gradeStats: Array<{
+      grade: string;
+      totalStudents: number;
+      completedAssessments: number;
+      avgMatchScore: number;
+    }>;
+    studentProgress: Array<{
+      userId: string;
+      studentName: string;
+      assessmentsByGrade: Array<{ grade: string; completedAt: Date | null; topCareer: string | null }>;
+    }>;
+  }> {
+    // Get all members of the organization
+    const members = await db
+      .select({
+        userId: organizationMembers.userId,
+        studentName: organizationMembers.studentName,
+        grade: organizationMembers.grade,
+      })
+      .from(organizationMembers)
+      .where(and(
+        eq(organizationMembers.organizationId, organizationId),
+        eq(organizationMembers.role, 'student')
+      ));
+
+    // Get completed assessments for all members
+    const memberIds = members.map(m => m.userId);
+    
+    if (memberIds.length === 0) {
+      return { gradeStats: [], studentProgress: [] };
+    }
+
+    const memberAssessments = await db
+      .select()
+      .from(assessments)
+      .where(and(
+        inArray(assessments.userId, memberIds),
+        eq(assessments.isCompleted, true)
+      ))
+      .orderBy(assessments.grade, assessments.completedAt);
+
+    // Calculate grade stats
+    const gradeMap = new Map<string, { students: Set<string>; assessments: number; totalScore: number }>();
+    
+    for (const assessment of memberAssessments) {
+      const grade = assessment.grade || 'Unknown';
+      if (!gradeMap.has(grade)) {
+        gradeMap.set(grade, { students: new Set(), assessments: 0, totalScore: 0 });
+      }
+      const stats = gradeMap.get(grade)!;
+      if (assessment.userId) {
+        stats.students.add(assessment.userId);
+      }
+      stats.assessments++;
+    }
+
+    // Get recommendations for avg match scores
+    const assessmentIds = memberAssessments.map(a => a.id);
+    let recsMap = new Map<string, number>();
+    
+    if (assessmentIds.length > 0) {
+      const allRecs = await db
+        .select({
+          assessmentId: recommendations.assessmentId,
+          avgScore: sql<number>`AVG(${recommendations.overallMatchScore})`,
+        })
+        .from(recommendations)
+        .where(inArray(recommendations.assessmentId, assessmentIds))
+        .groupBy(recommendations.assessmentId);
+      
+      for (const rec of allRecs) {
+        recsMap.set(rec.assessmentId, Number(rec.avgScore));
+      }
+    }
+
+    // Recalculate with actual avg scores
+    for (const assessment of memberAssessments) {
+      const grade = assessment.grade || 'Unknown';
+      const stats = gradeMap.get(grade)!;
+      const avgScore = recsMap.get(assessment.id) || 0;
+      stats.totalScore += avgScore;
+    }
+
+    const gradeStats = Array.from(gradeMap.entries()).map(([grade, stats]) => ({
+      grade,
+      totalStudents: stats.students.size,
+      completedAssessments: stats.assessments,
+      avgMatchScore: stats.assessments > 0 ? stats.totalScore / stats.assessments : 0,
+    })).sort((a, b) => a.grade.localeCompare(b.grade));
+
+    // Build student progress with top career per grade
+    const studentProgressMap = new Map<string, {
+      userId: string;
+      studentName: string;
+      assessmentsByGrade: Array<{ grade: string; completedAt: Date | null; topCareer: string | null }>;
+    }>();
+
+    for (const member of members) {
+      studentProgressMap.set(member.userId, {
+        userId: member.userId,
+        studentName: member.studentName || 'Unknown',
+        assessmentsByGrade: [],
+      });
+    }
+
+    // Get top career for each assessment
+    for (const assessment of memberAssessments) {
+      if (!assessment.userId) continue;
+      
+      const topRec = await db
+        .select({
+          careerId: recommendations.careerId,
+          careerTitle: careers.title,
+        })
+        .from(recommendations)
+        .leftJoin(careers, eq(recommendations.careerId, careers.id))
+        .where(eq(recommendations.assessmentId, assessment.id))
+        .orderBy(desc(recommendations.overallMatchScore))
+        .limit(1);
+
+      const student = studentProgressMap.get(assessment.userId);
+      if (student) {
+        student.assessmentsByGrade.push({
+          grade: assessment.grade || 'Unknown',
+          completedAt: assessment.completedAt,
+          topCareer: topRec[0]?.careerTitle || null,
+        });
+      }
+    }
+
+    const studentProgress = Array.from(studentProgressMap.values())
+      .filter(s => s.assessmentsByGrade.length > 0);
+
+    return { gradeStats, studentProgress };
   }
 }
 
