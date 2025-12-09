@@ -1,0 +1,273 @@
+CRITICAL VULNERABILITIES
+1. Session Cookie Configuration Risk
+Location: server/replitAuth.ts:49-55
+
+cookie: {
+  httpOnly: true,
+  secure: true,
+  sameSite: 'none', // ⚠️ CRITICAL: Allows cross-site requests
+  maxAge: sessionTtl,
+}
+
+Risk: sameSite: 'none' allows cookies to be sent with cross-origin requests, exposing the application to CSRF attacks despite the CSRF token middleware.
+
+Impact: Session hijacking, unauthorized actions
+
+Remediation:
+
+cookie: {
+  httpOnly: true,
+  secure: true,
+  sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
+  maxAge: sessionTtl,
+  domain: process.env.COOKIE_DOMAIN, // Set explicit domain
+}
+
+2. Content Security Policy Weaknesses
+Location: server/index.ts:23-29
+
+scriptSrc: [
+  "'self'",
+  "'unsafe-inline'", // ⚠️ Defeats XSS protection
+  "https://js.stripe.com",
+],
+styleSrc: [
+  "'self'",
+  "'unsafe-inline'", // ⚠️ Allows inline styles
+],
+
+Risk: 'unsafe-inline' allows inline scripts and styles, which can be exploited for XSS attacks.
+
+Impact: Cross-site scripting, code injection
+
+Remediation:
+
+Use nonces or hashes for inline scripts in production
+Extract inline styles to external stylesheets
+Implement CSP reporting: report-uri: '/api/csp-report'
+Add missing headers:
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      // ... existing directives
+      reportUri: '/api/csp-report',
+      formAction: ["'self'"],
+      frameAncestors: ["'self'"],
+      baseUri: ["'self'"],
+    },
+  },
+  noSniff: true, // X-Content-Type-Options: nosniff
+  ieNoOpen: true,
+  xssFilter: true,
+}))
+
+3. Missing Rate Limiting on Critical Endpoints
+Location: Multiple route files
+
+Current coverage:
+
+✅ Login: 5 requests / 15 min
+✅ Payment: 10 requests / 15 min
+✅ Recommendations: 20 requests / 1 hour
+❌ Missing: User creation, password reset, data export, admin operations
+Risk: Brute force attacks, DoS, resource exhaustion
+
+Remediation:
+
+// Add rate limiters for:
+// 1. Password reset requests
+export const passwordResetLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 3, // 3 requests per 15 minutes
+  message: 'Too many password reset requests'
+});
+
+// 2. Data export (prevent abuse)
+export const dataExportLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5,
+  message: 'Too many export requests'
+});
+
+// 3. Organization creation
+export const orgCreationLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10
+});
+
+4. DB_ENCRYPTION_KEY Should Be Required
+Location: server/config/constants.ts:58
+
+OPTIONAL: [
+  // ...
+  "DB_ENCRYPTION_KEY", // ⚠️ Should be REQUIRED if storing API credentials
+],
+
+Risk: API credentials (OpenAI, Anthropic) stored unencrypted if key not provided
+
+Impact: Credential exposure, unauthorized API usage
+
+Remediation:
+
+Move to REQUIRED array if API credentials feature is used
+Add validation in encryption.ts:
+export function getEncryptionKey(): Buffer {
+  const key = process.env.DB_ENCRYPTION_KEY;
+  if (!key) {
+    throw new Error('DB_ENCRYPTION_KEY is required for production deployments');
+  }
+  // ... existing validation
+}
+
+5. CSRF Token Exposed to Client
+Location: server/middleware/csrf.middleware.ts:25-31
+
+res.cookie(CSRF_COOKIE_NAME, newToken, {
+  httpOnly: false, // ⚠️ JavaScript can read this
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "strict",
+})
+
+Risk: While this is by design for CSRF double-submit pattern, it slightly increases attack surface.
+
+Impact: Token could be read by XSS if other protections fail
+
+Recommendation:
+
+Current implementation is acceptable for double-submit pattern
+Ensure XSS protections remain strong (address CSP issues above)
+Consider synchronizer token pattern (store in session) for added security
+6. Missing Input Validation Middleware
+Location: Throughout route handlers
+
+Current state:
+
+Zod schemas defined for database operations
+✅ Sanitization applied in some places
+❌ No consistent validation middleware chain
+Risk: Invalid data reaching business logic, potential injection attacks
+
+Remediation:
+
+// Create validation middleware
+import { z } from 'zod';
+
+export function validateBody<T extends z.ZodSchema>(schema: T) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      req.body = await schema.parseAsync(req.body);
+      next();
+    } catch (error) {
+      res.status(400).json({ 
+        message: 'Validation failed', 
+        errors: error.errors 
+      });
+    }
+  };
+}
+
+// Apply to routes
+app.post('/api/assessment', 
+  isAuthenticated, 
+  validateBody(insertAssessmentSchema), // ✅ Validation enforced
+  async (req, res) => { /* handler */ }
+);
+
+7. Potential N+1 Query Pattern
+Location: server/storage.ts:1294 (flagged in code comments)
+
+// TODO: PERFORMANCE OPTIMIZATION NEEDED - N+1 Query Pattern
+
+Risk: Performance degradation, potential DoS through resource exhaustion
+
+Remediation:
+
+Implement query batching with Drizzle's with clause
+Add database query monitoring
+Implement query result caching for frequently accessed data
+8. Missing Security Headers
+Current: Helmet provides basic headers
+Missing:
+
+X-Content-Type-Options: nosniff
+Permissions-Policy (replaces Feature-Policy)
+Cross-Origin-Embedder-Policy
+Cross-Origin-Opener-Policy
+Cross-Origin-Resource-Policy
+Remediation:
+
+app.use(helmet({
+  // ... existing config
+  permissionsPolicy: {
+    features: {
+      geolocation: ["'none'"],
+      microphone: ["'none'"],
+      camera: ["'none'"],
+      payment: ["'self'", "https://js.stripe.com"],
+    },
+  },
+  crossOriginEmbedderPolicy: true,
+  crossOriginOpenerPolicy: { policy: "same-origin" },
+  crossOriginResourcePolicy: { policy: "same-origin" },
+}));
+
+🟡 MEDIUM PRIORITY ISSUES
+9. Password Complexity Configuration
+Location: Organization settings allow "easy" passwords
+
+passwordComplexity: text("password_complexity").notNull().default("medium"),
+// Values: 'easy', 'medium', 'strong'
+
+Recommendation:
+
+Remove "easy" option for production
+Enforce minimum: 8 characters, 1 uppercase, 1 lowercase, 1 number
+Integrate zxcvbn scoring (already imported in password-reset.routes.ts:162)
+10. Email Security
+Location: server/services/email.ts
+
+Current: Using Resend (good choice)
+Missing:
+
+SPF, DKIM, DMARC verification
+Email rate limiting (prevent spam)
+Unsubscribe mechanism (GDPR/CAN-SPAM)
+Remediation:
+
+Add email-specific rate limiter
+Implement email templates with security best practices
+Add unsubscribe links to all marketing emails
+11. Organization Admin Privilege Escalation Risk
+Location: server/routes/admin.routes.ts:572,633,722
+
+Good: Code includes CRITICAL SECURITY comments verifying member ownership
+Issue: Multiple verification points suggest complex authorization logic
+
+Recommendation:
+
+Centralize authorization logic in middleware
+Implement attribute-based access control (ABAC)
+export const requireOrgOwnership = (resourceType: 'member' | 'organization') => {
+  return async (req, res, next) => {
+    const orgId = req.params.orgId;
+    const userId = req.user.userId || req.user.claims?.sub;
+    
+    const org = await storage.getOrganizationById(orgId);
+    if (org?.adminUserId !== userId) {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+    next();
+  };
+};
+
+12. SSRF Protection
+Location: server/routes/recommendations.routes.ts:292, admin.routes.ts:951
+
+Good: Comments indicate awareness of SSRF risks
+Issue: Need to verify implementation
+
+Recommendation:
+
+Whitelist allowed domains
+Validate URLs against private IP ranges (127.0.0.1, 10.0.0.0/8, 192.168.0.0/16)
+Use URL parsing library with validation

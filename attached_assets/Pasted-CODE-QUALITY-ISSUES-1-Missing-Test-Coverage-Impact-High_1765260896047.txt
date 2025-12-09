@@ -1,0 +1,248 @@
+CODE QUALITY ISSUES
+1. Missing Test Coverage
+Impact: High risk of regressions, difficult to refactor
+
+Recommendation:
+
+// Implement test suite with:
+// 1. Unit tests for business logic
+describe('Career Matching Service', () => {
+  it('should calculate correct match scores', () => {
+    // ...
+  });
+});
+
+// 2. Integration tests for API routes
+describe('POST /api/assessment', () => {
+  it('should create assessment with valid data', async () => {
+    // ...
+  });
+});
+
+// 3. E2E tests for critical flows
+describe('Premium Checkout Flow', () => {
+  it('should complete payment and grant access', () => {
+    // ...
+  });
+});
+
+Tools: Vitest (Vite-native), Supertest (API testing), Playwright (E2E)
+
+2. Error Handling Inconsistency
+Location: Mixed error handling patterns across routes
+
+// Some routes:
+try { ... } catch (error: any) {
+  console.error("Error:", error);
+  res.status(500).json({ message: "Failed" });
+}
+
+// Others:
+.catch(error => {
+  res.status(500).json({ message: error.message }); // ⚠️ Leaks error details
+})
+
+Recommendation:
+
+// Standardized error handling middleware
+class AppError extends Error {
+  constructor(
+    public statusCode: number,
+    public message: string,
+    public isOperational = true
+  ) {
+    super(message);
+  }
+}
+
+// Global error handler
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  const statusCode = err.statusCode || 500;
+  const message = err.isOperational 
+    ? err.message 
+    : 'Internal server error'; // Don't leak internal errors
+  
+  // Log all errors
+  logger.error({
+    statusCode,
+    message: err.message,
+    stack: err.stack,
+    url: req.url,
+    userId: req.user?.id,
+  });
+  
+  res.status(statusCode).json({ message });
+});
+
+3. Storage Layer Complexity
+Location: server/storage.ts (32,000+ tokens, too large to read in one call)
+
+Issues:
+
+Single file exceeds recommended size (>1000 lines)
+Mix of concerns (CRUD, business logic, validation)
+Difficult to test in isolation
+Recommendation:
+
+storage/
+  ├── repositories/
+  │   ├── userRepository.ts
+  │   ├── assessmentRepository.ts
+  │   ├── organizationRepository.ts
+  │   └── index.ts
+  ├── services/
+  │   ├── userService.ts (business logic)
+  │   └── assessmentService.ts
+  └── index.ts (facade)
+
+4. Magic Numbers & String Literals
+Location: Throughout codebase
+
+// Current:
+if (studentCount >= 1000) {
+  discount = 0.20; // What does 0.20 mean?
+}
+
+// Better:
+const PRICING_TIERS = {
+  TIER_1: { minStudents: 1000, discount: 0.20 },
+  TIER_2: { minStudents: 500, discount: 0.15 },
+  TIER_3: { minStudents: 100, discount: 0.10 },
+} as const;
+
+5. Missing JSDoc Documentation
+Current: Minimal inline comments
+Impact: Difficult onboarding, unclear API contracts
+
+Recommendation:
+
+/**
+ * Create a payment intent for group organization purchase
+ * @param studentCount - Number of student licenses (1-100,000)
+ * @returns Payment intent with client secret and calculated amount
+ * @throws {Error} If studentCount is invalid or Stripe is not configured
+ * 
+ * @example
+ * ```ts
+ * const intent = await createPaymentIntent(500);
+ * // Returns: { clientSecret: "...", amount: 4250, studentCount: 500 }
+ * ```
+ */
+export async function createPaymentIntent(studentCount: number) {
+  // ...
+}
+
+6. Logging Strategy
+Current: Mix of console.log, console.error, custom log() function
+
+Recommendation:
+
+// Structured logging with Winston or Pino
+import pino from 'pino';
+
+const logger = pino({
+  level: process.env.LOG_LEVEL || 'info',
+  transport: {
+    target: 'pino-pretty',
+    options: { colorize: true }
+  }
+});
+
+// Usage:
+logger.info({ userId, action: 'login' }, 'User logged in');
+logger.error({ err, userId }, 'Payment processing failed');
+
+🟡 ARCHITECTURAL IMPROVEMENTS
+1. Caching Layer Missing
+Current: Direct database queries for frequently accessed data
+
+Recommendation:
+
+import Redis from 'ioredis';
+
+const redis = new Redis(process.env.REDIS_URL);
+
+// Cache frequently accessed data
+export async function getCountry(id: string) {
+  const cached = await redis.get(`country:${id}`);
+  if (cached) return JSON.parse(cached);
+  
+  const country = await db.query.countries.findFirst({ where: eq(countries.id, id) });
+  await redis.setex(`country:${id}`, 3600, JSON.stringify(country));
+  return country;
+}
+
+Use cases:
+
+Country data (rarely changes)
+Career catalog
+WEF skills framework
+Organization settings
+2. Background Job Queue
+Current: Synchronous processing of expensive operations
+
+Recommendation: Implement Bull or BullMQ for:
+
+Email sending (async)
+PDF generation
+LLM narrative generation
+Data export processing
+Webhook retries
+import Queue from 'bull';
+
+const emailQueue = new Queue('email', process.env.REDIS_URL);
+
+emailQueue.process(async (job) => {
+  const { to, subject, html } = job.data;
+  await sendEmail({ to, subject, html });
+});
+
+// Usage:
+await emailQueue.add({ to, subject, html }, { 
+  attempts: 3,
+  backoff: { type: 'exponential', delay: 2000 }
+});
+
+3. API Versioning
+Current: No versioning (/api/assessment)
+
+Future-proofing:
+
+// v1 routes (current)
+app.use('/api/v1', v1Routes);
+
+// v2 routes (future breaking changes)
+app.use('/api/v2', v2Routes);
+
+4. Database Migration Strategy
+Current: Drizzle Kit with push command
+
+Recommendation:
+
+Use migrations instead of push in production
+Version control migration files
+Add migration rollback strategy
+npm run db:generate  # Create migration
+npm run db:migrate   # Apply migration
+npm run db:rollback  # Rollback if needed
+
+5. Monitoring & Observability
+Missing:
+
+Application performance monitoring (APM)
+Error tracking (Sentry)
+Uptime monitoring
+Database query performance tracking
+Recommendation:
+
+// Add Sentry for error tracking
+import * as Sentry from '@sentry/node';
+
+Sentry.init({
+  dsn: process.env.SENTRY_DSN,
+  environment: process.env.NODE_ENV,
+  tracesSampleRate: 0.1,
+});
+
+// Add performance monitoring
+import { createMiddleware } from '@opentelemetry/instrumentation-http';
