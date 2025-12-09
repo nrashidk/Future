@@ -3,7 +3,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs/promises";
 import { storage } from "../storage";
-import { isAuthenticated } from "../replitAuth";
+import { isAuthenticated } from "../auth";
 import { isAdmin } from "../middleware/auth.middleware";
 
 // Create uploads directory if it doesn't exist
@@ -57,7 +57,7 @@ const upload = multer({
 const isSuperadmin = async (req: any): Promise<boolean> => {
   if (!req.user) return false;
   
-  const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
+  const userId = req.user.userId;
   const user = await storage.getUser(userId);
   
   if (!user) return false;
@@ -79,7 +79,7 @@ const isSuperadmin = async (req: any): Promise<boolean> => {
 const isOrgAdmin = async (req: any): Promise<boolean> => {
   if (!req.user) return false;
   
-  const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
+  const userId = req.user.userId;
   const user = await storage.getUser(userId);
   
   return user?.accountType === "org_admin";
@@ -89,7 +89,7 @@ export function registerFilesRoutes(app: Express) {
   // Upload a file (superadmin only - using centralized middleware)
   app.post("/api/files/upload", isAuthenticated, isAdmin, upload.single("file"), async (req: any, res: Response) => {
     try {
-      const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
+      const userId = req.user.userId;
       
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded" });
@@ -131,7 +131,7 @@ export function registerFilesRoutes(app: Express) {
   // List files (superadmin sees all, org_admin sees organization files only)
   app.get("/api/files", isAuthenticated, async (req: any, res: Response) => {
     try {
-      const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
+      const userId = req.user.userId;
       const isSuperadminUser = await isSuperadmin(req);
       const isOrgAdminUser = await isOrgAdmin(req);
       
@@ -162,7 +162,7 @@ export function registerFilesRoutes(app: Express) {
   // Get file details
   app.get("/api/files/:id", isAuthenticated, async (req: any, res: Response) => {
     try {
-      const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
+      const userId = req.user.userId;
       const isSuperadminUser = await isSuperadmin(req);
       
       const file = await storage.getFileById(req.params.id);
@@ -194,7 +194,7 @@ export function registerFilesRoutes(app: Express) {
   // Download file
   app.get("/api/files/:id/download", isAuthenticated, async (req: any, res: Response) => {
     try {
-      const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
+      const userId = req.user.userId;
       const isSuperadminUser = await isSuperadmin(req);
       
       const file = await storage.getFileById(req.params.id);
@@ -253,7 +253,7 @@ export function registerFilesRoutes(app: Express) {
   // Generate share link (superadmin or file owner)
   app.post("/api/files/:id/share", isAuthenticated, async (req: any, res: Response) => {
     try {
-      const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
+      const userId = req.user.userId;
       const isSuperadminUser = await isSuperadmin(req);
       
       const file = await storage.getFileById(req.params.id);
@@ -289,7 +289,7 @@ export function registerFilesRoutes(app: Express) {
   // Delete file (superadmin or file owner)
   app.delete("/api/files/:id", isAuthenticated, async (req: any, res: Response) => {
     try {
-      const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
+      const userId = req.user.userId;
       const isSuperadminUser = await isSuperadmin(req);
       
       const file = await storage.getFileById(req.params.id);

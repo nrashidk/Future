@@ -1,6 +1,6 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { storage } from "../storage";
-import { isAuthenticated } from "../replitAuth";
+import { isAuthenticated } from "../auth";
 import { z } from "zod";
 import { clearSubjectCache } from "../utils/subjects";
 
@@ -13,7 +13,7 @@ const getSuperadminEmails = (): string[] => {
 
 const isSuperadminMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const userId = (req.user as any).isLocal ? (req.user as any).userId : (req.user as any).claims.sub;
+    const userId = (req.user as any).userId;
     const user = await storage.getUser(userId);
     
     if (!user) {
@@ -1698,7 +1698,7 @@ export function registerSuperadminRoutes(app: Express) {
   // Public endpoint for users to get active announcements
   app.get("/api/announcements", isAuthenticated, async (req, res) => {
     try {
-      const userId = (req.user as any).isLocal ? (req.user as any).userId : (req.user as any).claims.sub;
+      const userId = (req.user as any).userId;
       const user = await storage.getUser(userId);
       
       let targetAudience = "all";

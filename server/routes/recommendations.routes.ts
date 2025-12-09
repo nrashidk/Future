@@ -247,7 +247,7 @@ export function registerRecommendationsRoutes(app: Express) {
       }
 
       // Authorization check: verify ownership
-      const userId = req.isAuthenticated() ? (req.user.isLocal ? req.user.userId : req.user.claims.sub) : null;
+      const userId = req.isAuthenticated() ? (req.user.userId) : null;
       if (assessment.userId && (!req.isAuthenticated() || userId !== assessment.userId)) {
         return res.status(403).json({ message: "Unauthorized to access this report" });
       }
@@ -408,7 +408,7 @@ export function registerRecommendationsRoutes(app: Express) {
       if (assessment.userId) {
         // User-owned assessment: require proper authentication
         if (typeof req.isAuthenticated === 'function' && req.isAuthenticated() && req.user) {
-          const userId = req.user.isLocal ? req.user.userId : req.user.claims?.sub;
+          const userId = req.user.userId;
           if (userId && userId === assessment.userId) {
             isAuthorized = true;
           }

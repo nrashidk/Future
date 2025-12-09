@@ -1,12 +1,12 @@
 import type { Express } from "express";
 import { storage } from "../storage";
-import { isAuthenticated } from "../replitAuth";
+import { isAuthenticated } from "../auth";
 
 export function registerOrganizationRoutes(app: Express) {
   // Organization Admin Endpoints (for org_admin users to access their organization data)
   app.get("/api/my-organization", isAuthenticated, async (req, res) => {
     try {
-      const userId = (req.user as any).isLocal ? (req.user as any).userId : (req.user as any).claims.sub;
+      const userId = (req.user as any).userId;
       const user = await storage.getUser(userId);
       
       if (!user || user.accountType !== 'org_admin') {
@@ -27,7 +27,7 @@ export function registerOrganizationRoutes(app: Express) {
 
   app.get("/api/my-organization/stats", isAuthenticated, async (req, res) => {
     try {
-      const userId = (req.user as any).isLocal ? (req.user as any).userId : (req.user as any).claims.sub;
+      const userId = (req.user as any).userId;
       const user = await storage.getUser(userId);
       
       if (!user || user.accountType !== 'org_admin') {

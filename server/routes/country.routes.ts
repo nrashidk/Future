@@ -7,7 +7,7 @@
 import type { Express } from "express";
 import { z } from "zod";
 import { storage } from "../storage";
-import { isAuthenticated } from "../replitAuth";
+import { isAuthenticated } from "../auth";
 import { researchCountryData, generateCountryQuizQuestions, generateSectorWefMappings } from "../services/llmCountryService";
 import rateLimit from "express-rate-limit";
 
@@ -52,7 +52,7 @@ const getSuperadminEmails = (): string[] => {
 };
 
 const checkSuperadmin = async (req: any): Promise<boolean> => {
-  const userId = req.user?.isLocal ? req.user.userId : req.user?.claims?.sub;
+  const userId = req.user?.userId;
   if (!userId) return false;
   
   const user = await storage.getUser(userId);

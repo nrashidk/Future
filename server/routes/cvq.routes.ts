@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { storage } from "../storage";
-import { isAuthenticated } from "../replitAuth";
+import { isAuthenticated } from "../auth";
 
 export function registerCvqRoutes(app: Express) {
   app.get("/api/cvq/items", async (req, res) => {
@@ -27,7 +27,7 @@ export function registerCvqRoutes(app: Express) {
       }
       
       // Get userId from authenticated request
-      const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
+      const userId = req.user.userId;
       
       // Get CVQ items to map responses to domains
       const cvqItems = await storage.getCvqItems();
@@ -95,7 +95,7 @@ export function registerCvqRoutes(app: Express) {
 
   app.get("/api/cvq/result/latest", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
+      const userId = req.user.userId;
       const result = await storage.getCvqResultByUserId(userId);
       
       if (!result) {

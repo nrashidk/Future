@@ -20,7 +20,7 @@ export const isAdmin = async (req: any, res: any, next: any) => {
   }
   
   try {
-    const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
+    const userId = req.user.userId;
     const user = await storage.getUser(userId);
     
     if (!user) {
@@ -54,7 +54,7 @@ export const isOrgAdmin = async (req: any, res: any, next: any) => {
   }
   
   try {
-    const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
+    const userId = req.user.userId;
     const user = await storage.getUser(userId);
     
     if (!user || user.accountType !== "org_admin") {

@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { randomBytes } from "crypto";
 import { storage } from "../storage";
-import { isAuthenticated } from "../replitAuth";
+import { isAuthenticated } from "../auth";
 import { insertAssessmentSchema } from "@shared/schema";
 import { z } from "zod";
 import { calculateKolbScores } from "../questionBanks/kolb";
@@ -67,7 +67,7 @@ export function registerAssessmentRoutes(app: Express) {
       // Check if user is authenticated and get userId from appropriate source
       // For local auth: req.user.userId, for Replit auth: req.user.claims.sub
       const userId = req.isAuthenticated() 
-        ? (req.user.isLocal ? req.user.userId : req.user.claims.sub) 
+        ? (req.user.userId) 
         : null;
       const isGuest = !userId;
 
@@ -167,7 +167,7 @@ export function registerAssessmentRoutes(app: Express) {
         return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
+      const userId = req.user.userId;
       const assessments = await storage.getAssessmentsByUser(userId);
       res.json(assessments);
     } catch (error) {
@@ -183,7 +183,7 @@ export function registerAssessmentRoutes(app: Express) {
         return res.status(401).json({ message: "Unauthorized" });
       }
 
-      const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
+      const userId = req.user.userId;
       const assessments = await storage.getAssessmentsByUser(userId);
       res.json(assessments);
     } catch (error) {
@@ -260,7 +260,7 @@ export function registerAssessmentRoutes(app: Express) {
   app.post("/api/assessments/migrate", isAuthenticated, async (req: any, res) => {
     try {
       const { guestAssessmentIds, guestSessionId } = req.body;
-      const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
+      const userId = req.user.userId;
 
       if (!Array.isArray(guestAssessmentIds) || guestAssessmentIds.length === 0) {
         return res.status(400).json({ message: "No assessments to migrate" });

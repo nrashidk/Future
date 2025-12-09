@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { storage } from "../storage";
 import { z } from "zod";
-import { isAuthenticated } from "../replitAuth";
+import { isAuthenticated } from "../auth";
 import DOMPurify from "isomorphic-dompurify";
 import type { ContributionSubmission } from "@shared/schema";
 

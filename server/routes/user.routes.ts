@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { isAuthenticated } from "../replitAuth";
+import { isAuthenticated } from "../auth";
 import { storage } from "../storage";
 import { db } from "../db";
 import { users, assessments, recommendations, assessmentQuizzes, quizResponses, cvqResults } from "@shared/schema";
@@ -13,7 +13,7 @@ export function registerUserRoutes(app: Express) {
    */
   app.get("/api/users/me/export", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
+      const userId = req.user.userId;
       
       // Fetch user profile
       const user = await storage.getUser(userId);
@@ -91,7 +91,7 @@ export function registerUserRoutes(app: Express) {
    */
   app.delete("/api/users/me", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
+      const userId = req.user.userId;
       
       // Verify user exists
       const user = await storage.getUser(userId);
@@ -165,7 +165,7 @@ export function registerUserRoutes(app: Express) {
    */
   app.get("/api/users/me/data-summary", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
+      const userId = req.user.userId;
       
       const user = await storage.getUser(userId);
       if (!user) {

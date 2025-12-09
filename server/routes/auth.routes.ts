@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { isAuthenticated } from "../replitAuth";
+import { isAuthenticated } from "../auth";
 import { storage } from "../storage";
 
 function getSuperadminEmails(): string[] {
@@ -12,7 +12,7 @@ function getSuperadminEmails(): string[] {
 export function registerAuthRoutes(app: Express) {
   app.get("/api/auth/user", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
+      const userId = req.user.userId;
       const user = await storage.getUser(userId);
       
       if (!user) {
@@ -22,7 +22,7 @@ export function registerAuthRoutes(app: Express) {
       // Check if user is a superadmin based on email or role
       const superadminEmails = getSuperadminEmails();
       const isSuperadmin = 
-        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email.toLowerCase())) ||
+        (user.email && superadminEmails.includes(user.email.toLowerCase())) ||
         user.role === "superadmin" ||
         user.accountType === "superadmin";
       

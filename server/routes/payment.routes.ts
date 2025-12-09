@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { storage } from "../storage";
-import { isAuthenticated } from "../replitAuth";
+import { isAuthenticated } from "../auth";
 import { paymentLimiter } from "../middleware/rateLimiter.middleware";
 import Stripe from "stripe";
 
@@ -52,7 +52,7 @@ export function registerPaymentRoutes(app: Express) {
 
       // Get userId - works for both Replit Auth and local users
       const userId = req.isAuthenticated() 
-        ? (req.user.userId || req.user.claims?.sub) 
+        ? (req.user.userId) 
         : "guest";
 
       const paymentIntent = await stripe.paymentIntents.create({
@@ -102,7 +102,7 @@ export function registerPaymentRoutes(app: Express) {
       }
 
       // Get userId - works for both Replit Auth and local users
-      const userId = req.user.userId || req.user.claims?.sub;
+      const userId = req.user.userId;
       
       // Verify user matches the payment metadata
       if (paymentIntent.metadata.userId !== userId) {
@@ -176,7 +176,7 @@ export function registerPaymentRoutes(app: Express) {
       
       if (req.isAuthenticated && req.isAuthenticated() && req.user) {
         // User is logged in - upgrade their existing account
-        const loggedInUserId = (req.user as any).userId || (req.user as any).claims?.sub;
+        const loggedInUserId = (req.user as any).userId;
         user = await storage.getUser(loggedInUserId);
         
         if (!user) {

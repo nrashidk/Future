@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { setupAuth } from "./replitAuth";
+import { setupAuth } from "./auth";
 import { validateCsrf } from "./middleware/csrf.middleware";
 import { registerAuthRoutes } from "./routes/auth.routes";
 import { registerUserRoutes } from "./routes/user.routes";

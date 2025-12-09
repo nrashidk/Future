@@ -2,7 +2,7 @@ import type { Express } from "express";
 import multer from "multer";
 import path from "path";
 import { storage } from "../storage";
-import { isAuthenticated } from "../replitAuth";
+import { isAuthenticated } from "../auth";
 import { isAdmin, isOrgAdmin } from "../middleware/auth.middleware";
 import { insertQuizQuestionSchema } from "@shared/schema";
 import { z } from "zod";
@@ -180,7 +180,7 @@ export function registerAdminRoutes(app: Express) {
   // Org admins see only their organization, superadmins see all
   app.get("/api/admin/organizations", isAuthenticated, async (req, res) => {
     try {
-      const userId = (req.user as any).isLocal ? (req.user as any).userId : (req.user as any).claims.sub;
+      const userId = (req.user as any).userId;
       const user = await storage.getUser(userId);
       
       if (!user) {
@@ -278,7 +278,7 @@ export function registerAdminRoutes(app: Express) {
   // Organization Member Management - Admin Endpoints
   app.get("/api/admin/organizations/:id/members", isAuthenticated, async (req, res) => {
     try {
-      const userId = (req.user as any).isLocal ? (req.user as any).userId : (req.user as any).claims.sub;
+      const userId = (req.user as any).userId;
       const user = await storage.getUser(userId);
       
       if (!user) {
@@ -314,7 +314,7 @@ export function registerAdminRoutes(app: Express) {
 
   app.post("/api/admin/organizations/:id/members", isAuthenticated, async (req, res) => {
     try {
-      const userId = (req.user as any).isLocal ? (req.user as any).userId : (req.user as any).claims.sub;
+      const userId = (req.user as any).userId;
       const user = await storage.getUser(userId);
       
       if (!user) {
@@ -381,7 +381,7 @@ export function registerAdminRoutes(app: Express) {
 
   app.post("/api/admin/organizations/:id/members/bulk", isAuthenticated, async (req, res) => {
     try {
-      const userId = (req.user as any).isLocal ? (req.user as any).userId : (req.user as any).claims.sub;
+      const userId = (req.user as any).userId;
       const user = await storage.getUser(userId);
       
       if (!user) {
@@ -538,7 +538,7 @@ export function registerAdminRoutes(app: Express) {
 
   app.delete("/api/admin/organizations/:id/members/:memberId", isAuthenticated, async (req, res) => {
     try {
-      const userId = (req.user as any).isLocal ? (req.user as any).userId : (req.user as any).claims.sub;
+      const userId = (req.user as any).userId;
       const user = await storage.getUser(userId);
       
       if (!user) {
@@ -593,7 +593,7 @@ export function registerAdminRoutes(app: Express) {
 
   app.post("/api/admin/organizations/:id/members/bulk-delete", isAuthenticated, async (req, res) => {
     try {
-      const userId = (req.user as any).isLocal ? (req.user as any).userId : (req.user as any).claims.sub;
+      const userId = (req.user as any).userId;
       const user = await storage.getUser(userId);
       
       if (!user) {
@@ -673,7 +673,7 @@ export function registerAdminRoutes(app: Express) {
   // Bulk reset passwords for organization members
   app.post("/api/admin/organizations/:id/members/bulk-reset-passwords", isAuthenticated, async (req, res) => {
     try {
-      const userId = (req.user as any).isLocal ? (req.user as any).userId : (req.user as any).claims.sub;
+      const userId = (req.user as any).userId;
       const user = await storage.getUser(userId);
       
       if (!user) {
@@ -770,7 +770,7 @@ export function registerAdminRoutes(app: Express) {
 
   app.post("/api/admin/organizations/:id/members/:memberId/reset-password", isAuthenticated, async (req, res) => {
     try {
-      const userId = (req.user as any).isLocal ? (req.user as any).userId : (req.user as any).claims.sub;
+      const userId = (req.user as any).userId;
       const currentUser = await storage.getUser(userId);
       
       if (!currentUser) {
@@ -886,7 +886,7 @@ export function registerAdminRoutes(app: Express) {
   app.get("/api/admin/organizations/:id/export/reports", isAuthenticated, async (req, res) => {
     let browser: any = null;
     try {
-      const userId = (req.user as any).isLocal ? (req.user as any).userId : (req.user as any).claims.sub;
+      const userId = (req.user as any).userId;
       const user = await storage.getUser(userId);
       
       if (!user) {
@@ -1056,7 +1056,7 @@ export function registerAdminRoutes(app: Express) {
   // Bulk Export: Student Data (CSV)
   app.get("/api/admin/organizations/:id/export/csv", isAuthenticated, async (req, res) => {
     try {
-      const userId = (req.user as any).isLocal ? (req.user as any).userId : (req.user as any).claims.sub;
+      const userId = (req.user as any).userId;
       const user = await storage.getUser(userId);
       
       if (!user) {
@@ -1209,7 +1209,7 @@ export function registerAdminRoutes(app: Express) {
   // Export organization students data as file (CSV or JSON) - saved to files table
   app.post("/api/admin/organizations/:id/export-students", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
+      const userId = req.user.userId;
       const { format = 'csv' } = req.body; // 'csv' or 'json'
       
       const organization = await storage.getOrganizationById(req.params.id);
@@ -1328,7 +1328,7 @@ export function registerAdminRoutes(app: Express) {
   // Export organization assessments data
   app.post("/api/admin/organizations/:id/export-assessments", isAuthenticated, isAdmin, async (req: any, res) => {
     try {
-      const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
+      const userId = req.user.userId;
       const { format = 'csv' } = req.body;
       
       const organization = await storage.getOrganizationById(req.params.id);
@@ -1454,7 +1454,7 @@ export function registerAdminRoutes(app: Express) {
     const fileId = req.body.fileId; // Optional: if file was already uploaded via files API
     
     try {
-      const userId = req.user.isLocal ? req.user.userId : req.user.claims.sub;
+      const userId = req.user.userId;
       
       const organization = await storage.getOrganizationById(req.params.id);
       if (!organization) {

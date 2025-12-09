@@ -71,7 +71,7 @@ export function registerQuizRoutes(app: Express) {
         return res.status(404).json({ message: "Assessment not found" });
       }
       
-      const userId = req.isAuthenticated() ? (req.user.isLocal ? req.user.userId : req.user.claims.sub) : null;
+      const userId = req.isAuthenticated() ? (req.user.userId) : null;
       const isOwner = req.isAuthenticated() && assessment.userId === userId;
       const isGuestOwner = assessment.isGuest && guestToken && assessment.guestSessionId === guestToken;
       
@@ -273,7 +273,7 @@ export function registerQuizRoutes(app: Express) {
         return res.status(404).json({ message: "Assessment not found" });
       }
       
-      const userId = req.isAuthenticated() ? (req.user.isLocal ? req.user.userId : req.user.claims.sub) : null;
+      const userId = req.isAuthenticated() ? (req.user.userId) : null;
       const isOwner = req.isAuthenticated() && assessment.userId === userId;
       const isGuestOwner = assessment.isGuest;
       if (!isOwner && !isGuestOwner) {
@@ -341,7 +341,7 @@ export function registerQuizRoutes(app: Express) {
         return res.status(404).json({ message: "Assessment not found" });
       }
       
-      const userId = req.isAuthenticated() ? (req.user.isLocal ? req.user.userId : req.user.claims.sub) : null;
+      const userId = req.isAuthenticated() ? (req.user.userId) : null;
       const isOwner = req.isAuthenticated() && assessment.userId === userId;
       const isGuestOwner = assessment.isGuest && guestToken && assessment.guestSessionId === guestToken;
       
