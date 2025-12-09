@@ -1,0 +1,697 @@
+Migration Plan: Replace Replit OAuth with Self-Hosted Multi-Provider Authentication
+Overview
+Replace Replit OAuth authentication with self-hosted Passport.js strategies supporting Google, GitHub, and Microsoft OAuth. Preserve existing username/password authentication for organization students.
+
+Phase 1: Install Dependencies & Setup
+1.1 Install Required Packages
+npm install passport-google-oauth20 passport-github2 passport-microsoft @types/passport-google-oauth20 @types/passport-github2
+
+1.2 Remove Replit-Specific Packages
+npm uninstall openid-client
+
+1.3 Environment Variables Required
+Add these to your .env file (you'll need to register OAuth apps first):
+
+# Google OAuth (Register at: https://console.cloud.google.com/apis/credentials)
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+
+# GitHub OAuth (Register at: https://github.com/settings/applications/new)
+GITHUB_CLIENT_ID=your_github_client_id
+GITHUB_CLIENT_SECRET=your_github_client_secret
+
+# Microsoft OAuth (Register at: https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade)
+MICROSOFT_CLIENT_ID=your_microsoft_client_id
+MICROSOFT_CLIENT_SECRET=your_microsoft_client_secret
+
+# Base URL for callbacks (your app's URL)
+BASE_URL=https://yourdomain.com
+# For development: BASE_URL=http://localhost:5000
+
+# Keep existing variables
+SESSION_SECRET=your_existing_session_secret
+DATABASE_URL=your_existing_database_url
+SUPERADMIN_EMAILS=your_superadmin_emails
+
+# Remove these (no longer needed):
+# ISSUER_URL
+# REPL_ID
+
+Phase 2: Update Database Schema
+2.1 Update User Schema
+File: shared/schema.ts
+
+Changes needed:
+
+The current schema already supports both OAuth and local auth
+Update the comment on line 18 from "mandatory for Replit Auth" to "session storage table"
+Update the comment on line 29 from "mandatory for Replit Auth" to "user storage table"
+Add a new field to track OAuth provider:
+// Add this field to the users table after line 43
+oauthProvider: varchar("oauth_provider"), // 'google', 'github', 'microsoft', or null for local auth
+oauthProviderId: varchar("oauth_provider_id"), // OAuth provider's user ID
+
+2.2 Database Migration
+Run this SQL to add new columns:
+
+ALTER TABLE users 
+ADD COLUMN oauth_provider VARCHAR(50),
+ADD COLUMN oauth_provider_id VARCHAR(255);
+
+CREATE INDEX idx_users_oauth_provider ON users(oauth_provider, oauth_provider_id);
+
+Phase 3: Backend Authentication Refactor
+3.1 Rename and Refactor server/replitAuth.ts
+Action: Rename server/replitAuth.ts to server/auth.ts
+
+Replace entire file content with:
+
+import passport from "passport";
+import { Strategy as LocalStrategy } from "passport-local";
+import { Strategy as GoogleStrategy } from "passport-google-oauth20";
+import { Strategy as GitHubStrategy } from "passport-github2";
+import { Strategy as MicrosoftStrategy } from "passport-microsoft";
+import session from "express-session";
+import type { Express, RequestHandler } from "express";
+import connectPg from "connect-pg-simple";
+import rateLimit from "express-rate-limit";
+import { storage } from "./storage";
+import { verifyPassword } from "./utils/passwordHash";
+
+// Rate limiting for authentication endpoints
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // Limit each IP to 5 login attempts per window
+  message: 'Too many login attempts, please try again later',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+export function getSession() {
+  const sessionTtl = 24 * 60 * 60 * 1000; // 24 hours
+  const pgStore = connectPg(session);
+  const sessionStore = new pgStore({
+    conString: process.env.DATABASE_URL,
+    createTableIfMissing: false,
+    ttl: sessionTtl,
+    tableName: "sessions",
+  });
+  return session({
+    secret: process.env.SESSION_SECRET!,
+    store: sessionStore,
+    resave: false,
+    saveUninitialized: true,
+    name: 'connect.sid',
+    proxy: true,
+    cookie: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'none',
+      maxAge: sessionTtl,
+      path: '/',
+    },
+  });
+}
+
+async function upsertOAuthUser(
+  provider: string,
+  providerId: string,
+  email: string,
+  firstName: string | undefined,
+  lastName: string | undefined,
+  profileImageUrl: string | undefined
+) {
+  // Check if user exists by OAuth provider ID
+  let user = await storage.getUserByOAuthProvider(provider, providerId);
+  
+  if (!user) {
+    // Check if user exists by email (for linking accounts)
+    const emailUser = await storage.getUserByEmail(email);
+    if (emailUser) {
+      // Link OAuth provider to existing email account
+      await storage.updateUser(emailUser.id, {
+        oauthProvider: provider,
+        oauthProviderId: providerId,
+        profileImageUrl: profileImageUrl,
+      });
+      user = await storage.getUser(emailUser.id);
+    } else {
+      // Create new user
+      const superadminEmails = (process.env.SUPERADMIN_EMAILS || "")
+        .split(",")
+        .map(e => e.trim())
+        .filter(e => e.length > 0);
+      
+      const role = superadminEmails.includes(email) ? "superadmin" : "user";
+      
+      const userId = await storage.upsertUser({
+        email: email,
+        firstName: firstName,
+        lastName: lastName,
+        profileImageUrl: profileImageUrl,
+        role: role,
+        oauthProvider: provider,
+        oauthProviderId: providerId,
+      });
+      
+      user = await storage.getUser(userId);
+    }
+  }
+  
+  // Update last login
+  if (user) {
+    await storage.updateUser(user.id, { lastLoginAt: new Date() });
+  }
+  
+  return user;
+}
+
+export async function setupAuth(app: Express) {
+  app.set("trust proxy", 1);
+  app.use(getSession());
+  app.use(passport.initialize());
+  app.use(passport.session());
+
+  // Google OAuth Strategy
+  passport.use(new GoogleStrategy({
+    clientID: process.env.GOOGLE_CLIENT_ID!,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    callbackURL: `${process.env.BASE_URL}/api/auth/google/callback`,
+    scope: ['profile', 'email'],
+  }, async (accessToken, refreshToken, profile, done) => {
+    try {
+      const user = await upsertOAuthUser(
+        'google',
+        profile.id,
+        profile.emails?.[0]?.value || '',
+        profile.name?.givenName,
+        profile.name?.familyName,
+        profile.photos?.[0]?.value
+      );
+      return done(null, { userId: user?.id, provider: 'google' });
+    } catch (error) {
+      return done(error as Error);
+    }
+  }));
+
+  // GitHub OAuth Strategy
+  passport.use(new GitHubStrategy({
+    clientID: process.env.GITHUB_CLIENT_ID!,
+    clientSecret: process.env.GITHUB_CLIENT_SECRET!,
+    callbackURL: `${process.env.BASE_URL}/api/auth/github/callback`,
+    scope: ['user:email'],
+  }, async (accessToken: string, refreshToken: string, profile: any, done: any) => {
+    try {
+      const email = profile.emails?.[0]?.value || `${profile.username}@github.local`;
+      const nameParts = (profile.displayName || profile.username).split(' ');
+      
+      const user = await upsertOAuthUser(
+        'github',
+        profile.id,
+        email,
+        nameParts[0],
+        nameParts.slice(1).join(' ') || undefined,
+        profile.photos?.[0]?.value
+      );
+      return done(null, { userId: user?.id, provider: 'github' });
+    } catch (error) {
+      return done(error as Error);
+    }
+  }));
+
+  // Microsoft OAuth Strategy
+  passport.use(new MicrosoftStrategy({
+    clientID: process.env.MICROSOFT_CLIENT_ID!,
+    clientSecret: process.env.MICROSOFT_CLIENT_SECRET!,
+    callbackURL: `${process.env.BASE_URL}/api/auth/microsoft/callback`,
+    scope: ['user.read'],
+  }, async (accessToken: string, refreshToken: string, profile: any, done: any) => {
+    try {
+      const user = await upsertOAuthUser(
+        'microsoft',
+        profile.id,
+        profile.emails?.[0]?.value || '',
+        profile.name?.givenName,
+        profile.name?.familyName,
+        profile.photos?.[0]?.value
+      );
+      return done(null, { userId: user?.id, provider: 'microsoft' });
+    } catch (error) {
+      return done(error as Error);
+    }
+  }));
+
+  // Local Strategy (keep existing)
+  passport.use(new LocalStrategy(
+    async (username, password, done) => {
+      try {
+        const user = await storage.getUserByUsername(username);
+        if (!user || !user.passwordHash) {
+          return done(null, false, { message: 'Invalid username or password' });
+        }
+
+        const isValid = await verifyPassword(password, user.passwordHash);
+        if (!isValid) {
+          return done(null, false, { message: 'Invalid username or password' });
+        }
+
+        await storage.updateUser(user.id, { lastLoginAt: new Date() });
+
+        return done(null, {
+          userId: user.id,
+          username: user.username,
+          isLocal: true,
+        });
+      } catch (error) {
+        return done(error);
+      }
+    }
+  ));
+
+  passport.serializeUser((user: Express.User, cb) => cb(null, user));
+  passport.deserializeUser((user: Express.User, cb) => cb(null, user));
+
+  // OAuth Routes - Google
+  app.get("/api/auth/google", 
+    passport.authenticate("google", { scope: ["profile", "email"] })
+  );
+
+  app.get("/api/auth/google/callback",
+    passport.authenticate("google", { failureRedirect: "/login" }),
+    (req, res) => {
+      res.redirect("/auth/callback");
+    }
+  );
+
+  // OAuth Routes - GitHub
+  app.get("/api/auth/github",
+    passport.authenticate("github", { scope: ["user:email"] })
+  );
+
+  app.get("/api/auth/github/callback",
+    passport.authenticate("github", { failureRedirect: "/login" }),
+    (req, res) => {
+      res.redirect("/auth/callback");
+    }
+  );
+
+  // OAuth Routes - Microsoft
+  app.get("/api/auth/microsoft",
+    passport.authenticate("microsoft", { scope: ["user.read"] })
+  );
+
+  app.get("/api/auth/microsoft/callback",
+    passport.authenticate("microsoft", { failureRedirect: "/login" }),
+    (req, res) => {
+      res.redirect("/auth/callback");
+    }
+  );
+
+  // Local Login (keep existing)
+  app.post("/api/login/username", authLimiter, (req, res, next) => {
+    passport.authenticate("local", (err: any, user: any, info: any) => {
+      if (err) {
+        return res.status(500).json({ message: "Internal server error" });
+      }
+      if (!user) {
+        return res.status(401).json({ message: info?.message || "Invalid credentials" });
+      }
+      
+      req.session.regenerate((regenerateErr) => {
+        if (regenerateErr) {
+          console.error("Session regeneration failed:", regenerateErr);
+          return res.status(500).json({ message: "Login failed" });
+        }
+        
+        req.logIn(user, (loginErr) => {
+          if (loginErr) {
+            return res.status(500).json({ message: "Login failed" });
+          }
+          return res.json({ success: true, user: { username: user.username } });
+        });
+      });
+    })(req, res, next);
+  });
+
+  // Logout
+  app.get("/api/logout", (req, res) => {
+    req.logout(() => {
+      res.redirect("/");
+    });
+  });
+}
+
+export const isAuthenticated: RequestHandler = async (req, res, next) => {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+  return next();
+};
+
+3.2 Update Storage Functions
+File: server/storage.ts
+
+Add these new functions:
+
+// Add after existing getUserByUsername function
+async getUserByOAuthProvider(provider: string, providerId: string) {
+  return await db.query.users.findFirst({
+    where: and(
+      eq(users.oauthProvider, provider),
+      eq(users.oauthProviderId, providerId)
+    ),
+  });
+}
+
+async getUserByEmail(email: string) {
+  return await db.query.users.findFirst({
+    where: eq(users.email, email),
+  });
+}
+
+3.3 Update Imports Throughout Backend
+Files to update:
+
+server/index.ts
+server/routes.ts
+server/routes/auth.routes.ts
+server/middleware/auth.middleware.ts
+Change all imports from:
+
+import { isAuthenticated } from "../replitAuth";
+import { setupAuth } from "../replitAuth";
+
+To:
+
+import { isAuthenticated } from "../auth";
+import { setupAuth } from "../auth";
+
+Phase 4: Frontend Updates
+4.1 Create New Landing Page Component
+File: client/src/pages/Landing.tsx
+
+Add OAuth login buttons to the existing landing page.
+
+Find the login section and replace with:
+
+import { Button } from "@/components/ui/button";
+import { Github, Mail } from "lucide-react";
+import { FcGoogle } from "react-icons/fc";
+import { SiMicrosoft } from "react-icons/si";
+
+// Add this section to your existing Landing page where login options are shown
+<div className="space-y-3">
+  <Button
+    onClick={() => window.location.href = '/api/auth/google'}
+    className="w-full"
+    variant="outline"
+    size="lg"
+  >
+    <FcGoogle className="mr-2 h-5 w-5" />
+    Continue with Google
+  </Button>
+  
+  <Button
+    onClick={() => window.location.href = '/api/auth/github'}
+    className="w-full"
+    variant="outline"
+    size="lg"
+  >
+    <Github className="mr-2 h-5 w-5" />
+    Continue with GitHub
+  </Button>
+  
+  <Button
+    onClick={() => window.location.href = '/api/auth/microsoft'}
+    className="w-full"
+    variant="outline"
+    size="lg"
+  >
+    <SiMicrosoft className="mr-2 h-5 w-5" />
+    Continue with Microsoft
+  </Button>
+  
+  <div className="relative">
+    <div className="absolute inset-0 flex items-center">
+      <span className="w-full border-t" />
+    </div>
+    <div className="relative flex justify-center text-xs uppercase">
+      <span className="bg-background px-2 text-muted-foreground">
+        Or continue with
+      </span>
+    </div>
+  </div>
+  
+  <Button
+    onClick={() => navigate("/login")}
+    className="w-full"
+    variant="default"
+    size="lg"
+  >
+    <Mail className="mr-2 h-5 w-5" />
+    Student Login (Username)
+  </Button>
+</div>
+
+4.2 Update AuthCallback Component
+File: client/src/pages/AuthCallback.tsx
+
+The existing AuthCallback component should continue to work, but update the logic to handle the new OAuth flow:
+
+import { useEffect } from "react";
+import { useLocation } from "wouter";
+import { useToast } from "@/hooks/use-toast";
+import { GraduationCap } from "lucide-react";
+import { queryClient } from "@/lib/queryClient";
+
+export default function AuthCallback() {
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const handleAuthCallback = async () => {
+      try {
+        // Invalidate queries to fetch fresh user data
+        await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+        
+        // Fetch current user to check role
+        const userRes = await fetch("/api/auth/user");
+        const user = await userRes.json();
+        
+        // Check if there are guest assessments to migrate
+        const guestAssessmentIds = JSON.parse(localStorage.getItem("guestAssessments") || "[]");
+        const guestSessionId = localStorage.getItem("guestSessionId");
+        
+        if (guestAssessmentIds.length > 0 && guestSessionId) {
+          const resultRes = await fetch("/api/assessments/migrate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ guestAssessmentIds, guestSessionId })
+          });
+          const result = await resultRes.json();
+
+          if (result) {
+            toast({
+              title: "Welcome!",
+              description: "Your assessment has been saved to your account.",
+            });
+            localStorage.removeItem("guestAssessments");
+            localStorage.removeItem("guestSessionId");
+          }
+        }
+        
+        // Redirect based on user role
+        if (user?.role === "superadmin") {
+          setLocation("/superadmin");
+        } else if (user?.accountType === "org_admin") {
+          setLocation("/admin/organizations");
+        } else if (guestAssessmentIds.length > 0) {
+          setLocation("/results");
+        } else {
+          setLocation("/assessment");
+        }
+      } catch (error) {
+        console.error("Auth callback error:", error);
+        toast({
+          title: "Authentication Error",
+          description: "There was a problem signing you in. Please try again.",
+          variant: "destructive",
+        });
+        setLocation("/");
+      }
+    };
+
+    // Small delay to ensure session is established
+    setTimeout(handleAuthCallback, 500);
+  }, [setLocation, toast]);
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5">
+      <div className="text-center">
+        <GraduationCap className="w-16 h-16 text-primary mx-auto mb-4 animate-pulse" />
+        <p className="text-lg text-muted-foreground">Completing sign-in...</p>
+      </div>
+    </div>
+  );
+}
+
+4.3 Update App Routing
+File: client/src/App.tsx
+
+Ensure the /auth/callback route exists:
+
+import AuthCallback from "@/pages/AuthCallback";
+
+// In your routes
+<Route path="/auth/callback" component={AuthCallback} />
+
+Phase 5: Environment Variable Documentation
+5.1 Create OAuth App Registrations
+Google OAuth Setup:
+
+Go to https://console.cloud.google.com/apis/credentials
+Create a new project or select existing
+Enable "Google+ API"
+Create OAuth 2.0 Client ID credentials
+Add authorized redirect URI: https://yourdomain.com/api/auth/google/callback
+Copy Client ID and Client Secret
+GitHub OAuth Setup:
+
+Go to https://github.com/settings/developers
+Click "New OAuth App"
+Application name: Your App Name
+Homepage URL: https://yourdomain.com
+Authorization callback URL: https://yourdomain.com/api/auth/github/callback
+Copy Client ID and Client Secret
+Microsoft OAuth Setup:
+
+Go to https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps
+Click "New registration"
+Name: Your App Name
+Supported account types: "Accounts in any organizational directory and personal Microsoft accounts"
+Redirect URI: Web - https://yourdomain.com/api/auth/microsoft/callback
+After creation, go to "Certificates & secrets" → "New client secret"
+Copy Application (client) ID and Client Secret
+5.2 Update Environment Variables Template
+Create/update .env.example:
+
+# Database
+DATABASE_URL=postgresql://user:password@host:port/database
+
+# Session
+SESSION_SECRET=generate_a_random_32_character_string
+
+# Base URL (your app's URL)
+BASE_URL=https://yourdomain.com
+
+# Google OAuth
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+
+# GitHub OAuth
+GITHUB_CLIENT_ID=your_github_client_id
+GITHUB_CLIENT_SECRET=your_github_client_secret
+
+# Microsoft OAuth
+MICROSOFT_CLIENT_ID=your_microsoft_client_id
+MICROSOFT_CLIENT_SECRET=your_microsoft_client_secret
+
+# Superadmin Emails (comma-separated)
+SUPERADMIN_EMAILS=admin@example.com,superadmin@example.com
+
+# Other existing variables...
+
+Phase 6: Testing Checklist
+6.1 Test Cases
+OAuth Authentication:
+
+ Google login works and creates new user
+ GitHub login works and creates new user
+ Microsoft login works and creates new user
+ Existing email linking works (OAuth login with email that already has local account)
+ Profile data (name, image) is saved correctly
+ Session persists across page refreshes
+Local Authentication:
+
+ Username/password login still works for org students
+ Password reset flow works
+ Rate limiting works (5 failed attempts blocks login)
+ Session regeneration prevents fixation attacks
+User Roles:
+
+ Superadmin detection works (via SUPERADMIN_EMAILS)
+ Org admin redirects to /admin/organizations
+ Org student gets premium access
+ Regular user redirects to /assessment
+Session Management:
+
+ Logout works for all auth types
+ Session expires after 24 hours
+ Concurrent sessions work properly
+Guest Assessment Migration:
+
+ Guest assessments migrate to new OAuth account
+ localStorage is cleared after migration
+ Redirects to /results after migration
+Phase 7: Deployment Steps
+7.1 Pre-Deployment
+Set all environment variables in production
+Run database migration to add OAuth columns
+Test in staging environment first
+7.2 Deployment
+Deploy backend changes
+Deploy frontend changes
+Monitor error logs for authentication issues
+7.3 Post-Deployment
+Test all three OAuth providers
+Test local username/password login
+Monitor user authentication success rate
+Check session storage table for proper cleanup
+Phase 8: Cleanup & Removal
+8.1 Files to Delete
+# No files to delete - we renamed replitAuth.ts to auth.ts
+
+8.2 Dependencies to Remove
+npm uninstall openid-client
+
+8.3 Environment Variables to Remove
+ISSUER_URL
+REPL_ID
+8.4 Code Comments to Update
+Update any comments referring to "Replit Auth" to say "OAuth Authentication"
+
+Phase 9: Rollback Plan
+If issues occur:
+
+9.1 Quick Rollback
+Revert to previous git commit
+Redeploy
+Restore environment variables
+9.2 Data Rollback
+No data migration needed, so no rollback necessary
+New OAuth columns can remain empty without breaking existing functionality
+Estimated Timeline
+Phase 1-2 (Setup & DB): 1 hour
+Phase 3 (Backend): 2-3 hours
+Phase 4 (Frontend): 1-2 hours
+Phase 5 (OAuth Apps): 1 hour
+Phase 6 (Testing): 2 hours
+Phase 7 (Deployment): 1 hour
+Total: 8-10 hours of development + testing time
+
+Additional Notes
+Development vs Production: Use http://localhost:5000 for BASE_URL in development
+HTTPS Required: OAuth providers require HTTPS in production
+Cookie Settings: Adjust sameSite and secure based on environment
+Email Verification: Consider adding email verification for new OAuth users
+Account Linking: Current implementation auto-links OAuth to existing email accounts
+Success Criteria
+✅ All three OAuth providers (Google, GitHub, Microsoft) working
+✅ Existing username/password login preserved
+✅ No Replit dependencies remaining
+✅ Session management working correctly
+✅ User roles and permissions maintained
+✅ Guest assessment migration working
+✅ All tests passing
+
+This plan is ready to be executed by Replit AI Agent. Each phase is self-contained and can be implemented sequentially.
