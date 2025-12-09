@@ -147,7 +147,7 @@ export default function StudentLogin() {
               
               <div className="text-center">
                 <Link href="/forgot-password">
-                  <Button variant="link" className="text-sm px-0" data-testid="link-forgot-password">
+                  <Button variant="ghost" className="text-sm" data-testid="link-forgot-password">
                     Forgot your password?
                   </Button>
                 </Link>

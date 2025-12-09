@@ -16,6 +16,7 @@ import Admin from "@/pages/Admin";
 import AdminOrganizations from "@/pages/AdminOrganizations";
 import SuperadminDashboard from "@/pages/SuperadminDashboard";
 import StudentLogin from "@/pages/StudentLogin";
+import Login from "@/pages/Login";
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 import AuthCallback from "@/pages/AuthCallback";
@@ -42,6 +43,7 @@ function Router() {
       <Route path="/admin" component={Admin} />
       <Route path="/admin/organizations" component={AdminOrganizations} />
       <Route path="/superadmin" component={SuperadminDashboard} />
+      <Route path="/login" component={Login} />
       <Route path="/login/student" component={StudentLogin} />
       <Route path="/forgot-password" component={ForgotPassword} />
       <Route path="/reset-password" component={ResetPassword} />

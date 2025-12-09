@@ -40,8 +40,7 @@ export default function Landing() {
   const isPlural = studentCount !== 1;
 
   const handleLogin = () => {
-    // Redirect to assessment after login
-    window.location.href = "/api/login?returnTo=/assessment";
+    window.location.href = "/login";
   };
 
   const handleGuestStart = () => {
@@ -59,7 +58,7 @@ export default function Landing() {
           </Link>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" asChild data-testid="button-nav-login">
-              <Link href="/login/student">
+              <Link href="/login">
                 <LogIn className="w-4 h-4 mr-2" />
                 Login
               </Link>
