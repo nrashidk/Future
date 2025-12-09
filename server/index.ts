@@ -55,9 +55,9 @@ app.use(helmet({
     includeSubDomains: true,
     preload: false, // Set to false to avoid permanent browser caching issues
   } : false,
-  // Use 'sameorigin' to allow Replit auth iframe and Stripe checkout
+  // Use 'sameorigin' to allow OAuth popups and Stripe checkout
   frameguard: {
-    action: 'sameorigin', // Allows same-origin framing (Replit auth, Stripe)
+    action: 'sameorigin', // Allows same-origin framing (OAuth, Stripe)
   },
   referrerPolicy: {
     policy: 'strict-origin-when-cross-origin',

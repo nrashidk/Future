@@ -50,7 +50,7 @@ export function registerPaymentRoutes(app: Express) {
         return res.status(400).json({ message: "Invalid amount. Minimum is $0.50 USD" });
       }
 
-      // Get userId - works for both Replit Auth and local users
+      // Get userId - works for both OAuth and local users
       const userId = req.isAuthenticated() 
         ? (req.user.userId) 
         : "guest";
@@ -101,7 +101,7 @@ export function registerPaymentRoutes(app: Express) {
         return res.status(400).json({ message: "Payment not completed" });
       }
 
-      // Get userId - works for both Replit Auth and local users
+      // Get userId - works for both OAuth and local users
       const userId = req.user.userId;
       
       // Verify user matches the payment metadata

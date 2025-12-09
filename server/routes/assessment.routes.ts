@@ -64,8 +64,7 @@ export function registerAssessmentRoutes(app: Express) {
       }
       const validatedData = insertAssessmentSchema.parse(normalizationResult.normalized);
 
-      // Check if user is authenticated and get userId from appropriate source
-      // For local auth: req.user.userId, for Replit auth: req.user.claims.sub
+      // Check if user is authenticated and get userId
       const userId = req.isAuthenticated() 
         ? (req.user.userId) 
         : null;

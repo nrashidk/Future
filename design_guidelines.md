@@ -54,7 +54,7 @@ Use Tailwind spacing primitives: 2, 4, 6, 8, 12, 16 for consistent rhythm
 **Registration Modal/Page**:
 - Clean, centered form on sticky note card background
 - Fields: Name, Email, Password, Country selection
-- Social auth buttons: "Continue with Google/GitHub" (using Replit Auth)
+- Social auth buttons: "Continue with Google/Microsoft" (OAuth providers)
 - Guest access link at bottom: "Just browsing? Start as guest →"
 
 **Guest Access Banner**:

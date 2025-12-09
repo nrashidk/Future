@@ -27,10 +27,10 @@ export const isAdmin = async (req: any, res: any, next: any) => {
       return res.status(403).json({ message: "Forbidden: Admin access required" });
     }
 
-    // Check if user is superadmin by email (for Replit Auth users) or role
+    // Check if user is superadmin by email or role
     const superadminEmails = getSuperadminEmails();
     const isSuperadmin = 
-      (!req.user.isLocal && user.email && superadminEmails.includes(user.email)) ||
+      (user.email && superadminEmails.includes(user.email.toLowerCase())) ||
       user.role === "superadmin";
     
     if (!isSuperadmin) {
