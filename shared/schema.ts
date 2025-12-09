@@ -15,7 +15,7 @@ import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Session storage table - mandatory for Replit Auth
+// Session storage table - for PostgreSQL session store
 export const sessions = pgTable(
   "sessions",
   {
@@ -26,7 +26,7 @@ export const sessions = pgTable(
   (table) => [index("IDX_session_expire").on(table.expire)],
 );
 
-// User storage table - mandatory for Replit Auth
+// User storage table - supports OAuth and local authentication
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   email: varchar("email").unique(),
@@ -35,6 +35,10 @@ export const users = pgTable("users", {
   phone: varchar("phone"), // Phone number for checkout/contact
   profileImageUrl: varchar("profile_image_url"),
   role: varchar("role").notNull().default("user"), // 'user', 'admin'
+  
+  // OAuth provider tracking
+  oauthProvider: varchar("oauth_provider"), // 'google', 'microsoft', or null for local auth
+  oauthProviderId: varchar("oauth_provider_id"), // OAuth provider's user ID
   
   // Organization-generated student accounts
   username: varchar("username").unique(),
@@ -53,7 +57,9 @@ export const users = pgTable("users", {
   
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => [
+  index("users_oauth_provider_idx").on(table.oauthProvider, table.oauthProviderId),
+]);
 
 export const usersRelations = relations(users, ({ many, one }) => ({
   assessments: many(assessments),

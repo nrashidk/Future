@@ -111,10 +111,11 @@ import { db } from "./db";
 import { eq, and, or, desc, count, avg, sql, inArray, isNotNull, gte } from "drizzle-orm";
 
 export interface IStorage {
-  // User operations (mandatory for Replit Auth)
+  // User operations
   getUser(id: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  getUserByOAuthProvider(provider: string, providerId: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
   updateUserRole(targetUserId: string, newRole: 'user' | 'superadmin', newAccountType?: 'individual' | 'org_admin' | 'org_student' | null): Promise<User>;
   updateUserPremiumStatus(userId: string, stripeCustomerId: string | null): Promise<User>;
@@ -133,7 +134,7 @@ export interface IStorage {
     purchasedLicenses?: number;
     stripeCustomerId?: string | null;
   }): Promise<User>;
-  updateUser(userId: string, data: Partial<{ firstName: string; lastName: string; lastLoginAt: Date }>): Promise<User>;
+  updateUser(userId: string, data: Partial<{ firstName: string; lastName: string; lastLoginAt: Date; profileImageUrl: string; oauthProvider: string; oauthProviderId: string }>): Promise<User>;
 
   // Country operations
   getAllCountries(): Promise<Country[]>;
@@ -467,6 +468,16 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
+  async getUserByOAuthProvider(provider: string, providerId: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(
+      and(
+        eq(users.oauthProvider, provider),
+        eq(users.oauthProviderId, providerId)
+      )
+    );
+    return user;
+  }
+
   async createStandaloneUser(userData: {
     firstName: string;
     lastName: string;
@@ -619,7 +630,7 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async updateUser(userId: string, data: Partial<{ firstName: string; lastName: string; lastLoginAt: Date }>): Promise<User> {
+  async updateUser(userId: string, data: Partial<{ firstName: string; lastName: string; lastLoginAt: Date; profileImageUrl: string; oauthProvider: string; oauthProviderId: string }>): Promise<User> {
     const [user] = await db
       .update(users)
       .set({
