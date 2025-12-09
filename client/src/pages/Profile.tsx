@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
-import { GraduationCap, Crown, Users, ClipboardCheck, Home, User, LogOut, BarChart, Shield, Building2, FileQuestion } from "lucide-react";
+import { GraduationCap, Crown, Users, ClipboardCheck, Home, User, LogOut, BarChart, Shield, Building2, FileQuestion, TrendingUp } from "lucide-react";
 import { StickyNote } from "@/components/StickyNote";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 
@@ -548,6 +548,18 @@ export default function Profile() {
                       </div>
                     );
                   })()}
+                  
+                  {/* View Progress Journey button - shows career evolution across grades */}
+                  {assessments.filter(a => a.status === 'completed').length > 0 && (
+                    <div className="mt-4 pt-4 border-t">
+                      <Button asChild variant="outline" className="w-full" data-testid="button-view-progress">
+                        <Link href="/progress">
+                          <TrendingUp className="w-4 h-4 mr-2" />
+                          View Career Journey
+                        </Link>
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
               </CardContent>

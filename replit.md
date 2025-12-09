@@ -1,7 +1,7 @@
 # Future Pathways - Career Guidance System
 
 ## Overview
-Future Pathways is a comprehensive career guidance system for school students aged 13-18. It aims to make career exploration engaging and fun using a sticky notes design aesthetic. The system intelligently aligns student interests, national development goals, future skills, and job market opportunities to help students discover suitable career paths and plan for their future. The project's ambition is to make career planning accessible and engaging, providing insights into future job market trends and skill requirements, particularly focusing on the UAE's 2030/2071 vision.
+Future Pathways is a comprehensive career guidance system for school students aged 13-18. It aims to make career exploration engaging and fun using a sticky notes design aesthetic. The system intelligently aligns student interests, national development goals, future skills, and job market opportunities to help students discover suitable career paths and plan for their future, specifically focusing on the UAE's 2030/2071 vision. The project's ambition is to make career planning accessible and engaging, providing insights into future job market trends and skill requirements.
 
 ## User Preferences
 - Design: Playful, student-friendly sticky notes aesthetic with vibrant colors
@@ -16,112 +16,38 @@ The application features a playful, student-friendly sticky notes aesthetic with
 ### Technical Implementations
 - **Frontend**: React with TypeScript, Tailwind CSS, TanStack Query, and Wouter.
 - **Backend**: Express.js with TypeScript, PostgreSQL (Neon), and Drizzle ORM.
-- **Authentication**: Multi-provider OAuth system supporting Google OAuth, Microsoft OAuth, and email/password login with Passport.js. PostgreSQL-backed sessions with 24-hour timeout. Guest access with session migration is supported.
-- **Payment System**: Stripe integration for secure, server-side pricing and payment processing for individual and group assessments, including a self-service checkout flow.
-- **Assessment Components**: A multi-step career assessment with Free (7 steps) and Premium (8 steps) flows. Premium users complete mandatory, scientifically-validated assessments (Learning Style, Career Personality, Personal Values) and a Subject Competency Quiz linked to the UAE curriculum. Assessment step titles use student-friendly language. Integrates the WEF 16 Skills Framework for personalized skill profiles.
-- **Career Catalog**: Expanded to 36 diverse careers with job market trends and Holland Code affinity scores for UAE.
-- **Results & Reporting**: Horizontal cascading masonry grid for career recommendations, personalized insights for premium users (including detailed narratives on "Why This Career?", "Your Work Style Fit," "Personal Strengths & Growth Areas," and "Next Steps"), and PDF report generation.
-- **User Profile System**: Displays account details, premium status, and assessment history. Organization admins can view organization-wide statistics and manage students.
-- **Dynamic Career Matching Engine**: Modular architecture with pluggable, configurable scoring algorithms (subjects, interests, vision, market, Kolb, RIASEC) and smart filtering. Incorporates comprehensive UAE 2030/2071 vision data.
-- **Grade Management**: For organization students, grade is pre-filled and locked during assessments based on school admin configuration.
-- **Group Assessment System**: Features an Admin Dashboard for managing organizations and students, with functionalities for quota tracking, account creation (manual/bulk), credentials download, and unlimited license support for superadmins. Includes secure password handling and atomic SQL-based quota management. Organization admins can export student reports (PDF) and data (CSV).
-- **Unlimited Licenses**: Superadmins can create organizations with unlimited assessment licenses, bypassing quota restrictions while still tracking usage metrics.
+- **Authentication**: Multi-provider OAuth system (Google, Microsoft, email/password) with Passport.js, PostgreSQL-backed sessions, and guest access with session migration.
+- **Payment System**: Stripe integration for individual and group assessments with self-service checkout.
+- **Assessment Components**: Multi-step career assessment (Free and Premium flows), mandatory scientifically-validated assessments for Premium users (Learning Style, Career Personality, Personal Values), Subject Competency Quiz linked to UAE curriculum, and integration of the WEF 16 Skills Framework. All quiz questions are based on the UAE curriculum.
+- **Career Catalog**: Expanded with 36 diverse careers, job market trends, and Holland Code affinity scores for UAE.
+- **Results & Reporting**: Horizontal cascading masonry grid for career recommendations, personalized insights for premium users, and PDF report generation. Includes multi-grade progress tracking showing career evolution and consistency across assessments.
+- **User Profile System**: Displays account details, premium status, assessment history, and organization admin functionalities for managing students and viewing statistics.
+- **Dynamic Career Matching Engine**: Modular architecture with pluggable, configurable scoring algorithms (subjects, interests, vision, market, Kolb, RIASEC) and smart filtering, incorporating UAE 2030/2071 vision data. Superadmins can configure scoring methodology and LLM prompt templates via a dedicated UI.
+- **Grade Management**: Pre-filled and locked grades for organization students based on school admin configuration. System migrated to individual grade levels (8-12) for quiz generation and progress tracking.
+- **Group Assessment System**: Admin Dashboard for managing organizations and students, including quota tracking, account creation (manual/bulk), credentials download, and unlimited license support for superadmins. Organization admins can export student reports (PDF) and data (CSV).
 - **Analytics System**: Secure, role-based analytics endpoints providing nationwide data for superadmins and organization-scoped data for org_admins. Includes overview, country breakdowns, career trends, and grade distributions.
-- **File Management System**: Comprehensive file upload, storage, and tracking system with support for CSV, JSON, PDF, Excel files. Features secure file sharing via time-limited tokens, download tracking, and processing status monitoring.
-- **Data Import/Export**: Bulk student import via CSV with validation and error reporting. Organization data export (students, assessments, analytics) in CSV or JSON format. All imports/exports are tracked in the files table with processing status.
-- **Country Availability**: Currently configured for UAE only, with all quiz questions based on the UAE curriculum.
-- **Security & Performance**: Includes critical security fixes (environment-based superadmin emails, async admin middleware, cryptographic guest tokens, rate limiting, Helmet security headers, role-based access control), performance optimizations (N+1 query elimination, database indexes), and robust input validation.
-- **CSRF Protection**: Double-submit cookie pattern for all state-changing endpoints, with correct middleware ordering and appropriate exemptions.
-- **Guest Token Security**: Guest tokens stored in httpOnly cookies instead of localStorage for XSS protection.
-- **Input Sanitization**: DOMPurify-based sanitization for all user-submitted assessment data.
-- **GDPR Compliance**: User data export (JSON) and account deletion endpoints with proper authentication.
-- **Session Security**: Session timeout reduced to 24 hours for enhanced security.
-- **Password Reset System**: Complete email-based password reset flow with Resend integration, cryptographic tokens (32-byte), 1-hour expiry, one-time use, rate limiting (3 requests/15min for requests, 5 attempts/hour for resets), and CSRF protection.
-- **Code Quality**: Modularized routes, extracted middleware and constants, environment variable validation, request logging, and response compression.
+- **File Management System**: Comprehensive file upload, storage, and tracking with secure sharing via time-limited tokens. Supports CSV, JSON, PDF, Excel files.
+- **Data Import/Export**: Bulk student import via CSV with validation. Organization data export (students, assessments, analytics) in CSV or JSON.
+- **Security & Performance**: Critical security fixes (environment-based superadmin emails, async admin middleware, cryptographic guest tokens, rate limiting, Helmet security headers, role-based access control, CSRF protection, input sanitization via DOMPurify), performance optimizations (N+1 query elimination, database indexes), robust input validation, GDPR compliance (data export/deletion), 24-hour session timeout, and secure email-based password reset flow.
+- **School Rewards System**: A manual allocation workflow for contributions, featuring LLM pre-verification, superadmin review, configurable yearly credit limits, and tracking of pending rewards.
+- **Admin/Student Roster Enhancements**: Includes `lastLoginAt` tracking, activity-aware status badges, roster filtering by role and status, and enhanced CSV export with comprehensive fields.
+- **Education Pathways Feature**: LLM-generated personalized university and program recommendations for premium users, with links to CAA-verified UAE institutions.
 
 ### System Design Choices
-- **Database Schema**: Comprehensive schema covering users, sessions, countries, skills, careers, job market trends, assessments, recommendations, organizations, organization members, WEF skills data, and file management.
-- **Session Storage**: Utilizes PostgreSQL for reliable session persistence.
-- **Development Workflow**: Employs `npm run db:push` for migrations and automatic seeding, with optimized WEF affinity seeding.
-- **Premium Narrative Service**: Dynamic generation of premium narratives at fetch time to keep the database lean and allow flexible updates.
-- **File Storage Architecture**: Server-side file storage in `uploads/` directory with database metadata tracking. Supports multiple file types (CSV, JSON, PDF, Excel, ZIP) with secure access control and share token system.
+- **Database Schema**: Comprehensive schema covering users, sessions, countries, skills, careers, job market trends, assessments, recommendations, organizations, WEF skills data, file management, and configurable scoring/LLM settings.
+- **Session Storage**: PostgreSQL for reliable session persistence.
+- **Development Workflow**: `npm run db:push` for migrations and seeding.
+- **Premium Narrative Service**: Dynamic generation of premium narratives at fetch time for flexibility.
+- **File Storage Architecture**: Server-side file storage with database metadata tracking and secure access control.
 
 ## External Dependencies
 - **Database**: PostgreSQL (Neon)
-- **Authentication**: Passport.js with Google OAuth 2.0, Microsoft OAuth, and Local (email/password) strategies
+- **Authentication**: Passport.js (Google OAuth 2.0, Microsoft OAuth, Local)
 - **Payment Gateway**: Stripe
-- **LLM Provider**: OpenAI (customer-provided API key for platform portability)
+- **LLM Provider**: OpenAI (customer-provided API key)
 - **ORM**: Drizzle ORM
 - **Frontend Libraries**: React, TypeScript, Tailwind CSS, TanStack Query, Wouter
 - **Backend Libraries**: Express.js, TypeScript, Helmet, express-rate-limit
-- **PDF Generation**: Puppeteer (for report generation)
-- **Archiving**: Archiver library (for bulk report export)
-- **File Upload**: Multer (for handling multipart/form-data file uploads)
-
-## Recent Changes (December 2025)
-### OAuth Authentication Migration
-- **Multi-Provider Authentication**: Migrated from Replit OAuth (OpenID Connect) to self-hosted multi-provider system
-- **Supported Providers**: Google OAuth 2.0, Microsoft OAuth, Email/Password with bcrypt hashing
-- **Database Schema Updates**: Added `oauthProvider` and `oauthProviderId` columns to users table
-- **Unified Login UI**: New `/login` page with provider selection buttons
-- **Public Registration**: New `/register` page for email/password account creation
-- **Environment Variables**: Requires `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `BASE_URL`, `SESSION_SECRET`
-- **Rate Limiting**: Login and registration endpoints protected with 5 attempts per 15 minutes
-
-### Individual Grade System Migration
-- **Complete Migration from Grade Bands to Individual Grades**: Migrated the entire system from grade bands ("8-9", "10-12") to individual grade levels (8, 9, 10, 11, 12)
-- **Question Bank Conversion**: All 6 UAE subject question banks (Mathematics, Science, English, Arabic, Social Studies, Computer Science) converted to use individual grades
-- **Database Schema Updates**: 
-  - `quiz_questions.grade` column is now NOT NULL (primary field for targeting)
-  - `quiz_questions.gradeBand` column is now nullable (deprecated, kept for legacy compatibility only)
-- **Question Distribution**: Each subject now has 40 questions distributed as: Grade 8 (10), Grade 9 (10), Grade 10 (7), Grade 11 (7), Grade 12 (6)
-- **Quiz Generation Logic**: Updated to use individual grades as the primary approach with intelligent fallbacks:
-  1. Exact grade + curriculum + country
-  2. Exact grade + country (no curriculum filter)
-  3. Exact grade + global questions
-  4. Nearby grades (±1) as final fallback
-- **Contribution System**: Updated to create questions with individual grade only (no gradeBand)
-- **Country Question Generation**: Updated LLM-generated questions to use individual grades
-- **Type System Updates**: `shared/questionTypes.ts` now uses `GradeLevel` type ("8" | "9" | "10" | "11" | "12") with helper functions `flattenQuestionBank`, `validateQuestionBank`, `checkCoverage`
-
-### School Rewards System (Manual Allocation Workflow)
-- **LLM Pre-Verification**: Questions are verified by OpenAI before human review
-- **Yearly Tracking**: Configurable credits per year limit (default: 50), resets on year change
-- **Configurable Settings**: Superadmin can adjust max yearly credits via UI (stored in `systemConfig` table)
-- **Manual Allocation Flow**: Submit → LLM verify → Superadmin review → Pending rewards → Manual allocation
-- **Pending Rewards System**: Approved contributions add to `pendingRewardCredits`, superadmin allocates manually
-- **Contribution Review Queue**: Shows LLM verification score, pending rewards section for allocation, and configurable reward settings
-- **Organization Badges**: "Pending Reward" badge on organization list when credits await allocation
-- **Frontend Updates**: Yearly progress tracking, pending rewards notification card, allocation UI, settings panel
-- **Rate Limiting**: 3 submissions per day per organization, 50 questions max per submission
-
-### Admin/Student Roster Enhancements
-- **Activity Tracking**: Added `lastLoginAt` field to users table, tracked on both local and OIDC login
-- **Status Indicators**: Activity-aware status badges for roster members: "Admin" (school admin), "Not Active" (never logged in), "Active" (logged in, no assessment), "In Progress" (started assessment), "Completed" (finished assessment)
-- **Roster Filtering**: Filter roster by role (Admin/Student) and status (Not Active, Active, In Progress, Completed)
-- **Admin Protection**: Admin users marked with shield icon badge, cannot be selected or deleted in bulk actions
-- **CSV Export Enhancements**: Export now includes Role, Last Login, and Status fields for comprehensive reporting
-
-### Configurable Scoring Methodology & LLM Integration
-- **Configurable Scoring System**: Database-backed scoring methodology allowing superadmins to adjust calculation weights and criteria for Free, Premium, and School tiers without code changes
-- **LLM Integration**: OpenAI integration using customer's own API key for platform portability, with secure credential storage and configurable prompt templates
-- **Education Pathways Feature**: LLM-generated personalized university and program recommendations for premium users, with links to CAA-verified UAE institutions (https://caa.ae)
-- **Superadmin Scoring UI**: New "Scoring Methodology" tab for managing tier weights, component configurations, and LLM prompt templates
-- **Audit Logging**: Comprehensive audit trail for all scoring configuration changes
-- **Enhanced Security**: Rate-limited LLM endpoints, proper authentication and ownership checks, guest token validation
-
-### Database Schema Additions
-- `scoring_tiers`: Configurable assessment tiers (Free/Premium/School)
-- `tier_component_weights`: Component weights per tier with validation constraints
-- `llm_prompts`: Customizable LLM prompt templates by feature type
-- `llm_credentials`: Secure storage for API keys with encryption
-- `scoring_config_audit_log`: Audit trail for configuration changes
-
-## Recent Changes (November 2025)
-### Unlimited Licenses & Advanced Data Management
-- Added unlimited licenses feature for organizations (superadmin-only)
-- Implemented secure role-based analytics with organization-scoped access
-- Created comprehensive file management system with upload, download, and sharing
-- Built bulk student import from CSV with validation and error reporting
-- Added organization data export (students, assessments) in CSV/JSON formats
-- Enhanced security with proper access control on all new endpoints
+- **PDF Generation**: Puppeteer
+- **Archiving**: Archiver library
+- **File Upload**: Multer

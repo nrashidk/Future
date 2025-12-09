@@ -11,11 +11,24 @@ export function registerProgressRoutes(app: Express) {
       }
 
       const userId = req.user.userId;
-      const evolution = await storage.getStudentCareerEvolution(userId);
+      const progression = await storage.getStudentAssessmentProgression(userId);
 
       res.json({
         success: true,
-        data: evolution,
+        data: progression.map(p => ({
+          assessmentId: p.assessment.id,
+          grade: p.assessment.grade,
+          completedAt: p.assessment.completedAt,
+          assessmentType: p.assessment.assessmentType,
+          kolbScores: p.assessment.kolbScores,
+          riasecScores: p.assessment.riasecScores,
+          interests: p.assessment.interests,
+          topCareers: p.recommendations.slice(0, 3).map((rec, i) => ({
+            careerId: rec.careerId,
+            careerName: p.careerNames[i],
+            matchScore: rec.overallMatchScore,
+          })),
+        })),
       });
     } catch (error) {
       console.error("Error fetching student progression:", error);
