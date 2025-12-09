@@ -97,6 +97,12 @@ export default function Login() {
         </CardContent>
         <CardFooter className="flex flex-col gap-4 text-center">
           <p className="text-sm text-muted-foreground">
+            Don't have an account?{" "}
+            <Link href="/register" className="text-primary hover:underline" data-testid="link-register">
+              Create one
+            </Link>
+          </p>
+          <p className="text-sm text-muted-foreground">
             School student? Use the username and password provided by your school.
           </p>
           <Button

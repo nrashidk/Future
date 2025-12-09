@@ -7,7 +7,8 @@ import type { Express, RequestHandler } from "express";
 import connectPg from "connect-pg-simple";
 import rateLimit from "express-rate-limit";
 import { storage } from "./storage";
-import { verifyPassword } from "./utils/passwordHash";
+import { verifyPassword, hashPassword } from "./utils/passwordHash";
+import { z } from "zod";
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -236,6 +237,63 @@ export async function setupAuth(app: Express) {
     req.logout(() => {
       res.redirect("/");
     });
+  });
+
+  const registerSchema = z.object({
+    email: z.string().email("Invalid email address"),
+    password: z.string().min(8, "Password must be at least 8 characters"),
+    firstName: z.string().min(1, "First name is required"),
+    lastName: z.string().min(1, "Last name is required"),
+  });
+
+  app.post("/api/register", authLimiter, async (req, res) => {
+    try {
+      const result = registerSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ 
+          message: result.error.errors[0]?.message || "Invalid input" 
+        });
+      }
+
+      const { email, password, firstName, lastName } = result.data;
+
+      const existingUser = await storage.getUserByEmail(email);
+      if (existingUser) {
+        return res.status(400).json({ message: "An account with this email already exists" });
+      }
+
+      const passwordHash = await hashPassword(password);
+      
+      const superadminEmails = (process.env.SUPERADMIN_EMAILS || "")
+        .split(",")
+        .map(e => e.trim())
+        .filter(e => e.length > 0);
+      
+      const role = superadminEmails.includes(email) ? "superadmin" : "user";
+
+      const user = await storage.upsertUser({
+        email,
+        firstName,
+        lastName,
+        passwordHash,
+        role,
+        accountType: "public",
+      });
+
+      if (!user) {
+        return res.status(500).json({ message: "Failed to create account" });
+      }
+
+      req.logIn({ userId: user.id, isLocal: true }, (err) => {
+        if (err) {
+          return res.status(500).json({ message: "Account created but login failed" });
+        }
+        return res.json({ success: true, user: { id: user.id, email: user.email } });
+      });
+    } catch (error) {
+      console.error("Registration error:", error);
+      return res.status(500).json({ message: "Registration failed" });
+    }
   });
 }
 

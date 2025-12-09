@@ -16,7 +16,7 @@ The application features a playful, student-friendly sticky notes aesthetic with
 ### Technical Implementations
 - **Frontend**: React with TypeScript, Tailwind CSS, TanStack Query, and Wouter.
 - **Backend**: Express.js with TypeScript, PostgreSQL (Neon), and Drizzle ORM.
-- **Authentication**: Dual system supporting Replit Auth (OpenID Connect) and username-based login, with PostgreSQL-backed sessions. Guest access with session migration is supported.
+- **Authentication**: Multi-provider OAuth system supporting Google OAuth, Microsoft OAuth, and email/password login with Passport.js. PostgreSQL-backed sessions with 24-hour timeout. Guest access with session migration is supported.
 - **Payment System**: Stripe integration for secure, server-side pricing and payment processing for individual and group assessments, including a self-service checkout flow.
 - **Assessment Components**: A multi-step career assessment with Free (7 steps) and Premium (8 steps) flows. Premium users complete mandatory, scientifically-validated assessments (Learning Style, Career Personality, Personal Values) and a Subject Competency Quiz linked to the UAE curriculum. Assessment step titles use student-friendly language. Integrates the WEF 16 Skills Framework for personalized skill profiles.
 - **Career Catalog**: Expanded to 36 diverse careers with job market trends and Holland Code affinity scores for UAE.
@@ -48,7 +48,7 @@ The application features a playful, student-friendly sticky notes aesthetic with
 
 ## External Dependencies
 - **Database**: PostgreSQL (Neon)
-- **Authentication**: Replit Auth (OpenID Connect)
+- **Authentication**: Passport.js with Google OAuth 2.0, Microsoft OAuth, and Local (email/password) strategies
 - **Payment Gateway**: Stripe
 - **LLM Provider**: OpenAI (customer-provided API key for platform portability)
 - **ORM**: Drizzle ORM
@@ -59,6 +59,15 @@ The application features a playful, student-friendly sticky notes aesthetic with
 - **File Upload**: Multer (for handling multipart/form-data file uploads)
 
 ## Recent Changes (December 2025)
+### OAuth Authentication Migration
+- **Multi-Provider Authentication**: Migrated from Replit OAuth (OpenID Connect) to self-hosted multi-provider system
+- **Supported Providers**: Google OAuth 2.0, Microsoft OAuth, Email/Password with bcrypt hashing
+- **Database Schema Updates**: Added `oauthProvider` and `oauthProviderId` columns to users table
+- **Unified Login UI**: New `/login` page with provider selection buttons
+- **Public Registration**: New `/register` page for email/password account creation
+- **Environment Variables**: Requires `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `MICROSOFT_CLIENT_ID`, `MICROSOFT_CLIENT_SECRET`, `BASE_URL`, `SESSION_SECRET`
+- **Rate Limiting**: Login and registration endpoints protected with 5 attempts per 15 minutes
+
 ### Individual Grade System Migration
 - **Complete Migration from Grade Bands to Individual Grades**: Migrated the entire system from grade bands ("8-9", "10-12") to individual grade levels (8, 9, 10, 11, 12)
 - **Question Bank Conversion**: All 6 UAE subject question banks (Mathematics, Science, English, Arabic, Social Studies, Computer Science) converted to use individual grades
