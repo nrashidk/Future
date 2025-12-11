@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { GraduationCap, User, LogOut } from "lucide-react";
+import { GraduationCap, User, LogOut, ClipboardCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -20,6 +20,12 @@ export function Header() {
         <div className="flex gap-2">
           {user && (
             <>
+              <Button variant="outline" size="sm" asChild data-testid="button-nav-assessment">
+                <Link href="/assessment">
+                  <ClipboardCheck className="w-4 h-4 mr-2" />
+                  Assessment
+                </Link>
+              </Button>
               <Button variant="outline" size="sm" asChild data-testid="button-nav-profile">
                 <Link href="/profile">
                   <User className="w-4 h-4 mr-2" />

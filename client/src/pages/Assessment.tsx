@@ -13,7 +13,7 @@ import CVQStep from "@/components/CVQStep";
 import { CountryStep } from "@/components/assessment/CountryStep";
 import { AspirationsStep } from "@/components/assessment/AspirationsStep";
 import { QuizStep } from "@/components/assessment/QuizStep";
-import { GraduationCap, LogIn, User } from "lucide-react";
+import { GraduationCap, LogIn, User, ClipboardCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface AssessmentData {
@@ -370,11 +370,12 @@ export default function Assessment() {
           </div>
           <div className="flex gap-2">
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={() => setLocation("/assessment")}
               data-testid="button-assessment"
             >
+              <ClipboardCheck className="w-4 h-4 mr-2" />
               Assessment
             </Button>
             {isAuthenticated && (

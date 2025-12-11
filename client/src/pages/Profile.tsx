@@ -186,9 +186,12 @@ export default function Profile() {
         </div>
       </header>
 
-      <div className="max-w-4xl mx-auto px-4 pt-4">
-        <AnnouncementBanner />
-      </div>
+      {/* Show announcement banner only for non-premium individual users */}
+      {!user?.isPremium && !isOrgStudent && (
+        <div className="max-w-4xl mx-auto px-4 pt-4">
+          <AnnouncementBanner />
+        </div>
+      )}
 
       <div className="max-w-4xl mx-auto py-12 px-4">
         <div className="mb-12 text-center">
