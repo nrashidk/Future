@@ -44,9 +44,10 @@ export function validateCsrf(req: Request, res: Response, next: NextFunction) {
     return next();
   }
   
-  // Exempt authentication and webhooks from CSRF
+  // Exempt authentication, webhooks, and file uploads from CSRF
   // Webhooks are exempt because they use their own signature verification
   // Login endpoints exempt as they establish the session (no prior CSRF token)
+  // File upload endpoints use multipart/form-data which doesn't easily support CSRF headers
   const exemptPaths = [
     "/api/callback",
     "/api/webhook", // Stripe webhooks use signature verification instead
@@ -54,7 +55,18 @@ export function validateCsrf(req: Request, res: Response, next: NextFunction) {
     "/api/login/username",
   ];
   
+  // Also exempt paths that match patterns for file uploads (multipart/form-data)
+  const exemptPatterns = [
+    /^\/api\/admin\/organizations\/[^/]+\/logo$/,  // Organization logo upload
+    /^\/api\/files\/upload$/,                       // General file upload
+    /^\/api\/contributions\/submit$/,               // Question contribution submission
+  ];
+  
   if (exemptPaths.some(path => req.path.startsWith(path))) {
+    return next();
+  }
+  
+  if (exemptPatterns.some(pattern => pattern.test(req.path))) {
     return next();
   }
   
