@@ -4,6 +4,7 @@ import { z } from "zod";
 import { isAuthenticated } from "../auth";
 import DOMPurify from "isomorphic-dompurify";
 import type { ContributionSubmission } from "@shared/schema";
+import { getCurrentAcademicYear } from "../utils/subjects";
 
 const router = Router();
 
@@ -504,6 +505,7 @@ router.post("/admin/review/:id", isAuthenticated, checkSuperadmin, async (req: R
       creditsAwarded = Math.floor(approvedCount / QUESTIONS_PER_CREDIT);
 
       // Add approved questions to the quiz bank
+      const academicYear = getCurrentAcademicYear();
       for (const idx of indicesToApprove) {
         const q = questions[idx];
         if (q) {
@@ -524,6 +526,7 @@ router.post("/admin/review/:id", isAuthenticated, checkSuperadmin, async (req: R
             contributedByOrgId: submission.organizationId,
             contributionSubmissionId: submission.id,
             isLlmGenerated: false,
+            academicYear, // Track academic year based on creation date
           });
         }
       }

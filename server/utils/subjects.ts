@@ -225,3 +225,39 @@ export function clearSubjectCache(): void {
   subjectAliasCache = null;
   cacheTimestamp = 0;
 }
+
+/**
+ * Calculate the academic year for a given date
+ * Academic year runs from September to June:
+ * - Sep 2025 to Jun 2026 = "2025-2026"
+ * - Sep 2026 to Jun 2027 = "2026-2027"
+ * 
+ * For dates in Jul-Aug, we assign to the upcoming academic year
+ * (as these are typically summer preparation months)
+ */
+export function calculateAcademicYear(date: Date = new Date()): string {
+  const month = date.getMonth(); // 0-11 (0 = January, 8 = September)
+  const year = date.getFullYear();
+  
+  // September (8) through December (11) -> current year to next year
+  // January (0) through June (5) -> previous year to current year
+  // July (6) through August (7) -> treat as upcoming academic year
+  
+  if (month >= 8) {
+    // September to December: academic year starts this calendar year
+    return `${year}-${year + 1}`;
+  } else if (month <= 5) {
+    // January to June: academic year started previous calendar year
+    return `${year - 1}-${year}`;
+  } else {
+    // July and August: assign to upcoming academic year (prep months)
+    return `${year}-${year + 1}`;
+  }
+}
+
+/**
+ * Get the current academic year
+ */
+export function getCurrentAcademicYear(): string {
+  return calculateAcademicYear(new Date());
+}
