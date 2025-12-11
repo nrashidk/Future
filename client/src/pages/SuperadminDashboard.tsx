@@ -146,6 +146,7 @@ interface SystemAnnouncement {
   isActive: boolean;
   isPinned: boolean;
   backgroundColor: string | null;
+  publishAt: string | null;
   expiresAt: string | null;
   createdByUserId: string;
   createdAt: string;
@@ -423,6 +424,7 @@ export default function SuperadminDashboard() {
     targetAudience: "all",
     isPinned: false,
     backgroundColor: "#ffffff",
+    publishAt: "",
     expiresAt: "",
   });
   const [isCareerModalOpen, setIsCareerModalOpen] = useState(false);
@@ -612,7 +614,7 @@ export default function SuperadminDashboard() {
   });
 
   const resetAnnouncementForm = () => {
-    setAnnouncementForm({ title: "", content: "", type: "info", targetAudience: "all", isPinned: false, backgroundColor: "#ffffff", expiresAt: "" });
+    setAnnouncementForm({ title: "", content: "", type: "info", targetAudience: "all", isPinned: false, backgroundColor: "#ffffff", publishAt: "", expiresAt: "" });
   };
 
   const resetCareerForm = () => {
@@ -640,7 +642,8 @@ export default function SuperadminDashboard() {
       targetAudience: announcement.targetAudience,
       isPinned: announcement.isPinned,
       backgroundColor: announcement.backgroundColor || "#ffffff",
-      expiresAt: announcement.expiresAt || "",
+      publishAt: announcement.publishAt ? announcement.publishAt.split('T')[0] : "",
+      expiresAt: announcement.expiresAt ? announcement.expiresAt.split('T')[0] : "",
     });
     setIsAnnouncementModalOpen(true);
   };
@@ -1524,8 +1527,11 @@ export default function SuperadminDashboard() {
                             {!announcement.isActive && <Badge variant="outline">Inactive</Badge>}
                           </div>
                           <div className="text-sm text-muted-foreground mt-1 line-clamp-2">{announcement.content}</div>
-                          <div className="text-xs text-muted-foreground mt-2 flex gap-4">
+                          <div className="text-xs text-muted-foreground mt-2 flex gap-4 flex-wrap">
                             <span>Audience: {announcement.targetAudience === 'all' ? 'All Users' : announcement.targetAudience === 'students' ? 'School Students' : announcement.targetAudience === 'org_admins' ? 'School Admins' : announcement.targetAudience === 'premium' ? 'Premium Users' : announcement.targetAudience}</span>
+                            {announcement.publishAt && new Date(announcement.publishAt) > new Date() && (
+                              <Badge variant="outline" className="text-xs">Scheduled: {new Date(announcement.publishAt).toLocaleDateString()}</Badge>
+                            )}
                             {announcement.expiresAt && <span>Expires: {new Date(announcement.expiresAt).toLocaleDateString()}</span>}
                             <span>Created: {new Date(announcement.createdAt).toLocaleDateString()}</span>
                           </div>
@@ -2266,15 +2272,29 @@ export default function SuperadminDashboard() {
                 </div>
               </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="announcement-expires">Expires (optional)</Label>
-              <Input
-                id="announcement-expires"
-                type="date"
-                value={announcementForm.expiresAt}
-                onChange={(e) => setAnnouncementForm({ ...announcementForm, expiresAt: e.target.value })}
-                data-testid="input-announcement-expires"
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="announcement-publish">Publish Date (optional)</Label>
+                <Input
+                  id="announcement-publish"
+                  type="date"
+                  value={announcementForm.publishAt}
+                  onChange={(e) => setAnnouncementForm({ ...announcementForm, publishAt: e.target.value })}
+                  data-testid="input-announcement-publish"
+                />
+                <p className="text-xs text-muted-foreground">Leave empty to publish immediately</p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="announcement-expires">Expires (optional)</Label>
+                <Input
+                  id="announcement-expires"
+                  type="date"
+                  value={announcementForm.expiresAt}
+                  onChange={(e) => setAnnouncementForm({ ...announcementForm, expiresAt: e.target.value })}
+                  data-testid="input-announcement-expires"
+                />
+                <p className="text-xs text-muted-foreground">Leave empty for no expiration</p>
+              </div>
             </div>
           </div>
           <DialogFooter>

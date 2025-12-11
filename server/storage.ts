@@ -2992,9 +2992,15 @@ export class DatabaseStorage implements IStorage {
     const now = new Date();
     const conditions = [
       eq(systemAnnouncements.isActive, true),
+      // Only show if not expired (or no expiry set)
       or(
         sql`${systemAnnouncements.expiresAt} IS NULL`,
         gte(systemAnnouncements.expiresAt, now)
+      ),
+      // Only show if publish date has passed (or no publish date set)
+      or(
+        sql`${systemAnnouncements.publishAt} IS NULL`,
+        sql`${systemAnnouncements.publishAt} <= ${now}`
       )
     ];
     

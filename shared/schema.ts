@@ -1314,6 +1314,7 @@ export const systemAnnouncements = pgTable("system_announcements", {
   isActive: boolean("is_active").notNull().default(true),
   isPinned: boolean("is_pinned").notNull().default(false), // Pinned announcements show at top
   backgroundColor: varchar("background_color", { length: 20 }).default("#ffffff"), // Custom background color for sticky note style
+  publishAt: timestamp("publish_at"), // Optional scheduled publish date (announcement goes live on this date)
   expiresAt: timestamp("expires_at"), // Optional expiration date
   createdByUserId: varchar("created_by_user_id").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
