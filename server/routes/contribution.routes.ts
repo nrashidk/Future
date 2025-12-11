@@ -176,16 +176,24 @@ async function checkOrgAdmin(req: Request, res: Response, next: NextFunction) {
   
   // If not found in members table, check if user is an org_admin by accountType
   if (!member || member.role !== "admin") {
-    // Check if user has org_admin accountType and has an organizationId
-    if (user.accountType === 'org_admin' && user.organizationId) {
-      // Create a virtual member object for org_admin users
-      member = {
-        id: user.id,
-        userId: user.id,
-        organizationId: user.organizationId,
-        role: "admin",
-        createdAt: new Date(),
-      } as any;
+    // Get full user record to check accountType
+    const fullUser = await storage.getUser(user.id);
+    
+    if (fullUser?.accountType === 'org_admin') {
+      // Find organization by admin user ID
+      const org = await storage.getOrganizationByAdminUserId(user.id);
+      if (org) {
+        // Create a virtual member object for org_admin users
+        member = {
+          id: user.id,
+          userId: user.id,
+          organizationId: org.id,
+          role: "admin",
+          createdAt: new Date(),
+        } as any;
+      } else {
+        return res.status(403).json({ error: "Organization not found for admin" });
+      }
     } else {
       return res.status(403).json({ error: "Must be an organization admin" });
     }
