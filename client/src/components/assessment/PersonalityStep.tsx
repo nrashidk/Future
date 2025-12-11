@@ -8,6 +8,7 @@ interface PersonalityStepProps {
   data: any;
   onUpdate: (field: string, value: any) => void;
   onNext: () => void;
+  onBack?: () => void;
 }
 
 const questions = [
@@ -49,7 +50,7 @@ const questions = [
   },
 ];
 
-export function PersonalityStep({ data, onUpdate, onNext }: PersonalityStepProps) {
+export function PersonalityStep({ data, onUpdate, onNext, onBack }: PersonalityStepProps) {
   const [answers, setAnswers] = useState<Record<string, string>>(data.personalityTraits || {});
 
   const handleAnswerChange = (questionId: string, value: string) => {
@@ -101,7 +102,18 @@ export function PersonalityStep({ data, onUpdate, onNext }: PersonalityStepProps
         ))}
       </div>
 
-      <div className="flex justify-center pt-8">
+      <div className="flex justify-center gap-4 pt-8">
+        {onBack && (
+          <Button
+            size="lg"
+            variant="outline"
+            onClick={onBack}
+            className="px-8 py-6 text-lg rounded-full"
+            data-testid="button-back-personality"
+          >
+            Back
+          </Button>
+        )}
         <Button
           size="lg"
           onClick={onNext}
@@ -109,7 +121,7 @@ export function PersonalityStep({ data, onUpdate, onNext }: PersonalityStepProps
           className="px-12 py-6 text-lg rounded-full shadow-lg"
           data-testid="button-next-personality"
         >
-          Continue →
+          Continue
         </Button>
       </div>
     </div>

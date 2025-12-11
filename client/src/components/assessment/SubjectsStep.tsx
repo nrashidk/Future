@@ -8,6 +8,7 @@ interface SubjectsStepProps {
   data: any;
   onUpdate: (field: string, value: any) => void;
   onNext: () => void;
+  onBack?: () => void;
 }
 
 const subjects = [
@@ -27,7 +28,7 @@ const subjects = [
 
 const MAX_PRIORITY_SUBJECTS = 3;
 
-export function SubjectsStep({ data, onUpdate, onNext }: SubjectsStepProps) {
+export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepProps) {
   const [phase, setPhase] = useState<"select" | "prioritize">("select");
   
   const favoriteSubjects = data.favoriteSubjects || [];
@@ -116,7 +117,18 @@ export function SubjectsStep({ data, onUpdate, onNext }: SubjectsStepProps) {
           </div>
         )}
 
-        <div className="flex justify-center pt-8">
+        <div className="flex justify-center gap-4 pt-8">
+          {onBack && (
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={onBack}
+              className="px-8 py-6 text-lg rounded-full"
+              data-testid="button-back-subjects"
+            >
+              Back
+            </Button>
+          )}
           <Button
             size="lg"
             onClick={handleContinueFromSelect}

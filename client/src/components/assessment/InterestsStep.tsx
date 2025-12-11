@@ -6,6 +6,7 @@ interface InterestsStepProps {
   data: any;
   onUpdate: (field: string, value: any) => void;
   onNext: () => void;
+  onBack?: () => void;
 }
 
 const interests = [
@@ -19,7 +20,7 @@ const interests = [
   { id: "Business", label: "Business & Finance", icon: TrendingUp, color: "pink" as const, description: "Entrepreneurship, markets, money" },
 ];
 
-export function InterestsStep({ data, onUpdate, onNext }: InterestsStepProps) {
+export function InterestsStep({ data, onUpdate, onNext, onBack }: InterestsStepProps) {
   const toggleInterest = (interestId: string) => {
     const current = data.interests || [];
     if (current.includes(interestId)) {
@@ -76,7 +77,18 @@ export function InterestsStep({ data, onUpdate, onNext }: InterestsStepProps) {
         </div>
       )}
 
-      <div className="flex justify-center pt-8">
+      <div className="flex justify-center gap-4 pt-8">
+        {onBack && (
+          <Button
+            size="lg"
+            variant="outline"
+            onClick={onBack}
+            className="px-8 py-6 text-lg rounded-full"
+            data-testid="button-back-interests"
+          >
+            Back
+          </Button>
+        )}
         <Button
           size="lg"
           onClick={onNext}
@@ -84,7 +96,7 @@ export function InterestsStep({ data, onUpdate, onNext }: InterestsStepProps) {
           className="px-12 py-6 text-lg rounded-full shadow-lg"
           data-testid="button-next-interests"
         >
-          Continue →
+          Continue
         </Button>
       </div>
     </div>

@@ -13,7 +13,7 @@ import CVQStep from "@/components/CVQStep";
 import { CountryStep } from "@/components/assessment/CountryStep";
 import { AspirationsStep } from "@/components/assessment/AspirationsStep";
 import { QuizStep } from "@/components/assessment/QuizStep";
-import { GraduationCap, ArrowLeft, LogIn, User } from "lucide-react";
+import { GraduationCap, LogIn, User } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface AssessmentData {
@@ -375,7 +375,6 @@ export default function Assessment() {
               onClick={() => setLocation("/assessment")}
               data-testid="button-assessment"
             >
-              <ArrowLeft className="w-4 h-4 mr-2" />
               Assessment
             </Button>
             {isAuthenticated && (
@@ -417,6 +416,7 @@ export default function Assessment() {
             data={assessmentData}
             onUpdate={updateAssessmentData}
             onNext={handleNext}
+            onBack={() => setCurrentStep(1)}
           />
         )}
         
@@ -428,12 +428,14 @@ export default function Assessment() {
                 data={assessmentData}
                 onUpdate={updateAssessmentData}
                 onNext={handleNext}
+                onBack={() => setCurrentStep(2)}
               />
             ) : (
               <InterestsStep
                 data={assessmentData}
                 onUpdate={updateAssessmentData}
                 onNext={handleNext}
+                onBack={() => setCurrentStep(2)}
               />
             )}
           </>
@@ -459,6 +461,7 @@ export default function Assessment() {
                 data={assessmentData}
                 onUpdate={updateAssessmentData}
                 onNext={handleNext}
+                onBack={() => setCurrentStep(3)}
               />
             )}
           </>
@@ -479,6 +482,7 @@ export default function Assessment() {
                 data={assessmentData}
                 onUpdate={updateAssessmentData}
                 onNext={handleNext}
+                onBack={() => setCurrentStep(4)}
               />
             )}
           </>
@@ -500,6 +504,7 @@ export default function Assessment() {
                 data={assessmentData}
                 onUpdate={updateAssessmentData}
                 onNext={handleNext}
+                onBack={() => setCurrentStep(5)}
               />
             )}
           </>
@@ -551,6 +556,7 @@ export default function Assessment() {
             data={assessmentData}
             onUpdate={updateAssessmentData}
             onNext={handleNext}
+            onBack={() => setCurrentStep(7)}
           />
         )}
       </div>

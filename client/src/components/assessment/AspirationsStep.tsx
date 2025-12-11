@@ -8,6 +8,7 @@ interface AspirationsStepProps {
   data: any;
   onUpdate: (field: string, value: any) => void;
   onNext: () => void;
+  onBack?: () => void;
 }
 
 const strengthOptions = [
@@ -21,7 +22,7 @@ const strengthOptions = [
   "Adaptability",
 ];
 
-export function AspirationsStep({ data, onUpdate, onNext }: AspirationsStepProps) {
+export function AspirationsStep({ data, onUpdate, onNext, onBack }: AspirationsStepProps) {
   const toggleStrength = (strength: string) => {
     const current = data.strengths || [];
     if (current.includes(strength)) {
@@ -93,7 +94,18 @@ export function AspirationsStep({ data, onUpdate, onNext }: AspirationsStepProps
         </StickyNote>
       </div>
 
-      <div className="flex justify-center pt-8">
+      <div className="flex justify-center gap-4 pt-8">
+        {onBack && (
+          <Button
+            size="lg"
+            variant="outline"
+            onClick={onBack}
+            className="px-8 py-6 text-lg rounded-full"
+            data-testid="button-back-aspirations"
+          >
+            Back
+          </Button>
+        )}
         <Button
           size="lg"
           onClick={onNext}

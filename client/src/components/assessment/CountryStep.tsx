@@ -10,9 +10,10 @@ interface CountryStepProps {
   data: any;
   onUpdate: (field: string, value: any) => void;
   onNext: () => void;
+  onBack?: () => void;
 }
 
-export function CountryStep({ data, onUpdate, onNext }: CountryStepProps) {
+export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps) {
   const [selectedCountryId, setSelectedCountryId] = useState(data.countryId || "");
   const [selectedCurriculum, setSelectedCurriculum] = useState(data.curriculum || "");
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -306,7 +307,18 @@ export function CountryStep({ data, onUpdate, onNext }: CountryStepProps) {
         </div>
       )}
 
-      <div className="flex justify-center pt-8">
+      <div className="flex justify-center gap-4 pt-8">
+        {onBack && (
+          <Button
+            size="lg"
+            variant="outline"
+            onClick={onBack}
+            className="px-8 py-6 text-lg rounded-full"
+            data-testid="button-back-country"
+          >
+            Back
+          </Button>
+        )}
         <Button
           size="lg"
           onClick={onNext}
@@ -314,7 +326,7 @@ export function CountryStep({ data, onUpdate, onNext }: CountryStepProps) {
           className="px-12 py-6 text-lg rounded-full shadow-lg"
           data-testid="button-next-country"
         >
-          Continue →
+          Continue
         </Button>
       </div>
     </div>

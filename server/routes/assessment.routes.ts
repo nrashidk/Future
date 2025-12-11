@@ -201,8 +201,8 @@ export function registerAssessmentRoutes(app: Express) {
       // Define allowed fields for assessment updates
       const allowedFields = [
         'name', 'age', 'grade', 'gender', 'countryId', 'favoriteSubjects', 
-        'interests', 'personalityTraits', 'careerAspirations', 'strengths', 
-        'workPreferences', 'kolbResponses', 'riasecResponses', 'cvqResponses',
+        'prioritySubjects', 'interests', 'personalityTraits', 'careerAspirations', 
+        'strengths', 'workPreferences', 'kolbResponses', 'riasecResponses', 'cvqResponses',
         'kolbScores', 'riasecScores', 'cvqScores', 'quizScore', 'subjectCompetencies',
         'currentStep', 'currentStepMetadata', 'isCompleted', 'completedAt', 
         'assessmentType', 'educationLevel'
