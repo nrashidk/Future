@@ -171,22 +171,24 @@ async function checkOrgAdmin(req: Request, res: Response, next: NextFunction) {
     return res.status(401).json({ error: "Not authenticated" });
   }
 
+  const userId = user.userId || user.id;
+
   // First check organizationMembers table
-  let member = await storage.getOrganizationMemberByUserId(user.id);
+  let member = await storage.getOrganizationMemberByUserId(userId);
   
   // If not found in members table, check if user is an org_admin by accountType
   if (!member || member.role !== "admin") {
     // Get full user record to check accountType
-    const fullUser = await storage.getUser(user.id);
+    const fullUser = await storage.getUser(userId);
     
     if (fullUser?.accountType === 'org_admin') {
       // Find organization by admin user ID
-      const org = await storage.getOrganizationByAdminUserId(user.id);
+      const org = await storage.getOrganizationByAdminUserId(userId);
       if (org) {
         // Create a virtual member object for org_admin users
         member = {
-          id: user.id,
-          userId: user.id,
+          id: userId,
+          userId: userId,
           organizationId: org.id,
           role: "admin",
           createdAt: new Date(),
