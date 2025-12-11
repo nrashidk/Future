@@ -290,6 +290,7 @@ router.post("/submit", isAuthenticated, checkOrgAdmin, async (req: Request, res:
   try {
     const member = (req as any).orgMember;
     const user = req.user as any;
+    const userId = user.userId || user.id;
     
     // Organization-scoped rate limiting (3 submissions per day per org)
     const dailySubmissionCount = await storage.getOrganizationDailySubmissionCount(member.organizationId);
@@ -370,7 +371,7 @@ router.post("/submit", isAuthenticated, checkOrgAdmin, async (req: Request, res:
     // Create submission
     const submission = await storage.createContributionSubmission({
       organizationId: member.organizationId,
-      submittedByUserId: user.id,
+      submittedByUserId: userId,
       countryId,
       curriculum,
       subject,
