@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,13 +10,14 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { StickyNote } from "@/components/StickyNote";
 import { 
   Gift, Plus, Send, Clock, CheckCircle, XCircle, 
   AlertCircle, Trash2, Edit, HelpCircle, Star,
-  TrendingUp, Calendar
+  TrendingUp, Calendar, Upload, FileText, Download
 } from "lucide-react";
 
 interface CreditBalance {
@@ -133,11 +134,25 @@ export default function ContributeQuestions() {
     queryKey: ['/api/contributions/submissions'],
   });
 
+  // Use public countries endpoint (accessible to all users including org_admins)
   const { data: countries = [] } = useQuery<Country[]>({
-    queryKey: ['/api/admin/countries'],
+    queryKey: ['/api/countries'],
   });
 
   const selectedCountry = countries.find(c => c.id === submissionConfig.countryId);
+
+  // Fetch curriculum-specific subjects when country and curriculum are selected
+  const { data: curriculumSubjects = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ['/api/countries', submissionConfig.countryId, 'curricula', submissionConfig.curriculum, 'subjects'],
+    enabled: !!submissionConfig.countryId && !!submissionConfig.curriculum,
+  });
+
+  // CSV Upload state
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [csvQuestions, setCsvQuestions] = useState<Question[]>([]);
+  const [csvErrors, setCsvErrors] = useState<string[]>([]);
+  const [isParsingCsv, setIsParsingCsv] = useState(false);
+  const [submissionMode, setSubmissionMode] = useState<"manual" | "csv">("manual");
 
   const submitMutation = useMutation({
     mutationFn: async (data: { countryId: string; curriculum: string; subject: string; grade: number; questions: Question[] }) => {
@@ -150,6 +165,11 @@ export default function ContributeQuestions() {
       });
       setIsSubmitDialogOpen(false);
       setQuestions([]);
+      setCsvQuestions([]);
+      setCsvErrors([]);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
       setCurrentQuestion({
         question: "",
         options: ["", "", "", ""],
@@ -207,7 +227,9 @@ export default function ContributeQuestions() {
   };
 
   const handleSubmit = () => {
-    if (questions.length === 0) {
+    const questionsToSubmit = submissionMode === "csv" ? csvQuestions : questions;
+    
+    if (questionsToSubmit.length === 0) {
       toast({ title: "Add at least one question", variant: "destructive" });
       return;
     }
@@ -218,8 +240,193 @@ export default function ContributeQuestions() {
 
     submitMutation.mutate({
       ...submissionConfig,
-      questions,
+      questions: questionsToSubmit,
     });
+  };
+
+  // CSV Parsing function
+  const parseCsvFile = (file: File) => {
+    setIsParsingCsv(true);
+    setCsvErrors([]);
+    setCsvQuestions([]);
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result as string;
+        const lines = text.split('\n').filter(line => line.trim());
+        
+        if (lines.length < 2) {
+          setCsvErrors(["CSV file must have a header row and at least one data row"]);
+          setIsParsingCsv(false);
+          return;
+        }
+
+        // Parse header (case-insensitive)
+        const headerLine = lines[0];
+        const headers = headerLine.split(',').map(h => h.trim().toLowerCase().replace(/"/g, ''));
+        
+        // Required columns
+        const requiredColumns = ['question', 'option_a', 'option_b', 'option_c', 'option_d', 'correct_answer', 'topic'];
+        const missingColumns = requiredColumns.filter(col => !headers.includes(col));
+        
+        if (missingColumns.length > 0) {
+          setCsvErrors([`Missing required columns: ${missingColumns.join(', ')}`]);
+          setIsParsingCsv(false);
+          return;
+        }
+
+        const parsedQuestions: Question[] = [];
+        const errors: string[] = [];
+
+        // Parse data rows
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
+
+          // Handle CSV with quoted fields
+          const values: string[] = [];
+          let current = '';
+          let inQuotes = false;
+          
+          for (let j = 0; j < line.length; j++) {
+            const char = line[j];
+            if (char === '"') {
+              inQuotes = !inQuotes;
+            } else if (char === ',' && !inQuotes) {
+              values.push(current.trim().replace(/^"|"$/g, ''));
+              current = '';
+            } else {
+              current += char;
+            }
+          }
+          values.push(current.trim().replace(/^"|"$/g, ''));
+
+          // Map values to headers
+          const row: Record<string, string> = {};
+          headers.forEach((header, idx) => {
+            row[header] = values[idx] || '';
+          });
+
+          // Validate row
+          const question = row['question'];
+          const optionA = row['option_a'];
+          const optionB = row['option_b'];
+          const optionC = row['option_c'];
+          const optionD = row['option_d'];
+          const correctAnswer = row['correct_answer'];
+          const topic = row['topic'];
+          const difficulty = row['difficulty'] || 'medium';
+          const cognitiveLevel = row['cognitive_level'] || 'comprehension';
+          const explanation = row['explanation'] || '';
+
+          if (!question) {
+            errors.push(`Row ${i + 1}: Missing question text`);
+            continue;
+          }
+          if (!optionA || !optionB || !optionC || !optionD) {
+            errors.push(`Row ${i + 1}: Missing one or more options`);
+            continue;
+          }
+          if (!correctAnswer) {
+            errors.push(`Row ${i + 1}: Missing correct answer`);
+            continue;
+          }
+          if (!topic) {
+            errors.push(`Row ${i + 1}: Missing topic`);
+            continue;
+          }
+
+          // Validate correct answer matches one of the options
+          const options = [optionA, optionB, optionC, optionD];
+          if (!options.includes(correctAnswer)) {
+            errors.push(`Row ${i + 1}: Correct answer doesn't match any option`);
+            continue;
+          }
+
+          // Validate difficulty
+          const validDifficulties = ['easy', 'medium', 'hard'];
+          const normalizedDifficulty = validDifficulties.includes(difficulty.toLowerCase()) 
+            ? difficulty.toLowerCase() as "easy" | "medium" | "hard"
+            : 'medium';
+
+          // Validate cognitive level
+          const validCognitiveLevels = ['knowledge', 'comprehension', 'application', 'analysis'];
+          const normalizedCognitiveLevel = validCognitiveLevels.includes(cognitiveLevel.toLowerCase())
+            ? cognitiveLevel.toLowerCase() as "knowledge" | "comprehension" | "application" | "analysis"
+            : 'comprehension';
+
+          parsedQuestions.push({
+            question,
+            options,
+            correctAnswer,
+            topic,
+            difficulty: normalizedDifficulty,
+            cognitiveLevel: normalizedCognitiveLevel,
+            explanation,
+          });
+        }
+
+        setCsvQuestions(parsedQuestions);
+        setCsvErrors(errors);
+        
+        if (parsedQuestions.length > 0) {
+          toast({
+            title: "CSV Parsed Successfully",
+            description: `${parsedQuestions.length} question(s) ready for submission${errors.length > 0 ? `, ${errors.length} row(s) skipped` : ''}`,
+          });
+        } else {
+          toast({
+            title: "No Valid Questions Found",
+            description: "Please check the CSV format and try again",
+            variant: "destructive",
+          });
+        }
+      } catch (error) {
+        setCsvErrors(["Failed to parse CSV file. Please check the format."]);
+      }
+      setIsParsingCsv(false);
+    };
+    
+    reader.onerror = () => {
+      setCsvErrors(["Failed to read CSV file"]);
+      setIsParsingCsv(false);
+    };
+    
+    reader.readAsText(file);
+  };
+
+  const handleCsvUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      if (!file.name.endsWith('.csv')) {
+        toast({ title: "Please upload a CSV file", variant: "destructive" });
+        return;
+      }
+      parseCsvFile(file);
+    }
+  };
+
+  const downloadCsvTemplate = () => {
+    const template = `question,option_a,option_b,option_c,option_d,correct_answer,topic,difficulty,cognitive_level,explanation
+"What is 2 + 2?","3","4","5","6","4","Basic Arithmetic","easy","knowledge","The sum of 2 and 2 equals 4"
+"Which planet is closest to the Sun?","Venus","Mercury","Mars","Earth","Mercury","Solar System","medium","comprehension","Mercury is the first planet from the Sun"`;
+    
+    const blob = new Blob([template], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'questions_template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const clearCsvData = () => {
+    setCsvQuestions([]);
+    setCsvErrors([]);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const yearlyProgress = balance ? (balance.yearlyCreditsEarned / balance.maxYearlyCredits) * 100 : 0;
@@ -330,6 +537,7 @@ export default function ContributeQuestions() {
                 </DialogHeader>
 
                 <div className="space-y-6 py-4">
+                  {/* Configuration Selects - shared between manual and CSV modes */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="space-y-2">
                       <Label>Country</Label>
@@ -352,7 +560,7 @@ export default function ContributeQuestions() {
                       <Label>Curriculum</Label>
                       <Select
                         value={submissionConfig.curriculum}
-                        onValueChange={(v) => setSubmissionConfig({...submissionConfig, curriculum: v})}
+                        onValueChange={(v) => setSubmissionConfig({...submissionConfig, curriculum: v, subject: ""})}
                         disabled={!selectedCountry}
                       >
                         <SelectTrigger data-testid="select-curriculum">
@@ -371,15 +579,20 @@ export default function ContributeQuestions() {
                       <Select
                         value={submissionConfig.subject}
                         onValueChange={(v) => setSubmissionConfig({...submissionConfig, subject: v})}
-                        disabled={!selectedCountry}
+                        disabled={!submissionConfig.curriculum}
                       >
                         <SelectTrigger data-testid="select-subject">
                           <SelectValue placeholder="Select subject" />
                         </SelectTrigger>
                         <SelectContent>
-                          {(selectedCountry?.subjects || []).map((s) => (
-                            <SelectItem key={s} value={s}>{s}</SelectItem>
-                          ))}
+                          {curriculumSubjects.length > 0 
+                            ? curriculumSubjects.map((s) => (
+                                <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
+                              ))
+                            : (selectedCountry?.subjects || []).map((s) => (
+                                <SelectItem key={s} value={s}>{s}</SelectItem>
+                              ))
+                          }
                         </SelectContent>
                       </Select>
                     </div>
@@ -402,8 +615,40 @@ export default function ContributeQuestions() {
                     </div>
                   </div>
 
-                  <div className="border rounded-lg p-4 space-y-4">
-                    <h4 className="font-medium">Add Question</h4>
+                  {/* Tabs for Manual vs CSV Upload */}
+                  <Tabs 
+                    value={submissionMode} 
+                    onValueChange={(v) => {
+                      const newMode = v as "manual" | "csv";
+                      setSubmissionMode(newMode);
+                      // Clear data when switching modes to prevent confusion
+                      if (newMode === "manual") {
+                        setCsvQuestions([]);
+                        setCsvErrors([]);
+                        if (fileInputRef.current) {
+                          fileInputRef.current.value = '';
+                        }
+                      } else {
+                        setQuestions([]);
+                      }
+                    }} 
+                    className="w-full"
+                  >
+                    <TabsList className="grid w-full grid-cols-2">
+                      <TabsTrigger value="manual" data-testid="tab-manual-entry">
+                        <Edit className="w-4 h-4 mr-2" />
+                        Manual Entry
+                      </TabsTrigger>
+                      <TabsTrigger value="csv" data-testid="tab-csv-upload">
+                        <Upload className="w-4 h-4 mr-2" />
+                        CSV Bulk Upload
+                      </TabsTrigger>
+                    </TabsList>
+
+                    {/* Manual Entry Tab */}
+                    <TabsContent value="manual" className="mt-4">
+                      <div className="border rounded-lg p-4 space-y-4">
+                        <h4 className="font-medium">Add Question</h4>
                     
                     <div className="space-y-2">
                       <Label>Question Text</Label>
@@ -511,35 +756,124 @@ export default function ContributeQuestions() {
                       />
                     </div>
 
-                    <Button onClick={addQuestion} variant="outline" className="w-full" data-testid="button-add-question">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add Question to Submission ({questions.length} added)
-                    </Button>
-                  </div>
+                        <Button onClick={addQuestion} variant="outline" className="w-full" data-testid="button-add-question">
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add Question to Submission ({questions.length} added)
+                        </Button>
+                      </div>
 
-                  {questions.length > 0 && (
-                    <div className="border rounded-lg p-4">
-                      <h4 className="font-medium mb-3">Questions to Submit ({questions.length})</h4>
-                      <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                        {questions.map((q, i) => (
-                          <div key={i} className="flex items-center justify-between p-2 bg-muted rounded">
-                            <div className="flex-1 mr-2">
-                              <p className="text-sm font-medium truncate">{i + 1}. {q.question}</p>
-                              <p className="text-xs text-muted-foreground">{q.topic} • {q.difficulty} • {q.cognitiveLevel}</p>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => removeQuestion(i)}
-                              data-testid={`button-remove-question-${i}`}
-                            >
-                              <Trash2 className="w-4 h-4 text-destructive" />
+                      {questions.length > 0 && (
+                        <div className="border rounded-lg p-4">
+                          <h4 className="font-medium mb-3">Questions to Submit ({questions.length})</h4>
+                          <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                            {questions.map((q, i) => (
+                              <div key={i} className="flex items-center justify-between p-2 bg-muted rounded">
+                                <div className="flex-1 mr-2">
+                                  <p className="text-sm font-medium truncate">{i + 1}. {q.question}</p>
+                                  <p className="text-xs text-muted-foreground">{q.topic} • {q.difficulty} • {q.cognitiveLevel}</p>
+                                </div>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => removeQuestion(i)}
+                                  data-testid={`button-remove-question-${i}`}
+                                >
+                                  <Trash2 className="w-4 h-4 text-destructive" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </TabsContent>
+
+                    {/* CSV Upload Tab */}
+                    <TabsContent value="csv" className="mt-4 space-y-4">
+                      <div className="border rounded-lg p-4 space-y-4">
+                        <div className="flex items-center justify-between flex-wrap gap-4">
+                          <div>
+                            <h4 className="font-medium">Bulk Upload Questions</h4>
+                            <p className="text-sm text-muted-foreground">Upload a CSV file with multiple questions at once</p>
+                          </div>
+                          <Button variant="outline" size="sm" onClick={downloadCsvTemplate} data-testid="button-download-template">
+                            <Download className="w-4 h-4 mr-2" />
+                            Download Template
+                          </Button>
+                        </div>
+
+                        <div className="border-2 border-dashed rounded-lg p-6 text-center">
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept=".csv"
+                            onChange={handleCsvUpload}
+                            className="hidden"
+                            data-testid="input-csv-file"
+                          />
+                          <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                          <p className="text-sm text-muted-foreground mb-4">
+                            Upload a CSV file with columns: question, option_a, option_b, option_c, option_d, correct_answer, topic
+                          </p>
+                          <Button 
+                            variant="outline" 
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isParsingCsv}
+                            data-testid="button-upload-csv"
+                          >
+                            {isParsingCsv ? (
+                              "Parsing..."
+                            ) : (
+                              <>
+                                <Upload className="w-4 h-4 mr-2" />
+                                Select CSV File
+                              </>
+                            )}
+                          </Button>
+                        </div>
+
+                        {/* CSV Errors */}
+                        {csvErrors.length > 0 && (
+                          <div className="border border-destructive/50 rounded-lg p-3 bg-destructive/10">
+                            <h5 className="font-medium text-destructive mb-2 flex items-center gap-2">
+                              <AlertCircle className="w-4 h-4" />
+                              Issues Found ({csvErrors.length})
+                            </h5>
+                            <ul className="text-sm text-destructive space-y-1 max-h-32 overflow-y-auto">
+                              {csvErrors.slice(0, 10).map((err, i) => (
+                                <li key={i}>{err}</li>
+                              ))}
+                              {csvErrors.length > 10 && (
+                                <li className="font-medium">...and {csvErrors.length - 10} more issues</li>
+                              )}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* CSV Questions Preview */}
+                      {csvQuestions.length > 0 && (
+                        <div className="border rounded-lg p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="font-medium">Parsed Questions ({csvQuestions.length})</h4>
+                            <Button variant="ghost" size="sm" onClick={clearCsvData} data-testid="button-clear-csv">
+                              <Trash2 className="w-4 h-4 mr-1" />
+                              Clear
                             </Button>
                           </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                          <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                            {csvQuestions.map((q, i) => (
+                              <div key={i} className="flex items-center justify-between p-2 bg-muted rounded">
+                                <div className="flex-1 mr-2">
+                                  <p className="text-sm font-medium truncate">{i + 1}. {q.question}</p>
+                                  <p className="text-xs text-muted-foreground">{q.topic} • {q.difficulty} • {q.cognitiveLevel}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </TabsContent>
+                  </Tabs>
                 </div>
 
                 <DialogFooter>
@@ -548,7 +882,7 @@ export default function ContributeQuestions() {
                   </Button>
                   <Button 
                     onClick={handleSubmit} 
-                    disabled={questions.length === 0 || submitMutation.isPending}
+                    disabled={(submissionMode === "manual" ? questions.length === 0 : csvQuestions.length === 0) || submitMutation.isPending}
                     data-testid="button-submit-questions"
                   >
                     {submitMutation.isPending ? (
@@ -556,7 +890,7 @@ export default function ContributeQuestions() {
                     ) : (
                       <>
                         <Send className="w-4 h-4 mr-2" />
-                        Submit {questions.length} Question{questions.length !== 1 ? 's' : ''}
+                        Submit {submissionMode === "manual" ? questions.length : csvQuestions.length} Question{(submissionMode === "manual" ? questions.length : csvQuestions.length) !== 1 ? 's' : ''}
                       </>
                     )}
                   </Button>
