@@ -17,7 +17,6 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
-import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 
 interface Organization {
   id: string;
@@ -75,11 +74,6 @@ export default function Landing() {
         </div>
       </header>
 
-      {user && (
-        <div className="max-w-7xl mx-auto px-4 pt-4">
-          <AnnouncementBanner />
-        </div>
-      )}
 
       {/* Hero Section */}
       <div className="relative min-h-screen flex items-center justify-center px-4 py-12 overflow-hidden">

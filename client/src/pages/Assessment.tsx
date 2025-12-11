@@ -369,17 +369,15 @@ export default function Assessment() {
             </div>
           </div>
           <div className="flex gap-2">
-            {currentStep > 1 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleBack}
-                data-testid="button-back"
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back
-              </Button>
-            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setLocation("/assessment")}
+              data-testid="button-assessment"
+            >
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Assessment
+            </Button>
             {isAuthenticated && (
               <Button
                 variant="outline"

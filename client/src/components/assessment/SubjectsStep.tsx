@@ -219,7 +219,7 @@ export function SubjectsStep({ data, onUpdate, onNext }: SubjectsStepProps) {
           className="px-8 py-6 text-lg rounded-full"
           data-testid="button-back-to-select"
         >
-          Back to Subjects
+          Back
         </Button>
         <Button
           size="lg"
@@ -230,16 +230,6 @@ export function SubjectsStep({ data, onUpdate, onNext }: SubjectsStepProps) {
         >
           Continue
         </Button>
-      </div>
-      
-      <div className="text-center">
-        <button
-          onClick={onNext}
-          className="text-sm text-muted-foreground hover:text-foreground underline"
-          data-testid="button-skip-priorities"
-        >
-          Skip priority selection
-        </button>
       </div>
     </div>
   );

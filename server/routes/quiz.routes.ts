@@ -106,8 +106,19 @@ export function registerQuizRoutes(app: Express) {
         });
       }
       
-      const studentGrade = assessment.grade ? parseInt(assessment.grade as string) : null;
+      // Extract numeric grade from strings like "grade11", "11", or just the number
+      let studentGrade: number | null = null;
+      if (assessment.grade) {
+        const gradeStr = String(assessment.grade);
+        // Try to extract number from string like "grade11" or just "11"
+        const match = gradeStr.match(/(\d+)/);
+        if (match) {
+          studentGrade = parseInt(match[1], 10);
+        }
+      }
       const curriculum = (assessment as any).curriculum || null;
+      
+      console.log(`Quiz generation: parsed grade ${studentGrade} from "${assessment.grade}", curriculum: ${curriculum}`);
       
       let questionPool: any[] = [];
       
