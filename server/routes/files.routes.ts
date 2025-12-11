@@ -64,11 +64,11 @@ const isSuperadmin = async (req: any): Promise<boolean> => {
   
   const superadminEmails = (process.env.SUPERADMIN_EMAILS || "")
     .split(",")
-    .map(e => e.trim())
+    .map(e => e.trim().toLowerCase())
     .filter(e => e.length > 0);
   
   return (
-    (!req.user.isLocal && user.email && superadminEmails.includes(user.email)) ||
+    (!req.user.isLocal && user.email && superadminEmails.includes(user.email.toLowerCase())) ||
     user.role === "superadmin"
   );
 };

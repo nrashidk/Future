@@ -188,10 +188,10 @@ export function registerAdminRoutes(app: Express) {
         return res.status(403).json({ message: "Forbidden" });
       }
 
-      // Check if user is superadmin
+      // Check if user is superadmin (getSuperadminEmails already returns lowercase)
       const superadminEmails = getSuperadminEmails();
       const isSuperadmin = 
-        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email)) ||
+        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email.toLowerCase())) ||
         user.role === "superadmin";
       
       // Check if user is org admin
@@ -380,7 +380,7 @@ export function registerAdminRoutes(app: Express) {
       // Check if user is superadmin
       const superadminEmails = getSuperadminEmails();
       const isSuperadmin = 
-        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email)) ||
+        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email.toLowerCase())) ||
         user.role === "superadmin";
       
       // Check if user is org admin for THIS specific organization
@@ -416,7 +416,7 @@ export function registerAdminRoutes(app: Express) {
       // Check if user is superadmin
       const superadminEmails = getSuperadminEmails();
       const isSuperadmin = 
-        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email)) ||
+        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email.toLowerCase())) ||
         user.role === "superadmin";
       
       // Check if user is org admin for THIS specific organization
@@ -483,7 +483,7 @@ export function registerAdminRoutes(app: Express) {
       // Check if user is superadmin
       const superadminEmails = getSuperadminEmails();
       const isSuperadmin = 
-        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email)) ||
+        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email.toLowerCase())) ||
         user.role === "superadmin";
       
       // Check if user is org admin for THIS specific organization
@@ -640,7 +640,7 @@ export function registerAdminRoutes(app: Express) {
       // Check if user is superadmin
       const superadminEmails = getSuperadminEmails();
       const isSuperadmin = 
-        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email)) ||
+        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email.toLowerCase())) ||
         user.role === "superadmin";
       
       // Check if user is org admin for THIS specific organization
@@ -695,7 +695,7 @@ export function registerAdminRoutes(app: Express) {
       // Check if user is superadmin
       const superadminEmails = getSuperadminEmails();
       const isSuperadmin = 
-        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email)) ||
+        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email.toLowerCase())) ||
         user.role === "superadmin";
       
       // Check if user is org admin for THIS specific organization
@@ -775,7 +775,7 @@ export function registerAdminRoutes(app: Express) {
       // Check if user is superadmin
       const superadminEmails = getSuperadminEmails();
       const isSuperadmin = 
-        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email)) ||
+        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email.toLowerCase())) ||
         user.role === "superadmin";
       
       // Check if user is org admin for THIS specific organization
@@ -988,7 +988,7 @@ export function registerAdminRoutes(app: Express) {
       // Check if user is superadmin
       const superadminEmails = getSuperadminEmails();
       const isSuperadmin = 
-        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email)) ||
+        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email.toLowerCase())) ||
         user.role === "superadmin";
       
       // Check if user is org admin for THIS specific organization
@@ -1158,7 +1158,7 @@ export function registerAdminRoutes(app: Express) {
       // Check if user is superadmin
       const superadminEmails = getSuperadminEmails();
       const isSuperadmin = 
-        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email)) ||
+        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email.toLowerCase())) ||
         user.role === "superadmin";
       
       // Check if user is org admin for THIS specific organization
