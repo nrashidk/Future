@@ -145,6 +145,7 @@ interface SystemAnnouncement {
   targetAudience: string;
   isActive: boolean;
   isPinned: boolean;
+  backgroundColor: string | null;
   expiresAt: string | null;
   createdByUserId: string;
   createdAt: string;
@@ -421,6 +422,7 @@ export default function SuperadminDashboard() {
     type: "info",
     targetAudience: "all",
     isPinned: false,
+    backgroundColor: "#ffffff",
     expiresAt: "",
   });
   const [isCareerModalOpen, setIsCareerModalOpen] = useState(false);
@@ -610,7 +612,7 @@ export default function SuperadminDashboard() {
   });
 
   const resetAnnouncementForm = () => {
-    setAnnouncementForm({ title: "", content: "", type: "info", targetAudience: "all", isPinned: false, expiresAt: "" });
+    setAnnouncementForm({ title: "", content: "", type: "info", targetAudience: "all", isPinned: false, backgroundColor: "#ffffff", expiresAt: "" });
   };
 
   const resetCareerForm = () => {
@@ -637,6 +639,7 @@ export default function SuperadminDashboard() {
       type: announcement.type,
       targetAudience: announcement.targetAudience,
       isPinned: announcement.isPinned,
+      backgroundColor: announcement.backgroundColor || "#ffffff",
       expiresAt: announcement.expiresAt || "",
     });
     setIsAnnouncementModalOpen(true);
@@ -2231,7 +2234,7 @@ export default function SuperadminDashboard() {
                 </Select>
               </div>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-4 flex-wrap">
               <div className="flex items-center gap-2">
                 <Switch
                   id="announcement-pinned"
@@ -2240,6 +2243,27 @@ export default function SuperadminDashboard() {
                   data-testid="switch-announcement-pinned"
                 />
                 <Label htmlFor="announcement-pinned">Pin to top</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="announcement-bgcolor">Background Color</Label>
+                <div className="flex items-center gap-2">
+                  <input
+                    id="announcement-bgcolor"
+                    type="color"
+                    value={announcementForm.backgroundColor}
+                    onChange={(e) => setAnnouncementForm({ ...announcementForm, backgroundColor: e.target.value })}
+                    className="w-8 h-8 rounded cursor-pointer border"
+                    data-testid="input-announcement-bgcolor"
+                  />
+                  <Input
+                    type="text"
+                    value={announcementForm.backgroundColor}
+                    onChange={(e) => setAnnouncementForm({ ...announcementForm, backgroundColor: e.target.value })}
+                    className="w-24"
+                    placeholder="#ffffff"
+                    data-testid="input-announcement-bgcolor-text"
+                  />
+                </div>
               </div>
             </div>
             <div className="space-y-2">

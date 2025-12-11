@@ -1313,6 +1313,7 @@ export const systemAnnouncements = pgTable("system_announcements", {
   targetAudience: varchar("target_audience", { length: 30 }).notNull().default("all"), // all, org_admins, students, premium
   isActive: boolean("is_active").notNull().default(true),
   isPinned: boolean("is_pinned").notNull().default(false), // Pinned announcements show at top
+  backgroundColor: varchar("background_color", { length: 20 }).default("#ffffff"), // Custom background color for sticky note style
   expiresAt: timestamp("expires_at"), // Optional expiration date
   createdByUserId: varchar("created_by_user_id").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
