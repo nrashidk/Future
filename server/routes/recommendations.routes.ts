@@ -12,6 +12,7 @@ import {
   generateStrengthsGrowth,
   generateEnhancedActionSteps,
 } from "../services/premiumNarratives";
+import { isPremiumAssessment } from "../utils/assessmentTier";
 
 export function registerRecommendationsRoutes(app: Express) {
   // Generate recommendations using dynamic matching service
@@ -23,8 +24,8 @@ export function registerRecommendationsRoutes(app: Express) {
       }
 
       // STRICT VALIDATION: Check all required components are complete
-      const user = assessment.userId ? await storage.getUser(assessment.userId) : null;
-      const isPremium = user?.isPremium || false;
+      // Use assessmentType to determine tier (not user.isPremium, as single assessments can be premium)
+      const isPremium = isPremiumAssessment(assessment.assessmentType);
 
       const missingComponents: string[] = [];
 
@@ -170,7 +171,7 @@ export function registerRecommendationsRoutes(app: Express) {
 
       // Fetch assessment to check tier and generate premium narratives
       const assessment = await storage.getAssessmentById(assessmentId);
-      const isPremium = assessment?.assessmentType === 'kolb';
+      const isPremium = isPremiumAssessment(assessment?.assessmentType);
 
       // Fetch CVQ result for premium users (needed for enhanced narratives)
       const cvqResult = isPremium && assessmentId ? await storage.getCvqResultByAssessmentId(assessmentId) : null;
@@ -431,7 +432,7 @@ export function registerRecommendationsRoutes(app: Express) {
       }
 
       // Only available for premium assessments
-      if (assessment.assessmentType !== 'kolb') {
+      if (!isPremiumAssessment(assessment.assessmentType)) {
         return res.status(403).json({ 
           message: "Education Pathways is a premium feature",
           isPremium: false

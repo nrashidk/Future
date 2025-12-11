@@ -69,7 +69,7 @@ export default function CVQStep({ assessmentId, responses, onUpdate, onNext, onB
   const [currentPage, setCurrentPage] = useState(0);
   const [startTime] = useState(Date.now());
   
-  const itemsPerPage = 5;
+  const itemsPerPage = 3;
 
   // Fetch CVQ items from API
   const { data: cvqItems = [], isLoading } = useQuery<CVQItem[]>({

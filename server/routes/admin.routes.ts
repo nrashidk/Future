@@ -7,6 +7,7 @@ import { isAdmin, isOrgAdmin } from "../middleware/auth.middleware";
 import { dataExportLimiter } from "../middleware/rateLimiter.middleware";
 import { insertQuizQuestionSchema } from "@shared/schema";
 import { z } from "zod";
+import { isPremiumAssessment } from "../utils/assessmentTier";
 
 // Configure multer for file uploads
 const upload = multer({
@@ -1275,7 +1276,7 @@ export function registerAdminRoutes(app: Express) {
           `"${lastLogin}"`,
           `"${status}"`,
           "Completed",
-          completedAssessment.assessmentType === 'kolb' ? 'Premium' : 'Free',
+          isPremiumAssessment(completedAssessment.assessmentType) ? 'Premium' : 'Free',
           `"${(country?.name || '').replace(/"/g, '""')}"`,
           `"${(topCareers[0] || '').replace(/"/g, '""')}"`,
           `"${(topCareers[1] || '').replace(/"/g, '""')}"`,
