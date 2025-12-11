@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,8 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { 
   Home, Plus, Download, Upload, Edit, Trash2, GraduationCap, 
-  Users, Building2, Key, RefreshCw, FileDown, Lock, LockOpen, User, LogOut, BarChart, Shield, FileQuestion, Gift
+  Users, Building2, Key, RefreshCw, FileDown, Lock, LockOpen, User, LogOut, BarChart, Shield, FileQuestion, Gift,
+  Link as LinkIcon, X
 } from "lucide-react";
 import { StickyNote } from "@/components/StickyNote";
 import ContributeQuestions from "@/components/admin/ContributeQuestions";
@@ -1164,6 +1165,9 @@ function EditOrganizationForm({ organization, onSuccess }: { organization: Organ
     countryId: organization.countryId || "none",
     curriculum: organization.curriculum || "",
   });
+  const [logoInputMode, setLogoInputMode] = useState<"url" | "upload">("url");
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: countries = [] } = useQuery<Country[]>({
     queryKey: ['/api/countries'],
@@ -1184,12 +1188,60 @@ function EditOrganizationForm({ organization, onSuccess }: { organization: Organ
     },
     onSuccess: () => {
       toast({ title: "Success", description: "School updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/organizations'] });
       onSuccess();
     },
     onError: () => {
       toast({ title: "Error", description: "Failed to update school", variant: "destructive" });
     },
   });
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({ title: "Error", description: "Only PNG, JPG, GIF, WebP, and SVG files are allowed", variant: "destructive" });
+      return;
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "Error", description: "File size must be less than 5MB", variant: "destructive" });
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const formDataUpload = new FormData();
+      formDataUpload.append('logo', file);
+
+      const response = await fetch(`/api/admin/organizations/${organization.id}/logo`, {
+        method: 'POST',
+        body: formDataUpload,
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Upload failed');
+      }
+
+      const result = await response.json();
+      setFormData(f => ({ ...f, logoUrl: result.logoUrl }));
+      toast({ title: "Success", description: "Logo uploaded successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/organizations'] });
+    } catch (error: any) {
+      toast({ title: "Error", description: error.message || "Failed to upload logo", variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -1219,20 +1271,81 @@ function EditOrganizationForm({ organization, onSuccess }: { organization: Organ
         </div>
 
         <div>
-          <Label htmlFor="edit-org-logo">School Logo URL (Optional)</Label>
-          <Input
-            id="edit-org-logo"
-            value={formData.logoUrl}
-            onChange={(e) => setFormData(f => ({ ...f, logoUrl: e.target.value }))}
-            placeholder="https://example.com/logo.png"
-            data-testid="input-edit-org-logo"
-          />
-          <p className="text-xs text-muted-foreground mt-1">
-            Add a direct link to your school logo (will be displayed on landing page and student profiles)
-          </p>
+          <Label>School Logo (Optional)</Label>
+          <div className="flex gap-2 mt-1 mb-2">
+            <Button
+              type="button"
+              variant={logoInputMode === "url" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setLogoInputMode("url")}
+              data-testid="button-logo-url-mode"
+            >
+              <LinkIcon className="h-4 w-4 mr-1" />
+              URL
+            </Button>
+            <Button
+              type="button"
+              variant={logoInputMode === "upload" ? "default" : "outline"}
+              size="sm"
+              onClick={() => setLogoInputMode("upload")}
+              data-testid="button-logo-upload-mode"
+            >
+              <Upload className="h-4 w-4 mr-1" />
+              Upload
+            </Button>
+          </div>
+
+          {logoInputMode === "url" ? (
+            <>
+              <Input
+                id="edit-org-logo"
+                value={formData.logoUrl}
+                onChange={(e) => setFormData(f => ({ ...f, logoUrl: e.target.value }))}
+                placeholder="https://example.com/logo.png"
+                data-testid="input-edit-org-logo"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Add a direct link to your school logo
+              </p>
+            </>
+          ) : (
+            <>
+              <div className="flex gap-2">
+                <Input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/gif,image/webp,image/svg+xml"
+                  onChange={handleFileUpload}
+                  disabled={isUploading}
+                  className="flex-1"
+                  data-testid="input-upload-logo"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Upload PNG, JPG, GIF, WebP, or SVG (max 5MB)
+              </p>
+              {isUploading && (
+                <p className="text-xs text-primary mt-1">Uploading...</p>
+              )}
+            </>
+          )}
+
           {formData.logoUrl && (
             <div className="mt-3 p-3 border rounded-lg bg-muted/30">
-              <p className="text-xs text-muted-foreground mb-2">Preview:</p>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs text-muted-foreground">Preview:</p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setFormData(f => ({ ...f, logoUrl: "" }))}
+                  className="h-6 px-2 text-xs"
+                  data-testid="button-remove-logo"
+                >
+                  <X className="h-3 w-3 mr-1" />
+                  Remove
+                </Button>
+              </div>
               <img 
                 src={formData.logoUrl} 
                 alt="Logo preview" 
@@ -1291,7 +1404,7 @@ function EditOrganizationForm({ organization, onSuccess }: { organization: Organ
       </div>
 
       <div className="flex justify-end gap-2 pt-4">
-        <Button type="submit" disabled={mutation.isPending} data-testid="button-submit-edit-school">
+        <Button type="submit" disabled={mutation.isPending || isUploading} data-testid="button-submit-edit-school">
           {mutation.isPending ? "Updating..." : "Update School"}
         </Button>
       </div>

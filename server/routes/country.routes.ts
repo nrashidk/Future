@@ -44,10 +44,13 @@ const generateQuestionsSchema = z.object({
   count: z.number().min(1).max(50).default(10),
 });
 
+/**
+ * Get superadmin emails from environment variable (normalized to lowercase)
+ */
 const getSuperadminEmails = (): string[] => {
   return (process.env.SUPERADMIN_EMAILS || "")
     .split(",")
-    .map(e => e.trim())
+    .map(e => e.trim().toLowerCase())
     .filter(e => e.length > 0);
 };
 
@@ -59,7 +62,7 @@ const checkSuperadmin = async (req: any): Promise<boolean> => {
   if (!user) return false;
   
   const superadminEmails = getSuperadminEmails();
-  return (!req.user?.isLocal && user.email && superadminEmails.includes(user.email)) || user.role === "superadmin";
+  return (!req.user?.isLocal && user.email && superadminEmails.includes(user.email.toLowerCase())) || user.role === "superadmin";
 };
 
 const llmLimiter = rateLimit({

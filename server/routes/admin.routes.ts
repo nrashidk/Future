@@ -27,12 +27,12 @@ const upload = multer({
 });
 
 /**
- * Get superadmin emails from environment variable
+ * Get superadmin emails from environment variable (normalized to lowercase)
  */
 const getSuperadminEmails = (): string[] => {
   return (process.env.SUPERADMIN_EMAILS || "")
     .split(",")
-    .map(e => e.trim())
+    .map(e => e.trim().toLowerCase())
     .filter(e => e.length > 0);
 };
 
@@ -256,14 +256,43 @@ export function registerAdminRoutes(app: Express) {
     }
   });
 
-  app.patch("/api/admin/organizations/:id", isAuthenticated, isAdmin, async (req, res) => {
+  app.patch("/api/admin/organizations/:id", isAuthenticated, async (req, res) => {
     try {
+      const userId = (req.user as any).userId;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      // Check if user is superadmin (getSuperadminEmails already returns lowercase)
+      const superadminEmails = getSuperadminEmails();
+      const isSuperadmin = 
+        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email.toLowerCase())) ||
+        user.role === "superadmin";
+      
+      // Check if user is org admin for THIS specific organization
+      let isOrgAdminForThisOrg = false;
+      if (user.accountType === "org_admin") {
+        const userOrg = await storage.getOrganizationByAdminUserId(userId);
+        if (userOrg && userOrg.id === req.params.id) {
+          isOrgAdminForThisOrg = true;
+        }
+      }
+
+      if (!isSuperadmin && !isOrgAdminForThisOrg) {
+        return res.status(403).json({ message: "Forbidden: Admin access required" });
+      }
+
       const { name, totalLicenses, isUnlimitedLicenses, logoUrl, countryId, curriculum } = req.body;
       const updates: any = {};
       
       if (name !== undefined) updates.name = name;
-      if (totalLicenses !== undefined) updates.totalLicenses = parseInt(totalLicenses);
-      if (isUnlimitedLicenses !== undefined) updates.isUnlimitedLicenses = Boolean(isUnlimitedLicenses);
+      // Only superadmins can change license settings
+      if (isSuperadmin) {
+        if (totalLicenses !== undefined) updates.totalLicenses = parseInt(totalLicenses);
+        if (isUnlimitedLicenses !== undefined) updates.isUnlimitedLicenses = Boolean(isUnlimitedLicenses);
+      }
       if (logoUrl !== undefined) updates.logoUrl = logoUrl;
       if (countryId !== undefined) updates.countryId = countryId;
       if (curriculum !== undefined) updates.curriculum = curriculum;
@@ -273,6 +302,68 @@ export function registerAdminRoutes(app: Express) {
     } catch (error) {
       console.error("Error updating organization:", error);
       res.status(500).json({ message: "Failed to update school" });
+    }
+  });
+
+  // Upload organization logo
+  app.post("/api/admin/organizations/:id/logo", isAuthenticated, upload.single("logo"), async (req: any, res) => {
+    try {
+      const userId = req.user.userId;
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
+      // Check if user is superadmin (getSuperadminEmails already returns lowercase)
+      const superadminEmails = getSuperadminEmails();
+      const isSuperadmin = 
+        (!req.user.isLocal && user.email && superadminEmails.includes(user.email.toLowerCase())) ||
+        user.role === "superadmin";
+      
+      // Check if user is org admin for THIS specific organization
+      let isOrgAdminForThisOrg = false;
+      if (user.accountType === "org_admin") {
+        const userOrg = await storage.getOrganizationByAdminUserId(userId);
+        if (userOrg && userOrg.id === req.params.id) {
+          isOrgAdminForThisOrg = true;
+        }
+      }
+
+      if (!isSuperadmin && !isOrgAdminForThisOrg) {
+        if (req.file) {
+          const fs = await import('fs/promises');
+          await fs.default.unlink(req.file.path).catch(() => {});
+        }
+        return res.status(403).json({ message: "Forbidden: Admin access required" });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+
+      // Validate file type
+      const allowedTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml'];
+      if (!allowedTypes.includes(req.file.mimetype)) {
+        const fs = await import('fs/promises');
+        await fs.default.unlink(req.file.path).catch(() => {});
+        return res.status(400).json({ message: "Invalid file type. Only PNG, JPG, GIF, WebP, and SVG are allowed." });
+      }
+
+      // Build the URL for the uploaded file
+      const logoUrl = `/uploads/${req.file.filename}`;
+      
+      // Update the organization with the new logo URL
+      const organization = await storage.updateOrganization(req.params.id, { logoUrl });
+      
+      res.json({ logoUrl, organization });
+    } catch (error) {
+      console.error("Error uploading organization logo:", error);
+      if (req.file) {
+        const fs = await import('fs/promises');
+        await fs.default.unlink(req.file.path).catch(() => {});
+      }
+      res.status(500).json({ message: "Failed to upload logo" });
     }
   });
 
