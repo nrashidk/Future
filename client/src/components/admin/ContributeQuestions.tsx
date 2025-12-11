@@ -142,7 +142,7 @@ export default function ContributeQuestions() {
   const selectedCountry = countries.find(c => c.id === submissionConfig.countryId);
 
   // Fetch curriculum-specific subjects when country and curriculum are selected
-  const { data: curriculumSubjects = [] } = useQuery<{ id: string; name: string }[]>({
+  const { data: curriculumSubjects = [] } = useQuery<{ id: string; name: string; code: string }[]>({
     queryKey: ['/api/countries', submissionConfig.countryId, 'curricula', submissionConfig.curriculum, 'subjects'],
     enabled: !!submissionConfig.countryId && !!submissionConfig.curriculum,
   });
@@ -587,7 +587,7 @@ export default function ContributeQuestions() {
                         <SelectContent>
                           {curriculumSubjects.length > 0 
                             ? curriculumSubjects.map((s) => (
-                                <SelectItem key={s.id} value={s.name}>{s.name}</SelectItem>
+                                <SelectItem key={s.id} value={s.code}>{s.name}</SelectItem>
                               ))
                             : (selectedCountry?.subjects || []).map((s) => (
                                 <SelectItem key={s} value={s}>{s}</SelectItem>
