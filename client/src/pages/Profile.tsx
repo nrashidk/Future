@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
-import { GraduationCap, Crown, Users, ClipboardCheck, Home, User, LogOut, BarChart, Shield, Building2, FileQuestion, TrendingUp } from "lucide-react";
+import { GraduationCap, Crown, Users, ClipboardCheck, Home, User, LogOut, BarChart, Shield, Building2, FileQuestion, TrendingUp, ClipboardList } from "lucide-react";
 import { StickyNote } from "@/components/StickyNote";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 
@@ -167,6 +167,12 @@ export default function Profile() {
                 </Button>
               </>
             )}
+            <Button variant="outline" size="sm" asChild data-testid="button-nav-assessment">
+              <Link href="/assessment">
+                <ClipboardCheck className="w-4 h-4 mr-2" />
+                Assessment
+              </Link>
+            </Button>
             <Button variant="outline" size="sm" asChild data-testid="button-nav-profile">
               <Link href="/profile">
                 <User className="w-4 h-4 mr-2" />
