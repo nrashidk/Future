@@ -99,6 +99,13 @@ export function AnnouncementBanner() {
                 <p className="text-sm mt-1 opacity-80" data-testid="announcement-content">
                   {announcement.content}
                 </p>
+                <p className="text-xs mt-2 opacity-50" data-testid="announcement-date">
+                  {new Date(announcement.createdAt).toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                  })}
+                </p>
               </div>
               {!announcement.isPinned && (
                 <button
