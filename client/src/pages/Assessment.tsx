@@ -13,7 +13,7 @@ import CVQStep from "@/components/CVQStep";
 import { CountryStep } from "@/components/assessment/CountryStep";
 import { AspirationsStep } from "@/components/assessment/AspirationsStep";
 import { QuizStep } from "@/components/assessment/QuizStep";
-import { GraduationCap, LogIn, User, ClipboardCheck } from "lucide-react";
+import { GraduationCap, LogIn, LogOut, User, ClipboardCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface AssessmentData {
@@ -379,15 +379,26 @@ export default function Assessment() {
               Assessment
             </Button>
             {isAuthenticated && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setLocation("/profile")}
-                data-testid="button-profile"
-              >
-                <User className="w-4 h-4 mr-2" />
-                Profile
-              </Button>
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setLocation("/profile")}
+                  data-testid="button-profile"
+                >
+                  <User className="w-4 h-4 mr-2" />
+                  Profile
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => window.location.href = "/api/logout"}
+                  data-testid="button-logout"
+                >
+                  <LogOut className="w-4 h-4 mr-2" />
+                  Logout
+                </Button>
+              </>
             )}
           </div>
         </div>
