@@ -73,7 +73,7 @@ export function AnnouncementBanner() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <h4 className="font-semibold text-sm" data-testid="announcement-title">
-                  {announcement.title}
+                  <span className="opacity-70">Announcement:</span> {announcement.title}
                 </h4>
                 {announcement.isPinned && (
                   <Pin className="w-3 h-3 opacity-60" />
