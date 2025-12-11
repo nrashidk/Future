@@ -1180,7 +1180,7 @@ function EditOrganizationForm({ organization, onSuccess }: { organization: Organ
     mutationFn: async (data: typeof formData) => {
       const payload = {
         name: data.name,
-        logoUrl: data.logoUrl || undefined,
+        logoUrl: data.logoUrl === "" ? null : data.logoUrl,
         countryId: data.countryId === "none" ? null : data.countryId,
         curriculum: data.curriculum || null,
       };
