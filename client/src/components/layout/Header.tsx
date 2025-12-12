@@ -1,10 +1,13 @@
 import { Link } from "wouter";
-import { GraduationCap, User, LogOut, ClipboardCheck } from "lucide-react";
+import { GraduationCap, User, LogOut, ClipboardCheck, Building2, BarChart, Shield, FileQuestion } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 
 export function Header() {
   const { user } = useAuth();
+  const isSuperadmin = user?.accountType === 'superadmin';
+  const isOrgAdmin = user?.accountType === 'org_admin';
 
   const handleLogout = () => {
     window.location.href = "/api/logout";
@@ -16,16 +19,70 @@ export function Header() {
         <Link href="/" className="flex items-center gap-2 hover-elevate rounded-lg px-3 py-2" data-testid="link-home">
           <GraduationCap className="w-6 h-6 text-primary" />
           <span className="font-bold text-lg">Future Pathways</span>
+          {isSuperadmin && <Badge variant="secondary">Superadmin</Badge>}
+          {isOrgAdmin && <Badge variant="secondary">School Admin</Badge>}
         </Link>
         <div className="flex gap-2">
-          {user && (
+          {isSuperadmin && (
             <>
+              <Button variant="outline" size="sm" asChild data-testid="button-nav-superadmin">
+                <Link href="/superadmin">
+                  <Shield className="w-4 h-4 mr-2" />
+                  Super Admin
+                </Link>
+              </Button>
+              <Button variant="outline" size="sm" asChild data-testid="button-nav-admin">
+                <Link href="/admin/organizations">
+                  <Building2 className="w-4 h-4 mr-2" />
+                  Admin
+                </Link>
+              </Button>
+              <Button variant="outline" size="sm" asChild data-testid="button-nav-questions">
+                <Link href="/admin">
+                  <FileQuestion className="w-4 h-4 mr-2" />
+                  Quiz
+                </Link>
+              </Button>
+              <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">
+                <Link href="/analytics">
+                  <BarChart className="w-4 h-4 mr-2" />
+                  Analytics
+                </Link>
+              </Button>
+            </>
+          )}
+          {isOrgAdmin && (
+            <>
+              <Button variant="outline" size="sm" asChild data-testid="button-nav-admin">
+                <Link href="/admin/organizations">
+                  <Building2 className="w-4 h-4 mr-2" />
+                  Admin
+                </Link>
+              </Button>
               <Button variant="outline" size="sm" asChild data-testid="button-nav-assessment">
                 <Link href="/assessment">
                   <ClipboardCheck className="w-4 h-4 mr-2" />
                   Assessment
                 </Link>
               </Button>
+              <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">
+                <Link href="/analytics">
+                  <BarChart className="w-4 h-4 mr-2" />
+                  Analytics
+                </Link>
+              </Button>
+            </>
+          )}
+          {user && !isSuperadmin && !isOrgAdmin && (
+            <Button variant="outline" size="sm" asChild data-testid="button-nav-assessment">
+              <Link href="/assessment">
+                <ClipboardCheck className="w-4 h-4 mr-2" />
+                Assessment
+              </Link>
+            </Button>
+          )}
+          {user && (
+            <>
               <Button variant="outline" size="sm" asChild data-testid="button-nav-profile">
                 <Link href="/profile">
                   <User className="w-4 h-4 mr-2" />

@@ -19,7 +19,7 @@ export function PageLayout({ children, variant = "plain" }: PageLayoutProps) {
     <div className={`min-h-screen flex flex-col ${bgClass}`}>
       <Header />
       {user && (
-        <div className="max-w-7xl mx-auto w-full px-4 pt-4">
+        <div className="max-w-4xl mx-auto w-full px-4 pt-4">
           <AnnouncementBanner />
         </div>
       )}
