@@ -137,7 +137,7 @@ export default function Landing() {
                   {/* Duplicate organizations twice for seamless loop */}
                   {[...organizations, ...organizations].map((org, index) => {
                     const colors: Array<"yellow" | "pink" | "blue" | "green"> = ["yellow", "pink", "blue", "green"];
-                    const rotations = ["-1", "1", "-2", "2"];
+                    const rotations: Array<"0" | "1" | "-1" | "2" | "-2"> = ["-1", "1", "-2", "2"];
                     return (
                       <StickyNote 
                         key={`${org.id}-${index}`}

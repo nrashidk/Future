@@ -671,15 +671,8 @@ export default function Results() {
               </div>
             </div>
 
-            {/* Pricing & CTA */}
+            {/* CTA */}
             <div className="bg-primary/10 rounded-lg p-6 text-center border-2 border-primary/20">
-              <div className="mb-4">
-                <div className="text-4xl font-bold text-primary mb-1">$10</div>
-                <div className="text-sm text-muted-foreground">per student</div>
-                <div className="text-xs text-muted-foreground mt-1">
-                  School bulk discounts available
-                </div>
-              </div>
               <Button
                 size="lg"
                 className="bg-primary hover:bg-primary/90 text-lg px-8"
