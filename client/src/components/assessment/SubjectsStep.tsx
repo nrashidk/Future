@@ -64,9 +64,11 @@ export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepPro
   };
 
   const handleContinueFromSelect = () => {
-    if (favoriteSubjects.length >= 2) {
+    if (favoriteSubjects.length >= 4) {
       setPhase("prioritize");
     } else {
+      // With 1-3 subjects, they are automatically the priority subjects
+      onUpdate("prioritySubjects", favoriteSubjects.slice(0, MAX_PRIORITY_SUBJECTS));
       onNext();
     }
   };
