@@ -17,9 +17,13 @@ import {
   Shield,
   Crown,
   Smile,
+  User,
+  Building2,
+  MapPin,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { isPremiumAssessment } from "@shared/assessmentTier";
 
 // Helper to get display name
 function getCountryDisplayName(country: any): string {
@@ -166,7 +170,22 @@ export default function ResultsPrint() {
 
   const { data: cvqResult } = useQuery<any>({
     queryKey: [`/api/cvq/result/${assessmentId}`],
-    enabled: !!assessmentId && assessment?.assessmentType === 'kolb',
+    enabled: !!assessmentId && isPremiumAssessment(assessment?.assessmentType),
+  });
+
+  const { data: curriculum } = useQuery<any>({
+    queryKey: [`/api/curricula/${assessment?.curriculumId}`],
+    enabled: !!assessment?.curriculumId,
+  });
+
+  const { data: user } = useQuery<any>({
+    queryKey: ['/api/user'],
+    enabled: true,
+  });
+
+  const { data: organizationInfo } = useQuery<any>({
+    queryKey: [`/api/organizations/${(user as any)?.organizationId}`],
+    enabled: !!(user as any)?.organizationId,
   });
 
   // Signal when data is ready for PDF capture
@@ -239,6 +258,74 @@ export default function ResultsPrint() {
               Based on your interests, skills, and country's vision, here are your perfect matches
             </p>
           </div>
+        </div>
+
+        {/* Student Info Section */}
+        <div className="max-w-4xl mx-auto px-4 -mt-8 mb-6">
+          <StickyNote color="yellow" rotation="0" className="p-6">
+            <div className="text-center mb-4">
+              <User className="w-10 h-10 text-primary mx-auto mb-2" />
+              <h2 className="text-2xl font-bold">Student Profile</h2>
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+              {assessment?.name && (
+                <div className="p-3 bg-background/30 rounded-lg text-center">
+                  <p className="text-xs text-muted-foreground font-body mb-1">Name</p>
+                  <p className="font-semibold">{assessment.name}</p>
+                </div>
+              )}
+              {assessment?.age && (
+                <div className="p-3 bg-background/30 rounded-lg text-center">
+                  <p className="text-xs text-muted-foreground font-body mb-1">Age</p>
+                  <p className="font-semibold">{assessment.age} years</p>
+                </div>
+              )}
+              {assessment?.grade && (
+                <div className="p-3 bg-background/30 rounded-lg text-center">
+                  <p className="text-xs text-muted-foreground font-body mb-1">Grade</p>
+                  <p className="font-semibold">Grade {assessment.grade.replace('grade', '')}</p>
+                </div>
+              )}
+              {assessment?.gender && (
+                <div className="p-3 bg-background/30 rounded-lg text-center">
+                  <p className="text-xs text-muted-foreground font-body mb-1">Gender</p>
+                  <p className="font-semibold capitalize">{assessment.gender}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Additional Info: Country, Curriculum, School */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {country && (
+                <div className="p-3 bg-background/30 rounded-lg flex items-center gap-3">
+                  <MapPin className="w-5 h-5 text-primary flex-shrink-0" />
+                  <div>
+                    <p className="text-xs text-muted-foreground font-body">Country</p>
+                    <p className="font-semibold">{country.name}</p>
+                  </div>
+                </div>
+              )}
+              {curriculum && (
+                <div className="p-3 bg-background/30 rounded-lg flex items-center gap-3">
+                  <BookOpen className="w-5 h-5 text-primary flex-shrink-0" />
+                  <div>
+                    <p className="text-xs text-muted-foreground font-body">Curriculum</p>
+                    <p className="font-semibold">{curriculum.name}</p>
+                  </div>
+                </div>
+              )}
+              {organizationInfo && (
+                <div className="p-3 bg-background/30 rounded-lg flex items-center gap-3">
+                  <Building2 className="w-5 h-5 text-primary flex-shrink-0" />
+                  <div>
+                    <p className="text-xs text-muted-foreground font-body">School</p>
+                    <p className="font-semibold">{organizationInfo.name}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </StickyNote>
         </div>
 
         {/* Subject Competency Spotlight */}
@@ -335,7 +422,7 @@ export default function ResultsPrint() {
       </div>
 
       {/* Page 2: Learning Style Analysis (Individual Assessment Only) */}
-      {assessment?.assessmentType === 'kolb' && assessment?.kolbScores?.learningStyle && (
+      {isPremiumAssessment(assessment?.assessmentType) && assessment?.kolbScores?.learningStyle && (
         <div className="print-page-career">
           <StickyNote color="blue" rotation="0" className="p-8">
             {(() => {
@@ -442,7 +529,7 @@ export default function ResultsPrint() {
       )}
 
       {/* Page 3: CVQ Values Analysis (Individual Assessment Only) */}
-      {cvqResult && assessment?.assessmentType === 'kolb' && (
+      {cvqResult && isPremiumAssessment(assessment?.assessmentType) && (
         <div className="print-page-career">
           <StickyNote color="purple" rotation="0" className="p-6">
             <div className="space-y-4">

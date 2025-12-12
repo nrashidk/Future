@@ -3,6 +3,7 @@ import { StickyNote } from "@/components/StickyNote";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { MasonryGrid, MasonryItem } from "@/components/MasonryGrid";
+import { isPremiumAssessment } from "@shared/assessmentTier";
 import { 
   GraduationCap, 
   Target, 
@@ -126,7 +127,7 @@ export default function Results() {
   // Fetch CVQ result for premium users
   const { data: cvqResult } = useQuery<any>({
     queryKey: [`/api/cvq/result/${activeAssessmentId}`],
-    enabled: !!activeAssessmentId && assessment?.assessmentType === 'kolb',
+    enabled: !!activeAssessmentId && isPremiumAssessment(assessment?.assessmentType),
   });
 
   // Extract assessment ID from recommendations
@@ -307,7 +308,7 @@ export default function Results() {
       )}
 
       {/* Learning Style Insights (Premium Users Only) */}
-      {assessment?.assessmentType === 'kolb' && assessment?.kolbScores && (
+      {isPremiumAssessment(assessment?.assessmentType) && assessment?.kolbScores && (
         <div className="max-w-4xl mx-auto px-4 mb-8">
           <StickyNote color="blue" rotation="-1" className="p-8">
             <div className="text-center mb-6">
@@ -451,7 +452,7 @@ export default function Results() {
       )}
 
       {/* CVQ Values Insights (Premium Users Only) */}
-      {cvqResult && assessment?.assessmentType === 'kolb' && (
+      {cvqResult && isPremiumAssessment(assessment?.assessmentType) && (
         <div className="max-w-4xl mx-auto px-4 mb-8">
           <StickyNote color="purple" rotation="1" className="p-8">
             <div className="text-center mb-6">
@@ -605,8 +606,8 @@ export default function Results() {
         </div>
       )}
 
-      {/* Upgrade Prompt (Free Users Only) */}
-      {assessment?.assessmentType !== 'kolb' && (
+      {/* Upgrade Prompt (Free Users Only - hide for all premium tiers including school) */}
+      {!isPremiumAssessment(assessment?.assessmentType) && (
         <div className="max-w-4xl mx-auto px-4 mb-8">
           <StickyNote color="purple" rotation="1" className="p-8">
             <div className="text-center mb-6">
