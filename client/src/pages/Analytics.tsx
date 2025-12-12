@@ -135,10 +135,14 @@ export default function Analytics() {
   const topCareer = careers?.[0];
 
   // Calculate top grade level for the selected country
-  const topGrade = overview?.gradeDistribution && overview.gradeDistribution.length > 0
+  const topGradeRaw = overview?.gradeDistribution && overview.gradeDistribution.length > 0
     ? overview.gradeDistribution.reduce((prev, current) => 
         (current.count > prev.count) ? current : prev
       ).grade
+    : null;
+  // Format grade - handle "grade11" format by extracting number
+  const topGradeFormatted = topGradeRaw 
+    ? topGradeRaw.replace(/^grade/i, '').trim()
     : null;
 
   return (
@@ -315,7 +319,7 @@ export default function Analytics() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-muted-foreground text-sm mb-1">Total Students</p>
-                <p className="text-3xl font-bold" data-testid="metric-total-students">
+                <p className="text-2xl font-bold" data-testid="metric-total-students">
                   {overviewLoading ? "..." : overview?.totalStudents.toLocaleString() || 0}
                 </p>
               </div>
@@ -327,7 +331,7 @@ export default function Analytics() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-muted-foreground text-sm mb-1">Completion Rate</p>
-                <p className="text-3xl font-bold" data-testid="metric-completion-rate">
+                <p className="text-2xl font-bold" data-testid="metric-completion-rate">
                   {overviewLoading ? "..." : `${completionRate}%`}
                 </p>
               </div>
@@ -339,8 +343,8 @@ export default function Analytics() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-muted-foreground text-sm mb-1">Top Grade Level</p>
-                <p className="text-3xl font-bold" data-testid="metric-top-grade">
-                  {overviewLoading ? "..." : topGrade ? `Grade ${topGrade}` : "N/A"}
+                <p className="text-2xl font-bold" data-testid="metric-top-grade">
+                  {overviewLoading ? "..." : topGradeFormatted ? `Grade ${topGradeFormatted}` : "N/A"}
                 </p>
               </div>
               <GraduationCap className="w-8 h-8 text-primary" />
@@ -351,7 +355,7 @@ export default function Analytics() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-muted-foreground text-sm mb-1">Top Career</p>
-                <p className="text-lg font-bold line-clamp-2" data-testid="metric-top-career">
+                <p className="text-2xl font-bold line-clamp-2" data-testid="metric-top-career">
                   {careersLoading ? "..." : topCareer?.careerTitle || "N/A"}
                 </p>
               </div>
