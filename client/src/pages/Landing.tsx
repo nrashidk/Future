@@ -116,12 +116,14 @@ export default function Landing() {
             </Button>
           </div>
 
-          <div className="inline-flex items-center gap-2 bg-primary/10 px-4 py-2 rounded-full">
-            <Users className="w-5 h-5 text-primary" />
-            <span className="text-sm font-medium" data-testid="text-student-count">
-              Trusted by {displayCount} student{isPlural ? 's' : ''}
-            </span>
-          </div>
+          <StickyNote color="pink" rotation="1" className="inline-block px-6 py-3">
+            <div className="flex items-center gap-2">
+              <Users className="w-5 h-5 text-primary" />
+              <span className="text-sm font-medium" data-testid="text-student-count">
+                Trusted by {displayCount} student{isPlural ? 's' : ''}
+              </span>
+            </div>
+          </StickyNote>
 
           {/* School Logos Section - Auto-scrolling in Sticky Note */}
           {organizations.length > 0 && (
