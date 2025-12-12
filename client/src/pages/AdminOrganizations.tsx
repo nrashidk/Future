@@ -19,7 +19,7 @@ import { Separator } from "@/components/ui/separator";
 import { 
   Home, Plus, Download, Upload, Edit, Trash2, GraduationCap, 
   Users, Building2, Key, RefreshCw, FileDown, Lock, LockOpen, User, LogOut, BarChart, Shield, FileQuestion, Gift,
-  Link as LinkIcon, X
+  Link as LinkIcon, X, ClipboardCheck
 } from "lucide-react";
 import { StickyNote } from "@/components/StickyNote";
 import ContributeQuestions from "@/components/admin/ContributeQuestions";
@@ -254,10 +254,10 @@ export default function AdminOrganizations() {
                     Super Admin
                   </Link>
                 </Button>
-                <Button variant="outline" size="sm" asChild data-testid="button-nav-schools">
+                <Button variant="outline" size="sm" asChild data-testid="button-nav-admin">
                   <Link href="/admin/organizations">
                     <Building2 className="w-4 h-4 mr-2" />
-                    Schools
+                    Admin
                   </Link>
                 </Button>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-questions">
@@ -276,10 +276,16 @@ export default function AdminOrganizations() {
             )}
             {user?.accountType === 'org_admin' && (
               <>
-                <Button variant="outline" size="sm" asChild data-testid="button-nav-schools">
+                <Button variant="outline" size="sm" asChild data-testid="button-nav-admin">
                   <Link href="/admin/organizations">
                     <Building2 className="w-4 h-4 mr-2" />
-                    Schools
+                    Admin
+                  </Link>
+                </Button>
+                <Button variant="outline" size="sm" asChild data-testid="button-nav-assessment">
+                  <Link href="/assessment">
+                    <ClipboardCheck className="w-4 h-4 mr-2" />
+                    Assessment
                   </Link>
                 </Button>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">

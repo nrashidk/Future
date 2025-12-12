@@ -25,7 +25,8 @@ import {
   Download,
   FileDown,
   Shield,
-  FileQuestion
+  FileQuestion,
+  ClipboardCheck
 } from "lucide-react";
 
 interface AnalyticsOverview {
@@ -159,10 +160,10 @@ export default function Analytics() {
                     Super Admin
                   </Link>
                 </Button>
-                <Button variant="outline" size="sm" asChild data-testid="button-nav-schools">
+                <Button variant="outline" size="sm" asChild data-testid="button-nav-admin">
                   <Link href="/admin/organizations">
                     <Building2 className="w-4 h-4 mr-2" />
-                    Schools
+                    Admin
                   </Link>
                 </Button>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-questions">
@@ -181,10 +182,16 @@ export default function Analytics() {
             )}
             {isOrgAdmin && (
               <>
-                <Button variant="outline" size="sm" asChild data-testid="button-nav-schools">
+                <Button variant="outline" size="sm" asChild data-testid="button-nav-admin">
                   <Link href="/admin/organizations">
                     <Building2 className="w-4 h-4 mr-2" />
-                    Schools
+                    Admin
+                  </Link>
+                </Button>
+                <Button variant="outline" size="sm" asChild data-testid="button-nav-assessment">
+                  <Link href="/assessment">
+                    <ClipboardCheck className="w-4 h-4 mr-2" />
+                    Assessment
                   </Link>
                 </Button>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">

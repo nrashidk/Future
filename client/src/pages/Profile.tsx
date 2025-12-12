@@ -131,10 +131,10 @@ export default function Profile() {
                     Super Admin
                   </Link>
                 </Button>
-                <Button variant="outline" size="sm" asChild data-testid="button-nav-schools">
+                <Button variant="outline" size="sm" asChild data-testid="button-nav-admin">
                   <Link href="/admin/organizations">
                     <Building2 className="w-4 h-4 mr-2" />
-                    Schools
+                    Admin
                   </Link>
                 </Button>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-questions">
@@ -153,10 +153,16 @@ export default function Profile() {
             )}
             {isOrgAdmin && (
               <>
-                <Button variant="outline" size="sm" asChild data-testid="button-nav-schools">
+                <Button variant="outline" size="sm" asChild data-testid="button-nav-admin">
                   <Link href="/admin/organizations">
                     <Building2 className="w-4 h-4 mr-2" />
-                    Schools
+                    Admin
+                  </Link>
+                </Button>
+                <Button variant="outline" size="sm" asChild data-testid="button-nav-assessment">
+                  <Link href="/assessment">
+                    <ClipboardCheck className="w-4 h-4 mr-2" />
+                    Assessment
                   </Link>
                 </Button>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">
@@ -167,12 +173,14 @@ export default function Profile() {
                 </Button>
               </>
             )}
-            <Button variant="outline" size="sm" asChild data-testid="button-nav-assessment">
-              <Link href="/assessment">
-                <ClipboardCheck className="w-4 h-4 mr-2" />
-                Assessment
-              </Link>
-            </Button>
+            {!isOrgAdmin && !isSuperadmin && (
+              <Button variant="outline" size="sm" asChild data-testid="button-nav-assessment">
+                <Link href="/assessment">
+                  <ClipboardCheck className="w-4 h-4 mr-2" />
+                  Assessment
+                </Link>
+              </Button>
+            )}
             <Button variant="outline" size="sm" asChild data-testid="button-nav-profile">
               <Link href="/profile">
                 <User className="w-4 h-4 mr-2" />
