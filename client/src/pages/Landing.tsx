@@ -123,33 +123,39 @@ export default function Landing() {
             </span>
           </div>
 
-          {/* School Logos Section - Auto-scrolling */}
+          {/* School Logos Section - Auto-scrolling in Sticky Note */}
           {organizations.length > 0 && (
-            <div className="mt-12 w-full">
-              <div className="overflow-hidden">
-                <div className="flex items-center gap-12 animate-scroll">
-                  {/* Duplicate organizations twice for seamless loop */}
-                  {[...organizations, ...organizations].map((org, index) => (
-                    <div key={`${org.id}-${index}`} className="flex flex-col items-center gap-2 opacity-70 hover:opacity-100 transition-opacity flex-shrink-0">
-                      {org.logoUrl ? (
-                        <img
-                          src={org.logoUrl}
-                          alt={`${org.name} logo`}
-                          className="h-12 w-auto object-contain grayscale hover:grayscale-0 transition-all"
-                          data-testid={`img-school-logo-${org.id}-${index}`}
-                        />
-                      ) : (
-                        <div className="h-12 w-24 flex items-center justify-center bg-muted/30 rounded border border-border">
-                          <Building2 className="w-6 h-6 text-muted-foreground" />
-                        </div>
-                      )}
-                      <span className="text-xs text-muted-foreground text-center w-[120px] truncate" data-testid={`text-school-name-${org.id}-${index}`}>
-                        {org.name}
-                      </span>
-                    </div>
-                  ))}
+            <div className="mt-12 w-full max-w-4xl mx-auto">
+              <StickyNote color="yellow" rotation="0" className="p-6">
+                <div className="flex items-center justify-center gap-2 mb-4">
+                  <Building2 className="w-5 h-5 text-primary" />
+                  <h3 className="text-lg font-bold text-center">Partner Schools</h3>
                 </div>
-              </div>
+                <div className="overflow-hidden">
+                  <div className="flex items-center gap-12 animate-scroll">
+                    {/* Duplicate organizations twice for seamless loop */}
+                    {[...organizations, ...organizations].map((org, index) => (
+                      <div key={`${org.id}-${index}`} className="flex flex-col items-center gap-2 opacity-70 hover:opacity-100 transition-opacity flex-shrink-0">
+                        {org.logoUrl ? (
+                          <img
+                            src={org.logoUrl}
+                            alt={`${org.name} logo`}
+                            className="h-12 w-auto object-contain grayscale hover:grayscale-0 transition-all"
+                            data-testid={`img-school-logo-${org.id}-${index}`}
+                          />
+                        ) : (
+                          <div className="h-12 w-24 flex items-center justify-center bg-muted/30 rounded border border-border">
+                            <Building2 className="w-6 h-6 text-muted-foreground" />
+                          </div>
+                        )}
+                        <span className="text-xs text-muted-foreground text-center w-[120px] truncate" data-testid={`text-school-name-${org.id}-${index}`}>
+                          {org.name}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </StickyNote>
             </div>
           )}
         </div>
