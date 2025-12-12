@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { StickyNote } from "@/components/StickyNote";
+import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -224,6 +225,10 @@ export default function Analytics() {
           </div>
         </div>
       </header>
+
+      <div className="max-w-4xl mx-auto px-4 pt-4">
+        <AnnouncementBanner />
+      </div>
 
       <div className="max-w-7xl mx-auto py-12 px-4">
         {/* Header */}
