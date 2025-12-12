@@ -13,7 +13,7 @@ import CVQStep from "@/components/CVQStep";
 import { CountryStep } from "@/components/assessment/CountryStep";
 import { AspirationsStep } from "@/components/assessment/AspirationsStep";
 import { QuizStep } from "@/components/assessment/QuizStep";
-import { GraduationCap, LogIn, LogOut, User, ClipboardCheck } from "lucide-react";
+import { GraduationCap, LogIn, LogOut, User, ClipboardCheck, Building2, BarChart, Shield, FileQuestion } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface AssessmentData {
@@ -369,22 +369,95 @@ export default function Assessment() {
             </div>
           </div>
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setLocation("/assessment")}
-              data-testid="button-assessment"
-            >
-              <ClipboardCheck className="w-4 h-4 mr-2" />
-              Assessment
-            </Button>
+            {user?.accountType === 'superadmin' && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setLocation("/superadmin")}
+                  data-testid="button-nav-superadmin"
+                >
+                  <Shield className="w-4 h-4 mr-2" />
+                  Super Admin
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setLocation("/admin/organizations")}
+                  data-testid="button-nav-admin"
+                >
+                  <Building2 className="w-4 h-4 mr-2" />
+                  Admin
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setLocation("/admin")}
+                  data-testid="button-nav-questions"
+                >
+                  <FileQuestion className="w-4 h-4 mr-2" />
+                  Quiz
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setLocation("/analytics")}
+                  data-testid="button-nav-analytics"
+                >
+                  <BarChart className="w-4 h-4 mr-2" />
+                  Analytics
+                </Button>
+              </>
+            )}
+            {user?.accountType === 'org_admin' && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setLocation("/admin/organizations")}
+                  data-testid="button-nav-admin"
+                >
+                  <Building2 className="w-4 h-4 mr-2" />
+                  Admin
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setLocation("/assessment")}
+                  data-testid="button-nav-assessment"
+                >
+                  <ClipboardCheck className="w-4 h-4 mr-2" />
+                  Assessment
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setLocation("/analytics")}
+                  data-testid="button-nav-analytics"
+                >
+                  <BarChart className="w-4 h-4 mr-2" />
+                  Analytics
+                </Button>
+              </>
+            )}
+            {user?.accountType !== 'superadmin' && user?.accountType !== 'org_admin' && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setLocation("/assessment")}
+                data-testid="button-nav-assessment"
+              >
+                <ClipboardCheck className="w-4 h-4 mr-2" />
+                Assessment
+              </Button>
+            )}
             {isAuthenticated && (
               <>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setLocation("/profile")}
-                  data-testid="button-profile"
+                  data-testid="button-nav-profile"
                 >
                   <User className="w-4 h-4 mr-2" />
                   Profile
