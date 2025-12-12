@@ -1013,7 +1013,7 @@ export function registerAdminRoutes(app: Express) {
 
       // Get all members with completed assessments
       const members = await storage.getOrganizationMembersByOrganizationId(organizationId);
-      const completedMembers = members.filter(m => m.isLocked);
+      const completedMembers = members.filter(m => m.hasCompletedAssessment);
 
       if (completedMembers.length === 0) {
         return res.status(404).json({ message: "No completed assessments found" });
