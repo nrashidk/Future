@@ -125,39 +125,48 @@ export default function Landing() {
             </div>
           </StickyNote>
 
-          {/* School Logos Section - Auto-scrolling in Sticky Note */}
+          {/* School Logos Section - Auto-scrolling with individual sticky notes */}
           {organizations.length > 0 && (
-            <div className="mt-12 w-full max-w-4xl mx-auto">
-              <StickyNote color="yellow" rotation="0" className="p-6">
-                <div className="flex items-center justify-center gap-2 mb-4">
-                  <Building2 className="w-5 h-5 text-primary" />
-                  <h3 className="text-lg font-bold text-center">Partner Schools</h3>
+            <div className="mt-12 w-full">
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <Building2 className="w-5 h-5 text-primary" />
+                <h3 className="text-lg font-bold text-center">Partner Schools</h3>
+              </div>
+              <div className="overflow-hidden">
+                <div className="flex items-center gap-6 animate-scroll">
+                  {/* Duplicate organizations twice for seamless loop */}
+                  {[...organizations, ...organizations].map((org, index) => {
+                    const colors: Array<"yellow" | "pink" | "blue" | "green"> = ["yellow", "pink", "blue", "green"];
+                    const rotations = ["-1", "1", "-2", "2"];
+                    return (
+                      <StickyNote 
+                        key={`${org.id}-${index}`}
+                        color={colors[index % colors.length]} 
+                        rotation={rotations[index % rotations.length]}
+                        className="flex-shrink-0 p-4 hover:scale-105 transition-transform"
+                      >
+                        <div className="flex flex-col items-center gap-2 w-[100px]">
+                          {org.logoUrl ? (
+                            <img
+                              src={org.logoUrl}
+                              alt={`${org.name} logo`}
+                              className="h-10 w-auto object-contain"
+                              data-testid={`img-school-logo-${org.id}-${index}`}
+                            />
+                          ) : (
+                            <div className="h-10 w-16 flex items-center justify-center">
+                              <Building2 className="w-8 h-8 text-muted-foreground" />
+                            </div>
+                          )}
+                          <span className="text-xs text-muted-foreground text-center w-full truncate" data-testid={`text-school-name-${org.id}-${index}`}>
+                            {org.name}
+                          </span>
+                        </div>
+                      </StickyNote>
+                    );
+                  })}
                 </div>
-                <div className="overflow-hidden">
-                  <div className="flex items-center gap-12 animate-scroll">
-                    {/* Duplicate organizations twice for seamless loop */}
-                    {[...organizations, ...organizations].map((org, index) => (
-                      <div key={`${org.id}-${index}`} className="flex flex-col items-center gap-2 opacity-70 hover:opacity-100 transition-opacity flex-shrink-0">
-                        {org.logoUrl ? (
-                          <img
-                            src={org.logoUrl}
-                            alt={`${org.name} logo`}
-                            className="h-12 w-auto object-contain grayscale hover:grayscale-0 transition-all"
-                            data-testid={`img-school-logo-${org.id}-${index}`}
-                          />
-                        ) : (
-                          <div className="h-12 w-24 flex items-center justify-center bg-muted/30 rounded border border-border">
-                            <Building2 className="w-6 h-6 text-muted-foreground" />
-                          </div>
-                        )}
-                        <span className="text-xs text-muted-foreground text-center w-[120px] truncate" data-testid={`text-school-name-${org.id}-${index}`}>
-                          {org.name}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </StickyNote>
+              </div>
             </div>
           )}
         </div>
