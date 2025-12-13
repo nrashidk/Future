@@ -156,19 +156,18 @@ export default function Register() {
                         <Input
                           type={showPassword ? "text" : "password"}
                           placeholder="At least 8 characters"
+                          className="pr-10"
                           {...field}
                           data-testid="input-password"
                         />
-                        <Button
+                        <button
                           type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                          className="absolute right-3 top-1/2 -translate-y-1/2"
                           onClick={() => setShowPassword(!showPassword)}
                           data-testid="button-toggle-password"
                         >
                           {showPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
-                        </Button>
+                        </button>
                       </div>
                     </FormControl>
                     <FormMessage />
@@ -187,19 +186,18 @@ export default function Register() {
                         <Input
                           type={showConfirmPassword ? "text" : "password"}
                           placeholder="Confirm your password"
+                          className="pr-10"
                           {...field}
                           data-testid="input-confirm-password"
                         />
-                        <Button
+                        <button
                           type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                          className="absolute right-3 top-1/2 -translate-y-1/2"
                           onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                           data-testid="button-toggle-confirm-password"
                         >
                           {showConfirmPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
-                        </Button>
+                        </button>
                       </div>
                     </FormControl>
                     <FormMessage />
