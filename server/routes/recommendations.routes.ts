@@ -4,7 +4,7 @@ import { generateRecommendations } from "../services/matching";
 import { syncWEFSkillsProfile } from "../services/wefOrchestrator";
 import { recommendationsLimiter } from "../middleware/rateLimiter.middleware";
 import { db } from "../db";
-import { recommendations, assessments } from "@shared/schema";
+import { recommendations, assessments, organizationMembers } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import {
   generateEnhancedReasoning,
@@ -130,9 +130,17 @@ export function registerRecommendationsRoutes(app: Express) {
         }
 
         // Mark assessment as completed
+        const completedAt = new Date();
         await tx.update(assessments)
-          .set({ isCompleted: true, completedAt: new Date() })
+          .set({ isCompleted: true, completedAt })
           .where(eq(assessments.id, req.params.assessmentId));
+
+        // Update organization member's completion status if user belongs to an organization
+        if (assessment.userId) {
+          await tx.update(organizationMembers)
+            .set({ hasCompletedAssessment: true, assessmentCompletedAt: completedAt })
+            .where(eq(organizationMembers.userId, assessment.userId));
+        }
       });
 
       res.json({ 
