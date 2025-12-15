@@ -1223,8 +1223,8 @@ export function registerAdminRoutes(app: Express) {
 
         const fullName = `${memberUser.firstName} ${memberUser.lastName}`.trim();
         const assessments = await storage.getAssessmentsByUser(member.userId);
-        const completedAssessment = assessments.find((a: any) => a.isComplete);
-        const inProgressAssessment = assessments.find((a: any) => !a.isComplete);
+        const completedAssessment = assessments.find((a: any) => a.isCompleted);
+        const inProgressAssessment = assessments.find((a: any) => !a.isCompleted);
         const lastLogin = memberUser.lastLoginAt ? new Date(memberUser.lastLoginAt).toLocaleDateString() : '';
         const role = member.role === 'admin' ? 'Admin' : 'Student';
         const status = getMemberStatus(member, memberUser, !!completedAssessment, !!inProgressAssessment);
