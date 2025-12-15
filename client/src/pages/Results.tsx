@@ -86,7 +86,7 @@ function mapSubjectsToVisionSectors(
 }
 
 export default function Results() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   
@@ -606,8 +606,8 @@ export default function Results() {
         </div>
       )}
 
-      {/* Upgrade Prompt (Free Users Only - hide for all premium tiers including school) */}
-      {!isPremiumAssessment(assessment?.assessmentType) && (
+      {/* Upgrade Prompt (Free Users Only - hide for premium users and premium assessments) */}
+      {!isPremiumAssessment(assessment?.assessmentType) && !user?.isPremium && (
         <div className="max-w-4xl mx-auto px-4 mb-8">
           <StickyNote color="purple" rotation="1" className="p-8">
             <div className="text-center mb-6">
