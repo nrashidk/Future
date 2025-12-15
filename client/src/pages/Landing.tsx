@@ -56,12 +56,14 @@ export default function Landing() {
             <span className="font-bold text-lg">Future Pathways</span>
           </Link>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" asChild data-testid="button-nav-login">
-              <Link href="/login">
-                <LogIn className="w-4 h-4 mr-2" />
-                Login
-              </Link>
-            </Button>
+            {!user && (
+              <Button variant="outline" size="sm" asChild data-testid="button-nav-login">
+                <Link href="/login">
+                  <LogIn className="w-4 h-4 mr-2" />
+                  Login
+                </Link>
+              </Button>
+            )}
             {user && (
               <Button variant="outline" size="sm" asChild data-testid="button-nav-profile">
                 <Link href="/profile">

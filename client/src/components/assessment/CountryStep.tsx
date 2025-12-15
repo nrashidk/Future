@@ -240,7 +240,7 @@ export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps
             </StickyNote>
           )}
 
-          {countryDetails.targets && (
+          {countryDetails.targets && typeof countryDetails.targets === 'object' && Object.keys(countryDetails.targets).length > 0 && (
             <StickyNote color="purple" rotation="1">
               <Collapsible open={isDetailsOpen} onOpenChange={setIsDetailsOpen}>
                 <div className="flex items-start gap-3 mb-3">
@@ -268,7 +268,7 @@ export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps
                 </CollapsibleTrigger>
 
                 <CollapsibleContent className="mt-4 space-y-4">
-                  {Object.entries(countryDetails.targets).map(([category, targets]: [string, any]) => (
+                  {Object.entries(countryDetails.targets || {}).map(([category, targets]: [string, any]) => (
                     <div key={category} className="border-l-2 border-primary/30 pl-4">
                       <h5 className="font-bold capitalize mb-2 text-primary">
                         {category === "tech" ? "Technology" : category === "climate" ? "Climate & Environment" : category === "economic" ? "Economy" : category}
