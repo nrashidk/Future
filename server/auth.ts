@@ -202,6 +202,15 @@ export async function setupAuth(app: Express) {
     );
   }
 
+  // Endpoint to check which auth methods are available
+  app.get("/api/auth/config", (req, res) => {
+    res.json({
+      google: !!process.env.GOOGLE_CLIENT_ID,
+      microsoft: !!process.env.MICROSOFT_CLIENT_ID,
+      local: true
+    });
+  });
+
   app.get("/api/login", (req, res) => {
     res.redirect("/login");
   });

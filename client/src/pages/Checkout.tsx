@@ -123,8 +123,9 @@ function CheckoutForm({ amount, studentCount }: { amount: number | null; student
         });
         const data = await res.json();
 
-        // Invalidate auth cache
-        await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+        // Refetch auth cache and wait for it to complete before continuing
+        // This ensures isPremium status is updated before redirecting to assessment
+        await queryClient.refetchQueries({ queryKey: ["/api/auth/user"] });
 
         // Display credentials for new users in modal
         if (data.isNewUser && data.credentials) {

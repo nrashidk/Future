@@ -6,10 +6,21 @@ import { SiGoogle } from "react-icons/si";
 import { BsMicrosoft } from "react-icons/bs";
 import { Link, useLocation } from "wouter";
 import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+
+interface AuthConfig {
+  google: boolean;
+  microsoft: boolean;
+  local: boolean;
+}
 
 export default function Login() {
   const [location] = useLocation();
   const [error, setError] = useState<string | null>(null);
+
+  const { data: authConfig } = useQuery<AuthConfig>({
+    queryKey: ["/api/auth/config"],
+  });
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -33,6 +44,8 @@ export default function Login() {
     window.location.href = "/api/auth/microsoft";
   };
 
+  const hasOAuthOptions = authConfig?.google || authConfig?.microsoft;
+
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/10 via-background to-accent/10">
       <Card className="w-full max-w-md" data-testid="card-login">
@@ -54,34 +67,40 @@ export default function Login() {
             </div>
           )}
           
-          <Button
-            variant="outline"
-            className="w-full h-12 text-base gap-3"
-            onClick={handleGoogleLogin}
-            data-testid="button-google-login"
-          >
-            <SiGoogle className="h-5 w-5" />
-            Continue with Google
-          </Button>
+          {authConfig?.google && (
+            <Button
+              variant="outline"
+              className="w-full h-12 text-base gap-3"
+              onClick={handleGoogleLogin}
+              data-testid="button-google-login"
+            >
+              <SiGoogle className="h-5 w-5" />
+              Continue with Google
+            </Button>
+          )}
           
-          <Button
-            variant="outline"
-            className="w-full h-12 text-base gap-3"
-            onClick={handleMicrosoftLogin}
-            data-testid="button-microsoft-login"
-          >
-            <BsMicrosoft className="h-5 w-5" />
-            Continue with Microsoft
-          </Button>
+          {authConfig?.microsoft && (
+            <Button
+              variant="outline"
+              className="w-full h-12 text-base gap-3"
+              onClick={handleMicrosoftLogin}
+              data-testid="button-microsoft-login"
+            >
+              <BsMicrosoft className="h-5 w-5" />
+              Continue with Microsoft
+            </Button>
+          )}
 
-          <div className="relative my-4">
-            <div className="absolute inset-0 flex items-center">
-              <Separator />
+          {hasOAuthOptions && (
+            <div className="relative my-4">
+              <div className="absolute inset-0 flex items-center">
+                <Separator />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">Or</span>
+              </div>
             </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">Or</span>
-            </div>
-          </div>
+          )}
 
           <Button
             variant="secondary"

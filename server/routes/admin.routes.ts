@@ -905,7 +905,7 @@ export function registerAdminRoutes(app: Express) {
       const { generatePassword } = await import("../utils/passwordGenerator");
       const { hashPassword } = await import("../utils/passwordHash");
 
-      const newPassword = generatePassword(passwordComplexity as 'medium' | 'strong');
+      const newPassword = generatePassword(passwordComplexity as 'easy' | 'medium' | 'strong');
       const passwordHash = await hashPassword(newPassword);
 
       await storage.upsertUser({

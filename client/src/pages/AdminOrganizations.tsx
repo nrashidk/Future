@@ -25,6 +25,47 @@ import { StickyNote } from "@/components/StickyNote";
 import ContributeQuestions from "@/components/admin/ContributeQuestions";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 
+async function downloadFile(url: string, defaultFilename: string, toast: any, setIsDownloading?: (v: boolean) => void): Promise<void> {
+  try {
+    setIsDownloading?.(true);
+    const response = await fetch(url, { credentials: 'include' });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ message: 'Download failed' }));
+      throw new Error(errorData.message || `HTTP error ${response.status}`);
+    }
+    
+    const contentDisposition = response.headers.get('Content-Disposition');
+    let filename = defaultFilename;
+    if (contentDisposition) {
+      const match = contentDisposition.match(/filename="?([^";\n]+)"?/i);
+      if (match) {
+        filename = match[1];
+      }
+    }
+    
+    const blob = await response.blob();
+    const downloadUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = downloadUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(downloadUrl);
+    
+    toast({ title: "Success", description: "Download started" });
+  } catch (error: any) {
+    toast({ 
+      title: "Download Failed", 
+      description: error.message || "Failed to download file", 
+      variant: "destructive" 
+    });
+  } finally {
+    setIsDownloading?.(false);
+  }
+}
+
 interface Organization {
   id: string;
   name: string;
@@ -588,7 +629,11 @@ export default function AdminOrganizations() {
                     size="sm" 
                     data-testid="button-export-reports"
                     onClick={() => {
-                      window.open(`/api/admin/organizations/${selectedOrgId}/export/reports`, '_blank');
+                      downloadFile(
+                        `/api/admin/organizations/${selectedOrgId}/export/reports`,
+                        'reports.zip',
+                        toast
+                      );
                     }}
                     disabled={members.filter(m => m.isLocked).length === 0}
                   >
@@ -600,7 +645,11 @@ export default function AdminOrganizations() {
                     size="sm" 
                     data-testid="button-export-csv"
                     onClick={() => {
-                      window.open(`/api/admin/organizations/${selectedOrgId}/export/csv`, '_blank');
+                      downloadFile(
+                        `/api/admin/organizations/${selectedOrgId}/export/csv`,
+                        'student_data.csv',
+                        toast
+                      );
                     }}
                     disabled={members.length === 0}
                   >

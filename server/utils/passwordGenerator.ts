@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 
-export type PasswordComplexity = 'medium' | 'strong';
+export type PasswordComplexity = 'easy' | 'medium' | 'strong';
 
 interface PasswordConfig {
   length: number;
@@ -11,15 +11,22 @@ interface PasswordConfig {
 }
 
 const COMPLEXITY_CONFIGS: Record<PasswordComplexity, PasswordConfig> = {
+  easy: {
+    length: 8,
+    lowercase: true,
+    uppercase: false,
+    numbers: true,
+    symbols: false,
+  },
   medium: {
-    length: 10,
+    length: 12,
     lowercase: true,
     uppercase: true,
     numbers: true,
     symbols: false,
   },
   strong: {
-    length: 12,
+    length: 16,
     lowercase: true,
     uppercase: true,
     numbers: true,
