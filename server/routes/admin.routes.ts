@@ -1266,9 +1266,16 @@ export function registerAdminRoutes(app: Express) {
         const riasecScores = completedAssessment.riasecScores as any;
         // Filter out non-numeric entries like 'top3' and 'ranking' before sorting
         const riasecEntries = riasecScores ? Object.entries(riasecScores).filter(([key, val]) => typeof val === 'number') : [];
-        const topRiasec = riasecEntries.length > 0 ? riasecEntries.sort((a: any, b: any) => b[1] - a[1])[0]?.[0] || '' : '';
+        const topRiasecCode = riasecEntries.length > 0 ? riasecEntries.sort((a: any, b: any) => b[1] - a[1])[0]?.[0] || '' : '';
+        // Map RIASEC codes to full names
+        const riasecNames: Record<string, string> = {
+          'R': 'Realistic', 'I': 'Investigative', 'A': 'Artistic',
+          'S': 'Social', 'E': 'Enterprising', 'C': 'Conventional'
+        };
+        const topRiasec = riasecNames[topRiasecCode] || topRiasecCode;
         const cvqScores = completedAssessment.cvqScores as any;
-        const topValue = cvqScores ? Object.entries(cvqScores).filter(([key, val]) => typeof val === 'number').sort((a: any, b: any) => b[1] - a[1])[0]?.[0] || '' : '';
+        const cvqEntries = cvqScores ? Object.entries(cvqScores).filter(([key, val]) => typeof val === 'number') : [];
+        const topValue = cvqEntries.length > 0 ? cvqEntries.sort((a: any, b: any) => b[1] - a[1])[0]?.[0] || '' : '';
         // quizScore can be a number directly or an object with .overall
         const quizScoreRaw = completedAssessment.quizScore;
         const quizScore = typeof quizScoreRaw === 'number' ? quizScoreRaw : ((quizScoreRaw as any)?.overall ? Math.round((quizScoreRaw as any).overall) : 0);
