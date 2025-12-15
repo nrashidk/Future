@@ -1473,6 +1473,7 @@ function CreateMemberForm({ organizationId, onSuccess }: { organizationId: strin
     fullName: "",
     grade: "",
     studentId: "",
+    studentGender: "",
     username: "",
     passwordComplexity: "medium" as "easy" | "medium" | "strong",
   });
@@ -1604,6 +1605,19 @@ function CreateMemberForm({ organizationId, onSuccess }: { organizationId: strin
               data-testid="input-student-id"
             />
           </div>
+        </div>
+
+        <div>
+          <Label htmlFor="student-gender">Gender</Label>
+          <Select value={formData.studentGender} onValueChange={(value) => setFormData(f => ({ ...f, studentGender: value }))}>
+            <SelectTrigger id="student-gender" data-testid="select-student-gender">
+              <SelectValue placeholder="Select gender (optional)" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="male">Male</SelectItem>
+              <SelectItem value="female">Female</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <div>
