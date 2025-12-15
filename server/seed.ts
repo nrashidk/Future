@@ -1585,15 +1585,16 @@ export async function seedDatabase() {
   // Seed Test Organization Admin Account (for testing admin functionality)
   console.log("\n👤 Seeding test organization admin account...");
   try {
+    const { hashPassword } = await import("./utils/passwordHash");
+    const { db } = await import("./db");
+    const { users, organizations, organizationMembers } = await import("@shared/schema");
+    const { eq } = await import("drizzle-orm");
+    
+    const adminPassword = "Admin123!";
+    const adminPasswordHash = await hashPassword(adminPassword);
+    
     const existingAdmin = await storage.getUserByUsername("schooladmin");
     if (!existingAdmin) {
-      const { hashPassword } = await import("./utils/passwordHash");
-      const { db } = await import("./db");
-      const { users, organizations, organizationMembers } = await import("@shared/schema");
-      
-      const adminPassword = "Admin123!";
-      const adminPasswordHash = await hashPassword(adminPassword);
-      
       // Create admin user
       const [adminUser] = await db
         .insert(users)
@@ -1634,7 +1635,9 @@ export async function seedDatabase() {
       console.log(`  🏫 Organization: ${testOrg.name}`);
       console.log(`  📊 Total Licenses: ${testOrg.totalLicenses}`);
     } else {
-      console.log("  Test admin account already exists (schooladmin)");
+      // Update password hash to ensure it's correct
+      await db.update(users).set({ passwordHash: adminPasswordHash }).where(eq(users.id, existingAdmin.id));
+      console.log("  Test admin account already exists (schooladmin) - password reset to default");
     }
   } catch (error: any) {
     console.error("  Error creating test admin:", error.message);
