@@ -548,8 +548,8 @@ export default function ContributionReviewQueue() {
                             Review
                           </Button>
                         )}
-                        {/* Claim button for approved/rejected - removes from queue */}
-                        {(sub.status === "approved" || sub.status === "rejected") && (
+                        {/* Claim button for approved - gives reward and removes from queue */}
+                        {sub.status === "approved" && (
                           <Button
                             size="sm"
                             variant="outline"
@@ -558,7 +558,7 @@ export default function ContributionReviewQueue() {
                             data-testid={`button-claim-${sub.id}`}
                           >
                             <CheckCircle className="w-4 h-4 mr-1" />
-                            Claim
+                            Claim & Award
                           </Button>
                         )}
                       </div>

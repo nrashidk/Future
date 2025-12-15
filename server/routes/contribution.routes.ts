@@ -583,7 +583,7 @@ router.post("/admin/:id/review", isAuthenticated, checkSuperadmin, async (req: R
   }
 });
 
-// Claim a submission (removes from queue after approval/rejection is complete)
+// Claim an approved submission (gives reward to school and removes from queue)
 router.post("/admin/:id/claim", isAuthenticated, checkSuperadmin, async (req: Request, res: Response) => {
   try {
     const submissionId = req.params.id;
@@ -593,9 +593,27 @@ router.post("/admin/:id/claim", isAuthenticated, checkSuperadmin, async (req: Re
       return res.status(404).json({ error: "Submission not found" });
     }
 
-    // Can only claim approved or rejected submissions
-    if (submission.status !== "approved" && submission.status !== "rejected") {
-      return res.status(400).json({ error: "Submission must be approved or rejected before claiming" });
+    // Can only claim approved submissions
+    if (submission.status !== "approved") {
+      return res.status(400).json({ error: "Only approved submissions can be claimed" });
+    }
+
+    // Transfer pending credits to actual reward credits
+    const creditsToAward = submission.creditsAwarded || 0;
+    if (creditsToAward > 0) {
+      const org = await storage.getOrganizationById(submission.organizationId);
+      if (org) {
+        const currentPending = (org as any).pendingRewardCredits || 0;
+        const currentReward = (org as any).rewardCredits || 0;
+        const currentYearly = (org as any).yearlyContributionCount || 0;
+        
+        // Move from pending to actual reward credits
+        await storage.updateOrganization(org.id, {
+          pendingRewardCredits: Math.max(0, currentPending - creditsToAward),
+          rewardCredits: currentReward + creditsToAward,
+          yearlyContributionCount: currentYearly + creditsToAward,
+        } as any);
+      }
     }
 
     // Update status to "claimed" to remove from queue
@@ -603,7 +621,10 @@ router.post("/admin/:id/claim", isAuthenticated, checkSuperadmin, async (req: Re
       status: "claimed",
     });
 
-    res.json({ message: "Submission claimed and removed from queue" });
+    res.json({ 
+      message: "Submission claimed and reward given to school",
+      creditsAwarded: creditsToAward,
+    });
   } catch (error) {
     console.error("Error claiming submission:", error);
     res.status(500).json({ error: "Failed to claim submission" });
