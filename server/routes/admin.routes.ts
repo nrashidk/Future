@@ -1291,7 +1291,7 @@ export function registerAdminRoutes(app: Express) {
           `"${lastLogin}"`,
           `"${status}"`,
           "Completed",
-          isPremiumAssessment(completedAssessment.assessmentType) ? 'Premium' : 'Free',
+          "Premium", // School students always have premium access
           `"${(country?.name || '').replace(/"/g, '""')}"`,
           `"${(topCareers[0] || '').replace(/"/g, '""')}"`,
           `"${(topCareers[1] || '').replace(/"/g, '""')}"`,
