@@ -471,7 +471,7 @@ router.get("/admin/submission/:id", isAuthenticated, checkSuperadmin, async (req
 });
 
 // Review and approve/reject submission
-router.post("/admin/review/:id", isAuthenticated, checkSuperadmin, async (req: Request, res: Response) => {
+router.post("/admin/:id/review", isAuthenticated, checkSuperadmin, async (req: Request, res: Response) => {
   try {
     const user = req.user as any;
     const submissionId = req.params.id;
