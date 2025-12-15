@@ -2750,7 +2750,8 @@ export class DatabaseStorage implements IStorage {
       .where(
         or(
           eq(contributionSubmissions.status, "pending"),
-          eq(contributionSubmissions.status, "in_review")
+          eq(contributionSubmissions.status, "in_review"),
+          eq(contributionSubmissions.status, "llm_verified")
         )
       )
       .orderBy(contributionSubmissions.createdAt);
