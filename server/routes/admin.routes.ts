@@ -1253,17 +1253,25 @@ export function registerAdminRoutes(app: Express) {
           continue;
         }
 
-        // Get recommendations
+        // Get recommendations and fetch career details
         const recommendations = await storage.getRecommendationsByAssessment(completedAssessment.id);
-        const topCareers = recommendations.slice(0, 3).map((r: any) => r.career?.title || '');
+        const topCareers: string[] = [];
+        for (const rec of recommendations.slice(0, 3)) {
+          const career = await storage.getCareerById(rec.careerId);
+          topCareers.push(career?.title || '');
+        }
 
         // Extract assessment data
         const learningStyle = (completedAssessment.kolbScores as any)?.learningStyle || '';
         const riasecScores = completedAssessment.riasecScores as any;
-        const topRiasec = riasecScores ? Object.entries(riasecScores).sort((a: any, b: any) => b[1] - a[1])[0]?.[0] || '' : '';
+        // Filter out non-numeric entries like 'top3' and 'ranking' before sorting
+        const riasecEntries = riasecScores ? Object.entries(riasecScores).filter(([key, val]) => typeof val === 'number') : [];
+        const topRiasec = riasecEntries.length > 0 ? riasecEntries.sort((a: any, b: any) => b[1] - a[1])[0]?.[0] || '' : '';
         const cvqScores = completedAssessment.cvqScores as any;
-        const topValue = cvqScores ? Object.entries(cvqScores).sort((a: any, b: any) => b[1] - a[1])[0]?.[0] || '' : '';
-        const quizScore = (completedAssessment.quizScore as any)?.overall ? Math.round((completedAssessment.quizScore as any).overall) : 0;
+        const topValue = cvqScores ? Object.entries(cvqScores).filter(([key, val]) => typeof val === 'number').sort((a: any, b: any) => b[1] - a[1])[0]?.[0] || '' : '';
+        // quizScore can be a number directly or an object with .overall
+        const quizScoreRaw = completedAssessment.quizScore;
+        const quizScore = typeof quizScoreRaw === 'number' ? quizScoreRaw : ((quizScoreRaw as any)?.overall ? Math.round((quizScoreRaw as any).overall) : 0);
         const completionDate = completedAssessment.completedAt ? new Date(completedAssessment.completedAt).toLocaleDateString() : '';
 
         const country = completedAssessment.countryId ? await storage.getCountryById(completedAssessment.countryId) : null;
