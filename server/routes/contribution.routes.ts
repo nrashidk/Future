@@ -491,7 +491,7 @@ router.post("/admin/review/:id", isAuthenticated, checkSuperadmin, async (req: R
       return res.status(404).json({ error: "Submission not found" });
     }
 
-    if (submission.status !== "pending" && submission.status !== "in_review") {
+    if (submission.status !== "pending" && submission.status !== "in_review" && submission.status !== "llm_verified") {
       return res.status(400).json({ error: "Submission already reviewed" });
     }
 
@@ -580,6 +580,35 @@ router.post("/admin/review/:id", isAuthenticated, checkSuperadmin, async (req: R
   } catch (error) {
     console.error("Error reviewing submission:", error);
     res.status(500).json({ error: "Failed to review submission" });
+  }
+});
+
+// Claim a submission for review (sets status to in_review)
+router.post("/admin/:id/claim", isAuthenticated, checkSuperadmin, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as any;
+    const submissionId = req.params.id;
+
+    const submission = await storage.getContributionSubmission(submissionId);
+    if (!submission) {
+      return res.status(404).json({ error: "Submission not found" });
+    }
+
+    // Can only claim pending or llm_verified submissions
+    if (submission.status !== "pending" && submission.status !== "llm_verified") {
+      return res.status(400).json({ error: "Submission cannot be claimed" });
+    }
+
+    // Update status to in_review
+    await storage.updateContributionSubmission(submissionId, {
+      status: "in_review",
+      reviewedByUserId: user.userId,
+    });
+
+    res.json({ message: "Submission claimed for review" });
+  } catch (error) {
+    console.error("Error claiming submission:", error);
+    res.status(500).json({ error: "Failed to claim submission" });
   }
 });
 
