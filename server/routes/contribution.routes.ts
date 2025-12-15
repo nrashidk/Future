@@ -583,10 +583,9 @@ router.post("/admin/:id/review", isAuthenticated, checkSuperadmin, async (req: R
   }
 });
 
-// Claim a submission for review (sets status to in_review)
+// Claim a submission (removes from queue after approval/rejection is complete)
 router.post("/admin/:id/claim", isAuthenticated, checkSuperadmin, async (req: Request, res: Response) => {
   try {
-    const user = req.user as any;
     const submissionId = req.params.id;
 
     const submission = await storage.getContributionSubmission(submissionId);
@@ -594,18 +593,17 @@ router.post("/admin/:id/claim", isAuthenticated, checkSuperadmin, async (req: Re
       return res.status(404).json({ error: "Submission not found" });
     }
 
-    // Can only claim pending or llm_verified submissions
-    if (submission.status !== "pending" && submission.status !== "llm_verified") {
-      return res.status(400).json({ error: "Submission cannot be claimed" });
+    // Can only claim approved or rejected submissions
+    if (submission.status !== "approved" && submission.status !== "rejected") {
+      return res.status(400).json({ error: "Submission must be approved or rejected before claiming" });
     }
 
-    // Update status to in_review
+    // Update status to "claimed" to remove from queue
     await storage.updateContributionSubmission(submissionId, {
-      status: "in_review",
-      reviewedByUserId: user.userId,
+      status: "claimed",
     });
 
-    res.json({ message: "Submission claimed for review" });
+    res.json({ message: "Submission claimed and removed from queue" });
   } catch (error) {
     console.error("Error claiming submission:", error);
     res.status(500).json({ error: "Failed to claim submission" });

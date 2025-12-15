@@ -2744,6 +2744,9 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllPendingContributionSubmissions(): Promise<ContributionSubmission[]> {
+    // Include all submissions that need superadmin attention:
+    // - llm_verified: ready for review
+    // - approved/rejected: reviewed but not yet claimed (remain in queue until claimed)
     return db
       .select()
       .from(contributionSubmissions)
@@ -2751,7 +2754,9 @@ export class DatabaseStorage implements IStorage {
         or(
           eq(contributionSubmissions.status, "pending"),
           eq(contributionSubmissions.status, "in_review"),
-          eq(contributionSubmissions.status, "llm_verified")
+          eq(contributionSubmissions.status, "llm_verified"),
+          eq(contributionSubmissions.status, "approved"),
+          eq(contributionSubmissions.status, "rejected")
         )
       )
       .orderBy(contributionSubmissions.createdAt);

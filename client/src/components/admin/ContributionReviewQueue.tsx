@@ -537,18 +537,8 @@ export default function ContributionReviewQueue() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        {(sub.status === "pending" || sub.status === "llm_verified") && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => claimMutation.mutate(sub.id)}
-                            disabled={claimMutation.isPending}
-                            data-testid={`button-claim-${sub.id}`}
-                          >
-                            Claim
-                          </Button>
-                        )}
-                        {(sub.status === "pending" || sub.status === "llm_verified" || sub.status === "in_review") && (
+                        {/* Review button for submissions ready for review */}
+                        {(sub.status === "llm_verified" || sub.status === "in_review") && (
                           <Button
                             size="sm"
                             onClick={() => openReviewDialog(sub)}
@@ -556,6 +546,19 @@ export default function ContributionReviewQueue() {
                           >
                             <Eye className="w-4 h-4 mr-1" />
                             Review
+                          </Button>
+                        )}
+                        {/* Claim button for approved/rejected - removes from queue */}
+                        {(sub.status === "approved" || sub.status === "rejected") && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => claimMutation.mutate(sub.id)}
+                            disabled={claimMutation.isPending}
+                            data-testid={`button-claim-${sub.id}`}
+                          >
+                            <CheckCircle className="w-4 h-4 mr-1" />
+                            Claim
                           </Button>
                         )}
                       </div>
