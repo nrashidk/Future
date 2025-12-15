@@ -274,7 +274,7 @@ export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps
                         {category === "tech" ? "Technology" : category === "climate" ? "Climate & Environment" : category === "economic" ? "Economy" : category}
                       </h5>
                       <div className="space-y-2">
-                        {(targets as any[]).map((target, idx) => (
+                        {Array.isArray(targets) && targets.map((target, idx) => (
                           <div key={idx} className="text-sm font-body">
                             <span className="font-semibold">{target.metric}:</span>{" "}
                             <span className="text-foreground/90">{target.value}</span>
