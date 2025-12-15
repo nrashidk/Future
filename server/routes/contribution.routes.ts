@@ -16,18 +16,23 @@ function getSuperadminEmails(): string[] {
     .filter(email => email.length > 0);
 }
 
-// Check if user is superadmin
-function isSuperadmin(req: Request): boolean {
-  const user = req.user as any;
+// Check if user is superadmin (async - fetches user from DB to check role)
+async function isSuperadmin(req: Request): Promise<boolean> {
+  const sessionUser = req.user as any;
+  if (!sessionUser) return false;
+  
+  // Fetch full user from database to get role
+  const user = await storage.getUser(sessionUser.userId);
   if (!user) return false;
   
   const superadminEmails = getSuperadminEmails();
-  return (!user.isLocal && user.email && superadminEmails.includes(user.email.toLowerCase())) || user.role === "superadmin";
+  return (!sessionUser.isLocal && user.email && superadminEmails.includes(user.email.toLowerCase())) || user.role === "superadmin";
 }
 
 // Middleware to check superadmin
-function checkSuperadmin(req: Request, res: Response, next: NextFunction) {
-  if (!isSuperadmin(req)) {
+async function checkSuperadmin(req: Request, res: Response, next: NextFunction) {
+  const isSuper = await isSuperadmin(req);
+  if (!isSuper) {
     return res.status(403).json({ error: "Superadmin access required" });
   }
   next();
