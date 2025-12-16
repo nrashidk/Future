@@ -433,7 +433,7 @@ export function registerAdminRoutes(app: Express) {
         return res.status(403).json({ message: "Forbidden" });
       }
 
-      const { username, fullName, grade, passwordComplexity = 'medium' } = req.body;
+      const { username, fullName, grade, passwordComplexity = 'medium', studentId, studentName, studentAge, studentGender } = req.body;
       const organizationId = req.params.id;
 
       if (!fullName || !grade) {
@@ -452,6 +452,10 @@ export function registerAdminRoutes(app: Express) {
         username,
         fullName,
         grade: grade.toString(),
+        studentId: studentId || undefined,
+        studentName: studentName || undefined,
+        studentAge: studentAge ? parseInt(studentAge.toString()) : undefined,
+        studentGender: studentGender || undefined,
         passwordComplexity: passwordComplexity as 'medium' | 'strong',
         organizationId,
       });
@@ -1377,7 +1381,7 @@ export function registerAdminRoutes(app: Express) {
         };
 
         const csvRows = [
-          'Username,Full Name,Grade,Status,Created Date'
+          'Username,Full Name,Grade,Gender,Status,Created Date'
         ];
 
         for (const member of members) {
@@ -1393,6 +1397,7 @@ export function registerAdminRoutes(app: Express) {
             sanitizeCSV(memberUser.username || ''),
             sanitizeCSV(fullName),
             sanitizeCSV(member.grade || ''),
+            sanitizeCSV(member.studentGender || ''),
             completedAssessment ? 'Completed' : 'Pending',
             sanitizeCSV(createdDate)
           ].join(","));
