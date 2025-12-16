@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { Home, Plus, Download, Upload, Edit, Trash2, GraduationCap, User, LogOut, Building2, Shield, BarChart, FileQuestion } from "lucide-react";
+import { Home, Plus, Download, Upload, Edit, Trash2, GraduationCap, User, LogOut, Building2, Shield, BarChart, FileQuestion, Search } from "lucide-react";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 
 interface QuizQuestion {
@@ -55,6 +55,7 @@ export default function Admin() {
     subject: "all",
     grade: "all",
   });
+  const [searchQuery, setSearchQuery] = useState("");
   const [editingQuestion, setEditingQuestion] = useState<QuizQuestion | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -208,6 +209,17 @@ export default function Admin() {
         </div>
 
         <div className="mb-8 flex flex-wrap gap-4 items-end">
+          <div className="flex-1 min-w-[300px]">
+            <Label htmlFor="search-question">Search Questions</Label>
+            <Input
+              id="search-question"
+              placeholder="Type to search by question text..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              data-testid="input-search-question"
+            />
+          </div>
+
           <div className="flex-1 min-w-[200px]">
             <Label htmlFor="filter-country">Country</Label>
             <Select value={filters.countryId} onValueChange={(value) => setFilters(f => ({ ...f, countryId: value, curriculum: "all" }))}>
@@ -306,21 +318,34 @@ export default function Admin() {
           </div>
         </div>
 
-        <div className="grid gap-4">
-          {isLoading ? (
-            <Card>
-              <CardContent className="p-8 text-center text-muted-foreground">
-                Loading questions...
-              </CardContent>
-            </Card>
-          ) : questions.length === 0 ? (
-            <Card>
-              <CardContent className="p-8 text-center text-muted-foreground">
-                No questions found. Create your first question to get started.
-              </CardContent>
-            </Card>
-          ) : (
-            questions.map((question, index) => (
+        {/* Filter questions by search query */}
+        {(() => {
+          const filteredQuestions = searchQuery.trim()
+            ? questions.filter(q => q.question.toLowerCase().includes(searchQuery.toLowerCase()))
+            : questions;
+          
+          return (
+            <div className="grid gap-4">
+              {isLoading ? (
+                <Card>
+                  <CardContent className="p-8 text-center text-muted-foreground">
+                    Loading questions...
+                  </CardContent>
+                </Card>
+              ) : filteredQuestions.length === 0 ? (
+                <Card>
+                  <CardContent className="p-8 text-center text-muted-foreground">
+                    {searchQuery.trim() 
+                      ? `No questions found matching "${searchQuery}". Try a different search term.`
+                      : "No questions found. Create your first question to get started."}
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    Showing {filteredQuestions.length} of {questions.length} questions
+                  </p>
+                  {filteredQuestions.map((question, index) => (
               <Card key={question.id} data-testid={`question-card-${index}`}>
                 <CardHeader>
                   <div className="flex items-start justify-between">
@@ -414,9 +439,12 @@ export default function Admin() {
                   </div>
                 </CardContent>
               </Card>
-            ))
-          )}
-        </div>
+                  ))}
+                </>
+              )}
+            </div>
+          );
+        })()}
       </div>
     </div>
   );
