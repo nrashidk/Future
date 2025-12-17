@@ -1590,7 +1590,7 @@ export async function seedDatabase() {
     const { users, organizations, organizationMembers } = await import("@shared/schema");
     const { eq } = await import("drizzle-orm");
     
-    const adminPassword = "Admin123!";
+    const adminPassword = "FuturePath2025!";
     const adminPasswordHash = await hashPassword(adminPassword);
     
     const existingAdmin = await storage.getUserByUsername("schooladmin");
