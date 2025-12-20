@@ -1232,28 +1232,31 @@ export function registerSuperadminRoutes(app: Express) {
         return res.status(404).json({ message: "Organization not found" });
       }
       
-      const members = await storage.getOrganizationMembersByOrganizationId(req.params.id);
+      const orgId = req.params.id;
+      
+      // Delete organization members first (foreign key constraint)
+      const members = await storage.getOrganizationMembersByOrganizationId(orgId);
       if (members.length > 0) {
         for (const member of members) {
           await storage.deleteOrganizationMember(member.id);
         }
       }
       
-      const deleted = await storage.deleteOrganization(req.params.id);
+      // Delete organization events (foreign key constraint - no cascade)
+      await storage.deleteOrganizationEventsByOrgId(orgId);
+      
+      // Delete files associated with this organization (foreign key constraint - no cascade)
+      await storage.deleteFilesByOrganizationId(orgId);
+      
+      // Now delete the organization
+      const deleted = await storage.deleteOrganization(orgId);
       if (!deleted) {
         return res.status(500).json({ message: "Failed to delete organization" });
       }
       
+      // Log deletion (not in database since org is deleted - just console log)
       const currentUser = (req as any).currentUser;
-      await storage.createOrganizationEvent({
-        organizationId: req.params.id,
-        eventType: "organization_deleted",
-        eventDescription: `Organization "${org.name}" was deleted`,
-        performedBy: currentUser.id,
-        performedByRole: "superadmin",
-        previousValue: { name: org.name, totalLicenses: org.totalLicenses },
-        newValue: null,
-      });
+      console.log(`[Superadmin] Organization "${org.name}" (${orgId}) deleted by user ${currentUser?.id}`);
       
       res.json({ success: true, message: "Organization deleted successfully" });
     } catch (error) {
@@ -1667,7 +1670,7 @@ export function registerSuperadminRoutes(app: Express) {
         return res.status(404).json({ message: "Announcement not found" });
       }
       
-      const { title, content, type, targetAudience, isPinned, isActive, expiresAt } = req.body;
+      const { title, content, type, targetAudience, isPinned, isActive, expiresAt, backgroundColor } = req.body;
       
       const updates: Record<string, any> = {};
       if (title !== undefined) updates.title = title;
@@ -1677,6 +1680,7 @@ export function registerSuperadminRoutes(app: Express) {
       if (isPinned !== undefined) updates.isPinned = isPinned;
       if (isActive !== undefined) updates.isActive = isActive;
       if (expiresAt !== undefined) updates.expiresAt = expiresAt ? new Date(expiresAt) : null;
+      if (backgroundColor !== undefined) updates.backgroundColor = backgroundColor;
       
       const updated = await storage.updateSystemAnnouncement(req.params.id, updates);
       res.json(updated);

@@ -135,17 +135,32 @@ function CheckoutForm({ amount, studentCount }: { amount: number | null; student
           
           // Also log to console as backup
           console.log("Your Login Credentials - Please Save:", data.credentials);
+        } else if (data.wasLoggedIn) {
+          // User was already logged in - show success and redirect to appropriate page
+          toast({
+            title: "Payment Successful!",
+            description: data.message || "Your account has been upgraded!",
+          });
+          
+          // Redirect to dashboard or organization admin page
+          if (data.organization) {
+            setLocation("/school-admin");
+          } else {
+            setLocation("/");
+          }
+        } else if (data.requiresLogin) {
+          // Existing user but not logged in - redirect to login
+          toast({
+            title: "Payment Successful!",
+            description: data.message || "Please login to access your account.",
+          });
+          setLocation("/login/student");
         } else {
+          // Fallback
           toast({
             title: "Payment Successful!",
             description: data.message || "Purchase completed successfully.",
           });
-          
-          // Route existing users immediately
-          if (data.requiresLogin) {
-            // Existing user - redirect to login
-            setLocation("/login/student");
-          }
         }
       }
     } catch (err: any) {

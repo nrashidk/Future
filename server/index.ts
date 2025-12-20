@@ -104,6 +104,7 @@ app.use("/api/webhook/stripe", express.raw({ type: "application/json" }));
 
 // Standard JSON parser for all other routes EXCEPT Stripe webhook
 // Stripe webhook must receive raw body for signature verification
+// Increased limit to 10MB to support bulk quiz question imports
 app.use((req, res, next) => {
   // Skip JSON parsing for Stripe webhook paths - they need raw body
   // Use startsWith to handle trailing slashes, query params, etc.
@@ -112,7 +113,9 @@ app.use((req, res, next) => {
   }
   
   // Apply JSON parser with raw body capture for other routes
+  // Limit set to 10MB to allow bulk imports of quiz questions
   express.json({
+    limit: '10mb',
     verify: (req, _res, buf) => {
       req.rawBody = buf;
     }

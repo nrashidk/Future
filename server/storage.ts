@@ -313,6 +313,8 @@ export interface IStorage {
   updateOrganization(id: string, data: Partial<InsertOrganization>): Promise<Organization>;
   updateOrganizationQuota(id: string, increment: number): Promise<Organization>;
   deleteOrganization(id: string): Promise<boolean>;
+  deleteOrganizationEventsByOrgId(organizationId: string): Promise<number>;
+  deleteFilesByOrganizationId(organizationId: string): Promise<number>;
 
   // Organization Member operations
   createOrganizationMember(member: InsertOrganizationMember): Promise<OrganizationMember>;
@@ -2965,6 +2967,20 @@ export class DatabaseStorage implements IStorage {
       .delete(organizations)
       .where(eq(organizations.id, id));
     return (result.rowCount ?? 0) > 0;
+  }
+
+  async deleteOrganizationEventsByOrgId(organizationId: string): Promise<number> {
+    const result = await db
+      .delete(organizationEvents)
+      .where(eq(organizationEvents.organizationId, organizationId));
+    return result.rowCount ?? 0;
+  }
+
+  async deleteFilesByOrganizationId(organizationId: string): Promise<number> {
+    const result = await db
+      .delete(files)
+      .where(eq(files.organizationId, organizationId));
+    return result.rowCount ?? 0;
   }
 
   // ============================================

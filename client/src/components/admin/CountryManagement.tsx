@@ -76,16 +76,17 @@ export default function CountryManagement() {
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof newCountryForm) => {
-      return apiRequest('POST', '/api/admin/countries', data);
+      const response = await apiRequest('POST', '/api/admin/countries', data);
+      return response.json();
     },
-    onSuccess: (response) => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/countries'] });
       queryClient.invalidateQueries({ queryKey: ['/api/countries'] });
       setIsCreateModalOpen(false);
       setNewCountryForm({ id: "", name: "", code: "", abbreviation: "", autoPopulate: true });
       toast({ 
         title: "Country Created", 
-        description: response.autoPopulated 
+        description: result.autoPopulated 
           ? "Country created with LLM-populated data" 
           : "Country created successfully. You can add details manually."
       });
@@ -159,14 +160,15 @@ export default function CountryManagement() {
 
   const generateQuestionsMutation = useMutation({
     mutationFn: async ({ countryId, ...data }: { countryId: string; subject: string; grade: number; curriculum: string; count: number }) => {
-      return apiRequest('POST', `/api/admin/countries/${countryId}/generate-questions`, data);
+      const response = await apiRequest('POST', `/api/admin/countries/${countryId}/generate-questions`, data);
+      return response.json();
     },
-    onSuccess: (response) => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/questions'] });
       setIsGenerateQuestionsOpen(false);
       toast({ 
         title: "Questions Generated", 
-        description: `Created ${response.questionsCreated} questions (${response.tokensUsed} tokens used)`
+        description: `Created ${result.questionsCreated} questions (${result.tokensUsed} tokens used)`
       });
     },
     onError: (error: any) => {
@@ -180,9 +182,10 @@ export default function CountryManagement() {
 
   const renameCurriculumMutation = useMutation({
     mutationFn: async ({ countryId, oldName, newName }: { countryId: string; oldName: string; newName: string }) => {
-      return apiRequest('POST', `/api/superadmin/countries/${countryId}/curricula/rename`, { oldName, newName });
+      const response = await apiRequest('POST', `/api/superadmin/countries/${countryId}/curricula/rename`, { oldName, newName });
+      return response.json();
     },
-    onSuccess: (response) => {
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/countries'] });
       queryClient.invalidateQueries({ queryKey: ['/api/countries'] });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/subjects'] });
@@ -190,7 +193,7 @@ export default function CountryManagement() {
       setRenameForm({ countryId: "", oldName: "", newName: "" });
       toast({ 
         title: "Curriculum Renamed", 
-        description: `Updated ${response.updated?.subjects || 0} subjects and ${response.updated?.questions || 0} questions`
+        description: `Updated ${result.updated?.subjects || 0} subjects and ${result.updated?.questions || 0} questions`
       });
     },
     onError: (error: any) => {

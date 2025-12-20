@@ -173,8 +173,10 @@ export function registerPaymentRoutes(app: Express) {
       let password: string | null = null;
       let username: string;
       let isNewUser = false;
+      let wasLoggedIn = false;
       
       if (req.isAuthenticated && req.isAuthenticated() && req.user) {
+        wasLoggedIn = true;
         // User is logged in - upgrade their existing account
         const loggedInUserId = (req.user as any).userId;
         user = await storage.getUser(loggedInUserId);
@@ -271,17 +273,25 @@ export function registerPaymentRoutes(app: Express) {
       });
 
       // Return success response
+      // requiresLogin is only true if existing user was NOT already logged in
+      const requiresLogin = !isNewUser && !wasLoggedIn;
+      
       res.json({ 
         success: true, 
         message: isNewUser
           ? (organization 
               ? `Organization "${organizationName}" created! Your login credentials are below.`
               : "Premium account created! Your login credentials are below.")
-          : (organization
-              ? `Organization "${organizationName}" created! Please login to manage your students.`
-              : "Premium licenses added to your account! Please login to access them."),
+          : wasLoggedIn
+            ? (organization
+                ? `Organization "${organizationName}" created! Your account has been upgraded.`
+                : "Premium licenses added to your account!")
+            : (organization
+                ? `Organization "${organizationName}" created! Please login to manage your students.`
+                : "Premium licenses added to your account! Please login to access them."),
         isNewUser,
-        requiresLogin: !isNewUser,
+        wasLoggedIn,
+        requiresLogin,
         credentials: isNewUser ? {
           username,
           password,
