@@ -264,66 +264,40 @@ export default function ResultsPrint() {
 
         {/* Student Info Section */}
         <div className="max-w-4xl mx-auto px-4 -mt-8 mb-6">
-          <StickyNote color="yellow" rotation="0" className="p-6">
-            <div className="text-center mb-4">
-              <User className="w-10 h-10 text-primary mx-auto mb-2" />
-              <h2 className="text-2xl font-bold">Student Profile</h2>
+          <StickyNote color="yellow" rotation="0" className="p-4">
+            <div className="flex items-center gap-3 mb-3">
+              <User className="w-7 h-7 text-primary flex-shrink-0" />
+              <h2 className="text-xl font-bold">Student Profile</h2>
             </div>
-            
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+            <div className="grid grid-cols-5 gap-3">
               {assessment?.name && (
-                <div className="p-3 bg-background/30 rounded-lg text-center">
-                  <p className="text-xs text-muted-foreground font-body mb-1">Name</p>
-                  <p className="font-semibold">{assessment.name}</p>
+                <div className="p-2 bg-background/30 rounded-lg text-center">
+                  <p className="text-xs text-muted-foreground font-body mb-0.5">Name</p>
+                  <p className="font-semibold text-sm leading-tight">{assessment.name}</p>
                 </div>
               )}
               {assessment?.age && (
-                <div className="p-3 bg-background/30 rounded-lg text-center">
-                  <p className="text-xs text-muted-foreground font-body mb-1">Age</p>
-                  <p className="font-semibold">{assessment.age} years</p>
+                <div className="p-2 bg-background/30 rounded-lg text-center">
+                  <p className="text-xs text-muted-foreground font-body mb-0.5">Age</p>
+                  <p className="font-semibold text-sm">{assessment.age} years</p>
                 </div>
               )}
               {assessment?.grade && (
-                <div className="p-3 bg-background/30 rounded-lg text-center">
-                  <p className="text-xs text-muted-foreground font-body mb-1">Grade</p>
-                  <p className="font-semibold">Grade {assessment.grade.replace('grade', '')}</p>
+                <div className="p-2 bg-background/30 rounded-lg text-center">
+                  <p className="text-xs text-muted-foreground font-body mb-0.5">Grade</p>
+                  <p className="font-semibold text-sm">Grade {assessment.grade.replace('grade', '')}</p>
                 </div>
               )}
               {assessment?.gender && (
-                <div className="p-3 bg-background/30 rounded-lg text-center">
-                  <p className="text-xs text-muted-foreground font-body mb-1">Gender</p>
-                  <p className="font-semibold capitalize">{assessment.gender}</p>
+                <div className="p-2 bg-background/30 rounded-lg text-center">
+                  <p className="text-xs text-muted-foreground font-body mb-0.5">Gender</p>
+                  <p className="font-semibold text-sm capitalize">{assessment.gender}</p>
                 </div>
               )}
-            </div>
-
-            {/* Additional Info: Country, Curriculum, School */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {country && (
-                <div className="p-3 bg-background/30 rounded-lg flex items-center gap-3">
-                  <MapPin className="w-5 h-5 text-primary flex-shrink-0" />
-                  <div>
-                    <p className="text-xs text-muted-foreground font-body">Country</p>
-                    <p className="font-semibold">{country.name}</p>
-                  </div>
-                </div>
-              )}
-              {curriculum && (
-                <div className="p-3 bg-background/30 rounded-lg flex items-center gap-3">
-                  <BookOpen className="w-5 h-5 text-primary flex-shrink-0" />
-                  <div>
-                    <p className="text-xs text-muted-foreground font-body">Curriculum</p>
-                    <p className="font-semibold">{curriculum.name}</p>
-                  </div>
-                </div>
-              )}
-              {organizationInfo && (
-                <div className="p-3 bg-background/30 rounded-lg flex items-center gap-3">
-                  <Building2 className="w-5 h-5 text-primary flex-shrink-0" />
-                  <div>
-                    <p className="text-xs text-muted-foreground font-body">School</p>
-                    <p className="font-semibold">{organizationInfo.name}</p>
-                  </div>
+                <div className="p-2 bg-background/30 rounded-lg text-center">
+                  <p className="text-xs text-muted-foreground font-body mb-0.5">Country</p>
+                  <p className="font-semibold text-sm leading-tight">{country.name}</p>
                 </div>
               )}
             </div>
