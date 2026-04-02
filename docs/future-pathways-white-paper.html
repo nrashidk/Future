@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Future Pathways — White Paper 2025</title>
+<title>Future Pathways — White Paper 2026</title>
 <style>
   /* ── Reset & Base ─────────────────────────────────────── */
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -142,32 +142,31 @@
     letter-spacing: 0.2em;
     text-transform: uppercase;
     color: var(--teal);
-    margin-bottom: 1.2rem;
+    margin-bottom: 1.4rem;
+    text-align: center;
   }
   .toc ol {
     list-style: none;
-    counter-reset: toc;
     padding: 0;
   }
   .toc ol li {
-    counter-increment: toc;
     display: flex;
-    justify-content: space-between;
+    justify-content: flex-start;
     align-items: baseline;
+    gap: 0.5rem;
     padding: 0.3rem 0;
     border-bottom: 1px dotted var(--rule);
     font-size: 0.93rem;
     color: var(--navy);
   }
   .toc ol li:last-child { border-bottom: none; }
-  .toc ol li::before {
-    content: counter(toc) ".";
+  .toc-num {
     font-family: "Arial", sans-serif;
     font-size: 0.8rem;
     color: var(--gold);
     font-weight: 700;
-    margin-right: 0.6rem;
-    min-width: 1.4rem;
+    min-width: 1.8rem;
+    flex-shrink: 0;
   }
   .toc ol li .pg {
     font-family: "Arial", sans-serif;
@@ -243,12 +242,39 @@
     grid-template-columns: 1fr 1fr 1fr;
     gap: 1.2rem;
     margin: 1.5rem 0;
+    align-items: stretch;
   }
   @media (max-width: 640px) { .assessment-grid { grid-template-columns: 1fr; } }
   .assessment-card {
     border: 1px solid var(--rule);
     border-radius: 4px;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .assessment-card-body {
+    flex: 1;
+  }
+
+  /* Screenshot figure */
+  .screenshot-figure {
+    margin: 1.4rem 0;
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .screenshot-figure img {
+    width: 100%;
+    display: block;
+  }
+  .screenshot-figure figcaption {
+    background: var(--bg-alt);
+    border-top: 1px solid var(--rule);
+    padding: 0.5rem 1rem;
+    font-family: "Arial", sans-serif;
+    font-size: 0.76rem;
+    color: var(--slate);
+    font-style: italic;
   }
   .assessment-card-header {
     background: var(--teal);
@@ -486,7 +512,7 @@
       <p class="org-tag">Future Pathways — Career Guidance System</p>
     </div>
     <div class="cover-body">
-      <p class="label">White Paper &mdash; 2025</p>
+      <p class="label">White Paper &mdash; 2026</p>
       <h1>Empowering <span>UAE Students</span> to Navigate Their Career Future</h1>
       <p class="subtitle">
         A science-backed, culturally aligned career guidance platform for secondary school students
@@ -495,7 +521,7 @@
       <dl class="cover-meta">
         <div>
           <dt>Publication Date</dt>
-          <dd>April 2025</dd>
+          <dd>April 2026</dd>
         </div>
         <div>
           <dt>Version</dt>
@@ -514,7 +540,7 @@
   </div>
   <div>
     <div class="cover-footer">
-      <p>Future Pathways &copy; 2025. All rights reserved.</p>
+      <p>Future Pathways &copy; 2026. All rights reserved.</p>
       <p>futurepathways.ae</p>
     </div>
     <div class="cover-accent-bar"></div>
@@ -530,20 +556,20 @@
   <div class="toc">
     <h2>Table of Contents</h2>
     <ol>
-      <li><span>Executive Summary</span></li>
-      <li><span>The Career Guidance Challenge in UAE Schools</span></li>
-      <li><span>Platform Overview &amp; Tiered Access Model</span></li>
-      <li><span>Assessment Framework</span></li>
-      <li><span>The Learning Style Assessment (Kolb ELT)</span></li>
-      <li><span>The Career Personality Assessment (RIASEC / Holland Codes)</span></li>
-      <li><span>The Personal Values Assessment (CVQ)</span></li>
-      <li><span>The WEF 16 Skills Framework Integration</span></li>
-      <li><span>Career Matching Methodology</span></li>
-      <li><span>UAE Vision Alignment</span></li>
-      <li><span>Reporting &amp; Outputs</span></li>
-      <li><span>Privacy, Security &amp; Data Governance</span></li>
-      <li><span>Conclusion &amp; Recommendations</span></li>
-      <li><span>References</span></li>
+      <li><span class="toc-num">1.</span><span>Executive Summary</span></li>
+      <li><span class="toc-num">2.</span><span>The Career Guidance Challenge in UAE Schools</span></li>
+      <li><span class="toc-num">3.</span><span>Platform Overview &amp; Tiered Access Model</span></li>
+      <li><span class="toc-num">4.</span><span>Assessment Framework</span></li>
+      <li><span class="toc-num">5.</span><span>The Learning Style Assessment (Kolb ELT)</span></li>
+      <li><span class="toc-num">6.</span><span>The Career Personality Assessment (RIASEC / Holland Codes)</span></li>
+      <li><span class="toc-num">7.</span><span>The Personal Values Assessment (CVQ)</span></li>
+      <li><span class="toc-num">8.</span><span>The WEF 16 Skills Framework Integration</span></li>
+      <li><span class="toc-num">9.</span><span>Career Matching Methodology</span></li>
+      <li><span class="toc-num">10.</span><span>UAE Vision Alignment</span></li>
+      <li><span class="toc-num">11.</span><span>Reporting &amp; Outputs</span></li>
+      <li><span class="toc-num">12.</span><span>Privacy, Security &amp; Data Governance</span></li>
+      <li><span class="toc-num">13.</span><span>Conclusion &amp; Recommendations</span></li>
+      <li><span class="toc-num">14.</span><span>References</span></li>
     </ol>
   </div>
 
@@ -1261,6 +1287,17 @@
       profile, a learning style explanation, UAE university and programme recommendations
       (sourced from the UAE Commission for Academic Accreditation), and actionable next steps.
     </p>
+    <figure class="screenshot-figure">
+      <div style="background:#f0f4f8; min-height:320px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.7rem; padding:2rem;">
+        <div style="width:48px; height:48px; background:#d1d9e0; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9aabbd" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        </div>
+        <p style="font-family:Arial,sans-serif; font-size:0.82rem; color:#9aabbd; margin:0; text-align:center;">
+          Screenshot: Career Recommendations Grid &amp; PDF Report Cover
+        </p>
+      </div>
+      <figcaption>Fig. 1 — The career recommendations results page (left) and the generated PDF career report cover page (right), showing ranked career matches and personalised student profile.</figcaption>
+    </figure>
 
     <h3>Multi-Grade Progress Tracking (School Tier)</h3>
     <p>
@@ -1269,6 +1306,17 @@
       evolve between Grades 8 and 12. This longitudinal view is valuable for school counsellors
       monitoring student development.
     </p>
+    <figure class="screenshot-figure">
+      <div style="background:#f0f4f8; min-height:260px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.7rem; padding:2rem;">
+        <div style="width:48px; height:48px; background:#d1d9e0; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9aabbd" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        </div>
+        <p style="font-family:Arial,sans-serif; font-size:0.82rem; color:#9aabbd; margin:0; text-align:center;">
+          Screenshot: Student Progress Tracker — Career Evolution Across Grade Levels
+        </p>
+      </div>
+      <figcaption>Fig. 2 — The multi-grade progress tracker displaying a student's evolving career alignment scores from Grade 8 through Grade 12, highlighting consistency and shifts in career direction.</figcaption>
+    </figure>
 
     <h3>School Admin Dashboard</h3>
     <p>
@@ -1276,6 +1324,17 @@
       top career trends by grade, skill distribution heatmaps, assessment completion rates,
       and the ability to export student data in CSV and PDF formats for reporting and audit purposes.
     </p>
+    <figure class="screenshot-figure">
+      <div style="background:#f0f4f8; min-height:280px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.7rem; padding:2rem;">
+        <div style="width:48px; height:48px; background:#d1d9e0; border-radius:50%; display:flex; align-items:center; justify-content:center;">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#9aabbd" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        </div>
+        <p style="font-family:Arial,sans-serif; font-size:0.82rem; color:#9aabbd; margin:0; text-align:center;">
+          Screenshot: School Administrator Dashboard — Cohort Analytics &amp; Student Roster
+        </p>
+      </div>
+      <figcaption>Fig. 3 — The school administrator dashboard showing cohort career trend analytics, grade-level breakdowns, assessment completion rates, and the student roster with export options.</figcaption>
+    </figure>
   </section>
 
   <!-- ─── 12. Privacy ───────────────────────────────────── -->
@@ -1372,7 +1431,7 @@
 
   <!-- Footer -->
   <div class="doc-footer">
-    <span>Future Pathways Career Guidance System &mdash; White Paper 2025</span>
+    <span>Future Pathways Career Guidance System &mdash; White Paper 2026</span>
     <span>Confidential &middot; futurepathways.ae</span>
   </div>
 
