@@ -159,7 +159,9 @@ export default function ResultsPrint() {
   });
 
   const { data: assessment } = useQuery<any>({
-    queryKey: [`/api/assessments/${assessmentId}`],
+    queryKey: guestToken 
+      ? [`/api/assessments/${assessmentId}?guestToken=${guestToken}`]
+      : [`/api/assessments/${assessmentId}`],
     enabled: !!assessmentId,
   });
 

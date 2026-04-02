@@ -356,9 +356,9 @@ export default function Profile() {
 
             const demoName = latestAssessment?.name || 
               (user.firstName || user.lastName ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : null);
-            const demoAge = latestAssessment?.age ?? (user as any).studentAge ?? null;
+            const demoAge = latestAssessment?.age ?? (user as any).predefinedAge ?? null;
             const demoGrade = latestAssessment?.grade ?? (user as any).predefinedGrade ?? null;
-            const demoGender = latestAssessment?.gender ?? (user as any).studentGender ?? null;
+            const demoGender = latestAssessment?.gender ?? (user as any).predefinedGender ?? null;
 
             const getGradeLabel = (gradeCode: string): string => {
               const gradeMap: Record<string, string> = {

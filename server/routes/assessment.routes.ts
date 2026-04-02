@@ -172,6 +172,34 @@ export function registerAssessmentRoutes(app: Express) {
     }
   });
 
+  // Get a single assessment by ID (supports guest token auth)
+  app.get("/api/assessments/:id", async (req: any, res) => {
+    try {
+      const assessment = await storage.getAssessmentById(req.params.id);
+      if (!assessment) {
+        return res.status(404).json({ message: "Assessment not found" });
+      }
+
+      // Ownership check: authenticated user must own it, or guest token must match
+      if (assessment.userId) {
+        if (!req.isAuthenticated() || req.user.userId !== assessment.userId) {
+          return res.status(403).json({ message: "Unauthorized to access this assessment" });
+        }
+      } else {
+        // Guest assessment: verify via cookie or query param
+        const guestToken = req.cookies?.guest_token || req.query.guestToken;
+        if (!guestToken || guestToken !== assessment.guestSessionId) {
+          return res.status(403).json({ message: "Unauthorized to access this assessment" });
+        }
+      }
+
+      res.json(assessment);
+    } catch (error) {
+      console.error("Error fetching assessment:", error);
+      res.status(500).json({ message: "Failed to fetch assessment" });
+    }
+  });
+
   // Alias endpoint for backward compatibility
   app.get("/api/assessments", async (req: any, res) => {
     try {
