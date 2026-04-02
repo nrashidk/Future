@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
-import { GraduationCap, Crown, Users, ClipboardCheck, Home, User, LogOut, BarChart, Shield, Building2, FileQuestion, TrendingUp, ClipboardList } from "lucide-react";
+import { GraduationCap, Crown, Users, ClipboardCheck, Home, User, LogOut, BarChart, Shield, Building2, FileQuestion, TrendingUp, ClipboardList, Cake, Users2 } from "lucide-react";
 import { StickyNote } from "@/components/StickyNote";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 
@@ -13,16 +13,7 @@ interface Assessment {
   name: string;
   age: number | null;
   grade: string | null;
-  createdAt: string;
-  tier: string;
-  status: string;
-}
-
-interface Assessment {
-  id: string;
-  name: string;
-  age: number | null;
-  grade: string | null;
+  gender: string | null;
   createdAt: string;
   tier: string;
   status: string;
@@ -355,6 +346,92 @@ export default function Profile() {
               )}
             </CardContent>
           </StickyNote>
+
+          {/* Student Details - Shown for students (individual and org) */}
+          {!isOrgAdmin && !isSuperadmin && (() => {
+            // Get demographics from latest assessment or predefined org student data
+            const latestAssessment = [...assessments]
+              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+              .find(a => a.name || a.age || a.grade || a.gender);
+
+            const demoName = latestAssessment?.name || 
+              (user.firstName || user.lastName ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : null);
+            const demoAge = latestAssessment?.age ?? (user as any).studentAge ?? null;
+            const demoGrade = latestAssessment?.grade ?? (user as any).predefinedGrade ?? null;
+            const demoGender = latestAssessment?.gender ?? (user as any).studentGender ?? null;
+
+            const getGradeLabel = (gradeCode: string): string => {
+              const gradeMap: Record<string, string> = {
+                grade8: 'Grade 8', grade9: 'Grade 9', grade10: 'Grade 10',
+                grade11: 'Grade 11', grade12: 'Grade 12', graduated: 'Recently Graduated',
+              };
+              return gradeMap[gradeCode] || gradeCode;
+            };
+
+            const getGenderLabel = (g: string): string => {
+              return g.charAt(0).toUpperCase() + g.slice(1);
+            };
+
+            if (!demoName && !demoAge && !demoGrade && !demoGender) return null;
+
+            return (
+              <div>
+                <div className="mb-4 text-center">
+                  <h2 className="text-xl font-bold">My Details</h2>
+                  <p className="text-sm text-muted-foreground">Your profile from your latest assessment</p>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <StickyNote color="yellow" rotation="-1">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <User className="w-4 h-4 text-primary" />
+                      </div>
+                      <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Name</p>
+                    </div>
+                    <p className="font-bold text-lg leading-snug" data-testid="text-demo-name">
+                      {demoName || <span className="text-muted-foreground font-normal text-base">Not provided</span>}
+                    </p>
+                  </StickyNote>
+
+                  <StickyNote color="pink" rotation="1">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <Cake className="w-4 h-4 text-primary" />
+                      </div>
+                      <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Age</p>
+                    </div>
+                    <p className="font-bold text-lg" data-testid="text-demo-age">
+                      {demoAge ? `${demoAge} years old` : <span className="text-muted-foreground font-normal text-base">Not provided</span>}
+                    </p>
+                  </StickyNote>
+
+                  <StickyNote color="blue" rotation="2">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <GraduationCap className="w-4 h-4 text-primary" />
+                      </div>
+                      <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Grade</p>
+                    </div>
+                    <p className="font-bold text-lg" data-testid="text-demo-grade">
+                      {demoGrade ? getGradeLabel(demoGrade) : <span className="text-muted-foreground font-normal text-base">Not provided</span>}
+                    </p>
+                  </StickyNote>
+
+                  <StickyNote color="green" rotation="-2">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <Users2 className="w-4 h-4 text-primary" />
+                      </div>
+                      <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Gender</p>
+                    </div>
+                    <p className="font-bold text-lg" data-testid="text-demo-gender">
+                      {demoGender ? getGenderLabel(demoGender) : <span className="text-muted-foreground font-normal text-base">Not provided</span>}
+                    </p>
+                  </StickyNote>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Premium Status - Hidden for superadmins */}
           {!isSuperadmin && (
