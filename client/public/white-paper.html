@@ -1,0 +1,1385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Future Pathways — White Paper 2025</title>
+<style>
+  /* ── Reset & Base ─────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-size: 16px; }
+  body {
+    font-family: "Georgia", "Times New Roman", serif;
+    color: #1a1a2e;
+    background: #fff;
+    line-height: 1.75;
+  }
+
+  /* ── Print ────────────────────────────────────────────── */
+  @media print {
+    .no-print { display: none !important; }
+    .page-break { page-break-before: always; }
+    body { font-size: 11pt; }
+    .cover { min-height: 100vh; page-break-after: always; }
+    section { page-break-inside: avoid; }
+  }
+
+  /* ── Colour palette ───────────────────────────────────── */
+  :root {
+    --navy:    #1a1a2e;
+    --teal:    #0f5257;
+    --gold:    #c8973a;
+    --gold-lt: #f4e4c1;
+    --slate:   #4a5568;
+    --rule:    #d1d9e0;
+    --bg-alt:  #f7f9fb;
+  }
+
+  /* ── Cover page ───────────────────────────────────────── */
+  .cover {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 0;
+    background: var(--navy);
+    color: #fff;
+  }
+  .cover-header {
+    padding: 3rem 4rem 2rem;
+    border-bottom: 3px solid var(--gold);
+  }
+  .cover-header .org-tag {
+    font-family: "Arial", sans-serif;
+    font-size: 0.78rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 0.4rem;
+  }
+  .cover-body {
+    padding: 4rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .cover-body .label {
+    font-family: "Arial", sans-serif;
+    font-size: 0.72rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 1.2rem;
+  }
+  .cover-body h1 {
+    font-size: 3.2rem;
+    font-weight: 700;
+    line-height: 1.15;
+    margin-bottom: 1rem;
+    letter-spacing: -0.01em;
+  }
+  .cover-body h1 span { color: var(--gold); }
+  .cover-body .subtitle {
+    font-size: 1.2rem;
+    color: rgba(255,255,255,0.75);
+    max-width: 34rem;
+    margin-bottom: 2.5rem;
+    line-height: 1.6;
+  }
+  .cover-meta {
+    display: flex;
+    gap: 3rem;
+    margin-top: 1rem;
+  }
+  .cover-meta dt {
+    font-family: "Arial", sans-serif;
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 0.2rem;
+  }
+  .cover-meta dd {
+    font-size: 0.95rem;
+    color: rgba(255,255,255,0.88);
+  }
+  .cover-footer {
+    padding: 2rem 4rem;
+    border-top: 1px solid rgba(255,255,255,0.12);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .cover-footer p {
+    font-family: "Arial", sans-serif;
+    font-size: 0.75rem;
+    color: rgba(255,255,255,0.45);
+  }
+  .cover-accent-bar {
+    height: 6px;
+    background: linear-gradient(90deg, var(--gold) 0%, #e8b84b 50%, var(--teal) 100%);
+  }
+
+  /* ── Document body ────────────────────────────────────── */
+  .document {
+    max-width: 820px;
+    margin: 0 auto;
+    padding: 4rem 4rem;
+  }
+
+  /* Table of contents */
+  .toc {
+    background: var(--bg-alt);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 2rem 2.5rem;
+    margin-bottom: 3.5rem;
+  }
+  .toc h2 {
+    font-family: "Arial", sans-serif;
+    font-size: 0.72rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--teal);
+    margin-bottom: 1.2rem;
+  }
+  .toc ol {
+    list-style: none;
+    counter-reset: toc;
+    padding: 0;
+  }
+  .toc ol li {
+    counter-increment: toc;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 0.3rem 0;
+    border-bottom: 1px dotted var(--rule);
+    font-size: 0.93rem;
+    color: var(--navy);
+  }
+  .toc ol li:last-child { border-bottom: none; }
+  .toc ol li::before {
+    content: counter(toc) ".";
+    font-family: "Arial", sans-serif;
+    font-size: 0.8rem;
+    color: var(--gold);
+    font-weight: 700;
+    margin-right: 0.6rem;
+    min-width: 1.4rem;
+  }
+  .toc ol li .pg {
+    font-family: "Arial", sans-serif;
+    font-size: 0.78rem;
+    color: var(--slate);
+  }
+
+  /* Section headings */
+  section { margin-bottom: 3.5rem; }
+  .section-number {
+    font-family: "Arial", sans-serif;
+    font-size: 0.68rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 0.4rem;
+  }
+  h2.section-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 0.5rem;
+    line-height: 1.25;
+  }
+  .section-rule {
+    width: 3rem;
+    height: 3px;
+    background: var(--gold);
+    margin-bottom: 1.5rem;
+    border: none;
+  }
+  h3 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--teal);
+    margin: 1.8rem 0 0.6rem;
+  }
+  p { margin-bottom: 1rem; color: var(--navy); }
+  p:last-child { margin-bottom: 0; }
+
+  /* Call-out box */
+  .callout {
+    border-left: 4px solid var(--gold);
+    background: var(--gold-lt);
+    padding: 1rem 1.5rem;
+    border-radius: 0 4px 4px 0;
+    margin: 1.5rem 0;
+    font-size: 0.95rem;
+    color: #5a3e00;
+  }
+  .callout strong { color: #3d2900; }
+
+  /* Info box */
+  .info-box {
+    background: var(--bg-alt);
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 1.4rem 1.6rem;
+    margin: 1.5rem 0;
+  }
+  .info-box h4 {
+    font-family: "Arial", sans-serif;
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--teal);
+    margin-bottom: 0.7rem;
+  }
+
+  /* Assessment grid */
+  .assessment-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1.2rem;
+    margin: 1.5rem 0;
+  }
+  @media (max-width: 640px) { .assessment-grid { grid-template-columns: 1fr; } }
+  .assessment-card {
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .assessment-card-header {
+    background: var(--teal);
+    color: #fff;
+    padding: 0.75rem 1rem;
+    font-family: "Arial", sans-serif;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+  .assessment-card-body {
+    padding: 0.9rem 1rem;
+    font-size: 0.88rem;
+    color: var(--slate);
+    line-height: 1.55;
+  }
+  .assessment-card-body strong { color: var(--navy); }
+
+  /* Tier table */
+  table.tier-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.5rem 0;
+    font-size: 0.88rem;
+  }
+  table.tier-table thead tr {
+    background: var(--navy);
+    color: #fff;
+  }
+  table.tier-table thead th {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    font-family: "Arial", sans-serif;
+    font-size: 0.75rem;
+    letter-spacing: 0.07em;
+    font-weight: 600;
+  }
+  table.tier-table tbody tr:nth-child(even) { background: var(--bg-alt); }
+  table.tier-table tbody td {
+    padding: 0.65rem 1rem;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+    color: var(--slate);
+  }
+  table.tier-table tbody td:first-child {
+    font-weight: 700;
+    color: var(--navy);
+  }
+  .check { color: #1a7a4a; font-weight: 700; }
+  .dash  { color: #b0b8c4; }
+
+  /* RIASEC badges */
+  .riasec-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.9rem;
+    margin: 1.2rem 0;
+  }
+  @media (max-width: 540px) { .riasec-grid { grid-template-columns: 1fr 1fr; } }
+  .riasec-card {
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 0.85rem 1rem;
+  }
+  .riasec-card .code {
+    font-family: "Arial", sans-serif;
+    font-size: 1.35rem;
+    font-weight: 900;
+    color: var(--teal);
+    line-height: 1;
+    margin-bottom: 0.2rem;
+  }
+  .riasec-card .name {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 0.2rem;
+  }
+  .riasec-card .desc {
+    font-size: 0.78rem;
+    color: var(--slate);
+    line-height: 1.4;
+  }
+
+  /* Kolb cycle diagram (pure CSS) */
+  .kolb-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.9rem;
+    margin: 1.2rem 0;
+  }
+  .kolb-card {
+    border: 1px solid var(--rule);
+    border-radius: 4px;
+    padding: 0.85rem 1rem;
+    background: var(--bg-alt);
+  }
+  .kolb-card .code {
+    font-family: "Arial", sans-serif;
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 0.2rem;
+  }
+  .kolb-card .name {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--navy);
+    margin-bottom: 0.25rem;
+  }
+  .kolb-card .style {
+    font-size: 0.8rem;
+    font-style: italic;
+    color: var(--teal);
+    margin-bottom: 0.3rem;
+  }
+  .kolb-card .desc {
+    font-size: 0.78rem;
+    color: var(--slate);
+    line-height: 1.45;
+  }
+
+  /* CVQ value domains */
+  .cvq-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.65rem;
+    margin: 1.2rem 0;
+  }
+  .cvq-item {
+    display: flex;
+    gap: 0.65rem;
+    align-items: flex-start;
+    font-size: 0.85rem;
+  }
+  .cvq-item .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--gold);
+    flex-shrink: 0;
+    margin-top: 0.45rem;
+  }
+  .cvq-item .label { font-weight: 700; color: var(--navy); }
+  .cvq-item .sub   { color: var(--slate); font-size: 0.78rem; }
+
+  /* WEF pillars */
+  .wef-pillar {
+    margin-bottom: 0.9rem;
+    padding: 0.8rem 1.1rem;
+    border-left: 3px solid var(--teal);
+    background: var(--bg-alt);
+    border-radius: 0 4px 4px 0;
+  }
+  .wef-pillar .pillar-name {
+    font-family: "Arial", sans-serif;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--teal);
+    margin-bottom: 0.25rem;
+  }
+  .wef-pillar .pillar-items {
+    font-size: 0.84rem;
+    color: var(--slate);
+  }
+
+  /* Scoring weights */
+  .weights-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1.2rem 0;
+    font-size: 0.88rem;
+  }
+  .weights-table th {
+    font-family: "Arial", sans-serif;
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--teal);
+    text-align: left;
+    padding: 0.5rem 0.8rem;
+    border-bottom: 2px solid var(--teal);
+  }
+  .weights-table td {
+    padding: 0.55rem 0.8rem;
+    border-bottom: 1px solid var(--rule);
+    color: var(--slate);
+    vertical-align: middle;
+  }
+  .weights-table td:first-child { font-weight: 700; color: var(--navy); }
+  .bar-wrap { width: 160px; background: var(--rule); border-radius: 3px; height: 8px; }
+  .bar-fill  { height: 8px; border-radius: 3px; background: var(--teal); }
+
+  /* Footer */
+  .doc-footer {
+    border-top: 1px solid var(--rule);
+    margin-top: 4rem;
+    padding-top: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: "Arial", sans-serif;
+    font-size: 0.72rem;
+    color: #9aabbd;
+  }
+
+  /* Print button */
+  .print-btn {
+    position: fixed;
+    bottom: 2rem; right: 2rem;
+    background: var(--teal);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    padding: 0.75rem 1.6rem;
+    font-family: "Arial", sans-serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+  }
+  .print-btn:hover { background: #0a3c41; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════
+     COVER PAGE
+════════════════════════════════════════════════════════ -->
+<div class="cover">
+  <div>
+    <div class="cover-header">
+      <p class="org-tag">Future Pathways — Career Guidance System</p>
+    </div>
+    <div class="cover-body">
+      <p class="label">White Paper &mdash; 2025</p>
+      <h1>Empowering <span>UAE Students</span> to Navigate Their Career Future</h1>
+      <p class="subtitle">
+        A science-backed, culturally aligned career guidance platform for secondary school students
+        aged 13–18, designed in support of the UAE's 2030 and 2071 national visions.
+      </p>
+      <dl class="cover-meta">
+        <div>
+          <dt>Publication Date</dt>
+          <dd>April 2025</dd>
+        </div>
+        <div>
+          <dt>Version</dt>
+          <dd>1.0</dd>
+        </div>
+        <div>
+          <dt>Target Audience</dt>
+          <dd>Educators, School Leaders, Policy Makers</dd>
+        </div>
+        <div>
+          <dt>Classification</dt>
+          <dd>Public</dd>
+        </div>
+      </dl>
+    </div>
+  </div>
+  <div>
+    <div class="cover-footer">
+      <p>Future Pathways &copy; 2025. All rights reserved.</p>
+      <p>futurepathways.ae</p>
+    </div>
+    <div class="cover-accent-bar"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════
+     DOCUMENT BODY
+════════════════════════════════════════════════════════ -->
+<div class="document">
+
+  <!-- Table of Contents -->
+  <div class="toc">
+    <h2>Table of Contents</h2>
+    <ol>
+      <li><span>Executive Summary</span></li>
+      <li><span>The Career Guidance Challenge in UAE Schools</span></li>
+      <li><span>Platform Overview &amp; Tiered Access Model</span></li>
+      <li><span>Assessment Framework</span></li>
+      <li><span>The Learning Style Assessment (Kolb ELT)</span></li>
+      <li><span>The Career Personality Assessment (RIASEC / Holland Codes)</span></li>
+      <li><span>The Personal Values Assessment (CVQ)</span></li>
+      <li><span>The WEF 16 Skills Framework Integration</span></li>
+      <li><span>Career Matching Methodology</span></li>
+      <li><span>UAE Vision Alignment</span></li>
+      <li><span>Reporting &amp; Outputs</span></li>
+      <li><span>Privacy, Security &amp; Data Governance</span></li>
+      <li><span>Conclusion &amp; Recommendations</span></li>
+      <li><span>References</span></li>
+    </ol>
+  </div>
+
+  <!-- ─── 1. Executive Summary ─────────────────────────── -->
+  <section>
+    <p class="section-number">Section 1</p>
+    <h2 class="section-title">Executive Summary</h2>
+    <hr class="section-rule" />
+
+    <p>
+      Future Pathways is a digital career guidance system purpose-built for secondary school students
+      in the United Arab Emirates. The platform bridges the gap between a student's emerging identity —
+      their interests, learning style, values, and academic strengths — and the rapidly changing landscape
+      of careers, nationally and globally.
+    </p>
+    <p>
+      Unlike generic career quizzes, Future Pathways integrates three internationally validated
+      psychometric instruments into a single, engaging experience: <strong>Kolb's Experiential Learning
+      Theory (ELT)</strong> for learning style, <strong>Holland's RIASEC model</strong> for career
+      personality, and a <strong>Career Values Questionnaire (CVQ)</strong> grounded in Schwartz's
+      Theory of Basic Human Values. These instruments are supplemented by a UAE curriculum-aligned
+      subject competency quiz and an interest mapping survey.
+    </p>
+    <p>
+      The result is a personalised career profile and ranked career recommendations that account for
+      who the student is, how they learn, what they value, what the UAE economy needs, and what the
+      future of work demands — all presented in a student-friendly, visually engaging format.
+    </p>
+
+    <div class="callout">
+      <strong>Key proposition:</strong> Future Pathways gives every UAE student — whether using the
+      free tier independently or the premium/school tier through their institution — a rigorous,
+      evidence-based starting point for career exploration that is culturally relevant and
+      future-focused.
+    </div>
+  </section>
+
+  <!-- ─── 2. The Challenge ──────────────────────────────── -->
+  <section>
+    <p class="section-number">Section 2</p>
+    <h2 class="section-title">The Career Guidance Challenge in UAE Schools</h2>
+    <hr class="section-rule" />
+
+    <p>
+      The UAE's ambitious national vision programmes — <em>UAE Vision 2021</em>, <em>UAE Centennial
+      2071</em>, and the <em>UAE Agenda 2031</em> — all depend on a skilled, future-ready national
+      workforce. Yet many secondary school students lack structured, evidence-based guidance to help
+      them translate their interests and strengths into informed career decisions.
+    </p>
+    <p>
+      Research consistently shows that early career awareness is one of the strongest predictors of
+      academic engagement, subject choice, and ultimate career satisfaction. Despite this, formal
+      career counselling resources in schools are often limited in capacity, and the tools that do
+      exist are typically designed for Western contexts and do not reflect the UAE's unique sectoral
+      priorities, cultural context, or emerging labour market.
+    </p>
+
+    <div class="info-box">
+      <h4>Key challenges addressed</h4>
+      <ul style="padding-left:1.3rem; font-size:0.89rem; color:#4a5568; line-height:1.8;">
+        <li>Lack of scalable, data-driven career guidance tools aligned to the UAE curriculum</li>
+        <li>Absence of psychometrically validated assessments adapted for adolescent students aged 13–18</li>
+        <li>Disconnection between student interests and UAE national priority sectors</li>
+        <li>Limited visibility for school administrators into cohort-level career trends</li>
+        <li>No structured linkage between assessment data and UAE university/pathway options</li>
+      </ul>
+    </div>
+
+    <p>
+      Future Pathways is designed as a direct response to these gaps. It is built by practitioners
+      with direct experience in UAE education, grounded in peer-reviewed science, and tailored to
+      the economic and cultural context of the Emirates.
+    </p>
+  </section>
+
+  <!-- ─── 3. Platform Overview ─────────────────────────── -->
+  <section>
+    <p class="section-number">Section 3</p>
+    <h2 class="section-title">Platform Overview &amp; Tiered Access Model</h2>
+    <hr class="section-rule" />
+
+    <p>
+      Future Pathways is a web-based platform accessible on any device. It offers three tiers of
+      access, ensuring that students at every level — from those exploring independently at home to
+      those whose school has subscribed — can benefit from career guidance.
+    </p>
+
+    <table class="tier-table">
+      <thead>
+        <tr>
+          <th>Feature</th>
+          <th>Free Tier</th>
+          <th>Premium Tier</th>
+          <th>School Tier</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Demographic profiling</td>
+          <td class="check">&#10003;</td>
+          <td class="check">&#10003;</td>
+          <td class="check">&#10003;</td>
+        </tr>
+        <tr>
+          <td>Interest mapping (8 domains)</td>
+          <td class="check">&#10003;</td>
+          <td class="check">&#10003;</td>
+          <td class="check">&#10003;</td>
+        </tr>
+        <tr>
+          <td>Subject competency quiz (UAE curriculum)</td>
+          <td class="check">&#10003;</td>
+          <td class="check">&#10003;</td>
+          <td class="check">&#10003;</td>
+        </tr>
+        <tr>
+          <td>Career recommendations (top matches)</td>
+          <td class="check">&#10003;</td>
+          <td class="check">&#10003;</td>
+          <td class="check">&#10003;</td>
+        </tr>
+        <tr>
+          <td>Learning Style Assessment (Kolb ELT)</td>
+          <td class="dash">&#8212;</td>
+          <td class="check">&#10003;</td>
+          <td class="check">&#10003;</td>
+        </tr>
+        <tr>
+          <td>Career Personality Assessment (RIASEC)</td>
+          <td class="dash">&#8212;</td>
+          <td class="check">&#10003;</td>
+          <td class="check">&#10003;</td>
+        </tr>
+        <tr>
+          <td>Personal Values Assessment (CVQ)</td>
+          <td class="dash">&#8212;</td>
+          <td class="check">&#10003;</td>
+          <td class="check">&#10003;</td>
+        </tr>
+        <tr>
+          <td>Personalised narrative insights</td>
+          <td class="dash">&#8212;</td>
+          <td class="check">&#10003;</td>
+          <td class="check">&#10003;</td>
+        </tr>
+        <tr>
+          <td>PDF career report download</td>
+          <td class="dash">&#8212;</td>
+          <td class="check">&#10003;</td>
+          <td class="check">&#10003;</td>
+        </tr>
+        <tr>
+          <td>Education pathways (UAE universities)</td>
+          <td class="dash">&#8212;</td>
+          <td class="check">&#10003;</td>
+          <td class="check">&#10003;</td>
+        </tr>
+        <tr>
+          <td>Multi-grade progress tracking</td>
+          <td class="dash">&#8212;</td>
+          <td class="dash">&#8212;</td>
+          <td class="check">&#10003;</td>
+        </tr>
+        <tr>
+          <td>School admin dashboard &amp; analytics</td>
+          <td class="dash">&#8212;</td>
+          <td class="dash">&#8212;</td>
+          <td class="check">&#10003;</td>
+        </tr>
+        <tr>
+          <td>Bulk student account management</td>
+          <td class="dash">&#8212;</td>
+          <td class="dash">&#8212;</td>
+          <td class="check">&#10003;</td>
+        </tr>
+        <tr>
+          <td>CSV &amp; PDF cohort data export</td>
+          <td class="dash">&#8212;</td>
+          <td class="dash">&#8212;</td>
+          <td class="check">&#10003;</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>
+      Guest access is available for the free tier, allowing students to complete an assessment
+      without registering. Results are preserved in the session and can be migrated to a registered
+      account at any point, ensuring no student loses their progress.
+    </p>
+  </section>
+
+  <!-- ─── 4. Assessment Framework ──────────────────────── -->
+  <section>
+    <p class="section-number">Section 4</p>
+    <h2 class="section-title">Assessment Framework</h2>
+    <hr class="section-rule" />
+
+    <p>
+      The Future Pathways assessment is a multi-layer instrument. Each layer contributes a distinct
+      dimension of the student's profile, and the results are combined by the career matching engine
+      to generate ranked career recommendations. The premium and school tiers include three additional
+      scientifically validated instruments — described fully in Sections 5, 6, and 7.
+    </p>
+
+    <div class="assessment-grid">
+      <div class="assessment-card">
+        <div class="assessment-card-header">Layer 1 — Interests</div>
+        <div class="assessment-card-body">
+          <strong>8 interest domains</strong><br />
+          Technology, Creative Arts, Helping Others, Problem Solving, Physical Activities,
+          Research, Leadership, Business &amp; Finance.
+        </div>
+      </div>
+      <div class="assessment-card">
+        <div class="assessment-card-header">Layer 2 — Subject Strengths</div>
+        <div class="assessment-card-body">
+          <strong>UAE Ministry of Education curriculum</strong><br />
+          Competency quizzes across Mathematics, Science, English, Arabic, Social Studies,
+          and Computer Science — grade-differentiated (Grades 8–12).
+        </div>
+      </div>
+      <div class="assessment-card">
+        <div class="assessment-card-header">Layer 3 — Learning Style (Premium)</div>
+        <div class="assessment-card-body">
+          <strong>Kolb ELT — 24 items</strong><br />
+          Identifies how the student absorbs and processes information across four dimensions.
+        </div>
+      </div>
+      <div class="assessment-card">
+        <div class="assessment-card-header">Layer 4 — Career Personality (Premium)</div>
+        <div class="assessment-card-body">
+          <strong>RIASEC — 30 items</strong><br />
+          Maps the student's vocational personality across Holland's six types, producing a
+          three-letter type code.
+        </div>
+      </div>
+      <div class="assessment-card">
+        <div class="assessment-card-header">Layer 5 — Personal Values (Premium)</div>
+        <div class="assessment-card-body">
+          <strong>CVQ — 21 items</strong><br />
+          Assesses motivational values across seven domains derived from Schwartz's universal
+          values theory.
+        </div>
+      </div>
+      <div class="assessment-card">
+        <div class="assessment-card-header">Layer 6 — Country Aspiration</div>
+        <div class="assessment-card-body">
+          <strong>UAE Vision Alignment</strong><br />
+          Students select priority sectors aligned to UAE 2030/2071 goals, informing vision
+          weighting in the matching engine.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── 5. Kolb ───────────────────────────────────────── -->
+  <section>
+    <p class="section-number">Section 5</p>
+    <h2 class="section-title">The Learning Style Assessment (Kolb ELT)</h2>
+    <hr class="section-rule" />
+
+    <h3>Theoretical Basis</h3>
+    <p>
+      David A. Kolb's Experiential Learning Theory (ELT), first articulated in <em>Experiential
+      Learning: Experience as the Source of Learning and Development</em> (Kolb, 1984), proposes
+      that learning is a four-stage cyclical process. Individuals develop preferred modes of
+      engaging with this cycle, yielding four distinct learning styles. ELT is one of the most
+      widely cited learning theories in education and organisational psychology, with thousands of
+      peer-reviewed applications across academic and workplace contexts.
+    </p>
+
+    <h3>The Four Dimensions</h3>
+    <p>
+      The assessment measures four learning dimensions using 24 Likert-scale items (six per
+      dimension, rated 1 = Strongly Disagree to 5 = Strongly Agree):
+    </p>
+
+    <div class="kolb-grid">
+      <div class="kolb-card">
+        <p class="code">CE — Concrete Experience</p>
+        <p class="name">Feel</p>
+        <p class="desc">
+          Preference for learning through direct involvement in real situations, concrete examples,
+          and case studies. Relates to the <em>feeling</em> pole of the processing continuum.
+        </p>
+      </div>
+      <div class="kolb-card">
+        <p class="code">RO — Reflective Observation</p>
+        <p class="name">Watch</p>
+        <p class="desc">
+          Preference for careful observation, reviewing multiple perspectives, and journaling before
+          forming conclusions. Relates to the <em>watching</em> pole.
+        </p>
+      </div>
+      <div class="kolb-card">
+        <p class="code">AC — Abstract Conceptualisation</p>
+        <p class="name">Think</p>
+        <p class="desc">
+          Preference for logic, theory, models, and systematic frameworks. Relates to the
+          <em>thinking</em> pole of the processing continuum.
+        </p>
+      </div>
+      <div class="kolb-card">
+        <p class="code">AE — Active Experimentation</p>
+        <p class="name">Do</p>
+        <p class="desc">
+          Preference for trying things, running experiments, and applying ideas immediately.
+          Relates to the <em>doing</em> pole.
+        </p>
+      </div>
+    </div>
+
+    <h3>Derived Learning Styles</h3>
+    <p>
+      By comparing the relative scores on the CE–AC axis (grasping experience) and the AE–RO
+      axis (transforming experience), each student is assigned one of four learning styles:
+    </p>
+
+    <div class="info-box">
+      <h4>The Four Kolb Learning Styles</h4>
+      <table style="width:100%; font-size:0.87rem; border-collapse:collapse;">
+        <thead>
+          <tr style="background:#f0f4f8;">
+            <th style="padding:0.5rem 0.8rem; text-align:left; color:#0f5257;">Style</th>
+            <th style="padding:0.5rem 0.8rem; text-align:left; color:#0f5257;">Dominant Modes</th>
+            <th style="padding:0.5rem 0.8rem; text-align:left; color:#0f5257;">Strengths</th>
+            <th style="padding:0.5rem 0.8rem; text-align:left; color:#0f5257;">Career Affinity</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr style="border-bottom:1px solid #d1d9e0;">
+            <td style="padding:0.5rem 0.8rem; font-weight:700;">Diverger</td>
+            <td style="padding:0.5rem 0.8rem; color:#4a5568;">CE + RO</td>
+            <td style="padding:0.5rem 0.8rem; color:#4a5568;">Imagination, empathy, brainstorming</td>
+            <td style="padding:0.5rem 0.8rem; color:#4a5568;">Arts, counselling, HR, marketing</td>
+          </tr>
+          <tr style="border-bottom:1px solid #d1d9e0; background:#f7f9fb;">
+            <td style="padding:0.5rem 0.8rem; font-weight:700;">Assimilator</td>
+            <td style="padding:0.5rem 0.8rem; color:#4a5568;">AC + RO</td>
+            <td style="padding:0.5rem 0.8rem; color:#4a5568;">Abstract reasoning, model-building</td>
+            <td style="padding:0.5rem 0.8rem; color:#4a5568;">Research, science, mathematics, planning</td>
+          </tr>
+          <tr style="border-bottom:1px solid #d1d9e0;">
+            <td style="padding:0.5rem 0.8rem; font-weight:700;">Converger</td>
+            <td style="padding:0.5rem 0.8rem; color:#4a5568;">AC + AE</td>
+            <td style="padding:0.5rem 0.8rem; color:#4a5568;">Problem-solving, technical application</td>
+            <td style="padding:0.5rem 0.8rem; color:#4a5568;">Engineering, technology, medicine</td>
+          </tr>
+          <tr style="background:#f7f9fb;">
+            <td style="padding:0.5rem 0.8rem; font-weight:700;">Accommodator</td>
+            <td style="padding:0.5rem 0.8rem; color:#4a5568;">CE + AE</td>
+            <td style="padding:0.5rem 0.8rem; color:#4a5568;">Adaptability, risk-taking, action</td>
+            <td style="padding:0.5rem 0.8rem; color:#4a5568;">Entrepreneurship, sales, leadership, sport</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>
+      The student's Kolb score contributes to career matching by modulating affinity scores between
+      their identified careers and the learning environments those careers typically demand.
+    </p>
+  </section>
+
+  <!-- ─── 6. RIASEC ─────────────────────────────────────── -->
+  <section>
+    <p class="section-number">Section 6</p>
+    <h2 class="section-title">The Career Personality Assessment (RIASEC / Holland Codes)</h2>
+    <hr class="section-rule" />
+
+    <h3>Theoretical Basis</h3>
+    <p>
+      John L. Holland's Theory of Vocational Personalities and Work Environments (Holland, 1959;
+      1997) is the most empirically supported framework in career psychology. Holland proposed
+      that both people and work environments can be described using six vocational personality
+      types, commonly arranged in a hexagonal model (the <em>RIASEC hexagon</em>). Career
+      satisfaction and success are strongly predicted by the congruence between a person's type
+      and their occupational environment.
+    </p>
+    <p>
+      The RIASEC framework underpins numerous well-known instruments (including the Strong Interest
+      Inventory and the Self-Directed Search), and the six types are embedded in the O*NET
+      occupational database used by labour ministries worldwide.
+    </p>
+
+    <h3>The Six Vocational Types</h3>
+
+    <div class="riasec-grid">
+      <div class="riasec-card">
+        <p class="code">R</p>
+        <p class="name">Realistic</p>
+        <p class="desc">Hands-on, practical, tools, outdoor work, technical systems. Values tradition and common sense.</p>
+      </div>
+      <div class="riasec-card">
+        <p class="code">I</p>
+        <p class="name">Investigative</p>
+        <p class="desc">Scientific, analytical, research-driven. Values independence, curiosity, and rigorous inquiry.</p>
+      </div>
+      <div class="riasec-card">
+        <p class="code">A</p>
+        <p class="name">Artistic</p>
+        <p class="desc">Creative expression, design, storytelling, aesthetics. Values originality and freedom from structure.</p>
+      </div>
+      <div class="riasec-card">
+        <p class="code">S</p>
+        <p class="name">Social</p>
+        <p class="desc">Helping, teaching, counselling, community service. Values cooperation, empathy, and service to others.</p>
+      </div>
+      <div class="riasec-card">
+        <p class="code">E</p>
+        <p class="name">Enterprising</p>
+        <p class="desc">Leadership, persuasion, business, entrepreneurship. Values status, influence, and risk-taking.</p>
+      </div>
+      <div class="riasec-card">
+        <p class="code">C</p>
+        <p class="name">Conventional</p>
+        <p class="desc">Order, data management, systems, accounting. Values accuracy, efficiency, and stability.</p>
+      </div>
+    </div>
+
+    <h3>Implementation in Future Pathways</h3>
+    <p>
+      The platform administers <strong>30 original items</strong> (5 per type) using a five-point
+      Likert scale. Each type score is normalised to a 0–100 scale. The student's top three types
+      are combined to form a three-letter <em>Holland Code</em> (e.g., "ISA", "ECR") which is
+      matched against the Holland Code affinity scores pre-configured for each of the 36 careers
+      in the platform's catalogue.
+    </p>
+
+    <div class="callout">
+      <strong>Important distinction:</strong> Future Pathways uses the academic RIASEC framework
+      (Holland, 1997) — the open, peer-reviewed theory that underpins the career psychology field.
+      This is distinct from the commercially licensed <em>Strong Interest Inventory</em> instrument
+      (CPP Inc.), which builds upon the same underlying theory.
+    </div>
+  </section>
+
+  <!-- ─── 7. CVQ ────────────────────────────────────────── -->
+  <section>
+    <p class="section-number">Section 7</p>
+    <h2 class="section-title">The Personal Values Assessment (CVQ)</h2>
+    <hr class="section-rule" />
+
+    <h3>Theoretical Basis</h3>
+    <p>
+      The Career Values Questionnaire (CVQ) used in Future Pathways is grounded in Shalom H.
+      Schwartz's Theory of Basic Human Values (Schwartz, 1992; 2012), the most widely validated
+      cross-cultural framework for understanding human motivation. Schwartz identified ten universal
+      value types that are hierarchically organised and circumplex in structure — meaning adjacent
+      values are compatible and opposing values are in motivational conflict.
+    </p>
+    <p>
+      Research consistently demonstrates that work values are a significant predictor of career
+      commitment, job satisfaction, and identity development in adolescents (Hirschi, 2010), making
+      values assessment a powerful complement to interest and personality instruments for a student
+      population.
+    </p>
+
+    <h3>The Seven Value Domains</h3>
+    <p>
+      The Future Pathways CVQ measures seven value domains across <strong>21 items</strong> (3 per
+      domain), rated on a five-point scale (1 = Not Like Me to 5 = Very Much Like Me). Certain
+      items are reverse-scored to reduce acquiescence bias.
+    </p>
+
+    <div class="cvq-grid">
+      <div class="cvq-item">
+        <div class="dot"></div>
+        <div>
+          <span class="label">Achievement&nbsp;</span>
+          <span class="sub">— Success, competence, recognition, ambition</span>
+        </div>
+      </div>
+      <div class="cvq-item">
+        <div class="dot"></div>
+        <div>
+          <span class="label">Benevolence&nbsp;</span>
+          <span class="sub">— Caring for others, helpfulness, loyalty</span>
+        </div>
+      </div>
+      <div class="cvq-item">
+        <div class="dot"></div>
+        <div>
+          <span class="label">Universalism&nbsp;</span>
+          <span class="sub">— Fairness, equality, justice, protecting the environment</span>
+        </div>
+      </div>
+      <div class="cvq-item">
+        <div class="dot"></div>
+        <div>
+          <span class="label">Self-Direction&nbsp;</span>
+          <span class="sub">— Independence, creativity, freedom of thought</span>
+        </div>
+      </div>
+      <div class="cvq-item">
+        <div class="dot"></div>
+        <div>
+          <span class="label">Security&nbsp;</span>
+          <span class="sub">— Safety, stability, social order, harmony</span>
+        </div>
+      </div>
+      <div class="cvq-item">
+        <div class="dot"></div>
+        <div>
+          <span class="label">Power&nbsp;</span>
+          <span class="sub">— Authority, wealth, social influence, prestige</span>
+        </div>
+      </div>
+      <div class="cvq-item">
+        <div class="dot"></div>
+        <div>
+          <span class="label">Hedonism&nbsp;</span>
+          <span class="sub">— Pleasure, enjoyment, self-indulgence</span>
+        </div>
+      </div>
+    </div>
+
+    <p>
+      The domain scores are used in career matching to boost careers that align with the student's
+      dominant values. For example, a student with high Benevolence and Universalism scores will
+      see healthcare, education, and environmental science careers promoted in their results.
+    </p>
+  </section>
+
+  <!-- ─── 8. WEF ────────────────────────────────────────── -->
+  <section>
+    <p class="section-number">Section 8</p>
+    <h2 class="section-title">The WEF 16 Skills Framework Integration</h2>
+    <hr class="section-rule" />
+
+    <p>
+      The World Economic Forum's <em>New Vision for Education: Unlocking the Potential of
+      Technology</em> (WEF, 2016) and the <em>Future of Jobs Report 2025</em> define 16 critical
+      skills that will underpin 21st-century employability. Future Pathways maps all 36 careers
+      in its catalogue against this framework, ensuring that career recommendations explicitly
+      link to future-of-work relevance.
+    </p>
+
+    <div class="wef-pillar">
+      <p class="pillar-name">Foundational Literacies (6 skills)</p>
+      <p class="pillar-items">Literacy &middot; Numeracy &middot; Scientific Literacy &middot; ICT Literacy &middot; Financial Literacy &middot; Cultural &amp; Civic Literacy</p>
+    </div>
+    <div class="wef-pillar">
+      <p class="pillar-name">Competencies (6 skills)</p>
+      <p class="pillar-items">Critical Thinking &amp; Problem Solving &middot; Creativity &middot; Communication &middot; Collaboration &middot; Curiosity &middot; Initiative</p>
+    </div>
+    <div class="wef-pillar">
+      <p class="pillar-name">Character Qualities (4 skills)</p>
+      <p class="pillar-items">Persistence &amp; Grit &middot; Adaptability &middot; Leadership &middot; Social &amp; Cultural Awareness</p>
+    </div>
+
+    <p>
+      Each career in the platform is associated with a weighted set of WEF skill affinities
+      (576 career-skill pairings across 36 careers and 16 skills). Premium users see which WEF
+      skills their recommended careers demand, helping students and parents understand not just
+      <em>what</em> careers suit them, but <em>what skills they will need to develop</em>.
+    </p>
+  </section>
+
+  <!-- ─── 9. Matching Methodology ──────────────────────── -->
+  <section>
+    <p class="section-number">Section 9</p>
+    <h2 class="section-title">Career Matching Methodology</h2>
+    <hr class="section-rule" />
+
+    <p>
+      Future Pathways uses a modular, configurable scoring engine. Each career in the catalogue
+      receives a composite score based on multiple weighted dimensions. Superadministrators can
+      adjust the weights for each assessment tier; the default configuration is shown below.
+    </p>
+
+    <h3>Free Tier — Default Scoring Weights</h3>
+    <table class="weights-table">
+      <thead>
+        <tr>
+          <th>Dimension</th>
+          <th>Weight</th>
+          <th>Visual</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Subject Competency Match</td>
+          <td>35%</td>
+          <td><div class="bar-wrap"><div class="bar-fill" style="width:35%"></div></div></td>
+        </tr>
+        <tr>
+          <td>Interest Match</td>
+          <td>35%</td>
+          <td><div class="bar-wrap"><div class="bar-fill" style="width:35%"></div></div></td>
+        </tr>
+        <tr>
+          <td>Country Vision Alignment</td>
+          <td>30%</td>
+          <td><div class="bar-wrap"><div class="bar-fill" style="width:30%"></div></div></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Premium Tier — Default Scoring Weights</h3>
+    <table class="weights-table">
+      <thead>
+        <tr>
+          <th>Dimension</th>
+          <th>Weight</th>
+          <th>Visual</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Subject Competency Match</td>
+          <td>35%</td>
+          <td><div class="bar-wrap"><div class="bar-fill" style="width:35%"></div></div></td>
+        </tr>
+        <tr>
+          <td>Interest Match</td>
+          <td>35%</td>
+          <td><div class="bar-wrap"><div class="bar-fill" style="width:35%"></div></div></td>
+        </tr>
+        <tr>
+          <td>Country Vision Alignment</td>
+          <td>30%</td>
+          <td><div class="bar-wrap"><div class="bar-fill" style="width:30%"></div></div></td>
+        </tr>
+        <tr>
+          <td>RIASEC (Holland Code)</td>
+          <td>30%</td>
+          <td><div class="bar-wrap"><div class="bar-fill" style="width:30%"></div></div></td>
+        </tr>
+        <tr>
+          <td>Personal Values (CVQ)</td>
+          <td>20%</td>
+          <td><div class="bar-wrap"><div class="bar-fill" style="width:20%"></div></div></td>
+        </tr>
+        <tr>
+          <td>Kolb Learning Style</td>
+          <td>10%</td>
+          <td><div class="bar-wrap"><div class="bar-fill" style="width:10%"></div></div></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout">
+      <strong>Note on weights:</strong> Premium weights are additive to the free-tier base.
+      The engine normalises the final composite score across all active dimensions before ranking.
+      The configurable architecture allows school administrators and the platform superadmin to
+      tune weights for specific cohorts or institutional priorities.
+    </div>
+
+    <h3>Career Catalogue</h3>
+    <p>
+      The platform currently includes <strong>36 careers</strong> spanning the UAE's key economic
+      sectors: Technology &amp; AI, Healthcare, Engineering, Finance, Creative Industries,
+      Education, Environmental Sciences, Business, Legal, and more. Each career entry includes:
+    </p>
+    <ul style="padding-left:1.4rem; margin-bottom:1rem; font-size:0.9rem; color:#4a5568; line-height:1.85;">
+      <li>Career description and UAE job market outlook</li>
+      <li>Required subject strengths and education pathway</li>
+      <li>Holland Code affinity scores (R, I, A, S, E, C)</li>
+      <li>WEF skill affinities (weighted relevance across 16 skills)</li>
+      <li>UAE Vision 2030/2071 alignment indicators</li>
+    </ul>
+  </section>
+
+  <!-- ─── 10. UAE Vision ────────────────────────────────── -->
+  <section>
+    <p class="section-number">Section 10</p>
+    <h2 class="section-title">UAE Vision Alignment</h2>
+    <hr class="section-rule" />
+
+    <p>
+      A distinguishing feature of Future Pathways is its explicit integration of UAE national
+      strategic priorities. During the assessment, students are invited to express which sectors
+      of national importance resonate with them. These choices are mapped to the platform's
+      Country Vision Alignment scoring dimension.
+    </p>
+    <p>
+      The platform's career catalogue is tagged against the UAE's priority development sectors,
+      which include:
+    </p>
+
+    <div class="info-box">
+      <h4>UAE Priority Sectors (2030 &amp; 2071 Vision)</h4>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem 2rem; font-size:0.87rem; color:#4a5568; margin-top:0.4rem;">
+        <div>Advanced Technology &amp; AI</div>
+        <div>Space &amp; Future Sciences</div>
+        <div>Renewable Energy &amp; Sustainability</div>
+        <div>Healthcare &amp; Life Sciences</div>
+        <div>Financial Services &amp; FinTech</div>
+        <div>Education &amp; Human Capital</div>
+        <div>Tourism &amp; Hospitality</div>
+        <div>Advanced Manufacturing</div>
+        <div>Creative Industries &amp; Media</div>
+        <div>Food Security &amp; Agriculture</div>
+      </div>
+    </div>
+
+    <p>
+      This ensures that career recommendations are not only personally relevant to the student
+      but also economically relevant to the country — supporting the UAE's strategic objective
+      of developing a skilled, diversified national talent pipeline.
+    </p>
+  </section>
+
+  <!-- ─── 11. Reporting ─────────────────────────────────── -->
+  <section>
+    <p class="section-number">Section 11</p>
+    <h2 class="section-title">Reporting &amp; Outputs</h2>
+    <hr class="section-rule" />
+
+    <h3>Student Career Report (Premium)</h3>
+    <p>
+      Premium users receive a personalised PDF career report containing: a ranked list of career
+      matches with match scores, a narrative explaining the student's personality and values
+      profile, a learning style explanation, UAE university and programme recommendations
+      (sourced from the UAE Commission for Academic Accreditation), and actionable next steps.
+    </p>
+
+    <h3>Multi-Grade Progress Tracking (School Tier)</h3>
+    <p>
+      For school-enrolled students who complete assessments across multiple academic years, the
+      platform generates a progress view showing how career preferences and psychometric profiles
+      evolve between Grades 8 and 12. This longitudinal view is valuable for school counsellors
+      monitoring student development.
+    </p>
+
+    <h3>School Admin Dashboard</h3>
+    <p>
+      Organisation administrators have access to a secure dashboard providing cohort-level analytics:
+      top career trends by grade, skill distribution heatmaps, assessment completion rates,
+      and the ability to export student data in CSV and PDF formats for reporting and audit purposes.
+    </p>
+  </section>
+
+  <!-- ─── 12. Privacy ───────────────────────────────────── -->
+  <section>
+    <p class="section-number">Section 12</p>
+    <h2 class="section-title">Privacy, Security &amp; Data Governance</h2>
+    <hr class="section-rule" />
+
+    <p>
+      Future Pathways is built with data protection as a foundational design principle, in
+      compliance with applicable data protection frameworks including the UAE Personal Data
+      Protection Law (Federal Decree-Law No. 45 of 2021).
+    </p>
+
+    <ul style="padding-left:1.4rem; font-size:0.9rem; color:#4a5568; line-height:1.9;">
+      <li><strong>Authentication:</strong> Multi-provider OAuth (Google, Microsoft) and email/password with secure hashing. Role-based access control for students, school administrators, and superadmins.</li>
+      <li><strong>Session management:</strong> PostgreSQL-backed sessions with 24-hour expiry. Cryptographically secure guest tokens for unauthenticated assessments.</li>
+      <li><strong>Data minimisation:</strong> Only assessment-relevant data is collected. No social media scraping or behavioural tracking beyond platform usage.</li>
+      <li><strong>Parental consent:</strong> Registration for users under 18 includes consent acknowledgement.</li>
+      <li><strong>Data rights:</strong> Students and administrators can request full data export or account deletion in compliance with GDPR-equivalent principles.</li>
+      <li><strong>Security infrastructure:</strong> Helmet security headers, rate limiting, CSRF protection, input sanitisation (DOMPurify), and N+1 query elimination.</li>
+      <li><strong>Hosting:</strong> PostgreSQL (Neon serverless) with encrypted connections.</li>
+    </ul>
+  </section>
+
+  <!-- ─── 13. Conclusion ────────────────────────────────── -->
+  <section>
+    <p class="section-number">Section 13</p>
+    <h2 class="section-title">Conclusion &amp; Recommendations</h2>
+    <hr class="section-rule" />
+
+    <p>
+      Future Pathways represents a significant step forward in evidence-based, culturally aligned
+      career guidance for UAE secondary school students. By combining three internationally
+      validated psychometric instruments with UAE curriculum data, national vision priorities,
+      and WEF future-skills intelligence, the platform delivers a career guidance experience that
+      is simultaneously rigorous and accessible.
+    </p>
+    <p>
+      The following recommendations are offered to schools and education authorities considering
+      adoption:
+    </p>
+    <ol style="padding-left:1.5rem; font-size:0.9rem; color:#4a5568; line-height:1.9; margin-bottom:1rem;">
+      <li>
+        <strong>Integrate at Grade 9:</strong> Early assessment enables time for reflection,
+        subject selection adjustment, and iterative re-assessment. Grade 9 is the optimal
+        entry point before UAE curriculum tracking decisions are made.
+      </li>
+      <li>
+        <strong>Repeat annually:</strong> Career identity is not fixed in adolescence. Annual
+        re-assessment and the multi-grade progress view give counsellors longitudinal insight
+        into student development.
+      </li>
+      <li>
+        <strong>Pair with counsellor review:</strong> The platform's reports are designed to
+        initiate, not replace, meaningful one-on-one counselling conversations.
+      </li>
+      <li>
+        <strong>Use cohort analytics:</strong> School administrators should use the aggregate
+        dashboard to identify career clusters within their student population and align
+        extracurricular and enrichment programming accordingly.
+      </li>
+      <li>
+        <strong>Communicate with parents:</strong> The PDF report is designed to be shared
+        with parents, making career conversations at home more structured and informed.
+      </li>
+    </ol>
+
+    <div class="callout">
+      Future Pathways is committed to continuous improvement. The platform's scoring methodology,
+      career catalogue, and assessment instruments are reviewed annually against the latest
+      labour market data, psychometric research, and UAE policy developments.
+    </div>
+  </section>
+
+  <!-- ─── 14. References ────────────────────────────────── -->
+  <section>
+    <p class="section-number">Section 14</p>
+    <h2 class="section-title">References</h2>
+    <hr class="section-rule" />
+
+    <ul style="list-style:none; padding:0; font-size:0.87rem; color:#4a5568; line-height:1.9;">
+      <li>Hirschi, A. (2010). Vocational interests and career goals: Development and relations to personality in middle adolescence. <em>Journal of Vocational Behavior, 76</em>(2), 289–298.</li>
+      <li>Holland, J. L. (1959). A theory of vocational choice. <em>Journal of Counseling Psychology, 6</em>(1), 35–45.</li>
+      <li>Holland, J. L. (1997). <em>Making vocational choices: A theory of vocational personalities and work environments</em> (3rd ed.). Psychological Assessment Resources.</li>
+      <li>Kolb, D. A. (1984). <em>Experiential learning: Experience as the source of learning and development</em>. Prentice-Hall.</li>
+      <li>Schwartz, S. H. (1992). Universals in the content and structure of values: Theory and empirical tests in 20 countries. <em>Advances in Experimental Social Psychology, 25</em>, 1–65.</li>
+      <li>Schwartz, S. H. (2012). An overview of the Schwartz theory of basic values. <em>Online Readings in Psychology and Culture, 2</em>(1).</li>
+      <li>UAE Federal Government. (2021). <em>UAE Centennial 2071</em>. https://u.ae/en/about-the-uae/strategies-initiatives-and-awards/federal-governments-strategies-and-plans/uae-centennial-2071</li>
+      <li>World Economic Forum. (2016). <em>New Vision for Education: Unlocking the Potential of Technology</em>. WEF.</li>
+      <li>World Economic Forum. (2025). <em>Future of Jobs Report 2025</em>. WEF.</li>
+    </ul>
+  </section>
+
+  <!-- Footer -->
+  <div class="doc-footer">
+    <span>Future Pathways Career Guidance System &mdash; White Paper 2025</span>
+    <span>Confidential &middot; futurepathways.ae</span>
+  </div>
+
+</div>
+
+<!-- Print button -->
+<button class="print-btn no-print" onclick="window.print()">Save / Print as PDF</button>
+
+</body>
+</html>
