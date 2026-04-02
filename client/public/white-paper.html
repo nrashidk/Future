@@ -1183,24 +1183,19 @@
       </thead>
       <tbody>
         <tr>
-          <td>Subject Competency Match</td>
-          <td>35%</td>
-          <td><div class="bar-wrap"><div class="bar-fill" style="width:35%"></div></div></td>
-        </tr>
-        <tr>
-          <td>Interest Match</td>
-          <td>35%</td>
-          <td><div class="bar-wrap"><div class="bar-fill" style="width:35%"></div></div></td>
-        </tr>
-        <tr>
-          <td>Country Vision Alignment</td>
-          <td>30%</td>
-          <td><div class="bar-wrap"><div class="bar-fill" style="width:30%"></div></div></td>
-        </tr>
-        <tr>
           <td>RIASEC (Holland Code)</td>
           <td>30%</td>
           <td><div class="bar-wrap"><div class="bar-fill" style="width:30%"></div></div></td>
+        </tr>
+        <tr>
+          <td>Subject Competency Match</td>
+          <td>20%</td>
+          <td><div class="bar-wrap"><div class="bar-fill" style="width:20%"></div></div></td>
+        </tr>
+        <tr>
+          <td>Country Vision Alignment</td>
+          <td>20%</td>
+          <td><div class="bar-wrap"><div class="bar-fill" style="width:20%"></div></div></td>
         </tr>
         <tr>
           <td>Personal Values (CVQ)</td>
@@ -1216,10 +1211,12 @@
     </table>
 
     <div class="callout">
-      <strong>Note on weights:</strong> Premium weights are additive to the free-tier base.
-      The engine normalises the final composite score across all active dimensions before ranking.
-      The configurable architecture allows school administrators and the platform superadmin to
-      tune weights for specific cohorts or institutional priorities.
+      <strong>Note on weights:</strong> In the Premium tier, the Interest Match dimension is replaced
+      by the scientifically validated RIASEC personality assessment, which provides a richer signal.
+      Subject Competency, Vision Alignment, and Personal Values each carry equal weight at 20%, with
+      Kolb Learning Style providing a final 10% refinement. All dimensions sum to 100%.
+      The configurable architecture allows the platform superadmin to tune weights for specific
+      institutional priorities without code changes.
     </div>
 
     <h3>Career Catalogue</h3>
