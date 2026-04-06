@@ -130,7 +130,7 @@ export default function ForgotPassword() {
 
               <Button
                 type="submit"
-                className="w-full"
+                className="w-full min-h-[44px]"
                 disabled={resetMutation.isPending}
                 data-testid="button-submit-reset"
               >
