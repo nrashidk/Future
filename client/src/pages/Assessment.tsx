@@ -240,8 +240,6 @@ export default function Assessment() {
           backendData.cvqResponses = assessmentData.cvqResponses;
         }
         
-        console.log("Saving assessment:", backendData);
-        
         // Create or update assessment (idempotent)
         let assessment;
         if (assessmentId) {
