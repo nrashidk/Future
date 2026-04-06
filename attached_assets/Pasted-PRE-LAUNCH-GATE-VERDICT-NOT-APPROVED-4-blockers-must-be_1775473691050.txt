@@ -1,0 +1,68 @@
+PRE-LAUNCH GATE VERDICT: NOT APPROVED
+4 blockers must be resolved before launch.
+
+FUNCTIONALITY
+Check	Status
+New user can complete core purpose without errors	YES — full assessment → recommendations flow is implemented end-to-end
+All forms tested with valid/invalid/empty input	YES — Zod validation on all forms, server-side + client-side
+Error states handled (API call fails)	PARTIAL — global error handler exists, but password reset flow has a type mismatch bug (see Blocker 2)
+Graceful recovery on mid-session refresh	YES — TanStack Query caching + session persistence via PostgreSQL
+VISUAL POLISH
+Check	Status
+Every page looks intentional and finished	YES — no half-rendered pages found
+No visual bugs on scroll (sticky headers, overlapping)	UNTESTED — requires manual browser verification
+Animations and transitions are smooth	YES — Framer Motion + Tailwind, no jank patterns detected
+CONTENT
+Check	Status
+No placeholder text (Lorem ipsum, TBD)	YES — none found
+"Coming Soon" labels replaced with real content	NO — 6 features on the Group Assessment tier card are labeled "Coming Soon" (analytics, trend analysis, grouping, reporting, etc.)
+No typos or grammatical errors	UNTESTED — requires manual read-through
+Prices, dates, factual claims accurate	PARTIAL — "Last updated" on Privacy Policy, Terms, and Disclaimer dynamically renders today's date via new Date().toLocaleDateString() — it will show a different date every single day
+Site communicates its purpose within 5 seconds	YES — landing hero is clear
+Privacy policy present	YES — at /privacy
+Terms of service present	YES — at /terms
+TECHNICAL FINAL CHECK
+Check	Status
+Production build completes without errors	YES — vite build + esbuild both succeed cleanly
+TypeScript check passes	NO — 243 errors: 241 in server/questionBanks/ (missing curriculum field on all seeded questions), 1 in server/utils/sanitize.ts, 2 in client/src/pages/ResetPassword.tsx
+Environment variables set for production	PARTIAL — DATABASE_URL, SESSION_SECRET, SUPERADMIN_EMAILS required; Stripe, OAuth, Resend optional but APP_URL must be set or email links point to futurepathways.replit.app
+External services live and connected	UNTESTED — cannot verify DB, Stripe, email connectivity from this review
+Tested in Chrome, Safari, Firefox	UNTESTED
+Tested on real mobile device	UNTESTED
+LAUNCH CONFIDENCE CHECK
+Check	Status
+Rollback or hotfix plan exists	UNTESTED — no deployment config visible in repo
+Error monitoring after launch	PARTIAL — server-side logging exists, but no external error service (Sentry, etc.) configured
+BLOCKERS (in order of importance)
+1. SECURITY — DATABASE_URL credentials logged in production
+server/db.ts:13: console.log("DATABASE_URL:", process.env.DATABASE_URL)
+This dumps your full database connection string (including password) into production server logs. Remove it immediately.
+
+2. BUG — Password reset page crashes on "Back to Login" button
+client/src/pages/ResetPassword.tsx:287: <Button variant="link"> — "link" is not a valid variant in your Button component (allowed: default | destructive | outline | secondary | ghost). This causes a broken UI on the reset password page — a critical user flow.
+
+3. LEGAL — "Last updated" date changes daily
+PrivacyPolicy.tsx:26, TermsOfUse.tsx:26, Disclaimer.tsx:26 all use new Date().toLocaleDateString(). Legal documents must have a fixed, accurate date. A privacy policy that says it was "updated" today when a user visits is legally meaningless and looks broken.
+
+4. DOMAIN — Hardcoded futurepathways.replit.app in production code
+
+server/services/email.ts:32: Password reset emails link to futurepathways.replit.app if APP_URL is not set
+client/src/pages/PrivacyPolicy.tsx:61,95: Contact email is privacy@futurepathways.replit.app
+client/src/pages/ResultsPrint.tsx:504,670,856: Printed PDFs say "Visit us at futurepathways.replit.app"
+If you're launching on a different domain, all three are wrong and the first will silently send broken email links.
+
+ACTION LIST
+Under 1 hour (fix right now):
+Delete line 13 from server/db.ts — remove the console.log("DATABASE_URL: ...") line
+Fix ResetPassword.tsx:287 — change variant="link" to variant="ghost" (closest valid equivalent)
+Hardcode the "Last updated" dates in PrivacyPolicy.tsx, TermsOfUse.tsx, Disclaimer.tsx to a real fixed date (e.g., today's date as a string literal)
+Set APP_URL env var in production to your actual domain — this fixes the email link issue without a code change
+Update privacy@futurepathways.replit.app in PrivacyPolicy.tsx to your real contact email
+Update the URL in ResultsPrint.tsx (3 places) to your real domain
+Takes longer (post-launch or before if time allows):
+Fix 241 TypeScript errors in server/questionBanks/ — all missing curriculum: "MoE National" (or equivalent). These block npm run check passing cleanly and would break quiz seeding if those scripts are run.
+Manual cross-browser + mobile testing — especially scroll behavior and the assessment multi-step flow
+Add error monitoring (Sentry free tier takes ~30 min to integrate)
+Decide on "Coming Soon" features — either remove them from the Group tier card or add a clear "roadmap" framing so paying customers aren't misled
+Single most important fix first:
+Blocker 1 — remove the console.log("DATABASE_URL:", ...) from server/db.ts. This is the only issue that is already leaking sensitive data the moment the app is running. Fix it before anything else.
