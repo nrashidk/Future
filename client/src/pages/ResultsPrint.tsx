@@ -181,7 +181,7 @@ export default function ResultsPrint() {
   });
 
   const { data: user } = useQuery<any>({
-    queryKey: ['/api/user'],
+    queryKey: ['/api/auth/user'],
     enabled: true,
   });
 
@@ -265,46 +265,56 @@ export default function ResultsPrint() {
         </div>
 
         {/* Student Info Section */}
-        <div className="max-w-4xl mx-auto px-4 -mt-8 mb-6">
-          <StickyNote color="yellow" rotation="0" className="p-4">
-            <div className="flex items-center gap-3 mb-3">
-              <User className="w-7 h-7 text-primary flex-shrink-0" />
-              <h2 className="text-xl font-bold">Student Profile</h2>
+        {(() => {
+          const displayName = assessment?.name || (user as any)?.predefinedName;
+          const displayAge = assessment?.age || (user as any)?.predefinedAge;
+          const displayGrade = assessment?.grade || (user as any)?.predefinedGrade;
+          const displayGender = assessment?.gender || (user as any)?.predefinedGender;
+          const hasAnyField = displayName || displayAge || displayGrade || displayGender || country;
+          if (!hasAnyField) return null;
+          return (
+            <div className="max-w-4xl mx-auto px-4 -mt-8 mb-6">
+              <StickyNote color="blue" rotation="0" className="p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <User className="w-7 h-7 text-primary flex-shrink-0" />
+                  <h2 className="text-xl font-bold">Student Profile</h2>
+                </div>
+                <div className="grid grid-cols-5 gap-3">
+                  {displayName && (
+                    <div className="p-2 bg-background/30 rounded-lg text-center">
+                      <p className="text-xs text-muted-foreground font-body mb-0.5">Name</p>
+                      <p className="font-semibold text-sm leading-tight">{displayName}</p>
+                    </div>
+                  )}
+                  {displayAge && (
+                    <div className="p-2 bg-background/30 rounded-lg text-center">
+                      <p className="text-xs text-muted-foreground font-body mb-0.5">Age</p>
+                      <p className="font-semibold text-sm">{displayAge} years</p>
+                    </div>
+                  )}
+                  {displayGrade && (
+                    <div className="p-2 bg-background/30 rounded-lg text-center">
+                      <p className="text-xs text-muted-foreground font-body mb-0.5">Grade</p>
+                      <p className="font-semibold text-sm">Grade {String(displayGrade).replace('grade', '')}</p>
+                    </div>
+                  )}
+                  {displayGender && (
+                    <div className="p-2 bg-background/30 rounded-lg text-center">
+                      <p className="text-xs text-muted-foreground font-body mb-0.5">Gender</p>
+                      <p className="font-semibold text-sm capitalize">{displayGender}</p>
+                    </div>
+                  )}
+                  {country && (
+                    <div className="p-2 bg-background/30 rounded-lg text-center">
+                      <p className="text-xs text-muted-foreground font-body mb-0.5">Country</p>
+                      <p className="font-semibold text-sm leading-tight">{country.name}</p>
+                    </div>
+                  )}
+                </div>
+              </StickyNote>
             </div>
-            <div className="grid grid-cols-5 gap-3">
-              {assessment?.name && (
-                <div className="p-2 bg-background/30 rounded-lg text-center">
-                  <p className="text-xs text-muted-foreground font-body mb-0.5">Name</p>
-                  <p className="font-semibold text-sm leading-tight">{assessment.name}</p>
-                </div>
-              )}
-              {assessment?.age && (
-                <div className="p-2 bg-background/30 rounded-lg text-center">
-                  <p className="text-xs text-muted-foreground font-body mb-0.5">Age</p>
-                  <p className="font-semibold text-sm">{assessment.age} years</p>
-                </div>
-              )}
-              {assessment?.grade && (
-                <div className="p-2 bg-background/30 rounded-lg text-center">
-                  <p className="text-xs text-muted-foreground font-body mb-0.5">Grade</p>
-                  <p className="font-semibold text-sm">Grade {assessment.grade.replace('grade', '')}</p>
-                </div>
-              )}
-              {assessment?.gender && (
-                <div className="p-2 bg-background/30 rounded-lg text-center">
-                  <p className="text-xs text-muted-foreground font-body mb-0.5">Gender</p>
-                  <p className="font-semibold text-sm capitalize">{assessment.gender}</p>
-                </div>
-              )}
-              {country && (
-                <div className="p-2 bg-background/30 rounded-lg text-center">
-                  <p className="text-xs text-muted-foreground font-body mb-0.5">Country</p>
-                  <p className="font-semibold text-sm leading-tight">{country.name}</p>
-                </div>
-              )}
-            </div>
-          </StickyNote>
-        </div>
+          );
+        })()}
 
         {/* Subject Competency Spotlight */}
         {quizData?.completed && quizData?.subjectScores && Object.keys(quizData.subjectScores).length > 0 && (
@@ -672,191 +682,238 @@ export default function ResultsPrint() {
         </div>
       )}
 
-      {/* Subsequent Pages: One Career Per Page */}
-      {recommendations.map((rec: any, index: number) => (
-        <div key={rec.id} className="print-page-career">
-          <StickyNote
-            color={["yellow", "pink", "blue", "green", "purple"][index % 5] as any}
-            rotation="0"
-            className="p-8 h-full"
-          >
-            <div className="flex flex-col gap-6">
-              {/* Career Info */}
-              <div className="flex-1">
-                <div className="flex items-start justify-between mb-4">
-                  <div>
-                    <h3 className="text-2xl font-bold mb-2">{rec.career?.title}</h3>
-                    <p className="text-muted-foreground font-body">{rec.career?.description}</p>
-                  </div>
-                  <div className="bg-primary text-primary-foreground px-4 py-2 rounded-full font-bold text-lg ml-4 flex-shrink-0">
-                    {Math.round(rec.overallMatchScore)}%
+      {/* Personality Profile Fallback (school students without Kolb/CVQ data) */}
+      {isPremiumAssessment(assessment?.assessmentType) &&
+        !assessment?.kolbScores?.learningStyle &&
+        (assessment?.riasecScores?.top3?.length > 0 || assessment?.interests?.length > 0 || assessment?.personalityTraits) && (
+        <div className="print-page-career">
+          <StickyNote color="green" rotation="0" className="p-6">
+            <div className="space-y-5">
+              <div className="text-center mb-4">
+                <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-primary/10 mb-3">
+                  <Brain className="w-7 h-7 text-primary" />
+                </div>
+                <h2 className="text-2xl font-bold mb-1">Your Personality Profile</h2>
+                <p className="text-sm text-muted-foreground font-body">
+                  Based on your interests and personality assessment
+                </p>
+              </div>
+
+              {/* RIASEC Top Types */}
+              {assessment?.riasecScores?.top3?.length > 0 && (
+                <div className="p-4 bg-background/30 rounded-lg">
+                  <h3 className="font-semibold mb-3 flex items-center gap-2 text-sm">
+                    <Sparkles className="w-4 h-4" />
+                    Your Personality Types (Holland Codes)
+                  </h3>
+                  <div className="grid grid-cols-3 gap-3">
+                    {(() => {
+                      const riasecInfo: Record<string, { icon: any; label: string; desc: string }> = {
+                        R: { icon: Wrench, label: "Realistic", desc: "Hands-on, practical, enjoys building and fixing things" },
+                        I: { icon: Brain, label: "Investigative", desc: "Analytical, curious, loves researching and solving problems" },
+                        A: { icon: Sparkles, label: "Artistic", desc: "Creative, imaginative, expressive and original" },
+                        S: { icon: Users, label: "Social", desc: "Helpful, empathetic, loves working with and supporting people" },
+                        E: { icon: TrendingUp, label: "Enterprising", desc: "Leadership-driven, persuasive, enjoys influencing others" },
+                        C: { icon: Target, label: "Conventional", desc: "Organised, detail-oriented, follows clear rules and processes" },
+                      };
+                      const scores = assessment.riasecScores as Record<string, any>;
+                      return (assessment.riasecScores.top3 as string[]).map((code: string) => {
+                        const info = riasecInfo[code];
+                        if (!info) return null;
+                        const Icon = info.icon;
+                        const score = scores[code] ?? 0;
+                        return (
+                          <div key={code} className="p-3 bg-background/20 rounded-lg text-center">
+                            <div className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-primary/10 mb-2">
+                              <Icon className="w-5 h-5 text-primary" />
+                            </div>
+                            <div className="font-bold text-base text-primary mb-0.5">{code}</div>
+                            <div className="text-xs font-semibold mb-1">{info.label}</div>
+                            <div className="text-xs text-muted-foreground font-body leading-snug">{info.desc}</div>
+                            <Progress value={(score / 40) * 100} className="h-1.5 mt-2" />
+                            <span className="text-xs font-bold text-primary">{score}</span>
+                          </div>
+                        );
+                      });
+                    })()}
                   </div>
                 </div>
+              )}
 
-                {/* Match Breakdown */}
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium font-body flex items-center gap-1">
-                        <BookOpen className="w-3 h-3" />
-                        Subject Match
+              {/* Interests */}
+              {assessment?.interests?.length > 0 && (
+                <div className="p-4 bg-background/30 rounded-lg">
+                  <h3 className="font-semibold mb-2 flex items-center gap-2 text-sm">
+                    <Star className="w-4 h-4" />
+                    Your Key Interests
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {(assessment.interests as string[]).map((interest: string) => (
+                      <span
+                        key={interest}
+                        className="inline-flex items-center gap-1 bg-primary/10 px-3 py-1 rounded-full text-xs font-medium"
+                      >
+                        <CheckCircle2 className="w-3 h-3 text-primary" />
+                        {interest}
                       </span>
-                      <span className="text-sm font-bold">{Math.round(rec.subjectMatchScore)}%</span>
-                    </div>
-                    <Progress value={rec.subjectMatchScore} className="h-2" />
-                    <span className="text-xs text-muted-foreground">30% weight • Validated by quiz</span>
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium font-body flex items-center gap-1">
-                        <Star className="w-3 h-3" />
-                        Interest Match
-                      </span>
-                      <span className="text-sm font-bold">{Math.round(rec.interestMatchScore)}%</span>
-                    </div>
-                    <Progress value={rec.interestMatchScore} className="h-2" />
-                    <span className="text-xs text-muted-foreground">30% weight</span>
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium font-body flex items-center gap-1">
-                        <Target className="w-3 h-3" />
-                        Vision Alignment
-                      </span>
-                      <span className="text-sm font-bold">{Math.round(rec.countryVisionAlignment)}%</span>
-                    </div>
-                    <Progress value={rec.countryVisionAlignment} className="h-2" />
-                    <span className="text-xs text-muted-foreground">20% weight</span>
-                  </div>
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium font-body flex items-center gap-1">
-                        <TrendingUp className="w-3 h-3" />
-                        Market Demand
-                      </span>
-                      <span className="text-sm font-bold">{Math.round(rec.futureMarketDemand)}%</span>
-                    </div>
-                    <Progress value={rec.futureMarketDemand} className="h-2" />
-                    <span className="text-xs text-muted-foreground">20% weight</span>
+                    ))}
                   </div>
                 </div>
+              )}
 
-                {/* Validated Competencies & Vision Priorities */}
-                {(rec.matchedSubjects?.length > 0 || rec.supportingVisionPriorities?.length > 0) && (
-                  <div className="mb-6 p-4 bg-background/30 rounded-lg space-y-3">
-                    {rec.matchedSubjects?.length > 0 && (
-                      <div>
-                        <h4 className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3" />
-                          Validated by Your Competencies
-                        </h4>
-                        <div className="flex flex-wrap gap-2">
-                          {rec.matchedSubjects.map((item: any) => (
-                            <span
-                              key={item.subject}
-                              className="inline-flex items-center gap-1 bg-primary/10 px-3 py-1 rounded-full text-xs font-medium"
-                            >
-                              <CheckCircle2 className="w-3 h-3 text-primary" />
-                              {item.subject}: {item.competency}%
-                            </span>
-                          ))}
+              {/* Personality Traits */}
+              {assessment?.personalityTraits && Object.keys(assessment.personalityTraits).length > 0 && (
+                <div className="p-4 bg-background/30 rounded-lg">
+                  <h3 className="font-semibold mb-3 flex items-center gap-2 text-sm">
+                    <Lightbulb className="w-4 h-4" />
+                    Your Personality Traits
+                  </h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    {Object.entries(assessment.personalityTraits as Record<string, number>)
+                      .sort(([, a], [, b]) => b - a)
+                      .slice(0, 6)
+                      .map(([trait, score]) => (
+                        <div key={trait} className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-medium capitalize flex-1 truncate">
+                            {trait.replace(/_/g, ' ')}
+                          </span>
+                          <Progress value={Number(score)} className="h-1.5 w-20 flex-shrink-0" />
+                          <span className="text-xs font-bold w-8 text-right">{Math.round(Number(score))}%</span>
                         </div>
-                      </div>
-                    )}
-                    {rec.supportingVisionPriorities?.length > 0 && (
-                      <div>
-                        <h4 className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1">
-                          <Target className="w-3 h-3" />
-                          Supports National Vision
-                        </h4>
-                        <div className="flex flex-wrap gap-2">
-                          {rec.supportingVisionPriorities.map((priority: string, idx: number) => (
-                            <span
-                              key={idx}
-                              className="inline-flex items-center gap-1 bg-accent/20 px-3 py-1 rounded-full text-xs font-medium"
-                            >
-                              <Target className="w-3 h-3" />
-                              {priority}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Why This Career - Premium or Basic */}
-                <div className="mb-6 p-4 bg-background/30 rounded-lg">
-                  <h4 className="font-semibold mb-2 flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-primary" />
-                    Why This Career?
-                  </h4>
-                  <div className="text-sm font-body text-foreground/90 whitespace-pre-line">
-                    {(rec as any).premiumReasoning || rec.reasoning}
-                  </div>
-                </div>
-
-                {/* Work Style Fit - Premium Only */}
-                {(rec as any).workStyleFit && (
-                  <div className="mb-6 p-4 bg-primary/10 rounded-lg border-2 border-primary/20">
-                    <h4 className="font-semibold mb-2 flex items-center gap-2 text-primary">
-                      <CheckCircle2 className="w-4 h-4" />
-                      Your Work Style Fit
-                    </h4>
-                    <div className="text-sm font-body text-foreground/90 whitespace-pre-line">
-                      {(rec as any).workStyleFit}
-                    </div>
-                  </div>
-                )}
-
-                {/* Personal Strengths & Growth Areas - Premium Only */}
-                {(rec as any).strengthsGrowth && (
-                  <div className="mb-6 p-4 bg-primary/10 rounded-lg border-2 border-primary/20">
-                    <h4 className="font-semibold mb-2 flex items-center gap-2 text-primary">
-                      <CheckCircle2 className="w-4 h-4" />
-                      Personal Strengths & Growth Areas
-                    </h4>
-                    <div className="text-sm font-body text-foreground/90 whitespace-pre-line">
-                      {(rec as any).strengthsGrowth}
-                    </div>
-                  </div>
-                )}
-
-                {/* Education Required */}
-                <div className="mb-6">
-                  <h4 className="font-semibold mb-2 text-sm flex items-center gap-2">
-                    <BookOpen className="w-4 h-4" />
-                    Education Path
-                  </h4>
-                  <p className="text-sm font-body">{rec.requiredEducation}</p>
-                </div>
-
-                {/* Next Steps - Premium (7-8 steps) or Basic (2-3 steps) */}
-                {(((rec as any).premiumActionSteps && (rec as any).premiumActionSteps.length > 0) || (rec.actionSteps && rec.actionSteps.length > 0)) && (
-                  <div>
-                    <h4 className="font-semibold mb-2 text-sm">Next Steps</h4>
-                    <ul className="space-y-2 text-sm font-body">
-                      {((rec as any).premiumActionSteps || rec.actionSteps).map((step: string, idx: number) => (
-                        <li key={idx} className="flex items-start gap-2">
-                          <span className="text-primary font-bold flex-shrink-0">{idx + 1}.</span>
-                          <span className="whitespace-pre-line">{step}</span>
-                        </li>
                       ))}
-                    </ul>
                   </div>
-                )}
+                </div>
+              )}
+
+              <div className="p-3 bg-background/30 rounded-lg">
+                <p className="text-xs text-muted-foreground font-body flex items-start gap-1.5">
+                  <Target className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-primary" />
+                  <span>Your personality type and interests contribute to your career match scores, ensuring the recommendations below align with how you naturally think and what excites you most.</span>
+                </p>
               </div>
             </div>
           </StickyNote>
 
-
-          {/* Footer */}
-          <div className="mt-6 text-xs text-center text-muted-foreground">
+          <div className="mt-4 text-xs text-center text-muted-foreground">
             Generated on {new Date().toLocaleDateString()} | Future Pathways Career Guidance System<br />
             Visit us at futurepath.ae
           </div>
         </div>
-      ))}
+      )}
+
+      {/* Career Pages: Two careers side by side per page */}
+      {(() => {
+        const pairColors: Array<[string, string]> = [
+          ["yellow", "pink"],
+          ["blue", "green"],
+          ["purple", "orange"],
+        ];
+        const pages: any[][] = [];
+        for (let i = 0; i < recommendations.length; i += 2) {
+          pages.push(recommendations.slice(i, i + 2));
+        }
+        return pages.map((pair, pageIdx) => (
+          <div key={pageIdx} className="print-page-career">
+            <div className="grid grid-cols-2 gap-4 h-full">
+              {pair.map((rec: any, colIdx: number) => {
+                const color = pairColors[pageIdx % pairColors.length][colIdx] as any;
+                return (
+                  <StickyNote key={rec.id} color={color} rotation="0" className="p-4 flex flex-col gap-3">
+                    {/* Career Header */}
+                    <div>
+                      <div className="flex items-start justify-between mb-2 gap-2">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="text-lg font-bold leading-tight mb-1">{rec.career?.title}</h3>
+                          <p className="text-xs text-muted-foreground font-body line-clamp-2">{rec.career?.description}</p>
+                        </div>
+                        <div className="bg-primary text-primary-foreground px-3 py-1.5 rounded-full font-bold text-base flex-shrink-0">
+                          {Math.round(rec.overallMatchScore)}%
+                        </div>
+                      </div>
+
+                      {/* 2×2 Score Breakdown */}
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {[
+                          { label: "Subject", Icon: BookOpen, value: rec.subjectMatchScore, weight: "30%" },
+                          { label: "Interest", Icon: Star, value: rec.interestMatchScore, weight: "30%" },
+                          { label: "Vision", Icon: Target, value: rec.countryVisionAlignment, weight: "20%" },
+                          { label: "Market", Icon: TrendingUp, value: rec.futureMarketDemand, weight: "20%" },
+                        ].map(({ label, Icon, value, weight }) => (
+                          <div key={label} className="p-1.5 bg-background/30 rounded-lg">
+                            <div className="flex items-center justify-between mb-0.5">
+                              <span className="text-[11px] font-medium flex items-center gap-0.5">
+                                <Icon className="w-2.5 h-2.5" />
+                                {label}
+                              </span>
+                              <span className="text-[11px] font-bold">{Math.round(value)}%</span>
+                            </div>
+                            <Progress value={value} className="h-1" />
+                            <span className="text-[10px] text-muted-foreground">{weight} weight</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Two-column content: Why+WorkStyle | Education+Strengths */}
+                    <div className="grid grid-cols-2 gap-2 flex-1">
+                      {/* Left: Why this Career? + Work Style Fit */}
+                      <div className="flex flex-col gap-2">
+                        <div className="p-2 bg-background/30 rounded-lg flex-1">
+                          <h4 className="text-xs font-semibold mb-1.5 flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3 text-primary flex-shrink-0" />
+                            Why This Career?
+                          </h4>
+                          <div className="text-xs font-body text-foreground/90 whitespace-pre-line">
+                            {(rec as any).premiumReasoning || rec.reasoning}
+                          </div>
+                        </div>
+                        {(rec as any).workStyleFit && (
+                          <div className="p-2 bg-background/30 rounded-lg">
+                            <h4 className="text-xs font-semibold mb-1.5 flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3 text-primary flex-shrink-0" />
+                              Your Work Style Fit
+                            </h4>
+                            <div className="text-xs font-body text-foreground/90 whitespace-pre-line">
+                              {(rec as any).workStyleFit}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Right: Education Path + Personal Strengths & Growth */}
+                      <div className="flex flex-col gap-2">
+                        <div className="p-2 bg-background/30 rounded-lg">
+                          <h4 className="text-xs font-semibold mb-1.5 flex items-center gap-1">
+                            <BookOpen className="w-3 h-3 flex-shrink-0" />
+                            Education Path
+                          </h4>
+                          <p className="text-xs font-body">{rec.requiredEducation}</p>
+                        </div>
+                        {(rec as any).strengthsGrowth && (
+                          <div className="p-2 bg-background/30 rounded-lg flex-1">
+                            <h4 className="text-xs font-semibold mb-1.5 flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3 text-primary flex-shrink-0" />
+                              Personal Strengths & Growth
+                            </h4>
+                            <div className="text-xs font-body text-foreground/90 whitespace-pre-line">
+                              {(rec as any).strengthsGrowth}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </StickyNote>
+                );
+              })}
+            </div>
+
+            <div className="mt-4 text-xs text-center text-muted-foreground">
+              Generated on {new Date().toLocaleDateString()} | Future Pathways Career Guidance System<br />
+              Visit us at futurepath.ae
+            </div>
+          </div>
+        ));
+      })()}
     </div>
   );
 }
