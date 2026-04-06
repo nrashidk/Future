@@ -85,8 +85,8 @@ export const socialStudies: SubjectQuestionBank = {
       {
         question: "Which sea borders the UAE to the north?",
         questionType: "multiple_choice",
-        options: ["Arabian Gulf (Persian Gulf)", "Red Sea", "Mediterranean Sea", "Caspian Sea"],
-        correctAnswer: "Arabian Gulf (Persian Gulf)",
+        options: ["Arabian Gulf", "Red Sea", "Mediterranean Sea", "Caspian Sea"],
+        correctAnswer: "Arabian Gulf",
         explanation: "The UAE is bordered by the Arabian Gulf to the north and the Gulf of Oman to the east",
         subject: "Social Studies",
         grade: "8",

@@ -284,31 +284,31 @@ export default function ResultsPrint() {
                 </div>
                 <div className="grid grid-cols-5 gap-3">
                   {displayName && (
-                    <div className="p-2 bg-background/30 rounded-lg text-center">
+                    <div className="p-2 bg-primary/20 rounded-lg text-center">
                       <p className="text-xs text-muted-foreground font-body mb-0.5">Name</p>
                       <p className="font-semibold text-sm leading-tight">{displayName}</p>
                     </div>
                   )}
                   {displayAge && (
-                    <div className="p-2 bg-background/30 rounded-lg text-center">
+                    <div className="p-2 bg-primary/20 rounded-lg text-center">
                       <p className="text-xs text-muted-foreground font-body mb-0.5">Age</p>
                       <p className="font-semibold text-sm">{displayAge} years</p>
                     </div>
                   )}
                   {displayGrade && (
-                    <div className="p-2 bg-background/30 rounded-lg text-center">
+                    <div className="p-2 bg-primary/20 rounded-lg text-center">
                       <p className="text-xs text-muted-foreground font-body mb-0.5">Grade</p>
                       <p className="font-semibold text-sm">Grade {String(displayGrade).replace('grade', '')}</p>
                     </div>
                   )}
                   {displayGender && (
-                    <div className="p-2 bg-background/30 rounded-lg text-center">
+                    <div className="p-2 bg-primary/20 rounded-lg text-center">
                       <p className="text-xs text-muted-foreground font-body mb-0.5">Gender</p>
                       <p className="font-semibold text-sm capitalize">{displayGender}</p>
                     </div>
                   )}
                   {country && (
-                    <div className="p-2 bg-background/30 rounded-lg text-center">
+                    <div className="p-2 bg-primary/20 rounded-lg text-center">
                       <p className="text-xs text-muted-foreground font-body mb-0.5">Country</p>
                       <p className="font-semibold text-sm leading-tight">{country.name}</p>
                     </div>
