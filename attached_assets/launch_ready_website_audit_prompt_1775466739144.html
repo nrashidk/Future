@@ -1,0 +1,340 @@
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+.wrap { padding: 1.5rem 0; font-family: var(--font-sans); }
+.intro {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  line-height: 1.6;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--color-background-secondary);
+  border-radius: var(--border-radius-md);
+  border-left: 2px solid #378ADD;
+}
+.tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 0;
+  flex-wrap: wrap;
+}
+.tab {
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 6px 6px 0 0;
+  border: 0.5px solid var(--color-border-tertiary);
+  border-bottom: none;
+  background: var(--color-background-secondary);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.tab.active {
+  background: var(--color-background-primary);
+  color: var(--color-text-primary);
+  font-weight: 500;
+  border-color: var(--color-border-secondary);
+}
+.panel {
+  display: none;
+  background: var(--color-background-primary);
+  border: 0.5px solid var(--color-border-secondary);
+  border-radius: 0 var(--border-radius-md) var(--border-radius-md) var(--border-radius-md);
+  padding: 1.25rem 1.5rem;
+}
+.panel.active { display: block; }
+.prompt-text {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.85;
+  color: var(--color-text-primary);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 1rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.copy-btn {
+  font-size: 13px;
+  padding: 7px 16px;
+  border-radius: var(--border-radius-md);
+  border: 0.5px solid var(--color-border-secondary);
+  background: transparent;
+  color: var(--color-text-primary);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.copy-btn:hover { background: var(--color-background-secondary); }
+.copy-btn.primary {
+  background: var(--color-text-primary);
+  color: var(--color-background-primary);
+  border-color: var(--color-text-primary);
+}
+.copy-btn.primary:hover { opacity: 0.85; }
+.note {
+  font-size: 12px;
+  color: var(--color-text-tertiary);
+}
+.copied { color: #1D9E75 !important; border-color: #1D9E75 !important; background: transparent !important; }
+</style>
+
+<div class="wrap">
+  <div class="intro">
+    Two-part system: Part 1 is a <strong>mandatory file-by-file scan</strong> with explicit tick boxes — Claude Code cannot finish until every item is checked. Part 2 is a <strong>pre-launch gate</strong> it must pass before declaring you are ready to publish. Run Part 1 first, then Part 2 after all fixes are applied.
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab(0)">Part 1 — full audit</div>
+    <div class="tab" onclick="switchTab(1)">Part 2 — launch gate</div>
+  </div>
+
+  <div class="panel active" id="panel0">
+    <div class="prompt-text" id="text0">RULES — READ BEFORE STARTING:
+- Do NOT modify any file. Do NOT run any git command. No commits, branches, or pushes.
+- Do NOT stop early. You must check every single item below before writing your report.
+- Work through the codebase file by file, route by route, component by component.
+- For every checklist item: mark it PASS, FAIL, or N/A with a one-line reason.
+- After all items are checked, write a consolidated issues list sorted by severity.
+- End with a LAUNCH READINESS VERDICT: READY or NOT READY, with justification.
+- Deliver everything in this chat. Touch nothing.
+
+---
+
+PHASE 1 — CODEBASE INVENTORY
+Before reviewing anything, list:
+[ ] All pages / routes in the app
+[ ] All reusable components
+[ ] All third-party libraries and their versions (package.json or equivalent)
+[ ] All environment variables referenced (without revealing values)
+[ ] All API endpoints called (internal and external)
+[ ] Any configuration files present (vite.config, next.config, tailwind.config, etc.)
+
+This inventory becomes your checklist anchor — every item in it must be covered in the review below.
+
+---
+
+PHASE 2 — FUNCTIONALITY
+Go through every page and route listed in the inventory. For each one:
+[ ] Does the page load without a crash or blank screen?
+[ ] Do all buttons and links do what they are labelled to do?
+[ ] Do all forms submit correctly and show success/error feedback?
+[ ] Are all API calls handled — including loading, success, and error states?
+[ ] Is there a 404 / not-found page for unknown routes?
+[ ] Are there no unhandled promise rejections or uncaught errors visible in the console?
+[ ] Does the app behave correctly when the user is not logged in (if auth exists)?
+[ ] Does the app behave correctly when the user is logged in (if auth exists)?
+[ ] Does the app behave correctly on first visit with empty/no data?
+
+---
+
+PHASE 3 — VISUAL & UX
+[ ] Is there a consistent color palette used throughout (no random one-off hex values)?
+[ ] Is the typography consistent — same font families, sizes, and weights used as a system?
+[ ] Is spacing consistent — no elements that are randomly closer or farther than the rest?
+[ ] Does every interactive element have a visible hover and focus state?
+[ ] Are all loading states shown (spinners, skeletons, or disabled buttons)?
+[ ] Are all error states shown with a clear human-readable message?
+[ ] Are all empty states shown (no blank white boxes where data should appear)?
+[ ] Is every piece of text readable — no truncation, overflow, or invisible text?
+[ ] Is the visual hierarchy clear on every page (user knows what to look at first)?
+[ ] Are there any broken or missing images, icons, or illustrations?
+
+---
+
+PHASE 4 — RESPONSIVENESS & CROSS-DEVICE
+[ ] Does every page display correctly at 375px width (mobile)?
+[ ] Does every page display correctly at 768px width (tablet)?
+[ ] Does every page display correctly at 1280px width (desktop)?
+[ ] Are touch targets at least 44×44px on mobile?
+[ ] Is the viewport meta tag set correctly?
+[ ] Is the navigation usable on mobile (no overflowing or hidden menus)?
+[ ] Is horizontal scrolling absent on mobile (no content breaking out of bounds)?
+[ ] Are font sizes legible on small screens (minimum 14px body text)?
+[ ] Do any fixed or sticky elements overlap content on small viewports?
+
+---
+
+PHASE 5 — PERFORMANCE
+[ ] What is the estimated total JS bundle size? Is it above 500KB uncompressed?
+[ ] Are images optimized (compressed, correct format — WebP/AVIF where possible)?
+[ ] Are images using lazy loading where appropriate (below the fold)?
+[ ] Are web fonts loaded efficiently (no render-blocking font imports)?
+[ ] Are there any render-blocking scripts in the <head> without defer or async?
+[ ] Is there any obviously redundant or duplicated CSS?
+[ ] Are unused dependencies present in package.json that add bundle weight?
+[ ] Is code splitting or route-based lazy loading in place (for larger apps)?
+
+---
+
+PHASE 6 — ACCESSIBILITY (WCAG 2.1 AA)
+[ ] Does every image have meaningful alt text (or alt="" if decorative)?
+[ ] Does every form field have an associated <label>?
+[ ] Is the heading hierarchy correct — one H1 per page, logical H2/H3 order?
+[ ] Can the entire app be navigated using only the keyboard (Tab, Enter, Escape)?
+[ ] Is focus never trapped or lost unexpectedly?
+[ ] Is focus always visible when navigating by keyboard?
+[ ] Do all color combinations pass WCAG AA contrast (4.5:1 for text, 3:1 for UI)?
+[ ] Are interactive elements never conveyed by color alone?
+[ ] Are ARIA roles and labels used where semantic HTML is not enough?
+[ ] Do modals and dialogs trap focus correctly and close on Escape?
+
+---
+
+PHASE 7 — SEO & METADATA
+[ ] Does every page have a unique, descriptive <title> tag?
+[ ] Does every page have a <meta name="description"> tag?
+[ ] Are Open Graph tags present (og:title, og:description, og:image)?
+[ ] Is there exactly one H1 per page and does it describe the page content?
+[ ] Is there a robots.txt file?
+[ ] Is there a sitemap.xml or a way to generate one?
+[ ] Are canonical URLs set to avoid duplicate content?
+[ ] Are all internal links using relative paths or a consistent base URL?
+[ ] Is the site's URL structure clean and descriptive (no /page?id=123 patterns)?
+
+---
+
+PHASE 8 — SECURITY
+[ ] Is every user-facing input sanitized before being displayed or stored?
+[ ] Are no API keys, secrets, or credentials hardcoded in the codebase?
+[ ] Are no sensitive values exposed in client-side code or console logs?
+[ ] Are authentication tokens stored securely (not in localStorage if sensitive)?
+[ ] Are protected routes actually protected — inaccessible without auth?
+[ ] Does the app enforce HTTPS (no mixed content warnings expected)?
+[ ] Are dependencies free of known critical vulnerabilities (check package-lock or yarn.lock)?
+[ ] Are third-party scripts loaded only from trusted sources?
+
+---
+
+PHASE 9 — CODE QUALITY
+[ ] Are there any console.log or debug statements left in production code?
+[ ] Are there any TODO or FIXME comments that indicate unfinished work?
+[ ] Are there any components or functions that are imported but never used?
+[ ] Are there obvious code duplications that could cause inconsistency bugs?
+[ ] Are environment-specific values (API URLs, keys) in environment variables, not hardcoded?
+[ ] Does the project have a clear folder structure that a new developer could understand?
+[ ] Are error boundaries or try/catch blocks present around risky operations?
+[ ] Are there TypeScript errors or type: any shortcuts hiding potential bugs (if applicable)?
+
+---
+
+PHASE 10 — DEPLOYMENT READINESS
+[ ] Is there a production build script and does it complete without errors?
+[ ] Are all environment variables documented in a .env.example file?
+[ ] Is there a README explaining how to run and deploy the project?
+[ ] Are there no hardcoded localhost URLs or development-only flags in the code?
+[ ] Is the build output free of warnings that indicate missing assets or broken imports?
+[ ] Is there a favicon set (not the framework default)?
+[ ] Is there an appropriate error page for server errors (500)?
+
+---
+
+CONSOLIDATED REPORT FORMAT:
+After completing all phases above, write your final report in this exact structure:
+
+INVENTORY SUMMARY
+[Paste the full inventory from Phase 1]
+
+ISSUES LIST
+For every FAIL item found, write one entry:
+
+ID: [sequential number]
+Severity: CRITICAL / HIGH / MEDIUM / LOW
+Category: [which phase it came from]
+Location: [exact file path, component name, or route]
+Problem: [what is wrong and why it matters]
+Fix: [precise description of what needs to change — code snippet if helpful]
+
+PASS SUMMARY
+List all categories where everything passed, in one line each.
+
+LAUNCH READINESS VERDICT
+READY or NOT READY
+[List of all CRITICAL and HIGH issues that block launch, if any]
+[Estimated effort to resolve blockers]</div>
+    <div class="actions">
+      <button class="copy-btn primary" onclick="copyText('text0', 'btn0')" id="btn0">Copy Part 1</button>
+      <span class="note">Run this first — from your project root</span>
+    </div>
+  </div>
+
+  <div class="panel" id="panel1">
+    <div class="prompt-text" id="text1">RULES — READ BEFORE STARTING:
+- Do NOT modify any file. Do NOT run any git command.
+- This is the final pre-launch gate. Answer every question below with YES or NO plus one line of evidence.
+- If any answer is NO, explain exactly what still needs to be fixed.
+- End with a final PUBLISH VERDICT.
+
+---
+
+PRE-LAUNCH GATE — ANSWER EVERY QUESTION
+
+FUNCTIONALITY
+[ ] Can a brand new user land on the site and complete its core purpose without any errors?
+[ ] Have all forms been tested with valid input, invalid input, and empty input?
+[ ] Have all error states been tested — what happens when an API call fails?
+[ ] Does the app recover gracefully if the user refreshes mid-session?
+
+VISUAL POLISH
+[ ] Does every page look intentional and finished — nothing feels placeholder or half-done?
+[ ] Are there any visual bugs when scrolling (sticky headers, overlapping elements, jumps)?
+[ ] Do all animations and transitions complete smoothly without jank?
+
+CONTENT
+[ ] Is all placeholder text (Lorem ipsum, "Coming soon", "TBD") replaced with real content?
+[ ] Are there any typos or grammatical errors visible anywhere?
+[ ] Are all prices, dates, and factual claims accurate and intentional?
+[ ] Does the site clearly communicate what it does within 5 seconds of landing?
+[ ] Is there a privacy policy if the site collects any user data?
+[ ] Is there a terms of service if the site involves any transactions or accounts?
+
+TECHNICAL FINAL CHECK
+[ ] Does the production build complete without errors or warnings?
+[ ] Do all environment variables have values set for the production environment?
+[ ] Are all external services the app depends on (databases, auth, email, payments) live and connected?
+[ ] Has the app been tested in Chrome, Safari, and Firefox?
+[ ] Has the app been tested on a real mobile device (not just browser dev tools)?
+
+LAUNCH CONFIDENCE CHECK
+[ ] If something breaks on day one of launch, is there a way to roll back or hotfix?
+[ ] Do you know how to monitor errors after launch (error logging service, or at minimum server logs)?
+
+---
+
+PUBLISH VERDICT
+
+APPROVED TO PUBLISH — if all answers are YES
+NOT APPROVED — list every NO answer as a numbered blocker, in order of importance
+
+If NOT APPROVED, also provide:
+- A grouped action list: what can be fixed in under 1 hour vs what takes longer
+- The single most important thing to fix first</div>
+    <div class="actions">
+      <button class="copy-btn primary" onclick="copyText('text1', 'btn1')" id="btn1">Copy Part 2</button>
+      <span class="note">Run this after all Part 1 issues are resolved</span>
+    </div>
+  </div>
+</div>
+
+<script>
+function switchTab(i) {
+  document.querySelectorAll('.tab').forEach((t,j) => t.classList.toggle('active', i===j));
+  document.querySelectorAll('.panel').forEach((p,j) => p.classList.toggle('active', i===j));
+}
+function copyText(id, btnId) {
+  const text = document.getElementById(id).innerText;
+  const btn = document.getElementById(btnId);
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = id === 'text0' ? 'Copy Part 1' : 'Copy Part 2';
+      btn.classList.remove('copied');
+    }, 2000);
+  });
+}
+</script>
