@@ -18,30 +18,31 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const [onProfile] = useRoute("/profile");
 
   const linkClass = "flex items-center gap-2";
+  const navBtnClass = "focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none";
 
   return (
     <>
       {isSuperadmin && (
         <>
-          <Button variant="outline" size="sm" asChild data-testid="button-nav-superadmin">
+          <Button variant="outline" size="sm" asChild className={navBtnClass} data-testid="button-nav-superadmin">
             <Link href="/superadmin" aria-current={onSuperadmin ? "page" : undefined} onClick={onNavigate} className={linkClass}>
               <Shield className="w-4 h-4" aria-hidden="true" />
               Super Admin
             </Link>
           </Button>
-          <Button variant="outline" size="sm" asChild data-testid="button-nav-admin">
+          <Button variant="outline" size="sm" asChild className={navBtnClass} data-testid="button-nav-admin">
             <Link href="/admin/organizations" aria-current={onOrgs ? "page" : undefined} onClick={onNavigate} className={linkClass}>
               <Building2 className="w-4 h-4" aria-hidden="true" />
               Admin
             </Link>
           </Button>
-          <Button variant="outline" size="sm" asChild data-testid="button-nav-questions">
+          <Button variant="outline" size="sm" asChild className={navBtnClass} data-testid="button-nav-questions">
             <Link href="/admin" aria-current={onAdmin ? "page" : undefined} onClick={onNavigate} className={linkClass}>
               <FileQuestion className="w-4 h-4" aria-hidden="true" />
               Quiz
             </Link>
           </Button>
-          <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">
+          <Button variant="outline" size="sm" asChild className={navBtnClass} data-testid="button-nav-analytics">
             <Link href="/analytics" aria-current={onAnalytics ? "page" : undefined} onClick={onNavigate} className={linkClass}>
               <BarChart className="w-4 h-4" aria-hidden="true" />
               Analytics
@@ -51,19 +52,19 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
       )}
       {isOrgAdmin && (
         <>
-          <Button variant="outline" size="sm" asChild data-testid="button-nav-admin">
+          <Button variant="outline" size="sm" asChild className={navBtnClass} data-testid="button-nav-admin">
             <Link href="/admin/organizations" aria-current={onOrgs ? "page" : undefined} onClick={onNavigate} className={linkClass}>
               <Building2 className="w-4 h-4" aria-hidden="true" />
               Admin
             </Link>
           </Button>
-          <Button variant="outline" size="sm" asChild data-testid="button-nav-assessment">
+          <Button variant="outline" size="sm" asChild className={navBtnClass} data-testid="button-nav-assessment">
             <Link href="/assessment" aria-current={onAssessment ? "page" : undefined} onClick={onNavigate} className={linkClass}>
               <ClipboardCheck className="w-4 h-4" aria-hidden="true" />
               Assessment
             </Link>
           </Button>
-          <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">
+          <Button variant="outline" size="sm" asChild className={navBtnClass} data-testid="button-nav-analytics">
             <Link href="/analytics" aria-current={onAnalytics ? "page" : undefined} onClick={onNavigate} className={linkClass}>
               <BarChart className="w-4 h-4" aria-hidden="true" />
               Analytics
@@ -72,7 +73,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
         </>
       )}
       {user && !isSuperadmin && !isOrgAdmin && (
-        <Button variant="outline" size="sm" asChild data-testid="button-nav-assessment">
+        <Button variant="outline" size="sm" asChild className={navBtnClass} data-testid="button-nav-assessment">
           <Link href="/assessment" aria-current={onAssessment ? "page" : undefined} onClick={onNavigate} className={linkClass}>
             <ClipboardCheck className="w-4 h-4" aria-hidden="true" />
             Assessment
@@ -81,7 +82,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
       )}
       {user && (
         <>
-          <Button variant="outline" size="sm" asChild data-testid="button-nav-profile">
+          <Button variant="outline" size="sm" asChild className={navBtnClass} data-testid="button-nav-profile">
             <Link href="/profile" aria-current={onProfile ? "page" : undefined} onClick={onNavigate} className={linkClass}>
               <User className="w-4 h-4" aria-hidden="true" />
               Profile
@@ -92,7 +93,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             size="sm"
             onClick={() => { window.location.href = "/api/logout"; }}
             data-testid="button-logout"
-            className={linkClass}
+            className={`${linkClass} ${navBtnClass}`}
           >
             <LogOut className="w-4 h-4" aria-hidden="true" />
             Logout
