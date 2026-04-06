@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "KZUgeQbS9vBx2Iws2bcdU"
+uri = "file://docs/future-path-white-paper-2026.docx"
+type = "word_document"
+title = "Future Path White Paper 2026 (.docx)"

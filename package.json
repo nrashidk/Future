@@ -74,6 +74,7 @@
     "express-session": "^1.18.1",
     "framer-motion": "^11.13.1",
     "helmet": "^8.1.0",
+    "html-to-docx": "^1.8.0",
     "input-otp": "^1.4.2",
     "isomorphic-dompurify": "^2.30.0",
     "lucide-react": "^0.453.0",
