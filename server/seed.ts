@@ -1643,6 +1643,44 @@ export async function seedDatabase() {
     console.error("  Error creating test admin:", error.message);
   }
 
+  // Seed Superadmin Account
+  console.log("\n🔐 Seeding superadmin account...");
+  try {
+    const { hashPassword: hashPw } = await import("./utils/passwordHash");
+    const { db: dbConn } = await import("./db");
+    const { users: usersTable } = await import("@shared/schema");
+    const { eq: eqOp } = await import("drizzle-orm");
+
+    const superadminPassword = "SuperAdmin2026!";
+    const superadminHash = await hashPw(superadminPassword);
+
+    const existingSuperadmin = await storage.getUserByUsername("superadmin");
+    if (!existingSuperadmin) {
+      await dbConn
+        .insert(usersTable)
+        .values({
+          username: "superadmin",
+          email: "superadmin@local.dev",
+          firstName: "Super",
+          lastName: "Admin",
+          passwordHash: superadminHash,
+          accountType: "individual",
+          role: "superadmin",
+          isOrgGenerated: false,
+          isPremium: false,
+        });
+      console.log("  ✓ Superadmin account created (username: superadmin)");
+    } else {
+      await dbConn
+        .update(usersTable)
+        .set({ passwordHash: superadminHash, role: "superadmin" })
+        .where(eqOp(usersTable.id, existingSuperadmin.id));
+      console.log("  Superadmin account already exists - password reset to default");
+    }
+  } catch (error: any) {
+    console.error("  Error seeding superadmin:", error.message);
+  }
+
   // Seed Scoring Tiers and Tier Component Weights
   console.log("\n⚙️ Seeding scoring methodology configuration...");
   
