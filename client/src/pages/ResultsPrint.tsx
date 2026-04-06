@@ -277,7 +277,7 @@ export default function ResultsPrint() {
           if (!hasAnyField) return null;
           return (
             <div className="max-w-4xl mx-auto px-4 -mt-8 mb-6">
-              <StickyNote color="blue" rotation="0" className="p-4">
+              <StickyNote color={assessment?.assessmentType === 'school' ? 'blue' : 'purple'} rotation="0" className="p-4">
                 <div className="flex items-center gap-3 mb-3">
                   <User className="w-7 h-7 text-primary flex-shrink-0" />
                   <h2 className="text-xl font-bold">Student Profile</h2>
