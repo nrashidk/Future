@@ -1,9 +1,11 @@
+import { useEffect } from "react";
 import { Link } from "wouter";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, FileText } from "lucide-react";
 
 export default function TermsOfUse() {
+  useEffect(() => { document.title = "Terms of Use | Future Pathways"; }, []);
   return (
     <PageLayout>
       <div className="max-w-4xl mx-auto px-4 py-8">

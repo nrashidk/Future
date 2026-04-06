@@ -8,6 +8,8 @@ export default function AuthCallback() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
+  useEffect(() => { document.title = "Signing In | Future Pathways"; }, []);
+
   useEffect(() => {
     const migrateAndRedirect = async () => {
       try {

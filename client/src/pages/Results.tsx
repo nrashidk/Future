@@ -98,7 +98,7 @@ export default function Results() {
   const [assessmentId, setAssessmentId] = useState<string | null>(urlAssessmentId);
 
   // Guest token is now sent via httpOnly cookie automatically
-  const { data: recommendations = [], isLoading } = useQuery<any[]>({
+  const { data: recommendations = [], isLoading, isError: isRecommendationsError } = useQuery<any[]>({
     queryKey: urlAssessmentId 
       ? [`/api/recommendations?assessmentId=${urlAssessmentId}`]
       : ["/api/recommendations"],
@@ -197,6 +197,28 @@ export default function Results() {
         <div className="text-center">
           <GraduationCap className="w-16 h-16 text-primary mx-auto mb-4 animate-pulse" />
           <p className="text-lg text-muted-foreground">Analyzing your profile...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isRecommendationsError) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4">
+        <div className="text-center max-w-md">
+          <GraduationCap className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+          <h1 className="text-2xl font-bold mb-2">Unable to Load Results</h1>
+          <p className="text-muted-foreground mb-6">
+            We couldn't retrieve your career recommendations right now. This might be a temporary issue — please try again.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button onClick={() => window.location.reload()} data-testid="button-retry">
+              Try Again
+            </Button>
+            <Button variant="outline" onClick={() => window.history.back()} data-testid="button-go-back">
+              Go Back
+            </Button>
+          </div>
         </div>
       </div>
     );

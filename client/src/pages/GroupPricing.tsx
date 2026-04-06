@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Users, ArrowLeft } from "lucide-react";
 
 export default function GroupPricing() {
+  useEffect(() => { document.title = "Group Pricing | Future Pathways"; }, []);
   const [, setLocation] = useLocation();
   const [studentCount, setStudentCount] = useState<number>(100);
 

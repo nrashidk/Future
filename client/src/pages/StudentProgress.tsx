@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ interface CareerEvolutionResponse {
 }
 
 export default function StudentProgress() {
+  useEffect(() => { document.title = "My Career Journey | Future Pathways"; }, []);
   const { user, isLoading: isAuthLoading } = useAuth();
   const [, navigate] = useLocation();
 

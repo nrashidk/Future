@@ -190,6 +190,8 @@ export default function ResultsPrint() {
     enabled: !!(user as any)?.organizationId,
   });
 
+  useEffect(() => { document.title = "Career Report | Future Pathways"; }, []);
+
   // Signal when data is ready for PDF capture
   useEffect(() => {
     if (!isLoading && recommendations.length > 0) {

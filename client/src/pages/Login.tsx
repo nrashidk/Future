@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { GraduationCap, Mail } from "lucide-react";
 import { SiGoogle } from "react-icons/si";
 import { BsMicrosoft } from "react-icons/bs";
@@ -20,7 +21,7 @@ export default function Login() {
   const [location] = useLocation();
   const [error, setError] = useState<string | null>(null);
 
-  const { data: authConfig } = useQuery<AuthConfig>({
+  const { data: authConfig, isLoading: isAuthConfigLoading, isError: isAuthConfigError } = useQuery<AuthConfig>({
     queryKey: ["/api/auth/config"],
   });
 
@@ -69,6 +70,19 @@ export default function Login() {
             </div>
           )}
           
+          {isAuthConfigLoading && (
+            <>
+              <Skeleton className="w-full h-12 rounded-md" data-testid="skeleton-oauth" />
+              <Skeleton className="w-full h-12 rounded-md" />
+            </>
+          )}
+
+          {isAuthConfigError && (
+            <p className="text-sm text-muted-foreground text-center" data-testid="text-oauth-unavailable">
+              Social sign-in is temporarily unavailable. Use the email option below.
+            </p>
+          )}
+
           {authConfig?.google && (
             <Button
               variant="outline"
