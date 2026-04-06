@@ -23,7 +23,7 @@ export default function Disclaimer() {
             </div>
             <h1 className="text-4xl font-bold mb-2">Disclaimer</h1>
             <p className="text-muted-foreground font-body">
-              Last updated: {new Date().toLocaleDateString()}
+              Last updated: 6 April 2026
             </p>
           </div>
 

@@ -501,7 +501,7 @@ export default function ResultsPrint() {
           {/* Footer */}
           <div className="mt-4 text-xs text-center text-muted-foreground">
             Generated on {new Date().toLocaleDateString()} | Future Pathways Career Guidance System<br />
-            Visit us at futurepathways.replit.app
+            Visit us at futurepath.ae
           </div>
         </div>
       )}
@@ -667,7 +667,7 @@ export default function ResultsPrint() {
           {/* Footer */}
           <div className="mt-2 text-xs text-center text-muted-foreground">
             Generated on {new Date().toLocaleDateString()} | Future Pathways Career Guidance System<br />
-            Visit us at futurepathways.replit.app
+            Visit us at futurepath.ae
           </div>
         </div>
       )}
@@ -853,7 +853,7 @@ export default function ResultsPrint() {
           {/* Footer */}
           <div className="mt-6 text-xs text-center text-muted-foreground">
             Generated on {new Date().toLocaleDateString()} | Future Pathways Career Guidance System<br />
-            Visit us at futurepathways.replit.app
+            Visit us at futurepath.ae
           </div>
         </div>
       ))}

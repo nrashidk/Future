@@ -29,7 +29,7 @@ export async function sendPasswordResetEmail(
   }
 
   // Build reset URL
-  const baseUrl = process.env.APP_URL || "https://futurepathways.replit.app";
+  const baseUrl = process.env.APP_URL || "https://futurepath.ae";
   const resetUrl = `${baseUrl}/reset-password?token=${resetToken}`;
 
   try {

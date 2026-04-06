@@ -23,7 +23,7 @@ export default function PrivacyPolicy() {
             </div>
             <h1 className="text-4xl font-bold mb-2">Privacy Policy</h1>
             <p className="text-muted-foreground font-body">
-              Last updated: {new Date().toLocaleDateString()}
+              Last updated: 6 April 2026
             </p>
           </div>
 
@@ -58,7 +58,7 @@ export default function PrivacyPolicy() {
           <section className="space-y-4">
             <h2 className="text-2xl font-bold">4. Data Retention & Deletion</h2>
             <p className="text-muted-foreground font-body">
-              User data is securely stored and retained only as long as needed for educational purposes. Users or institutions may request deletion of data by contacting privacy@futurepathways.replit.app.
+              User data is securely stored and retained only as long as needed for educational purposes. Users or institutions may request deletion of data by contacting privacy@futurepath.ae.
             </p>
           </section>
 
@@ -92,7 +92,7 @@ export default function PrivacyPolicy() {
               <li>Withdraw consent at any time.</li>
             </ul>
             <p className="text-muted-foreground font-body mt-4">
-              Contact: privacy@futurepathways.replit.app
+              Contact: privacy@futurepath.ae
             </p>
           </section>
         </div>

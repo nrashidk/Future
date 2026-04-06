@@ -10,4 +10,4 @@ Disallow: /register
 Disallow: /reset-password
 Allow: /
 
-Sitemap: https://futurepathways.replit.app/sitemap.xml
+Sitemap: https://futurepath.ae/sitemap.xml

@@ -284,7 +284,7 @@ export default function ResetPassword() {
 
               <div className="text-center">
                 <Link href="/login">
-                  <Button variant="link" className="text-sm" data-testid="link-back-to-login-form">
+                  <Button variant="ghost" className="text-sm" data-testid="link-back-to-login-form">
                     <ArrowLeft className="w-4 h-4 mr-1" />
                     Back to Login
                   </Button>
