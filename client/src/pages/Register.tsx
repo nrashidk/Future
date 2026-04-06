@@ -162,14 +162,17 @@ export default function Register() {
                           {...field}
                           data-testid="input-password"
                         />
-                        <button
+                        <Button
                           type="button"
-                          className="absolute right-3 top-1/2 -translate-y-1/2"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-1 top-1/2 -translate-y-1/2"
                           onClick={() => setShowPassword(!showPassword)}
+                          aria-label={showPassword ? "Hide password" : "Show password"}
                           data-testid="button-toggle-password"
                         >
-                          {showPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
-                        </button>
+                          {showPassword ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
+                        </Button>
                       </div>
                     </FormControl>
                     <FormMessage />
@@ -192,14 +195,17 @@ export default function Register() {
                           {...field}
                           data-testid="input-confirm-password"
                         />
-                        <button
+                        <Button
                           type="button"
-                          className="absolute right-3 top-1/2 -translate-y-1/2"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-1 top-1/2 -translate-y-1/2"
                           onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
                           data-testid="button-toggle-confirm-password"
                         >
-                          {showConfirmPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
-                        </button>
+                          {showConfirmPassword ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
+                        </Button>
                       </div>
                     </FormControl>
                     <FormMessage />

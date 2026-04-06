@@ -713,7 +713,8 @@ export default function Results() {
       )}
 
       {/* Recommendations */}
-      <div className="max-w-7xl mx-auto px-4 -mt-8">
+      <div className="max-w-7xl mx-auto px-4 -mt-8" role="region" aria-labelledby="recommendations-heading">
+        <h2 id="recommendations-heading" className="sr-only">Career Recommendations</h2>
         <MasonryGrid>
           {recommendations.map((rec: any, index: number) => (
             <MasonryItem key={rec.id} className="animate-in fade-in duration-500" style={{ animationDelay: `${index * 100}ms` }}>

@@ -377,7 +377,6 @@ export default function Assessment() {
               <>
                 <Button
                   variant="outline"
-                  size="sm"
                   onClick={() => setLocation("/superadmin")}
                   data-testid="button-nav-superadmin"
                 >
@@ -386,7 +385,6 @@ export default function Assessment() {
                 </Button>
                 <Button
                   variant="outline"
-                  size="sm"
                   onClick={() => setLocation("/admin/organizations")}
                   data-testid="button-nav-admin"
                 >
@@ -395,7 +393,6 @@ export default function Assessment() {
                 </Button>
                 <Button
                   variant="outline"
-                  size="sm"
                   onClick={() => setLocation("/admin")}
                   data-testid="button-nav-questions"
                 >
@@ -404,7 +401,6 @@ export default function Assessment() {
                 </Button>
                 <Button
                   variant="outline"
-                  size="sm"
                   onClick={() => setLocation("/analytics")}
                   data-testid="button-nav-analytics"
                 >
@@ -417,7 +413,6 @@ export default function Assessment() {
               <>
                 <Button
                   variant="outline"
-                  size="sm"
                   onClick={() => setLocation("/admin/organizations")}
                   data-testid="button-nav-admin"
                 >
@@ -426,7 +421,6 @@ export default function Assessment() {
                 </Button>
                 <Button
                   variant="outline"
-                  size="sm"
                   onClick={() => setLocation("/assessment")}
                   data-testid="button-nav-assessment"
                 >
@@ -435,7 +429,6 @@ export default function Assessment() {
                 </Button>
                 <Button
                   variant="outline"
-                  size="sm"
                   onClick={() => setLocation("/analytics")}
                   data-testid="button-nav-analytics"
                 >
@@ -447,7 +440,6 @@ export default function Assessment() {
             {user?.accountType !== 'superadmin' && user?.accountType !== 'org_admin' && (
               <Button
                 variant="outline"
-                size="sm"
                 onClick={() => setLocation("/assessment")}
                 data-testid="button-nav-assessment"
               >
@@ -459,7 +451,6 @@ export default function Assessment() {
               <>
                 <Button
                   variant="outline"
-                  size="sm"
                   onClick={() => setLocation("/profile")}
                   data-testid="button-nav-profile"
                 >
@@ -468,7 +459,6 @@ export default function Assessment() {
                 </Button>
                 <Button
                   variant="outline"
-                  size="sm"
                   onClick={() => window.location.href = "/api/logout"}
                   data-testid="button-logout"
                 >
@@ -485,7 +475,11 @@ export default function Assessment() {
       <ProgressTracker currentStep={currentStep} totalSteps={totalSteps} isPremium={isPremiumUser} />
 
       {/* Step Content */}
-      <div className="max-w-4xl mx-auto px-4">
+      <div
+        className="max-w-4xl mx-auto px-4"
+        role="region"
+        aria-label="Assessment step"
+      >
         {/* Step 1: Demographics (both tiers) */}
         {currentStep === 1 && (
           <DemographicsStep

@@ -113,11 +113,7 @@ const FormControl = React.forwardRef<
     <Slot
       ref={ref}
       id={formItemId}
-      aria-describedby={
-        !error
-          ? `${formDescriptionId}`
-          : `${formDescriptionId} ${formMessageId}`
-      }
+      aria-describedby={`${formDescriptionId} ${formMessageId}`}
       aria-invalid={!!error}
       {...props}
     />
@@ -149,18 +145,15 @@ const FormMessage = React.forwardRef<
   const { error, formMessageId } = useFormField()
   const body = error ? String(error?.message ?? "") : children
 
-  if (!body) {
-    return null
-  }
-
   return (
     <p
       ref={ref}
       id={formMessageId}
+      aria-live="polite"
       className={cn("text-sm font-medium text-destructive", className)}
       {...props}
     >
-      {body}
+      {body ?? null}
     </p>
   )
 })

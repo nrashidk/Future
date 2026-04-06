@@ -43,7 +43,7 @@ export function StickyNote({
         "relative p-6 rounded-lg shadow-lg transition-all duration-200",
         colorClasses[color],
         rotationClasses[rotation],
-        onClick && "cursor-pointer hover-elevate active-elevate-2 hover:-translate-y-1",
+        onClick && "cursor-pointer hover-elevate active-elevate-2 hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
         selected && "ring-2 ring-primary ring-offset-2",
         className
       )}
