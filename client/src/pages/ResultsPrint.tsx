@@ -180,6 +180,9 @@ export default function ResultsPrint() {
     enabled: !!assessment?.curriculumId,
   });
 
+  // /api/auth/user enriches the payload with predefined* fields sourced
+  // from organizationMembers (studentName / studentAge / grade / studentGender)
+  // for org_student users — this is the canonical source for school student demographics.
   const { data: user } = useQuery<any>({
     queryKey: ['/api/auth/user'],
     enabled: true,
