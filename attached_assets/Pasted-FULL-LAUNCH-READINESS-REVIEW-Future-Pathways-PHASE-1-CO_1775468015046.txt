@@ -1,0 +1,218 @@
+FULL LAUNCH READINESS REVIEW — Future Pathways
+PHASE 1 — CODEBASE INVENTORY
+Pages / Routes (23 total)
+Route	Page File
+/	Landing.tsx
+/login	Login.tsx
+/login/student	StudentLogin.tsx
+/register	Register.tsx
+/forgot-password	ForgotPassword.tsx
+/reset-password	ResetPassword.tsx
+/auth/callback	AuthCallback.tsx
+/assessment	Assessment.tsx
+/tier-selection	TierSelection.tsx
+/group-pricing	GroupPricing.tsx
+/checkout	Checkout.tsx
+/results	Results.tsx
+/results/print	ResultsPrint.tsx
+/progress	StudentProgress.tsx
+/analytics	Analytics.tsx
+/admin	Admin.tsx
+/admin/organizations	AdminOrganizations.tsx
+/admin/superadmin	SuperadminDashboard.tsx
+/profile	Profile.tsx
+/privacy	PrivacyPolicy.tsx
+/terms	TermsOfUse.tsx
+/disclaimer	Disclaimer.tsx
+* (catch-all)	not-found.tsx
+Reusable Components
+Layout: Header, Footer, PageLayout
+Assessment Steps: DemographicsStep, SubjectsStep, InterestsStep, PersonalityStep, CountryStep, AspirationsStep, QuizStep, KolbStep, RiasecStep, CVQStep
+Admin: ContributeQuestions, ContributionReviewQueue, CountryManagement, ScoringConfigEditor, SubjectManagement
+Utility: ProgressTracker, StickyNote, MasonryGrid, MobileSelect, AnnouncementBanner, CredentialsModal
+UI (shadcn): 60+ components (button, card, dialog, form, input, select, tabs, table, chart, etc.)
+Third-Party Libraries (selected)
+Library	Version	Purpose
+react / react-dom	18.3.1	UI framework
+tailwindcss	3.4.17	Styling
+@tanstack/react-query	5.60.5	Data fetching
+wouter	3.3.5	Client routing
+react-hook-form	7.55.0	Forms
+zod	3.24.2	Validation
+drizzle-orm	0.39.1	ORM
+@neondatabase/serverless	0.10.4	DB client
+express	4.21.2	Server
+passport	0.7.0	Auth
+bcryptjs	3.0.3	Password hashing
+stripe	19.3.0	Payments
+@stripe/react-stripe-js	5.3.0	Stripe UI
+helmet	8.1.0	Security headers
+express-rate-limit	8.2.1	Rate limiting
+recharts	2.15.2	Charts
+puppeteer	24.29.1	PDF generation
+resend	6.5.2	Email
+framer-motion	11.13.1	Animations
+dompurify / isomorphic-dompurify	2.4.0 / 2.30.0	XSS prevention
+lucide-react	0.453.0	Icons
+vite	6.4.1	Build tool
+esbuild	0.25.0	Server bundler
+Environment Variables Referenced
+VITE_STRIPE_PUBLIC_KEY (client)
+DATABASE_URL, DB_ENCRYPTION_KEY
+SESSION_SECRET
+SUPERADMIN_EMAILS
+GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET
+MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET
+RESEND_API_KEY, EMAIL_FROM, APP_URL
+STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET
+NODE_ENV, PORT, BASE_URL, REPL_SLUG, REPL_OWNER
+API Endpoints Called (client → server)
+Auth, assessments, quiz, recommendations, organizations, users, countries, analytics, CVQ, progress, contributions, files, payments, webhooks, superadmin — all documented above in inventory.
+
+Configuration Files
+vite.config.ts — Vite build with React plugin, path aliases, Replit dev plugins
+tailwind.config.ts — Custom color system, typography, border radius, animations
+tsconfig.json — Strict TypeScript, path aliases
+drizzle.config.ts — PostgreSQL ORM, migrations
+postcss.config.js — Tailwind + autoprefixer
+components.json — shadcn/ui config
+PHASE 2 — FUNCTIONALITY
+Landing (/)
+ Loads without crash: PASS — Standard static page with public data queries
+ Buttons/links work: PASS — CTA buttons route to /assessment, /register, /tier-selection
+ Forms: N/A — No forms; public data fetches only
+ API calls handled: PASS — Student count shows "..." while loading; org logos conditionally rendered
+ 404 page: PASS — Catch-all * route renders not-found.tsx
+ Unhandled rejections: PASS — No raw async calls without handling
+ Not logged in behavior: PASS — Public page; CTAs correctly route to registration
+ Logged in behavior: PASS — Header adapts to user role
+ Empty/no data state: PASS — Student count defaults to "...", org logos section conditionally rendered
+Login (/login)
+ Loads without crash: PASS
+ Buttons/links work: PASS — OAuth buttons redirect correctly based on config
+ Forms: PASS — Email/password form on /login/student; OAuth handled via redirect
+ API calls: FAIL (minor) — No loading indicator while /api/auth/config fetches; no error state if it fails
+ Unhandled rejections: PASS
+Register (/register)
+ Loads without crash: PASS
+ Form validation: PASS — Zod schema, field-level errors, password match validation
+ Loading state: PASS — Button disabled + spinner + "Creating account…" text during submit
+ Error state: PASS — Toast notification with API error message
+ Unhandled rejections: PASS
+Assessment (/assessment)
+ Loads without crash: PASS
+ Auth guard: PASS — Redirects to /tier-selection if non-premium authenticated
+ Loading state: PASS — GraduationCap pulse animation while auth check runs
+ Auto-save: PASS — 2-second debounce, silent on error (intentional)
+ Step navigation: PASS — Smart skip logic for pre-filled org data
+ API error handling: PASS — Toast for failures; step-specific fallback messages
+ Guest mode: PASS — Banner shown, localStorage used for guest sessions
+Results (/results)
+ Loads without crash: PASS
+ Loading state: PASS — "Analyzing your profile…" spinner
+ Error state: FAIL — No error UI if recommendations query fails; loading persists indefinitely
+ Empty state: PASS — Sections conditionally rendered for premium vs. free
+ PDF download: PASS — Error caught and falls back to window.location
+Checkout (/checkout)
+ Loads without crash: PASS
+ Loading state: PASS — "Processing…" spinner during payment
+ Error state: PASS — Stripe errors and API errors shown as toasts
+ Payment flow: PASS — Post-payment routing handles org admin, new user, existing user paths
+ Webhook signature: PASS — Verified server-side via stripe.webhooks.constructEvent()
+Admin pages (/admin, /admin/organizations, /admin/superadmin)
+ Load without crash: PASS
+ Auth guard: PASS — Server-side isAdmin/isOrgAdmin middleware returns 401/403
+ Loading/empty states: PASS — Skeleton/loader patterns present
+404 / not-found
+ 404 page exists: PASS — <Route component={NotFound} /> catch-all in App.tsx
+ Content: FAIL (minor) — Page text says "Did you forget to add the page to the router?" which is developer-facing copy, not user-facing. No navigation link back to home.
+Pages missing document.title
+FAIL — StudentLogin, GroupPricing, StudentProgress, PrivacyPolicy, TermsOfUse, Disclaimer, AuthCallback, ResultsPrint, not-found all fall back to the default HTML <title> from index.html. Not a blocker but affects SEO/UX.
+PHASE 3 — VISUAL & UX
+ Consistent color palette: PASS — 40+ CSS HSL variables in index.css, Tailwind config maps to them; no rogue hex values found
+ Consistent typography: PASS — Poppins (headings) and Inter (body) defined as CSS variables, applied via Tailwind font families
+ Consistent spacing: PASS — Tailwind spacing scale used throughout; custom gap/padding via Tailwind classes only
+ Hover/focus states: PARTIAL FAIL — .hover-elevate system is well-implemented for custom components; however no explicit focus-visible ring utility is applied to navigation links or custom interactive elements. Radix UI primitives handle focus rings for shadcn components
+ Loading states shown: PASS — Spinners, skeleton loaders, and disabled buttons present across all critical paths
+ Error states shown: PASS — Toast-based error feedback on all form submissions; exception is Results.tsx failure (see Phase 2)
+ Empty states: PASS — Conditional rendering prevents blank boxes; "..." placeholders used for loading counts
+ Readable text: PASS — No overflow/truncation issues observed; text-ellipsis used appropriately where needed
+ Visual hierarchy: PASS — H1 → H2 → H3 order maintained; sticky-note design system creates clear section grouping
+ Broken images/icons: PASS — Org logos use loading="lazy" with proper alt text; lucide-react icons are SVG (no broken image risk)
+PHASE 4 — RESPONSIVENESS & CROSS-DEVICE
+ 375px (mobile): PASS — Responsive Tailwind classes (sm:, md:, lg:) used throughout; flex-col → flex-row breakpoint patterns consistent
+ 768px (tablet): PASS — Grid columns adapt (grid-cols-1 md:grid-cols-2 lg:grid-cols-3)
+ 1280px (desktop): PASS — Full desktop layout with sidebar-style navigation for admin dashboards
+ Touch targets 44×44px: PARTIAL FAIL — No explicit min-h-[44px] min-w-[44px] enforcement on mobile. Shadcn button size="sm" renders at ~36px height. Not audited for every touchable element
+ Viewport meta tag: PASS — <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+ Mobile navigation: PASS — Sheet-based mobile menu with aria-label="Open navigation menu" on trigger
+ No horizontal scroll: PASS — w-full, max-w-*, and overflow-hidden used to contain layouts
+ Font sizes on mobile: PASS — Body text uses text-sm/text-base (≥14px); responsive typography scaling applied (text-5xl md:text-7xl)
+ Fixed/sticky overlap: PASS — Sticky assessment header uses pt-4 on content to avoid overlap; z-index managed via Tailwind
+PHASE 5 — PERFORMANCE
+ JS bundle size: PASS — All 23 pages are lazy-loaded via React.lazy() + Suspense with <PageLoader /> fallback. Initial bundle is minimal
+ Images optimized: PARTIAL FAIL — Org logos fetched from DB as URLs; format not controlled (could be PNG/JPEG). No evidence of WebP/AVIF conversion or <picture> element usage. Only org logo images are dynamic; all icons are SVG (fine)
+ Lazy loading: PASS — loading="lazy" decoding="async" applied to org logos in Landing.tsx
+ Web fonts efficient: PASS — Google Fonts loaded non-blocking via media="print" + onload="this.media='all'" pattern; <noscript> fallback present; preconnect hints for googleapis and gstatic
+ Render-blocking scripts: PASS — Only <script type="module" src="/src/main.tsx"> in body, no blocking <script> tags in <head>
+ Redundant CSS: PASS — Tailwind purges unused classes at build time
+ Unused dependencies: PASS — All 96 production dependencies appear to be actively used
+ Code splitting: PASS — Route-based lazy loading fully implemented for all pages
+PHASE 6 — ACCESSIBILITY (WCAG 2.1 AA)
+ Alt text on images: PASS — Dynamic org logos use alt={`${org.name} logo`}; decorative icons marked aria-hidden="true"
+ Form fields labeled: PASS — All <Input> elements in DemographicsStep have <Label htmlFor="..."> associations; shadcn <FormLabel> used in Register/Login forms
+ Heading hierarchy: PASS — One <h1> per page; logical h2 → h3 → h4 nesting verified across Landing, Assessment, Results
+ Keyboard navigation: PARTIAL FAIL — Standard HTML controls and Radix UI primitives support keyboard navigation. However, the custom .hover-elevate sticky-note interactive elements may not have explicit keyboard activation (no onKeyDown handler verified on sticky note wrappers used as clickable elements)
+ Focus not trapped: PASS — Radix Dialog/Sheet handles focus trapping internally; no custom focus trap implementations found
+ Focus always visible: PARTIAL FAIL — Radix components provide default focus rings. Custom nav links and assessment step containers lack explicit focus-visible:ring-* classes
+ Color contrast WCAG AA: CANNOT FULLY VERIFY without rendering — HSL color system is well-designed; primary color at 65% lightness on white background likely meets 4.5:1. Dark mode variants are adjusted. Not verified programmatically
+ Not color-only for interactive elements: PASS — Icons, text labels, and borders accompany color cues
+ ARIA roles/labels: PARTIAL FAIL — <nav aria-label="Main navigation"> ✓, mobile menu ✓, aria-current="page" ✓. However, only 2 files use aria-describedby/aria-live/role="alert" (alert.tsx and form.tsx). Complex regions (career recommendation cards, assessment steps) lack role="region" + aria-labelledby. No skip-to-main-content link found
+ Modals trap focus, close on Escape: PASS — Radix Dialog handles both; shadcn <Dialog> and <Sheet> tested patterns confirmed correct
+PHASE 7 — SEO & METADATA
+ Unique descriptive <title> per page: PARTIAL FAIL — 14 of 23 pages set document.title via useEffect. 9 pages fall back to the HTML default title: StudentLogin, GroupPricing, StudentProgress, PrivacyPolicy, TermsOfUse, Disclaimer, AuthCallback, ResultsPrint, not-found
+ Meta description: PASS — Global description in index.html is well-written; no per-page <meta> descriptions (SPA limitation)
+ Open Graph tags: PASS — og:title, og:description, og:image, og:image:width/height, og:image:alt, og:type, og:url, og:locale all present in index.html
+ Canonical URL: PASS — <link rel="canonical"> present in index.html
+ Structured Data (JSON-LD): PASS — WebApplication schema with educationalRole, offers, audience implemented
+ Twitter Card: PASS — twitter:card, twitter:title, twitter:description, twitter:image all present
+ Semantic HTML: PASS — <main id="main-content">, <header>, <footer>, <nav> with labels used throughout
+ Heading structure for crawlers: PASS — H1 present on all major pages
+CONSOLIDATED ISSUES LIST — SORTED BY SEVERITY
+CRITICAL
+None blocking launch.
+
+HIGH
+#	Issue	Location	Detail
+H1	Results page has no error state	Results.tsx	If the recommendations API query fails, the loading spinner shows indefinitely. Users are stuck with no feedback and no recovery path.
+H2	404 page is developer-facing	not-found.tsx:14	The message "Did you forget to add the page to the router?" is debug copy. No home/back link. Users who land here have no escape route.
+MEDIUM
+#	Issue	Location	Detail
+M1	9 pages missing unique document.title	StudentLogin, GroupPricing, StudentProgress, PrivacyPolicy, TermsOfUse, Disclaimer, AuthCallback, ResultsPrint, not-found	All fall back to the global HTML title. Browser tabs are unlabeled; affects SEO for crawlable pages.
+M2	No skip-to-main-content link	index.html / Header.tsx	Keyboard and screen-reader users must Tab through the entire navigation on every page before reaching content. WCAG 2.4.1 (Level A).
+M3	Login page no loading/error state for /api/auth/config	Login.tsx:23–25	If the OAuth config fetch is slow or fails, OAuth buttons simply don't appear and there is no feedback — user may think OAuth is unavailable.
+M4	dangerouslySetInnerHTML in chart.tsx	chart.tsx:81	Used to inject CSS custom properties for Recharts theming. Content is built from developer-controlled config objects (not user input), so XSS risk is low — but the pattern should be documented/reviewed if chart config ever accepts user data.
+M5	Touch targets below 44×44px	Multiple — Button size="sm"	Shadcn's size="sm" renders at ~36px height. Critical on mobile for assessment navigation buttons and form submit buttons.
+M6	Org logo images not format-controlled	Landing.tsx:126, AdminOrganizations.tsx	Logo URLs come from the database; no WebP/AVIF conversion or <picture> fallback. Could serve large unoptimized images.
+LOW
+#	Issue	Location	Detail
+L1	Focus-visible rings missing on custom elements	Nav links, sticky-note wrappers, assessment step containers	Radix components handle their own rings; custom wrappers lack focus-visible:ring-2 focus-visible:ring-primary.
+L2	Complex regions lack ARIA landmarks	Career recommendation cards, assessment step panels	No role="region" + aria-labelledby on major content sections. Screen reader users navigate by heading only.
+L3	Rate limiting is IP-based only	server/index.ts — rate-limit config	Corporate networks sharing a single IP would hit the 5-req/15-min auth limit collectively.
+L4	No per-page Open Graph / Twitter metadata	index.html only	OG tags are static. Sharing a Results or Profile URL generates the same generic preview regardless of content.
+L5	aria-describedby not wired to field errors	All form pages	<FormMessage> renders the error text, but no aria-describedby link from the input to the error. Screen readers may not announce validation errors on field blur.
+L6	Auto-save errors are silent	Assessment.tsx:181–182	Intentional UX decision, but a persistent save failure could cause data loss with no user warning.
+L7	No image CDN / cache headers	Server static file serving	No Cache-Control headers detected for served assets. Every page load re-fetches assets.
+L8	Puppeteer included in server bundle	package.json	Puppeteer (~200MB with Chromium) is a heavy dependency for server-side PDF. Acceptable if PDF is an intentional server feature, but worth noting for cold-start and container size.
+L9	Color contrast not programmatically verified	All pages	HSL design system appears well-calibrated but was not run through a contrast checker. Needs manual or automated audit before claiming WCAG AA.
+LAUNCH READINESS VERDICT
+NOT READY
+Justification:
+
+The application is well-architected, has strong security fundamentals (CSRF, rate limiting, helmet, bcrypt, Stripe webhook verification, XSS sanitization, Drizzle ORM parameterized queries), and demonstrates production-quality patterns throughout. However, two HIGH issues must be resolved before launch:
+
+Results page failure state is missing (H1). This is a primary user flow. If the backend fails to generate recommendations, users are permanently stuck on a loading screen with no message, no retry, and no way forward. This is a broken core experience.
+
+404 page is developer-facing copy (H2). Any user who lands on an invalid URL sees "Did you forget to add the page to the router?" — an internal dev message. There is also no link back to the home page. This must be replaced with user-appropriate copy and a home button.
+
+Fix those two items and the app is functionally ready. The medium and low issues are meaningful quality improvements (especially M2 skip link and M5 touch targets for accessibility, and M1 document titles for SEO) but do not constitute launch blockers on their own.
