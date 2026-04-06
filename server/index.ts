@@ -183,8 +183,8 @@ app.use((req, res, next) => {
   
   const server = await registerRoutes(app);
   
-  // Seed database on startup (only in development)
-  if (app.get("env") === "development") {
+  // Seed database on startup (all environments - seed is idempotent)
+  {
     const { seedDatabase } = await import("./seed");
     await seedDatabase().catch(console.error);
   }
