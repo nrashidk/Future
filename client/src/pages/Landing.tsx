@@ -1,5 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { StickyNote } from "@/components/StickyNote";
+import { Header } from "@/components/layout/Header";
 import { 
   GraduationCap, 
   Target, 
@@ -10,13 +11,10 @@ import {
   Rocket,
   Heart,
   Lightbulb,
-  Building2,
-  User,
-  LogIn
+  Building2
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "wouter";
-import { useAuth } from "@/hooks/useAuth";
+import { Link, useLocation } from "wouter";
 
 interface Organization {
   id: string;
@@ -25,7 +23,7 @@ interface Organization {
 }
 
 export default function Landing() {
-  const { user } = useAuth();
+  const [, setLocation] = useLocation();
   const { data: analytics, isLoading } = useQuery<{ totalStudents: number }>({
     queryKey: ['/api/public/student-count'],
   });
@@ -38,43 +36,13 @@ export default function Landing() {
   const displayCount = isLoading ? "..." : studentCount.toLocaleString();
   const isPlural = studentCount !== 1;
 
-  const handleLogin = () => {
-    window.location.href = "/login";
-  };
-
-  const handleGuestStart = () => {
-    window.location.href = "/assessment";
-  };
+  const handleLogin = () => setLocation("/login");
+  const handleGuestStart = () => setLocation("/assessment");
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10">
-      {/* Navigation Header */}
-      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 hover-elevate rounded-lg px-3 py-2">
-            <GraduationCap className="w-6 h-6 text-primary" />
-            <span className="font-bold text-lg">Future Pathways</span>
-          </Link>
-          <div className="flex gap-2">
-            {!user && (
-              <Button variant="outline" size="sm" asChild data-testid="button-nav-login">
-                <Link href="/login">
-                  <LogIn className="w-4 h-4 mr-2" />
-                  Login
-                </Link>
-              </Button>
-            )}
-            {user && (
-              <Button variant="outline" size="sm" asChild data-testid="button-nav-profile">
-                <Link href="/profile">
-                  <User className="w-4 h-4 mr-2" />
-                  Profile
-                </Link>
-              </Button>
-            )}
-          </div>
-        </div>
-      </header>
+    <>
+      <Header />
+      <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10">
 
 
       {/* Hero Section */}
@@ -448,5 +416,6 @@ export default function Landing() {
         </div>
       </footer>
     </div>
+    </>
   );
 }

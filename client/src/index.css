@@ -316,4 +316,11 @@
   .animate-scroll:hover {
     animation-play-state: paused;
   }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-scroll,
+    .animate-pulse {
+      animation: none;
+    }
+  }
 }

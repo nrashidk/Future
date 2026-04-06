@@ -32,8 +32,9 @@ const NotFound = lazy(() => import("@/pages/not-found"));
 
 function PageLoader() {
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <Loader2 className="w-8 h-8 animate-spin text-primary" />
+    <div role="status" aria-label="Loading page" className="min-h-screen flex items-center justify-center">
+      <Loader2 className="w-8 h-8 animate-spin text-primary" aria-hidden="true" />
+      <span className="sr-only">Loading…</span>
     </div>
   );
 }
@@ -67,12 +68,14 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
           </p>
           <div className="flex gap-3">
             <button
+              type="button"
               onClick={() => window.location.reload()}
               className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium"
             >
               Refresh page
             </button>
             <button
+              type="button"
               onClick={() => { this.setState({ hasError: false }); window.location.href = '/'; }}
               className="px-4 py-2 rounded-md border text-sm font-medium"
             >

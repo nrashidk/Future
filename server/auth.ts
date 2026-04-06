@@ -37,7 +37,7 @@ export function getSession() {
     cookie: {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: process.env.NODE_ENV === 'production' ? 'lax' : 'lax',
+      sameSite: process.env.NODE_ENV === 'production' ? 'strict' : 'lax',
       maxAge: sessionTtl,
       path: '/',
     },

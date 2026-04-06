@@ -51,8 +51,6 @@ export function validateCsrf(req: Request, res: Response, next: NextFunction) {
   const exemptPaths = [
     "/api/callback",
     "/api/webhook", // Stripe webhooks use signature verification instead
-    "/api/login",
-    "/api/login/username",
   ];
   
   // Also exempt paths that match patterns for file uploads (multipart/form-data)
