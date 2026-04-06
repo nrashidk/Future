@@ -1894,19 +1894,23 @@ function MemberActions({ member, organizationId }: { member: OrganizationMember;
             </DialogDescription>
           </DialogHeader>
 
-          <StickyNote color="yellow" rotation="2" className="mx-auto">
-            <div className="space-y-2">
-              <p className="text-xs text-muted-foreground">New Password for {member.user.username}</p>
-              <p className="font-mono font-bold text-xl">{newPassword}</p>
+          <div className="rounded-lg border bg-muted/40 p-4 space-y-3">
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Username</p>
+              <p className="font-mono font-semibold">{member.user.username}</p>
             </div>
-          </StickyNote>
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">New Password</p>
+              <p className="font-mono font-bold text-lg">{newPassword}</p>
+            </div>
+          </div>
 
           <div className="flex gap-2 justify-end">
             <Button variant="outline" onClick={() => {
-              navigator.clipboard.writeText(newPassword);
-              toast({ title: "Copied!", description: "Password copied to clipboard" });
+              navigator.clipboard.writeText(`Username: ${member.user.username}\nPassword: ${newPassword}`);
+              toast({ title: "Copied!", description: "Credentials copied to clipboard" });
             }}>
-              Copy
+              Copy to Clipboard
             </Button>
             <Button onClick={() => setNewPassword(null)}>
               Close
