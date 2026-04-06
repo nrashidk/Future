@@ -29,6 +29,7 @@ app.use(helmet({
       styleSrc: [
         "'self'",
         "'unsafe-inline'", // Required for inline styles in components
+        "https://fonts.googleapis.com", // Google Fonts stylesheet
       ],
       imgSrc: [
         "'self'",
@@ -44,7 +45,7 @@ app.use(helmet({
         "https://js.stripe.com", // Stripe iframe
         "https://hooks.stripe.com", // Stripe webhooks
       ],
-      fontSrc: ["'self'", "data:"],
+      fontSrc: ["'self'", "data:", "https://fonts.gstatic.com"], // Google Fonts files
       objectSrc: ["'none'"],
       formAction: ["'self'"],
       frameAncestors: ["'self'"],
@@ -190,9 +191,7 @@ app.use((req, res, next) => {
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
-
     res.status(status).json({ message });
-    throw err;
   });
 
   // importantly only setup vite in development and after

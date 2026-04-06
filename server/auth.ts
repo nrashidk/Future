@@ -31,8 +31,8 @@ export function getSession() {
     secret: process.env.SESSION_SECRET!,
     store: sessionStore,
     resave: false,
-    saveUninitialized: true,
-    name: 'connect.sid',
+    saveUninitialized: false,
+    name: 'fp_session',
     proxy: true,
     cookie: {
       httpOnly: true,

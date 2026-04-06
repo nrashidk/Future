@@ -1,0 +1,13 @@
+User-agent: *
+Disallow: /admin
+Disallow: /superadmin
+Disallow: /print/
+Disallow: /assessment
+Disallow: /results
+Disallow: /checkout
+Disallow: /login
+Disallow: /register
+Disallow: /reset-password
+Allow: /
+
+Sitemap: https://futurepathways.replit.app/sitemap.xml
