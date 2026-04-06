@@ -86,6 +86,8 @@ function mapSubjectsToVisionSectors(
 }
 
 export default function Results() {
+  useEffect(() => { document.title = "Your Career Results | Future Pathways"; }, []);
+
   const { isAuthenticated, user } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
@@ -201,7 +203,7 @@ export default function Results() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 pb-12">
+    <main id="main-content" className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 pb-12">
       {/* Header */}
       <div className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground py-12 px-4">
         <div className="max-w-6xl mx-auto text-center">
@@ -946,6 +948,6 @@ export default function Results() {
           </div>
         )}
       </div>
-    </div>
+    </main>
   );
 }

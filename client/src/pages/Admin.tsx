@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -47,6 +47,8 @@ const normalizeCountryId = (value: string): string | null => {
 };
 
 export default function Admin() {
+  useEffect(() => { document.title = "Quiz Manager | Future Pathways"; }, []);
+
   const { user } = useAuth();
   const { toast } = useToast();
   const [filters, setFilters] = useState({

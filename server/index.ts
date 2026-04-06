@@ -22,7 +22,7 @@ app.use(helmet({
       defaultSrc: ["'self'"],
       scriptSrc: [
         "'self'",
-        "'unsafe-inline'", // Required for Vite in development
+        ...(isProduction ? [] : ["'unsafe-inline'"]), // Only allow inline scripts in development
         "https://js.stripe.com", // Stripe.js
         "https://m.stripe.network", // Stripe fraud detection
       ],
@@ -114,9 +114,10 @@ app.use((req, res, next) => {
   }
   
   // Apply JSON parser with raw body capture for other routes
-  // Limit set to 10MB to allow bulk imports of quiz questions
+  // Use a 512kb default; allow 10mb only for bulk quiz question import routes
+  const jsonLimit = req.path.startsWith("/api/admin/questions/bulk") ? '10mb' : '512kb';
   express.json({
-    limit: '10mb',
+    limit: jsonLimit,
     verify: (req, _res, buf) => {
       req.rawBody = buf;
     }

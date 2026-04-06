@@ -218,8 +218,15 @@ export function registerFilesRoutes(app: Express) {
       // Increment download count
       await storage.incrementDownloadCount(file.id);
       
+      // Path traversal protection — ensure resolved path stays within uploads directory
+      const resolvedPath = path.resolve(file.filePath);
+      const uploadsDir = path.resolve(UPLOADS_DIR);
+      if (!resolvedPath.startsWith(uploadsDir + path.sep)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
       // Send file
-      res.download(file.filePath, file.originalFilename);
+      res.download(resolvedPath, file.originalFilename);
     } catch (error) {
       console.error("Error downloading file:", error);
       res.status(500).json({ message: "Failed to download file" });
@@ -242,8 +249,15 @@ export function registerFilesRoutes(app: Express) {
       // This prevents indefinite access via leaked URLs
       await storage.invalidateShareToken(file.id);
       
+      // Path traversal protection — ensure resolved path stays within uploads directory
+      const resolvedPath = path.resolve(file.filePath);
+      const uploadsDir = path.resolve(UPLOADS_DIR);
+      if (!resolvedPath.startsWith(uploadsDir + path.sep)) {
+        return res.status(403).json({ message: "Access denied" });
+      }
+
       // Send file
-      res.download(file.filePath, file.originalFilename);
+      res.download(resolvedPath, file.originalFilename);
     } catch (error) {
       console.error("Error downloading shared file:", error);
       res.status(500).json({ message: "Failed to download file" });

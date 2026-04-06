@@ -129,6 +129,8 @@ function getMemberStatus(member: OrganizationMember): { label: string; variant: 
 }
 
 export default function AdminOrganizations() {
+  useEffect(() => { document.title = "Organization Management | Future Pathways"; }, []);
+
   const { user } = useAuth();
   const { toast } = useToast();
   const [, navigate] = useLocation();

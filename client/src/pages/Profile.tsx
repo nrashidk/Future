@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -37,6 +38,8 @@ interface OrgStats {
 }
 
 export default function Profile() {
+  useEffect(() => { document.title = "My Profile | Future Pathways"; }, []);
+
   const { user, isLoading } = useAuth();
   const [, navigate] = useLocation();
 
@@ -104,7 +107,7 @@ export default function Profile() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10">
+    <main id="main-content" className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10">
       <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-sm border-b">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 hover-elevate rounded-lg px-3 py-2" data-testid="link-home">
@@ -684,6 +687,6 @@ export default function Profile() {
           )}
         </div>
       </div>
-    </div>
+    </main>
   );
 }

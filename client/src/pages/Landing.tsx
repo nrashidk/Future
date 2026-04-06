@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { StickyNote } from "@/components/StickyNote";
 import { Header } from "@/components/layout/Header";
@@ -36,13 +37,15 @@ export default function Landing() {
   const displayCount = isLoading ? "..." : studentCount.toLocaleString();
   const isPlural = studentCount !== 1;
 
+  useEffect(() => { document.title = "Future Pathways – Career Guidance for Students"; }, []);
+
   const handleLogin = () => setLocation("/login");
   const handleGuestStart = () => setLocation("/assessment");
 
   return (
     <>
       <Header />
-      <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10">
+      <main id="main-content" className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10">
 
 
       {/* Hero Section */}
@@ -120,6 +123,8 @@ export default function Landing() {
                             <img
                               src={org.logoUrl}
                               alt={`${org.name} logo`}
+                              loading="lazy"
+                              decoding="async"
                               className="h-10 w-auto object-contain"
                               data-testid={`img-school-logo-${org.id}-${index}`}
                             />
@@ -261,7 +266,7 @@ export default function Landing() {
             <StickyNote color="yellow" rotation="-1" className="p-8">
               <div className="flex items-start gap-3 mb-4">
                 <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <span className="text-2xl">👩‍🎓</span>
+                  <span className="text-2xl" aria-hidden="true">👩‍🎓</span>
                 </div>
                 <div>
                   <p className="font-body italic text-foreground/80">
@@ -397,11 +402,11 @@ export default function Landing() {
             <Link href="/privacy" className="hover:text-foreground transition-colors" data-testid="link-footer-privacy">
               Privacy Policy
             </Link>
-            <span>•</span>
+            <span aria-hidden="true">•</span>
             <Link href="/terms" className="hover:text-foreground transition-colors" data-testid="link-footer-terms">
               Terms of Use
             </Link>
-            <span>•</span>
+            <span aria-hidden="true">•</span>
             <Link href="/disclaimer" className="hover:text-foreground transition-colors" data-testid="link-footer-disclaimer">
               Disclaimer
             </Link>
@@ -415,7 +420,7 @@ export default function Landing() {
           </p>
         </div>
       </footer>
-    </div>
+    </main>
     </>
   );
 }

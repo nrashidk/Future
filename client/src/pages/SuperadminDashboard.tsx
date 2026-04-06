@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -174,6 +174,8 @@ interface Country {
 }
 
 export default function SuperadminDashboard() {
+  useEffect(() => { document.title = "Superadmin Dashboard | Future Pathways"; }, []);
+
   const { toast } = useToast();
   const [searchQuery, setSearchQuery] = useState("");
   const [studentSearchQuery, setStudentSearchQuery] = useState("");

@@ -27,6 +27,8 @@ const resetPasswordSchema = z.object({
 type ResetPasswordForm = z.infer<typeof resetPasswordSchema>;
 
 export default function ResetPassword() {
+  useEffect(() => { document.title = "Reset Password | Future Pathways"; }, []);
+
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [resetSuccess, setResetSuccess] = useState(false);

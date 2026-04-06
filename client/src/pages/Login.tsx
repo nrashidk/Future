@@ -15,6 +15,8 @@ interface AuthConfig {
 }
 
 export default function Login() {
+  useEffect(() => { document.title = "Sign In | Future Pathways"; }, []);
+
   const [location] = useLocation();
   const [error, setError] = useState<string | null>(null);
 
@@ -47,7 +49,7 @@ export default function Login() {
   const hasOAuthOptions = authConfig?.google || authConfig?.microsoft;
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/10 via-background to-accent/10">
+    <main id="main-content" className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/10 via-background to-accent/10">
       <Card className="w-full max-w-md" data-testid="card-login">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">
@@ -133,6 +135,6 @@ export default function Login() {
           </Button>
         </CardFooter>
       </Card>
-    </div>
+    </main>
   );
 }

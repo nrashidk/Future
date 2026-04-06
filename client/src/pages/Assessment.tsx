@@ -35,6 +35,8 @@ interface AssessmentData {
 }
 
 export default function Assessment() {
+  useEffect(() => { document.title = "Career Assessment | Future Pathways"; }, []);
+
   const [, setLocation] = useLocation();
   const { user, isAuthenticated, isLoading } = useAuth();
   const { toast } = useToast();
@@ -337,7 +339,7 @@ export default function Assessment() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 pb-12">
+    <main id="main-content" className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 pb-12">
       {/* Guest Banner */}
       {isGuest && !isAuthenticated && (
         <div className="bg-accent border-b border-accent-border sticky top-0 z-50 backdrop-blur-sm bg-accent/80">
@@ -647,6 +649,6 @@ export default function Assessment() {
           />
         )}
       </div>
-    </div>
+    </main>
   );
 }

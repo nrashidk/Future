@@ -58,6 +58,8 @@ interface Organization {
 }
 
 export default function Analytics() {
+  useEffect(() => { document.title = "Analytics | Future Pathways"; }, []);
+
   const { user } = useAuth();
   const [activeCountryId, setActiveCountryId] = useState<string | null>(null);
   const isOrgAdmin = user?.accountType === 'org_admin';

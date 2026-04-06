@@ -1,0 +1,797 @@
+Future Pathways — Comprehensive Website Review
+Stack: React 18 + TypeScript (Vite) · Express.js · PostgreSQL (Neon/Drizzle) · Tailwind CSS · Deployed on Replit
+Reviewed: All source files in /home/user/Future
+
+Table of Contents
+Performance
+Accessibility (WCAG 2.1 AA)
+SEO
+Security
+Code Quality
+UI/UX & Design Consistency
+Mobile & Responsiveness
+Best Practices & Standards
+Prioritized Action Plan
+1. Performance
+1.1 — Google Fonts is render-blocking
+Location: client/index.html:31
+Severity: High
+
+Description: The Google Fonts <link> loads two font families synchronously before the browser can paint. While preconnect hints are present, the stylesheet itself is still render-blocking and depends on an external network hop, directly hurting LCP on slower connections.
+
+Fix:
+Add media="print" onload="this.media='all'" to the font link for non-blocking load, with a <noscript> fallback:
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:..."
+      rel="stylesheet"
+      media="print"
+      onload="this.media='all'" />
+<noscript>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:..." rel="stylesheet" />
+</noscript>
+
+1.2 — No resource hints for critical assets (LCP image / hero)
+Location: client/index.html
+Severity: Medium
+
+Description: There is no <link rel="preload"> for the favicon, critical JavaScript entry point, or any above-the-fold asset. The Vite entry script is loaded as a plain <script type="module">. Browsers cannot discover it until the HTML is parsed.
+
+Fix:
+
+<link rel="modulepreload" href="/src/main.tsx" />
+
+Additionally, if a hero image is added in the future, include <link rel="preload" as="image" href="/hero.webp" />.
+
+1.3 — No image lazy loading or modern format usage
+Location: client/src/pages/Landing.tsx:122, client/src/pages/AdminOrganizations.tsx:533
+Severity: Medium
+
+Description: School logo images use no loading="lazy" or fetchpriority attributes. The src attribute points to arbitrary URLs (org.logoUrl), which can be full-size PNGs. There is no WebP/AVIF conversion pipeline.
+
+Fix:
+
+<img
+  src={org.logoUrl}
+  alt={`${org.name} logo`}
+  loading="lazy"
+  decoding="async"
+  className="h-10 w-auto object-contain"
+/>
+
+1.4 — useAuth has staleTime: 0 — fetches on every render
+Location: client/src/hooks/useAuth.ts:9
+Severity: Medium
+
+Description: staleTime: 0 means every component that calls useAuth() triggers a background refetch of /api/auth/user on every mount. In a multi-component page (Header + Assessment + Results), this causes 3+ simultaneous requests to the same endpoint on each navigation.
+
+Fix: Set a short but non-zero staleTime for the session:
+
+staleTime: 30 * 1000, // 30 seconds — session data does not change that frequently
+
+1.5 — JSON body parser set to 10 MB globally
+Location: server/index.ts:118
+Severity: Medium
+
+Description: The 10 MB limit was added for bulk quiz imports, but it applies to every route. This exposes all endpoints (login, assessment PATCH, etc.) to large-body DoS attacks that consume memory before any route-level handling occurs.
+
+Fix: Apply the 10 MB limit only to the specific admin bulk-import route; keep the global limit at a safe default (e.g., 1 MB or 512 KB):
+
+// Default small limit
+app.use(express.json({ limit: '512kb' }));
+
+// Admin bulk import route only
+app.post('/api/admin/questions/bulk',
+  express.json({ limit: '10mb' }),
+  adminBulkImportHandler
+);
+
+1.6 — No caching headers for static assets or API responses
+Location: server/vite.ts (serveStatic)
+Severity: Medium
+
+Description: Static assets served by Express have no explicit Cache-Control headers. Vite hashes filenames by default in production, so long-lived caching is safe, but it must be explicitly configured.
+
+Fix: In serveStatic, configure aggressive caching for hashed assets:
+
+app.use(express.static(distPath, {
+  maxAge: '1y',
+  immutable: true,
+}));
+
+1.7 — Puppeteer bundled in production dependencies
+Location: package.json:93
+Severity: Low
+
+Description: puppeteer (~300MB, downloads Chromium) is in dependencies, so it installs in production. PDF reports could use lighter alternatives (pdfkit is already present), or Puppeteer should be triggered lazily / isolated to a worker process.
+
+Fix: Move PDF generation to a separate serverless function or lazy-import Puppeteer only in the PDF route handler. At minimum consider puppeteer-core + a pre-installed system Chromium.
+
+1.8 — Marquee animation runs continuously even when off-screen
+Location: client/src/index.css:312, client/src/pages/Landing.tsx:106
+Severity: Low
+
+Description: The .animate-scroll CSS animation runs at 30s intervals indefinitely. There is a correct prefers-reduced-motion check, but the animation continues even when the element is scrolled out of the viewport, consuming GPU resources.
+
+Fix: Use an IntersectionObserver in the Landing component to toggle animation-play-state: paused when the marquee is not visible.
+
+2. Accessibility (WCAG 2.1 AA)
+2.1 — Interactive StickyNote cards are not keyboard accessible
+Location: client/src/components/StickyNote.tsx:42–48
+Severity: High
+
+Description: When onClick is provided, the StickyNote renders as a <div> with cursor-pointer and a click handler, but has no role, tabIndex, or keyboard event handler. Keyboard-only users and assistive technology users cannot activate or even focus these interactive cards (used extensively in SubjectsStep, InterestsStep, and PersonalityStep).
+
+Fix:
+
+<div
+  role={onClick ? "button" : undefined}
+  tabIndex={onClick ? 0 : undefined}
+  onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } } : undefined}
+  aria-pressed={onClick && selected !== undefined ? selected : undefined}
+  ...
+>
+
+2.2 — No skip navigation link
+Location: client/src/components/layout/Header.tsx (missing)
+Severity: High
+
+Description: There is no "Skip to main content" link at the top of the document. The sticky header contains 4–7 navigation buttons that keyboard users must tab through on every page load before reaching the main content.
+
+Fix: Add as the first child of <body> (or <header>):
+
+<a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:z-[9999] ...">
+  Skip to main content
+</a>
+
+And add id="main-content" to the <main> element on each page.
+
+2.3 — No <main> landmark on most pages
+Location: client/src/pages/Landing.tsx, client/src/pages/Assessment.tsx, client/src/pages/Results.tsx (and others)
+Severity: High
+
+Description: The landing page and most other pages wrap their content in <div> elements. Screen reader users navigate by landmark regions (<main>, <nav>, <aside>). Without a <main> landmark, region navigation is broken.
+
+Fix: Wrap the primary page content in <main id="main-content"> on every page. The Landing.tsx footer is correctly using <footer>, which is good — extend this pattern to <main>.
+
+2.4 — Muted foreground color may fail contrast on light backgrounds
+Location: client/src/index.css:34
+Severity: High
+
+Description: --muted-foreground: 215 18% 35% in light mode computes to approximately #4a5568 on a background of --background: 210 6% 97% (#f5f6f7). The computed contrast ratio is approximately 5.7:1 — passing AA for body text but the same token is used for small/secondary text (text-xs, font-body) throughout the landing page, where WCAG AA requires 4.5:1 for small text and 3:1 for large text. More critically, text-muted-foreground is also used over sticky-note backgrounds (e.g., bg-sticky-yellow = hsl(48 100% 88%) ≈ #FFF5A0), where the contrast drops to approximately 3.4:1, failing AA for small text.
+
+Fix: Darken --muted-foreground to at least 215 18% 28% in light mode, and verify all sticky-note background + muted-foreground pairings with a contrast checker.
+
+2.5 — Emoji used without accessible alternative in CTA section
+Location: client/src/pages/Landing.tsx:264
+Severity: Medium
+
+Description: <span className="text-2xl">👩‍🎓</span> is placed decoratively but has no aria-hidden="true" or aria-label. Screen readers will announce the full Unicode description: "woman student: medium-light skin tone", which disrupts the testimonial flow.
+
+Fix:
+
+<span className="text-2xl" aria-hidden="true">👩‍🎓</span>
+
+2.6 — Very few ARIA labels across application components
+Location: Whole client/src/ — only 21 ARIA attribute occurrences found across 11 files
+Severity: Medium
+
+Description: Custom interactive components like the assessment steps (SubjectsStep, InterestsStep, PersonalityStep), quiz options, progress tracker, and masonry grid career cards have no ARIA labeling. Key patterns missing: aria-label on icon-only buttons, aria-describedby for field hints, aria-live for dynamic recommendation loading state.
+
+Fix: Systematically audit each assessment step component and add:
+
+aria-label to all icon-only buttons
+aria-live="polite" to result/loading containers
+aria-describedby linking input fields to their hint text
+2.7 — The separator bullet in the footer is not hidden from screen readers
+Location: client/src/pages/Landing.tsx:400–406
+Severity: Low
+
+Description: <span>•</span> is used as a visual separator between footer links. Screen readers announce this as "bullet" between each link label.
+
+Fix:
+
+<span aria-hidden="true">•</span>
+
+2.8 — <GraduationCap> and other icons in navigational context lack titles
+Location: client/src/components/layout/Header.tsx:115
+Severity: Low
+
+Description: The home link contains <GraduationCap aria-hidden="true" /> + "Future Pathways" text — this is correctly handled. However, in NavLinks, button labels for roles like "Quiz" or "Analytics" rely on short text that may not be descriptive enough with just an icon + single word. The icon is aria-hidden but the text labels are terse.
+
+Fix: Verify that each nav button's text label alone (without the icon) conveys its full purpose. "Quiz" and "Analytics" are fine; "Admin" is ambiguous — consider "Organization Admin" or use aria-label.
+
+3. SEO
+3.1 — No JSON-LD structured data
+Location: client/index.html, client/src/pages/Landing.tsx
+Severity: High
+
+Description: There is no <script type="application/ld+json"> on any page. For an educational career-guidance platform, EducationalOrganization, WebApplication, and FAQPage schemas would enable rich snippets in Google Search, improving CTR.
+
+Fix: Add to client/index.html or dynamically inject in the Landing component:
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Future Pathways",
+  "applicationCategory": "EducationalApplication",
+  "description": "Personalised career guidance for students aged 13–18.",
+  "url": "https://futurepathways.replit.app/",
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  }
+}
+</script>
+
+3.2 — Sitemap XML namespace is incorrect
+Location: client/public/sitemap.xml:2
+Severity: High
+
+Description: The <urlset> uses xmlns="http://www.sitemaps.org/schemas/0.9". The correct namespace is https://www.sitemaps.org/schemas/0.9. Google's sitemap parser may reject this document.
+
+Fix:
+
+<urlset xmlns="https://www.sitemaps.org/schemas/0.9">
+
+3.3 — Sitemap includes URLs disallowed by robots.txt
+Location: client/public/sitemap.xml:9–17, client/public/robots.txt
+Severity: Medium
+
+Description: robots.txt disallows /login and /register, yet both URLs appear in sitemap.xml. This contradicts the robots directive — Google may index them anyway (robots.txt is a crawling hint, not an access control), and it wastes crawl budget.
+
+Fix: Remove /login and /register from the sitemap entirely. These pages have no SEO value.
+
+3.4 — SPA with no SSR — crawlability risk
+Location: Architecture-level issue
+Severity: Medium
+
+Description: The entire frontend is a client-side React SPA. Googlebot handles JavaScript, but Time-to-Interactive for crawlers is slow. The Landing page content (H1, features, methodology section) is not in the initial HTML response — it all renders client-side. This depresses rankings for content-based queries.
+
+Fix: For the landing page specifically, consider adding server-side rendering (via an Express route that renders a static HTML shell) or extract the SEO-critical landing content into a pre-rendered HTML template served directly from Express before the React bundle hydrates.
+
+3.5 — No canonical URL meta tags on any page
+Location: client/index.html and all page components
+Severity: Medium
+
+Description: There is no <link rel="canonical"> on any page. If the site is accessible via multiple URLs (e.g., with/without www, Replit preview vs. production domain), duplicate content issues will arise.
+
+Fix: Add the canonical tag to index.html:
+
+<link rel="canonical" href="https://futurepathways.replit.app/" />
+
+For dynamic pages, use a per-route <Helmet> approach or server-side injection.
+
+3.6 — Missing og:locale, og:image:alt, and Twitter @creator
+Location: client/index.html:16–26
+Severity: Low
+
+Description: Open Graph tags are present but missing og:locale (defaults to en_US but should be explicit), og:image:alt (required for accessibility in social previews), and Twitter twitter:site (needed for Twitter rich cards).
+
+Fix:
+
+<meta property="og:locale" content="en_US" />
+<meta property="og:image:alt" content="Future Pathways — Career Guidance for Students" />
+<meta name="twitter:site" content="@futurepathways" />
+
+4. Security
+4.1 — PATCH /api/assessments/:id has no authentication or ownership check
+Location: server/routes/assessment.routes.ts:219
+Severity: Critical
+
+Description: The assessment update endpoint has no isAuthenticated middleware and performs zero ownership verification inside the handler body. Any unauthenticated HTTP client can send PATCH /api/assessments/<any-id> with arbitrary data and overwrite another user's (or any student's) assessment results, grades, quiz scores, or completion state. This is a critical authorization bypass.
+
+Fix:
+
+// Add authentication + ownership check at the route level:
+app.patch("/api/assessments/:id", async (req: any, res) => {
+  // ... existing sanitization ...
+
+  const assessment = await storage.getAssessmentById(req.params.id);
+  if (!assessment) return res.status(404).json({ message: "Not found" });
+
+  // Ownership check
+  if (assessment.userId) {
+    if (!req.isAuthenticated() || req.user.userId !== assessment.userId) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+  } else {
+    const guestToken = req.cookies?.guest_token;
+    if (!guestToken || guestToken !== assessment.guestSessionId) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+  }
+  // ... rest of handler
+
+4.2 — Superadmin !isLocal check is inconsistently applied
+Location: server/routes/admin.routes.ts:211, server/routes/files.routes.ts:71, server/routes/superadmin.routes.ts:29, server/routes/analytics.routes.ts:25, server/routes/country.routes.ts:65 — vs. server/middleware/auth.middleware.ts:32
+Severity: High
+
+Description: In 5+ route files, the inline superadmin check restricts email-based superadmin detection to OAuth users only (!(req.user as any).isLocal &&). The centralized isAdmin middleware in auth.middleware.ts:32 does NOT include this restriction. This means a local (email/password) user whose email is in SUPERADMIN_EMAILS is treated differently depending on which route they hit — as superadmin via the centralized middleware but NOT as superadmin in direct inline checks. This inconsistency creates potential privilege escalation confusion and logic bugs. Registration in auth.ts:285 correctly assigns role: "superadmin" via email match, so the role === "superadmin" fallback rescues local superadmins — but the intent is unclear and the code is fragile.
+
+Fix: Remove all 15+ inline superadmin checks and replace them with the centralized isAdmin middleware from auth.middleware.ts. Delete the !isLocal restriction entirely — it was likely added by mistake.
+
+4.3 — 'unsafe-inline' in CSP scriptSrc is permanent, not dev-only
+Location: server/index.ts:23
+Severity: High
+
+Description: The CSP includes "'unsafe-inline'" in scriptSrc with a comment "Required for Vite in development", but the same configuration runs in production. unsafe-inline eliminates the XSS protection that CSP provides for scripts, completely defeating the purpose of the script-src directive.
+
+Fix: In production, remove 'unsafe-inline' from scriptSrc and replace with a nonce-based approach. Vite's dev server does need inline scripts; conditionally apply:
+
+scriptSrc: [
+  "'self'",
+  "https://js.stripe.com",
+  "https://m.stripe.network",
+  ...(isProduction ? [] : ["'unsafe-inline'"]),
+],
+
+4.4 — File download uses database-stored path without path traversal protection
+Location: server/routes/files.routes.ts:222, :246
+Severity: High
+
+Description: res.download(file.filePath, file.originalFilename) passes file.filePath directly from the database to Express. Although filePath is set at upload time from multer's controlled path, there is no normalization or containment check — if the database record were ever modified (e.g., via a SQL injection or admin interface bug), an attacker could serve arbitrary files from the server filesystem.
+
+Fix: Add path normalization and containment validation before serving:
+
+import { resolve, normalize } from "path";
+const safePath = resolve(normalize(file.filePath));
+const uploadsDir = resolve(UPLOADS_DIR);
+if (!safePath.startsWith(uploadsDir + path.sep)) {
+  return res.status(403).json({ message: "Access denied" });
+}
+res.download(safePath, file.originalFilename);
+
+4.5 — CSRF is exempted for file upload and contribution submission endpoints
+Location: server/middleware/csrf.middleware.ts:57–59
+Severity: Medium
+
+Description: File upload (/api/files/upload) and question contributions (/api/contributions/submit) are exempt from CSRF validation. The comment says multipart/form-data doesn't easily support CSRF headers, but this is incorrect — custom request headers can be sent with XMLHttpRequest/fetch for multipart uploads from the same origin. These endpoints modify state (store files, create contribution records) and should be protected.
+
+Fix: Remove the CSRF exemption for these two endpoints. Set the x-csrf-token header in the client's file upload fetch calls alongside the FormData body.
+
+4.6 — HSTS preload not enabled; subdomain coverage limited
+Location: server/index.ts:58
+Severity: Medium
+
+Description: HSTS is correctly configured for production with a 1-year maxAge and includeSubDomains, but preload: false means the domain is not submitted to browser HSTS preload lists. Without preload, the first HTTPS visit is still vulnerable to SSL stripping on networks that have never seen the site.
+
+Fix: Add preload: true and also submit to hstspreload.org once the domain is stable.
+
+4.7 — Plaintext password returned in API response body after checkout
+I now have everything I need. Let me compile the full report.
+
+Comprehensive Website Review: Future Pathways
+Stack: React 18 + TypeScript, Express.js, PostgreSQL (Neon), Drizzle ORM, Tailwind CSS, Vite, Passport.js, Stripe
+Deployment: Replit (single-server, port 5000)
+
+1. PERFORMANCE
+1.1 — runtimeErrorOverlay Plugin Loaded in Production
+Location: vite.config.ts:9
+Severity: High
+Description: runtimeErrorOverlay() is placed unconditionally in the plugins array, outside the NODE_ENV !== "production" guard. The Cartographer and Dev Banner plugins are conditionally loaded, but the error modal is not. This ships Replit-specific development tooling code to end users.
+Fix: Move runtimeErrorOverlay() inside the same conditional block:
+plugins: [
+  react(),
+  ...(process.env.NODE_ENV !== "production" && process.env.REPL_ID !== undefined
+    ? [runtimeErrorOverlay(), await import(...cartographer), await import(...devBanner)]
+    : []),
+]
+
+1.2 — No Vite Bundle Chunking Strategy
+Location: vite.config.ts
+Severity: High
+Description: The build config has no build.rollupOptions.output.manualChunks configuration. With 15+ Radix UI packages, framer-motion, recharts, @stripe/react-stripe-js, and zxcvbn all potentially in the same chunk, the initial bundle will be large. No chunk size warnings are configured either.
+Fix: Add manual chunking:
+build: {
+  rollupOptions: {
+    output: {
+      manualChunks: {
+        'vendor-radix': [/* all @radix-ui/* */],
+        'vendor-charts': ['recharts'],
+        'vendor-stripe': ['@stripe/react-stripe-js', '@stripe/stripe-js'],
+        'vendor-motion': ['framer-motion'],
+      }
+    }
+  },
+  chunkSizeWarningLimit: 500,
+}
+
+1.3 — No Lazy Loading or Dimensions on Images
+Location: client/src/pages/Landing.tsx:119-125
+Severity: Medium
+Description: School organisation logo <img> elements have no loading="lazy", no explicit width/height attributes, and no decoding="async". This contributes to Cumulative Layout Shift (CLS) and delays LCP on pages with many logos.
+Fix:
+<img
+  src={org.logoUrl}
+  alt={`${org.name} logo`}
+  loading="lazy"
+  decoding="async"
+  width="64"
+  height="40"
+  className="h-10 w-auto object-contain"
+/>
+
+1.4 — Google Fonts Are Render-Blocking
+Location: client/index.html:29-31
+Severity: Medium
+Description: Two Google Fonts stylesheets are loaded as synchronous <link rel="stylesheet"> in <head>. Even with preconnect, the font CSS itself blocks rendering. Poppins is loaded with 6 variants (400, 500, 600, 700, italic 400, italic 500), more than are needed for the public-facing pages.
+Fix: Add media="print" onload="this.media='all'" non-blocking load pattern, or switch to font-display: optional to eliminate the render-block entirely. Reduce Poppins variants to only those actually used (400, 600, 700 are sufficient).
+1.5 — useAuth Has staleTime: 0 — Auth Refetches on Every Mount
+Location: client/src/hooks/useAuth.ts:8
+Severity: Medium
+Description: staleTime: 0 means React Query considers auth data stale immediately. Every component that calls useAuth() — the Header, Assessment page, Results page, etc. — triggers a /api/auth/user network request on mount. This creates unnecessary API calls on every page navigation.
+Fix: Set staleTime: 30 * 1000 (30 seconds) or 60 * 1000. Auth state changes (login/logout) already invalidate the query explicitly via redirects or mutations.
+1.6 — Puppeteer Is a Production Dependency
+Location: package.json:90
+Severity: Medium
+Description: puppeteer@24.29.1 downloads Chromium (~300MB) on install. This massively inflates deployment size and startup time. PDF generation is an infrequent admin action. On Replit's containerised environment, Chromium can also fail to launch due to missing system deps.
+Fix: Consider puppeteer-core (no auto-download) and provide a executablePath from the environment, or switch to a lighter PDF library (pdfkit is already in deps) for the specific report format needed. Alternatively, use a serverless PDF-rendering SaaS and skip bundling Chromium altogether.
+1.7 — No HTTP Caching Headers for Static Assets
+Location: server/vite.ts (serveStatic)
+Severity: Medium
+Description: The serveStatic function that serves the Vite build output is not explicitly setting long-lived Cache-Control headers for hashed assets (JS/CSS chunks). Vite generates content-hashed filenames, but without Cache-Control: max-age=31536000, immutable those browser caches are not fully exploited.
+Fix: In serveStatic, set long-lived caching for the assets directory:
+express.static('dist/public', {
+  maxAge: '1y',
+  immutable: true,
+  index: false,  // don't serve index.html from assets
+})
+
+and ensure index.html itself is served with Cache-Control: no-cache.
+1.8 — No <link rel="preload"> for Hero Fonts
+Location: client/index.html
+Severity: Low
+Description: No <link rel="preload" as="font"> hints for the Poppins/Inter woff2 files. The browser only discovers the fonts after parsing the Google Fonts CSS, adding a full network RTT to the font load.
+Fix: Add font preload hints after the preconnect links, or self-host the fonts and add specific rel="preload" for the most critical weight variants.
+1.9 — framer-motion Full Bundle Included
+Location: package.json
+Severity: Low
+Description: framer-motion@11.x adds ~50KB gzipped to the bundle. From the Landing page code, only basic animations (animate-pulse, CSS animate-scroll) appear to be in use. If framer-motion is only used in a few components, tree-shaking may not be effective.
+Fix: Audit all imports of framer-motion. If only motion.div or AnimatePresence are used in a handful of places, consider replacing with CSS transitions and removing the dependency.
+2. ACCESSIBILITY (WCAG 2.1 AA)
+2.1 — Clickable StickyNote Components Are Not Keyboard Accessible
+Location: client/src/components/StickyNote.tsx:42-52
+Severity: Critical
+Description: When an onClick prop is passed, StickyNote renders a plain <div> with a click handler. There is no role="button", no tabIndex={0}, and no onKeyDown handler for Enter/Space key activation. This means all interactive sticky notes (e.g., subject selection, interests, personality traits) are completely inaccessible to keyboard-only users and screen readers — a core part of the assessment flow.
+Fix:
+<div
+  role={onClick ? "button" : undefined}
+  tabIndex={onClick ? 0 : undefined}
+  onKeyDown={onClick ? (e) => { if (e.key === 'Enter' || e.key === ' ') onClick(); } : undefined}
+  onClick={onClick}
+  aria-pressed={onClick ? selected : undefined}
+  ...
+>
+
+2.2 — No Skip Navigation Link
+Location: client/src/App.tsx, all page components
+Severity: High
+Description: There is no "Skip to main content" link at the top of any page. Users navigating by keyboard or screen reader must tab through the entire header on every page before reaching content. This fails WCAG 2.4.1 (Bypass Blocks).
+Fix: Add a visually hidden but focusable link as the first element in App.tsx:
+<a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 z-50">
+  Skip to main content
+</a>
+
+Then add id="main-content" to the <main> element on each page.
+2.3 — Landing Page Has No <main> Landmark
+Location: client/src/pages/Landing.tsx:43-419
+Severity: High
+Description: The entire page content is wrapped in <> → <div>, with no <main> landmark. Screen reader users navigating by landmarks cannot jump to the page's main content. The <header> is outside and the <footer> is inside the wrapping <div>.
+Fix: Wrap the page content (everything between <Header /> and <footer>) in <main id="main-content">.
+2.4 — hover-elevate Pseudo-element Blocks Interactive Children
+Location: client/src/index.css:269-280
+Severity: High
+Description: The hover-elevate CSS class creates an ::after pseudo-element with z-index: 999 that sits in front of all content. This pseudo-element covers any links or buttons inside the element, making them unclickable with a mouse and preventing proper focus. The Landing page uses hover-elevate on the logo <Link> in Header.
+Fix: The pseudo-element should have pointer-events: none explicitly (currently missing from the ::after rule — the declaration exists on .toggle-elevate::before but NOT on .hover-elevate::after):
+.hover-elevate::after { pointer-events: none; }
+
+2.5 — Very Low ARIA Coverage Across Custom Components
+Location: Across client/src/components/assessment/ (all step components)
+Severity: High
+Description: Only 21 ARIA attribute usages found across 11 files. Assessment step components (InterestsStep, SubjectsStep, PersonalityStep) likely use grids of clickable items with no aria-selected, aria-checked, role="group", or aria-labelledby. Without these, screen reader users get no feedback on selection state.
+Fix: For each selectable item grid, add role="group" or role="listbox" on the container, and aria-selected or aria-checked on each selectable item. Form elements must have associated <label> elements or aria-label.
+2.6 — Color Contrast Risks in Light Mode
+Location: client/src/index.css:34
+Severity: High
+Description: --muted-foreground is 215 18% 35% — approximately #4a5568. Against the page background --background: 210 6% 97% (near-white, ~#f4f5f6), the contrast ratio is approximately 4.2:1. This passes AA for normal text but is close to the limit. The --accent color (35 85% 88%, a light warm yellow) used for background of accent sections paired with --accent-foreground: 215 25% 20% should be checked. Sticky note colors (very light pastels) with text need auditing — --sticky-yellow: 48 100% 88% (#FFE879 approx) with --foreground: 215 25% 15% (#1c2433 approx) provides ~9:1, which is fine, but muted text on sticky notes (text-muted-foreground) over the sticky background needs verification.
+Fix: Run all foreground/background colour pairs through a WCAG contrast checker. The text-muted-foreground class on sticky note and card backgrounds is the highest risk. Consider darkening --muted-foreground to 215 18% 30% or less.
+2.7 — Auto-Scrolling School Logos Have No aria-live or Pause Control
+Location: client/src/pages/Landing.tsx:105-141, index.css:312-315
+Severity: Medium
+Description: The infinitely scrolling marquee of partner school logos has no aria-label on the container, no aria-hidden on the duplicated items (causes repeated content for screen readers), and no visible pause button for motion-sensitive users. prefers-reduced-motion stops the animation in CSS, but there is no user-controlled pause button for WCAG 2.2.2 (Pause, Stop, Hide).
+Fix: Add aria-label="Partner schools" on the outer div, aria-hidden="true" on the duplicated second set of logos, and optionally a pause/play button for compliance with WCAG 2.2.2.
+2.8 — No alt Text on Profile Images
+Location: client/src/pages/Profile.tsx:249, AdminOrganizations.tsx:1406
+Severity: Medium
+Description: alt="School logo" and alt="Logo preview" are generic, non-descriptive alt texts. The school logo alt should include the school name (already done in Landing.tsx correctly with alt={`${org.name} logo`}), but not in Profile.
+Fix: Use dynamic alt text: alt={`${organization.name} logo`}
+2.9 — No Focus Visible State Documented/Enforced for Custom Components
+Location: client/src/index.css, component files
+Severity: Medium
+Description: No global :focus-visible style is defined in index.css. Tailwind's base resets can remove default outlines. Radix UI components provide their own focus rings but custom components (StickyNote buttons, nav links) rely on Tailwind's ring utilities only if explicitly applied.
+Fix: Add a global focus-visible rule:
+:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+}
+
+3. SEO
+3.1 — Sitemap Has Invalid XML Namespace
+Location: client/public/sitemap.xml:2
+Severity: High
+Description: The xmlns attribute is "http://www.sitemaps.org/schemas/0.9" — missing the required /sitemap/ path segment. The correct namespace is "http://www.sitemaps.org/schemas/sitemap/0.9". Google's sitemap parser may reject or fail to parse this sitemap silently.
+Fix:
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+
+3.2 — No Structured Data (JSON-LD)
+Location: client/index.html, client/src/pages/Landing.tsx
+Severity: High
+Description: There is no application/ld+json schema markup on any page. For an educational career-guidance platform, WebApplication, EducationalOrganization, and FAQPage schemas would make the app eligible for rich results in Google Search. This is a confirmed gap from the existing codebase review notes in attached_assets/.
+Fix: Add to index.html head:
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Future Pathways",
+  "applicationCategory": "EducationApplication",
+  "description": "Career guidance for students aged 13–18",
+  "url": "https://futurepathways.replit.app/",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+}
+</script>
+
+3.3 — SPA Has No Per-Route <title> Management
+Location: client/index.html:9, client/src/App.tsx
+Severity: High
+Description: The entire SPA uses a single static <title> tag: "Future Pathways – Career Guidance for Students". Inner pages (login, register, assessment, results, profile) all share this same title. Google may de-prioritise pages with identical titles. This also harms user experience in browser tabs and bookmarks.
+Fix: Use a library like react-helmet-async or the native document.title (idiomatic: a useEffect in each page component) to set a unique title per route. Example in Results.tsx:
+useEffect(() => {
+  document.title = "Your Career Results | Future Pathways";
+}, []);
+
+3.4 — Sitemap Includes Authentication Pages
+Location: client/public/sitemap.xml:8-17
+Severity: Medium
+Description: /login and /register are included in the sitemap with priority 0.7. These pages are not meaningfully indexable content, serve no SEO purpose, and some search engines penalise sites that include authentication pages in sitemaps.
+Fix: Remove /login and /register from sitemap.xml. Add a <meta name="robots" content="noindex"> tag to those pages.
+3.5 — No <link rel="canonical"> Tag
+Location: client/index.html
+Severity: Medium
+Description: There is no canonical URL tag in the document head. For a SPA served from Replit (which may have multiple hostnames: *.replit.app, *.repl.co), this could result in duplicate content signals.
+Fix: Add <link rel="canonical" href="https://futurepathways.replit.app/"> to the static HTML. For inner routes, manage it dynamically alongside the title.
+3.6 — OG Tags Are All Static (SPA Routing)
+Location: client/index.html:13-27
+Severity: Medium
+Description: All Open Graph and Twitter Card meta tags are hardcoded in index.html and will be identical for every page. When someone shares /results?assessmentId=xxx or /privacy, the preview will show the homepage description and image. This is an inherent SPA limitation but can be mitigated for the key public pages.
+Fix: For crawlable public pages (home, privacy, terms), the static OG tags are fine. For truly important sharing flows like results, consider a short server-side route that returns an HTML shell with dynamic OG tags for that specific assessment ID.
+3.7 — Missing robots Meta on Sensitive Pages
+Location: client/src/pages/ (Results, Assessment, Checkout, Admin, Superadmin pages)
+Severity: Low
+Description: robots.txt correctly disallows /assessment, /results, /checkout, /admin, /superadmin, and /print/. However, <meta name="robots" content="noindex, nofollow"> is not set on any of these pages. If crawlers encounter them (e.g., via linked URLs), the meta tag provides a secondary safety net.
+Fix: Add <meta name="robots" content="noindex, nofollow"> via a useEffect in the relevant page components.
+4. SECURITY
+4.1 — PATCH /api/assessments/:id Has No Authentication Middleware
+Location: server/routes/assessment.routes.ts:219
+Severity: Critical
+Description: The assessment update endpoint is app.patch("/api/assessments/:id", async (req: any, res) => {...}) with no isAuthenticated middleware. The only check inside the handler is a CSRF token validation (which is bypass-able via the exemptPaths list if the path is close enough to /api/callback). Any unauthenticated actor who knows an assessment UUID can modify it — changing the name, grade, scores, or isCompleted status.
+Fix: Add isAuthenticated middleware, then verify ownership of the assessment before accepting the patch:
+app.patch("/api/assessments/:id", isAuthenticated, async (req: any, res) => {
+  const assessment = await storage.getAssessmentById(req.params.id);
+  if (!assessment || assessment.userId !== req.user.userId) {
+    return res.status(403).json({ message: "Forbidden" });
+  }
+  // ... continue
+});
+
+4.2 — 'unsafe-inline' in CSP scriptSrc Is Present in Production
+Location: server/index.ts:23-25
+Severity: Critical
+Description: The Content Security Policy includes 'unsafe-inline' in scriptSrc with the comment "Required for Vite in development". However, this directive is applied in ALL environments including production. 'unsafe-inline' for scripts completely neutralises the XSS protection CSP provides — any injected inline script will execute.
+Fix: In production, Vite generates static hashed assets with no inline scripts. Remove 'unsafe-inline' from the production CSP scriptSrc. Use a nonce-based approach if inline scripts are truly needed, or rely on Vite's hashed bundles:
+scriptSrc: [
+  "'self'",
+  ...(isProduction ? [] : ["'unsafe-inline'"]),
+  "https://js.stripe.com",
+  "https://m.stripe.network",
+],
+
+4.3 — Superadmin Authorization Logic Is Duplicated and Inconsistent
+Location: server/routes/admin.routes.ts (12 occurrences), server/routes/files.routes.ts:71, server/routes/analytics.routes.ts:25, server/routes/contribution.routes.ts:29, server/routes/country.routes.ts:65, server/routes/superadmin.routes.ts:29 — 17+ total occurrences
+Severity: High
+Description: The superadmin check pattern (!isLocal && email in list) || role === "superadmin" is copy-pasted across 17+ route handlers. Inconsistently, some variants use !(req.user as any).isLocal while admin.routes.ts:338 uses !req.user.isLocal without the cast. More critically, the !isLocal condition means a user who registered via email/password with a superadmin email address cannot access superadmin routes via the email check — they must also have role === "superadmin" in the DB. This is a confusing two-track authorization system.
+Fix: The centralized isAdmin middleware in auth.middleware.ts already implements this logic correctly. Replace all inline superadmin checks with the existing middleware and delete the duplicate local implementations.
+4.4 — STRIPE_WEBHOOK_SECRET Listed as Optional
+Location: server/config/constants.ts:62-63
+Severity: High
+Description: The Stripe webhook secret is in the OPTIONAL environment variables list. Without it, the registerWebhookRoutes handler cannot verify Stripe webhook signatures. An attacker could POST fake webhook events to /api/webhook/stripe to fraudulently trigger premium upgrades or license allocations. The env validation function only warns for missing optional vars.
+Fix: Move STRIPE_WEBHOOK_SECRET to the REQUIRED list, or add conditional validation: if STRIPE_SECRET_KEY is set, then STRIPE_WEBHOOK_SECRET must also be set.
+4.5 — JSON Body Parser Set to 10MB for All Routes
+Location: server/index.ts:118-123
+Severity: High
+Description: The JSON body parser accepts up to 10MB for all /api/* routes except Stripe webhooks. The comment says "to support bulk quiz question imports." This is a denial-of-service vector: any unauthenticated endpoint accepting POST/PATCH can be sent 10MB bodies repeatedly, exhausting Node.js heap. The bulk import feature should use multipart file upload (already implemented with multer) rather than JSON body.
+Fix: Reduce the default JSON limit to 100kb. Create a separate Express middleware or sub-router with a higher limit (5mb) scoped only to the specific bulk-import endpoint(s).
+4.6 — res.download(file.filePath) Uses DB-Stored Path Without Normalisation
+Location: server/routes/files.routes.ts:222, :246
+Severity: High
+Description: File downloads use res.download(file.filePath, file.originalFilename) where file.filePath is retrieved directly from the database. If the filePath stored in the DB were ever set to an absolute path outside uploads/ (e.g., via DB injection or admin error), this could serve arbitrary server files. While uploads are stored in UPLOADS_DIR, there is no path.normalize + bounds check against UPLOADS_DIR before calling res.download.
+Fix:
+const resolvedPath = path.resolve(file.filePath);
+const uploadsDir = path.resolve(UPLOADS_DIR);
+if (!resolvedPath.startsWith(uploadsDir + path.sep)) {
+  return res.status(403).json({ message: "Access denied" });
+}
+res.download(resolvedPath, file.originalFilename);
+
+4.7 — Session Cookie sameSite: 'lax' in Development
+Location: server/auth.ts:40
+Severity: Medium
+Description: In development, the session cookie uses sameSite: 'lax'. This is standard, but combined with secure: false in development, the session token is sent over HTTP with no cross-origin restriction. While acceptable in dev, the transition to production must be verified. More importantly, proxy: true in session config means the app trusts the X-Forwarded-Proto header — on Replit this is correct, but if deployed elsewhere, this trust setting needs review.
+Fix: Document the deployment requirements. Consider adding an assertion that NODE_ENV === 'production' implies secure: true on the cookie.
+4.8 — morgan('combined') Logs Full Request Paths in Production
+Location: server/index.ts:93
+Severity: Medium
+Description: In production, Morgan is configured with the 'combined' format which logs the full request URL including query strings. URLs like /api/assessments/generate/550e8400-e29b-41d4-a716-446655440000 expose UUIDs in logs. If logs are shipped to a logging service, this could leak assessment IDs. The custom response logger (lines 142-169) also logs capturedJsonResponse — truncated but potentially containing sensitive fields.
+Fix: Use a custom Morgan format that strips query parameters and path parameters for sensitive routes, or use the 'tiny' format in production. Remove or gate the response body logging middleware behind a debug flag.
+4.9 — CSRF Exemption for File Upload Paths Is Regex-Based
+Location: server/middleware/csrf.middleware.ts:57-69
+Severity: Medium
+Description: File upload paths are exempt from CSRF via regex patterns. If a new file upload endpoint is added and the developer forgets to add it to exemptPatterns, it will be protected by CSRF (good). However, the current exemption for /api/contributions/submit (a text form submission, not a file upload) is overly broad — this endpoint likely accepts text/JSON which can easily carry CSRF headers.
+Fix: Remove /api/contributions/submit from CSRF exemptions and ensure the frontend sends the CSRF token with the contribution submission.
+4.10 — @octokit/rest in Production Dependencies
+Location: package.json:17
+Severity: Low
+Description: @octokit/rest (a GitHub API client) is listed in dependencies (not devDependencies). This package is not visibly used in any server route, service, or utility file in the codebase. An unused dependency with network access capabilities in production is a supply chain risk and unnecessarily inflates the bundle/deploy size.
+Fix: Run grep -r "@octokit" server/ client/ to confirm if it's used. If not, remove it from package.json.
+5. CODE QUALITY
+5.1 — Pervasive Use of any Type in Route Handlers
+Location: server/routes/*.ts — 203 occurrences across 17 route files
+Severity: High
+Description: Route handlers use req: any, res: any, and cast req.user as any throughout. This defeats TypeScript's type safety for the most security-sensitive code paths. Type errors (e.g., accessing req.user.userId when req.user is undefined) are silently missed.
+Fix: Extend Express's Request interface to include the authenticated user shape:
+// server/types/express.d.ts
+declare global {
+  namespace Express {
+    interface User { userId: string; isLocal?: boolean; }
+  }
+}
+
+Then use req.user?.userId with proper null checks instead of (req.user as any).userId.
+5.2 — 342 console.log/warn/error Calls in Production Server Code
+Location: server/**/*.ts — 38 files
+Severity: High
+Description: Debug console.log statements appear throughout production route handlers, including logging assessment IDs, Kolb/RIASEC score data, and normalization details. Example: console.log("Assessment created:", { isGuest, assessmentId, hasGuestToken, assessmentType }) at assessment.routes.ts:131. These log potentially sensitive data and add I/O overhead.
+Fix: Replace all console.log debug statements with a proper logger (e.g., pino or winston) that supports log levels. Only ERROR and WARN should be active in production. There is already a server/utils/logger.ts file — ensure all logging goes through it and is gated by NODE_ENV.
+5.3 — No Test Suite
+Location: package.json (no test script), entire codebase
+Severity: High
+Description: There are no test files in the entire codebase — no unit tests, integration tests, or end-to-end tests. A production application handling student data, premium payments (Stripe), and GDPR-regulated personal data has zero automated test coverage. The critical matching algorithm (server/services/matching.ts) and payment flow (server/routes/payment.routes.ts) are entirely untested.
+Fix: Add vitest for unit tests (compatible with Vite) and supertest for API integration tests. Start with tests for: (a) the career matching algorithm, (b) payment intent creation/verification, (c) the CSRF middleware, and (d) authentication flows.
+5.4 — Assessment State Lost on Page Refresh (Guest Flow)
+Location: client/src/pages/Assessment.tsx:50-66
+Severity: Medium
+Description: The multi-step assessment state is stored entirely in React component state. If a guest user navigates away or refreshes mid-assessment, all entered data is lost. There is partial server-side persistence (the PATCH /api/assessments/:id endpoint saves currentStep), but the client-side assessmentData object is not synced from the server, so a refresh still loses the step data.
+Fix: After creating an assessment, use the assessmentId stored in state to periodically PATCH the server and restore from server on mount using useQuery for the current assessment's data.
+5.5 — window.location.search Used Instead of Wouter's useSearch Hook
+Location: client/src/pages/Results.tsx:94, Assessment.tsx:69, ResetPassword.tsx:37, Checkout.tsx:310, ResultsPrint.tsx:143, Login.tsx:26
+Severity: Medium
+Description: Six page components directly access window.location.search instead of Wouter's useSearch() hook. This bypasses the router abstraction, makes the code harder to test, and can cause issues in non-browser environments (SSR, testing).
+Fix: Replace new URLSearchParams(window.location.search) with wouter's useSearch() hook:
+import { useSearch } from "wouter";
+const search = useSearch();
+const params = new URLSearchParams(search);
+
+5.6 — TODO Left in Superadmin Route (Unsafe Subject Deletion)
+Location: server/routes/superadmin.routes.ts:2001
+Severity: Medium
+Description: There is a TODO comment: // TODO: Check if there are any quiz questions using this subject before deleting. Deleting a subject that has associated quiz questions without handling the relationship could cause referential integrity violations or break existing assessments that reference those questions.
+Fix: Implement the check before deletion: query quizQuestions by subject, and either refuse deletion if questions exist or cascade-delete/re-categorise them.
+5.7 — Several @types/* Packages in dependencies Instead of devDependencies
+Location: package.json:49-64
+Severity: Low
+Description: @types/archiver, @types/bcryptjs, @types/compression, @types/cookie-parser, @types/dompurify, @types/memoizee, @types/morgan, @types/multer, @types/passport-google-oauth20, @types/pdfkit, @types/zxcvbn are all in dependencies. Type declaration packages are compile-time-only and should be in devDependencies. This inflates the production node_modules.
+Fix: Move all @types/* packages to devDependencies. They are not needed at runtime.
+5.8 — No .env.example File
+Location: Project root
+Severity: Low
+Description: There is no .env.example file documenting the required environment variables. New developers and deployment environments must hunt through server/config/constants.ts and server/auth.ts to discover all needed variables.
+Fix: Create .env.example with all variables from ENV_VARS.REQUIRED and ENV_VARS.OPTIONAL, with placeholder values and explanatory comments.
+6. UI/UX & DESIGN CONSISTENCY
+6.1 — Scroll-Marquee Has No Visible Pause Control
+Location: client/src/pages/Landing.tsx:106-141, client/src/index.css:312-315
+Severity: Medium
+Description: The CSS-animated school logo marquee pauses on hover (:hover { animation-play-state: paused }) but there is no keyboard-accessible or touch-accessible pause control. The animation runs continuously on mobile where hover is unavailable. This fails WCAG 2.2.2 for non-hover users.
+Fix: Add a toggle button with aria-label="Pause school logos animation" and control animation-play-state via a React state variable toggled on click.
+6.2 — No Loading Skeleton Screens
+Location: All pages using isLoading state
+Severity: Medium
+Description: Pages use either a full-screen spinner (PageLoader in App.tsx) or inline isLoading checks that render nothing while fetching. There are no skeleton loading states, which causes layout shift and feels abrupt. The landing page especially could flash its layout significantly while the student-count and organizations API calls complete.
+Fix: Add skeleton components (shadcn/ui has a Skeleton component available) for the student count badge and school logos section on the landing page.
+6.3 — Explore as Guest Button Uses an Arrow Character, Not an Icon
+Location: client/src/pages/Landing.tsx:85
+Severity: Low
+Description: The guest CTA button displays "Explore as Guest →" using a raw Unicode right-arrow character (→). This is inconsistent with the rest of the UI which uses Lucide icons for all iconography. Screen readers will announce this as "right arrow".
+Fix: Replace → with <ArrowRight className="ml-2 w-4 h-4" aria-hidden="true" /> and add <span className="sr-only">Explore as guest</span> or rely on the button text.
+6.4 — Testimonial Uses Emoji as an Avatar
+Location: client/src/pages/Landing.tsx:264
+Severity: Low
+Description: The testimonial section uses <span className="text-2xl">👩‍🎓</span> as a profile icon. Emoji render inconsistently across platforms and operating systems and cannot be styled with CSS. Screen readers will announce this as "woman student".
+Fix: Replace with a GraduationCap Lucide icon or a generic user avatar SVG with aria-hidden="true".
+7. MOBILE & RESPONSIVENESS
+7.1 — Mobile Navigation Missing for Unauthenticated Users
+Location: client/src/components/layout/Header.tsx:127-143
+Severity: Medium
+Description: The hamburger menu (Sheet) is only rendered when user is truthy. Unauthenticated users on mobile only see the "Login" button. If more navigation items are added for guests in the future (e.g., "Pricing", "About"), there is no mobile container for them. The current state is minimal but the conditional is fragile.
+Fix: Render the Sheet/hamburger container unconditionally, but control what NavLinks renders based on auth state. This makes the navigation structure extensible.
+7.2 — size="sm" Buttons May Fall Below 44×44px Touch Target
+Location: Multiple pages (Header nav buttons, form action buttons)
+Severity: Medium
+Description: Shadcn/ui Button size="sm" renders at h-8 (32px). WCAG 2.5.5 (AA) requires touch targets of at least 44×44px. The nav buttons in Header.tsx use size="sm" for all navigation links. On a mobile device, these targets may be difficult to tap accurately.
+Fix: Use size="default" for all navigation and critical action buttons, or add min-h-[44px] min-w-[44px] Tailwind utilities to small buttons that appear in navigation.
+7.3 — Sticky Note Rotation Applied at All Breakpoints
+Location: client/src/components/StickyNote.tsx:23-29
+Severity: Low
+Description: Rotation classes (rotate-[-2deg], rotate-[1deg] etc.) are applied unconditionally at all screen sizes. On small mobile screens, rotated cards in a grid can cause visual overflow, clipping, and alignment issues.
+Fix: Consider removing rotation on mobile using responsive prefixes: md:rotate-[1deg] instead of rotate-[1deg].
+8. BEST PRACTICES & STANDARDS
+8.1 — No CI/CD Configuration
+Location: Project root
+Severity: High
+Description: There is no CI/CD pipeline — no GitHub Actions, no Dockerfile, no deployment scripts beyond the .replit config. There is no automated type-checking (tsc), linting, or test running on commit/PR. The check script (tsc) is defined in package.json but is never automated.
+Fix: Add a minimal GitHub Actions workflow .github/workflows/ci.yml:
+on: [push, pull_request]
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - run: npm ci
+      - run: npm run check  # tsc
+
+8.2 — No ESLint Configuration
+Location: Project root
+Severity: High
+Description: There is no .eslintrc.* or eslint.config.* file. No linting is enforced on the codebase. Issues like the 203 any usages, window.location.search anti-pattern, and missing dependency arrays in useEffect would all be caught by a properly configured ESLint with @typescript-eslint/recommended and eslint-plugin-react-hooks.
+Fix: Add eslint, @typescript-eslint/parser, @typescript-eslint/eslint-plugin, and eslint-plugin-react-hooks as dev dependencies and create an eslint.config.mjs. Add "lint": "eslint client/src server --ext .ts,.tsx" to package.json scripts.
+8.3 — memorystore in Production Dependencies
+Location: package.json:83
+Severity: Low
+Description: memorystore is a dependency but the application uses connect-pg-simple for PostgreSQL-backed session storage (server/auth.ts:22-28). memorystore appears to be an unused dependency.
+Fix: Confirm it is unused with grep -r "memorystore" server/ and remove it from package.json if not referenced.
+8.4 — HSTS preload: false With Note That It Could Be Enabled
+Location: server/index.ts:60
+Severity: Low
+Description: HSTS is correctly enabled in production with 1-year max-age, but preload: false is set "to avoid permanent browser caching issues". HSTS preloading submits the domain to browser preload lists, offering stronger protection. The comment suggests the decision was made conservatively.
+Fix: Once the domain is stable and permanently on HTTPS, change to preload: true and submit to https://hstspreload.org.
+8.5 — Fonts Defined as Both sans and serif Pointing to Poppins
+Location: client/src/index.css:52-53
+Severity: Low
+Description: Both --font-sans and --font-serif are set to Poppins, sans-serif. There is no actual serif font in use. The tailwind.config.ts registers both sans and serif font families pointing to the same variable. This is misleading and wastes config space.
+Fix: Remove the serif font variable and Tailwind config entry unless a true serif font is planned.
+PRIORITIZED ACTION PLAN — TOP 10 FIXES
+Listed by impact-to-effort ratio:
+
+#	Fix	Severity	Files
+1	Add isAuthenticated to PATCH /api/assessments/:id	Critical	server/routes/assessment.routes.ts:219
+2	Remove 'unsafe-inline' from CSP scriptSrc in production	Critical	server/index.ts:23-25
+3	Make StickyNote keyboard accessible (role="button", tabIndex, onKeyDown)	Critical	client/src/components/StickyNote.tsx
+4	Fix sitemap XML namespace (missing /sitemap/)	High	client/public/sitemap.xml:2
+5	Add pointer-events: none to .hover-elevate::after pseudo-element	High	client/src/index.css:269-280
+6	Move STRIPE_WEBHOOK_SECRET to required env vars and add Stripe signing validation guard	High	server/config/constants.ts
+7	Add <main> landmark and skip-navigation link to all pages	High	App.tsx, Landing.tsx, all page components
+8	Replace inline superadmin checks with the centralized isAdmin middleware	High	17 locations across server/routes/
+9	Add per-route document.title management (or react-helmet-async)	High	All page components
+10	Move runtimeErrorOverlay() inside the production guard	High	vite.config.ts:9
+Summary Scorecard
+Area	Grade	Key Gap
+Security	C+	Unauthed PATCH, unsafe-inline CSP in prod, webhook secret optional
+Accessibility	D	No <main>, no skip nav, unclickable StickyNote, sparse ARIA
+SEO	C	Broken sitemap namespace, no JSON-LD, no per-route titles
+Performance	B−	No bundle chunking, Puppeteer in prod, render-blocking fonts
+Code Quality	C	203 any usages, no tests, no linter, 342 console.logs
+UI/UX	B	Solid design system; marquee needs pause control
+Mobile	B	Minor touch-target and rotation issues
+Best Practices	C+	No CI/CD, no ESLint, no .env.example

@@ -301,6 +301,8 @@ function CheckoutForm({ amount, studentCount }: { amount: number | null; student
 
 // Main Checkout Page
 export default function Checkout() {
+  useEffect(() => { document.title = "Checkout | Future Pathways"; }, []);
+
   const [, setLocation] = useLocation();
   const [clientSecret, setClientSecret] = useState<string>("");
   const [loading, setLoading] = useState(true);

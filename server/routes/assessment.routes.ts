@@ -222,7 +222,25 @@ export function registerAssessmentRoutes(app: Express) {
       if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) {
         return res.status(400).json({ message: "Request body must be an object" });
       }
-      
+
+      // Ownership verification — fetch assessment first, then check caller has rights
+      const existingAssessment = await storage.getAssessmentById(req.params.id);
+      if (!existingAssessment) {
+        return res.status(404).json({ message: "Assessment not found" });
+      }
+      if (existingAssessment.userId) {
+        // Authenticated user assessment — caller must be that user
+        if (!req.isAuthenticated || !req.isAuthenticated() || req.user?.userId !== existingAssessment.userId) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+      } else if (existingAssessment.guestSessionId) {
+        // Guest assessment — verify via guest_token cookie
+        const guestToken = req.cookies?.guest_token;
+        if (!guestToken || guestToken !== existingAssessment.guestSessionId) {
+          return res.status(403).json({ message: "Forbidden" });
+        }
+      }
+
       // Sanitize user input to prevent XSS
       const sanitizedBody = sanitizeRequestBody(req.body);
       
