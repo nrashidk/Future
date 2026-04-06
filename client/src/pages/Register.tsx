@@ -215,7 +215,7 @@ export default function Register() {
 
               <Button
                 type="submit"
-                className="w-full"
+                className="w-full min-h-[44px]"
                 disabled={registerMutation.isPending}
                 data-testid="button-register"
               >

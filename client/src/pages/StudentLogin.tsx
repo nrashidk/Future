@@ -154,7 +154,7 @@ export default function StudentLogin() {
               />
               <Button
                 type="submit"
-                className="w-full"
+                className="w-full min-h-[44px]"
                 disabled={isLoading}
                 data-testid="button-login"
               >

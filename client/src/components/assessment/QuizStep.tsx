@@ -259,7 +259,7 @@ export function QuizStep({ assessmentId, onComplete }: QuizStepProps) {
                   {question.options.map((option) => (
                     <div 
                       key={option.id} 
-                      className="flex items-center space-x-2 p-2 rounded-lg hover-elevate cursor-pointer"
+                      className="flex items-center space-x-2 p-2 min-h-[44px] rounded-lg hover-elevate cursor-pointer"
                       onClick={() => handleAnswerChange(question.id, option.text)}
                     >
                       <RadioGroupItem 
