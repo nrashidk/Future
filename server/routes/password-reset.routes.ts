@@ -230,14 +230,4 @@ export function registerPasswordResetRoutes(app: Express) {
     }
   });
 
-  /**
-   * GET /api/password-reset/status
-   * Check if email service is configured (for admin/debugging)
-   */
-  app.get("/api/password-reset/status", async (req, res) => {
-    res.json({
-      emailConfigured: isEmailConfigured(),
-      tokenExpiryHours: TOKEN_EXPIRY_HOURS,
-    });
-  });
 }

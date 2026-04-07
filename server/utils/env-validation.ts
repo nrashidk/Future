@@ -41,6 +41,18 @@ export function validateEnvironmentVariables(): void {
     console.warn("Some features may be unavailable.\n");
   }
 
+  // Validate SESSION_SECRET minimum length
+  if (process.env.SESSION_SECRET && process.env.SESSION_SECRET.length < 32) {
+    console.error("❌ SESSION_SECRET must be at least 32 characters for adequate security");
+    process.exit(1);
+  }
+
+  // Validate DB_ENCRYPTION_KEY format at startup if present
+  if (process.env.DB_ENCRYPTION_KEY && process.env.DB_ENCRYPTION_KEY.length !== 64) {
+    console.error("❌ DB_ENCRYPTION_KEY must be exactly 64 hex characters");
+    process.exit(1);
+  }
+
   // Conditional validation: warn if Stripe key is configured without the webhook secret
   if (process.env.STRIPE_SECRET_KEY && !process.env.STRIPE_WEBHOOK_SECRET) {
     console.warn("⚠️  STRIPE_WEBHOOK_SECRET is not set.");

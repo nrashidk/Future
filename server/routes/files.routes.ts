@@ -68,7 +68,7 @@ const isSuperadmin = async (req: any): Promise<boolean> => {
     .filter(e => e.length > 0);
   
   return (
-    (!req.user.isLocal && user.email && superadminEmails.includes(user.email.toLowerCase())) ||
+    (user.email && superadminEmails.includes(user.email.toLowerCase())) ||
     user.role === "superadmin"
   );
 };

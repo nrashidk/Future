@@ -1,0 +1,133 @@
+You are a senior web auditor, QA engineer, and cybersecurity specialist. Conduct a COMPREHENSIVE review of this website codebase. Do NOT push, commit, or modify any files. Generate a detailed written report only.
+
+CONTEXT
+This project was built using Replit Agent in a development environment. Many features work in development but break in production. A key focus of this audit is identifying ALL dev-vs-production discrepancies and ensuring the build is fully production-ready.
+
+SCOPE OF REVIEW
+1. REPLIT-SPECIFIC & DEV-VS-PRODUCTION ISSUES (HIGHEST PRIORITY)
+This is the primary concern — identify everything that works in dev but fails in production:
+
+Hardcoded localhost URLs or dev ports (e.g., http://localhost:3000, http://0.0.0.0)
+Environment variables — check if .env values are properly configured for production and not only dev defaults
+Missing or misconfigured production build scripts (build vs dev commands)
+Replit-specific dependencies or imports that don't work outside Replit's environment
+Database connections — dev SQLite or in-memory DB vs production PostgreSQL/other
+File system assumptions — Replit's ephemeral filesystem vs persistent production storage
+Hardcoded Replit domain references (*.replit.dev, *.repl.co) in code or config
+WebSocket or real-time connections configured only for dev
+CORS origins hardcoded to dev URLs
+Static file serving — dev server vs production static hosting differences
+Missing production environment variable declarations (check all process.env / import.meta.env usage and verify each one has a production value defined)
+Secret keys defaulting to weak dev placeholders in production
+Hot-reload or dev-only middleware leaking into production builds
+Proxy or API base URL switching between dev and prod
+Missing build output directory or incorrect output path in deployment config
+Node environment checks — ensure NODE_ENV=production is set and respected
+Any Replit-generated boilerplate that assumes the Replit runtime
+2. FUNCTIONAL TESTING
+Test all navigation links, buttons, and interactive elements for broken or dead links
+Verify all forms (inputs, validation, submission, error handling)
+Check all API endpoints and data-fetching logic for errors or failures
+Validate routing and page transitions (404 handling, redirects)
+Test responsive behavior across breakpoints (mobile, tablet, desktop)
+Verify all dynamic content renders correctly
+Check for JavaScript console errors or runtime exceptions
+Check all third-party integrations (payment, auth, email, maps, etc.) — verify they use production-mode keys and endpoints, not sandbox/test ones
+3. SECURITY AUDIT
+Exposed API keys, secrets, or credentials in source code or committed .env files
+Content Security Policy (CSP) headers
+XSS vulnerabilities (unsanitized inputs, innerHTML usage, eval())
+CSRF protection on all forms and state-changing operations
+HTTPS enforcement and HSTS headers
+Authentication and authorization flow weaknesses
+SQL injection risks in any backend queries
+Dependency vulnerabilities (audit package.json / requirements.txt)
+Insecure direct object references (IDOR)
+CORS policy — ensure it is locked down for production, not open wildcard (*)
+Session management and token storage (avoid localStorage for sensitive tokens)
+Clickjacking protection (X-Frame-Options / frame-ancestors)
+Rate limiting on sensitive endpoints (login, signup, password reset)
+4. OWASP TOP 10 (2021)
+Check each category explicitly:
+
+A01: Broken Access Control
+A02: Cryptographic Failures
+A03: Injection
+A04: Insecure Design
+A05: Security Misconfiguration
+A06: Vulnerable and Outdated Components
+A07: Identification and Authentication Failures
+A08: Software and Data Integrity Failures
+A09: Security Logging and Monitoring Failures
+A10: Server-Side Request Forgery (SSRF)
+5. PERFORMANCE & RELIABILITY
+Memory leaks, infinite loops, or uncleared intervals/timeouts
+Unoptimized images, missing lazy loading, or render-blocking resources
+Core Web Vitals impact: LCP, INP, CLS
+Caching strategy (Cache-Control headers, service workers if applicable)
+Bundle size — identify unnecessarily large or duplicated dependencies
+Error boundaries and graceful degradation — does the app fail silently or crash entirely?
+What happens when an API call fails? Is there a fallback UI?
+6. ACCESSIBILITY (WCAG 2.1 AA)
+All images have descriptive alt text
+Sufficient color contrast ratios (4.5:1 for normal text)
+Keyboard navigability for all interactive elements
+ARIA labels on interactive components
+Logical heading hierarchy (H1 → H2 → H3)
+Focus indicators visible and meaningful
+7. CODE QUALITY & STABILITY
+Dead code, unused imports, or deprecated API usage
+Hardcoded values that should be environment-driven
+All async operations wrapped with proper error handling (try/catch, .catch())
+console.log or debug statements left in production code
+TypeScript — no unsafe any overrides on critical logic
+Duplicated logic that creates inconsistency risk
+Missing loading and error states in UI components
+OUTPUT FORMAT
+Produce your report in the following structure:
+
+Website Audit Report
+Date: [today's date]
+Focus: Production Readiness + Full QA + Security
+
+Executive Summary
+[2–3 paragraph overview of overall health, production-readiness, and most critical risks]
+
+🔴 Critical Issues — Production Breakers (Fix Before Any Deployment)
+[Anything that will cause the site to break, crash, or expose data in production]
+
+🟠 High Priority Issues
+[Security risks, broken features, missing error handling]
+
+🟡 Medium Priority Issues
+[Performance, non-critical bugs, best practice violations]
+
+🟢 Low Priority / Recommendations
+[Minor improvements, code quality, nice-to-haves]
+
+Production Readiness Checklist
+Check	Status	Notes
+No hardcoded localhost/dev URLs	✅/❌/⚠️	
+All env vars defined for production	✅/❌/⚠️	
+Production build script verified	✅/❌/⚠️	
+Database configured for production	✅/❌/⚠️	
+CORS locked to production domains	✅/❌/⚠️	
+Third-party keys in production mode	✅/❌/⚠️	
+No dev middleware in prod build	✅/❌/⚠️	
+Static file serving configured	✅/❌/⚠️	
+Error handling & fallback UI	✅/❌/⚠️	
+Security headers configured	✅/❌/⚠️	
+No secrets in source code	✅/❌/⚠️	
+OWASP Top 10 reviewed	✅/❌/⚠️	
+WCAG 2.1 AA Accessibility	✅/❌/⚠️	
+Dependency vulnerabilities	✅/❌/⚠️	
+Detailed Findings
+[Organized by section with file paths, line numbers, and specific fix recommendations]
+
+Environment Variable Audit
+[List every process.env / import.meta.env reference found, its purpose, and whether it has a confirmed production value]
+
+Positive Findings
+[What is correctly implemented and production-ready]
+
+Begin the audit now. Read all relevant source files thoroughly before writing the report. Pay special attention to config files, build scripts, .env files, API base URLs, and any file that behaves differently between development and production environments.

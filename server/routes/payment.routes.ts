@@ -77,7 +77,7 @@ export function registerPaymentRoutes(app: Express) {
       });
     } catch (error: any) {
       console.error("Error creating payment intent:", error);
-      res.status(500).json({ message: "Error creating payment intent: " + error.message });
+      res.status(500).json({ message: "Payment processing failed. Please try again." });
     }
   });
 
@@ -301,7 +301,7 @@ export function registerPaymentRoutes(app: Express) {
       });
     } catch (error: any) {
       console.error("Error completing checkout:", error);
-      res.status(500).json({ message: "Failed to complete checkout: " + error.message });
+      res.status(500).json({ message: "Checkout failed. Please try again." });
     }
   });
 }

@@ -26,7 +26,7 @@ const isSuperadminMiddleware = async (req: Request, res: Response, next: NextFun
 
     const superadminEmails = getSuperadminEmails();
     const isSuperadmin = 
-      (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email.toLowerCase())) ||
+      (user.email && superadminEmails.includes(user.email.toLowerCase())) ||
       user.role === "superadmin";
     
     if (!isSuperadmin) {
