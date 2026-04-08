@@ -82,10 +82,7 @@ export function registerPaymentRoutes(app: Express) {
   });
 
   // Mark user as premium after successful payment
-  app.post("/api/upgrade-to-premium", async (req: any, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Must be logged in to upgrade" });
-    }
+  app.post("/api/upgrade-to-premium", isAuthenticated, paymentLimiter, async (req: any, res) => {
 
     try {
       const { paymentIntentId } = req.body;

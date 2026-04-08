@@ -1,0 +1,696 @@
+w I have all the information needed. Let me compile the complete audit report.
+
+Website Audit Report
+Date: April 7, 2026
+Project: Future Pathways — Career Guidance Platform (futurepath.ae)
+Stack: Express.js + React (Vite) + Drizzle ORM + Neon PostgreSQL
+Audited by: Senior Web Auditor / QA / Cybersecurity Specialist
+Codebase size: ~190 TypeScript/config files
+
+Executive Summary
+Future Pathways is a well-architected, full-stack TypeScript SaaS platform built on Express, React (Vite), and Neon PostgreSQL. The codebase demonstrates strong security instincts: CSRF tokens, bcrypt password hashing, AES-256-GCM credential encryption, Stripe webhook signature verification, Zod input validation, Helmet security headers, and rate limiting on all sensitive endpoints. These are non-trivial implementations and speak well to the team's security awareness.
+
+However, the application was built in Replit Agent and carries several Replit-specific assumptions that will cause production failures outside of Replit — most critically, OAuth callback URLs that silently fall back to *.repl.co domains when BASE_URL is not set. Two high-severity dependency vulnerabilities exist in lodash and vite. One hardcoded localhost URL in the bulk PDF export route will silently fail in production cloud deployments. These issues are concrete and must be resolved before any public launch.
+
+The codebase is 80–85% production-ready. The remaining gaps are addressable in a focused remediation sprint. This report prioritizes them by blast radius, with exact file paths and line numbers for every finding.
+
+🔴 Critical Issues — Production Breakers
+C1 — OAuth Callback URL Falls Back to Replit Domain
+File: server/auth.ts:103
+Risk: OAuth login (Google, Microsoft) silently broken on any non-Replit deployment
+
+const baseUrl = process.env.BASE_URL || `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
+
+REPL_SLUG and REPL_OWNER are injected automatically by Replit's runtime. Outside of Replit (any other cloud host, VPS, container, etc.), both variables are undefined, constructing the invalid URL https://undefined.undefined.repl.co. Google and Microsoft will reject this as a callback URL mismatch, breaking OAuth login for all users. BASE_URL is also not listed in ENV_VARS.OPTIONAL in server/config/constants.ts, so the startup validation does not warn about it being missing.
+
+Fix:
+
+Add BASE_URL to ENV_VARS.REQUIRED in server/config/constants.ts
+Remove the Replit-specific fallback entirely from server/auth.ts:103
+Set BASE_URL=https://futurepath.ae in the production secrets
+C2 — Hardcoded localhost:5000 in Bulk PDF Export
+File: server/routes/admin.routes.ts:1110
+Risk: Bulk PDF generation silently fails for all organizations in production
+
+const printUrl = `http://localhost:5000/print/results?assessmentId=${completedAssessment.id}`;
+
+In production cloud deployments (e.g., Render, Railway, Fly.io, or any container environment where Puppeteer navigates to a URL), localhost:5000 may not resolve to the running application. In contrast, server/routes/recommendations.routes.ts:293–295 handles this correctly with a production/dev branch. The admin bulk export does not.
+
+Fix: Apply the same pattern used in recommendations.routes.ts:293–295:
+
+const baseUrl = process.env.NODE_ENV === 'production'
+  ? `https://${req.get('host')}`
+  : `http://localhost:${process.env.PORT || 5000}`;
+const printUrl = `${baseUrl}/print/results?assessmentId=${completedAssessment.id}`;
+
+C3 — Replit-Specific Vite Plugin Unconditionally Imported
+File: vite.config.ts:4
+Risk: vite build command fails in any environment where devDependencies are not installed; Replit runtime error overlay may be bundled into production assets
+
+import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
+
+This is a static top-level import of a Replit-specific package. The conditional process.env.NODE_ENV !== "production" guard on lines 10–20 only controls whether the plugin is registered, not whether it is imported. If a CI/CD pipeline or alternative host strips devDependencies before running vite build, this import will throw a MODULE_NOT_FOUND error and abort the build. For Replit autoscale this is benign today, but represents a portability landmine.
+
+Fix: Convert to a conditional dynamic import for the runtime error overlay, same as is already done for the cartographer and dev-banner plugins on lines 13–19.
+
+C4 — SUPERADMIN_EMAILS Hardcoded in .replit
+File: .replit:48
+Risk: Admin email exposed in version-controlled plaintext; cannot be changed without modifying source code
+
+[
+userenv.shared
+]
+SUPERADMIN_EMAILS = "nrashidk@gmail.com"
+
+The .replit file is committed to version control. This hardcodes a specific person's email as the superadmin, exposes it to anyone with repository access, and prevents rotation without a code commit.
+
+Fix: Remove from .replit. Set SUPERADMIN_EMAILS exclusively via Replit Secrets / production environment secrets manager. The env validation already requires this variable, so no code changes are needed — just move the value.
+
+🟠 High Priority Issues
+H1 — HIGH Severity: lodash Prototype Pollution & Code Injection
+Source: npm audit — 3 HIGH advisories on lodash@4.17.21
+
+Vulnerabilities found:
+
+Prototype Pollution via _.unset and _.omit array path bypass
+Code Injection via _.template with crafted imports key names
+Critically, lodash is not imported anywhere in the server or client TypeScript code (confirmed by grep). It appears as a transitive or legacy dependency. Fix: run npm audit fix for lodash; if it cannot be auto-fixed due to version constraints, identify which direct dependency pulls it in and update that dependency.
+
+H2 — HIGH Severity: vite Path Traversal & Arbitrary File Read
+Source: npm audit — 2 HIGH advisories on vite@6.4.1
+
+Vite dev server WebSocket allows arbitrary cross-origin requests → file content read
+Path traversal in Optimized Deps .map handling
+The dev server vulnerabilities are only exploitable in development mode (npm run dev), not the production build. However, the current version is flagged. Fix: npm audit fix for vite; or npm install vite@latest — a patched version is available.
+
+H3 — Inconsistent Superadmin Detection Across Routes
+Files: Multiple — server/routes/analytics.routes.ts:25, server/routes/contribution.routes.ts:29 vs server/middleware/auth.middleware.ts:32
+
+Two different superadmin detection implementations exist:
+
+Correct implementation (auth.middleware.ts, auth.routes.ts):
+
+const isSuperadmin = (user.email && superadminEmails.includes(user.email.toLowerCase())) || user.role === "superadmin";
+
+Restricted implementation (analytics.routes.ts, contribution.routes.ts):
+
+return (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email.toLowerCase())) || user.role === "superadmin";
+
+The !req.user.isLocal condition means a superadmin who logs in with a username/password (local auth) is denied access to analytics and contribution review — even if their email is in SUPERADMIN_EMAILS and their role is superadmin. This is a broken access control inconsistency (OWASP A01).
+
+Fix: Use the canonical implementation from auth.middleware.ts consistently across all files. Consider extracting a shared isSuperadminUser(req, user) helper.
+
+H4 — BASE_URL and EMAIL_FROM Not Declared in Environment Validation
+Files: server/utils/env-validation.ts, server/config/constants.ts, server/services/email.ts:7
+
+Two environment variables are used in code but absent from the ENV_VARS declaration:
+
+BASE_URL — used in server/auth.ts:103 (see C1). Critical.
+EMAIL_FROM — used in server/services/email.ts:7 with a hardcoded fallback: "Future Pathways <noreply@futurepathways.com>". If this domain is not verified with Resend, all emails will bounce or be rejected as spam.
+Neither variable is listed in ENV_VARS.REQUIRED or ENV_VARS.OPTIONAL, so startup validation produces no warning when they are missing.
+
+H5 — RESEND_API_KEY Missing: Password Reset Silently Fails
+File: server/services/email.ts:23–29
+
+When RESEND_API_KEY is not set, the email service returns { success: true, messageId: "dev-mode-no-email" } — a fake success. The password reset flow (server/routes/password-reset.routes.ts) trusts this and returns a "check your email" success response to the user, who never receives anything. This is a functional break: users who forget their password cannot reset it.
+
+Fix: This is listed in ENV_VARS.OPTIONAL but should be elevated to REQUIRED if local auth is enabled. At minimum, add a startup warning that specifically calls out that password reset is non-functional without it.
+
+H6 — trust proxy 1 Set Unconditionally
+File: server/auth.ts:98
+
+app.set("trust proxy", 1);
+
+This tells Express to trust X-Forwarded-For headers from exactly one proxy hop. In Replit's autoscale environment (which uses a reverse proxy), this is correct. However, if deployed on a platform that doesn't use a proxy, or uses multiple proxy hops (e.g., Cloudflare + load balancer), this setting causes Express to use attacker-controlled X-Forwarded-For headers for rate limiting and IP-based decisions, enabling rate limit bypass.
+
+Fix: Make the proxy trust level configurable via environment variable (TRUST_PROXY), or document that this must be adjusted per deployment environment.
+
+H7 — dangerouslySetInnerHTML in Chart Component
+File: client/src/components/ui/chart.tsx:81
+
+<style dangerouslySetInnerHTML={{ __html: ... }} />
+
+The content injected is CSS variable definitions built from colorConfig — a component-level configuration object, not user input. In its current form this is safe. However, if colorConfig ever flows from user-supplied data (theme customization, organization branding, etc.), this becomes a stored XSS vector. Flag for ongoing vigilance.
+
+🟡 Medium Priority Issues
+M1 — No CORS Middleware Configured
+File: server/index.ts (absence of cors())
+
+The server has zero CORS configuration. No cors package is installed or used. This is acceptable for a same-origin SPA (frontend and backend served from the same Express process). However:
+
+If any third-party service or mobile app needs to call the API, all cross-origin requests will be blocked by browsers by default
+If future microservice decomposition is planned (e.g., separate frontend CDN), CORS will need to be explicitly configured at that point
+The CSP headers in Helmet handle script/resource loading but do not affect API fetch CORS behavior
+Recommendation: Document the same-origin architecture decision. If a CDN deployment is planned, add the cors package and configure it to the production domain only.
+
+M2 — SSRF Validation Allows Any *.replit.app, *.repl.co, *.replit.dev Host
+File: server/routes/recommendations.routes.ts:321–323
+
+The Puppeteer URL validation for PDF generation explicitly permits all Replit subdomains:
+
+const isReplitHost = parsedUrl.hostname.endsWith('.replit.app') ||
+                     parsedUrl.hostname.endsWith('.repl.co') ||
+                     parsedUrl.hostname.endsWith('.replit.dev');
+
+An attacker who can influence the assessmentId parameter (the URL is built from it) or the req.get('host') header could potentially cause Puppeteer to navigate to an arbitrary Replit-hosted URL, resulting in partial SSRF (the response is not returned to the attacker, but the request is made from the server's network context).
+
+Fix: In production, restrict URL validation to only the exact production domain (process.env.APP_URL or process.env.BASE_URL), not wildcard Replit domains.
+
+M3 — Response Body Logged for All API Requests in Development
+File: server/index.ts:147–168
+
+The request logging middleware captures and logs the full JSON response body for every /api request. In development this is useful, but the log line is truncated at 80 characters rather than being suppressed entirely for sensitive routes. If this logging is ever accidentally enabled in production (e.g., NODE_ENV not set), authentication tokens, user PII, and payment data could appear in logs.
+
+Fix: Exclude authentication routes from response body logging, or gate the entire body-capture block on app.get("env") === "development".
+
+M4 — Guest Session Token Passed in PDF URL as Query Parameter
+File: server/routes/recommendations.routes.ts:298
+
+const guestTokenParam = assessment.guestSessionId ? `&guestToken=${assessment.guestSessionId}` : '';
+const printUrl = `${baseUrl}/print/results?assessmentId=${assessment.id}${guestTokenParam}`;
+
+Guest tokens appear in URLs, which means they appear in web server access logs, Puppeteer navigation logs, browser history, and referrer headers. If a guest token is treated as an authentication mechanism, this represents insecure token transmission.
+
+Fix: Pass guest tokens via POST body or a short-lived signed URL rather than a persistent query parameter.
+
+M5 — memorystore Package Installed But Never Used
+File: package.json:85
+
+memorystore@1.6.7 is in dependencies but the codebase uses connect-pg-simple (PostgreSQL session store) exclusively. memorystore is an in-memory session store that is inherently non-persistent and unsuitable for production (sessions lost on restart). Its presence alongside connect-pg-simple creates risk of accidental regression if someone switches session stores.
+
+Fix: Remove memorystore from package.json and package-lock.json.
+
+M6 — Puppeteer Launched with --no-sandbox
+Files: server/routes/admin.routes.ts:1061, server/routes/recommendations.routes.ts:282
+
+args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage']
+
+--no-sandbox disables Chromium's sandboxing for the browser process. This is commonly required in containerized environments (Docker, Replit) where the kernel user namespace is restricted. The comment acknowledges this. Security is mitigated through URL validation (see M2). However, if URL validation is bypassed, the sandboxing removal amplifies the blast radius of any SSRF.
+
+Recommendation: Investigate whether user namespace sandboxing can be enabled in the production environment, or document this trade-off explicitly in a security note.
+
+M7 — 350 console.log/console.error/console.warn Calls in Production Code
+Confirmed by file count analysis across 37 server files
+
+The codebase uses raw console.log throughout server code. A structured logger (server/utils/logger.ts) exists but is not consistently used. Raw console output in production:
+
+Cannot be filtered by log level
+Does not include structured fields (request ID, user ID) consistently
+Can leak sensitive context in error messages (e.g., console.log("[Password Reset] Reset requested for user without email: ${user.username}"))
+Fix: Replace all console.* calls in server/ with the existing logger utility. This enables log level filtering, structured output, and eventual integration with centralized log aggregation.
+
+M8 — path-to-regexp Pinned at 0.1.13
+File: package.json:94
+
+Version 0.1.13 of path-to-regexp is from 2014 and predates all modern security reviews of the library. This is listed as a direct dependency, not a transitive one. Multiple ReDoS (Regular Expression Denial of Service) vulnerabilities have been found in early versions of this library. The current major version is 8.x.
+
+Fix: Either upgrade to path-to-regexp@^8.0.0 or verify if this dependency is still needed; it may be a legacy dependency from early development.
+
+M9 — Superadmin Routes Missing isAuthenticated as a Paired Guard in Some Places
+File: server/routes/superadmin.routes.ts:18–43
+
+isSuperadminMiddleware at line 18 accesses req.user as any without explicitly checking that req.user exists first (it checks userId directly). While the isAuthenticated middleware is applied at the route level (line 49), this creates an implicit dependency that is not enforced at the middleware level itself. If isSuperadminMiddleware is ever used without isAuthenticated, it will throw a runtime error.
+
+Fix: Add a null guard at the top of isSuperadminMiddleware: if (!req.user) return res.status(401).json({ message: "Unauthorized" });
+
+M10 — No Global Rate Limiter on General API Routes
+File: server/index.ts / server/routes.ts
+
+Rate limiting is applied only to specific sensitive routes (auth, payment, recommendations, export, org creation, password reset). General API endpoints — including GET /api/auth/user, all assessment routes, country/career lookups, quiz endpoints — have no rate limiting. A malicious actor can enumerate these endpoints rapidly.
+
+Fix: Add a global baseline rate limiter (e.g., 200 requests per minute per IP) applied to all /api/* routes before specific limiters are applied.
+
+🟢 Low Priority / Recommendations
+L1 — Unused Dependencies
+package.json includes basic-ftp, @octokit/rest, and memorystore (see M5) which appear to have no usage in the current codebase. Unused dependencies increase attack surface and bundle size.
+
+L2 — og:image References a File That Doesn't Exist
+File: client/index.html:21 — https://futurepath.ae/og-image.png is referenced in Open Graph and Twitter Card meta tags, but no og-image.png file exists in client/public/. Social media link previews will show a broken image.
+
+L3 — Font Loading Race Condition on Low-Bandwidth Connections
+File: client/index.html:57–63 — The media="print" onload="this.media='all'" pattern for non-blocking font loading is correct, but if JavaScript is slow or blocked, users will see a FOUT (Flash of Unstyled Text). Consider using font-display: swap in CSS as a CSS-native fallback.
+
+L4 — Missing X-Content-Type-Options Verification
+Helmet sets noSniff: true (confirmed in server/index.ts:70), which adds X-Content-Type-Options: nosniff. This is correct. ✅
+
+L5 — Session Table Cleanup Not Scheduled
+connect-pg-simple creates a sessions table in PostgreSQL. Expired sessions accumulate over time. The createTableIfMissing: false setting (line 27 of server/auth.ts) means the table must be manually created. Add a periodic cleanup job or use the built-in connect-pg-simple prune option.
+
+L6 — Error Boundary Swallows Error Details From Users
+File: client/src/App.tsx:57 — The ErrorBoundary class logs errors to console.error but shows no error code or reference to users. Adding a correlation ID would help users report issues and help support teams trace them.
+
+L7 — HSTS preload: false Is Correct But Should Be Documented
+The HSTS configuration intentionally sets preload: false (line 61). This is correct: HSTS preload is an irreversible operation that permanently forces HTTPS for all visitors. The current setting is appropriate. It should be documented in the deployment runbook so future developers don't "fix" it.
+
+L8 — Stripe API Version "2025-10-29.clover" Is a Beta/Preview Version
+File: server/routes/payment.routes.ts:11, server/routes/webhook.routes.ts:9 — This is a date-versioned beta Stripe API with a .clover suffix indicating a preview feature set. Verify this matches the version in the Stripe dashboard and that no breaking changes occur if Stripe promotes or deprecates this version.
+
+L9 — Missing aria-label on Some Icon-Only Buttons
+Quick scan of components shows some interactive icon buttons (e.g., in CredentialsModal.tsx, ScoringConfigEditor.tsx) may lack explicit aria-label attributes. Full WCAG 2.1 AA compliance requires all actionable elements to have accessible names.
+
+L10 — @assets Alias Points to attached_assets/ Directory
+File: vite.config.ts:26 — "@assets": path.resolve(import.meta.dirname, "attached_assets") — This path alias points to the attached_assets/ directory which contains development assets (screenshots, PDFs, Word docs). If any component imports from @assets, those files may be included in the production bundle. Verify no client-side components import from @assets in production paths.
+
+Production Readiness Checklist
+Check	Status	Notes
+No hardcoded localhost/dev URLs	❌	admin.routes.ts:1110 hardcodes http://localhost:5000
+All env vars defined for production	❌	BASE_URL, EMAIL_FROM not in validation; RESEND_API_KEY and STRIPE_WEBHOOK_SECRET are soft-optional but functionally required
+Production build script verified	✅	vite build && esbuild → dist/public + dist/index.js
+Database configured for production	✅	Neon serverless PostgreSQL; DATABASE_URL required and validated
+CORS locked to production domains	⚠️	No CORS middleware (same-origin SPA); acceptable but not explicitly enforced
+Third-party keys in production mode	⚠️	Stripe keys must be live (not test); OpenAI key stored encrypted in DB
+No dev middleware in prod build	⚠️	runtimeErrorOverlay statically imported (Replit-specific dev plugin); conditionally registered but always imported
+Static file serving configured	✅	serveStatic() serves dist/public in production
+Error handling & fallback UI	✅	ErrorBoundary in React; global error handler in Express; graceful API error messages
+Security headers configured	✅	Helmet
+Now I have enough information to write the full audit report. Let me compile it.
+
+Website Audit Report
+Date: April 7, 2026
+Project: Future Pathways — Career Guidance Platform
+Stack: Express.js + React (Vite) + Neon PostgreSQL + Drizzle ORM
+Focus: Production Readiness + Full QA + Security
+Auditor: Senior Web Auditor / QA / Cybersecurity Review
+
+Executive Summary
+Future Pathways is a full-stack TypeScript platform providing career guidance and assessment services for students aged 13–18. The application was built on Replit and is architected around an Express.js API backend, a React SPA frontend built with Vite, and a Neon serverless PostgreSQL database. The overall security posture is strong — the team has clearly applied security-conscious practices: CSRF protection, Helmet security headers, bcrypt password hashing, AES-256-GCM credential encryption, Stripe webhook signature verification, zxcvbn password strength enforcement, and comprehensive rate limiting.
+
+However, several Replit-specific assumptions embedded in the code will cause failures or silent degradation in any production environment that isn't Replit, or even on Replit if key environment variables are not correctly configured in the deployment secrets. The most critical is an OAuth callback URL that defaults to a hardcoded Replit domain when BASE_URL is unset, and a hardcoded http://localhost:5000 used in bulk-PDF generation that ignores the PORT environment variable. Additionally, two npm packages with HIGH-severity vulnerabilities (lodash and vite) are present, and lodash is declared as a dependency but is not used anywhere in application source code — meaning it is unnecessary risk with no benefit.
+
+The application is not fully production-ready in its current form. The issues below, particularly the OAuth URL fallback, the hardcoded localhost reference, and the missing/optional DB_ENCRYPTION_KEY validation, should be resolved before any public deployment. The rest of the security architecture is solid and with targeted fixes this will be a well-hardened platform.
+
+🔴 Critical Issues — Production Breakers
+CRIT-1: OAuth Callback URL Falls Back to Hardcoded Replit Domain
+File: server/auth.ts:103
+
+const baseUrl = process.env.BASE_URL || `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
+
+If BASE_URL is not set as a deployment secret, the OAuth callback URLs sent to Google and Microsoft will point to *.repl.co instead of the production domain. This will cause all OAuth logins to fail unless the exact Replit dev URL is registered in both providers' allowed redirect URI lists. In production (autoscale or custom domain), this breaks Google and Microsoft sign-in silently — users will receive an OAuth redirect_uri_mismatch error.
+
+Fix: Make BASE_URL a required environment variable and add it to ENV_VARS.REQUIRED in server/config/constants.ts. Remove the Replit fallback:
+
+const baseUrl = process.env.BASE_URL;
+if (!baseUrl) throw new Error("BASE_URL environment variable is required");
+
+CRIT-2: Hardcoded localhost:5000 in Bulk PDF Generation
+File: server/routes/admin.routes.ts:1110
+
+const printUrl = `http://localhost:5000/print/results?assessmentId=${completedAssessment.id}`;
+
+The user-facing PDF generation endpoint (recommendations.routes.ts:293-295) correctly uses:
+
+const baseUrl = process.env.NODE_ENV === 'production'
+  ? `https://${req.get('host')}`
+  : `http://localhost:${process.env.PORT || 5000}`;
+
+But the admin bulk PDF generation (for downloading all student reports in a ZIP) has the port hardcoded to 5000 regardless of the PORT environment variable. On Replit autoscale, the port is set via [env] PORT = "5000" in .replit, so this currently works by coincidence. However, if PORT is changed or the app is deployed elsewhere, bulk PDF generation will silently fail or hit the wrong port.
+
+Fix: Replace with http://localhost:${process.env.PORT || 5000}.
+
+CRIT-3: DB_ENCRYPTION_KEY Listed as Optional, But Causes Runtime Crash if Missing
+File: server/config/constants.ts:68, server/utils/encryption.ts:8-12
+
+The DB_ENCRYPTION_KEY is marked as an OPTIONAL environment variable in constants.ts, only generating a warning at startup. However, the getEncryptionKey() function in encryption.ts throws a hard exception if the variable is absent:
+
+function getEncryptionKey(): Buffer {
+  const key = process.env.DB_ENCRYPTION_KEY;
+  if (!key) {
+    throw new Error('DB_ENCRYPTION_KEY environment variable is not set');
+  }
+
+This means the application starts successfully (with only a warning), but any route that attempts to encrypt or decrypt an LLM API key will crash with a 500 error at runtime. This affects the LLM narrative generation, country data generation, and quiz contribution verification — all of which require an OpenAI credential to be decrypted from the database.
+
+Fix: Move DB_ENCRYPTION_KEY from OPTIONAL to REQUIRED in constants.ts, or add a conditional path that clearly disables LLM features when the key is absent.
+
+CRIT-4: @replit/vite-plugin-runtime-error-modal Always Included in Build
+File: vite.config.ts:4,9
+
+import runtimeErrorOverlay from "@replit/vite-plugin-runtime-error-modal";
+// ...
+plugins: [
+  react(),
+  runtimeErrorOverlay(), // ← No environment guard
+  ...(process.env.NODE_ENV !== "production" && process.env.REPL_ID !== undefined
+    ? [ /* cartographer, devBanner */ ]
+    : []),
+],
+
+The runtimeErrorOverlay (a Replit-specific dev tool modal that intercepts runtime errors) is always loaded — it is not inside the NODE_ENV !== "production" guard that gates the other Replit plugins. It will therefore be bundled into the production JavaScript, adding unnecessary weight and potentially intercepting error events in production that should surface to error monitoring instead.
+
+Fix: Wrap it in the same condition as the other Replit plugins:
+
+...(process.env.NODE_ENV !== "production" && process.env.REPL_ID !== undefined
+  ? [runtimeErrorOverlay(), await import(...), await import(...)]
+  : []),
+
+CRIT-5: SUPERADMIN_EMAILS Only Set in .replit — Not in Deployment Secrets
+File: .replit:47-48
+
+[
+userenv.shared
+]
+SUPERADMIN_EMAILS = "nrashidk@gmail.com"
+
+This value is set in the .replit file under [userenv.shared], which is a Replit-environment-only setting visible only to the Replit workspace. It is not committed to the repository as a real environment variable, and will not be present in any deployment environment that is not Replit. Without it, the startup check (ENV_VARS.REQUIRED includes SUPERADMIN_EMAILS) will cause the application to exit with code 1 on any non-Replit deployment.
+
+Fix: Ensure SUPERADMIN_EMAILS is set explicitly in the Replit deployment secrets panel (separate from [userenv.shared] which is dev-only) and documented in the deployment checklist. The production value should also be kept out of the .replit file to avoid accidental exposure.
+
+🟠 High Priority Issues
+HIGH-1: HIGH-Severity npm Vulnerability — Lodash Prototype Pollution & Code Injection
+Source: npm audit
+
+[HIGH] lodash — Prototype Pollution (_.unset, _.omit, array path bypass)
+[HIGH] lodash — Code Injection via _.template
+
+Lodash is listed as a production dependency in package.json but is not imported or used anywhere in the application source code (verified via grep). It is a ghost dependency — installed, bundled (or available server-side), and carrying HIGH-severity vulnerabilities with zero benefit.
+
+Fix: Remove lodash from package.json dependencies entirely. Run npm uninstall lodash @types/lodash (note: @types/lodash is not in package.json — lodash types aren't installed, confirming it's unused).
+
+HIGH-2: HIGH-Severity npm Vulnerability — Vite Path Traversal & Arbitrary File Read
+Source: npm audit
+
+[HIGH] vite — Arbitrary File Read via Dev Server WebSocket
+[HIGH] vite — Path Traversal in Optimized Deps .map Handling
+
+Vite is a devDependency and these vulnerabilities only apply to the development server (not the production build). However, if a developer runs npm run dev on a shared or internet-exposed machine, an attacker on the same network could read arbitrary files via WebSocket. The allowedHosts: true setting in server/vite.ts:27 exacerbates this.
+
+Fix: Run npm audit fix to upgrade Vite (a non-breaking patch is available per the audit). The dev-server allowedHosts should also be scoped more narrowly than true.
+
+HIGH-3: CSRF Middleware Exempts File Upload Endpoints Without Alternative Protection
+File: server/middleware/csrf.middleware.ts:57-68
+
+const exemptPatterns = [
+  /^\/api\/admin\/organizations\/[^/]+\/logo$/,
+  /^\/api\/files\/upload$/,
+  /^\/api\/contributions\/submit$/,
+];
+
+These three state-changing endpoints are exempted from CSRF validation because they use multipart/form-data. The exemption rationale is that CSRF headers can't easily be set in multipart forms. However, this leaves them vulnerable to cross-origin form-based CSRF attacks if an attacker crafts an HTML form on another site that POSTs to these endpoints. Since authentication (isAuthenticated) is still required, the actual attack surface requires a valid session, but the CSRF gap remains.
+
+Fix: Use a hidden form field containing a CSRF token for multipart endpoints, or require the X-CSRF-Token header by including it as a non-file form field. Alternatively, use the SameSite=Strict cookie policy (already set on the session cookie) as the primary CSRF mitigation for these endpoints and document this explicitly.
+
+HIGH-4: Puppeteer Launched with --no-sandbox in Production
+Files: server/routes/recommendations.routes.ts:282-288, server/routes/admin.routes.ts:1061
+
+args: [
+  '--no-sandbox',
+  '--disable-setuid-sandbox',
+  // ...
+]
+
+Both PDF generation locations launch Chromium without a sandbox. While the URL validation in recommendations.routes.ts is thorough (blocks SSRF, private IPs, protocol injection), running a headless browser without the OS-level sandbox in production is a defense-in-depth failure. If the URL validation is ever bypassed, the unsandboxed browser can be exploited to access the host filesystem and network.
+
+Fix: If running in a Docker container, use --disable-setuid-sandbox only. If not containerized, investigate proper sandbox configuration. At minimum, add a comment justifying the security tradeoff with references to the compensating URL validation controls.
+
+HIGH-5: isAuthenticated Missing on /api/upgrade-to-premium Middleware Chain
+File: server/routes/payment.routes.ts:85
+
+app.post("/api/upgrade-to-premium", async (req: any, res) => {
+  if (!req.isAuthenticated()) {
+    return res.status(401).json({ message: "Must be logged in to upgrade" });
+  }
+
+The authentication check is done inline rather than using the isAuthenticated middleware. This is functionally equivalent, but it bypasses the CSRF validation check that runs for all authenticated endpoints (since validateCsrf runs after setupAuth). The paymentLimiter middleware is also not applied to this endpoint. Anyone who has a valid paymentIntentId and no active session can trigger the 401 response path, but the lack of rate limiting means this endpoint is open to enumeration of payment intent IDs.
+
+Fix: Add isAuthenticated middleware and paymentLimiter to the route:
+
+app.post("/api/upgrade-to-premium", isAuthenticated, paymentLimiter, async (req: any, res) => {
+
+HIGH-6: Superadmin Check Logic Inconsistency — isLocal Gate in Analytics and Contribution Routes
+Files: server/routes/analytics.routes.ts:25, server/routes/contribution.routes.ts:28
+
+// analytics.routes.ts:
+return (!(req.user as any).isLocal && user.email && superadminEmails.includes(...)) || user.role === "superadmin";
+
+// auth.middleware.ts (correct version):
+const isSuperadmin = (user.email && superadminEmails.includes(...)) || user.role === "superadmin";
+
+The analytics and contribution routes apply an extra !(req.user as any).isLocal guard that the shared isAdmin middleware does NOT apply. This means a superadmin who logs in via local (username/password) authentication will pass the isAdmin middleware check but fail the inline analytics superadmin check. The superadmin cannot access analytics if they authenticate locally.
+
+This is a logic inconsistency caused by duplicating the superadmin check across 7+ files. The isLocal gate appears intentional in some contexts but not others, and there is no documentation explaining the design intent.
+
+Fix: Centralize the superadmin check in auth.middleware.ts as the single source of truth and remove all inline duplicates. Decide whether isLocal should gate superadmin status and apply it consistently.
+
+HIGH-7: Rate Limiting Relies on IP from X-Forwarded-For (Potentially Spoofable)
+File: server/auth.ts:98
+
+app.set("trust proxy", 1);
+
+trust proxy: 1 causes Express (and express-rate-limit) to read the client IP from X-Forwarded-For. On Replit autoscale, this is set by Replit's load balancer and is trustworthy. However, if the application is ever deployed behind a different proxy configuration or exposed directly, malicious actors could spoof the X-Forwarded-For header to bypass rate limits on login, payment, and password reset endpoints.
+
+Fix: This is acceptable for Replit autoscale. Document the assumption. If deploying elsewhere, set trust proxy to the specific IP or CIDR of the known proxy tier.
+
+🟡 Medium Priority Issues
+MED-1: getSuperadminEmails() Duplicated in 7+ Files
+Files: server/auth.ts, server/auth.routes.ts, server/middleware/auth.middleware.ts, server/routes/admin.routes.ts, server/routes/superadmin.routes.ts, server/routes/analytics.routes.ts, server/routes/contribution.routes.ts, server/routes/files.routes.ts
+
+The same 5-line function is copy-pasted across 8+ files with slight variations. In analytics.routes.ts and contribution.routes.ts, the function has an additional !sessionUser.isLocal gate not present in other copies. This is a maintenance trap — any change to superadmin email parsing logic must be applied in 8 places.
+
+Fix: Export getSuperadminEmails() from server/middleware/auth.middleware.ts or server/config/constants.ts and import it everywhere. Delete all local copies.
+
+MED-2: Missing OG Image Asset
+File: client/index.html:21
+
+<meta property="og:image" content="https://futurepath.ae/og-image.png" />
+
+No file named og-image.png exists in client/public/. Any social media share will display a broken image. The Twitter Card and Open Graph previews will render text only.
+
+Fix: Create an og-image.png (1200×630px) and place it in client/public/.
+
+MED-3: Session Table Must Exist at Startup — No Migration Guard
+File: server/auth.ts:27
+
+const sessionStore = new pgStore({
+  conString: process.env.DATABASE_URL,
+  createTableIfMissing: false, // Will NOT create the sessions table
+  tableName: "sessions",
+});
+
+createTableIfMissing: false means the sessions table must already exist. On a fresh database (e.g., new production deployment), sessions will fail immediately. This is not guarded by the environment validation.
+
+Fix: Either set createTableIfMissing: true (safe — the store handles it idempotently), or ensure the sessions table is created as part of the Drizzle schema/migrations.
+
+MED-4: Stripe API Version Uses Unreleased Beta Identifier
+File: server/routes/payment.routes.ts:11, server/routes/webhook.routes.ts:9
+
+stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: "2025-10-29.clover",
+});
+
+The suffix .clover indicates a beta API version. Beta API versions can be deprecated or changed without a major version bump, which could silently break payment flows.
+
+Fix: Upgrade to the current stable Stripe API version (e.g., "2024-11-20.acacia" or the latest stable). Check the Stripe changelog for any breaking changes.
+
+MED-5: Unused Production Dependencies with Security Vulnerabilities
+File: package.json
+
+The following packages are declared as runtime dependencies but show no usage in application source code:
+
+lodash (HIGH security vulnerabilities — see HIGH-1)
+memorystore (used nowhere; PostgreSQL session store is used instead)
+basic-ftp (no FTP usage in application routes)
+@octokit/rest (GitHub API; only appears in scripts/, not in server routes)
+All of these add unnecessary attack surface and bundle weight.
+
+Fix: Remove unused dependencies: npm uninstall lodash memorystore basic-ftp @octokit/rest
+
+MED-6: 350+ console.log/warn/error Calls — Structured Logger Exists but Underused
+Files: 37 server files
+
+A logger utility exists at server/utils/logger.ts providing structured JSON logging with context. However, most route files bypass it in favor of raw console.log/error statements (350 total occurrences). In production (morgan('combined') is enabled), raw console output is unstructured and difficult to aggregate in log management tools.
+
+Fix: Replace inline console.log/error in route files with logger.info/error/warn calls. Keep raw console only in critical startup validation code.
+
+MED-7: No Error Monitoring / Exception Tracking
+File: server/index.ts — global error handler
+
+The error handler logs to console, but there is no integration with an error monitoring service (Sentry, Datadog, etc.). In production, unhandled exceptions, payment failures, and auth errors will only surface in raw server logs with no alerting.
+
+Fix: Integrate Sentry or similar at the Express error handler and in the client-side ErrorBoundary.componentDidCatch.
+
+MED-8: anytype Casts on Request Objects Bypass TypeScript Safety
+Files: Multiple route files
+
+app.post("/api/upgrade-to-premium", async (req: any, res) => {
+// ...
+const userId = (req.user as any).userId;
+
+The pattern of casting req to any and req.user to any appears across virtually every route file. This disables TypeScript's safety checks on the request object, meaning a typo in req.user.userId vs req.user.id will compile without error.
+
+Fix: Extend Express's User and Request types in a shared types/ declaration file to include userId, username, and isLocal. This is a one-time effort that eliminates the as any casts.
+
+MED-9: dangerouslySetInnerHTML in Chart Component
+File: client/src/components/ui/chart.tsx:81
+
+<style dangerouslySetInnerHTML={{ __html: Object.entries(THEMES).map(...) }} />
+
+The content is generated from controlled configuration objects (not user input), so the practical XSS risk is very low. However, dangerouslySetInnerHTML should be avoided as a pattern. React has CSS-in-JS alternatives.
+
+Fix: Use a CSS custom properties injection approach via style element refs, or use CSS Modules / inline style attribute instead.
+
+MED-10: No Cache-Control Headers on API Responses
+File: server/index.ts — no cache header middleware
+
+API endpoints return sensitive data (user profiles, assessment results, payment information) without explicit Cache-Control: no-store headers. If a CDN or proxy is placed in front of the application in production, these responses could be inadvertently cached.
+
+Fix: Add middleware to set Cache-Control: no-store, no-cache, must-revalidate on all /api/* routes:
+
+app.use('/api', (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store');
+  next();
+});
+
+MED-11: Replit Agent Integrations Still Active
+File: .replit:43
+
+[
+agent
+]
+integrations = ["javascript_database:1.0.0", "javascript_log_in_with_replit:1.0.0", "github:1.0.0"]
+
+The javascript_log_in_with_replit:1.0.0 integration means Replit's "Log in with Replit" OAuth was used during development. This integration may inject additional OAuth routes or configuration. While it doesn't impact production deployment, it signals that Replit-specific auth was explored and may have left residual configuration.
+
+Fix: Remove unused Replit agent integrations and verify no Replit OAuth routes are registered.
+
+🟢 Low Priority / Recommendations
+LOW-1: Password Reset Token Has No Maximum Lifetime Enforcement at Query Level
+File: server/routes/password-reset.routes.ts:127-133
+
+The token expiry is checked in application code (gt(passwordResetTokens.expiresAt, new Date())). There is no database-level cleanup job for expired tokens. Over time, the password_reset_tokens table will accumulate stale rows.
+
+Fix: Add a scheduled cleanup: DELETE FROM password_reset_tokens WHERE expires_at < NOW() - INTERVAL '7 days'.
+
+LOW-2: Session Store Has No Cleanup Configuration
+File: server/auth.ts:24-29
+
+The connect-pg-simple store is configured without a prune interval. Expired sessions will remain in the sessions table indefinitely.
+
+Fix: Add pruneSessionInterval: 60 * 15 (prune every 15 minutes in seconds) to the pgStore constructor.
+
+LOW-3: Stripe Publishable Key Not Validated at Startup
+File: server/config/constants.ts:63
+
+STRIPE_PUBLISHABLE_KEY is listed as optional. If it's missing, the frontend Stripe.js initialization will fail silently, and users will see a broken payment form.
+
+Fix: Warn if STRIPE_SECRET_KEY is present but STRIPE_PUBLISHABLE_KEY is missing.
+
+LOW-4: Keyboard Focus Indicator Present in App Shell But Not Verified Across All Interactive Elements
+File: client/src/App.tsx:131-138
+
+The app has a skip-to-content link and sr-only classes. The PageLoader has correct ARIA attributes. However, custom components like MasonryGrid, StickyNote, and ProgressTracker were not individually verified for keyboard accessibility and focus management.
+
+Fix: Audit all custom components (StickyNote.tsx, MasonryGrid.tsx, ProgressTracker.tsx) for keyboard tab order and visible focus rings.
+
+LOW-5: No <meta name="robots"> in index.html
+File: client/index.html
+
+robots.txt correctly disallows admin/assessment paths. However, there is no <meta name="robots" content="noindex"> on pages that should never appear in search results (e.g., /assessment, /results, /checkout). SPA routes are client-rendered and robots.txt may not be respected by all crawlers for client-navigated pages.
+
+Fix: Add per-page robots meta tags using a React Helmet or document.title approach for protected pages.
+
+LOW-6: HSTS preload: false — Consider Enabling for Production
+File: server/index.ts:59
+
+preload: false, // Set to false to avoid permanent browser caching issues
+
+HSTS preload submission (preload: true + submitting to the HSTS preload list) provides maximum protection against SSL stripping. The comment suggests intentional caution, but for a production app at a stable domain (futurepath.ae), preloading is recommended.
+
+LOW-7: REPL_ID Used as Condition for Dev Plugins — Could Falsely Match in Some CI Environments
+File: vite.config.ts:11
+
+process.env.NODE_ENV !== "production" && process.env.REPL_ID !== undefined
+
+If a CI/CD environment happens to set a REPL_ID variable for unrelated reasons, the Replit dev plugins would be activated. Prefer checking for a more specific Replit-unique environment variable.
+
+LOW-8: robots.txt Does Not Disallow /api/
+File: client/public/robots.txt
+
+API routes at /api/* are not disallowed in robots.txt. While bots generally don't post to API endpoints, GET endpoints that return HTML-like data could be accidentally indexed.
+
+Fix: Add Disallow: /api/ to robots.txt.
+
+Production Readiness Checklist
+Check	Status	Notes
+No hardcoded localhost/dev URLs	⚠️	localhost:5000 hardcoded in admin bulk PDF (admin.routes.ts:1110)
+All env vars defined for production	⚠️	BASE_URL missing from REQUIRED; DB_ENCRYPTION_KEY listed as optional but crashes if absent; SUPERADMIN_EMAILS only set in .replit dev config
+Production build script verified	✅	vite build && esbuild server/index.ts — correct
+Database configured for production	✅	Neon serverless PostgreSQL, DATABASE_URL required
+CORS locked to production domains	✅	No CORS middleware — correct for same-origin SPA/API architecture
+Third-party keys in production mode	⚠️	Stripe API uses beta version 2025-10-29.clover; OAuth callback URL depends on BASE_URL
+No dev middleware in prod build	❌	runtimeErrorOverlay Replit plugin always bundled in production build
+Static file serving configured	✅	serveStatic() serves from dist/public in production
+Error handling & fallback UI	✅	ErrorBoundary, global error handler, graceful API errors
+Security headers configured	✅	Helmet with CSP, HSTS (prod only), referrer policy, permissions policy
+No secrets in source code	✅	No API keys, tokens, or credentials found in committed code
+OWASP Top 10 reviewed	⚠️	See findings below
+WCAG 2.1 AA Accessibility	⚠️	App shell is accessible; custom components not fully verified
+Dependency vulnerabilities	❌	2 HIGH (lodash, vite), 4 MODERATE (esbuild, drizzle-kit chain)
+OWASP Top 10 (2021) Assessment
+Category	Status	Finding
+A01: Broken Access Control	⚠️	Role-based checks are present but duplicated across 8+ files with subtle inconsistencies (e.g., isLocal gate in analytics). /api/upgrade-to-premium lacks isAuthenticated middleware.
+A02: Cryptographic Failures	✅	AES-256-GCM for API keys, bcrypt (10 rounds) for passwords, HTTPS enforced in production via HSTS.
+A03: Injection	✅	Drizzle ORM uses parameterized queries. DOMPurify server-side sanitization. Zod schema validation on all inputs. No raw SQL in application code.
+A04: Insecure Design	✅	Server-side payment amount calculation. Payment idempotency checks. Generic password reset messages to prevent enumeration. Rate limiting on all sensitive operations.
+A05: Security Misconfiguration	⚠️	Puppeteer --no-sandbox. runtimeErrorOverlay in prod build. createTableIfMissing: false without migration guard. Session cleanup not configured.
+A06: Vulnerable and Outdated Components	❌	lodash: HIGH (unused, should be removed). vite: HIGH (dev server, patch available). esbuild/drizzle-kit chain: MODERATE.
+A07: Identification and Authentication Failures	✅	Rate-limited auth (5/15min). Session regeneration on login. Secure HttpOnly cookies (SameSite: strict in production). bcrypt password hashing. Password strength enforcement via zxcvbn.
+A08: Software and Data Integrity Failures	✅	Stripe webhook signature verification. Payment amount verification server-side. Payment idempotency via metadata.
+A09: Security Logging and Monitoring Failures	⚠️	Structured logger exists but underused (350 raw console calls). No SIEM/alerting integration. No security event logging for failed auth attempts beyond rate limiter.
+A10: Server-Side Request Forgery (SSRF)	⚠️	Puppeteer URL validation is comprehensive but allows Replit domains dynamically based on request Host header (isReplitHost). A spoofed Host header could expand the allowed URL list. The admin bulk-PDF uses a hardcoded localhost:5000 which bypasses the dynamic validation entirely.
+Detailed Findings
+Environment Variable Audit
+Variable	Location Used	Required?	Production Status
+DATABASE_URL	server/db.ts:8, server/auth.ts:25	REQUIRED	Must be set — Neon connection string
+SESSION_SECRET	server/auth.ts:31	REQUIRED	Must be 32+ chars; validate with openssl rand -hex 32
+SUPERADMIN_EMAILS	8+ files	REQUIRED	Currently only in .replit [userenv.shared] — must be set in deployment secrets
+BASE_URL	server/auth.ts:103	⚠️ Should be REQUIRED	Fallback to Replit domain breaks OAuth in production
+STRIPE_SECRET_KEY	server/routes/payment.routes.ts:10	Conditional	Required for payment features
+STRIPE_PUBLISHABLE_KEY	Client-side Stripe.js	Conditional	Required for payment UI
+STRIPE_WEBHOOK_SECRET	server/routes/webhook.routes.ts:40	Conditional	Required if Stripe is configured — webhooks rejected without it
+RESEND_API_KEY	server/services/email.ts:4	Optional	Password reset emails silently succeed without it (dev mode)
+APP_URL	server/services/email.ts:32	Optional	Falls back to https://futurepath.ae — acceptable if that's the production URL
+EMAIL_FROM	server/services/email.ts:7	Optional	Falls back to noreply@futurepathways.com — verify domain is configured in Resend
+DB_ENCRYPTION_KEY	server/utils/encryption.ts:8	⚠️ Should be REQUIRED	Listed as optional; crashes at runtime if LLM features are used
+PORT	server/index.ts:214, .replit:19	Optional	Falls back to 5000; set to 5000 in .replit [env]
+NODE_ENV	Multiple	Optional	Set explicitly in npm scripts (development/production)
+GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET	server/auth.ts:105	Optional	Google OAuth disabled if absent
+MICROSOFT_CLIENT_ID / MICROSOFT_CLIENT_SECRET	server/auth.ts:127	Optional	Microsoft OAuth disabled if absent
+REPL_SLUG / REPL_OWNER	server/auth.ts:103	Replit-only	Only used in fallback URL construction — remove after fixing CRIT-1
+Positive Findings
+The following aspects of the codebase are correctly and commendably implemented:
+
+Proper server-side payment amount calculation — The client-provided amount is never trusted; prices are always calculated server-side with discount tiers applied (payment.routes.ts:34-46). Payment intent metadata stores the expected amount and is re-verified before granting premium access.
+
+Stripe webhook signature verification — All webhook events are cryptographically verified via stripe.webhooks.constructEvent() before processing. Missing STRIPE_WEBHOOK_SECRET causes rejection, not silent acceptance.
+
+AES-256-GCM encryption with authentication tags for stored API credentials — The implementation correctly includes IV + auth tag, preventing both decryption of tampered data and IV reuse attacks.
+
+CSRF protection — Custom double-submit cookie pattern with SameSite: strict cookies, applied globally after auth middleware with documented exemptions.
+
+Password strength enforcement — zxcvbn score ≥ 3 required on password reset; bcrypt with 10 rounds throughout.
+
+Session security — Session regeneration on login, HttpOnly, Secure (production), SameSite: strict (production), PostgreSQL-backed store (no memory store), named cookie (fp_session).
+
+Input validation — Zod schema validation applied at route boundaries; DOMPurify sanitization via sanitizeRequestBody() applied before database writes in assessment routes.
+
+Path traversal protection in file downloads — path.resolve() + startsWith(uploadsDir) check prevents serving files outside the uploads directory.
+
+Rate limiting — Comprehensive limits across login (5/15min), payment (10/15min), recommendations (20/hr), exports (5/hr), org creation (10/hr), password reset (3/15min request, 5/hr attempt).
+
+Helmet security headers — CSP, HSTS (production only), noSniff, referrerPolicy, crossOriginOpenerPolicy, Permissions-Policy — all configured with Stripe and OAuth accommodations.
+
+Error boundary in React — ErrorBoundary component catches unhandled rendering errors with a user-friendly fallback UI.
+
+Generic password reset messages — The reset request endpoint always returns success regardless of whether the email exists, preventing user enumeration.
+
+Payment idempotency — The checkout completion checks paymentIntent.metadata.processed === "true" to prevent double-processing the same payment.
+
+GDPR data export — /api/users/me/export provides a complete data export; user data deletion should be verified as a complement.
+
+Production-only HSTS — HSTS is correctly gated to isProduction, preventing browsers from permanently caching HTTPS requirements during development.
+
+SEO and sharing metadata — Well-structured index.html with OG tags, Twitter Card, JSON-LD structured data, canonical URL, and non-blocking Google Fonts loading.
+
+Robots.txt coverage — Admin, superadmin, assessment, results, checkout, and auth pages are correctly disallowed.
+
+@assets alias points to attached_assets/ — Verified that this is correctly guarded by vite.config.ts:37's deny: ["**/.*"] pattern — the assets directory is served but dotfiles within it are not.

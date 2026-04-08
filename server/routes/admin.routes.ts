@@ -208,7 +208,7 @@ export function registerAdminRoutes(app: Express) {
       // Check if user is superadmin (getSuperadminEmails already returns lowercase)
       const superadminEmails = getSuperadminEmails();
       const isSuperadmin = 
-        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email.toLowerCase())) ||
+        (user.email && superadminEmails.includes(user.email.toLowerCase())) ||
         user.role === "superadmin";
       
       // Check if user is org admin
@@ -285,7 +285,7 @@ export function registerAdminRoutes(app: Express) {
       // Check if user is superadmin (getSuperadminEmails already returns lowercase)
       const superadminEmails = getSuperadminEmails();
       const isSuperadmin = 
-        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email.toLowerCase())) ||
+        (user.email && superadminEmails.includes(user.email.toLowerCase())) ||
         user.role === "superadmin";
       
       // Check if user is org admin for THIS specific organization
@@ -335,7 +335,7 @@ export function registerAdminRoutes(app: Express) {
       // Check if user is superadmin (getSuperadminEmails already returns lowercase)
       const superadminEmails = getSuperadminEmails();
       const isSuperadmin = 
-        (!req.user.isLocal && user.email && superadminEmails.includes(user.email.toLowerCase())) ||
+        (user.email && superadminEmails.includes(user.email.toLowerCase())) ||
         user.role === "superadmin";
       
       // Check if user is org admin for THIS specific organization
@@ -397,7 +397,7 @@ export function registerAdminRoutes(app: Express) {
       // Check if user is superadmin
       const superadminEmails = getSuperadminEmails();
       const isSuperadmin = 
-        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email.toLowerCase())) ||
+        (user.email && superadminEmails.includes(user.email.toLowerCase())) ||
         user.role === "superadmin";
       
       // Check if user is org admin for THIS specific organization
@@ -433,7 +433,7 @@ export function registerAdminRoutes(app: Express) {
       // Check if user is superadmin
       const superadminEmails = getSuperadminEmails();
       const isSuperadmin = 
-        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email.toLowerCase())) ||
+        (user.email && superadminEmails.includes(user.email.toLowerCase())) ||
         user.role === "superadmin";
       
       // Check if user is org admin for THIS specific organization
@@ -504,7 +504,7 @@ export function registerAdminRoutes(app: Express) {
       // Check if user is superadmin
       const superadminEmails = getSuperadminEmails();
       const isSuperadmin = 
-        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email.toLowerCase())) ||
+        (user.email && superadminEmails.includes(user.email.toLowerCase())) ||
         user.role === "superadmin";
       
       // Check if user is org admin for THIS specific organization
@@ -661,7 +661,7 @@ export function registerAdminRoutes(app: Express) {
       // Check if user is superadmin
       const superadminEmails = getSuperadminEmails();
       const isSuperadmin = 
-        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email.toLowerCase())) ||
+        (user.email && superadminEmails.includes(user.email.toLowerCase())) ||
         user.role === "superadmin";
       
       // Check if user is org admin for THIS specific organization
@@ -716,7 +716,7 @@ export function registerAdminRoutes(app: Express) {
       // Check if user is superadmin
       const superadminEmails = getSuperadminEmails();
       const isSuperadmin = 
-        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email.toLowerCase())) ||
+        (user.email && superadminEmails.includes(user.email.toLowerCase())) ||
         user.role === "superadmin";
       
       // Check if user is org admin for THIS specific organization
@@ -796,7 +796,7 @@ export function registerAdminRoutes(app: Express) {
       // Check if user is superadmin
       const superadminEmails = getSuperadminEmails();
       const isSuperadmin = 
-        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email.toLowerCase())) ||
+        (user.email && superadminEmails.includes(user.email.toLowerCase())) ||
         user.role === "superadmin";
       
       // Check if user is org admin for THIS specific organization
@@ -893,7 +893,7 @@ export function registerAdminRoutes(app: Express) {
       // Check if user is superadmin
       const superadminEmails = getSuperadminEmails();
       const isSuperadmin = 
-        (!(req.user as any).isLocal && currentUser.email && superadminEmails.includes(currentUser.email)) ||
+        (currentUser.email && superadminEmails.includes(currentUser.email)) ||
         currentUser.role === "superadmin";
       
       // Check if user is org admin for THIS specific organization
@@ -1009,7 +1009,7 @@ export function registerAdminRoutes(app: Express) {
       // Check if user is superadmin
       const superadminEmails = getSuperadminEmails();
       const isSuperadmin = 
-        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email.toLowerCase())) ||
+        (user.email && superadminEmails.includes(user.email.toLowerCase())) ||
         user.role === "superadmin";
       
       // Check if user is org admin for THIS specific organization
@@ -1102,12 +1102,12 @@ export function registerAdminRoutes(app: Express) {
 
           // Find the assessment for this member
           const assessments = await storage.getAssessmentsByUser(member.userId);
-          const completedAssessment = assessments.find((a: any) => a.isComplete);
+          const completedAssessment = assessments.find((a: any) => a.isCompleted);
           
           if (!completedAssessment) continue;
 
           page = await browser.newPage();
-          const printUrl = `http://localhost:5000/print/results?assessmentId=${completedAssessment.id}`;
+          const printUrl = `http://localhost:${process.env.PORT || 5000}/print/results?assessmentId=${completedAssessment.id}`;
           
           // Validate URL before navigation
           validatePdfUrl(printUrl);
@@ -1179,7 +1179,7 @@ export function registerAdminRoutes(app: Express) {
       // Check if user is superadmin
       const superadminEmails = getSuperadminEmails();
       const isSuperadmin = 
-        (!(req.user as any).isLocal && user.email && superadminEmails.includes(user.email.toLowerCase())) ||
+        (user.email && superadminEmails.includes(user.email.toLowerCase())) ||
         user.role === "superadmin";
       
       // Check if user is org admin for THIS specific organization

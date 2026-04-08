@@ -26,7 +26,7 @@ async function isSuperadmin(req: Request): Promise<boolean> {
   if (!user) return false;
   
   const superadminEmails = getSuperadminEmails();
-  return (!sessionUser.isLocal && user.email && superadminEmails.includes(user.email.toLowerCase())) || user.role === "superadmin";
+  return (user.email && superadminEmails.includes(user.email.toLowerCase())) || user.role === "superadmin";
 }
 
 // Middleware to check superadmin
