@@ -133,8 +133,6 @@ function CheckoutForm({ amount, studentCount }: { amount: number | null; student
           setCreatedOrgName(data.organization?.name);
           setShowCredentialsModal(true);
           
-          // Also log to console as backup
-          console.log("Your Login Credentials - Please Save:", data.credentials);
         } else if (data.wasLoggedIn) {
           // User was already logged in - show success and redirect to appropriate page
           toast({

@@ -4,7 +4,7 @@ import path from "path";
 import fs from "fs/promises";
 import { storage } from "../storage";
 import { isAuthenticated } from "../auth";
-import { isAdmin } from "../middleware/auth.middleware";
+import { isAdmin, getSuperadminEmails } from "../middleware/auth.middleware";
 
 // Create uploads directory if it doesn't exist
 const UPLOADS_DIR = path.join(process.cwd(), "uploads");
@@ -62,11 +62,7 @@ const isSuperadmin = async (req: any): Promise<boolean> => {
   
   if (!user) return false;
   
-  const superadminEmails = (process.env.SUPERADMIN_EMAILS || "")
-    .split(",")
-    .map(e => e.trim().toLowerCase())
-    .filter(e => e.length > 0);
-  
+  const superadminEmails = getSuperadminEmails();
   return (
     (user.email && superadminEmails.includes(user.email.toLowerCase())) ||
     user.role === "superadmin"

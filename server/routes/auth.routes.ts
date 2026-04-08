@@ -1,13 +1,7 @@
 import type { Express } from "express";
 import { isAuthenticated } from "../auth";
 import { storage } from "../storage";
-
-function getSuperadminEmails(): string[] {
-  return (process.env.SUPERADMIN_EMAILS || "")
-    .split(",")
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-}
+import { getSuperadminEmails } from "../middleware/auth.middleware";
 
 export function registerAuthRoutes(app: Express) {
   app.get("/api/auth/user", isAuthenticated, async (req: any, res) => {

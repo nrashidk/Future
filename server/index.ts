@@ -3,6 +3,7 @@ import helmet from "helmet";
 import morgan from "morgan";
 import compression from "compression";
 import cookieParser from "cookie-parser";
+import path from "path";
 import { validateEnvironmentVariables } from "./utils/env-validation";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
@@ -139,6 +140,9 @@ app.use((req, res, next) => {
   express.urlencoded({ extended: false })(req, res, next);
 });
 app.use(cookieParser());
+
+// Serve uploaded organization logos as static files
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // CSRF cookie is set early (just sets a cookie, doesn't validate)
 app.use(csrfProtection);

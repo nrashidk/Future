@@ -23,6 +23,11 @@ export function registerRecommendationsRoutes(app: Express) {
         return res.status(404).json({ message: "Assessment not found" });
       }
 
+      // IDOR protection: ensure the caller owns this assessment
+      if (assessment.userId && req.isAuthenticated() && (req.user as any)?.userId !== assessment.userId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
       // STRICT VALIDATION: Check all required components are complete
       // Use assessmentType to determine tier (not user.isPremium, as single assessments can be premium)
       const isPremium = isPremiumAssessment(assessment.assessmentType);

@@ -13,17 +13,34 @@ export default function AuthCallback() {
   useEffect(() => {
     const migrateAndRedirect = async () => {
       try {
-        // Fetch current user to check role
-        const userRes = await apiRequest("GET", "/api/auth/user");
-        const user = await userRes.json();
-        
+        // Retry fetching current user with exponential backoff to handle session race conditions
+        let user: any = null;
+        const delays = [100, 300, 700, 1500];
+        for (const delay of delays) {
+          await new Promise(resolve => setTimeout(resolve, delay));
+          try {
+            const userRes = await apiRequest("GET", "/api/auth/user");
+            if (userRes.ok) {
+              user = await userRes.json();
+              break;
+            }
+          } catch {
+            // continue retrying
+          }
+        }
+
+        if (!user) {
+          setLocation("/");
+          return;
+        }
+
         // Check if there are guest assessments to migrate
         const guestAssessmentIds = JSON.parse(localStorage.getItem("guestAssessments") || "[]");
         const guestSessionId = localStorage.getItem("guestSessionId");
-        
+
         if (guestAssessmentIds.length > 0 && guestSessionId) {
           const resultRes = await apiRequest("POST", "/api/assessments/migrate", {
-            guestAssessmentIds, 
+            guestAssessmentIds,
             guestSessionId
           });
           const result = await resultRes.json();
@@ -37,7 +54,7 @@ export default function AuthCallback() {
             localStorage.removeItem("guestSessionId");
           }
         }
-        
+
         // Redirect based on user role
         if (user?.role === "superadmin") {
           setLocation("/admin");
@@ -52,8 +69,7 @@ export default function AuthCallback() {
       }
     };
 
-    // Small delay to ensure auth is complete
-    setTimeout(migrateAndRedirect, 500);
+    migrateAndRedirect();
   }, [setLocation, toast]);
 
   return (

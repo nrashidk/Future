@@ -5,16 +5,9 @@ import { isAuthenticated } from "../auth";
 import DOMPurify from "isomorphic-dompurify";
 import type { ContributionSubmission } from "@shared/schema";
 import { getCurrentAcademicYear } from "../utils/subjects";
+import { getSuperadminEmails } from "../middleware/auth.middleware";
 
 const router = Router();
-
-// Get superadmin emails from environment variable
-function getSuperadminEmails(): string[] {
-  return (process.env.SUPERADMIN_EMAILS || "")
-    .split(",")
-    .map(email => email.trim().toLowerCase())
-    .filter(email => email.length > 0);
-}
 
 // Check if user is superadmin (async - fetches user from DB to check role)
 async function isSuperadmin(req: Request): Promise<boolean> {

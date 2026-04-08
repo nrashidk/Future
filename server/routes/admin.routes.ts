@@ -3,7 +3,7 @@ import multer from "multer";
 import path from "path";
 import { storage } from "../storage";
 import { isAuthenticated } from "../auth";
-import { isAdmin, isOrgAdmin } from "../middleware/auth.middleware";
+import { isAdmin, isOrgAdmin, getSuperadminEmails } from "../middleware/auth.middleware";
 import { dataExportLimiter } from "../middleware/rateLimiter.middleware";
 import { insertQuizQuestionSchema } from "@shared/schema";
 import { z } from "zod";
@@ -42,16 +42,6 @@ const upload = multer({
     }
   },
 });
-
-/**
- * Get superadmin emails from environment variable (normalized to lowercase)
- */
-const getSuperadminEmails = (): string[] => {
-  return (process.env.SUPERADMIN_EMAILS || "")
-    .split(",")
-    .map(e => e.trim().toLowerCase())
-    .filter(e => e.length > 0);
-};
 
 export function registerAdminRoutes(app: Express) {
   // Super Admin Endpoints - Quiz Question Management
@@ -360,11 +350,11 @@ export function registerAdminRoutes(app: Express) {
       }
 
       // Validate file type
-      const allowedTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml'];
+      const allowedTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
       if (!allowedTypes.includes(req.file.mimetype)) {
         const fs = await import('fs/promises');
         await fs.default.unlink(req.file.path).catch(() => {});
-        return res.status(400).json({ message: "Invalid file type. Only PNG, JPG, GIF, WebP, and SVG are allowed." });
+        return res.status(400).json({ message: "Invalid file type. Only PNG, JPG, GIF, and WebP are allowed." });
       }
 
       // Build the URL for the uploaded file

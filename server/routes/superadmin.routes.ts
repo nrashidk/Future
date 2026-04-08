@@ -4,16 +4,7 @@ import { isAuthenticated } from "../auth";
 import { z } from "zod";
 import { clearSubjectCache } from "../utils/subjects";
 import { dataExportLimiter, orgCreationLimiter } from "../middleware/rateLimiter.middleware";
-
-/**
- * Get superadmin emails from environment variable (normalized to lowercase)
- */
-const getSuperadminEmails = (): string[] => {
-  return (process.env.SUPERADMIN_EMAILS || "")
-    .split(",")
-    .map(e => e.trim().toLowerCase())
-    .filter(e => e.length > 0);
-};
+import { getSuperadminEmails } from "../middleware/auth.middleware";
 
 const isSuperadminMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   try {

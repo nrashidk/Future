@@ -3,7 +3,7 @@ import { storage } from "../storage";
 /**
  * Get superadmin emails from environment variable (normalized to lowercase)
  */
-const getSuperadminEmails = (): string[] => {
+export const getSuperadminEmails = (): string[] => {
   return (process.env.SUPERADMIN_EMAILS || "")
     .split(",")
     .map(e => e.trim().toLowerCase())

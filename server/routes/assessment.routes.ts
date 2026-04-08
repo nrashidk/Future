@@ -82,7 +82,6 @@ export function registerAssessmentRoutes(app: Express) {
         try {
           kolbScores = calculateKolbScores(validatedData.kolbResponses);
           assessmentType = 'kolb';
-          console.log("Learning style scores calculated:", kolbScores);
         } catch (error) {
           console.error("Error calculating learning style scores:", error);
         }
@@ -92,7 +91,6 @@ export function registerAssessmentRoutes(app: Express) {
       if (validatedData.riasecResponses) {
         try {
           riasecScores = calculateRiasecScores(validatedData.riasecResponses);
-          console.log("RIASEC scores calculated:", riasecScores);
         } catch (error) {
           console.error("Error calculating RIASEC scores:", error);
         }
@@ -110,7 +108,6 @@ export function registerAssessmentRoutes(app: Express) {
             if (organization?.curriculum) {
               // Override curriculum with organization's curriculum for org students
               assessmentCurriculum = organization.curriculum;
-              console.log(`[Assessment] Org student ${userId} inheriting curriculum from organization: ${assessmentCurriculum}`);
             }
           }
         }
@@ -125,14 +122,6 @@ export function registerAssessmentRoutes(app: Express) {
         kolbScores,
         riasecScores,
         curriculum: assessmentCurriculum,
-      });
-
-      // Debug logging
-      console.log("Assessment created:", {
-        isGuest,
-        assessmentId: assessment.id,
-        hasGuestToken: !!guestToken,
-        assessmentType
       });
 
       // Set guest token in httpOnly cookie for security (prevents XSS token theft)

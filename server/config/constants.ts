@@ -61,10 +61,11 @@ export const ENV_VARS = {
   ],
   OPTIONAL: [
     "STRIPE_SECRET_KEY",
-    "STRIPE_PUBLISHABLE_KEY",
+    "VITE_STRIPE_PUBLIC_KEY", // Build-time Vite variable — must be set at build time for checkout to work
     "STRIPE_WEBHOOK_SECRET", // Required for secure webhook verification
     "RESEND_API_KEY", // Required for email delivery
     "APP_URL", // Used in email links
+    "BASE_URL", // Required for OAuth callbacks (Google/Microsoft); falls back to Replit URL if absent
     "NODE_ENV",
   ],
 } as const;

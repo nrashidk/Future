@@ -10,6 +10,7 @@ import { storage } from "../storage";
 import { isAuthenticated } from "../auth";
 import { researchCountryData, generateCountryQuizQuestions, generateSectorWefMappings } from "../services/llmCountryService";
 import rateLimit from "express-rate-limit";
+import { getSuperadminEmails } from "../middleware/auth.middleware";
 
 const createCountrySchema = z.object({
   id: z.string().min(1).max(50).regex(/^[a-z0-9-]+$/, "ID must be lowercase alphanumeric with hyphens"),
@@ -43,16 +44,6 @@ const generateQuestionsSchema = z.object({
   curriculum: z.string().min(1).max(50),
   count: z.number().min(1).max(50).default(10),
 });
-
-/**
- * Get superadmin emails from environment variable (normalized to lowercase)
- */
-const getSuperadminEmails = (): string[] => {
-  return (process.env.SUPERADMIN_EMAILS || "")
-    .split(",")
-    .map(e => e.trim().toLowerCase())
-    .filter(e => e.length > 0);
-};
 
 const checkSuperadmin = async (req: any): Promise<boolean> => {
   const userId = req.user?.userId;

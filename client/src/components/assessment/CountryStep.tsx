@@ -32,7 +32,7 @@ export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps
       console.error("Countries loading error:", countriesError);
     }
     if (countries) {
-      console.log("Countries loaded:", countries.length);
+      // countries loaded
     }
   }, [countries, countriesError]);
 

@@ -252,8 +252,6 @@ export default function Assessment() {
           assessment = await response.json();
         }
         
-        console.log("Assessment saved:", assessment);
-        
         // Set assessmentId immediately after save
         setAssessmentId(assessment.id);
         

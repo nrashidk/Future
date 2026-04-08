@@ -1,16 +1,7 @@
 import type { Express } from "express";
 import { storage } from "../storage";
 import { isAuthenticated } from "../auth";
-
-/**
- * Get superadmin emails from environment variable (normalized to lowercase)
- */
-const getSuperadminEmails = (): string[] => {
-  return (process.env.SUPERADMIN_EMAILS || "")
-    .split(",")
-    .map(e => e.trim().toLowerCase())
-    .filter(e => e.length > 0);
-};
+import { getSuperadminEmails } from "../middleware/auth.middleware";
 
 /**
  * Helper to check if user is superadmin

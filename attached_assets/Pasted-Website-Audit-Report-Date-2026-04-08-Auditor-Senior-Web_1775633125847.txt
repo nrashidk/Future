@@ -1,0 +1,1155 @@
+Website Audit Report
+Date: 2026-04-08
+Auditor: Senior Web Auditor / QA Engineer / Cybersecurity Specialist
+Project: Future Pathways — Career Guidance Platform
+Stack: Node.js/Express, React/Vite, PostgreSQL (Neon), Drizzle ORM, Stripe, Passport.js
+
+Files Read
+Before writing this report, the following files were examined in full or in part:
+
+File	Status
+server/index.ts	Full
+server/auth.ts	Full
+server/db.ts	Full
+server/routes.ts	Full
+server/vite.ts	Full
+server/storage.ts	Partial (first 100 lines)
+server/config/constants.ts	Full
+server/middleware/auth.middleware.ts	Full
+server/middleware/csrf.middleware.ts	Full
+server/middleware/rateLimiter.middleware.ts	Full
+server/middleware/errorHandler.middleware.ts	Full
+server/utils/env-validation.ts	Full
+server/utils/encryption.ts	Full
+server/utils/sanitize.ts	Full
+server/utils/logger.ts	Full
+server/utils/passwordHash.ts	Full
+server/services/email.ts	Full
+server/services/llmNarrativeService.ts	Partial (first 60 lines)
+server/routes/auth.routes.ts	Full
+server/routes/admin.routes.ts	Partial (lines 1–250, 340–380, 1060–1140)
+server/routes/analytics.routes.ts	Partial (first 80 lines)
+server/routes/assessment.routes.ts	Partial (first 160 lines)
+server/routes/careers.routes.ts	Not read
+server/routes/contribution.routes.ts	Partial (first 60 lines)
+server/routes/country.routes.ts	Partial (first 60 lines)
+server/routes/countries.routes.ts	Not read
+server/routes/cvq.routes.ts	Not read
+server/routes/files.routes.ts	Full
+server/routes/organization.routes.ts	Full
+server/routes/password-reset.routes.ts	Full
+server/routes/payment.routes.ts	Full
+server/routes/progress.routes.ts	Partial (first 60 lines)
+server/routes/public.routes.ts	Full
+server/routes/quiz.routes.ts	Not read
+server/routes/recommendations.routes.ts	Full
+server/routes/superadmin.routes.ts	Partial (first 100 lines)
+server/routes/user.routes.ts	Partial (first 80 lines)
+server/routes/webhook.routes.ts	Full
+shared/schema.ts	Partial (first 100 lines)
+client/src/App.tsx	Full
+client/src/main.tsx	Full
+client/src/lib/queryClient.ts	Full
+client/src/lib/authUtils.ts	Full
+client/src/hooks/useAuth.ts	Full
+client/src/components/layout/Header.tsx	Partial (first 60 lines)
+client/src/components/ui/chart.tsx	Partial (lines 75–101)
+client/src/pages/Landing.tsx	Partial (first 60 lines)
+client/src/pages/Login.tsx	Full
+client/src/pages/Register.tsx	Full
+client/src/pages/Results.tsx	Partial (first 60 lines)
+client/src/pages/Assessment.tsx	Partial (first 40 lines, lines 315–335)
+client/src/pages/Checkout.tsx	Partial (first 40 lines, lines 130–145)
+client/src/pages/not-found.tsx	Full
+client/index.html	Full
+package.json	Full
+tsconfig.json	Full
+vite.config.ts	Full
+drizzle.config.ts	Full
+.replit	Full
+.gitignore	Full
+.agents/agent_assets_metadata.toml	Full
+Pre-Audit Command Output
+npm audit
+esbuild <=0.24.2
+Severity: moderate
+esbuild enables any website to send any requests to the development server and
+read the response - https://github.com/advisories/GHSA-67mh-4wv8-2f99
+fix available via `npm audit fix --force`
+Will install drizzle-kit@0.18.1, which is a breaking change
+
+4 moderate severity vulnerabilities
+
+npx tsc --noEmit
+error TS2688: Cannot find type definition file for 'node'.
+error TS2688: Cannot find type definition file for 'vite/client'.
+tsconfig.json(16,5): error TS5101: Option 'baseUrl' is deprecated and will stop
+functioning in TypeScript 7.0.
+
+npx eslint
+ESLint couldn't find an eslint.config.(js|mjs|cjs) file.
+ESLint v9+ requires eslint.config.js (flat config).
+No linting was performed — zero issues reported or suppressed.
+
+.env files found
+(none found)
+
+Files with localhost references
+server/routes/recommendations.routes.ts
+server/routes/admin.routes.ts
+
+Files with process.env references
+server/index.ts, server/middleware/auth.middleware.ts,
+server/middleware/csrf.middleware.ts, server/middleware/errorHandler.middleware.ts,
+server/services/email.ts, server/auth.ts, server/db.ts, server/utils/logger.ts,
+server/utils/encryption.ts, server/utils/env-validation.ts,
+server/routes/auth.routes.ts, server/routes/analytics.routes.ts,
+server/routes/recommendations.routes.ts, server/routes/country.routes.ts,
+server/routes/superadmin.routes.ts, server/routes/files.routes.ts,
+server/routes/webhook.routes.ts, server/routes/payment.routes.ts,
+server/routes/contribution.routes.ts, server/routes/public.routes.ts,
+server/routes/admin.routes.ts, server/routes/assessment.routes.ts,
+vite.config.ts, scripts/encrypt-existing-keys.ts, drizzle.config.ts
+
+Files with Replit references
+server/auth.ts
+server/routes/recommendations.routes.ts
+vite.config.ts
+
+Executive Summary
+Future Pathways is a moderately mature career-guidance SaaS built on a Node.js/Express + React/Vite stack with PostgreSQL via Neon's serverless driver. The codebase shows deliberate security awareness — bcrypt password hashing, Zod input validation, DOMPurify sanitisation, Stripe webhook signature verification, CSRF double-submit cookies, and Helmet security headers are all present. The PostgreSQL session store is correctly used; no SQLite or in-memory database was found.
+
+However, several issues will cause production breakage or create real security risk. The most serious production-breaker is that the /uploads/ directory (which stores organisation logos and admin-uploaded files) is never mounted as a static route, meaning all uploaded logos will return 404 in production. A second critical finding is that VITE_STRIPE_PUBLIC_KEY is not declared anywhere in the repository — the Stripe payment UI will be broken for all users unless this variable is injected at build time. Additionally, the OAuth callback URL construction in server/auth.ts falls back to a Replit-specific URL pattern (REPL_SLUG.REPL_OWNER.repl.co) when BASE_URL is unset — OAuth logins will silently break if BASE_URL is not provided in the production environment.
+
+Code quality concerns include: the getSuperadminEmails() helper function is copy-pasted identically across eight different server files with no shared import; ESLint is entirely absent (no config file, so no linting has ever run); TypeScript compilation reports three errors including missing @types/node and @types/vite declarations; and Puppeteer's --no-sandbox flag is used in both PDF generation endpoints, which is appropriate for containerized deployments but is explicitly commented as a Replit requirement, suggesting it was not evaluated for the final production environment.
+
+🔴 Critical Issues — Production Breakers
+CRIT-1 — Uploaded files (/uploads/) are never served as static assets
+File: server/vite.ts:79, server/routes/admin.routes.ts:371, server/routes/files.routes.ts:10
+Description: The production static file server (serveStatic in server/vite.ts:79) only mounts dist/public. The uploads/ directory is never passed to express.static(). Organisation logo URLs are stored as /uploads/<filename> (admin.routes.ts:371), but those paths will return 404 in production because nothing serves them.
+Recommended fix: In server/vite.ts (or server/index.ts), add before the catch-all:
+
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+
+Additionally, implement a proper S3/object-storage strategy for production so files survive deployments (see CRIT-3 below).
+
+CRIT-2 — VITE_STRIPE_PUBLIC_KEY is undefined at build time
+File: client/src/pages/Checkout.tsx:19–21
+Description: The Stripe publishable key is loaded via import.meta.env.VITE_STRIPE_PUBLIC_KEY. This value is baked into the client bundle at vite build time. No .env, .env.production, or documented VITE_STRIPE_PUBLIC_KEY declaration exists in the repository. The constant STRIPE_PUBLISHABLE_KEY is listed in server/config/constants.ts:64 as an optional server-side env var but is never forwarded to the Vite build context. Without VITE_STRIPE_PUBLIC_KEY set at build time, loadStripe() is called with undefined, Stripe silently fails, and the payment page is broken for all users.
+Recommended fix: Set VITE_STRIPE_PUBLIC_KEY=pk_live_... in the build environment (Replit Secrets → exposed to build, or a .env.production file added to the deployment pipeline). Note: this key is publishable (safe to embed in client bundles), not the secret key.
+
+CRIT-3 — File uploads use local ephemeral disk storage
+File: server/routes/files.routes.ts:10–11, server/routes/admin.routes.ts:16
+Description: All uploaded files (logos, data exports, credential ZIP files) are written to process.cwd()/uploads on the local filesystem. On ephemeral/autoscaling infrastructure (the .replit deployment target is autoscale), this directory is wiped on every deployment or container restart. Every uploaded logo and file will be permanently lost after a deploy.
+Recommended fix: Integrate cloud object storage (AWS S3, Cloudflare R2, or similar). Use multer-s3 or upload to S3 directly in the route handler, then store the public URL in the database instead of a local path.
+
+CRIT-4 — OAuth callback URL falls back to Replit-specific domain
+File: server/auth.ts:104
+
+const baseUrl = process.env.BASE_URL || `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
+
+Description: If BASE_URL is not set in production, the OAuth callback URL is constructed from REPL_SLUG and REPL_OWNER (Replit-specific injected variables). Outside Replit, both variables are undefined, producing https://undefined.undefined.repl.co as the callback URL. Google/Microsoft OAuth will reject this redirect URI, breaking all social login.
+Recommended fix: Add BASE_URL to the ENV_VARS.REQUIRED list in server/config/constants.ts, or at minimum add it to ENV_VARS.OPTIONAL with a startup warning. Remove the Replit fallback URL; there is no safe default for a production OAuth callback.
+
+CRIT-5 — Superadmin email exposed in committed .replit config file
+File: .replit:48
+
+[
+userenv.shared
+]
+SUPERADMIN_EMAILS = "nrashidk@gmail.com"
+
+Description: A real personal email address is hardcoded in the .replit configuration file, which appears to be committed to the repository. This both exposes PII and leaks the exact email that grants superadmin access to the application. Anyone who reads the repository can target this email for account takeover attempts to gain platform-wide admin privileges.
+Recommended fix: Remove the [userenv.shared] block from .replit entirely. Set SUPERADMIN_EMAILS via Replit Secrets (encrypted, not in source). Add .replit to .gitignore if it contains environment-specific values, or redact this section.
+
+🟠 High Priority Issues
+HIGH-1 — TypeScript compilation fails: missing @types/node and @types/vite
+File: tsconfig.json:17 ("types": ["node", "vite/client"])
+Description: Running npx tsc --noEmit produces three errors. The @types/node package exists in devDependencies (version 20.16.11) but the TypeScript resolver cannot find it — likely a workspace or moduleResolution: "bundler" conflict. This means TypeScript type checking is silent on all node built-in types, potentially masking type-level errors across the entire server codebase.
+Recommended fix: Ensure @types/node is correctly installed and visible (npm ls @types/node). Consider separating tsconfig.json into server and client variants (which have different lib and types needs). Fix the baseUrl deprecation warning by adding "ignoreDeprecations": "6.0" to compilerOptions.
+
+HIGH-2 — No ESLint configuration — zero linting enforced
+File: (repository root — no eslint.config.js exists)
+Description: npx eslint exits immediately with "ESLint couldn't find an eslint.config file." The project has no .eslintrc.* and no eslint.config.js. This means no linting rules (no-unused-vars, no-console, security plugins, etc.) have ever run. The devDependency list also does not include eslint or any ESLint plugins.
+Recommended fix: Install ESLint and create a flat config (eslint.config.js) with rules appropriate for a React + Node TypeScript project. Recommended plugins: @typescript-eslint, eslint-plugin-react, eslint-plugin-security.
+
+HIGH-3 — Console logging of credentials to browser in production
+File: client/src/pages/Checkout.tsx:137
+
+console.log("Your Login Credentials - Please Save:", data.credentials);
+
+Description: After a successful group purchase, the new user's plaintext username and password are logged to the browser console. Anyone with DevTools access (the user themselves, or an attacker with physical access, XSS, or a browser extension) can read these credentials. The comment "Also log to console as backup" indicates this is intentional, but it violates the principle of not storing or transmitting credentials in plaintext.
+Recommended fix: Remove the console.log entirely. The credentials modal (CredentialsModal) is the correct channel. If "backup" is needed, prompt the user to copy credentials from the modal; do not write them to an observable log.
+
+HIGH-4 — console.log debug statements left in server route handlers
+File: server/routes/assessment.routes.ts:85, 95, 113, 131
+Description: Server-side console.log statements log Kolb/RIASEC score objects, assessment IDs, and user IDs to stdout in production. With morgan('combined') already logging HTTP requests, these duplicate logs increase noise and may expose internal data structures in production logging systems.
+Recommended fix: Replace with logger.debug(...) calls (which are gated behind !isProduction in server/utils/logger.ts), or remove entirely. The logger utility is already implemented — it just is not being used consistently.
+
+HIGH-5 — Puppeteer --no-sandbox flag with no production justification
+File: server/routes/recommendations.routes.ts:277–284, server/routes/admin.routes.ts:1056–1061
+Description: Both PDF generation endpoints launch Chromium with --no-sandbox and --disable-setuid-sandbox. The code comment explicitly states: "Note: --no-sandbox is required in containerized environments like Replit." This flag bypasses the OS process sandbox, which is a meaningful security reduction. While necessary in some container environments, it should be confirmed that the production hosting environment also requires it, and if not, it should be removed.
+Recommended fix: Test PDF generation in the actual production environment without --no-sandbox. If the production host supports user namespaces (most modern Linux containers do), remove the flag. If required, document why in a security decision record.
+
+HIGH-6 — Rate limiting is IP-based with no distributed backend
+File: server/middleware/rateLimiter.middleware.ts:8–50, server/auth.ts:13–18
+Description: All rate limiters use express-rate-limit with the default in-memory store. In an autoscale deployment (multiple processes/pods), each process maintains its own counter. A user can send 5× the configured limit by spreading requests across N instances. This entirely defeats rate limiting on auth endpoints (login, registration, password reset).
+Recommended fix: Use rate-limit-redis or rate-limit-postgresql as the store so counters are shared across all instances. Since the project already has PostgreSQL, a PostgreSQL-backed store is straightforward.
+
+HIGH-7 — CSRF_TOKEN comparison is not timing-safe
+File: server/middleware/csrf.middleware.ts:81
+
+if (cookieToken !== headerToken) {
+
+Description: Token comparison uses JavaScript's !== operator, which is a short-circuit string comparison. Theoretically, a timing side-channel attack could distinguish matches from mismatches. For a 64-character hex token this risk is low but real.
+Recommended fix: Use crypto.timingSafeEqual(Buffer.from(cookieToken), Buffer.from(headerToken)) for the CSRF token comparison.
+
+🟡 Medium Priority Issues
+MED-1 — localhost hardcoded in bulk PDF generation (admin route)
+File: server/routes/admin.routes.ts:1110
+
+const printUrl = `http://localhost:${process.env.PORT || 5000}/print/results?assessmentId=...`;
+
+Description: The bulk PDF generation for organisation members navigates Puppeteer to http://localhost:<port>/print/results. In a distributed/containerized environment where the server and Puppeteer run in the same process this is fine, but this hard-codes the assumption of a single-process single-host architecture. Additionally, the SSRF validation in the same code (allowedHosts = ['localhost', '127.0.0.1']) explicitly restricts to only localhost, which is intentional but should be documented.
+Note: The individual PDF endpoint (recommendations.routes.ts:293–295) correctly uses req.get('host') in production — the admin bulk PDF endpoint should be updated to match.
+Recommended fix: Refactor to match the individual PDF endpoint pattern, using req.get('host') in production and localhost in development.
+
+MED-2 — getSuperadminEmails() function duplicated across 8 server files
+File: server/middleware/auth.middleware.ts:6, server/routes/auth.routes.ts:5, server/routes/analytics.routes.ts:8, server/routes/country.routes.ts:50, server/routes/superadmin.routes.ts:11, server/routes/files.routes.ts:64, server/routes/contribution.routes.ts:12, server/routes/admin.routes.ts:49
+Description: The exact same 5-line helper is copy-pasted into every route file that needs superadmin checking. If the logic ever changes (e.g., supporting role-based access without email lookup), it must be updated in 8 places — high risk of inconsistency. The centralised version already exists in server/middleware/auth.middleware.ts.
+Recommended fix: Export getSuperadminEmails() from server/middleware/auth.middleware.ts and import it into all 7 other files. Alternatively, use the isAdmin / isOrgAdmin middleware consistently rather than inline checks.
+
+MED-3 — No .env.example or documented environment variable requirements
+File: Repository root (missing)
+Description: There is no .env.example, README.md, or deployment guide documenting the required environment variables. New developers and deployment engineers have no reference. The ENV_VARS constant in server/config/constants.ts is the closest thing, but it omits BASE_URL, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET, EMAIL_FROM, and VITE_STRIPE_PUBLIC_KEY.
+Recommended fix: Create a .env.example file listing all variables with placeholder values and a one-line description of each.
+
+MED-4 — BASE_URL, GOOGLE_CLIENT_ID, MICROSOFT_CLIENT_ID, and EMAIL_FROM are not validated at startup
+File: server/config/constants.ts:55–69, server/utils/env-validation.ts
+Description: The startup validator only checks DATABASE_URL, SESSION_SECRET, SUPERADMIN_EMAILS, and DB_ENCRYPTION_KEY as required. BASE_URL (needed for OAuth callbacks), GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET/MICROSOFT_CLIENT_ID/MICROSOFT_CLIENT_SECRET (OAuth providers), EMAIL_FROM (email from address), and VITE_STRIPE_PUBLIC_KEY (Stripe client) are not listed at all. The server starts successfully even when OAuth is completely misconfigured.
+Recommended fix: Add BASE_URL to ENV_VARS.REQUIRED. Add OAuth and email variables to ENV_VARS.OPTIONAL with warnings.
+
+MED-5 — dangerouslySetInnerHTML used in chart component
+File: client/src/components/ui/chart.tsx:81–98
+Description: The chart component uses dangerouslySetInnerHTML to inject CSS custom properties. The injected content (--color-${key}: ${color}) is derived from a colorConfig array that originates from component props. If any consumer passes untrusted color values from an API response, this is an XSS vector.
+Description of actual risk: In current usage the color values come from a static THEMES constant in the same file, so the risk is low. However, itemConfig.color can come from props.
+Recommended fix: Sanitize the color value with a CSS color validation regex before injection, or use inline style attributes on DOM elements instead of injecting a <style> tag.
+
+MED-6 — Assessment draft data stored in localStorage includes sensitive context
+File: client/src/components/RiasecStep.tsx:116, 134, client/src/components/CVQStep.tsx:102, client/src/pages/Assessment.tsx:320
+Description: RIASEC response data, CVQ values response data, and the full pending assessment object (name, age, grade, gender, subjects, interests, personality traits, etc.) are stored in localStorage. localStorage is accessible to any JavaScript running in the same origin, including injected scripts from a successful XSS attack. Additionally, browser extensions can read localStorage.
+Note: This is not authentication token storage (which would be OWASP A07), but it is PII of minors (ages 13–18) being stored in a weakly protected client-side store.
+Recommended fix: For draft persistence, use sessionStorage instead of localStorage (cleared when the tab closes). For assessment submission recovery, consider server-side draft storage (the assessment can be created with isCompleted: false).
+
+MED-7 — No Content Security Policy nonce — unsafe-inline used for styles
+File: server/index.ts:29–32
+
+styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+
+Description: 'unsafe-inline' for style-src allows any inline style attribute or <style> tag to execute. While CSS injection is lower severity than JS injection, it enables CSS exfiltration attacks (extracting data via CSS selectors and request URLs) and clickjacking via CSS overlay.
+Recommended fix: Move Tailwind/component inline styles to external CSS classes during the build. If inline styles are unavoidable, use nonce-based CSP for styles. At minimum, document why 'unsafe-inline' is necessary.
+
+MED-8 — memorystore package is installed but never used
+File: package.json:83 ("memorystore": "^1.6.7")
+Description: The memorystore npm package is in dependencies (not devDependencies) but no code imports or uses it. Sessions are correctly stored in PostgreSQL via connect-pg-simple. This is dead weight that marginally increases bundle size and attack surface.
+Recommended fix: Remove memorystore from package.json and run npm install.
+
+MED-9 — Organisation logo uploads accept image/svg+xml without sanitisation
+File: server/routes/admin.routes.ts:363
+
+const allowedTypes = ['image/png','image/jpeg','image/gif','image/webp','image/svg+xml'];
+
+Description: SVG files are XML documents that can contain embedded <script> tags, javascript: href links, and external entity references (XXE). If an organisation admin uploads a malicious SVG and it is served from the same origin, it becomes a stored XSS vector.
+Recommended fix: Either remove SVG from the allowed list, or pass uploaded SVGs through an SVG sanitizer (e.g., svgo or DOMPurify with SVG support) before saving.
+
+MED-10 — esbuild moderate vulnerability in drizzle-kit
+File: package-lock.json (transitive dependency)
+Description: npm audit reports 4 moderate severity vulnerabilities all tracing to esbuild <=0.24.2 in the drizzle-kit dependency chain. The CVE (GHSA-67mh-4wv8-2f99) allows any website to send arbitrary requests to the esbuild development server and read the response. This only affects the dev build process, not the production bundle or runtime. However, it is a confirmed vulnerability.
+Recommended fix: Running npm audit fix --force would install drizzle-kit@0.18.1 which is a breaking change. Instead, manually upgrade drizzle-kit to the latest version (^0.31.10 is already specified but constrained by the npm resolution) and verify the fix. Alternatively, accept the risk since this is a dev-only vulnerability.
+
+🟢 Low Priority / Recommendations
+LOW-1 — baseUrl TypeScript option deprecated
+File: tsconfig.json:16
+Description: "baseUrl": "." triggers error TS5101 in TypeScript 6.x, which warns it will stop working in TypeScript 7.0. Path aliases are correctly handled by Vite's resolve.alias config; baseUrl is only needed for the TS language server.
+Recommended fix: Add "ignoreDeprecations": "6.0" to compilerOptions as a bridge until path alias handling is migrated.
+
+LOW-2 — @octokit/rest in production dependencies appears unused
+File: package.json:21 ("@octokit/rest": "^21.1.1")
+Description: The GitHub REST API client is listed in production dependencies. No route or service file in the project imports or uses it.
+Recommended fix: Remove from package.json and run npm install. If it is used by a script, move it to devDependencies.
+
+LOW-3 — Health check endpoint exposes database status to the public
+File: server/routes/public.routes.ts:10–37
+Description: GET /health is publicly accessible (no authentication) and returns { services: { database: "healthy/unhealthy" } }. While this is intentional for load balancers, the error path also calls console.error with the full database error object including connection strings in some PostgreSQL drivers.
+Recommended fix: Add a format: 'short' option that only returns { status: "ok" } for unauthenticated callers, and return the detailed version only for internal (private IP range) callers.
+
+LOW-4 — No test suite exists
+File: package.json (no test script, no test framework in devDependencies)
+Description: There are no unit tests, integration tests, or end-to-end tests. The tsconfig.json excludes **/*.test.ts implying tests were planned, but none exist.
+Recommended fix: Add Vitest (compatible with Vite projects) for unit tests and at minimum test the scoring logic, CSRF middleware, and authentication flows.
+
+LOW-5 — STRIPE_PUBLISHABLE_KEY is in server env vars but client needs VITE_ prefix
+File: server/config/constants.ts:64
+Description: STRIPE_PUBLISHABLE_KEY is listed as an optional server-side env var. However, it is the Stripe publishable key — it should be in the client-side Vite build context as VITE_STRIPE_PUBLIC_KEY. The naming inconsistency will cause confusion about which variable to set.
+Recommended fix: Remove STRIPE_PUBLISHABLE_KEY from the server-side ENV_VARS.OPTIONAL list (the server never uses it — the server uses STRIPE_SECRET_KEY). Document VITE_STRIPE_PUBLIC_KEY in .env.example as a build-time variable.
+
+LOW-6 — Session regeneration
+
+Ran 5 commands, read 3 files
+Ran 5 commands, read 3 files
+
+Now I have enough information to write the comprehensive report. Let me compile all findings.
+
+Website Audit Report
+Date: 2026-04-08
+Auditor: Senior Web Auditor / QA / Cybersecurity Specialist
+Project: Future Pathways (nrashidk/future)
+
+Files Read
+Server:
+
+server/index.ts — App entry point, middleware setup
+server/auth.ts — Authentication, sessions, OAuth
+server/db.ts — Database connection
+server/routes.ts — Route registration
+server/vite.ts — Vite dev & static file serving
+server/storage.ts — Data access layer (header)
+server/config/constants.ts — ENV_VARS definitions, rate limits
+server/middleware/auth.middleware.ts — isAdmin, isOrgAdmin
+server/middleware/csrf.middleware.ts — CSRF implementation
+server/middleware/rateLimiter.middleware.ts — Rate limiters
+server/middleware/errorHandler.middleware.ts — Global error handler
+server/utils/env-validation.ts — Startup env validation
+server/utils/encryption.ts — AES-256-GCM encryption
+server/utils/sanitize.ts — DOMPurify input sanitizer
+server/utils/logger.ts — Structured logger
+server/utils/passwordHash.ts — bcrypt hashing
+server/services/email.ts — Resend email service
+server/services/llmNarrativeService.ts — LLM narrative generation
+server/routes/admin.routes.ts — Admin routes (lines 1–100, 100–200, 200–250, 340–390, 1060–1140, 1740–1819)
+server/routes/assessment.routes.ts — Assessment creation (lines 1–160)
+server/routes/auth.routes.ts — Auth user endpoint
+server/routes/analytics.routes.ts — Analytics routes (lines 1–80)
+server/routes/contribution.routes.ts — Contribution/rewards routes (lines 1–60)
+server/routes/country.routes.ts — Country management routes (lines 1–60)
+server/routes/files.routes.ts — File upload/download routes
+server/routes/organization.routes.ts — Organization routes
+server/routes/password-reset.routes.ts — Password reset flow
+server/routes/payment.routes.ts — Stripe payment routes
+server/routes/progress.routes.ts — Student progress (lines 1–60)
+server/routes/public.routes.ts — Public endpoints
+server/routes/recommendations.routes.ts — Recommendation & PDF generation
+server/routes/superadmin.routes.ts — Superadmin routes (lines 1–100)
+server/routes/user.routes.ts — GDPR data export (lines 1–80)
+server/routes/webhook.routes.ts — Stripe webhooks
+Client:
+
+client/index.html — HTML entry, SEO meta, font loading
+client/src/main.tsx — React root
+client/src/App.tsx — Router, error boundary
+client/src/lib/queryClient.ts — Fetch client with CSRF
+client/src/lib/authUtils.ts — Auth error helper
+client/src/hooks/useAuth.ts — Auth hook
+client/src/pages/Landing.tsx — Landing page (lines 1–60)
+client/src/pages/Login.tsx — Login page
+client/src/pages/Register.tsx — Registration page (lines 1–80)
+client/src/pages/Assessment.tsx — Assessment flow (lines 1–40, 80–160, 315–335)
+client/src/pages/Checkout.tsx — Stripe checkout (lines 1–40, 130–145)
+client/src/pages/Results.tsx — Results page (lines 1–60, 140–165)
+client/src/pages/AuthCallback.tsx — OAuth callback
+client/src/pages/not-found.tsx — 404 page
+client/src/components/ui/chart.tsx — Chart component (lines 75–102)
+client/src/components/layout/Header.tsx — Navigation (lines 1–60)
+Config:
+
+package.json — Dependencies, scripts
+tsconfig.json — TypeScript config
+vite.config.ts — Vite configuration
+drizzle.config.ts — Drizzle ORM config
+.replit — Replit deployment config
+.gitignore — Git ignore rules
+shared/schema.ts — Database schema (lines 1–100)
+migrations/meta/_journal.json — Migration journal
+.agents/agent_assets_metadata.toml — Agent asset metadata
+Tool Output Summary
+npm audit
+esbuild  <=0.24.2
+Severity: moderate
+esbuild enables any website to send any requests to the development server
+and read the response - https://github.com/advisories/GHSA-67mh-4wv8-2f99
+
+Affected chain: esbuild → @esbuild-kit/core-utils → @esbuild-kit/esm-loader
+→ drizzle-kit (dev dependency only)
+
+4 moderate severity vulnerabilities
+Fix: npm audit fix --force (installs drizzle-kit@0.18.1 — breaking change)
+
+npx tsc --noEmit
+error TS2688: Cannot find type definition file for 'node'.
+error TS2688: Cannot find type definition file for 'vite/client'.
+tsconfig.json(16,5): error TS5101: Option 'baseUrl' is deprecated and will
+stop functioning in TypeScript 7.0.
+
+npx eslint . --ext .js,.jsx,.ts,.tsx
+ESLint couldn't find an eslint.config.(js|mjs|cjs) file.
+From ESLint v9.0.0, the default configuration file is now eslint.config.js.
+ESLint 10.1.0 is installed but no config file is present.
+
+find . -name "*.env*" -not -path "*/node_modules/*"
+(no output — no .env files present)
+
+grep -r "localhost" ...
+server/routes/recommendations.routes.ts  (line 295)
+server/routes/admin.routes.ts            (lines 1075, 1077, 1110)
+
+grep -r "process\.env" ...
+(29 files — listed in Environment Variable Audit section)
+
+grep -r "replit|repl\.co|replit\.dev" ...
+server/auth.ts (line 104)
+server/routes/recommendations.routes.ts (lines 321–323)
+vite.config.ts (line 8)
+
+Executive Summary
+Future Pathways is a career-guidance web application for secondary students built with a React + TypeScript frontend, Express.js backend, and Neon PostgreSQL database. The codebase exhibits a solid security posture in many areas — CSRF protection, session-secured cookies, Stripe webhook signature verification, argon2/bcrypt password hashing, DOMPurify sanitization, input validation via Zod, and rate limiting on all sensitive endpoints are all properly implemented.
+
+However, the project carries several production-breaking defects originating from its Replit development environment. Most critically: (1) the uploaded file directory (/uploads/) has no static-serving middleware registered, meaning every organization logo will return 404 in production; (2) the Stripe public key is read from VITE_STRIPE_PUBLIC_KEY which is never declared or documented, silently disabling payments; and (3) the OAuth callback URL falls back to a hardcoded Replit domain if BASE_URL is unset, breaking Google/Microsoft login in any non-Replit environment.
+
+Additional concerns include a personal email address (nrashidk@gmail.com) committed in the .replit file under [userenv.shared], student credential data logged to the browser console on checkout completion, in-memory rate limiting that fails under load balancing, and TypeScript configuration errors that prevent the type checker from running. The ESLint toolchain is entirely absent (no config file). None of these issues constitute active exploits in a single-server Replit deployment, but all are genuine obstacles to a safe, functional production deployment on any other platform.
+
+🔴 Critical Issues — Production Breakers
+1. OAuth Callback URL Falls Back to Replit Domain
+File: server/auth.ts:104
+
+const baseUrl = process.env.BASE_URL || `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
+
+Description: If BASE_URL is not set (it is not listed as a REQUIRED env var in constants.ts), the OAuth callback URL is constructed from REPL_SLUG and REPL_OWNER Replit environment variables. In production on any non-Replit host, both those env vars will be undefined, producing https://undefined.undefined.repl.co as the callback URL. Google and Microsoft OAuth will reject this, completely breaking SSO login.
+
+Fix:
+
+Add BASE_URL to ENV_VARS.REQUIRED in server/config/constants.ts:56
+Remove the Replit fallback: const baseUrl = process.env.BASE_URL!;
+Register this callback URL in the Google Cloud Console and Azure App Registration for production.
+2. Uploaded Files (/uploads/) Are Never Served as Static Files
+File: server/routes/admin.routes.ts:371, server/routes/files.routes.ts:10–11, server/vite.ts:79
+
+const logoUrl = `/uploads/${req.file.filename}`;  // admin.routes.ts:371
+app.use(express.static(distPath));                  // vite.ts:79 — only dist/public served
+
+Description: Files uploaded by admins (organization logos, student credential CSVs, etc.) are stored in process.cwd()/uploads/ and their URLs are recorded as /uploads/<filename>. However, there is no express.static('uploads') middleware registered anywhere in the server. In production, every request to /uploads/* will fall through to the SPA catch-all and return index.html. All organization logos will be invisible.
+
+Fix: Add a static middleware route in server/vite.ts (or server/index.ts) before the SPA catch-all:
+
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+
+Also note: the uploads directory does not exist in the repo (not committed, not in .gitignore as an exception), so it must be created on deployment.
+
+3. VITE_STRIPE_PUBLIC_KEY Is Undeclared and Undocumented
+File: client/src/pages/Checkout.tsx:19–23
+
+const key = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
+if (!key) {
+  console.error('Missing VITE_STRIPE_PUBLIC_KEY');
+  return null;
+}
+
+Description: The checkout page reads VITE_STRIPE_PUBLIC_KEY from Vite environment variables. This variable is not present in server/config/constants.ts, not in any .env file (none exist), and is not documented anywhere. The server's constants.ts declares STRIPE_PUBLISHABLE_KEY (server-side, unprefixed), but Vite requires client-exposed vars to be prefixed with VITE_. If this env var is not set at build time, Stripe cannot be initialized and the entire payment flow silently returns null — no error to the user.
+
+Fix:
+
+Create a .env.example file documenting VITE_STRIPE_PUBLIC_KEY=pk_live_...
+Add a Vite build-time check (or use vite-plugin-check-env)
+At runtime, display a user-visible error rather than a console-only message
+4. Session Store Created With createTableIfMissing: false
+File: server/auth.ts:26
+
+const sessionStore = new pgStore({
+  conString: process.env.DATABASE_URL,
+  createTableIfMissing: false,  // ← sessions table must pre-exist
+  ...
+});
+
+Description: The PostgreSQL session store is configured to NOT create the sessions table automatically. The sessions table is defined in shared/schema.ts and created by migrations. In a fresh production deployment where migrations haven't been run yet, the server will crash with a database error on any authenticated request. db:push or drizzle-kit migrate must be run before startup, but this is not enforced or documented.
+
+Fix: Either set createTableIfMissing: true, or add a pre-startup migration check, or document the required migration step prominently in deployment instructions.
+
+5. TypeScript Compilation Fails — Type Checking Is Broken
+File: tsconfig.json:16–17
+
+"types": ["node", "vite/client"],
+"baseUrl": "."
+
+Description: Running npx tsc --noEmit produces 3 errors: missing type definitions for node and vite/client (the @types/node v20 package is present but the tsconfig references don't resolve), and baseUrl is deprecated as of TypeScript 6.0 (current version in use is 5.6.3, but the flag is already raising a TS5101 error). The practical impact is that the project's compile-time type checking cannot be used as a quality gate in CI.
+
+Fix:
+
+Replace "baseUrl": "." with "ignoreDeprecations": "6.0" per the error message, or migrate path aliases to use paths without baseUrl
+Verify @types/node is resolvable in the tsconfig include paths
+🟠 High Priority Issues
+6. Personal Email Hardcoded in .replit Config File
+File: .replit:48
+
+[
+userenv.shared
+]
+SUPERADMIN_EMAILS = "nrashidk@gmail.com"
+
+Description: The .replit file's [userenv.shared] section sets SUPERADMIN_EMAILS to a personal Gmail address. This file is committed to the repository (it is not in .gitignore). Anyone with read access to the repository can see the superadmin email, which reveals the PII of the system administrator and makes social-engineering or phishing attacks easier.
+
+Fix: Remove the [userenv.shared] section from .replit. Set SUPERADMIN_EMAILS only in the Replit Secrets pane (encrypted) or in a production secrets manager. Add [userenv.shared] to .gitignore or move those values to .replit.local.
+
+7. Student Login Credentials Logged to Browser Console
+File: client/src/pages/Checkout.tsx:137
+
+// Also log to console as backup
+console.log("Your Login Credentials - Please Save:", data.credentials);
+
+Description: After a successful group purchase, newly generated student usernames and plaintext passwords are logged to the browser console. Any browser extension, XSS attack, or shared screen/session could expose these credentials. The comment "as backup" suggests this was added as a debug measure and never removed.
+
+Fix: Remove the console.log statement entirely. The credentials modal (CredentialsModal) already displays them to the user.
+
+8. Rate Limiting Uses Per-Process In-Memory Store
+File: server/middleware/rateLimiter.middleware.ts:1–51, server/auth.ts:13–19
+Description: All rate limiters (authLimiter, paymentLimiter, recommendationsLimiter, etc.) use express-rate-limit with its default in-memory store. In a multi-instance deployment (e.g., Replit Autoscale, Docker Swarm, Kubernetes), each instance has an independent counter. An attacker can bypass rate limits by spreading requests across instances. The .replit deploymentTarget = "autoscale" makes this an active concern.
+
+Fix: Use a shared store such as rate-limit-redis or rate-limit-postgres. Example:
+
+import { RedisStore } from 'rate-limit-redis';
+
+9. OAuth Variables Missing from Environment Variable Validation
+File: server/config/constants.ts:55–70, server/auth.ts:104–133
+
+// auth.ts uses these — none are in constants.ts:
+process.env.BASE_URL
+process.env.REPL_SLUG         // implicit fallback
+process.env.REPL_OWNER        // implicit fallback
+process.env.GOOGLE_CLIENT_ID
+process.env.GOOGLE_CLIENT_SECRET
+process.env.MICROSOFT_CLIENT_ID
+process.env.MICROSOFT_CLIENT_SECRET
+// email.ts uses this — not in constants.ts:
+process.env.EMAIL_FROM
+
+Description: Eight environment variables are consumed by the application but not listed in ENV_VARS.REQUIRED or ENV_VARS.OPTIONAL. They will never trigger the startup warning from validateEnvironmentVariables(), leaving operators with no guidance on what to set.
+
+Fix: Add all of these to ENV_VARS.OPTIONAL (or REQUIRED for BASE_URL) in server/config/constants.ts.
+
+10. Bulk PDF Generation Hardcodes http://localhost
+File: server/routes/admin.routes.ts:1110
+
+const printUrl = `http://localhost:${process.env.PORT || 5000}/print/results?assessmentId=${completedAssessment.id}`;
+
+Description: The admin bulk-PDF endpoint constructs URLs with http://localhost and the app port. This is intentional for internal server-to-server Puppeteer calls, and the validation function at line 1075 correctly restricts to localhost only. However, in containerised deployments where the HTTP server is listening on a different loopback interface or the PDF generation runs in a separate container, this will fail. The comment "Only allow localhost URLs" also contradicts the single-PDF endpoint (recommendations.routes.ts:293) which dynamically uses the production host.
+
+Fix: Align both PDF endpoints to use the same approach. Consider either: (a) always using internal localhost for Puppeteer (current bulk approach), or (b) using req.get('host') with strict validation (current single-PDF approach). Document the design decision.
+
+11. debug Console Logs Left in Production Server Code
+Files: server/routes/assessment.routes.ts:85, 95, 113, 131–136
+
+console.log("Learning style scores calculated:", kolbScores);  // line 85
+console.log("RIASEC scores calculated:", riasecScores);        // line 95
+console.log(`[Assessment] Org student ${userId} inheriting...`); // line 113
+console.log("Assessment created:", { isGuest, assessmentId, ... }); // line 131
+
+Description: Multiple console.log debug statements remain in the production assessment creation path. These log potentially sensitive information (assessment IDs, user IDs, Kolb/RIASEC scores) to stdout in production, creating excessive log noise and potential PII exposure in centralized logging systems.
+
+Fix: Replace with the structured logger.debug() from server/utils/logger.ts (which is suppressed in production) or remove the statements.
+
+12. Puppeteer Runs With --no-sandbox in All Environments
+Files: server/routes/recommendations.routes.ts:283, server/routes/admin.routes.ts:1061
+
+args: ['--no-sandbox', '--disable-setuid-sandbox', ...]
+
+Description: Both PDF generation endpoints launch Chromium with --no-sandbox, which disables the OS-level sandbox that protects against renderer exploits. Comments note this is "required in containerized environments like Replit." While the SSRF URL validation is present, removing the sandbox means any Chromium exploit could directly affect the host process.
+
+Fix: For production deployments with proper user namespacing (most cloud VMs), remove --no-sandbox. Only keep it where truly required (Replit, certain Docker configurations). Use an environment variable flag:
+
+...(process.env.PUPPETEER_NO_SANDBOX === 'true' ? ['--no-sandbox'] : []),
+
+🟡 Medium Priority Issues
+13. No .env.example File — Environment Setup Undocumented
+Files: No .env* files anywhere in the project
+Description: The project has no .env.example or documentation listing the required environment variables. There are 17+ distinct env vars consumed by the application. A new developer or ops engineer has no reference for what to set, requiring them to grep through the codebase.
+
+Fix: Create .env.example listing all vars from ENV_VARS.REQUIRED, ENV_VARS.OPTIONAL, plus BASE_URL, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET, EMAIL_FROM, VITE_STRIPE_PUBLIC_KEY with descriptive comments.
+
+14. ESLint Not Configured — Static Analysis Completely Absent
+Issue: No eslint.config.js (or .eslintrc.*) file exists in the project. ESLint 10.1.0 is installed but cannot run.
+Description: Without ESLint, there is no automated enforcement of code style, no detection of unused variables, no accessibility rules, no React hooks linting, and no detection of obvious bugs.
+
+Fix: Create eslint.config.js with recommended TypeScript and React rules:
+
+import tseslint from 'typescript-eslint';
+export default tseslint.config(...);
+
+15. dangerouslySetInnerHTML Used in Chart Component
+File: client/src/components/ui/chart.tsx:81
+
+<style dangerouslySetInnerHTML={{ __html: cssString }} />
+
+Description: The chart component injects CSS via dangerouslySetInnerHTML. The content is computed from internal theme constants (not user input), so the actual XSS risk is currently zero. However, if the colorConfig source ever incorporates user-provided values (e.g., organization custom branding colors), this becomes an XSS vector.
+
+Fix: Continue current usage but add a comment clearly stating that colorConfig values must never include untrusted user input. Alternatively, use CSS custom property APIs to set values programmatically without HTML injection.
+
+16. getSuperadminEmails() Helper Duplicated Across 8+ Files
+Files: server/middleware/auth.middleware.ts, server/routes/auth.routes.ts, server/routes/analytics.routes.ts, server/routes/country.routes.ts, server/routes/superadmin.routes.ts, server/routes/files.routes.ts, server/routes/contribution.routes.ts, server/routes/admin.routes.ts
+Description: The same 5-line function is copy-pasted into 8 different files. The single canonical version in server/middleware/auth.middleware.ts is never imported by the route files. Any change to superadmin email normalization logic must be applied in 8 places.
+
+Fix: Export getSuperadminEmails() from server/middleware/auth.middleware.ts and replace all duplicates with the import.
+
+17. esbuild Moderate Vulnerability (Dev Dependency)
+Source: npm audit output
+Description: drizzle-kit (dev dependency) transitively depends on esbuild <=0.24.2, which has a vulnerability allowing websites to send arbitrary requests to the development server. This only affects the development server (npm run dev), not the production build. However, it means any website open in the browser while npm run dev is running can probe the local dev server.
+
+Fix: Run npm audit fix --force (which upgrades to drizzle-kit@0.18.1), or accept the risk since this only affects developers running the dev server, not production.
+
+18. Session Logout Uses GET — CSRF Risk
+File: server/auth.ts:248
+
+app.
+
+Now I have enough data to write a comprehensive report. Let me compile it.
+
+Website Audit Report
+Date: 2026-04-08
+Auditor: Senior Web Auditor / QA Engineer / Cybersecurity Specialist
+Project: Future Pathways — Career Guidance Platform
+Focus: Production Readiness + Full QA + Security
+
+Files Read (Pre-Report)
+File	Purpose
+server/index.ts	Express entry point, middleware config
+server/auth.ts	Passport strategies, session setup, OAuth
+server/db.ts	Neon PostgreSQL connection
+server/routes.ts	Route registration
+server/vite.ts	Vite dev server + static file serving
+server/storage.ts	Storage layer imports
+server/config/constants.ts	ENV_VARS lists, rate limit constants
+server/middleware/auth.middleware.ts	isAdmin, isOrgAdmin middleware
+server/middleware/csrf.middleware.ts	CSRF implementation
+server/middleware/rateLimiter.middleware.ts	Rate limiter instances
+server/middleware/errorHandler.middleware.ts	Global error handler
+server/utils/env-validation.ts	Startup env variable validation
+server/utils/encryption.ts	AES-256-GCM encryption utilities
+server/utils/logger.ts	Structured logger
+server/utils/passwordHash.ts	bcrypt password hashing
+server/utils/sanitize.ts	DOMPurify input sanitization
+server/services/email.ts	Resend email service
+server/services/llmNarrativeService.ts	LLM narrative generation
+server/routes/admin.routes.ts	Admin routes (read lines 1-100, 200-250, 340-380, 1060-1140, 1740-1819)
+server/routes/analytics.routes.ts	Analytics routes
+server/routes/assessment.routes.ts	Assessment creation routes
+server/routes/auth.routes.ts	Auth user endpoint
+server/routes/careers.routes.ts	(not individually read — referenced)
+server/routes/contribution.routes.ts	Contribution/rewards system
+server/routes/country.routes.ts	Country management
+server/routes/cvq.routes.ts	CVQ assessment routes
+server/routes/files.routes.ts	File upload/download routes
+server/routes/organization.routes.ts	Organization admin routes
+server/routes/password-reset.routes.ts	Password reset flow
+server/routes/payment.routes.ts	Stripe payment routes
+server/routes/progress.routes.ts	Student progression routes
+server/routes/public.routes.ts	Public/health endpoints
+server/routes/quiz.routes.ts	(not individually read)
+server/routes/recommendations.routes.ts	Recommendations + PDF
+server/routes/superadmin.routes.ts	Superadmin dashboard
+server/routes/user.routes.ts	GDPR data export/delete
+server/routes/webhook.routes.ts	Stripe webhook
+shared/schema.ts	Database schema
+vite.config.ts	Vite configuration
+drizzle.config.ts	Drizzle ORM config
+package.json	Dependencies and scripts
+tsconfig.json	TypeScript configuration
+.replit	Replit deployment config
+.gitignore	Git ignore rules
+client/index.html	HTML entry point
+client/src/main.tsx	React entry
+client/src/App.tsx	Router, ErrorBoundary
+client/src/lib/queryClient.ts	TanStack Query + API request util
+client/src/lib/authUtils.ts	Auth error helper
+client/src/hooks/useAuth.ts	Auth hook
+client/src/pages/Login.tsx	Login page
+client/src/pages/Register.tsx	Registration page
+client/src/pages/Checkout.tsx	Stripe payment checkout
+client/src/pages/Assessment.tsx	Multi-step assessment
+client/src/pages/Results.tsx	Results page
+client/src/pages/AuthCallback.tsx	OAuth callback handler
+client/src/pages/not-found.tsx	404 page
+client/src/components/layout/Header.tsx	Navigation header
+client/src/components/ui/chart.tsx	Chart component
+migrations/meta/_journal.json	Migration journal
+.agents/agent_assets_metadata.toml	Asset metadata
+Tool Output Summary
+npm audit
+esbuild <=0.24.2 — Severity: moderate
+esbuild enables any website to send any requests to the development server
+and read the response (GHSA-67mh-4wv8-2f99)
+
+Chain: @esbuild-kit/core-utils → @esbuild-kit/esm-loader → drizzle-kit
+
+4 moderate severity vulnerabilities
+
+Fix: npm audit fix --force (installs drizzle-kit@0.18.1 — breaking change)
+
+npx tsc --noEmit
+error TS2688: Cannot find type definition file for 'node'.
+error TS2688: Cannot find type definition file for 'vite/client'.
+tsconfig.json(16,5): error TS5101: Option 'baseUrl' is deprecated and 
+will stop functioning in TypeScript 7.0. Specify compilerOption 
+'"ignoreDeprecations": "6.0"' to silence this error.
+
+npx eslint
+ESLint couldn't find an eslint.config.(js|mjs|cjs) file.
+From ESLint v9.0.0, the default configuration file is now eslint.config.js.
+(No .eslintrc.* file found — ESLint is not configured for this project)
+
+find . -name "*.env*" -not -path "*/node_modules/*"
+(no output — no .env files exist in the repository)
+
+grep -r "localhost" (files only)
+server/routes/recommendations.routes.ts
+server/routes/admin.routes.ts
+
+grep -r "replit" (files only)
+server/auth.ts
+server/routes/recommendations.routes.ts
+vite.config.ts
+
+Executive Summary
+Future Pathways is a full-stack TypeScript/React application built on Replit using Express, PostgreSQL (Neon), Drizzle ORM, Stripe, and Passport.js. The codebase demonstrates considerable maturity in several areas: CSRF protection is implemented with a double-submit cookie pattern, Stripe webhooks are signature-verified, passwords use bcrypt, session cookies are correctly flagged httpOnly/secure, rate limiting covers all sensitive endpoints, and a Zod-based input validation schema is used throughout. These are commendable foundations.
+
+However, six production-blocking issues were identified that would prevent correct operation in a non-Replit environment. The most severe is a silent Replit-specific fallback in the OAuth callback URL construction: if BASE_URL is unset, the URL becomes https://undefined.undefined.repl.co. A second production blocker is the absence of any express.static route serving the uploads/ directory — uploaded organization logos are assigned /uploads/ URLs but those requests will 404 in production. Third, the Stripe client-side publishable key environment variable is named VITE_STRIPE_PUBLIC_KEY in the client code but STRIPE_PUBLISHABLE_KEY in the server-side env-validation list — a name mismatch that means the deployment checklist will pass while the payment UI silently fails.
+
+From a security standpoint, the platform is in reasonably good shape for its threat model (student career guidance), but specific gaps include a personal superadmin email address committed in the .replit config file (not in .gitignore), production credentials being logged to the browser console on checkout completion, a missing auth ownership check on the recommendation-generation endpoint (anyone can trigger expensive generation for any assessment ID), and a styleSrc: ['unsafe-inline'] CSP directive that is always enabled regardless of environment.
+
+🔴 Critical Issues — Production Breakers (Fix Before Any Deployment)
+CRIT-01: Replit-Specific OAuth Callback URL — Falls Back to undefined.undefined.repl.co
+File: server/auth.ts:104
+
+const baseUrl = process.env.BASE_URL || `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
+
+Description: REPL_SLUG and REPL_OWNER are Replit-injected environment variables that will not exist outside Replit. Without BASE_URL set, both process.env.REPL_SLUG and process.env.REPL_OWNER evaluate to undefined, producing the callback URL https://undefined.undefined.repl.co. Google OAuth and Microsoft OAuth will reject this callback URL, causing all social login to silently fail.
+
+BASE_URL is not in ENV_VARS.REQUIRED or ENV_VARS.OPTIONAL (server/config/constants.ts:55-70), so the startup validator will not warn about it being absent.
+
+Fix:
+
+Add "BASE_URL" to ENV_VARS.REQUIRED in server/config/constants.ts.
+Set BASE_URL=https://yourdomain.com in the production environment.
+Remove the Replit-specific fallback or guard it behind process.env.REPL_ID !== undefined.
+CRIT-02: Uploaded Files (/uploads/) Are Not Served as Static Files
+Files: server/routes/admin.routes.ts:371, server/vite.ts:70-85
+
+// admin.routes.ts:371 — Logo URL stored as:
+const logoUrl = `/uploads/${req.file.filename}`;
+
+// vite.ts:79 — Only this is served:
+app.use(express.static(distPath)); // distPath = dist/public — NOT uploads/
+
+Description: The admin route stores organization logo URLs as /uploads/<filename>. The production static file server (serveStatic() in server/vite.ts) only serves the dist/public build output directory. There is no express.static call for the uploads/ directory anywhere in the codebase. This means every organization logo request in production returns a 404, breaking the school branding feature on the landing page and admin dashboard.
+
+The uploads/ directory also does not exist by default and is not in .gitignore, meaning ephemeral container restarts (common on Replit's autoscale) will destroy all uploaded files.
+
+Fix:
+
+Add app.use('/uploads', express.static(path.join(process.cwd(), 'uploads'))); in server/index.ts (before route registration).
+For production persistence, migrate file storage to an object store (S3, Cloudflare R2, etc.) rather than local disk, since container filesystems are ephemeral.
+Serve logos through an authenticated download endpoint, or ensure the uploads route is not world-accessible.
+CRIT-03: Stripe Publishable Key Environment Variable Name Mismatch
+Files: client/src/pages/Checkout.tsx:19, server/config/constants.ts:64
+
+// Checkout.tsx — Client expects:
+const key = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
+
+// constants.ts — Server validates:
+"STRIPE_PUBLISHABLE_KEY"  // line 64 (optional list)
+
+Description: Vite only exposes environment variables prefixed with VITE_ to the client bundle. The client code reads VITE_STRIPE_PUBLIC_KEY. The server's env-validation list tracks STRIPE_PUBLISHABLE_KEY — a completely different name. These are two separate variables that both need to be set. If only STRIPE_PUBLISHABLE_KEY is set in production (following the server docs), the checkout page will silently fail with console.error('Missing VITE_STRIPE_PUBLIC_KEY') and no payment form will render — but startup validation will pass cleanly.
+
+Fix:
+
+Add "VITE_STRIPE_PUBLIC_KEY" to ENV_VARS.OPTIONAL in server/config/constants.ts (noting that Vite env vars are build-time).
+Clearly document in deployment instructions that two Stripe-related env vars must be set: STRIPE_SECRET_KEY (server-side) and VITE_STRIPE_PUBLIC_KEY (build-time Vite var).
+Consider adding a build-time check that fails the build if VITE_STRIPE_PUBLIC_KEY is not set when STRIPE_SECRET_KEY is.
+CRIT-04: sessions Table Not Auto-Created — Fresh Deployment Will Crash on Startup
+File: server/auth.ts:26
+
+createTableIfMissing: false,  // line 26
+
+Description: connect-pg-simple is configured with createTableIfMissing: false. This means the sessions table must exist in the database before the application starts. Only one migration snapshot exists (migrations/meta/_journal.json). If a fresh PostgreSQL database is provisioned and drizzle-kit push fails or is not run before starting the server, the session store initialization will throw and the application will crash. This is a deployment footgun, especially in autoscale/serverless scenarios where the DB may be reset.
+
+Fix:
+Change to createTableIfMissing: true in server/auth.ts:26, or add a documented pre-deployment step (npm run db:push) with a startup check that gracefully handles table absence.
+
+CRIT-05: Recommendation Generation Endpoint Has No Ownership Authorization — IDOR
+File: server/routes/recommendations.routes.ts:19-155
+
+app.post("/api/recommendations/generate/:assessmentId", recommendationsLimiter, async (req, res) => {
+  const assessment = await storage.getAssessmentById(req.params.assessmentId);
+  // No check that req.user.userId === assessment.userId
+
+Description: The POST /api/recommendations/generate/:assessmentId endpoint accepts any assessmentId from any caller (authenticated or not). There is no check verifying the caller owns or has rights to the assessment. An authenticated user can supply any valid assessment UUID and trigger:
+
+Full recommendation regeneration (deleting existing recommendations and replacing them).
+WEF skills profile sync.
+Assessment marked as isCompleted = true.
+This is an Insecure Direct Object Reference (IDOR). A malicious actor could enumerate assessment IDs and corrupt other users' results or force-complete their assessments prematurely.
+
+Fix: Add an ownership check immediately after fetching the assessment:
+
+if (assessment.userId && req.isAuthenticated() && req.user.userId !== assessment.userId) {
+  return res.status(403).json({ message: "Forbidden" });
+}
+
+🟠 High Priority Issues
+HIGH-01: Superadmin Email Hardcoded in Committed .replit File
+File: .replit:48-49
+
+[
+userenv.shared
+]
+SUPERADMIN_EMAILS = "nrashidk@gmail.com"
+
+Description: A specific personal email address is hardcoded in the .replit configuration file under [userenv.shared]. The .gitignore does not exclude .replit (it only excludes node_modules, dist, .DS_Store, server/public, vite.config.ts.*, *.tar.gz). If this repository is pushed to a version control platform, this personal email address is publicly visible. While not a password, it identifies the superadmin account and narrows attack surface for targeted phishing or OAuth account takeover attempts.
+
+Fix:
+
+Remove the [userenv.shared] block from .replit.
+Add .replit to .gitignore (or at minimum the [userenv] section if .replit must be committed).
+Set SUPERADMIN_EMAILS exclusively through the hosting platform's secret management.
+HIGH-02: Production Credentials Logged to Browser Console on Checkout
+File: client/src/pages/Checkout.tsx:137
+
+// Also log to console as backup
+console.log("Your Login Credentials - Please Save:", data.credentials);
+
+Description: After a successful group purchase, the server returns auto-generated username and password in plaintext in the API response. The client logs these credentials to the browser developer console with the label "Your Login Credentials - Please Save:". Browser console output is accessible to any JavaScript running on the page (including third-party scripts, browser extensions, and XSS payloads) and can be captured by browser dev tools in screenshots/recordings. This effectively exposes plaintext credentials through a side channel.
+
+Fix: Remove the console.log call at Checkout.tsx:137. The CredentialsModal already displays credentials to the user — the console log serves no production purpose.
+
+HIGH-03: BASE_URL Not Registered in Environment Variable Validation
+File: server/config/constants.ts:55-70, server/auth.ts:104
+
+Description: BASE_URL is used to construct OAuth callback URLs (/api/auth/google/callback, /api/auth/microsoft/callback). It is not listed in ENV_VARS.REQUIRED or ENV_VARS.OPTIONAL, so the startup validator at server/utils/env-validation.ts will not warn if it is absent. An operator setting up production without Replit will not be prompted to set this variable — OAuth will silently fail.
+
+Fix: Add "BASE_URL" to ENV_VARS.REQUIRED in server/config/constants.ts (if Google/Microsoft OAuth is required) or ENV_VARS.OPTIONAL with a clear warning that OAuth will be unavailable if unset.
+
+HIGH-04: Replit Dev Plugins Loaded Conditionally on REPL_ID — Missing Production Guard
+File: vite.config.ts:7-19
+
+...(process.env.NODE_ENV !== "production" &&
+process.env.REPL_ID !== undefined
+  ? [
+      await import("@replit/vite-plugin-runtime-error-modal"),
+      await import("@replit/vite-plugin-cartographer"),
+      await import("@replit/vite-plugin-dev-banner"),
+    ]
+  : []),
+
+Description: The guard process.env.NODE_ENV !== "production" && process.env.REPL_ID !== undefined correctly skips these plugins in production. However, the Replit packages are in devDependencies, so they won't be available in a npm install --production build. If someone runs vite build without these packages installed (and REPL_ID is somehow defined), the build will fail at the await import(...) calls. More importantly, @replit/vite-plugin-runtime-error-modal, @replit/vite-plugin-cartographer, and @replit/vite-plugin-dev-banner are dev-only Replit packages that have no meaning outside Replit. If the REPL_ID env var is accidentally set in a non-Replit production environment, these imports will be attempted and the build/server will crash.
+
+Fix: Add a hard process.env.REPL_ID check at the top of vite.config.ts and make these truly opt-in only when the Replit runtime is confirmed, with a try/catch around the dynamic imports.
+
+HIGH-05: TypeScript Type Checking Fails — Missing @types/node and vite/client
+File: tsconfig.json:17, checked via npx tsc --noEmit
+
+error TS2688: Cannot find type definition file for 'node'.
+error TS2688: Cannot find type definition file for 'vite/client'.
+
+Description: The TypeScript compiler reports that it cannot find type definitions for node and vite/client. This means tsc --noEmit — the type safety check — fails on a clean build. The CI/build pipeline likely masks this because esbuild (not tsc) performs the actual compilation. However, this means TypeScript's type checking is effectively non-functional, meaning type errors in server code will not be caught at build time.
+
+Fix:
+
+Ensure @types/node and vite are installed (they are listed in devDependencies — investigate if the type resolution path is wrong due to moduleResolution: "bundler").
+Add "ignoreDeprecations": "6.0" to tsconfig.json to resolve the baseUrl deprecation warning.
+Consider adding tsc --noEmit to the CI/build pipeline once type errors are resolved.
+HIGH-06: No ESLint Configuration — Static Analysis Completely Absent
+Files: Project root (no eslint.config.js, no .eslintrc.*)
+
+Description: Running npx eslint produces: "ESLint couldn't find an eslint.config.js file." There is no linting configured for this project. Without ESLint, there is no automated check for:
+
+Unused variables/imports
+Potential security anti-patterns (e.g., eval, innerHTML)
+Async/await error handling gaps
+Console statement detection
+TypeScript-specific patterns (any usage, non-null assertions)
+Fix: Add eslint.config.js (ESLint v9 flat config) with at minimum @typescript-eslint/eslint-plugin, a no-console rule for client code, and security/detect-* rules.
+
+HIGH-07: 'unsafe-inline' in CSP styleSrc — Always Enabled
+File: server/index.ts:29-32
+
+styleSrc: [
+  "'self'",
+  "'unsafe-inline'", // Required for inline styles in components
+  "https://fonts.googleapis.com",
+],
+
+Description: 'unsafe-inline' for styleSrc is always enabled, including in production. This allows any style attribute or <style> tag in the page to execute — enabling CSS-based data exfiltration attacks (CSS injection), clickjacking via style manipulation, and obfuscating XSS payloads. While many UI frameworks do require inline styles, the comment "Required for inline styles in components" accepts this without investigating nonce-based alternatives.
+
+The scriptSrc correctly removes 'unsafe-inline' in production but styleSrc does not apply the same treatment.
+
+Fix: Either:
+
+Remove 'unsafe-inline' from styleSrc and test that the UI functions correctly (Tailwind CSS and Radix UI typically do not require inline styles).
+Use a CSS nonce approach if inline styles are genuinely required.
+🟡 Medium Priority Issues
+MED-01: debug console.log Statements Left in Server-Side Production Routes
+Files:
+
+server/routes/assessment.routes.ts:85 — console.log("Learning style scores calculated:", kolbScores);
+server/routes/assessment.routes.ts:95 — console.log("RIASEC scores calculated:", riasecScores);
+server/routes/assessment.routes.ts:113 — console.log([Assessment] Org student ${userId} inheriting curriculum...);
+server/routes/assessment.routes.ts:131-136 — console.log("Assessment created:", {...})
+client/src/components/assessment/CountryStep.tsx:35 — console.log("Countries loaded:", countries.length);
+client/src/pages/Assessment.tsx:255 — console.log("Assessment saved:", assessment);
+Description: Multiple console.log debug statements remain in production-facing server and client code. Server-side logs can expose internal data structures, user IDs, and assessment state to log aggregation systems. Client-side logs expose API response shapes to anyone with devtools open.
+
+Fix: Replace server-side debug logs with logger.debug() (which the existing server/utils/logger.ts already suppresses in production). Remove or gate client-side console logs with import.meta.env.DEV.
+
+MED-02: getSuperadminEmails Function Duplicated Across 8 Files
+Files: server/middleware/auth.middleware.ts:6-11, server/routes/auth.routes.ts:5-9, server/routes/analytics.routes.ts:8-13, server/routes/country.routes.ts:50-55, server/routes/superadmin.routes.ts:11-16, server/routes/files.routes.ts:64-69, server/routes/contribution.routes.ts:12-17, server/routes/admin.routes.ts:49-54
+
+Description: An identical function — parsing process.env.SUPERADMIN_EMAILS, splitting by comma, trimming, lowercasing, filtering — is copy-pasted in 8 separate route files. If the logic needs to change (e.g., adding support for wildcards, reading from DB instead of env), all 8 copies must be updated. The shared middleware at server/middleware/auth.middleware.ts already centralizes isAdmin and isOrgAdmin but is not used consistently.
+
+Fix: Export getSuperadminEmails() from server/middleware/auth.middleware.ts and import it in all 8 files. The isAdmin middleware already calls this function — some routes bypass isAdmin entirely and re-implement the check inline.
+
+MED-03: path-to-regexp Version 0.1.13 — Extremely Outdated
+File: package.json:93
+
+"path-to-regexp": "^0.1.13"
+
+Description: Version 0.1.13 of path-to-regexp is from circa 2014. The package has had critical ReDoS vulnerabilities in older versions (CVE-2024-45296 affected versions < 0.1.10, 1.x through 8.x in certain ranges). The ^0.1.13 range means npm will not upgrade past 0.1.x. This dependency may be a transitive dependency of Express, but locking it explicitly at such an old version creates maintenance risk.
+
+Fix: Check if this is a direct or transitive dep: npm ls path-to-regexp. If transitive (from Express), remove the explicit pin and allow it to resolve naturally. If direct, upgrade to a supported version.
+
+MED-04: Stripe API Version Uses Non-Standard clover Suffix
+Files: server/routes/payment.routes.ts:11, server/routes/webhook.routes.ts:9
+
+apiVersion: "2025-10-29.clover",
+
+Description: The Stripe API version 2025-10-29.clover uses a non-standard suffix. Stripe uses named preview/beta versions for experimental APIs. clover appears to be a private beta designation. Using a beta API version in production means:
+
+The API behavior may change without notice before GA release.
+Stripe may discontinue beta access, breaking all payment processing.
+The SDK types may not fully match the beta API's response shapes.
+Fix: Upgrade to the latest stable Stripe API version (e.g., 2024-12-18.acacia or the latest GA version as of your release date). Test payment flows against the stable version.
+
+MED-05: No CORS Policy Configured — Implicit Same-Origin Only
+File: server/index.ts (entire file)
+
+Description: No cors middleware is applied anywhere in the Express app. The server relies on the browser's implicit same-origin policy. While sameSite: 'strict' cookies provide CSRF protection for authenticated endpoints, the absence of an explicit CORS policy means:
+
+No Access-Control-Allow-Origin header is ever sent.
+If the API is ever exposed from a different subdomain or CDN edge, all cross-origin API calls will fail silently.
+There is no explicit denial of cross-origin access for non-browser clients (e.g., mobile apps that may be added later).
+Fix: Install and configure the cors npm package with an explicit allowlist: cors({ origin: process.env.ALLOWED_ORIGINS?.split(',') ?? false, credentials: true }).
+
+MED-06: EMAIL_FROM Environment Variable Not in Validation List
+Files: server/services/email.ts:7, server/config/constants.ts:62-69
+
+const FROM_EMAIL = process.env.EMAIL_FROM || "Future Pathways <noreply@futurepathways.com>";
+
+Description: EMAIL_FROM is used in all sent emails but is not registered in ENV_VARS.OPTIONAL or ENV_VARS.REQUIRED. If an operator configures a different sending domain (required for Resend to verify the sender), they have no guidance that this variable exists. The default noreply@futurepathways.com may or may not match the verified Resend sender domain.
+
+Fix: Add "EMAIL_FROM" to ENV_VARS.OPTIONAL in server/config/constants.ts.
+
+MED-07: STRIPE_PUBLISHABLE_KEY in Optional List but Never Read Server-Side
+File: server/config/constants.ts:64
+
+"STRIPE_PUBLISHABLE_KEY",  // optional list
+
+Description: STRIPE_PUBLISHABLE_KEY appears in ENV_VARS.OPTIONAL but is never actually read by server-side code (a grep of all process.env references confirms this). The variable needed by the client is VITE_STRIPE_PUBLIC_KEY (a build-time variable). Having STRIPE_PUBLISHABLE_KEY in the server's optional list creates false confidence that Stripe is configured while the client-side payment UI remains broken.
+
+Fix: Remove STRIPE_PUBLISHABLE_KEY from ENV_VARS.OPTIONAL and replace with documentation that VITE_STRIPE_PUBLIC_KEY must be set as a build-time environment variable when building the Vite client.
+
+MED-08: Bulk Admin PDF Generation Fails Silently with Localhost-Only SSRF Guard
+File: server/routes/admin.routes.ts:1074-1078, 1110
+
+// Only allow localhost for PDF generation
+const allowedHosts = ['localhost', '127.0.0.1'];
+if (!allowedHosts.includes(parsedUrl.hostname)) {
+  throw new Error('Only localhost URLs are allowed for PDF generation');
+}
+// ...
+const printUrl = `http://localhost:${process.env.PORT || 5000}/print/results?assessmentId=...`;
+
+Description: The admin bulk PDF export navigates Puppeteer to http://localhost:<port>. This works in Replit because the server process runs and listens on localhost. However, on some cloud/container platforms where the server binds to a specific network interface (not 0.0.0.0 accessible via localhost loopback), this will fail. Additionally, the SSRF allowlist is more restrictive than the individual PDF endpoint (which allows Replit hosts), creating inconsistent behavior.
+
+Fix: Validate that localhost is accessible from within the container at the configured port during startup. If not, fall back to the req.get('host') approach used in the individual PDF endpoint.
+
+MED-09: localStorage Used for Draft Assessment Data — Cleared on Browser Data Wipe
+Files: client/src/components/RiasecStep.tsx:115-175, client/src/components/CVQStep.tsx:99-131, client/src/pages/Assessment.tsx:320-326
+
+Description: Draft RIASEC responses, CVQ responses, and partial assessment state are stored in localStorage. While these are not security-sensitive credentials, localStorage is synchronous, has no expiry mechanism, and is accessible to any same-origin JavaScript. Additionally, if a user clears browser data or uses a different device, their draft progress is lost with no warning or recovery path.
+
+Fix: This is acceptable for non-sensitive draft data, but add a user-facing warning when switching devices or clearing data. Consider using the server as a persistence layer for draft state (the assessments table already exists).
+
+MED-10: setTimeout(migrateAndRedirect, 500) in Auth Callback — Race Condition
+File: client/src/pages/AuthCallback.tsx:56
+
+setTimeout(migrateAndRedirect, 500);
+
+Description: A 500ms hardcoded delay is used in the OAuth callback page to "ensure auth is complete." This is a timing hack that creates a race condition: on a slow connection or under load, the session cookie may not be set before apiRequest("GET", "/api/auth/user") is called, returning 401 and redirecting the user to the homepage with no explanation.
+
+Fix: Replace the timeout with proper retry logic: call /api/auth/user with 3 retries (100ms, 300ms, 1000ms backoff) on 401 before falling back to redirect.
+
+🟢 Low Priority / Recommendations
+LOW-01: tsconfig.json Uses Deprecated baseUrl Option
+File: tsconfig.json:16
+
+"baseUrl": ".",
+
+Description: TypeScript 6.x marks baseUrl as deprecated with a TS5101 error when not suppressed. TypeScript 7.0 will stop supporting it. Path aliases already work via the paths option.
+
+Fix: Add "ignoreDeprecations": "6.0" to compilerOptions and migrate path resolution to use only the paths option once TypeScript 7 approaches.
+
+LOW-02: No Test Suite
+Description: No test files (.test.ts, .spec.ts, __tests__/) were found anywhere in the project. Complex business logic (scoring algorithms, tier weights, WEF mapping, RIASEC calculation) runs untested in production.
+
+Fix: Add unit tests for server/services/matching.ts, server/services/tierWeights.ts, server/questionBanks/kolb.ts, server/questionBanks/riasec.ts at minimum. Use Vitest (already has Vite in the project).
+
+LOW-03: replit.md Committed to Repository
+File: ./replit.md
+
+Description: The Replit-generated replit.md document is committed to the repository. While not directly harmful, it contains development environment instructions that may mislead contributors or expose implementation details about the Replit setup.
+
+Fix: Add replit.md to .gitignore if it contains sensitive operational details.
+
+LOW-04: Health Endpoint Exposes Version Information
+File: server/routes/public.routes.ts:23
+
+version: process.env.npm_package_version || "1.0.0"
+
+Description: The public /health endpoint exposes the application version. Version disclosure helps attackers target known vulnerabilities for a specific version.
+
+Fix: Remove version from the health response, or restrict the health endpoint to internal network access only.
+
+LOW-05: dangerouslySetInnerHTML in Chart Component for CSS
+File: client/src/components/ui/chart.tsx:81
+
+<style dangerouslySetInnerHTML={{ __html: ... }} />
+
+Description: The chart component uses dangerouslySetInnerHTML to inject CSS custom properties. The content is constructed from static developer-defined theme objects (not from user input), so the XSS risk is minimal. However, if itemConfig.color or other fields are ever sourced from user-provided data in the future, this will become a direct XSS sink.
+
+Fix: Audit that THEMES and chart config objects never contain user-provided strings. Add a comment documenting why dangerouslySetInnerHTML is safe here and that user data must never be passed to chart color configs.
+
+LOW-06: Session Table createTableIfMissing: false — Deployment Footgun
+File: server/auth.ts:26
+
+Already documented as CRIT-04 but also worth noting in deployment documentation.
+
+LOW-07: @octokit/rest Dependency with No Apparent Usage
+File: package.json:16
+
+"@octokit/rest": "^21.1.1",
+
+Description: The GitHub REST API client (@octokit/rest) is in production dependencies but no usage was found in the server or client source code. Unused dependencies increase bundle size and attack surface.
+
+Fix: Run npm ls @octokit/rest to confirm it's a direct dependency. If unused, remove it.
+
+LOW-08: basic-ftp Dependency with No Apparent Usage
+File: package.json:62
+
+"basic-ftp": "^5.2.0",
+
+Description: basic-ftp is a production dependency but no FTP-related code was found. Same concern as above.
+
+Fix: Remove if unused.
+
+Production Readiness Checklist
+Check	Status	Evidence (file:line)
+No hardcoded localhost/dev URLs	⚠️	admin.routes.ts:1110 — localhost hardcoded for bulk PDF
+All env vars defined for production	❌	BASE_URL missing from validation; VITE_STRIPE_PUBLIC_KEY name mismatch
+Production build script verified	✅	package.json:8 — vite build && esbuild
+Database configured for production	✅	db.ts — Neon PostgreSQL, DATABASE_URL required
+CORS locked to production domains	❌	No CORS middleware configured at all
+Third-party keys in production mode	⚠️	Stripe uses 2025-10-29.clover beta API; VITE_STRIPE_PUBLIC_KEY may not be set
+No dev middleware in prod build	✅	Replit plugins gated behind REPL_ID and NODE_ENV !== "production"
+Static file serving configured	❌	/uploads/ directory never registered as static — logos 404
+Error handling & fallback UI	✅	App.tsx:47-91 — ErrorBoundary; not-found.tsx for 404
+Security headers configured	✅	index.ts:19-74 — Helmet with CSP, HSTS (prod), frameguard
+No secrets in source code	⚠️	.replit:49 — superadmin email hardcoded; no API keys found
+OWASP Top 10 reviewed	✅	See below
+WCAG 2.1 AA Accessibility	⚠️	Skip link present; ARIA on spinner; heading hierarchy not fully verified
+Dependency vulnerabilities	⚠️	4 moderate (esbuild via drizzle-kit) — dev-tool only
+OWASP Top 10 (2021) Assessment
+Category	Status	Evidence
+A01: Broken Access Control	⚠️ FAIL	recommendations.routes.ts:19 — IDOR on generate endpoint (CRIT-05)
+A02: Cryptographic Failures	✅ PASS	bcrypt(10) for passwords; AES-256-GCM for API keys; secure session cookies; 32+ char session secret enforced
+A03: Injection	✅ PASS	Drizzle ORM with parameterized queries throughout; DOMPurify sanitization; Zod validation
+A04: Insecure Design	⚠️ WARN	No test suite; createTableIfMissing: false deployment risk; race condition in auth callback
+A05: Security Misconfiguration	⚠️ FAIL	'unsafe-inline' in CSP styleSrc always enabled; no CORS policy; ESLint absent
+A06: Vulnerable and Outdated Components	⚠️ WARN	4 moderate vulns in drizzle-kit esbuild chain (dev dep only); path-to-regexp@0.1.13 very old
+A07: Identification and Authentication Failures	✅ PASS	Rate limiting (5/15min on login); session regeneration on login; bcrypt; secure cookies; password strength via zxcvbn
+A08: Software and Data Integrity Failures	✅ PASS	Stripe webhook signature verified; payment amount validated server-side; idempotency check on payments
+A09: Security Logging and Monitoring Failures	⚠️ WARN	Morgan logs all requests in production; no centralized security event alerting; failed login attempts not separately audited
+A10: Server-Side Request Forgery (SSRF)	✅ PASS	Puppeteer URL validation in both PDF endpoints validates protocol, host, port, IP ranges
+Environment Variable Audit
+Variable	Purpose	File(s)	Confirmed Production Value?
+DATABASE_URL	PostgreSQL connection string	db.ts:8, auth.ts:25, drizzle.config.ts:12	REQUIRED — must be set
+SESSION_SECRET	Express session signing	auth.ts:32	REQUIRED — min 32 chars enforced
+SUPERADMIN_EMAILS	Superadmin email allowlist	8 route files	REQUIRED — currently hardcoded in .replit
+DB_ENCRYPTION_KEY	AES-256-GCM key for LLM API keys	encryption.ts:8	REQUIRED — must be 64 hex chars
+NODE_ENV	Production mode switch	Multiple files	Set via npm run start script ✅
+PORT	Server port	index.ts:220	Set in .replit as 5000 ✅
+STRIPE_SECRET_KEY	Stripe server-side API	payment.routes.ts:9, webhook.routes.ts:7	Optional — payment disabled if absent
+STRIPE_PUBLISHABLE_KEY	Listed in optional validation	constants.ts:64	⚠️ Never used server-side — MISMATCH with VITE_STRIPE_PUBLIC_KEY
+VITE_STRIPE_PUBLIC_KEY	Stripe client-side key (Vite build-time)	Checkout.tsx:19	❌ Not in server validation; must be set at build time
+STRIPE_WEBHOOK_SECRET	Stripe webhook signature	webhook.routes.ts:40	⚠️ Optional but required for webhook security
+RESEND_API_KEY	Email delivery	email.ts:4	Optional — emails silently suppressed if absent
+APP_URL	Base URL for password reset emails	email.ts:32	Optional — defaults to https://futurepath.ae
+EMAIL_FROM	Sender address for emails	email.ts:7	❌ Not in validation list; defaults to noreply@futurepathways.com
+BASE_URL	OAuth callback base URL	auth.ts:104	❌ Not in validation list; falls back to Replit URL
+GOOGLE_CLIENT_ID	Google OAuth	auth.ts:106	Not in validation; Google OAuth disabled if absent
+GOOGLE_CLIENT_SECRET	Google OAuth	auth.ts:109	Not in validation; Google OAuth disabled if absent
+MICROSOFT_CLIENT_ID	Microsoft OAuth	auth.ts:128	Not in validation; Microsoft OAuth disabled if absent
+MICROSOFT_CLIENT_SECRET	Microsoft OAuth	auth.ts:131	Not in validation; Microsoft OAuth disabled if absent
+REPL_SLUG	Replit-injected: OAuth fallback URL	auth.ts:104	❌ Does not exist outside Replit
+REPL_OWNER	Replit-injected: OAuth fallback URL	auth.ts:104	❌ Does not exist outside Replit
+REPL_ID	Replit-injected: dev plugin guard	vite.config.ts:8	❌ Does not exist outside Replit
+Positive Findings
+The following are correctly implemented and production-ready:
+
+CSRF Protection (server/middleware/csrf.middleware.ts) — Double-submit cookie pattern using crypto.randomBytes(32). Correctly exempts webhooks (which use signature verification) and file uploads.
+Stripe Webhook Signature Verification (server/routes/webhook.routes.ts:66) — stripe.webhooks.constructEvent() used with raw body. Rejects webhooks without secrets configured.
+Server-Side Payment Amount Calculation (server/routes/payment.routes.ts:33-45) — Client-provided amounts are ignored; discount tiers calculated server-side. Payment intent metadata is verified on upgrade.
+Session Security (server/auth.ts:37-45) — httpOnly: true, secure: true in production, sameSite: strict in production, session regeneration on login.
+bcrypt Password Hashing (server/utils/passwordHash.ts) — 10 salt rounds; password strength validated with zxcvbn (score ≥ 3 required).
+Helmet Security Headers (server/index.ts:19-74) — CSP, HSTS (production only), clickjacking protection, referrer policy, MIME sniffing prevention, Permissions-Policy.
+Rate Limiting Coverage — Auth (5/15min), payment (10/15min), recommendations (20/hr), data export (5/hr), org creation (10/hr), password reset (3/15min, 5/hr), LLM country generation.
+Input Sanitization (server/utils/sanitize.ts) — DOMPurify with ALLOWED_TAGS: [] strips all HTML from user inputs. Applied on assessment creation.
+Anti-Enumeration on Password Reset (server/routes/password-reset.routes.ts:103-107) — Always returns success regardless of whether user exists.
+Path Traversal Protection (server/routes/files.routes.ts:222-225) — path.resolve() + startsWith(uploadsDir + path.sep) check on file downloads.
+SSRF Prevention on PDF Generation (server/routes/recommendations.routes.ts:300-355) — Validates protocol, hostname allowlist, port, IP ranges, and encoding tricks.
+AES-256-GCM Encryption for LLM API Keys (server/utils/encryption.ts) — Proper IV generation, auth tag verification, hex-format key validation.
+Idempotency on Payment Processing (server/routes/payment.routes.ts:159-165) — metadata.processed === "true" check prevents double-charging.
+GDPR Data Export (server/routes/user.routes.ts) — Full data export endpoint with rate limiting.
+Error Boundary (client/src/App.tsx:47-91) — Top-level React ErrorBoundary with user-friendly fallback UI and recovery actions.
+Lazy Loading (client/src/App.tsx:9-31) — All pages lazy-loaded with React.lazy() + Suspense.
+Skip Link (client/src/App.tsx:131) — Accessible skip-to-content link present and styled correctly.
+Files NOT Covered
+The following files were not individually read due to size or scope constraints:
+
+File/Directory	Reason Not Covered
+server/storage.ts (beyond first 100 lines)	File exceeds token limit; only imports reviewed
+server/routes/admin.routes.ts (lines 250-1060, 1140-1740)	Partial read; large file (~1820 lines)
+server/routes/quiz.routes.ts	Not read individually
+server/routes/careers.routes.ts	Not read individually
+server/routes/cvq.routes.ts	Not read individually
+server/routes/countries.routes.ts	Not read individually
+server/services/matching.ts	Not read
+server/services/wefOrchestrator.ts	Not read
+server/services/llmCountryService.ts	Not read
+server/services/premiumNarratives.ts	Not read
+server/services/scoringConfig.ts	Not read
+server/services/tierWeights.ts	Not read
+server/services/wefSkillsCalculator.ts	Not read
+server/questionBanks/ (all files)	Not read
+server/seed.ts, server/cvq-seed.ts	Not read
+client/src/pages/ (many pages)	Analytics, Admin, SuperadminDashboard, Profile, StudentProgress, TierSelection, GroupPricing, ForgotPassword, ResetPassword, PrivacyPolicy, TermsOfUse, Disclaimer, ResultsPrint not individually read
+client/src/components/ (most)	Most component files not individually read
+shared/schema.ts (beyond line 100)	Only first 100 lines reviewed
+migrations/meta/0000_snapshot.json	Not read (large)
+scripts/	Only referenced in grep output
+attached_assets/	Images and documents not reviewed
+docs/	White paper documents not reviewed
