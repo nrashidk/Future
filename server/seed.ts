@@ -1654,13 +1654,29 @@ export async function seedDatabase() {
     const superadminPassword = "SuperAdmin2026!";
     const superadminHash = await hashPw(superadminPassword);
 
+    // Use the first email from SUPERADMIN_EMAILS env var if set, otherwise fall back to local dev placeholder
+    const superadminEmailFromEnv = (process.env.SUPERADMIN_EMAILS || "")
+      .split(",")
+      .map((e) => e.trim().toLowerCase())
+      .find((e) => e.length > 0);
+    const superadminEmail = superadminEmailFromEnv || "superadmin@local.dev";
+
     const existingSuperadmin = await storage.getUserByUsername("superadmin");
     if (!existingSuperadmin) {
+      // Check if the target email is already taken by another account; if so, fall back to local placeholder
+      const { users: usersTableCheck } = await import("@shared/schema");
+      const existingEmailUser = await dbConn
+        .select({ id: usersTableCheck.id })
+        .from(usersTableCheck)
+        .where(eqOp(usersTableCheck.email, superadminEmail))
+        .limit(1);
+      const finalEmail = existingEmailUser.length > 0 ? "superadmin@local.dev" : superadminEmail;
+
       await dbConn
         .insert(usersTable)
         .values({
           username: "superadmin",
-          email: "superadmin@local.dev",
+          email: finalEmail,
           firstName: "Super",
           lastName: "Admin",
           passwordHash: superadminHash,
@@ -1669,8 +1685,9 @@ export async function seedDatabase() {
           isOrgGenerated: false,
           isPremium: false,
         });
-      console.log("  ✓ Superadmin account created (username: superadmin)");
+      console.log(`  ✓ Superadmin account created (username: superadmin, email: ${finalEmail})`);
     } else {
+      // Only update passwordHash and role — do not change email to avoid unique-constraint conflicts
       await dbConn
         .update(usersTable)
         .set({ passwordHash: superadminHash, role: "superadmin" })

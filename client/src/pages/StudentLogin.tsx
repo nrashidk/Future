@@ -135,17 +135,15 @@ export default function StudentLogin() {
                           data-testid="input-password"
                           disabled={isLoading}
                         />
-                        <Button
+                        <button
                           type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="absolute right-1 top-1/2 -translate-y-1/2"
+                          className="absolute inset-y-0 right-0 flex items-center justify-center w-10 text-muted-foreground hover:text-foreground transition-colors"
                           onClick={() => setShowPassword(!showPassword)}
                           aria-label={showPassword ? "Hide password" : "Show password"}
                           data-testid="button-toggle-password"
                         >
                           {showPassword ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
-                        </Button>
+                        </button>
                       </div>
                     </FormControl>
                     <FormMessage />
