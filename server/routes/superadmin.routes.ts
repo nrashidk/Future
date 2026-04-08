@@ -616,6 +616,13 @@ export function registerSuperadminRoutes(app: Express) {
       if (!adminFirstName || !adminLastName) {
         return res.status(400).json({ message: "Admin first name and last name are required" });
       }
+
+      if (adminEmail) {
+        const existingByEmail = await storage.getUserByEmail(adminEmail);
+        if (existingByEmail) {
+          return res.status(400).json({ message: "A user with this email address already exists in the system" });
+        }
+      }
       
       const { generateUsername, generatePassword } = await import("../utils/passwordGenerator");
       const { hashPassword } = await import("../utils/passwordHash");
