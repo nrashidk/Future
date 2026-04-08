@@ -26,6 +26,7 @@ export function getSession() {
     createTableIfMissing: false,
     ttl: sessionTtl,
     tableName: "sessions",
+    pruneSessionInterval: 60 * 15, // Prune expired sessions every 15 minutes
   });
   return session({
     secret: process.env.SESSION_SECRET!,

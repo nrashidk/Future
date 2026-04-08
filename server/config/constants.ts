@@ -57,6 +57,7 @@ export const ENV_VARS = {
     "DATABASE_URL",
     "SESSION_SECRET",
     "SUPERADMIN_EMAILS",
+    "DB_ENCRYPTION_KEY", // Required for LLM credential encryption (64 hex chars)
   ],
   OPTIONAL: [
     "STRIPE_SECRET_KEY",
@@ -65,6 +66,5 @@ export const ENV_VARS = {
     "RESEND_API_KEY", // Required for email delivery
     "APP_URL", // Used in email links
     "NODE_ENV",
-    "DB_ENCRYPTION_KEY", // Required for LLM credential encryption (64 hex chars)
   ],
 } as const;

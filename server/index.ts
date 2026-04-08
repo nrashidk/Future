@@ -85,6 +85,12 @@ app.use((_req, res, next) => {
 // Response compression middleware
 app.use(compression());
 
+// Prevent sensitive API responses from being cached by browsers, CDNs, or proxies
+app.use('/api', (_req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store');
+  next();
+});
+
 // Request logging middleware (only in development)
 if (app.get("env") === "development") {
   app.use(morgan('dev'));
