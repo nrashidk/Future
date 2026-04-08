@@ -1661,22 +1661,37 @@ export async function seedDatabase() {
       .find((e) => e.length > 0);
     const superadminEmail = superadminEmailFromEnv || "superadmin@local.dev";
 
-    const existingSuperadmin = await storage.getUserByUsername("superadmin");
-    if (!existingSuperadmin) {
-      // Check if the target email is already taken by another account; if so, fall back to local placeholder
-      const { users: usersTableCheck } = await import("@shared/schema");
-      const existingEmailUser = await dbConn
-        .select({ id: usersTableCheck.id })
-        .from(usersTableCheck)
-        .where(eqOp(usersTableCheck.email, superadminEmail))
-        .limit(1);
-      const finalEmail = existingEmailUser.length > 0 ? "superadmin@local.dev" : superadminEmail;
+    // First, check if a superadmin already exists by username
+    const existingByUsername = await storage.getUserByUsername("superadmin");
 
+    // Also check if the SUPERADMIN_EMAILS account exists (might be OAuth-created, no username/password)
+    const [existingByEmail] = await dbConn
+      .select()
+      .from(usersTable)
+      .where(eqOp(usersTable.email, superadminEmail))
+      .limit(1);
+
+    if (existingByUsername) {
+      // Username account exists — just reset the password and role
+      await dbConn
+        .update(usersTable)
+        .set({ passwordHash: superadminHash, role: "superadmin" })
+        .where(eqOp(usersTable.id, existingByUsername.id));
+      console.log("  Superadmin account already exists (username: superadmin) - password reset to default");
+    } else if (existingByEmail) {
+      // OAuth-created account with this email exists but no username/password — patch it
+      await dbConn
+        .update(usersTable)
+        .set({ username: "superadmin", passwordHash: superadminHash, role: "superadmin" })
+        .where(eqOp(usersTable.id, existingByEmail.id));
+      console.log(`  ✓ Patched OAuth account (${superadminEmail}) with username & password for superadmin login`);
+    } else {
+      // No account at all — create fresh
       await dbConn
         .insert(usersTable)
         .values({
           username: "superadmin",
-          email: finalEmail,
+          email: superadminEmail,
           firstName: "Super",
           lastName: "Admin",
           passwordHash: superadminHash,
@@ -1685,14 +1700,7 @@ export async function seedDatabase() {
           isOrgGenerated: false,
           isPremium: false,
         });
-      console.log(`  ✓ Superadmin account created (username: superadmin, email: ${finalEmail})`);
-    } else {
-      // Only update passwordHash and role — do not change email to avoid unique-constraint conflicts
-      await dbConn
-        .update(usersTable)
-        .set({ passwordHash: superadminHash, role: "superadmin" })
-        .where(eqOp(usersTable.id, existingSuperadmin.id));
-      console.log("  Superadmin account already exists - password reset to default");
+      console.log(`  ✓ Superadmin account created (username: superadmin, email: ${superadminEmail})`);
     }
   } catch (error: any) {
     console.error("  Error seeding superadmin:", error.message);
