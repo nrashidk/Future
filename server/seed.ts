@@ -1580,7 +1580,11 @@ export async function seedDatabase() {
   }
 
   // Seed CVQ (Children's Values Questionnaire) items
-  await seedCVQItems();
+  try {
+    await seedCVQItems();
+  } catch (error: any) {
+    console.error("  CVQ seed error (non-fatal, continuing):", error.message);
+  }
 
   // Seed Test Organization Admin Account (for testing admin functionality)
   console.log("\n👤 Seeding test organization admin account...");
