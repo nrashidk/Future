@@ -1,0 +1,148 @@
+~/workspace$ npm uninstall lodash
+
+up to date, audited 826 packages in 2s
+
+97 packages are looking for funding
+  run `npm fund` for details
+
+5 vulnerabilities (4 moderate, 1 high)
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+~/workspace$ ^C
+~/workspace$ npm uninstall lodash
+
+up to date, audited 826 packages in 1s
+
+97 packages are looking for funding
+  run `npm fund` for details
+
+5 vulnerabilities (4 moderate, 1 high)
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+~/workspace$ npm audit fix --force
+npm warn using --force Recommended protections disabled.
+npm warn audit Updating drizzle-orm to 0.45.2, which is a SemVer major change.
+npm warn audit Updating drizzle-kit to 0.18.1, which is a SemVer major change.
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+npm warn deprecated glob@8.1.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+
+added 19 packages, removed 6 packages, changed 2 packages, and audited 839 packages in 14s
+
+101 packages are looking for funding
+  run `npm fund` for details
+
+# npm audit report
+
+esbuild  <=0.24.2
+Severity: moderate
+esbuild enables any website to send any requests to the development server and read the response - https://github.com/advisories/GHSA-67mh-4wv8-2f99
+fix available via `npm audit fix --force`
+Will install drizzle-kit@0.31.10, which is a breaking change
+node_modules/drizzle-kit/node_modules/esbuild
+  drizzle-kit  0.9.1 - 0.9.54 || 0.12.9 - 0.18.1 || 0.19.2-9340465 - 0.30.6 || 1.0.0-beta.1 - 1.0.0-beta.1-fd5d1e8
+  Depends on vulnerable versions of esbuild
+  node_modules/drizzle-kit
+
+2 moderate severity vulnerabilities
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+~/workspace$ npm audit fix --force
+npm warn using --force Recommended protections disabled.
+npm warn audit Updating drizzle-kit to 0.31.10, which is a SemVer major change.
+npm warn deprecated @esbuild-kit/core-utils@3.3.2: Merged into tsx: https://tsx.is
+npm warn deprecated @esbuild-kit/esm-loader@2.6.5: Merged into tsx: https://tsx.is
+
+added 8 packages, removed 20 packages, changed 2 packages, and audited 827 packages in 3s
+
+97 packages are looking for funding
+  run `npm fund` for details
+
+# npm audit report
+
+esbuild  <=0.24.2
+Severity: moderate
+esbuild enables any website to send any requests to the development server and read the response - https://github.com/advisories/GHSA-67mh-4wv8-2f99
+fix available via `npm audit fix --force`
+Will install drizzle-kit@0.18.1, which is a breaking change
+node_modules/@esbuild-kit/core-utils/node_modules/esbuild
+  @esbuild-kit/core-utils  *
+  Depends on vulnerable versions of esbuild
+  node_modules/@esbuild-kit/core-utils
+    @esbuild-kit/esm-loader  *
+    Depends on vulnerable versions of @esbuild-kit/core-utils
+    node_modules/@esbuild-kit/esm-loader
+      drizzle-kit  0.17.5-6b7793f - 0.17.5-e5944eb || 0.18.1-065de38 - 0.18.1-f3800bf || 0.19.0-07024c4 - 1.0.0-beta.1-fd8bfcc
+      Depends on vulnerable versions of @esbuild-kit/esm-loader
+      node_modules/drizzle-kit
+
+4 moderate severity vulnerabilities
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+~/workspace$ npm audit fix --force
+npm warn using --force Recommended protections disabled.
+npm warn audit Updating drizzle-kit to 0.18.1, which is a SemVer major change.
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+npm warn deprecated glob@8.1.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+
+added 20 packages, removed 6 packages, changed 1 package, and audited 841 packages in 2s
+
+101 packages are looking for funding
+  run `npm fund` for details
+
+# npm audit report
+
+esbuild  <=0.24.2
+Severity: moderate
+esbuild enables any website to send any requests to the development server and read the response - https://github.com/advisories/GHSA-67mh-4wv8-2f99
+fix available via `npm audit fix --force`
+Will install drizzle-kit@0.31.10, which is a breaking change
+node_modules/drizzle-kit/node_modules/esbuild
+  drizzle-kit  0.9.1 - 0.9.54 || 0.12.9 - 0.18.1 || 0.19.2-9340465 - 0.30.6 || 1.0.0-beta.1 - 1.0.0-beta.1-fd5d1e8
+  Depends on vulnerable versions of esbuild
+  node_modules/drizzle-kit
+
+2 moderate severity vulnerabilities
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+~/workspace$ npm audit fix --force
+npm warn using --force Recommended protections disabled.
+npm warn audit Updating drizzle-kit to 0.31.10, which is a SemVer major change.
+npm warn deprecated @esbuild-kit/esm-loader@2.6.5: Merged into tsx: https://tsx.is
+npm warn deprecated @esbuild-kit/core-utils@3.3.2: Merged into tsx: https://tsx.is
+
+added 6 packages, removed 20 packages, changed 1 package, and audited 827 packages in 2s
+
+97 packages are looking for funding
+  run `npm fund` for details
+
+# npm audit report
+
+esbuild  <=0.24.2
+Severity: moderate
+esbuild enables any website to send any requests to the development server and read the response - https://github.com/advisories/GHSA-67mh-4wv8-2f99
+fix available via `npm audit fix --force`
+Will install drizzle-kit@0.18.1, which is a breaking change
+node_modules/@esbuild-kit/core-utils/node_modules/esbuild
+  @esbuild-kit/core-utils  *
+  Depends on vulnerable versions of esbuild
+  node_modules/@esbuild-kit/core-utils
+    @esbuild-kit/esm-loader  *
+    Depends on vulnerable versions of @esbuild-kit/core-utils
+    node_modules/@esbuild-kit/esm-loader
+      drizzle-kit  0.17.5-6b7793f - 0.17.5-e5944eb || 0.18.1-065de38 - 0.18.1-f3800bf || 0.19.0-07024c4 - 1.0.0-beta.1-fd8bfcc
+      Depends on vulnerable versions of @esbuild-kit/esm-loader
+      node_modules/drizzle-kit
+
+4 moderate severity vulnerabilities
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force

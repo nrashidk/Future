@@ -1,10 +1,5 @@
 uploads = []
-
-[[generated]]
-id = "8SX_Vdw0xsWa1b4TqlE96"
-uri = "file://client/public/og-image.png"
-type = "image"
-title = "generated_image"
+generated = []
 
 [[outputs]]
 id = "KZUgeQbS9vBx2Iws2bcdU"

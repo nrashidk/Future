@@ -1319,7 +1319,7 @@ export async function seedDatabase() {
       seededComponents[componentData.key] = component;
       console.log(`✓ Created component: ${component.name} (${component.weight}%)`);
     } catch (error: any) {
-      if (error?.message?.includes('unique') || error?.code === '23505') {
+      if (error?.message?.includes('unique') || error?.code === '23505' || error?.cause?.code === '23505') {
         // Component already exists - fetch and update weight
         const components = await storage.getAllAssessmentComponents?.() || [];
         const existing = components.find((c: any) => c.key === componentData.key);
@@ -1360,7 +1360,7 @@ export async function seedDatabase() {
         });
         console.log(`✓ Created RIASEC affinities for: ${career.title}`);
       } catch (error: any) {
-        if (error?.message?.includes('unique') || error?.code === '23505') {
+        if (error?.message?.includes('unique') || error?.code === '23505' || error?.cause?.code === '23505') {
           // Affinity already exists - silently continue
         } else {
           console.error(`  Error creating affinity for ${career.title}:`, error);
@@ -1717,7 +1717,7 @@ export async function seedDatabase() {
       seededTiers[tierData.key] = tier;
       console.log(`✓ Created scoring tier: ${tier.name}`);
     } catch (error: any) {
-      if (error?.message?.includes('unique') || error?.code === '23505') {
+      if (error?.message?.includes('unique') || error?.code === '23505' || error?.cause?.code === '23505') {
         const existing = await storage.getScoringTierByKey(tierData.key);
         if (existing) {
           seededTiers[tierData.key] = existing;
@@ -1852,7 +1852,7 @@ Important: Direct students to verify program accreditation at:
       await storage.createLlmPromptTemplate(template);
       console.log(`✓ Created prompt template: ${template.name}`);
     } catch (error: any) {
-      if (error?.message?.includes('unique') || error?.code === '23505') {
+      if (error?.message?.includes('unique') || error?.code === '23505' || error?.cause?.code === '23505') {
         console.log(`  Prompt template ${template.name} already exists`);
       } else {
         console.error(`  Error creating template ${template.name}:`, error.message);
