@@ -1131,14 +1131,15 @@ export function registerSuperadminRoutes(app: Express) {
       let testResult = "success";
       let testMessage = "API key is valid";
       
-      if (provider === "openai") {
+      if (provider === "anthropic") {
         try {
-          const response = await fetch("https://api.openai.com/v1/models", {
+          const response = await fetch("https://api.anthropic.com/v1/models", {
             headers: {
-              Authorization: `Bearer ${credential.apiKey}`,
+              "x-api-key": credential.apiKey,
+              "anthropic-version": "2023-06-01",
             },
           });
-          
+
           if (!response.ok) {
             testResult = "failed";
             testMessage = `API returned status ${response.status}`;

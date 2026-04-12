@@ -1,7 +1,7 @@
 /**
  * LLM Country Service
- * 
- * Auto-populates country data using OpenAI API.
+ *
+ * Auto-populates country data using Anthropic Claude API.
  * Generates vision, strategic objectives, priority sectors, and curriculum-aligned quiz questions.
  */
 
@@ -53,13 +53,13 @@ interface GeneratedQuestion {
   cognitiveLevel: string;
 }
 
-const DEFAULT_MODEL = "gpt-4o";
+const DEFAULT_MODEL = "claude-3-5-sonnet-20241022";
 const MAX_TOKENS_RESEARCH = 2000;
 const MAX_TOKENS_QUESTIONS = 3000;
 const TEMPERATURE = 0.7;
 const API_TIMEOUT_MS = 60000;
 
-async function callOpenAI(
+async function callAnthropic(
   apiKey: string,
   systemPrompt: string,
   userPrompt: string,
@@ -67,23 +67,23 @@ async function callOpenAI(
 ): Promise<{ content: string; tokensUsed: number }> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT_MS);
-  
+
   try {
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
         model: DEFAULT_MODEL,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
         max_tokens: maxTokens,
         temperature: TEMPERATURE,
-        response_format: { type: "json_object" },
+        system: systemPrompt,
+        messages: [
+          { role: "user", content: userPrompt },
+        ],
       }),
       signal: controller.signal,
     });
@@ -98,18 +98,18 @@ async function callOpenAI(
       } catch {
         errorMessage = `HTTP ${response.status}: ${response.statusText}`;
       }
-      throw new Error(`OpenAI API error: ${response.status} - ${errorMessage}`);
+      throw new Error(`Anthropic API error: ${response.status} - ${errorMessage}`);
     }
 
     const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || "";
-    const tokensUsed = data.usage?.total_tokens || 0;
+    const content = data.content?.[0]?.text || "";
+    const tokensUsed = (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0);
 
     return { content, tokensUsed };
   } catch (error: any) {
     clearTimeout(timeoutId);
     if (error.name === "AbortError") {
-      throw new Error("OpenAI API request timed out after 60 seconds");
+      throw new Error("Anthropic API request timed out after 60 seconds");
     }
     throw error;
   }
@@ -119,7 +119,7 @@ function safeParseJSON<T>(content: string, defaultValue: T): T {
   if (!content || content.trim() === "") {
     return defaultValue;
   }
-  
+
   try {
     const result = JSON.parse(content);
     if (result && typeof result === "object") {
@@ -149,17 +149,17 @@ export async function researchCountryData(
   countryCode: string
 ): Promise<CountryResearchResult> {
   try {
-    const credential = await storage.getApiCredential("openai");
+    const credential = await storage.getApiCredential("anthropic");
     if (!credential || !credential.apiKey || !credential.isActive) {
       return {
         success: false,
-        error: "OpenAI API key not configured or inactive",
+        error: "Anthropic API key not configured or inactive",
       };
     }
 
     const systemPrompt = `You are an expert researcher on education systems and national development strategies. 
 You provide accurate, well-researched information about countries' education systems, national visions, and development goals.
-Always respond with valid JSON in the exact format specified.`;
+Always respond with valid JSON only — no markdown fences, no explanatory text before or after the JSON object.`;
 
     const userPrompt = `Research and provide comprehensive information about ${countryName} (${countryCode}) for a career guidance platform targeting students aged 13-18.
 
@@ -173,7 +173,7 @@ Provide the following information in JSON format:
   "educationSystem": "Brief description of the education system (grade levels, structure, key features) in 2-3 sentences",
   "universitiesLink": "URL to the official higher education accreditation body or ministry website",
   "universitiesLinkLabel": "Display name for the link, e.g., 'Ministry of Education' or 'Higher Education Commission'",
-  "curricula": ["Array of curricula used in the country, e.g., 'National Curriculum', 'CBSE', 'IB', 'Cambridge', 'American']",
+  "curricula": ["Array of curricula used in the country, e.g., 'National Curriculum', 'CBSE', 'IB', 'Cambridge', 'American'"],
   "subjects": ["Array of 6-8 core school subjects commonly taught, e.g., 'Mathematics', 'Science', 'English', 'History'"],
   "gradeLevels": ["8", "9", "10", "11", "12"],
   "targets": [
@@ -184,7 +184,7 @@ Provide the following information in JSON format:
 
 Focus on accurate, verifiable information. For subjects, use the actual names used in that country's education system.`;
 
-    const { content, tokensUsed } = await callOpenAI(
+    const { content, tokensUsed } = await callAnthropic(
       credential.apiKey,
       systemPrompt,
       userPrompt,
@@ -207,7 +207,7 @@ Focus on accurate, verifiable information. For subjects, use the actual names us
     };
 
     const data = safeParseJSON<CountryData>(content, defaultData);
-    
+
     if (!data.mission && !data.vision && !data.visionPlan) {
       return {
         success: false,
@@ -243,11 +243,11 @@ export async function generateCountryQuizQuestions(
   count: number = 10
 ): Promise<QuizGenerationResult> {
   try {
-    const credential = await storage.getApiCredential("openai");
+    const credential = await storage.getApiCredential("anthropic");
     if (!credential || !credential.apiKey || !credential.isActive) {
       return {
         success: false,
-        error: "OpenAI API key not configured or inactive",
+        error: "Anthropic API key not configured or inactive",
       };
     }
 
@@ -257,7 +257,7 @@ Your questions must be:
 - Aligned with the specified curriculum standards
 - Varied in difficulty and cognitive levels (Bloom's Taxonomy)
 - Culturally relevant to the specified country
-Always respond with valid JSON in the exact format specified.`;
+Always respond with valid JSON only — no markdown fences, no explanatory text before or after the JSON object.`;
 
     const userPrompt = `Generate ${count} multiple-choice quiz questions for:
 - Country: ${countryName}
@@ -292,7 +292,7 @@ Respond with JSON in this format:
   ]
 }`;
 
-    const { content, tokensUsed } = await callOpenAI(
+    const { content, tokensUsed } = await callAnthropic(
       credential.apiKey,
       systemPrompt,
       userPrompt,
@@ -300,7 +300,7 @@ Respond with JSON in this format:
     );
 
     const parsed = safeParseJSON<{ questions: GeneratedQuestion[] }>(content, { questions: [] });
-    
+
     if (!parsed.questions || parsed.questions.length === 0) {
       return {
         success: false,
@@ -336,11 +336,11 @@ export async function generateSectorWefMappings(
   error?: string;
 }> {
   try {
-    const credential = await storage.getApiCredential("openai");
+    const credential = await storage.getApiCredential("anthropic");
     if (!credential || !credential.apiKey || !credential.isActive) {
       return {
         success: false,
-        error: "OpenAI API key not configured or inactive",
+        error: "Anthropic API key not configured or inactive",
       };
     }
 
@@ -350,12 +350,12 @@ export async function generateSectorWefMappings(
       "Critical Thinking and Problem Solving", "Creativity",
       "Communication", "Collaboration", "Curiosity", "Initiative",
       "Persistence and Grit", "Adaptability", "Leadership",
-      "Social and Cultural Awareness"
+      "Social and Cultural Awareness",
     ];
 
     const systemPrompt = `You are an expert in workforce development and the World Economic Forum's 16 Skills Framework.
 Map priority economic sectors to the most relevant WEF skills needed for success in those sectors.
-Always respond with valid JSON.`;
+Always respond with valid JSON only — no markdown fences, no explanatory text before or after the JSON object.`;
 
     const userPrompt = `For ${countryName}, map each priority sector to the most relevant WEF skills.
 
@@ -369,12 +369,12 @@ Respond with JSON:
     {
       "sector": "Sector Name",
       "wefSkills": ["Top 4-5 most relevant WEF skills for this sector"],
-      "importanceScore": 0.8  // 0.5 to 1.0 indicating how critical these skills are
+      "importanceScore": 0.8
     }
   ]
 }`;
 
-    const { content } = await callOpenAI(
+    const { content } = await callAnthropic(
       credential.apiKey,
       systemPrompt,
       userPrompt,
@@ -384,7 +384,7 @@ Respond with JSON:
     const parsed = safeParseJSON<{
       mappings: Array<{ sector: string; wefSkills: string[]; importanceScore: number }>;
     }>(content, { mappings: [] });
-    
+
     if (!parsed.mappings || parsed.mappings.length === 0) {
       return {
         success: false,

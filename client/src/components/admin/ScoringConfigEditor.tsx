@@ -148,7 +148,7 @@ export default function ScoringConfigEditor() {
       return apiRequest('POST', '/api/superadmin/api-credentials', data);
     },
     onSuccess: () => {
-      toast({ title: "API Key Saved", description: "OpenAI API key has been saved securely" });
+      toast({ title: "API Key Saved", description: "Anthropic API key has been saved securely" });
       setNewApiKey("");
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/api-credentials'] });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/scoring-config/changelog'] });
@@ -255,7 +255,7 @@ export default function ScoringConfigEditor() {
     });
   };
 
-  const openaiCredential = credentials?.find(c => c.provider === 'openai');
+  const anthropicCredential = credentials?.find(c => c.provider === 'anthropic');
 
   return (
     <div className="space-y-6">
@@ -436,44 +436,44 @@ export default function ScoringConfigEditor() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Key className="w-5 h-5" />
-                OpenAI API Key
+                Anthropic (Claude) API Key
               </CardTitle>
               <CardDescription>
-                Configure your OpenAI API key for generating personalized premium report narratives.
-                The key is stored securely and used for Education Pathways recommendations.
+                Configure your Anthropic API key for generating personalized premium report narratives using Claude.
+                The key is stored securely and used for Career Reasoning and Education Pathways recommendations.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {credentialsLoading ? (
                 <div className="text-muted-foreground">Loading...</div>
-              ) : openaiCredential ? (
+              ) : anthropicCredential ? (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between p-4 border rounded-lg">
                     <div>
-                      <div className="font-medium">OpenAI</div>
+                      <div className="font-medium">Anthropic (Claude)</div>
                       <div className="text-sm text-muted-foreground font-mono">
-                        {openaiCredential.apiKeyMasked || 'Key configured'}
+                        {anthropicCredential.apiKeyMasked || 'Key configured'}
                       </div>
-                      {openaiCredential.lastTestedAt && (
+                      {anthropicCredential.lastTestedAt && (
                         <div className="text-xs text-muted-foreground mt-1">
-                          Last tested: {new Date(openaiCredential.lastTestedAt).toLocaleString()}
+                          Last tested: {new Date(anthropicCredential.lastTestedAt).toLocaleString()}
                           {' - '}
-                          <span className={openaiCredential.lastTestResult === 'success' ? 'text-green-600' : 'text-destructive'}>
-                            {openaiCredential.lastTestResult}
+                          <span className={anthropicCredential.lastTestResult === 'success' ? 'text-green-600' : 'text-destructive'}>
+                            {anthropicCredential.lastTestResult}
                           </span>
                         </div>
                       )}
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge variant={openaiCredential.isActive ? "default" : "secondary"}>
-                        {openaiCredential.isActive ? "Active" : "Inactive"}
+                      <Badge variant={anthropicCredential.isActive ? "default" : "secondary"}>
+                        {anthropicCredential.isActive ? "Active" : "Inactive"}
                       </Badge>
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => testApiKeyMutation.mutate('openai')}
+                        onClick={() => testApiKeyMutation.mutate('anthropic')}
                         disabled={testApiKeyMutation.isPending}
-                        data-testid="button-test-openai"
+                        data-testid="button-test-anthropic"
                       >
                         <TestTube className="w-4 h-4 mr-2" />
                         Test
@@ -481,22 +481,22 @@ export default function ScoringConfigEditor() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => deleteApiKeyMutation.mutate('openai')}
+                        onClick={() => deleteApiKeyMutation.mutate('anthropic')}
                         disabled={deleteApiKeyMutation.isPending}
-                        data-testid="button-delete-openai"
+                        data-testid="button-delete-anthropic"
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
                   </div>
-                  
+
                   <div className="pt-4 border-t">
                     <Label>Update API Key</Label>
                     <div className="flex gap-2 mt-2">
                       <div className="relative flex-1">
                         <Input
                           type={showApiKey ? "text" : "password"}
-                          placeholder="sk-..."
+                          placeholder="sk-ant-..."
                           value={newApiKey}
                           onChange={(e) => setNewApiKey(e.target.value)}
                           data-testid="input-new-api-key"
@@ -512,7 +512,7 @@ export default function ScoringConfigEditor() {
                         </Button>
                       </div>
                       <Button
-                        onClick={() => saveApiKeyMutation.mutate({ provider: 'openai', apiKey: newApiKey })}
+                        onClick={() => saveApiKeyMutation.mutate({ provider: 'anthropic', apiKey: newApiKey })}
                         disabled={!newApiKey || saveApiKeyMutation.isPending}
                         data-testid="button-save-api-key"
                       >
@@ -525,15 +525,15 @@ export default function ScoringConfigEditor() {
               ) : (
                 <div className="space-y-4">
                   <div className="p-4 border border-dashed rounded-lg text-center text-muted-foreground">
-                    No OpenAI API key configured. Premium report narratives will not be generated.
+                    No Anthropic API key configured. Premium report narratives will not be generated.
                   </div>
                   <div>
-                    <Label>Add OpenAI API Key</Label>
+                    <Label>Add Anthropic (Claude) API Key</Label>
                     <div className="flex gap-2 mt-2">
                       <div className="relative flex-1">
                         <Input
                           type={showApiKey ? "text" : "password"}
-                          placeholder="sk-..."
+                          placeholder="sk-ant-..."
                           value={newApiKey}
                           onChange={(e) => setNewApiKey(e.target.value)}
                           data-testid="input-api-key"
@@ -549,7 +549,7 @@ export default function ScoringConfigEditor() {
                         </Button>
                       </div>
                       <Button
-                        onClick={() => saveApiKeyMutation.mutate({ provider: 'openai', apiKey: newApiKey })}
+                        onClick={() => saveApiKeyMutation.mutate({ provider: 'anthropic', apiKey: newApiKey })}
                         disabled={!newApiKey || saveApiKeyMutation.isPending}
                         data-testid="button-add-api-key"
                       >

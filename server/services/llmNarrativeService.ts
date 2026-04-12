@@ -1,7 +1,7 @@
 /**
  * LLM Narrative Service
- * 
- * Generates personalized premium report narratives using OpenAI API.
+ *
+ * Generates personalized premium report narratives using Anthropic Claude API.
  * Supports configurable prompts and multiple narrative types.
  */
 
@@ -36,7 +36,7 @@ interface NarrativeResult {
   tokensUsed?: number;
 }
 
-const DEFAULT_MODEL = "gpt-4o";
+const DEFAULT_MODEL = "claude-3-5-sonnet-20241022";
 const DEFAULT_MAX_TOKENS = 1000;
 const DEFAULT_TEMPERATURE = 0.7;
 
@@ -65,9 +65,9 @@ function replaceTemplateVariables(
 }
 
 /**
- * Call OpenAI API to generate narrative
+ * Call Anthropic Claude API to generate narrative
  */
-async function callOpenAI(
+async function callAnthropic(
   apiKey: string,
   systemPrompt: string,
   userPrompt: string,
@@ -75,33 +75,34 @@ async function callOpenAI(
   maxTokens: number,
   temperature: number
 ): Promise<{ content: string; tokensUsed: number }> {
-  const response = await fetch("https://api.openai.com/v1/chat/completions", {
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
     },
     body: JSON.stringify({
       model,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
       max_tokens: maxTokens,
       temperature,
+      system: systemPrompt,
+      messages: [
+        { role: "user", content: userPrompt },
+      ],
     }),
   });
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
     throw new Error(
-      `OpenAI API error: ${response.status} - ${errorData.error?.message || "Unknown error"}`
+      `Anthropic API error: ${response.status} - ${errorData.error?.message || "Unknown error"}`
     );
   }
 
   const data = await response.json();
-  const content = data.choices?.[0]?.message?.content || "";
-  const tokensUsed = data.usage?.total_tokens || 0;
+  const content = data.content?.[0]?.text || "";
+  const tokensUsed = (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0);
 
   return { content, tokensUsed };
 }
@@ -116,18 +117,16 @@ export async function generateNarrative(
   careerContext: CareerContext
 ): Promise<NarrativeResult> {
   try {
-    // Get the OpenAI API key
-    const credential = await storage.getApiCredential("openai");
+    const credential = await storage.getApiCredential("anthropic");
     if (!credential || !credential.apiKey || !credential.isActive) {
       return {
         success: false,
-        error: "OpenAI API key not configured or inactive",
+        error: "Anthropic API key not configured or inactive",
         promptKey,
         model: DEFAULT_MODEL,
       };
     }
 
-    // Get the prompt template
     const template = await storage.getLlmPromptTemplateByKey(promptKey);
     if (!template || !template.isActive) {
       return {
@@ -138,19 +137,18 @@ export async function generateNarrative(
       };
     }
 
-    // Replace template variables
     const userPrompt = replaceTemplateVariables(
       template.userPromptTemplate,
       studentContext,
       careerContext
     );
 
-    // Call OpenAI
-    const { content, tokensUsed } = await callOpenAI(
+    const model = template.model || DEFAULT_MODEL;
+    const { content, tokensUsed } = await callAnthropic(
       credential.apiKey,
       template.systemPrompt,
       userPrompt,
-      template.model || DEFAULT_MODEL,
+      model,
       template.maxTokens || DEFAULT_MAX_TOKENS,
       template.temperature ?? DEFAULT_TEMPERATURE
     );
@@ -159,7 +157,7 @@ export async function generateNarrative(
       success: true,
       narrative: content,
       promptKey,
-      model: template.model || DEFAULT_MODEL,
+      model,
       tokensUsed,
     };
   } catch (error) {
@@ -212,13 +210,11 @@ function buildStudentContext(assessment: Assessment, overallScore: number): Stud
   const cvqData = assessment.cvqScores as any;
   const assessmentData = assessment as any;
 
-  // Extract learning style
   let learningStyle = "Not assessed";
   if (learningStyleData?.learningStyle) {
     learningStyle = learningStyleData.learningStyle;
   }
 
-  // Extract top RIASEC themes
   let riasecTop3: string[] = [];
   if (riasecData?.top3) {
     riasecTop3 = riasecData.top3;
@@ -226,18 +222,16 @@ function buildStudentContext(assessment: Assessment, overallScore: number): Stud
     riasecTop3 = riasecData.ranking.slice(0, 3).map((r: any) => r.code);
   }
 
-  // Extract top CVQ values
   let cvqTop3: string[] = [];
   if (cvqData?.ranking) {
     cvqTop3 = cvqData.ranking.slice(0, 3).map((r: any) => r.value || r.name);
   }
 
-  // Extract favorite subjects from subjectScores or subjectInterests
   let favoriteSubjects: string[] = [];
   const subjectScores = assessmentData.subjectScores || assessmentData.subjectInterests;
-  if (subjectScores && typeof subjectScores === 'object') {
+  if (subjectScores && typeof subjectScores === "object") {
     favoriteSubjects = Object.entries(subjectScores)
-      .filter(([_, score]: [string, any]) => typeof score === 'number' ? score >= 70 : true)
+      .filter(([_, score]: [string, any]) => (typeof score === "number" ? score >= 70 : true))
       .map(([subject]: [string, any]) => subject)
       .slice(0, 3);
   }
@@ -272,7 +266,7 @@ function buildCareerContext(career: Career): CareerContext {
  */
 export async function isLlmServiceAvailable(storage: IStorage): Promise<boolean> {
   try {
-    const credential = await storage.getApiCredential("openai");
+    const credential = await storage.getApiCredential("anthropic");
     return Boolean(credential?.apiKey && credential?.isActive);
   } catch {
     return false;
