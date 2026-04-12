@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { validateEmail, validatePhone, sanitizePhone } from "@/lib/utils";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -1771,17 +1772,26 @@ export default function SuperadminDashboard() {
                 type="email"
                 value={newAdminForm.email}
                 onChange={(e) => setNewAdminForm({ ...newAdminForm, email: e.target.value })}
+                placeholder="admin@school.ae"
                 data-testid="input-admin-email"
               />
+              {validateEmail(newAdminForm.email) && (
+                <p className="text-xs text-destructive">{validateEmail(newAdminForm.email)}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="phone">Phone</Label>
               <Input
                 id="phone"
                 value={newAdminForm.phone}
-                onChange={(e) => setNewAdminForm({ ...newAdminForm, phone: e.target.value })}
+                onChange={(e) => setNewAdminForm({ ...newAdminForm, phone: sanitizePhone(e.target.value) })}
+                placeholder="0501234567"
+                maxLength={10}
                 data-testid="input-admin-phone"
               />
+              {validatePhone(newAdminForm.phone) && (
+                <p className="text-xs text-destructive">{validatePhone(newAdminForm.phone)}</p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="username">Username (optional, will be auto-generated)</Label>
@@ -1797,7 +1807,7 @@ export default function SuperadminDashboard() {
             <Button variant="outline" onClick={() => setIsAddAdminModalOpen(false)}>Cancel</Button>
             <Button 
               onClick={() => addAdminMutation.mutate(newAdminForm)}
-              disabled={!newAdminForm.firstName || !newAdminForm.lastName || addAdminMutation.isPending}
+              disabled={!newAdminForm.firstName || !newAdminForm.lastName || !!validateEmail(newAdminForm.email) || !!validatePhone(newAdminForm.phone) || addAdminMutation.isPending}
               data-testid="button-submit-add-admin"
             >
               {addAdminMutation.isPending ? "Creating..." : "Create Admin"}
@@ -2054,17 +2064,26 @@ export default function SuperadminDashboard() {
                   type="email"
                   value={newOrgForm.adminEmail}
                   onChange={(e) => setNewOrgForm({ ...newOrgForm, adminEmail: e.target.value })}
+                  placeholder="admin@school.ae"
                   data-testid="input-org-admin-email"
                 />
+                {validateEmail(newOrgForm.adminEmail) && (
+                  <p className="text-xs text-destructive">{validateEmail(newOrgForm.adminEmail)}</p>
+                )}
               </div>
               <div className="space-y-2 mt-4">
                 <Label htmlFor="adminPhone">Admin Phone</Label>
                 <Input
                   id="adminPhone"
                   value={newOrgForm.adminPhone}
-                  onChange={(e) => setNewOrgForm({ ...newOrgForm, adminPhone: e.target.value })}
+                  onChange={(e) => setNewOrgForm({ ...newOrgForm, adminPhone: sanitizePhone(e.target.value) })}
+                  placeholder="0501234567"
+                  maxLength={10}
                   data-testid="input-org-admin-phone"
                 />
+                {validatePhone(newOrgForm.adminPhone) && (
+                  <p className="text-xs text-destructive">{validatePhone(newOrgForm.adminPhone)}</p>
+                )}
               </div>
             </div>
           </div>
@@ -2072,7 +2091,7 @@ export default function SuperadminDashboard() {
             <Button variant="outline" onClick={() => setIsCreateOrgModalOpen(false)}>Cancel</Button>
             <Button 
               onClick={() => createOrgMutation.mutate(newOrgForm)}
-              disabled={!newOrgForm.organizationName || !newOrgForm.adminFirstName || !newOrgForm.adminLastName || createOrgMutation.isPending}
+              disabled={!newOrgForm.organizationName || !newOrgForm.adminFirstName || !newOrgForm.adminLastName || !!validateEmail(newOrgForm.adminEmail) || !!validatePhone(newOrgForm.adminPhone) || createOrgMutation.isPending}
               data-testid="button-submit-create-org"
             >
               {createOrgMutation.isPending ? "Creating..." : "Create School"}

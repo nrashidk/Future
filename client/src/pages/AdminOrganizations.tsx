@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { validateEmail } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
@@ -1187,6 +1188,9 @@ IMPORTANT: Keep this file secure. The password cannot be recovered.
               placeholder="admin@school.ae"
               data-testid="input-admin-email"
             />
+            {validateEmail(formData.adminEmail) && (
+              <p className="text-xs text-destructive mt-1">{validateEmail(formData.adminEmail)}</p>
+            )}
           </div>
 
           <div className="mt-3">
@@ -1206,7 +1210,7 @@ IMPORTANT: Keep this file secure. The password cannot be recovered.
       </div>
 
       <div className="flex justify-end gap-2 pt-4">
-        <Button type="submit" disabled={mutation.isPending} data-testid="button-submit-school">
+        <Button type="submit" disabled={mutation.isPending || !!validateEmail(formData.adminEmail)} data-testid="button-submit-school">
           {mutation.isPending ? "Creating..." : "Create School"}
         </Button>
       </div>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { validateEmail, validatePhone, sanitizePhone } from "@/lib/utils";
 import { useLocation } from "wouter";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { loadStripe, Stripe } from "@stripe/stripe-js";
@@ -77,6 +78,17 @@ function CheckoutForm({ amount, studentCount }: { amount: number | null; student
         description: "Please fill in all required fields",
         variant: "destructive",
       });
+      return;
+    }
+
+    const emailErr = validateEmail(email);
+    if (emailErr) {
+      toast({ title: "Invalid Email", description: emailErr, variant: "destructive" });
+      return;
+    }
+    const phoneErr = validatePhone(phone);
+    if (phoneErr) {
+      toast({ title: "Invalid Phone", description: phoneErr, variant: "destructive" });
       return;
     }
 
@@ -208,9 +220,13 @@ function CheckoutForm({ amount, studentCount }: { amount: number | null; student
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@domain.com"
             required
             data-testid="input-email"
           />
+          {validateEmail(email) && (
+            <p className="text-xs text-destructive mt-1">{validateEmail(email)}</p>
+          )}
         </div>
         <div className="mt-4">
           <Label htmlFor="phone">Phone Number *</Label>
@@ -218,10 +234,15 @@ function CheckoutForm({ amount, studentCount }: { amount: number | null; student
             id="phone"
             type="tel"
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            onChange={(e) => setPhone(sanitizePhone(e.target.value))}
+            placeholder="0501234567"
+            maxLength={10}
             required
             data-testid="input-phone"
           />
+          {validatePhone(phone) && (
+            <p className="text-xs text-destructive mt-1">{validatePhone(phone)}</p>
+          )}
         </div>
         {studentCount > 1 && (
           <div className="mt-4">
