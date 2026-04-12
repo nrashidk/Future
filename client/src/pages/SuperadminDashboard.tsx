@@ -385,7 +385,8 @@ export default function SuperadminDashboard() {
 
   const createOrgMutation = useMutation({
     mutationFn: async (data: typeof newOrgForm) => {
-      return apiRequest('POST', '/api/superadmin/organizations/create-with-admin', data);
+      const res = await apiRequest('POST', '/api/superadmin/organizations/create-with-admin', data);
+      return res.json();
     },
     onSuccess: (data: any) => {
       toast({ 
