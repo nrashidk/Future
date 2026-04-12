@@ -53,7 +53,7 @@ interface GeneratedQuestion {
   cognitiveLevel: string;
 }
 
-const DEFAULT_MODEL = "claude-3-5-sonnet-20241022";
+const DEFAULT_MODEL = "claude-sonnet-4-6";
 const MAX_TOKENS_RESEARCH = 2000;
 const MAX_TOKENS_QUESTIONS = 3000;
 const TEMPERATURE = 0.7;

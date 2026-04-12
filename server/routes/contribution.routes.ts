@@ -74,7 +74,7 @@ async function verifyQuestionsWithLLM(questions: any[], subject: string, grade: 
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-3-haiku-20240307",
+        model: "claude-haiku-4-5",
         max_tokens: 1000,
         temperature: 0.3,
         system: `You are an educational content quality reviewer. Evaluate quiz questions for a ${curriculum} curriculum, Grade ${grade}, Subject: ${subject}.

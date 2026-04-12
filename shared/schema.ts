@@ -1069,7 +1069,7 @@ export const llmPromptTemplates = pgTable("llm_prompt_templates", {
   description: text("description"),
   systemPrompt: text("system_prompt").notNull(), // System context for LLM
   userPromptTemplate: text("user_prompt_template").notNull(), // Template with {{placeholders}}
-  model: text("model").notNull().default("claude-3-5-sonnet-20241022"), // LLM model to use
+  model: text("model").notNull().default("claude-sonnet-4-6"), // LLM model to use
   maxTokens: integer("max_tokens").notNull().default(1000),
   temperature: real("temperature").notNull().default(0.7),
   isActive: boolean("is_active").notNull().default(true),

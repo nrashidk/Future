@@ -1838,7 +1838,7 @@ Write 4-5 paragraphs explaining:
 3. How their values align with this career path
 4. Their subject strengths and skill development opportunities
 5. Growth potential and future outlook in the UAE`,
-      model: "claude-3-5-sonnet-20241022",
+      model: "claude-sonnet-4-6",
       maxTokens: 1000,
       temperature: 0.7,
       isActive: true,
@@ -1869,7 +1869,7 @@ Provide guidance on:
 Important: Direct students to verify program accreditation at:
 - UAE Commission for Academic Accreditation: https://caa.ae/Pages/Institutes/All.aspx
 - Accredited Programs: https://caa.ae/Pages/Programs/All.aspx`,
-      model: "claude-3-5-sonnet-20241022",
+      model: "claude-sonnet-4-6",
       maxTokens: 800,
       temperature: 0.7,
       isActive: true,

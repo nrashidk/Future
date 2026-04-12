@@ -304,7 +304,7 @@ export function registerCountryRoutes(app: Express) {
             difficulty: q.difficulty,
             cognitiveLevel: q.cognitiveLevel,
             isLlmGenerated: true,
-            llmModel: "claude-3-5-sonnet-20241022",
+            llmModel: "claude-sonnet-4-6",
           });
           created++;
         } catch (e) {
