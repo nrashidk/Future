@@ -314,6 +314,32 @@ export function registerCountryRoutes(app: Express) {
 
       console.log(`[Country] Created ${created}/${result.questions?.length || 0} questions for ${country.name}`);
 
+      // Auto-create subject entry if it doesn't exist yet
+      const existingSubject = await storage.getSubjectByCode(id, curriculum, subject.toLowerCase().replace(/\s+/g, "_"));
+      if (!existingSubject && created > 0) {
+        try {
+          const subjectCode = subject.toLowerCase().replace(/\s+/g, "_");
+          const displayName = subject
+            .split(/[\s_]+/)
+            .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+            .join(" ");
+          await storage.createSubject({
+            name: displayName,
+            code: subjectCode,
+            countryId: id,
+            curriculum: curriculum || "National",
+            isActive: true,
+            displayOrder: 0,
+          });
+          console.log(`[Country] Auto-created subject "${displayName}" for ${country.name}`);
+        } catch (subjectError: any) {
+          // If duplicate, that's fine — another request may have created it
+          if (!subjectError?.message?.includes("unique") && !subjectError?.cause?.code?.includes("23505")) {
+            console.warn(`[Country] Could not auto-create subject: ${subjectError.message}`);
+          }
+        }
+      }
+
       res.json({
         success: true,
         questionsGenerated: result.questions?.length || 0,

@@ -1853,6 +1853,21 @@ export function registerSuperadminRoutes(app: Express) {
   // SUBJECT MANAGEMENT (Curriculum-scoped)
   // ===============================
 
+  // Get quiz question counts grouped by subject (must come before /:id route)
+  app.get("/api/superadmin/subjects/question-counts", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const { countryId, curriculum } = req.query;
+      const counts = await storage.getQuizQuestionCountsBySubject(
+        countryId as string | undefined,
+        curriculum as string | undefined,
+      );
+      res.json(counts);
+    } catch (error) {
+      console.error("Error fetching question counts:", error);
+      res.status(500).json({ message: "Failed to fetch question counts" });
+    }
+  });
+
   // Get all subjects (with optional filters)
   app.get("/api/superadmin/subjects", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
     try {

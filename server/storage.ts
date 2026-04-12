@@ -208,6 +208,7 @@ export interface IStorage {
   }): Promise<QuizQuestion[]>;
   updateQuizQuestion(id: string, data: Partial<InsertQuizQuestion>): Promise<QuizQuestion | undefined>;
   deleteQuizQuestion(id: string): Promise<boolean>;
+  getQuizQuestionCountsBySubject(countryId?: string, curriculum?: string): Promise<Array<{ subject: string; curriculum: string; count: number }>>;
   createAssessmentQuiz(assessmentQuiz: InsertAssessmentQuiz): Promise<AssessmentQuiz>;
   getAssessmentQuizByAssessmentId(assessmentId: string): Promise<AssessmentQuiz | undefined>;
   createQuizResponse(response: InsertQuizResponse): Promise<QuizResponse>;
@@ -1096,6 +1097,24 @@ export class DatabaseStorage implements IStorage {
     }
     
     return await query;
+  }
+
+  async getQuizQuestionCountsBySubject(countryId?: string, curriculum?: string): Promise<Array<{ subject: string; curriculum: string; count: number }>> {
+    const conditions: any[] = [];
+    if (countryId) conditions.push(eq(quizQuestions.countryId, countryId));
+    if (curriculum) conditions.push(eq(quizQuestions.curriculum, curriculum));
+
+    const rows = await db
+      .select({
+        subject: quizQuestions.subject,
+        curriculum: quizQuestions.curriculum,
+        count: count(),
+      })
+      .from(quizQuestions)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .groupBy(quizQuestions.subject, quizQuestions.curriculum);
+
+    return rows.map(r => ({ subject: r.subject, curriculum: r.curriculum ?? "", count: Number(r.count) }));
   }
 
   async updateQuizQuestion(id: string, data: Partial<InsertQuizQuestion>): Promise<QuizQuestion | undefined> {

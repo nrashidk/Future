@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { 
   Plus, Edit, Trash2, Search, GraduationCap, Copy, 
-  BookOpen, Calculator, FlaskConical, Languages, Globe2, Code 
+  BookOpen, Calculator, FlaskConical, Languages, Globe2, Code, AlertCircle
 } from "lucide-react";
 
 interface Subject {
@@ -101,6 +101,23 @@ export default function SubjectManagement() {
       return response.json();
     },
   });
+
+  const { data: questionCounts = [] } = useQuery<Array<{ subject: string; curriculum: string; count: number }>>({
+    queryKey: ["/api/superadmin/subjects/question-counts", selectedCountry, selectedCurriculum],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (selectedCountry) params.append("countryId", selectedCountry);
+      if (selectedCurriculum) params.append("curriculum", selectedCurriculum);
+      const response = await fetch(`/api/superadmin/subjects/question-counts?${params.toString()}`, {
+        credentials: "include",
+      });
+      if (!response.ok) return [];
+      return response.json();
+    },
+  });
+
+  const getQuestionCount = (code: string, curriculum: string) =>
+    questionCounts.find(c => c.subject === code && c.curriculum === curriculum)?.count ?? 0;
 
   const createSubjectMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
@@ -220,6 +237,38 @@ export default function SubjectManagement() {
   const selectedCountryData = countries.find(c => c.id === selectedCountry);
   const selectedCountryForForm = countries.find(c => c.id === formData.countryId);
 
+  // Subjects that have quiz questions but no subject entry yet
+  const unregisteredSubjects = questionCounts.filter(qc =>
+    qc.count > 0 &&
+    (!selectedCurriculum || qc.curriculum === selectedCurriculum) &&
+    !subjects.some(s => s.code === qc.subject && s.curriculum === qc.curriculum)
+  );
+
+  const registerSubjectMutation = useMutation({
+    mutationFn: async (data: { subject: string; curriculum: string; countryId: string }) => {
+      const displayName = data.subject
+        .split(/[\s_]+/)
+        .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" ");
+      return apiRequest("POST", "/api/superadmin/subjects", {
+        name: displayName,
+        code: data.subject,
+        countryId: data.countryId,
+        curriculum: data.curriculum,
+        isActive: true,
+        displayOrder: 0,
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "Subject registered", description: "The subject has been added to this country." });
+      queryClient.invalidateQueries({ queryKey: ["/api/superadmin/subjects"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/superadmin/subjects/question-counts"] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to register subject", variant: "destructive" });
+    },
+  });
+
   return (
     <Card>
       <CardHeader>
@@ -313,6 +362,39 @@ export default function SubjectManagement() {
           </div>
         </div>
 
+        {selectedCountry && unregisteredSubjects.length > 0 && (
+          <div className="rounded-md border border-yellow-500/30 bg-yellow-500/5 p-4 space-y-3">
+            <div className="flex items-center gap-2 text-sm font-medium">
+              <AlertCircle className="h-4 w-4 text-yellow-500" />
+              <span>{unregisteredSubjects.length} subject{unregisteredSubjects.length > 1 ? "s" : ""} detected from quiz bank but not yet registered</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {unregisteredSubjects.map(us => {
+                const displayName = us.subject
+                  .split(/[\s_]+/)
+                  .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+                  .join(" ");
+                return (
+                  <div key={`${us.subject}-${us.curriculum}`} className="flex items-center gap-2 rounded-md border bg-background px-3 py-1.5 text-sm">
+                    <span className="font-medium">{displayName}</span>
+                    <Badge variant="outline" className="text-xs">{us.curriculum}</Badge>
+                    <span className="text-muted-foreground">{us.count} questions</span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => registerSubjectMutation.mutate({ subject: us.subject, curriculum: us.curriculum, countryId: selectedCountry })}
+                      disabled={registerSubjectMutation.isPending}
+                      data-testid={`button-register-subject-${us.subject}`}
+                    >
+                      Register
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {subjectsLoading ? (
           <div className="text-center py-8 text-muted-foreground">Loading subjects...</div>
         ) : filteredSubjects.length === 0 ? (
@@ -329,6 +411,7 @@ export default function SubjectManagement() {
                 <TableHead>Code</TableHead>
                 <TableHead>Country</TableHead>
                 <TableHead>Curriculum</TableHead>
+                <TableHead>Questions</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Order</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
@@ -352,6 +435,11 @@ export default function SubjectManagement() {
                     <TableCell>{country?.abbreviation || country?.name || subject.countryId}</TableCell>
                     <TableCell>
                       <Badge variant="outline">{subject.curriculum}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={getQuestionCount(subject.code, subject.curriculum) > 0 ? "default" : "secondary"} data-testid={`badge-question-count-${subject.id}`}>
+                        {getQuestionCount(subject.code, subject.curriculum)}
+                      </Badge>
                     </TableCell>
                     <TableCell>
                       <Badge variant={subject.isActive ? "default" : "secondary"}>
