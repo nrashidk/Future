@@ -59,25 +59,25 @@ async function verifyQuestionsWithLLM(questions: any[], subject: string, grade: 
   verified: boolean;
 }> {
   try {
-    // Get OpenAI credentials
-    const credential = await storage.getApiCredential("openai");
+    // Get Anthropic credentials
+    const credential = await storage.getApiCredential("anthropic");
     if (!credential || !credential.apiKey) {
-      console.log("OpenAI API key not configured, skipping LLM verification");
+      console.log("Anthropic API key not configured, skipping LLM verification");
       return { overallScore: 100, feedback: questions.map((_, i) => ({ index: i, isValid: true, score: 100, issues: [] })), verified: true };
     }
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${credential.apiKey}`,
+        "x-api-key": credential.apiKey,
+        "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
-        messages: [
-          {
-            role: "system",
-            content: `You are an educational content quality reviewer. Evaluate quiz questions for a ${curriculum} curriculum, Grade ${grade}, Subject: ${subject}. 
+        model: "claude-3-haiku-20240307",
+        max_tokens: 1000,
+        temperature: 0.3,
+        system: `You are an educational content quality reviewer. Evaluate quiz questions for a ${curriculum} curriculum, Grade ${grade}, Subject: ${subject}.
 
 For each question, check:
 1. Accuracy: Is the question factually correct?
@@ -86,7 +86,7 @@ For each question, check:
 4. Answer Validity: Is the correct answer actually correct?
 5. Option Quality: Are all 4 options distinct and plausible?
 
-Return a JSON object with:
+Return a JSON object only — no markdown fences, no extra text:
 {
   "overallScore": number (0-100),
   "questions": [
@@ -94,25 +94,24 @@ Return a JSON object with:
   ]
 }
 
-Be strict but fair. Educational quality matters.`
-          },
+Be strict but fair. Educational quality matters.`,
+        messages: [
           {
             role: "user",
-            content: `Evaluate these questions:\n${JSON.stringify(questions, null, 2)}`
-          }
+            content: `Evaluate these questions:\n${JSON.stringify(questions, null, 2)}`,
+          },
         ],
-        temperature: 0.3,
-        response_format: { type: "json_object" }
       }),
     });
 
     if (!response.ok) {
-      console.error("OpenAI API error:", response.status, await response.text());
+      console.error("Anthropic API error:", response.status, await response.text());
       return { overallScore: 100, feedback: questions.map((_, i) => ({ index: i, isValid: true, score: 100, issues: [] })), verified: true };
     }
 
     const data = await response.json();
-    const content = JSON.parse(data.choices[0].message.content);
+    const rawText = data.content?.[0]?.text || "{}";
+    const content = JSON.parse(rawText);
     
     return {
       overallScore: content.overallScore || 0,

@@ -1838,7 +1838,7 @@ Write 4-5 paragraphs explaining:
 3. How their values align with this career path
 4. Their subject strengths and skill development opportunities
 5. Growth potential and future outlook in the UAE`,
-      model: "gpt-4o",
+      model: "claude-3-5-sonnet-20241022",
       maxTokens: 1000,
       temperature: 0.7,
       isActive: true,
@@ -1869,20 +1869,31 @@ Provide guidance on:
 Important: Direct students to verify program accreditation at:
 - UAE Commission for Academic Accreditation: https://caa.ae/Pages/Institutes/All.aspx
 - Accredited Programs: https://caa.ae/Pages/Programs/All.aspx`,
-      model: "gpt-4o",
+      model: "claude-3-5-sonnet-20241022",
       maxTokens: 800,
       temperature: 0.7,
       isActive: true,
     },
   ];
-  
+
   for (const template of promptTemplates) {
     try {
       await storage.createLlmPromptTemplate(template);
       console.log(`✓ Created prompt template: ${template.name}`);
     } catch (error: any) {
       if (error?.message?.includes('unique') || error?.code === '23505' || error?.cause?.code === '23505') {
-        console.log(`  Prompt template ${template.name} already exists`);
+        // Template exists — update the model to the current default in case it was a GPT model
+        try {
+          const existing = await storage.getLlmPromptTemplateByKey(template.key);
+          if (existing && existing.model !== template.model) {
+            await storage.updateLlmPromptTemplate(existing.id, { model: template.model });
+            console.log(`  Prompt template ${template.name} already exists (model updated to ${template.model})`);
+          } else {
+            console.log(`  Prompt template ${template.name} already exists`);
+          }
+        } catch {
+          console.log(`  Prompt template ${template.name} already exists`);
+        }
       } else {
         console.error(`  Error creating template ${template.name}:`, error.message);
       }

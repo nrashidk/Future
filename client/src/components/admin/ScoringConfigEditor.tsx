@@ -696,10 +696,10 @@ export default function ScoringConfigEditor() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="gpt-4o">GPT-4o</SelectItem>
-                      <SelectItem value="gpt-4o-mini">GPT-4o Mini</SelectItem>
-                      <SelectItem value="gpt-4-turbo">GPT-4 Turbo</SelectItem>
-                      <SelectItem value="gpt-3.5-turbo">GPT-3.5 Turbo</SelectItem>
+                      <SelectItem value="claude-3-5-sonnet-20241022">Claude 3.5 Sonnet (Recommended)</SelectItem>
+                      <SelectItem value="claude-3-5-haiku-20241022">Claude 3.5 Haiku (Fast)</SelectItem>
+                      <SelectItem value="claude-3-opus-20240229">Claude 3 Opus (Most Powerful)</SelectItem>
+                      <SelectItem value="claude-3-haiku-20240307">Claude 3 Haiku (Economy)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
