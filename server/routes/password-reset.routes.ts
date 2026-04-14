@@ -92,7 +92,15 @@ export function registerPasswordResetRoutes(app: Express) {
         const userEmail = user.email || `${user.username}@placeholder.local`;
         
         if (user.email) {
-          await sendPasswordResetEmail(user.email, token, userName);
+          const emailResult = await sendPasswordResetEmail(user.email, token, userName);
+          if (!emailResult.success) {
+            // In production, a failed send means the operator must fix configuration.
+            // Return a non-enumerating 503 so the failure is visible.
+            return res.status(503).json({
+              success: false,
+              message: "Email service is not available. Please contact your administrator.",
+            });
+          }
         } else {
           // SECURITY: Never log tokens. For org students without email, 
           // admins should use the admin password reset feature instead.
