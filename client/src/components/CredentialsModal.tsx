@@ -2,7 +2,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Button } from "@/components/ui/button";
 import { Copy, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import StickyNote from "@/components/StickyNote";
+import { StickyNote } from "@/components/StickyNote";
 
 interface CredentialsModalProps {
   open: boolean;

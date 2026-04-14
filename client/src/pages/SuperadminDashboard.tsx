@@ -198,6 +198,9 @@ export default function SuperadminDashboard() {
   const [isAddAdminModalOpen, setIsAddAdminModalOpen] = useState(false);
   const [isCreateOrgModalOpen, setIsCreateOrgModalOpen] = useState(false);
   const [isEventsModalOpen, setIsEventsModalOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("organizations");
+  const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
+  const [newStudentForm, setNewStudentForm] = useState({ firstName: "", lastName: "", email: "", username: "", grade: "" });
   
   const [newAdminForm, setNewAdminForm] = useState({
     firstName: "",
@@ -423,6 +426,26 @@ export default function SuperadminDashboard() {
 
   // New state for additional features
   const [isDeleteOrgModalOpen, setIsDeleteOrgModalOpen] = useState(false);
+
+  const [createdStudentCredentials, setCreatedStudentCredentials] = useState<{ username: string; password: string; email: string } | null>(null);
+  const [isStudentCredModalOpen, setIsStudentCredModalOpen] = useState(false);
+
+  const createStudentMutation = useMutation({
+    mutationFn: async (data: typeof newStudentForm) => {
+      const res = await apiRequest('POST', '/api/superadmin/students', data);
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      setCreatedStudentCredentials({ username: data.credentials.username, password: data.credentials.password, email: data.user?.email || "" });
+      setIsAddStudentOpen(false);
+      setIsStudentCredModalOpen(true);
+      setNewStudentForm({ firstName: "", lastName: "", email: "", username: "", grade: "" });
+      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/students'] });
+    },
+    onError: (error: any) => {
+      toast({ title: "Error", description: error.message || "Failed to create student", variant: "destructive" });
+    },
+  });
   const [deleteOrgConfirmName, setDeleteOrgConfirmName] = useState("");
   const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -805,18 +828,12 @@ export default function SuperadminDashboard() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-12 space-y-8">
-        <div className="mb-12 text-center">
+        <div className="mb-6 text-center">
           <div className="flex items-center justify-center gap-3 mb-4">
             <Shield className="w-12 h-12 text-primary" />
             <h1 className="text-4xl md:text-5xl font-bold">Super Admin Dashboard</h1>
           </div>
           <p className="text-muted-foreground text-lg">Manage all schools, licenses, and administrators</p>
-        </div>
-        <div className="flex justify-end mb-4">
-          <Button onClick={() => setIsCreateOrgModalOpen(true)} data-testid="button-create-school">
-            <Plus className="w-4 h-4 mr-2" />
-            Create School
-          </Button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -881,8 +898,9 @@ export default function SuperadminDashboard() {
           </Card>
         </div>
 
-        <Tabs defaultValue="organizations" className="space-y-4">
-          <TabsList className="flex-wrap">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+          <div className="flex flex-wrap items-center gap-3">
+          <TabsList className="flex-wrap flex-1">
             <TabsTrigger value="organizations" data-testid="tab-schools">Schools</TabsTrigger>
             <TabsTrigger value="students" data-testid="tab-students">
               <Users className="w-4 h-4 mr-2" />
@@ -918,6 +936,19 @@ export default function SuperadminDashboard() {
               Contributions
             </TabsTrigger>
           </TabsList>
+          {activeTab === "organizations" && (
+            <Button onClick={() => setIsCreateOrgModalOpen(true)} data-testid="button-create-school">
+              <Plus className="w-4 h-4 mr-2" />
+              Add School
+            </Button>
+          )}
+          {activeTab === "students" && (
+            <Button onClick={() => setIsAddStudentOpen(true)} data-testid="button-add-student">
+              <Plus className="w-4 h-4 mr-2" />
+              Add Student
+            </Button>
+          )}
+          </div>
 
           <TabsContent value="organizations" className="space-y-4">
             <Card>
@@ -1177,7 +1208,7 @@ export default function SuperadminDashboard() {
               <CardHeader>
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
-                    <CardTitle>All Users</CardTitle>
+                    <CardTitle>Users Directory</CardTitle>
                     <CardDescription>View all students, school admins, and premium users with assessment history</CardDescription>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -2065,7 +2096,7 @@ export default function SuperadminDashboard() {
               disabled={!newOrgForm.organizationName || !newOrgForm.adminFirstName || !newOrgForm.adminLastName || !!validateEmail(newOrgForm.adminEmail) || !!validatePhone(newOrgForm.adminPhone) || createOrgMutation.isPending}
               data-testid="button-submit-create-org"
             >
-              {createOrgMutation.isPending ? "Creating..." : "Create School"}
+              {createOrgMutation.isPending ? "Creating..." : "Add School"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2463,6 +2494,70 @@ export default function SuperadminDashboard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Add Student Dialog */}
+      <Dialog open={isAddStudentOpen} onOpenChange={setIsAddStudentOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Student</DialogTitle>
+            <DialogDescription>Create a free student account. Credentials will be shown after creation.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="student-first-name">First Name</Label>
+                <Input id="student-first-name" placeholder="First Name" value={newStudentForm.firstName} onChange={(e) => setNewStudentForm({ ...newStudentForm, firstName: e.target.value })} data-testid="input-student-firstname" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="student-last-name">Last Name</Label>
+                <Input id="student-last-name" placeholder="Last Name" value={newStudentForm.lastName} onChange={(e) => setNewStudentForm({ ...newStudentForm, lastName: e.target.value })} data-testid="input-student-lastname" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="student-email">Email</Label>
+              <Input id="student-email" type="email" placeholder="student@email.com" value={newStudentForm.email} onChange={(e) => setNewStudentForm({ ...newStudentForm, email: e.target.value })} data-testid="input-student-email" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="student-username">Username (optional)</Label>
+              <Input id="student-username" placeholder="Leave blank to auto-generate" value={newStudentForm.username} onChange={(e) => setNewStudentForm({ ...newStudentForm, username: e.target.value })} data-testid="input-student-username" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="student-grade">Grade</Label>
+              <Select value={newStudentForm.grade} onValueChange={(v) => setNewStudentForm({ ...newStudentForm, grade: v })}>
+                <SelectTrigger id="student-grade" data-testid="select-student-grade">
+                  <SelectValue placeholder="Select grade" />
+                </SelectTrigger>
+                <SelectContent>
+                  {["8", "9", "10", "11", "12"].map((g) => (
+                    <SelectItem key={g} value={g}>Grade {g}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsAddStudentOpen(false)}>Cancel</Button>
+            <Button
+              onClick={() => createStudentMutation.mutate(newStudentForm)}
+              disabled={!newStudentForm.firstName || !newStudentForm.lastName || !newStudentForm.email || !newStudentForm.grade || createStudentMutation.isPending}
+              data-testid="button-submit-add-student"
+            >
+              {createStudentMutation.isPending ? "Creating..." : "Add Student"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Student Credentials Modal */}
+      {createdStudentCredentials && (
+        <CredentialsModal
+          open={isStudentCredModalOpen}
+          onClose={() => { setIsStudentCredModalOpen(false); setCreatedStudentCredentials(null); }}
+          credentials={createdStudentCredentials}
+          title="Student Account Created"
+          description="Save these credentials securely — they won't be shown again."
+        />
+      )}
     </div>
   );
 }

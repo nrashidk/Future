@@ -388,7 +388,7 @@ export default function AdminOrganizations() {
                 <DialogTrigger asChild>
                   <Button size="sm" data-testid="button-create-school">
                     <Plus className="w-4 h-4 mr-2" />
-                    New School
+                    Add School
                   </Button>
                 </DialogTrigger>
                 <DialogContent>

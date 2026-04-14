@@ -2180,4 +2180,58 @@ export function registerSuperadminRoutes(app: Express) {
       res.status(500).json({ message: "Failed to rename curriculum" });
     }
   });
+
+  app.post("/api/superadmin/students", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const { generateUsername, generatePassword } = await import("../utils/passwordGenerator");
+      const { hashPassword } = await import("../utils/passwordHash");
+
+      const { firstName, lastName, email, username: requestedUsername, grade } = req.body;
+      if (!firstName || !lastName || !email || !grade) {
+        return res.status(400).json({ message: "First name, last name, email, and grade are required" });
+      }
+
+      const existingByEmail = await storage.getUserByEmail(email);
+      if (existingByEmail) {
+        return res.status(409).json({ message: "A user with this email already exists" });
+      }
+
+      let finalUsername = requestedUsername?.trim();
+      if (!finalUsername) {
+        const base = generateUsername(firstName, lastName);
+        finalUsername = base;
+        let attempts = 0;
+        while (await storage.getUserByUsername(finalUsername)) {
+          attempts++;
+          finalUsername = `${base}.${attempts}`;
+        }
+      } else {
+        const existingByUsername = await storage.getUserByUsername(finalUsername);
+        if (existingByUsername) {
+          return res.status(409).json({ message: "Username is already taken" });
+        }
+      }
+
+      const password = generatePassword("strong");
+      const passwordHash = await hashPassword(password);
+
+      const newUser = await storage.createUser({
+        firstName,
+        lastName,
+        email,
+        username: finalUsername,
+        passwordHash,
+        accountType: "free",
+        grade: `grade${grade}`,
+      });
+
+      res.json({
+        user: { id: newUser.id, username: newUser.username, email: newUser.email, firstName: newUser.firstName, lastName: newUser.lastName },
+        credentials: { username: finalUsername, password },
+      });
+    } catch (error) {
+      console.error("Error creating student:", error);
+      res.status(500).json({ message: "Failed to create student" });
+    }
+  });
 }
