@@ -13,9 +13,11 @@ interface CredentialsModalProps {
     email: string;
   };
   organizationName?: string;
+  title?: string;
+  description?: string;
 }
 
-export function CredentialsModal({ open, onClose, credentials, organizationName }: CredentialsModalProps) {
+export function CredentialsModal({ open, onClose, credentials, organizationName, title, description }: CredentialsModalProps) {
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -30,7 +32,9 @@ export function CredentialsModal({ open, onClose, credentials, organizationName 
   };
 
   const copyAllCredentials = () => {
-    const text = `Login Credentials\nUsername: ${credentials.username}\nPassword: ${credentials.password}\nEmail: ${credentials.email}`;
+    const lines = [`Login Credentials`, `Username: ${credentials.username}`, `Password: ${credentials.password}`];
+    if (credentials.email) lines.push(`Email: ${credentials.email}`);
+    const text = lines.join("\n");
     navigator.clipboard.writeText(text);
     toast({
       title: "All Credentials Copied!",
@@ -43,13 +47,13 @@ export function CredentialsModal({ open, onClose, credentials, organizationName 
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md" data-testid="modal-credentials">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-center">
-            🎉 Account Created Successfully!
+          <DialogTitle className="text-2xl font-bold text-center" data-testid="modal-credentials-title">
+            {title ?? (organizationName ? `School Created` : `Account Created Successfully!`)}
           </DialogTitle>
           <DialogDescription className="text-center pt-2">
-            {organizationName 
-              ? `Your organization "${organizationName}" has been created. Please save these credentials securely.`
-              : "Your premium account has been created. Please save these credentials securely."}
+            {description ?? (organizationName 
+              ? `"${organizationName}" has been created. Save these admin credentials — they won't be shown again.`
+              : "Your premium account has been created. Please save these credentials securely.")}
           </DialogDescription>
         </DialogHeader>
 
@@ -89,22 +93,24 @@ export function CredentialsModal({ open, onClose, credentials, organizationName 
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-muted-foreground">Email</label>
-              <div className="flex items-center justify-between gap-2">
-                <code className="flex-1 p-2 bg-background rounded text-sm font-mono break-all" data-testid="text-email">
-                  {credentials.email}
-                </code>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => copyToClipboard(credentials.email, "Email")}
-                  data-testid="button-copy-email"
-                >
-                  {copiedField === "Email" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                </Button>
+            {credentials.email && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-muted-foreground">Email</label>
+                <div className="flex items-center justify-between gap-2">
+                  <code className="flex-1 p-2 bg-background rounded text-sm font-mono break-all" data-testid="text-email">
+                    {credentials.email}
+                  </code>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => copyToClipboard(credentials.email, "Email")}
+                    data-testid="button-copy-email"
+                  >
+                    {copiedField === "Email" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                  </Button>
+                </div>
               </div>
-            </div>
+            )}
           </div>
 
           <div className="bg-destructive/10 border border-destructive/20 p-3 rounded-lg">

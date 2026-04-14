@@ -28,6 +28,7 @@ import ScoringConfigEditor from "@/components/admin/ScoringConfigEditor";
 import CountryManagement from "@/components/admin/CountryManagement";
 import ContributionReviewQueue from "@/components/admin/ContributionReviewQueue";
 import SubjectManagement from "@/components/admin/SubjectManagement";
+import { CredentialsModal } from "@/components/CredentialsModal";
 
 interface Metrics {
   totalSchools: number;
@@ -208,6 +209,10 @@ export default function SuperadminDashboard() {
   
   const [createdAdminCredentials, setCreatedAdminCredentials] = useState<{ username: string; password: string } | null>(null);
   const [isCredentialsModalOpen, setIsCredentialsModalOpen] = useState(false);
+
+  const [showSchoolCreatedModal, setShowSchoolCreatedModal] = useState(false);
+  const [schoolCreatedCredentials, setSchoolCreatedCredentials] = useState<{ username: string; password: string; email: string } | null>(null);
+  const [schoolCreatedOrgName, setSchoolCreatedOrgName] = useState<string | undefined>();
   
   const [licenseForm, setLicenseForm] = useState({
     totalLicenses: 0,
@@ -390,10 +395,6 @@ export default function SuperadminDashboard() {
       return res.json();
     },
     onSuccess: (data: any) => {
-      toast({ 
-        title: "School Created", 
-        description: `Created ${data.organization.name} with admin: ${data.admin.credentials.username} / ${data.admin.credentials.password}`,
-      });
       setIsCreateOrgModalOpen(false);
       setNewOrgForm({
         organizationName: "",
@@ -404,6 +405,13 @@ export default function SuperadminDashboard() {
         adminEmail: "",
         adminPhone: "",
       });
+      setSchoolCreatedCredentials({
+        username: data.admin.credentials.username,
+        password: data.admin.credentials.password,
+        email: data.admin.user.email || "",
+      });
+      setSchoolCreatedOrgName(data.organization.name);
+      setShowSchoolCreatedModal(true);
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations'] });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/metrics'] });
     },
@@ -1815,6 +1823,20 @@ export default function SuperadminDashboard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* School Created Credentials Modal */}
+      {schoolCreatedCredentials && (
+        <CredentialsModal
+          open={showSchoolCreatedModal}
+          onClose={() => {
+            setShowSchoolCreatedModal(false);
+            setSchoolCreatedCredentials(null);
+            setSchoolCreatedOrgName(undefined);
+          }}
+          credentials={schoolCreatedCredentials}
+          organizationName={schoolCreatedOrgName}
+        />
+      )}
 
       {/* Admin Credentials Modal */}
       <Dialog open={isCredentialsModalOpen} onOpenChange={setIsCredentialsModalOpen}>
