@@ -1,8 +1,8 @@
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Copy, Check } from "lucide-react";
-import { useState } from "react";
+import { Copy, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import StickyNote from "@/components/StickyNote";
 
 interface CredentialsModalProps {
   open: boolean;
@@ -18,126 +18,72 @@ interface CredentialsModalProps {
 }
 
 export function CredentialsModal({ open, onClose, credentials, organizationName, title, description }: CredentialsModalProps) {
-  const [copiedField, setCopiedField] = useState<string | null>(null);
   const { toast } = useToast();
 
-  const copyToClipboard = (text: string, field: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedField(field);
-    setTimeout(() => setCopiedField(null), 2000);
-    toast({
-      title: "Copied!",
-      description: `${field} copied to clipboard`,
-    });
+  const handleCopy = () => {
+    const lines = [`Username: ${credentials.username}`, `Password: ${credentials.password}`];
+    if (credentials.email) lines.push(`Email: ${credentials.email}`);
+    navigator.clipboard.writeText(lines.join("\n"));
+    toast({ title: "Copied!", description: "Credentials copied to clipboard" });
   };
 
-  const copyAllCredentials = () => {
+  const handleDownload = () => {
     const lines = [`Login Credentials`, `Username: ${credentials.username}`, `Password: ${credentials.password}`];
     if (credentials.email) lines.push(`Email: ${credentials.email}`);
-    const text = lines.join("\n");
-    navigator.clipboard.writeText(text);
-    toast({
-      title: "All Credentials Copied!",
-      description: "Please save these credentials in a secure location",
-      duration: 5000,
-    });
+    const blob = new Blob([lines.join("\n")], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${credentials.username}-credentials.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    onClose();
   };
+
+  const modalTitle = title ?? (organizationName ? "School Created" : "Account Created Successfully!");
+  const modalDesc = description ?? (
+    organizationName
+      ? `"${organizationName}" has been created. Save these admin credentials — they won't be shown again.`
+      : "Your account has been created. Save these credentials securely — they won't be shown again."
+  );
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md" data-testid="modal-credentials">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-center" data-testid="modal-credentials-title">
-            {title ?? (organizationName ? `School Created` : `Account Created Successfully!`)}
-          </DialogTitle>
-          <DialogDescription className="text-center pt-2">
-            {description ?? (organizationName 
-              ? `"${organizationName}" has been created. Save these admin credentials — they won't be shown again.`
-              : "Your premium account has been created. Please save these credentials securely.")}
-          </DialogDescription>
+          <DialogTitle data-testid="modal-credentials-title">{modalTitle}</DialogTitle>
+          <DialogDescription>{modalDesc}</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
-          <div className="bg-muted/50 p-4 rounded-lg space-y-3">
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-muted-foreground">Username</label>
-              <div className="flex items-center justify-between gap-2">
-                <code className="flex-1 p-2 bg-background rounded text-sm font-mono" data-testid="text-username">
-                  {credentials.username}
-                </code>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => copyToClipboard(credentials.username, "Username")}
-                  data-testid="button-copy-username"
-                >
-                  {copiedField === "Username" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                </Button>
-              </div>
+        <StickyNote color="yellow" rotation="1" className="mx-auto w-full">
+          <div className="space-y-3">
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Username</p>
+              <p className="font-mono font-bold text-lg" data-testid="text-username">{credentials.username}</p>
             </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-muted-foreground">Password</label>
-              <div className="flex items-center justify-between gap-2">
-                <code className="flex-1 p-2 bg-background rounded text-sm font-mono" data-testid="text-password">
-                  {credentials.password}
-                </code>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => copyToClipboard(credentials.password, "Password")}
-                  data-testid="button-copy-password"
-                >
-                  {copiedField === "Password" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                </Button>
-              </div>
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">Password</p>
+              <p className="font-mono font-bold text-lg" data-testid="text-password">{credentials.password}</p>
             </div>
-
             {credentials.email && (
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Email</label>
-                <div className="flex items-center justify-between gap-2">
-                  <code className="flex-1 p-2 bg-background rounded text-sm font-mono break-all" data-testid="text-email">
-                    {credentials.email}
-                  </code>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => copyToClipboard(credentials.email, "Email")}
-                    data-testid="button-copy-email"
-                  >
-                    {copiedField === "Email" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                  </Button>
-                </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-1">Email</p>
+                <p className="font-mono font-bold text-base break-all" data-testid="text-email">{credentials.email}</p>
               </div>
             )}
           </div>
+        </StickyNote>
 
-          <div className="bg-destructive/10 border border-destructive/20 p-3 rounded-lg">
-            <p className="text-sm text-destructive font-medium">
-              ⚠️ Important: Save these credentials now! You won't be able to see your password again.
-            </p>
-          </div>
+        <div className="flex gap-2 justify-end">
+          <Button variant="outline" onClick={handleCopy} data-testid="button-copy-all">
+            <Copy className="w-4 h-4 mr-2" />
+            Copy to Clipboard
+          </Button>
+          <Button onClick={handleDownload} data-testid="button-download-credentials">
+            <Download className="w-4 h-4 mr-2" />
+            Download &amp; Close
+          </Button>
         </div>
-
-        <DialogFooter className="flex-col sm:flex-row gap-2">
-          <Button
-            variant="outline"
-            onClick={copyAllCredentials}
-            className="w-full sm:w-auto"
-            data-testid="button-copy-all"
-          >
-            <Copy className="mr-2 h-4 w-4" />
-            Copy All
-          </Button>
-          <Button
-            onClick={onClose}
-            className="w-full sm:w-auto"
-            data-testid="button-continue"
-          >
-            Continue
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
