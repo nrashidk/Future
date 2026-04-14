@@ -42,6 +42,15 @@ export function registerPasswordResetRoutes(app: Express) {
    */
   app.post("/api/password-reset/request", resetRequestLimiter, async (req, res) => {
     try {
+      // Gate early: in production, if email is not configured every request
+      // must fail uniformly to avoid account enumeration side-channels.
+      if (process.env.NODE_ENV === "production" && !isEmailConfigured()) {
+        return res.status(503).json({
+          success: false,
+          message: "Email service is not available. Please contact your administrator.",
+        });
+      }
+
       const { email, username } = req.body;
       
       // Sanitize input
