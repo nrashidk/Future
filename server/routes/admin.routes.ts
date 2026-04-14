@@ -9,19 +9,24 @@ import { insertQuizQuestionSchema } from "@shared/schema";
 import { z } from "zod";
 import { isPremiumAssessment } from "../utils/assessmentTier";
 
-// Configure multer for file uploads
+const diskStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const fs = require('fs');
+    const uploadsDir = path.join(process.cwd(), 'uploads');
+    fs.mkdirSync(uploadsDir, { recursive: true });
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
+    const ext = path.extname(file.originalname);
+    const basename = path.basename(file.originalname, ext);
+    cb(null, `${basename}-${uniqueSuffix}${ext}`);
+  },
+});
+
+// Configure multer for CSV/JSON data file uploads
 const upload = multer({
-  storage: multer.diskStorage({
-    destination: (req, file, cb) => {
-      cb(null, path.join(process.cwd(), 'uploads'));
-    },
-    filename: (req, file, cb) => {
-      const uniqueSuffix = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
-      const ext = path.extname(file.originalname);
-      const basename = path.basename(file.originalname, ext);
-      cb(null, `${basename}-${uniqueSuffix}${ext}`);
-    },
-  }),
+  storage: diskStorage,
   limits: {
     fileSize: 50 * 1024 * 1024, // 50MB limit
   },
@@ -39,6 +44,24 @@ const upload = multer({
       cb(null, true);
     } else {
       cb(new Error('File type not allowed. Allowed types: CSV, JSON, Excel, TXT'));
+    }
+  },
+});
+
+// Configure multer for image uploads (logos, etc.)
+const imageUpload = multer({
+  storage: diskStorage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit for images
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+    const allowedExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (allowedTypes.includes(file.mimetype) && allowedExtensions.includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error('File type not allowed. Allowed image types: PNG, JPG, GIF, WebP'));
     }
   },
 });
@@ -313,7 +336,7 @@ export function registerAdminRoutes(app: Express) {
   });
 
   // Upload organization logo
-  app.post("/api/admin/organizations/:id/logo", isAuthenticated, upload.single("logo"), async (req: any, res) => {
+  app.post("/api/admin/organizations/:id/logo", isAuthenticated, imageUpload.single("logo"), async (req: any, res) => {
     try {
       const userId = req.user.userId;
       const user = await storage.getUser(userId);
@@ -623,8 +646,29 @@ export function registerAdminRoutes(app: Express) {
     }
   });
 
-  app.patch("/api/admin/organizations/:id/members/:memberId", isAuthenticated, isAdmin, async (req, res) => {
+  app.patch("/api/admin/organizations/:id/members/:memberId", isAuthenticated, async (req, res) => {
     try {
+      const userId = (req.user as any).userId;
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(403).json({ message: "Forbidden" });
+
+      const superadminEmails = getSuperadminEmails();
+      const isSuperadmin =
+        (user.email && superadminEmails.includes(user.email.toLowerCase())) ||
+        user.role === "superadmin";
+
+      const isOrgAdminForThisOrg = user.accountType === "org_admin";
+      if (isOrgAdminForThisOrg) {
+        const userOrg = await storage.getOrganizationByAdminUserId(userId);
+        if (!userOrg || userOrg.id !== req.params.id) {
+          return res.status(403).json({ message: "Forbidden: Can only access your own organization" });
+        }
+      }
+
+      if (!isSuperadmin && !isOrgAdminForThisOrg) {
+        return res.status(403).json({ message: "Forbidden: Admin access required" });
+      }
+
       const { fullName, grade } = req.body;
       const updates: any = {};
       
@@ -1328,9 +1372,19 @@ export function registerAdminRoutes(app: Express) {
   });
 
   // Export organization students data as file (CSV or JSON) - saved to files table
-  app.post("/api/admin/organizations/:id/export-students", isAuthenticated, isAdmin, dataExportLimiter, async (req: any, res) => {
+  app.post("/api/admin/organizations/:id/export-students", isAuthenticated, dataExportLimiter, async (req: any, res) => {
     try {
       const userId = req.user.userId;
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(403).json({ message: "Forbidden" });
+      const superadminEmails = getSuperadminEmails();
+      const isSuperadmin = (user.email && superadminEmails.includes(user.email.toLowerCase())) || user.role === "superadmin";
+      if (!isSuperadmin && user.accountType === "org_admin") {
+        const userOrg = await storage.getOrganizationByAdminUserId(userId);
+        if (!userOrg || userOrg.id !== req.params.id) return res.status(403).json({ message: "Forbidden: Can only access your own organization" });
+      } else if (!isSuperadmin) {
+        return res.status(403).json({ message: "Forbidden: Admin access required" });
+      }
       const { format = 'csv' } = req.body; // 'csv' or 'json'
       
       const organization = await storage.getOrganizationById(req.params.id);
@@ -1448,9 +1502,19 @@ export function registerAdminRoutes(app: Express) {
   });
 
   // Export organization assessments data
-  app.post("/api/admin/organizations/:id/export-assessments", isAuthenticated, isAdmin, dataExportLimiter, async (req: any, res) => {
+  app.post("/api/admin/organizations/:id/export-assessments", isAuthenticated, dataExportLimiter, async (req: any, res) => {
     try {
       const userId = req.user.userId;
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(403).json({ message: "Forbidden" });
+      const superadminEmails = getSuperadminEmails();
+      const isSuperadmin = (user.email && superadminEmails.includes(user.email.toLowerCase())) || user.role === "superadmin";
+      if (!isSuperadmin && user.accountType === "org_admin") {
+        const userOrg = await storage.getOrganizationByAdminUserId(userId);
+        if (!userOrg || userOrg.id !== req.params.id) return res.status(403).json({ message: "Forbidden: Can only access your own organization" });
+      } else if (!isSuperadmin) {
+        return res.status(403).json({ message: "Forbidden: Admin access required" });
+      }
       const { format = 'csv' } = req.body;
       
       const organization = await storage.getOrganizationById(req.params.id);
@@ -1572,11 +1636,21 @@ export function registerAdminRoutes(app: Express) {
   });
 
   // Bulk import students from CSV file
-  app.post("/api/admin/organizations/:id/import-students", isAuthenticated, isAdmin, upload.single("file"), async (req: any, res) => {
+  app.post("/api/admin/organizations/:id/import-students", isAuthenticated, upload.single("file"), async (req: any, res) => {
     const fileId = req.body.fileId; // Optional: if file was already uploaded via files API
     
     try {
       const userId = req.user.userId;
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(403).json({ message: "Forbidden" });
+      const superadminEmails = getSuperadminEmails();
+      const isSuperadmin = (user.email && superadminEmails.includes(user.email.toLowerCase())) || user.role === "superadmin";
+      if (!isSuperadmin && user.accountType === "org_admin") {
+        const userOrg = await storage.getOrganizationByAdminUserId(userId);
+        if (!userOrg || userOrg.id !== req.params.id) return res.status(403).json({ message: "Forbidden: Can only access your own organization" });
+      } else if (!isSuperadmin) {
+        return res.status(403).json({ message: "Forbidden: Admin access required" });
+      }
       
       const organization = await storage.getOrganizationById(req.params.id);
       if (!organization) {

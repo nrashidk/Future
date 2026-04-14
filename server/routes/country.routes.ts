@@ -243,7 +243,11 @@ export function registerCountryRoutes(app: Express) {
       }
 
       res.json({ success: true, message: "Country deleted successfully" });
-    } catch (error) {
+    } catch (error: any) {
+      const pgCode = error?.cause?.code ?? error?.code;
+      if (pgCode === "23503") {
+        return res.status(409).json({ message: "Cannot delete this country because it is still referenced by users, schools, assessments, or questions. Remove those references first." });
+      }
       console.error("Error deleting country:", error);
       res.status(500).json({ message: "Failed to delete country" });
     }

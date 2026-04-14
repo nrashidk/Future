@@ -45,11 +45,11 @@ export default function StudentLogin() {
       });
 
       if (response.ok) {
-        const result = await response.json();
-        await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+        // Clear all cached query data so no stale data from a previous user is shown
+        queryClient.clear();
         
         // Fetch full user data to determine redirect
-        const userResponse = await fetch("/api/auth/user");
+        const userResponse = await fetch("/api/auth/user", { credentials: "include" });
         const userData = await userResponse.json();
         
         toast({
@@ -106,13 +106,14 @@ export default function StudentLogin() {
                 name="username"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Username</FormLabel>
+                    <FormLabel>Username or Email</FormLabel>
                     <FormControl>
                       <Input
                         {...field}
-                        placeholder="Enter your username"
+                        placeholder="Enter your username or email"
                         data-testid="input-username"
                         disabled={isLoading}
+                        autoComplete="username"
                       />
                     </FormControl>
                     <FormMessage />

@@ -151,7 +151,11 @@ export async function setupAuth(app: Express) {
   passport.use(new LocalStrategy(
     async (username, password, done) => {
       try {
-        const user = await storage.getUserByUsername(username);
+        // Accept email OR username in the username field
+        let user = await storage.getUserByUsername(username);
+        if (!user) {
+          user = await storage.getUserByEmail(username.toLowerCase());
+        }
         if (!user || !user.passwordHash) {
           return done(null, false, { message: 'Invalid username or password' });
         }

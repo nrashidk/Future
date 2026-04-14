@@ -254,6 +254,14 @@ export function registerSuperadminRoutes(app: Express) {
       
       const { generateUsername, generatePassword } = await import("../utils/passwordGenerator");
       const { hashPassword } = await import("../utils/passwordHash");
+
+      // Check for duplicate email before attempting insert
+      if (email) {
+        const existingByEmail = await storage.getUserByEmail(email);
+        if (existingByEmail) {
+          return res.status(400).json({ message: "An account with this email address already exists" });
+        }
+      }
       
       let finalUsername = username;
       if (!finalUsername) {
@@ -264,6 +272,9 @@ export function registerSuperadminRoutes(app: Express) {
           if (!existing) break;
           finalUsername = generateUsername(firstName, lastName);
           attempts++;
+        }
+        if (attempts >= 10) {
+          return res.status(400).json({ message: "Could not generate a unique username. Please provide one manually." });
         }
       } else {
         const existing = await storage.getUserByUsername(finalUsername);
@@ -1432,6 +1443,22 @@ export function registerSuperadminRoutes(app: Express) {
     }
   });
 
+  app.get("/api/superadmin/students/:userId/results", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const assessments = await storage.getAssessmentsByUser(req.params.userId);
+      const completed = assessments.filter(a => a.isCompleted).sort((a, b) =>
+        new Date(b.completedAt ?? b.createdAt).getTime() - new Date(a.completedAt ?? a.createdAt).getTime()
+      );
+      if (!completed.length) {
+        return res.status(404).json({ message: "No completed assessments found for this student" });
+      }
+      return res.redirect(`/results?assessmentId=${completed[0].id}`);
+    } catch (error) {
+      console.error("Error fetching student results:", error);
+      res.status(500).json({ message: "Failed to fetch student results" });
+    }
+  });
+
   app.get("/api/superadmin/students/:userId/assessments", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
     try {
       const user = await storage.getUser(req.params.userId);
@@ -1669,7 +1696,7 @@ export function registerSuperadminRoutes(app: Express) {
         return res.status(404).json({ message: "Announcement not found" });
       }
       
-      const { title, content, type, targetAudience, isPinned, isActive, expiresAt, backgroundColor } = req.body;
+      const { title, content, type, targetAudience, isPinned, isActive, expiresAt, publishAt, backgroundColor } = req.body;
       
       const updates: Record<string, any> = {};
       if (title !== undefined) updates.title = title;
@@ -1679,7 +1706,8 @@ export function registerSuperadminRoutes(app: Express) {
       if (isPinned !== undefined) updates.isPinned = isPinned;
       if (isActive !== undefined) updates.isActive = isActive;
       if (expiresAt !== undefined) updates.expiresAt = expiresAt ? new Date(expiresAt) : null;
-      if (backgroundColor !== undefined) updates.backgroundColor = backgroundColor;
+      if (publishAt !== undefined) updates.publishAt = publishAt ? new Date(publishAt) : null;
+      if (backgroundColor !== undefined) updates.backgroundColor = backgroundColor || "#ffffff";
       
       const updated = await storage.updateSystemAnnouncement(req.params.id, updates);
       res.json(updated);

@@ -335,6 +335,7 @@ export default function Checkout() {
     // Check if Stripe is configured
     if (!getStripe()) {
       console.error("Stripe not configured");
+      setLoading(false);
       setLocation("/tier-selection");
       return;
     }
@@ -347,6 +348,12 @@ export default function Checkout() {
           studentCount: studentCount
         });
         const data = await res.json();
+
+        if (!data.clientSecret) {
+          console.error("No clientSecret returned from server");
+          setLocation("/tier-selection");
+          return;
+        }
 
         setClientSecret(data.clientSecret);
         setServerAmount(data.amount); // Use server-calculated amount for display

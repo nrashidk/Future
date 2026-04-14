@@ -83,7 +83,7 @@ export default function Profile() {
 
   // Calculate license information for individual users only
   // Org admin stats are handled separately when orgStats is available
-  const completed = assessments.filter(a => a.status === 'completed').length;
+  const completed = assessments.filter(a => a.isCompleted).length;
   const individualCompletedAssessments = completed;
   const individualAvailableLicenses = user.purchasedLicenses || 0;
   const individualUsedLicenses = completed;

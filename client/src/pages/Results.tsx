@@ -964,9 +964,25 @@ export default function Results() {
             <StickyNote color="green" rotation="-1" className="max-w-2xl mx-auto text-center p-6">
               <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-primary" />
               <h4 className="font-bold text-lg mb-2">Your Results are Saved!</h4>
-              <p className="text-sm font-body text-muted-foreground">
+              <p className="text-sm font-body text-muted-foreground mb-4">
                 Come back anytime to review your career recommendations and track your progress
               </p>
+              <div className="flex flex-wrap gap-3 justify-center">
+                <Button
+                  variant="default"
+                  onClick={() => window.location.href = "/profile"}
+                  data-testid="button-go-to-profile"
+                >
+                  View My Profile
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => window.location.href = "/assessment"}
+                  data-testid="button-start-new-assessment"
+                >
+                  Start New Assessment
+                </Button>
+              </div>
             </StickyNote>
           </div>
         )}

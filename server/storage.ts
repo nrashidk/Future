@@ -1127,6 +1127,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteQuizQuestion(id: string): Promise<boolean> {
+    // Delete quiz responses that reference this question first (FK cascade)
+    await db.delete(quizResponses).where(eq(quizResponses.questionId, id));
     const result = await db
       .delete(quizQuestions)
       .where(eq(quizQuestions.id, id))
@@ -2971,6 +2973,8 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteCareer(id: string): Promise<boolean> {
+    // Delete recommendations that reference this career first (FK cascade)
+    await db.delete(recommendations).where(eq(recommendations.careerId, id));
     const result = await db
       .delete(careers)
       .where(eq(careers.id, id));
