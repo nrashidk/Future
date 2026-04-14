@@ -103,12 +103,10 @@ export function registerPasswordResetRoutes(app: Express) {
         if (user.email) {
           const emailResult = await sendPasswordResetEmail(user.email, token, userName);
           if (!emailResult.success) {
-            // In production, a failed send means the operator must fix configuration.
-            // Return a non-enumerating 503 so the failure is visible.
-            return res.status(503).json({
-              success: false,
-              message: "Email service is not available. Please contact your administrator.",
-            });
+            // Log the failure internally for operational visibility but do NOT
+            // change the client response — returning a different status code here
+            // would leak whether the account exists (enumeration side-channel).
+            console.error("[Password Reset] Email send failed for user:", user.id, emailResult.error);
           }
         } else {
           // SECURITY: Never log tokens. For org students without email, 
