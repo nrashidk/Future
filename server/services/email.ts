@@ -21,8 +21,11 @@ export async function sendPasswordResetEmail(
   userName?: string
 ): Promise<EmailResult> {
   if (!resend) {
-    // SECURITY WARNING: Never log tokens or sensitive data
-    // In development, tokens are stored in DB and can be retrieved via admin tools
+    if (process.env.NODE_ENV === "production") {
+      console.error("[Email] RESEND_API_KEY is not configured in production. Password reset email NOT sent to:", to);
+      return { success: false, error: "Email service not configured. Please contact your administrator." };
+    }
+    // Development fallback: tokens are stored in DB and can be retrieved via admin tools
     console.warn("[Email] Resend not configured. Email would be sent to:", to);
     console.warn("[Email] Configure RESEND_API_KEY for actual email delivery");
     return { success: true, messageId: "dev-mode-no-email" };

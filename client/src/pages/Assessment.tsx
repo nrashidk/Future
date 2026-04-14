@@ -315,7 +315,7 @@ export default function Assessment() {
   };
 
   const handleSaveAndLogin = () => {
-    localStorage.setItem("pendingAssessment", JSON.stringify({
+    sessionStorage.setItem("pendingAssessment", JSON.stringify({
       ...assessmentData,
       currentStep,
     }));

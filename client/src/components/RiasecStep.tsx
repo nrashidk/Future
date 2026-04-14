@@ -112,8 +112,8 @@ const LIKERT_OPTIONS = [
 
 export default function RiasecStep({ onComplete, onBack }: RiasecStepProps) {
   const [responses, setResponses] = useState<Record<string, Likert>>(() => {
-    // Load from localStorage if available
-    const saved = localStorage.getItem("riasec_draft");
+    // Load from sessionStorage if available (cleared on tab close for shared computers)
+    const saved = sessionStorage.getItem("riasec_draft");
     return saved ? JSON.parse(saved) : {};
   });
   const [currentPage, setCurrentPage] = useState(0);
@@ -129,9 +129,9 @@ export default function RiasecStep({ onComplete, onBack }: RiasecStepProps) {
   const isPageComplete = currentItems.every(item => responses[item.id]);
   const isComplete = Object.keys(responses).length === ITEMS.length;
 
-  // Auto-save to localStorage
+  // Auto-save to sessionStorage (cleared on tab close for shared/school computers)
   useEffect(() => {
-    localStorage.setItem("riasec_draft", JSON.stringify(responses));
+    sessionStorage.setItem("riasec_draft", JSON.stringify(responses));
   }, [responses]);
 
   const handleResponse = (itemId: string, value: Likert) => {
@@ -172,7 +172,7 @@ export default function RiasecStep({ onComplete, onBack }: RiasecStepProps) {
   const handleComplete = () => {
     if (!isComplete) return;
     const scores = calculateScores();
-    localStorage.removeItem("riasec_draft");
+    sessionStorage.removeItem("riasec_draft");
     onComplete(scores);
   };
 

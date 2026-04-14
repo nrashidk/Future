@@ -96,10 +96,10 @@ export default function CVQStep({ assessmentId, responses, onUpdate, onNext, onB
   const progress = (Object.keys(localResponses).length / cvqItems.length) * 100;
   const allAnswered = cvqItems.length > 0 && Object.keys(localResponses).length === cvqItems.length;
 
-  // Save draft to localStorage on change
+  // Save draft to sessionStorage on change (cleared on tab close for shared/school computers)
   useEffect(() => {
     if (Object.keys(localResponses).length > 0) {
-      localStorage.setItem("cvq_draft", JSON.stringify(localResponses));
+      sessionStorage.setItem("cvq_draft", JSON.stringify(localResponses));
     }
   }, [localResponses]);
 
@@ -128,7 +128,7 @@ export default function CVQStep({ assessmentId, responses, onUpdate, onNext, onB
     },
     onSuccess: (result) => {
       // Clear draft
-      localStorage.removeItem("cvq_draft");
+      sessionStorage.removeItem("cvq_draft");
       // Pass normalized scores back to parent
       onUpdate(localResponses);
       onNext();

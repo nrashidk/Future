@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { isAuthenticated } from "../auth";
 import { storage } from "../storage";
 import { db } from "../db";
-import { users, assessments, recommendations, assessmentQuizzes, quizResponses, cvqResults } from "@shared/schema";
+import { users, assessments, recommendations, assessmentQuizzes, quizResponses, cvqResults, organizationMembers } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { dataExportLimiter } from "../middleware/rateLimiter.middleware";
 
@@ -129,26 +129,25 @@ export function registerUserRoutes(app: Express) {
         await tx.delete(assessments)
           .where(eq(assessments.userId, userId));
 
-        // Note: Sessions are NOT deleted here because:
-        // 1. Session table uses 'sid' (session ID), not user ID - schema doesn't support user-based lookup
-        // 2. Sessions have 24-hour TTL and will auto-expire
-        // 3. Current session is destroyed via req.logout() below
-        // This is compliant with GDPR as session cookies don't contain PII
+        // Remove organization membership (GDPR: frees license slot and removes PII)
+        await tx.delete(organizationMembers)
+          .where(eq(organizationMembers.userId, userId));
 
         // Finally, delete the user
         await tx.delete(users)
           .where(eq(users.id, userId));
       });
 
-      // Destroy the current session
-      req.logout((err: any) => {
-        if (err) {
-          console.error("Error logging out after account deletion:", err);
-        }
+      // Destroy the current session immediately to invalidate server-side state
+      await new Promise<void>((resolve) => {
+        req.session.destroy((err: any) => {
+          if (err) console.error("Error destroying session after account deletion:", err);
+          resolve();
+        });
       });
 
-      // Clear session cookie
-      res.clearCookie("connect.sid");
+      // Clear the correct auth cookie (fp_session, not the express-session default connect.sid)
+      res.clearCookie("fp_session", { path: "/", httpOnly: true });
 
       res.json({ 
         success: true, 

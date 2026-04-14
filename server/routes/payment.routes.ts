@@ -133,7 +133,7 @@ export function registerPaymentRoutes(app: Express) {
   });
 
   // Complete self-service checkout: Create account + allocate licenses
-  app.post("/api/checkout/complete", async (req: any, res) => {
+  app.post("/api/checkout/complete", paymentLimiter, async (req: any, res) => {
     try {
       const { paymentIntentId, firstName, lastName, email, phone, organizationName, studentCount } = req.body;
 

@@ -7,32 +7,14 @@ import fs from "fs";
 
 export function registerPublicRoutes(app: Express) {
   // Health check endpoint for monitoring and load balancers
+  // Returns minimal public response; internal details are not disclosed
   app.get("/health", async (req, res) => {
     try {
-      // Check database connectivity
-      const dbCheck = await db.execute(sql`SELECT 1`);
-      const dbStatus = dbCheck ? "healthy" : "unhealthy";
-      
-      res.json({
-        status: "healthy",
-        timestamp: new Date().toISOString(),
-        services: {
-          database: dbStatus,
-          server: "healthy"
-        },
-        version: process.env.npm_package_version || "1.0.0"
-      });
+      await db.execute(sql`SELECT 1`);
+      res.json({ status: "ok" });
     } catch (error) {
       console.error("Health check failed:", error);
-      res.status(503).json({
-        status: "unhealthy",
-        timestamp: new Date().toISOString(),
-        services: {
-          database: "unhealthy",
-          server: "healthy"
-        },
-        error: "Database connection failed"
-      });
+      res.status(503).json({ status: "unhealthy" });
     }
   });
 
