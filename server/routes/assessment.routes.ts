@@ -85,6 +85,10 @@ export function registerAssessmentRoutes(app: Express) {
         }
       }
 
+      if (validatedData.cvqResponses) {
+        assessmentType = 'premium';
+      }
+
       // For organization students, inherit curriculum from their organization
       let assessmentCurriculum = validatedData.curriculum;
       
@@ -256,6 +260,10 @@ export function registerAssessmentRoutes(app: Express) {
         } catch (error) {
           console.error("Error calculating RIASEC scores:", error);
         }
+      }
+
+      if (updateData.cvqResponses) {
+        updateData.assessmentType = 'premium';
       }
 
       const assessment = await storage.updateAssessment(req.params.id, updateData);
