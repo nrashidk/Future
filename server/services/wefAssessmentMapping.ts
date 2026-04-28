@@ -1,13 +1,12 @@
 /**
  * WEF 16 Skills Framework - Assessment Mapping
  * 
- * Maps existing assessments (CVQ, RIASEC, Kolb, Subject Competency) to WEF skills
+ * Maps existing assessments (CVQ, RIASEC, Subject Competency) to WEF skills
  * to calculate future-ready skills profiles WITHOUT adding new assessment questions.
  * 
  * Based on research:
  * - Schwartz Theory of Basic Values (CVQ foundation)
  * - Holland Code vocational framework (RIASEC)
- * - Kolb Experiential Learning Theory
  * - Subject matter expertise correlation studies
  */
 
@@ -129,46 +128,6 @@ export const RIASEC_TO_WEF_MAPPING: Record<string, Array<{ wefSkill: string; wei
 };
 
 /**
- * Kolb Learning Style → WEF Skills Mapping
- * 
- * Maps experiential learning preferences to skill development patterns.
- * Based on learning theory correlations with skill acquisition.
- */
-export const KOLB_TO_WEF_MAPPING: Record<string, Array<{ wefSkill: string; weight: number }>> = {
-  // Diverging: Concrete Experience + Reflective Observation (feeling & watching)
-  diverging: [
-    { wefSkill: "Creativity", weight: 0.9 },
-    { wefSkill: "Curiosity", weight: 0.8 },
-    { wefSkill: "Social and Cultural Awareness", weight: 0.7 },
-    { wefSkill: "Collaboration", weight: 0.6 },
-  ],
-
-  // Assimilating: Abstract Conceptualization + Reflective Observation (thinking & watching)
-  assimilating: [
-    { wefSkill: "Critical Thinking and Problem Solving", weight: 0.9 },
-    { wefSkill: "Scientific Literacy", weight: 0.8 },
-    { wefSkill: "Numeracy", weight: 0.7 },
-    { wefSkill: "Curiosity", weight: 0.6 },
-  ],
-
-  // Converging: Abstract Conceptualization + Active Experimentation (thinking & doing)
-  converging: [
-    { wefSkill: "Critical Thinking and Problem Solving", weight: 0.9 },
-    { wefSkill: "Initiative", weight: 0.8 },
-    { wefSkill: "ICT Literacy", weight: 0.7 },
-    { wefSkill: "Persistence and Grit", weight: 0.6 },
-  ],
-
-  // Accommodating: Concrete Experience + Active Experimentation (feeling & doing)
-  accommodating: [
-    { wefSkill: "Adaptability", weight: 0.9 },
-    { wefSkill: "Initiative", weight: 0.8 },
-    { wefSkill: "Leadership", weight: 0.7 },
-    { wefSkill: "Collaboration", weight: 0.6 },
-  ],
-};
-
-/**
  * Subject Competency → WEF Skills Mapping
  * 
  * Maps demonstrated subject proficiency (via quiz scores) to related skills.
@@ -240,7 +199,7 @@ export type WEFSkillName = typeof WEF_SKILL_NAMES[number];
  * Utility: Get all WEF skills affected by an assessment component
  */
 export function getWEFSkillsForAssessment(
-  assessmentType: "cvq" | "riasec" | "kolb" | "subjects"
+  assessmentType: "cvq" | "riasec" | "subjects"
 ): WEFSkillName[] {
   let mapping: Record<string, Array<{ wefSkill: string; weight: number }>>;
 
@@ -250,9 +209,6 @@ export function getWEFSkillsForAssessment(
       break;
     case "riasec":
       mapping = RIASEC_TO_WEF_MAPPING;
-      break;
-    case "kolb":
-      mapping = KOLB_TO_WEF_MAPPING;
       break;
     case "subjects":
       mapping = SUBJECT_TO_WEF_MAPPING;

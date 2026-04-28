@@ -463,7 +463,6 @@ export interface IStorage {
     grade: string;
     completedAt: Date | null;
     topCareers: Array<{ careerId: string; careerName: string; matchScore: number }>;
-    kolbScores: any;
     riasecScores: any;
     interests: string[];
   }>>;
@@ -3197,7 +3196,6 @@ export class DatabaseStorage implements IStorage {
     grade: string;
     completedAt: Date | null;
     topCareers: Array<{ careerId: string; careerName: string; matchScore: number }>;
-    kolbScores: any;
     riasecScores: any;
     interests: string[];
   }>> {
@@ -3211,7 +3209,6 @@ export class DatabaseStorage implements IStorage {
         careerName: careerNames[i] || 'Unknown',
         matchScore: rec.overallMatchScore,
       })),
-      kolbScores: assessment.kolbScores,
       riasecScores: assessment.riasecScores,
       interests: assessment.interests || [],
     }));

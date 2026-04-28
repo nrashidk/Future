@@ -31,7 +31,7 @@ export default function TierSelection() {
             Choose Your Assessment Path
           </h1>
           <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-            Unlock advanced learning style analysis with personalized insights tailored for individuals or entire schools
+            Unlock advanced career personality and values analysis with personalized insights tailored for individuals or entire schools
           </p>
         </div>
 
@@ -58,7 +58,7 @@ export default function TierSelection() {
                 </div>
                 <div className="flex items-start gap-2">
                   <Check className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm font-semibold">24-question learning style analysis</span>
+                  <span className="text-sm font-semibold">RIASEC career personality inventory</span>
                 </div>
                 <div className="flex items-start gap-2">
                   <Check className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
@@ -66,15 +66,15 @@ export default function TierSelection() {
                 </div>
                 <div className="flex items-start gap-2">
                   <Check className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm">Detailed learning style profile (Diverging, Assimilating, Converging, Accommodating)</span>
+                  <span className="text-sm">Personal values profile (CVQ)</span>
                 </div>
                 <div className="flex items-start gap-2">
                   <Check className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm">Personalized study tips & strategies</span>
+                  <span className="text-sm">Personalized career strengths insights</span>
                 </div>
                 <div className="flex items-start gap-2">
                   <Check className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
-                  <span className="text-sm">Enhanced career matching (includes learning style)</span>
+                  <span className="text-sm">Enhanced career matching (personality + values)</span>
                 </div>
                 <div className="flex items-start gap-2">
                   <Check className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
@@ -135,7 +135,7 @@ export default function TierSelection() {
                 <div className="flex items-start gap-2">
                   <Users className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
                   <div className="flex-1">
-                    <span className="text-sm font-semibold">Group students by learning styles</span>
+                    <span className="text-sm font-semibold">Group students by career personality type</span>
                     <span className="ml-2 text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">Coming Soon</span>
                   </div>
                 </div>

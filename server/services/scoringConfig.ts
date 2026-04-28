@@ -155,7 +155,7 @@ export async function getTierConfig(
     tier: {
       id: tierKey,
       key: tierKey,
-      name: tierKey === "basic" ? "Free Assessment" : tierKey === "kolb" ? "Premium Assessment" : "School Assessment",
+      name: tierKey === "basic" ? "Free Assessment" : tierKey === "premium" ? "Premium Assessment" : "School Assessment",
       description: null,
       isActive: true,
       displayOrder: 0,

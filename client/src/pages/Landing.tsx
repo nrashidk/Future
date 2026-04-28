@@ -330,16 +330,16 @@ export default function Landing() {
             </StickyNote>
 
             <StickyNote color="yellow" rotation="2" className="p-6">
-              <h4 className="text-lg font-bold mb-2">Learning Style Assessment</h4>
+              <h4 className="text-lg font-bold mb-2">Personal Values Assessment</h4>
               <p className="text-sm text-muted-foreground font-body mb-2">
-                Experiential learning theory identifying four distinct learning approaches for personalized study strategies
+                Cross-culturally validated assessment measuring 10 basic human values for value-based career alignment
               </p>
             </StickyNote>
 
             <StickyNote color="pink" rotation="-2" className="p-6">
-              <h4 className="text-lg font-bold mb-2">Personal Values Assessment</h4>
+              <h4 className="text-lg font-bold mb-2">Subject Competency Quiz</h4>
               <p className="text-sm text-muted-foreground font-body mb-2">
-                Cross-culturally validated assessment measuring 10 basic human values for value-based career alignment
+                Curriculum-aligned knowledge validation that confirms academic strengths for career-path recommendations
               </p>
             </StickyNote>
 
@@ -379,7 +379,7 @@ export default function Landing() {
             <h4 className="font-bold text-lg mb-3 text-center">Our Approach</h4>
             <p className="text-sm text-muted-foreground font-body text-center leading-relaxed">
               We map existing, research-validated assessments to the World Economic Forum's 16 future-ready skills framework, 
-              providing students with comprehensive insights into their career readiness. By integrating personality, learning styles, 
+              providing students with comprehensive insights into their career readiness. By integrating personality, 
               values, and competencies, we deliver personalized career recommendations that align with both individual strengths 
               and national development priorities.
             </p>

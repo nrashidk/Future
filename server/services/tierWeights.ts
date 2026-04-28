@@ -4,7 +4,7 @@
  * Each tier's weights must sum to 100%
  */
 
-export type AssessmentTier = 'basic' | 'kolb' | 'group';
+export type AssessmentTier = 'basic' | 'premium' | 'group';
 
 /**
  * Weight overrides per tier per component
@@ -18,27 +18,24 @@ export const TIER_WEIGHT_OVERRIDES: Record<AssessmentTier, Record<string, number
     vision: 30,        // Country vision alignment
     riasec: undefined, // Not available
     cvq: undefined,    // Not available
-    kolb: undefined,   // Not available
   },
   
-  // Premium tier (Kolb/Individual assessment): Uses all components
-  kolb: {
+  // Premium tier (Individual assessment): Uses all components
+  premium: {
     subjects: 20,      // Reduced weight, premium components take priority
     interests: 0,      // Not used in premium tier
     vision: 20,        // Reduced weight
-    riasec: 30,        // Primary personality assessment
-    cvq: 20,           // Values assessment
-    kolb: 10,          // Learning style assessment
+    riasec: 35,        // Primary personality assessment
+    cvq: 25,           // Values assessment
   },
   
-  // Group assessment tier: Same as kolb for now
+  // Group assessment tier: Same as premium
   group: {
     subjects: 20,
     interests: 0,
     vision: 20,
-    riasec: 30,
-    cvq: 20,
-    kolb: 10,
+    riasec: 35,
+    cvq: 25,
   },
 };
 

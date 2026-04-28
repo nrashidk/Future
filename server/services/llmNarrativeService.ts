@@ -11,7 +11,6 @@ import type { Assessment, Career, LlmPromptTemplate } from "../../shared/schema"
 interface StudentContext {
   gradeLevel: string;
   favoriteSubjects: string[];
-  learningStyle: string;
   riasecTop3: string[];
   cvqTop3: string[];
   overallScore: number;
@@ -51,7 +50,6 @@ function replaceTemplateVariables(
   return template
     .replace(/\{\{gradeLevel\}\}/g, studentContext.gradeLevel)
     .replace(/\{\{favoriteSubjects\}\}/g, studentContext.favoriteSubjects.join(", "))
-    .replace(/\{\{learningStyle\}\}/g, studentContext.learningStyle)
     .replace(/\{\{riasecTop3\}\}/g, studentContext.riasecTop3.join(", "))
     .replace(/\{\{cvqTop3\}\}/g, studentContext.cvqTop3.join(", "))
     .replace(/\{\{overallScore\}\}/g, studentContext.overallScore.toString())
@@ -205,15 +203,9 @@ export async function generateEducationPathwaysNarrative(
  * Build student context from assessment data
  */
 function buildStudentContext(assessment: Assessment, overallScore: number): StudentContext {
-  const learningStyleData = assessment.kolbScores as any;
   const riasecData = assessment.riasecScores as any;
   const cvqData = assessment.cvqScores as any;
   const assessmentData = assessment as any;
-
-  let learningStyle = "Not assessed";
-  if (learningStyleData?.learningStyle) {
-    learningStyle = learningStyleData.learningStyle;
-  }
 
   let riasecTop3: string[] = [];
   if (riasecData?.top3) {
@@ -239,7 +231,6 @@ function buildStudentContext(assessment: Assessment, overallScore: number): Stud
   return {
     gradeLevel: assessmentData.gradeLevel || assessmentData.grade || "Unknown",
     favoriteSubjects,
-    learningStyle,
     riasecTop3,
     cvqTop3,
     overallScore: Math.round(overallScore),

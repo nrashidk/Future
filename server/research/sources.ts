@@ -53,21 +53,6 @@ export const RESEARCH_SOURCES: Record<string, ResearchSource> = {
     notes: 'Six personality themes: Realistic, Investigative, Artistic, Social, Enterprising, Conventional',
   },
 
-  KOLB_LEARNING_STYLES: {
-    id: 'kolb_learning_styles',
-    title: 'Experiential Learning: Experience as the Source of Learning and Development',
-    author: 'David A. Kolb',
-    year: 1984,
-    type: 'framework',
-    citation: 'Kolb, D. A. (1984). Experiential Learning: Experience as the Source of Learning and Development. Englewood Cliffs, NJ: Prentice Hall.',
-    usedFor: [
-      'Learning style assessment (24 questions)',
-      'Kolb learning styles to WEF skills correlations',
-      'Study tips and learning strategy recommendations',
-    ],
-    notes: 'Four learning styles: Diverging, Assimilating, Converging, Accommodating',
-  },
-
   CVQ_VALUES_QUESTIONNAIRE: {
     id: 'cvq_values',
     title: "Children's Values Questionnaire (CVQ)",
@@ -185,8 +170,7 @@ export function getWEFAttributionText(): string {
   return `This career guidance system integrates the World Economic Forum's Future of Jobs Report 2025 framework, 
 which identifies 16 essential future-ready skills across two categories: Foundational Literacies and Core Competencies. 
 Student assessments are scientifically mapped to these skills using research-validated correlations from established 
-frameworks including Holland's RIASEC personality model, Kolb's experiential learning theory, and the Children's Values 
-Questionnaire (CVQ).`;
+frameworks including Holland's RIASEC personality model and the Children's Values Questionnaire (CVQ).`;
 }
 
 /**
@@ -204,7 +188,7 @@ export function getResearchSourcesSummary(): {
   }, {} as Record<string, number>);
 
   const featured = sources.filter(s => 
-    ['wef_future_of_jobs_2025', 'holland_riasec', 'kolb_learning_styles', 'cvq_values'].includes(s.id)
+    ['wef_future_of_jobs_2025', 'holland_riasec', 'cvq_values'].includes(s.id)
   );
 
   return {

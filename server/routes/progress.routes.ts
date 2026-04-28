@@ -20,7 +20,6 @@ export function registerProgressRoutes(app: Express) {
           grade: p.assessment.grade,
           completedAt: p.assessment.completedAt,
           assessmentType: p.assessment.assessmentType,
-          kolbScores: p.assessment.kolbScores,
           riasecScores: p.assessment.riasecScores,
           interests: p.assessment.interests,
           topCareers: p.recommendations.slice(0, 3).map((rec, i) => ({

@@ -65,7 +65,7 @@ export function registerPaymentRoutes(app: Express) {
           userId,
           studentCount: studentCount.toString(),
           expectedAmount: amountInCents.toString(),
-          assessmentType: "kolb_premium"
+          assessmentType: "premium"
         }
       });
 

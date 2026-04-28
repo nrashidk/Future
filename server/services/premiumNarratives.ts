@@ -1,16 +1,15 @@
 import type { Assessment, Career } from "@shared/schema";
-import type { RiasecScores, KolbScores } from "./matching";
+import type { RiasecScores } from "./matching";
 
 /**
  * Premium Narrative Generator
  * Generates enhanced, personalized career insights for premium-tier assessments
- * using Kolb learning style, RIASEC personality, and CVQ values data
+ * using RIASEC personality and CVQ values data
  */
 
 interface NarrativeContext {
   assessment: Assessment;
   career: Career;
-  kolbScores?: KolbScores;
   riasecScores?: RiasecScores;
   cvqScores?: Record<string, any>;
   overallScore: number;
@@ -18,15 +17,15 @@ interface NarrativeContext {
 
 /**
  * Generate expanded "Why This Career?" reasoning (5-6 paragraphs)
- * Combines personality, learning style, values, and practical fit
+ * Combines personality, values, and practical fit
  */
 export function generateEnhancedReasoning(context: NarrativeContext): string {
-  const { assessment, career, kolbScores, riasecScores, cvqScores, overallScore } = context;
+  const { assessment, career, riasecScores, cvqScores, overallScore } = context;
   const paragraphs: string[] = [];
 
   // Paragraph 1: Overall Match & Personalized Introduction
   paragraphs.push(
-    `${career.title} is a ${overallScore >= 80 ? 'highly compatible' : overallScore >= 70 ? 'strong' : 'good'} match for you, scoring ${overallScore.toFixed(1)}% based on your comprehensive assessment. This career aligns with your unique combination of interests, learning preferences, and personal values.`
+    `${career.title} is a ${overallScore >= 80 ? 'highly compatible' : overallScore >= 70 ? 'strong' : 'good'} match for you, scoring ${overallScore.toFixed(1)}% based on your comprehensive assessment. This career aligns with your unique combination of interests, personality traits, and personal values.`
   );
 
   // Paragraph 2: RIASEC Personality Match
@@ -36,19 +35,13 @@ export function generateEnhancedReasoning(context: NarrativeContext): string {
     paragraphs.push(personalityInsight);
   }
 
-  // Paragraph 3: Learning Style Fit (Kolb)
-  if (kolbScores?.learningStyle) {
-    const learningInsight = generateKolbCareerInsight(kolbScores.learningStyle, career);
-    paragraphs.push(learningInsight);
-  }
-
-  // Paragraph 4: Values Alignment (CVQ)
+  // Paragraph 3: Values Alignment (CVQ)
   if (cvqScores?.top3 && Array.isArray(cvqScores.top3)) {
     const valuesInsight = generateValuesCareerInsight(cvqScores.top3, career);
     paragraphs.push(valuesInsight);
   }
 
-  // Paragraph 5: Subject & Skills Connection
+  // Paragraph 4: Subject & Skills Connection
   if (assessment.favoriteSubjects) {
     const subjectInsight = generateSubjectCareerInsight(
       assessment.favoriteSubjects as string[],
@@ -57,7 +50,7 @@ export function generateEnhancedReasoning(context: NarrativeContext): string {
     paragraphs.push(subjectInsight);
   }
 
-  // Paragraph 6: Future Outlook & Growth Potential
+  // Paragraph 5: Future Outlook & Growth Potential
   paragraphs.push(
     `Looking ahead, ${career.title} offers strong growth potential in the UAE job market. The skills you'll develop—including ${career.requiredSkills.slice(0, 3).join(', ')}—are increasingly valuable as industries modernize. This career path provides opportunities for continuous learning and professional advancement aligned with your strengths.`
   );
@@ -70,7 +63,7 @@ export function generateEnhancedReasoning(context: NarrativeContext): string {
  * Details about ideal work environment, team dynamics, and daily tasks
  */
 export function generateWorkStyleFit(context: NarrativeContext): string {
-  const { kolbScores, riasecScores, career } = context;
+  const { riasecScores, career } = context;
   const sections: string[] = [];
 
   // Team Collaboration Style
@@ -78,12 +71,6 @@ export function generateWorkStyleFit(context: NarrativeContext): string {
     const topTheme = getTopRiasecThemes(riasecScores)[0];
     const collaborationStyle = getRiasecCollaborationStyle(topTheme);
     sections.push(`**Team Collaboration:** ${collaborationStyle}`);
-  }
-
-  // Ideal Work Environment
-  if (kolbScores?.learningStyle) {
-    const environment = getKolbIdealEnvironment(kolbScores.learningStyle);
-    sections.push(`**Ideal Work Environment:** ${environment}`);
   }
 
   // Daily Task Preferences
@@ -101,7 +88,7 @@ export function generateWorkStyleFit(context: NarrativeContext): string {
  * Actionable insights based on assessment results
  */
 export function generateStrengthsGrowth(context: NarrativeContext): string {
-  const { kolbScores, riasecScores, cvqScores } = context;
+  const { riasecScores, cvqScores } = context;
   const sections: string[] = [];
 
   // Core Strengths
@@ -118,9 +105,6 @@ export function generateStrengthsGrowth(context: NarrativeContext): string {
 
   // Growth Opportunities
   const growthAreas: string[] = [];
-  if (kolbScores?.learningStyle) {
-    growthAreas.push(getKolbGrowthArea(kolbScores.learningStyle));
-  }
   if (cvqScores?.top3) {
     const lowestValue = cvqScores.top3[cvqScores.top3.length - 1];
     growthAreas.push(getValueGrowthArea(lowestValue));
@@ -136,7 +120,7 @@ export function generateStrengthsGrowth(context: NarrativeContext): string {
  * Generate enhanced action steps (7-8 detailed steps with timelines)
  */
 export function generateEnhancedActionSteps(context: NarrativeContext): string[] {
-  const { assessment, career, kolbScores } = context;
+  const { assessment, career } = context;
   const steps: string[] = [];
 
   // Immediate Next Steps (Now - 3 months)
@@ -159,14 +143,6 @@ export function generateEnhancedActionSteps(context: NarrativeContext): string[]
   steps.push(
     `**Next Year:** Start building key skills like ${career.requiredSkills.slice(0, 2).join(' and ')} through online courses, school clubs, or personal projects`
   );
-
-  // Skill Development (1-2 years)
-  if (kolbScores?.learningStyle) {
-    const learningTip = getKolbLearningTip(kolbScores.learningStyle);
-    steps.push(
-      `**Year 2:** ${learningTip} This approach aligns with your ${kolbScores.learningStyle} learning style and will help you master complex concepts`
-    );
-  }
 
   // Experience Building (2-3 years)
   steps.push(
@@ -223,17 +199,6 @@ function generateRiasecCareerInsight(topThemes: string[], career: Career): strin
   return `${themeDescriptions[primary]}. ${careerFit[primary]}. Your personality profile suggests you'll find this work naturally engaging and fulfilling.`;
 }
 
-function generateKolbCareerInsight(learningStyle: string, career: Career): string {
-  const insights: Record<string, string> = {
-    Diverging: `With your Diverging learning style, you learn best through observation and reflection. In ${career.title} roles, you'll excel at understanding diverse perspectives, brainstorming creative solutions, and adapting approaches based on real-world feedback. Your ability to see situations from multiple angles will be invaluable when tackling complex challenges.`,
-    Assimilating: `Your Assimilating learning style means you thrive on logical analysis and systematic thinking. ${career.title} careers will engage your love of building frameworks, understanding theoretical concepts, and organizing information into coherent models. You'll be the person colleagues turn to for well-reasoned strategies and clear explanations.`,
-    Converging: `As a Converging learner, you excel at practical application and problem-solving. In ${career.title}, you'll shine when implementing technical solutions, testing ideas through experimentation, and finding efficient ways to achieve concrete results. Your hands-on, results-oriented approach matches perfectly with the demands of this field.`,
-    Accommodating: `Your Accommodating learning style drives you to learn through hands-on experience and trial-and-error. ${career.title} roles will suit your adaptive, action-oriented nature—you'll thrive in dynamic situations that require quick thinking, flexibility, and the courage to try new approaches. Your willingness to take calculated risks will drive innovation.`,
-  };
-
-  return insights[learningStyle] || `Your learning approach aligns well with the demands of ${career.title}.`;
-}
-
 function generateValuesCareerInsight(top3Values: string[], career: Career): string {
   const valueDescriptions: Record<string, string> = {
     achievement: "success and personal accomplishment",
@@ -287,16 +252,6 @@ function getRiasecCollaborationStyle(theme: string): string {
   return styles[theme] || "You adapt well to various team structures and collaboration styles.";
 }
 
-function getKolbIdealEnvironment(learningStyle: string): string {
-  const environments: Record<string, string> = {
-    Diverging: "You'll thrive in open, creative workspaces that encourage reflection and discussion. Flexible schedules that allow time for observation and thoughtful analysis will help you perform at your best.",
-    Assimilating: "You perform best in quiet, organized environments where you can focus deeply on analysis and planning. Access to resources, research materials, and time for systematic thinking are essential for your success.",
-    Converging: "You excel in hands-on, well-equipped workspaces where you can test ideas and see immediate results. Environments that balance technical tools with problem-solving challenges will keep you engaged.",
-    Accommodating: "You thrive in dynamic, fast-paced environments where you can take initiative and adapt quickly. Settings that reward action, flexibility, and real-time problem-solving match your energetic approach.",
-  };
-  return environments[learningStyle] || "You're adaptable to various work environments.";
-}
-
 function getRiasecTaskPreferences(theme: string, career: Career): string {
   const preferences: Record<string, string> = {
     R: `As a ${career.title}, you'll enjoy tasks like building prototypes, troubleshooting technical issues, and working with tools or equipment—all of which align with your practical, hands-on preferences.`,
@@ -321,16 +276,6 @@ function getRiasecStrength(theme: string): string {
   return strengths[theme] || "Strong professional capabilities";
 }
 
-function getKolbGrowthArea(learningStyle: string): string {
-  const growthAreas: Record<string, string> = {
-    Diverging: "Consider developing your ability to make quick decisions without extensive reflection. Practice setting deadlines for analysis phases to ensure timely action on your insights.",
-    Assimilating: "Work on translating your theoretical understanding into practical action more quickly. Seek opportunities to test your frameworks in real-world situations rather than perfecting them in theory.",
-    Converging: "Challenge yourself to consider multiple perspectives before settling on solutions. Engage with colleagues who have different problem-solving styles to broaden your approach.",
-    Accommodating: "Develop patience for systematic planning and analysis before taking action. Building this skill will help you avoid costly trial-and-error when tackling complex challenges.",
-  };
-  return growthAreas[learningStyle] || "Continue developing well-rounded professional skills.";
-}
-
 function getValueGrowthArea(lowestValue: string): string {
   const suggestions: Record<string, string> = {
     achievement: "Consider setting specific professional goals to channel your strengths into measurable accomplishments and build confidence through visible successes.",
@@ -342,14 +287,4 @@ function getValueGrowthArea(lowestValue: string): string {
     hedonism: "Remember to prioritize self-care and work-life balance—sustainable performance requires time for rest and enjoyment.",
   };
   return suggestions[lowestValue] || "Continue developing a balanced set of personal values.";
-}
-
-function getKolbLearningTip(learningStyle: string): string {
-  const tips: Record<string, string> = {
-    Diverging: "Seek mentorship and observe experienced professionals in action to learn from their approaches.",
-    Assimilating: "Study industry frameworks, take structured courses, and build systematic knowledge through reading and research.",
-    Converging: "Pursue hands-on internships, lab work, or technical projects where you can apply concepts practically.",
-    Accommodating: "Jump into real-world experiences, learn from mistakes, and adapt your approach based on results.",
-  };
-  return tips[learningStyle] || "Engage with learning opportunities that match your strengths.";
 }

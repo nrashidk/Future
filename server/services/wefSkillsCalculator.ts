@@ -5,7 +5,7 @@
  * without requiring students to answer additional questions.
  * 
  * Calculation approach:
- * 1. Extract scores from each assessment (CVQ, RIASEC, Kolb, Subjects)
+ * 1. Extract scores from each assessment (CVQ, RIASEC, Subjects)
  * 2. Map to WEF skills using research-validated correlations
  * 3. Aggregate weighted scores for each of the 16 WEF skills
  * 4. Normalize to 0-100 scale for consistency
@@ -14,7 +14,6 @@
 import {
   CVQ_TO_WEF_MAPPING,
   RIASEC_TO_WEF_MAPPING,
-  KOLB_TO_WEF_MAPPING,
   SUBJECT_TO_WEF_MAPPING,
   WEFSkillName,
 } from './wefAssessmentMapping';
@@ -25,7 +24,6 @@ import {
 export interface AssessmentData {
   cvqScores?: Record<string, number>; // Domain → average score (1-5)
   riasecScores?: Record<string, number>; // Theme → normalized score (0-1)
-  kolbScores?: Record<string, number>; // Style → score
   subjectScores?: Record<string, number>; // Subject → quiz percentage (0-100)
 }
 
@@ -124,35 +122,6 @@ export function calculateWEFSkills(assessmentData: AssessmentData): WEFSkillsPro
         });
       });
     });
-  }
-
-  // Process Kolb scores
-  if (assessmentData.kolbScores) {
-    // Find dominant learning style (highest score)
-    const dominantStyle = Object.entries(assessmentData.kolbScores).reduce((prev, curr) =>
-      curr[1] > prev[1] ? curr : prev
-    );
-
-    const [style, score] = dominantStyle;
-    const mappings = KOLB_TO_WEF_MAPPING[style.toLowerCase()];
-    if (mappings) {
-      // Use dominant style score (already 0-100 typically)
-      const normalizedScore = score;
-
-      mappings.forEach(({ wefSkill, weight }) => {
-        initSkill(wefSkill);
-        const acc = skillAccumulator.get(wefSkill)!;
-        const contribution = normalizedScore * weight;
-
-        acc.weightedSum += contribution;
-        acc.totalWeight += weight;
-        acc.sources.push({
-          assessment: "Kolb",
-          component: style,
-          contribution,
-        });
-      });
-    }
   }
 
   // Process Subject Competency scores

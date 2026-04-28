@@ -470,7 +470,7 @@ export const assessments = pgTable("assessments", {
   curriculum: text("curriculum"), // Selected curriculum for this assessment (e.g., 'MoE National', 'CBSE', 'IB')
   
   // Assessment data
-  assessmentType: text("assessment_type").notNull().default("basic"), // 'basic' or 'kolb'
+  assessmentType: text("assessment_type").notNull().default("basic"), // 'basic' or 'premium'
   favoriteSubjects: text("favorite_subjects").array().notNull(),
   prioritySubjects: text("priority_subjects").array(), // Up to 3 subjects marked as priority (get more quiz questions)
   interests: text("interests").array().notNull(),
@@ -478,9 +478,6 @@ export const assessments = pgTable("assessments", {
   careerAspirations: text("career_aspirations").array(),
   strengths: text("strengths").array(),
   workPreferences: jsonb("work_preferences"),
-  
-  // Kolb's ELT scores (premium only)
-  kolbScores: jsonb("kolb_scores"), // { CE, RO, AC, AE, X, Y, learningStyle }
   
   // RIASEC Holland Code scores (premium only)
   riasecScores: jsonb("riasec_scores"), // { R, I, A, S, E, C, top3, ranking }
@@ -713,11 +710,11 @@ export const cvqResultsRelations = relations(cvqResults, ({ one }) => ({
 export const assessmentComponents = pgTable("assessment_components", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(), // "Subject Match", "Interest Match", etc.
-  key: text("key").notNull().unique(), // "subject", "interest", "vision", "market", "kolb", "riasec"
+  key: text("key").notNull().unique(), // "subject", "interest", "vision", "market", "riasec", "cvq"
   description: text("description"), // Explanation of what this component measures
   weight: real("weight").notNull().default(0), // Percentage weight (0-100)
   isActive: boolean("is_active").notNull().default(true),
-  requiresPremium: boolean("requires_premium").notNull().default(false), // true for Kolb & RIASEC
+  requiresPremium: boolean("requires_premium").notNull().default(false), // true for RIASEC & CVQ
   displayOrder: integer("display_order").notNull().default(0),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -734,7 +731,6 @@ export const careerComponentAffinities = pgTable("career_component_affinities", 
   componentId: varchar("component_id").notNull().references(() => assessmentComponents.id),
   affinityData: jsonb("affinity_data").notNull(), // Flexible structure depending on component type
   // For RIASEC: { R: 45, I: 90, A: 40, S: 30, E: 35, C: 60 }
-  // For Kolb: { Diverging: 50, Assimilating: 85, Converging: 60, Accommodating: 35 }
   // For others: can be null or custom structure
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -773,7 +769,6 @@ export const insertAssessmentSchema = createInsertSchema(assessments).omit({
   createdAt: true,
   updatedAt: true,
 }).extend({
-  kolbResponses: z.record(z.string(), z.number()).optional(), // Transient field: question ID -> response (1-5)
   riasecResponses: z.record(z.string(), z.number().min(1).max(5)).optional().refine(
     (data) => !data || Object.keys(data).length === 30,
     { message: "RIASEC assessment requires exactly 30 responses (5 per theme)" }
@@ -1007,7 +1002,7 @@ export type InsertOrganizationEvent = z.infer<typeof insertOrganizationEventSche
 // Scoring Tiers - defines Free vs Premium tier configurations
 export const scoringTiers = pgTable("scoring_tiers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  key: text("key").notNull().unique(), // 'basic', 'kolb', 'group'
+  key: text("key").notNull().unique(), // 'basic', 'premium', 'group'
   name: text("name").notNull(), // 'Free Assessment', 'Premium Assessment', etc.
   description: text("description"),
   isActive: boolean("is_active").notNull().default(true),

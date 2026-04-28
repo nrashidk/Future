@@ -12,7 +12,6 @@ interface CareerEvolutionData {
   grade: string;
   completedAt: string | null;
   topCareers: Array<{ careerId: string; careerName: string; matchScore: number }>;
-  kolbScores: any;
   riasecScores: any;
   interests: string[];
 }

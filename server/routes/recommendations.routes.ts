@@ -49,11 +49,6 @@ export function registerRecommendationsRoutes(app: Express) {
           missingComponents.push("Subject Competency Quiz");
         }
 
-        // Check Kolb assessment (stored as JSONB in assessments table)
-        if (!assessment.kolbScores || Object.keys(assessment.kolbScores as object).length === 0) {
-          missingComponents.push("Learning Style Assessment (Kolb)");
-        }
-
         // Check RIASEC assessment (stored as JSONB in assessments table)
         if (!assessment.riasecScores || Object.keys(assessment.riasecScores as object).length === 0) {
           missingComponents.push("Interest Inventory (RIASEC)");
@@ -197,19 +192,16 @@ export function registerRecommendationsRoutes(app: Express) {
           // Premium tier: Generate enhanced narratives dynamically (not stored in DB)
           if (isPremium && assessment && career) {
             // Defensive null guards before generating narratives
-            const hasKolbData = assessment.kolbScores && typeof assessment.kolbScores === 'object' && 
-              (assessment.kolbScores as any).learningStyle;
             const hasRiasecData = assessment.riasecScores && typeof assessment.riasecScores === 'object' &&
               typeof (assessment.riasecScores as any).R === 'number';
             const hasCvqData = cvqResult?.normalizedScores;
 
             // Only generate narratives if we have required data
-            if (hasKolbData && hasRiasecData) {
+            if (hasRiasecData) {
               try {
                 const narrativeContext = {
                   assessment,
                   career,
-                  kolbScores: assessment.kolbScores as any,
                   riasecScores: assessment.riasecScores as any,
                   cvqScores: hasCvqData ? (cvqResult.normalizedScores as Record<string, any>) : undefined,
                   overallScore: rec.overallMatchScore,

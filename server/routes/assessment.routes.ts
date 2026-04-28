@@ -4,7 +4,6 @@ import { storage } from "../storage";
 import { isAuthenticated } from "../auth";
 import { insertAssessmentSchema } from "@shared/schema";
 import { z } from "zod";
-import { calculateKolbScores } from "../questionBanks/kolb";
 import { calculateRiasecScores } from "../questionBanks/riasec";
 import { normalizeSubjects } from "../utils/subjects";
 import { sanitizeRequestBody } from "../utils/sanitize";
@@ -73,24 +72,14 @@ export function registerAssessmentRoutes(app: Express) {
       // For guest users, generate a cryptographically secure unique guest token
       const guestToken = isGuest ? `guest_${Date.now()}_${randomBytes(16).toString('hex')}` : null;
 
-      // Calculate learning style scores if responses provided (Individual Assessment users)
-      let kolbScores = null;
+      // Calculate RIASEC scores if responses provided (premium users)
       let riasecScores = null;
       let assessmentType = 'basic';
       
-      if (validatedData.kolbResponses && Object.keys(validatedData.kolbResponses).length === 24) {
-        try {
-          kolbScores = calculateKolbScores(validatedData.kolbResponses);
-          assessmentType = 'kolb';
-        } catch (error) {
-          console.error("Error calculating learning style scores:", error);
-        }
-      }
-      
-      // Calculate RIASEC scores if responses provided (Individual Assessment users)
       if (validatedData.riasecResponses) {
         try {
           riasecScores = calculateRiasecScores(validatedData.riasecResponses);
+          assessmentType = 'premium';
         } catch (error) {
           console.error("Error calculating RIASEC scores:", error);
         }
@@ -119,7 +108,6 @@ export function registerAssessmentRoutes(app: Express) {
         isGuest,
         guestSessionId: guestToken,
         assessmentType,
-        kolbScores,
         riasecScores,
         curriculum: assessmentCurriculum,
       });
@@ -237,8 +225,8 @@ export function registerAssessmentRoutes(app: Express) {
       const allowedFields = [
         'name', 'age', 'grade', 'gender', 'countryId', 'favoriteSubjects', 
         'prioritySubjects', 'interests', 'personalityTraits', 'careerAspirations', 
-        'strengths', 'workPreferences', 'kolbResponses', 'riasecResponses', 'cvqResponses',
-        'kolbScores', 'riasecScores', 'cvqScores', 'quizScore', 'subjectCompetencies',
+        'strengths', 'workPreferences', 'riasecResponses', 'cvqResponses',
+        'riasecScores', 'cvqScores', 'quizScore', 'subjectCompetencies',
         'currentStep', 'currentStepMetadata', 'isCompleted', 'completedAt', 
         'assessmentType', 'educationLevel'
       ];
@@ -259,21 +247,11 @@ export function registerAssessmentRoutes(app: Express) {
       }
       const updateData = { ...normalizationResult.normalized };
 
-      // Calculate learning style scores if responses provided and complete
-      if (updateData.kolbResponses && Object.keys(updateData.kolbResponses).length === 24) {
-        try {
-          updateData.kolbScores = calculateKolbScores(updateData.kolbResponses);
-          updateData.assessmentType = 'kolb';
-          console.log("Learning style scores calculated on update:", updateData.kolbScores);
-        } catch (error) {
-          console.error("Error calculating learning style scores:", error);
-        }
-      }
-      
       // Calculate RIASEC scores if responses provided
       if (updateData.riasecResponses) {
         try {
           updateData.riasecScores = calculateRiasecScores(updateData.riasecResponses);
+          updateData.assessmentType = 'premium';
           console.log("RIASEC scores calculated on update:", updateData.riasecScores);
         } catch (error) {
           console.error("Error calculating RIASEC scores:", error);

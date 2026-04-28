@@ -570,7 +570,7 @@ export default function ScoringConfigEditor() {
               <CardTitle>LLM Prompt Templates</CardTitle>
               <CardDescription>
                 Configure the prompts used to generate personalized premium report content.
-                Use template variables like {"{{careerTitle}}"}, {"{{learningStyle}}"}, etc.
+                Use template variables like {"{{careerTitle}}"}, {"{{riasecTop3}}"}, etc.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -747,7 +747,7 @@ export default function ScoringConfigEditor() {
               <div>
                 <Label>User Prompt Template</Label>
                 <p className="text-xs text-muted-foreground mb-2">
-                  Available variables: {"{{careerTitle}}, {{overallScore}}, {{learningStyle}}, {{riasecTop3}}, {{cvqTop3}}, {{favoriteSubjects}}, {{gradeLevel}}, {{educationLevel}}, {{requiredSkills}}, {{relatedSubjects}}"}
+                  Available variables: {"{{careerTitle}}, {{overallScore}}, {{riasecTop3}}, {{cvqTop3}}, {{favoriteSubjects}}, {{gradeLevel}}, {{educationLevel}}, {{requiredSkills}}, {{relatedSubjects}}"}
                 </p>
                 <Textarea
                   value={editingPrompt.userPromptTemplate}

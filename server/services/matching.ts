@@ -28,16 +28,6 @@ import {
 /**
  * Typed interfaces for JSONB fields
  */
-export interface KolbScores {
-  CE: number;
-  RO: number;
-  AC: number;
-  AE: number;
-  X: number;
-  Y: number;
-  learningStyle: 'Diverging' | 'Assimilating' | 'Converging' | 'Accommodating';
-}
-
 export interface RiasecScores {
   R: number;
   I: number;
@@ -106,7 +96,6 @@ const componentCalculators: Record<string, ComponentCalculator> = {
   subjects: calculateSubjectsScore,
   interests: calculateInterestsScore,
   vision: calculateVisionScore,
-  kolb: calculateKolbScore,
   riasec: calculateRiasecScore,
   cvq: calculateCvqScore,
   wef_skills: calculateWefSkillsScore,
@@ -614,43 +603,6 @@ function calculateVisionScore(
     careerId: career.id,
     score,
     reasoning,
-    componentKey: component.key,
-  };
-}
-
-function calculateKolbScore(
-  context: MatchingContext,
-  career: Career,
-  component: AssessmentComponent
-): ComponentScore | null {
-  const { assessment } = context;
-  const affinities = context.careerAffinities;
-  
-  // Check if user has Kolb scores (with type guard)
-  if (!assessment.kolbScores) {
-    return null;
-  }
-  
-  const kolbScores = assessment.kolbScores as KolbScores;
-  if (!kolbScores.learningStyle) {
-    return null;
-  }
-
-  // Get Kolb affinities for this career
-  const careerAffinityList = affinities.get(career.id) || [];
-  const kolbAffinity = careerAffinityList.find(a => a.componentId === component.id);
-  
-  if (!kolbAffinity || !kolbAffinity.affinityData) {
-    return null;
-  }
-
-  const userLearningStyle = kolbScores.learningStyle;
-  const affinityScore = (kolbAffinity.affinityData as any)[userLearningStyle] || 0;
-
-  return {
-    careerId: career.id,
-    score: affinityScore,
-    reasoning: `${userLearningStyle} learning style affinity`,
     componentKey: component.key,
   };
 }

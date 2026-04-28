@@ -365,45 +365,6 @@
     line-height: 1.4;
   }
 
-  /* Kolb cycle diagram (pure CSS) */
-  .kolb-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.9rem;
-    margin: 1.2rem 0;
-  }
-  .kolb-card {
-    border: 1px solid var(--rule);
-    border-radius: 4px;
-    padding: 0.85rem 1rem;
-    background: var(--bg-alt);
-  }
-  .kolb-card .code {
-    font-family: "Arial", sans-serif;
-    font-size: 0.7rem;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--gold);
-    margin-bottom: 0.2rem;
-  }
-  .kolb-card .name {
-    font-size: 0.88rem;
-    font-weight: 700;
-    color: var(--navy);
-    margin-bottom: 0.25rem;
-  }
-  .kolb-card .style {
-    font-size: 0.8rem;
-    font-style: italic;
-    color: var(--teal);
-    margin-bottom: 0.3rem;
-  }
-  .kolb-card .desc {
-    font-size: 0.78rem;
-    color: var(--slate);
-    line-height: 1.45;
-  }
-
   /* CVQ value domains */
   .cvq-grid {
     display: grid;
@@ -566,13 +527,12 @@
       <li><span class="toc-num">2.</span><span>The Career Guidance Challenge in UAE Schools</span></li>
       <li><span class="toc-num">3.</span><span>Platform Overview &amp; Tiered Access Model</span></li>
       <li><span class="toc-num">4.</span><span>Assessment Framework</span></li>
-      <li><span class="toc-num">5.</span><span>The Learning Style Assessment (Kolb ELT)</span></li>
-      <li><span class="toc-num">6.</span><span>The Career Personality Assessment (RIASEC / Holland Codes)</span></li>
-      <li><span class="toc-num">7.</span><span>The Personal Values Assessment (CVQ)</span></li>
-      <li><span class="toc-num">8.</span><span>The WEF 16 Skills Framework Integration</span></li>
-      <li><span class="toc-num">9.</span><span>Career Matching Methodology</span></li>
-      <li><span class="toc-num">10.</span><span>UAE Vision Alignment</span></li>
-      <li><span class="toc-num">11.</span><span>Reporting &amp; Outputs</span></li>
+      <li><span class="toc-num">5.</span><span>The Career Personality Assessment (RIASEC / Holland Codes)</span></li>
+      <li><span class="toc-num">6.</span><span>The Personal Values Assessment (CVQ)</span></li>
+      <li><span class="toc-num">7.</span><span>The WEF 16 Skills Framework Integration</span></li>
+      <li><span class="toc-num">8.</span><span>Career Matching Methodology</span></li>
+      <li><span class="toc-num">9.</span><span>UAE Vision Alignment</span></li>
+      <li><span class="toc-num">10.</span><span>Reporting &amp; Outputs</span></li>
       <li><span class="toc-num">12.</span><span>Privacy, Security &amp; Data Governance</span></li>
       <li><span class="toc-num">13.</span><span>Conclusion &amp; Recommendations</span></li>
       <li><span class="toc-num">14.</span><span>References</span></li>
@@ -588,13 +548,12 @@
     <p>
       Future Pathways is a digital career guidance system purpose-built for secondary school students
       in the United Arab Emirates. The platform bridges the gap between a student's emerging identity —
-      their interests, learning style, values, and academic strengths — and the rapidly changing landscape
+      their interests, values, and academic strengths — and the rapidly changing landscape
       of careers, nationally and globally.
     </p>
     <p>
-      Unlike generic career quizzes, Future Pathways integrates three internationally validated
-      psychometric instruments into a single, engaging experience: <strong>Kolb's Experiential Learning
-      Theory (ELT)</strong> for learning style, <strong>Holland's RIASEC model</strong> for career
+      Unlike generic career quizzes, Future Pathways integrates two internationally validated
+      psychometric instruments into a single, engaging experience: <strong>Holland's RIASEC model</strong> for career
       personality, and a <strong>Career Values Questionnaire (CVQ)</strong> grounded in Schwartz's
       Theory of Basic Human Values. These instruments are supplemented by a UAE curriculum-aligned
       subject competency quiz and an interest mapping survey.
@@ -698,12 +657,6 @@
           <td class="check">&#10003;</td>
         </tr>
         <tr>
-          <td>Learning Style Assessment (Kolb ELT)</td>
-          <td class="dash">&#8212;</td>
-          <td class="check">&#10003;</td>
-          <td class="check">&#10003;</td>
-        </tr>
-        <tr>
           <td>Career Personality Assessment (RIASEC)</td>
           <td class="dash">&#8212;</td>
           <td class="check">&#10003;</td>
@@ -798,13 +751,6 @@
         </div>
       </div>
       <div class="assessment-card">
-        <div class="assessment-card-header">Layer 3 — Learning Style (Premium)</div>
-        <div class="assessment-card-body">
-          <strong>Kolb ELT — 24 items</strong><br />
-          Identifies how the student absorbs and processes information across four dimensions.
-        </div>
-      </div>
-      <div class="assessment-card">
         <div class="assessment-card-header">Layer 4 — Career Personality (Premium)</div>
         <div class="assessment-card-body">
           <strong>RIASEC — 30 items</strong><br />
@@ -829,118 +775,7 @@
         </div>
       </div>
     </div>
-  </section>
-
-  <!-- ─── 5. Kolb ───────────────────────────────────────── -->
-  <section>
-    <p class="section-number">Section 5</p>
-    <h2 class="section-title">The Learning Style Assessment (Kolb ELT)</h2>
-    <hr class="section-rule" />
-
-    <h3>Theoretical Basis</h3>
-    <p>
-      David A. Kolb's Experiential Learning Theory (ELT), first articulated in <em>Experiential
-      Learning: Experience as the Source of Learning and Development</em> (Kolb, 1984), proposes
-      that learning is a four-stage cyclical process. Individuals develop preferred modes of
-      engaging with this cycle, yielding four distinct learning styles. ELT is one of the most
-      widely cited learning theories in education and organisational psychology, with thousands of
-      peer-reviewed applications across academic and workplace contexts.
-    </p>
-
-    <h3>The Four Dimensions</h3>
-    <p>
-      The assessment measures four learning dimensions using 24 Likert-scale items (six per
-      dimension, rated 1 = Strongly Disagree to 5 = Strongly Agree):
-    </p>
-
-    <div class="kolb-grid">
-      <div class="kolb-card">
-        <p class="code">CE — Concrete Experience</p>
-        <p class="name">Feel</p>
-        <p class="desc">
-          Preference for learning through direct involvement in real situations, concrete examples,
-          and case studies. Relates to the <em>feeling</em> pole of the processing continuum.
-        </p>
-      </div>
-      <div class="kolb-card">
-        <p class="code">RO — Reflective Observation</p>
-        <p class="name">Watch</p>
-        <p class="desc">
-          Preference for careful observation, reviewing multiple perspectives, and journaling before
-          forming conclusions. Relates to the <em>watching</em> pole.
-        </p>
-      </div>
-      <div class="kolb-card">
-        <p class="code">AC — Abstract Conceptualisation</p>
-        <p class="name">Think</p>
-        <p class="desc">
-          Preference for logic, theory, models, and systematic frameworks. Relates to the
-          <em>thinking</em> pole of the processing continuum.
-        </p>
-      </div>
-      <div class="kolb-card">
-        <p class="code">AE — Active Experimentation</p>
-        <p class="name">Do</p>
-        <p class="desc">
-          Preference for trying things, running experiments, and applying ideas immediately.
-          Relates to the <em>doing</em> pole.
-        </p>
-      </div>
-    </div>
-
-    <h3>Derived Learning Styles</h3>
-    <p>
-      By comparing the relative scores on the CE–AC axis (grasping experience) and the AE–RO
-      axis (transforming experience), each student is assigned one of four learning styles:
-    </p>
-
-    <div class="info-box">
-      <h4>The Four Kolb Learning Styles</h4>
-      <table style="width:100%; font-size:0.87rem; border-collapse:collapse;">
-        <thead>
-          <tr style="background:#f0f4f8;">
-            <th style="padding:0.5rem 0.8rem; text-align:left; color:#0f5257;">Style</th>
-            <th style="padding:0.5rem 0.8rem; text-align:left; color:#0f5257;">Dominant Modes</th>
-            <th style="padding:0.5rem 0.8rem; text-align:left; color:#0f5257;">Strengths</th>
-            <th style="padding:0.5rem 0.8rem; text-align:left; color:#0f5257;">Career Affinity</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr style="border-bottom:1px solid #d1d9e0;">
-            <td style="padding:0.5rem 0.8rem; font-weight:700;">Diverger</td>
-            <td style="padding:0.5rem 0.8rem; color:#4a5568;">CE + RO</td>
-            <td style="padding:0.5rem 0.8rem; color:#4a5568;">Imagination, empathy, brainstorming</td>
-            <td style="padding:0.5rem 0.8rem; color:#4a5568;">Arts, counselling, HR, marketing</td>
-          </tr>
-          <tr style="border-bottom:1px solid #d1d9e0; background:#f7f9fb;">
-            <td style="padding:0.5rem 0.8rem; font-weight:700;">Assimilator</td>
-            <td style="padding:0.5rem 0.8rem; color:#4a5568;">AC + RO</td>
-            <td style="padding:0.5rem 0.8rem; color:#4a5568;">Abstract reasoning, model-building</td>
-            <td style="padding:0.5rem 0.8rem; color:#4a5568;">Research, science, mathematics, planning</td>
-          </tr>
-          <tr style="border-bottom:1px solid #d1d9e0;">
-            <td style="padding:0.5rem 0.8rem; font-weight:700;">Converger</td>
-            <td style="padding:0.5rem 0.8rem; color:#4a5568;">AC + AE</td>
-            <td style="padding:0.5rem 0.8rem; color:#4a5568;">Problem-solving, technical application</td>
-            <td style="padding:0.5rem 0.8rem; color:#4a5568;">Engineering, technology, medicine</td>
-          </tr>
-          <tr style="background:#f7f9fb;">
-            <td style="padding:0.5rem 0.8rem; font-weight:700;">Accommodator</td>
-            <td style="padding:0.5rem 0.8rem; color:#4a5568;">CE + AE</td>
-            <td style="padding:0.5rem 0.8rem; color:#4a5568;">Adaptability, risk-taking, action</td>
-            <td style="padding:0.5rem 0.8rem; color:#4a5568;">Entrepreneurship, sales, leadership, sport</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <p>
-      The student's Kolb score contributes to career matching by modulating affinity scores between
-      their identified careers and the learning environments those careers typically demand.
-    </p>
-  </section>
-
-  <!-- ─── 6. RIASEC ─────────────────────────────────────── -->
+  </section><!-- ─── 6. RIASEC ─────────────────────────────────────── -->
   <section>
     <p class="section-number">Section 6</p>
     <h2 class="section-title">The Career Personality Assessment (RIASEC / Holland Codes)</h2>
@@ -1205,19 +1040,13 @@
           <td>20%</td>
           <td><div class="bar-wrap"><div class="bar-fill" style="width:20%"></div></div></td>
         </tr>
-        <tr>
-          <td>Kolb Learning Style</td>
-          <td>10%</td>
-          <td><div class="bar-wrap"><div class="bar-fill" style="width:10%"></div></div></td>
-        </tr>
       </tbody>
     </table>
 
     <div class="callout">
       <strong>Note on weights:</strong> In the Premium tier, the Interest Match dimension is replaced
       by the scientifically validated RIASEC personality assessment, which provides a richer signal.
-      Subject Competency, Vision Alignment, and Personal Values each carry equal weight at 20%, with
-      Kolb Learning Style providing a final 10% refinement. All dimensions sum to 100%.
+      Subject Competency, Vision Alignment, and Personal Values each carry equal weight at 20%, with. All dimensions sum to 100%.
       The configurable architecture allows the platform superadmin to tune weights for specific
       institutional priorities without code changes.
     </div>
@@ -1287,7 +1116,7 @@
     <p>
       Premium users receive a personalised PDF career report containing: a ranked list of career
       matches with match scores, a narrative explaining the student's personality and values
-      profile, a learning style explanation, UAE university and programme recommendations
+      profile, UAE university and programme recommendations
       (sourced from the UAE Commission for Academic Accreditation), and actionable next steps.
     </p>
     <figure class="screenshot-figure">
@@ -1402,7 +1231,6 @@
       <li>Hirschi, A. (2010). Vocational interests and career goals: Development and relations to personality in middle adolescence. <em>Journal of Vocational Behavior, 76</em>(2), 289–298.</li>
       <li>Holland, J. L. (1959). A theory of vocational choice. <em>Journal of Counseling Psychology, 6</em>(1), 35–45.</li>
       <li>Holland, J. L. (1997). <em>Making vocational choices: A theory of vocational personalities and work environments</em> (3rd ed.). Psychological Assessment Resources.</li>
-      <li>Kolb, D. A. (1984). <em>Experiential learning: Experience as the source of learning and development</em>. Prentice-Hall.</li>
       <li>Schwartz, S. H. (1992). Universals in the content and structure of values: Theory and empirical tests in 20 countries. <em>Advances in Experimental Social Psychology, 25</em>, 1–65.</li>
       <li>Schwartz, S. H. (2012). An overview of the Schwartz theory of basic values. <em>Online Readings in Psychology and Culture, 2</em>(1).</li>
       <li>UAE Federal Government. (2021). <em>UAE Centennial 2071</em>. https://u.ae/en/about-the-uae/strategies-initiatives-and-awards/federal-governments-strategies-and-plans/uae-centennial-2071</li>

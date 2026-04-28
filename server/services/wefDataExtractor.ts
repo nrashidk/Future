@@ -14,7 +14,7 @@ import type { IStorage } from "../storage";
  * 
  * Orchestrates data extraction from multiple sources:
  * - CVQ domain scores from cvq_results table
- * - RIASEC/Kolb scores from assessment JSONB fields
+ * - RIASEC scores from assessment JSONB fields
  * - Subject-level quiz scores from quiz responses
  */
 export async function buildWEFAssessmentData(
@@ -34,10 +34,6 @@ export async function buildWEFAssessmentData(
     data.riasecScores = assessment.riasecScores as Record<string, number>;
   }
 
-  // Extract Kolb scores
-  if (assessment.kolbScores && typeof assessment.kolbScores === 'object') {
-    data.kolbScores = assessment.kolbScores as Record<string, number>;
-  }
 
   // Extract subject-level quiz scores
   const quiz = await storage.getAssessmentQuizByAssessmentId(assessment.id);
@@ -86,7 +82,6 @@ export function hasWEFData(data: AssessmentData): boolean {
   return !!(
     (data.cvqScores && Object.keys(data.cvqScores).length > 0) ||
     (data.riasecScores && Object.keys(data.riasecScores).length > 0) ||
-    (data.kolbScores && Object.keys(data.kolbScores).length > 0) ||
     (data.subjectScores && Object.keys(data.subjectScores).length > 0)
   );
 }

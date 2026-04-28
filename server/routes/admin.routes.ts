@@ -1263,7 +1263,6 @@ export function registerAdminRoutes(app: Express) {
           "Top Career 1",
           "Top Career 2",
           "Top Career 3",
-          "Learning Style",
           "Career Personality (Top)",
           "Top Value",
           "Quiz Score (%)",
@@ -1303,7 +1302,6 @@ export function registerAdminRoutes(app: Express) {
             "",
             "",
             "",
-            "",
             ""
           ].join(","));
           continue;
@@ -1318,7 +1316,6 @@ export function registerAdminRoutes(app: Express) {
         }
 
         // Extract assessment data
-        const learningStyle = (completedAssessment.kolbScores as any)?.learningStyle || '';
         const riasecScores = completedAssessment.riasecScores as any;
         // Filter out non-numeric entries like 'top3' and 'ranking' before sorting
         const riasecEntries = riasecScores ? Object.entries(riasecScores).filter(([key, val]) => typeof val === 'number') : [];
@@ -1353,7 +1350,6 @@ export function registerAdminRoutes(app: Express) {
           `"${(topCareers[0] || '').replace(/"/g, '""')}"`,
           `"${(topCareers[1] || '').replace(/"/g, '""')}"`,
           `"${(topCareers[2] || '').replace(/"/g, '""')}"`,
-          `"${learningStyle.replace(/"/g, '""')}"`,
           `"${topRiasec.replace(/"/g, '""')}"`,
           `"${topValue.replace(/"/g, '""')}"`,
           `${quizScore}`,
@@ -1557,7 +1553,6 @@ export function registerAdminRoutes(app: Express) {
             topCareer1: topCareerNames[0] || '',
             topCareer2: topCareerNames[1] || '',
             topCareer3: topCareerNames[2] || '',
-            kolbScores: completedAssessment.kolbScores,
             riasecScores: completedAssessment.riasecScores,
             cvqScores: completedAssessment.cvqScores,
             quizScore: completedAssessment.quizScore,

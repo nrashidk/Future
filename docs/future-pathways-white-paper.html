@@ -365,45 +365,6 @@
     line-height: 1.4;
   }
 
-  /* Kolb cycle diagram (pure CSS) */
-  .kolb-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 0.9rem;
-    margin: 1.2rem 0;
-  }
-  .kolb-card {
-    border: 1px solid var(--rule);
-    border-radius: 4px;
-    padding: 0.85rem 1rem;
-    background: var(--bg-alt);
-  }
-  .kolb-card .code {
-    font-family: "Arial", sans-serif;
-    font-size: 0.7rem;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--gold);
-    margin-bottom: 0.2rem;
-  }
-  .kolb-card .name {
-    font-size: 0.88rem;
-    font-weight: 700;
-    color: var(--navy);
-    margin-bottom: 0.25rem;
-  }
-  .kolb-card .style {
-    font-size: 0.8rem;
-    font-style: italic;
-    color: var(--teal);
-    margin-bottom: 0.3rem;
-  }
-  .kolb-card .desc {
-    font-size: 0.78rem;
-    color: var(--slate);
-    line-height: 1.45;
-  }
-
   /* CVQ value domains */
   .cvq-grid {
     display: grid;
@@ -592,14 +553,13 @@
     </p>
     <p>
       Unlike generic career tools, Future Path was built from the ground up for the UAE context. It
-      integrates three internationally validated assessment frameworks — <strong>Kolb's Experiential
-      Learning Theory</strong>, <strong>Holland's RIASEC model</strong>, and a <strong>Career Values
+      integrates two internationally validated assessment frameworks — <strong>Holland's RIASEC model</strong> and a <strong>Career Values
       Questionnaire (CVQ)</strong> grounded in Schwartz's Theory of Basic Human Values — with
       UAE curriculum-aligned competency assessment and national vision sector mapping.
     </p>
     <p>
       The result is a personalized, multi-dimensional career profile that tells students not only which
-      careers suit them, but why — linking their learning style, personality, values, academic strengths,
+      careers suit them, but why — linking their personality, values, academic strengths,
       and national ambition into a single coherent narrative.
     </p>
 
@@ -694,12 +654,6 @@
         <tr>
           <td>Career recommendations (top matches)</td>
           <td class="check">&#10003;</td>
-          <td class="check">&#10003;</td>
-          <td class="check">&#10003;</td>
-        </tr>
-        <tr>
-          <td>Learning Style Assessment (Kolb ELT)</td>
-          <td class="dash">&#8212;</td>
           <td class="check">&#10003;</td>
           <td class="check">&#10003;</td>
         </tr>
@@ -803,13 +757,6 @@
         </div>
       </div>
       <div class="assessment-card">
-        <div class="assessment-card-header">Layer 3 — Learning Style (Premium)</div>
-        <div class="assessment-card-body">
-          <strong>Kolb ELT — 24 items</strong><br />
-          Identifies how the student absorbs and processes information across four dimensions.
-        </div>
-      </div>
-      <div class="assessment-card">
         <div class="assessment-card-header">Layer 4 — Career Personality (Premium)</div>
         <div class="assessment-card-body">
           <strong>RIASEC — 30 items</strong><br />
@@ -847,61 +794,6 @@
       frameworks. Each was selected for its empirical rigour, cross-cultural applicability, and
       alignment with adolescent developmental psychology. Together, they provide a triangulated
       view of the student that no single instrument can achieve alone.
-    </p>
-
-    <h3>Learning Style Assessment — Kolb's Experiential Learning Theory (ELT)</h3>
-    <p>
-      David A. Kolb's Experiential Learning Theory (Kolb, 1984) is one of the most widely cited
-      frameworks in educational and organizational psychology, with thousands of peer-reviewed
-      applications across academic and workplace settings. Kolb proposes that learning is a
-      four-stage cyclical process, and that individuals develop preferred modes of engaging with
-      that cycle.
-    </p>
-    <p>
-      The Future Path implementation uses <strong>24 Likert-scale items</strong> (six per dimension)
-      to measure four learning dimensions:
-    </p>
-
-    <div class="kolb-grid">
-      <div class="kolb-card">
-        <p class="code">CE — Concrete Experience</p>
-        <p class="name">Feel</p>
-        <p class="desc">
-          Preference for learning through direct involvement in real situations, concrete examples,
-          and case studies. Relates to the <em>feeling</em> pole of the processing continuum.
-        </p>
-      </div>
-      <div class="kolb-card">
-        <p class="code">RO — Reflective Observation</p>
-        <p class="name">Watch</p>
-        <p class="desc">
-          Preference for careful observation, reviewing multiple perspectives, and journaling before
-          forming conclusions. Relates to the <em>watching</em> pole.
-        </p>
-      </div>
-      <div class="kolb-card">
-        <p class="code">AC — Abstract Conceptualisation</p>
-        <p class="name">Think</p>
-        <p class="desc">
-          Preference for logic, theory, models, and systematic frameworks. Relates to the
-          <em>thinking</em> pole of the processing continuum.
-        </p>
-      </div>
-      <div class="kolb-card">
-        <p class="code">AE — Active Experimentation</p>
-        <p class="name">Do</p>
-        <p class="desc">
-          Preference for trying things, running experiments, and applying ideas immediately.
-          Relates to the <em>doing</em> pole.
-        </p>
-      </div>
-    </div>
-
-    <p>
-      Relative scores on the CE–AC and AE–RO axes yield one of four derived learning styles —
-      Diverger, Assimilator, Converger, or Accommodator — each with distinct career environment
-      affinities. The student's Kolb score contributes to career matching by modulating affinity
-      scores between their identified careers and the learning environments those careers demand.
     </p>
 
     <h3>Career Personality Assessment — RIASEC / Holland Codes</h3>
@@ -1144,19 +1036,13 @@
           <td>20%</td>
           <td><div class="bar-wrap"><div class="bar-fill" style="width:20%"></div></div></td>
         </tr>
-        <tr>
-          <td>Kolb Learning Style</td>
-          <td>10%</td>
-          <td><div class="bar-wrap"><div class="bar-fill" style="width:10%"></div></div></td>
-        </tr>
       </tbody>
     </table>
 
     <div class="callout">
       <strong>Note on weights:</strong> In the Premium tier, the Interest Match dimension is replaced
       by the scientifically validated RIASEC personality assessment, which provides a richer signal.
-      Subject Competency, Vision Alignment, and Personal Values each carry equal weight at 20%, with
-      Kolb Learning Style providing a final 10% refinement. All dimensions sum to 100%.
+      Subject Competency, Vision Alignment, and Personal Values each carry equal weight at 20%, with. All dimensions sum to 100%.
       The configurable architecture allows the platform superadmin to tune weights for specific
       institutional priorities without code changes.
     </div>
@@ -1230,7 +1116,7 @@
     <p>
       Premium users receive a personalised PDF career report containing: a ranked list of career
       matches with match scores, a narrative explaining the student's personality and values
-      profile, a learning style explanation, UAE university and programme recommendations
+      profile, UAE university and programme recommendations
       (sourced from the UAE Commission for Academic Accreditation), and actionable next steps.
     </p>
     <figure class="screenshot-figure">
@@ -1349,7 +1235,6 @@
       <li>Hirschi, A. (2010). Vocational interests and career goals: Development and relations to personality in middle adolescence. <em>Journal of Vocational Behavior, 76</em>(2), 289–298.</li>
       <li>Holland, J. L. (1959). A theory of vocational choice. <em>Journal of Counseling Psychology, 6</em>(1), 35–45.</li>
       <li>Holland, J. L. (1997). <em>Making vocational choices: A theory of vocational personalities and work environments</em> (3rd ed.). Psychological Assessment Resources.</li>
-      <li>Kolb, D. A. (1984). <em>Experiential learning: Experience as the source of learning and development</em>. Prentice-Hall.</li>
       <li>Schwartz, S. H. (1992). Universals in the content and structure of values: Theory and empirical tests in 20 countries. <em>Advances in Experimental Social Psychology, 25</em>, 1–65.</li>
       <li>Schwartz, S. H. (2012). An overview of the Schwartz theory of basic values. <em>Online Readings in Psychology and Culture, 2</em>(1).</li>
       <li>UAE Federal Government. (2021). <em>UAE Centennial 2071</em>. https://u.ae/en/about-the-uae/strategies-initiatives-and-awards/federal-governments-strategies-and-plans/uae-centennial-2071</li>

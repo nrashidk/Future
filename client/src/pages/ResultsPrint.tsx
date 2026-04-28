@@ -30,67 +30,7 @@ function getCountryDisplayName(country: any): string {
   return country?.name || "your country";
 }
 
-// Helper to get learning style info
-function getLearningStyleInfo(learningStyle: string): {
-  icon: any;
-  title: string;
-  description: string;
-  studyTips: string[];
-  careerConnection: string;
-} {
-  const styles: Record<string, any> = {
-    "Diverging": {
-      icon: Brain,
-      title: "Diverging Learner",
-      description: "You're creative and imaginative! You love looking at things from different angles and coming up with unique ideas. You enjoy working in groups and learning through discussions.",
-      studyTips: [
-        "Use mind maps and visual diagrams to organize your thoughts",
-        "Study in groups where you can discuss and share ideas",
-        "Connect what you're learning to real-world examples you care about",
-        "Keep a journal to reflect on what you've learned"
-      ],
-      careerConnection: "Your creative thinking and people skills make you great for careers in design, counseling, arts, and social work."
-    },
-    "Assimilating": {
-      icon: Lightbulb,
-      title: "Assimilating Learner",
-      description: "You're a logical thinker who loves understanding how things work! You enjoy reading, researching, and organizing information into clear patterns. You like working independently on challenging problems.",
-      studyTips: [
-        "Create detailed notes and summaries to organize concepts",
-        "Use logic diagrams and flowcharts to see connections",
-        "Research topics deeply using books and online resources",
-        "Break complex problems into smaller, logical steps"
-      ],
-      careerConnection: "Your analytical skills and love of research make you perfect for careers in science, technology, research, and engineering."
-    },
-    "Converging": {
-      icon: Wrench,
-      title: "Converging Learner",
-      description: "You're practical and solution-focused! You love applying what you learn to solve real problems. You enjoy hands-on activities, experiments, and finding the best way to get things done.",
-      studyTips: [
-        "Practice problems and work through examples yourself",
-        "Use simulations and hands-on activities when possible",
-        "Focus on practical applications of what you're learning",
-        "Set specific goals and track your progress"
-      ],
-      careerConnection: "Your practical problem-solving makes you excel in careers like engineering, medicine, IT, and business management."
-    },
-    "Accommodating": {
-      icon: Users,
-      title: "Accommodating Learner",
-      description: "You're action-oriented and love new experiences! You learn best by trying things yourself and aren't afraid to take risks. You enjoy working with others on exciting projects.",
-      studyTips: [
-        "Get hands-on experience through projects and activities",
-        "Work on team challenges that let you try new approaches",
-        "Learn from trial and error - mistakes help you grow",
-        "Stay flexible and open to changing your plans"
-      ],
-      careerConnection: "Your adventurous spirit and hands-on approach suit careers in entrepreneurship, sales, performing arts, and emergency services."
-    }
-  };
 
-  return styles[learningStyle] || styles["Diverging"];
-}
 
 // Helper to map subjects to vision sectors
 function mapSubjectsToVisionSectors(
@@ -412,114 +352,7 @@ export default function ResultsPrint() {
         )}
       </div>
 
-      {/* Page 2: Learning Style Analysis (Individual Assessment Only) */}
-      {isPremiumAssessment(assessment?.assessmentType) && assessment?.kolbScores?.learningStyle && (
-        <div className="print-page-career">
-          <StickyNote color="blue" rotation="0" className="p-8">
-            {(() => {
-              const styleInfo = getLearningStyleInfo(assessment.kolbScores.learningStyle);
-              const Icon = styleInfo.icon;
-              
-              return (
-                <div className="space-y-6">
-                  {/* Header */}
-                  <div className="text-center mb-6">
-                    <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
-                      <Icon className="w-8 h-8 text-primary" />
-                    </div>
-                    <h2 className="text-3xl font-bold mb-2">Your Learning Style</h2>
-                    <p className="text-lg font-semibold text-primary mb-1">{styleInfo.title}</p>
-                    <p className="text-sm text-muted-foreground font-body">
-                      Based on our proprietary assessment methodology
-                    </p>
-                  </div>
-
-                  {/* Description */}
-                  <div className="p-4 bg-background/30 rounded-lg">
-                    <h3 className="font-semibold mb-2 flex items-center gap-2">
-                      <Brain className="w-4 h-4" />
-                      What This Means
-                    </h3>
-                    <p className="text-sm font-body">{styleInfo.description}</p>
-                  </div>
-
-                  {/* Study Tips */}
-                  <div className="p-4 bg-background/30 rounded-lg">
-                    <h3 className="font-semibold mb-3 flex items-center gap-2">
-                      <BookOpen className="w-4 h-4" />
-                      Study Strategies Just for You
-                    </h3>
-                    <ul className="space-y-2">
-                      {styleInfo.studyTips.map((tip, idx) => (
-                        <li key={idx} className="flex items-start gap-2 text-sm font-body">
-                          <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-                          <span>{tip}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  {/* Career Connection */}
-                  <div className="p-4 bg-background/30 rounded-lg">
-                    <h3 className="font-semibold mb-2 flex items-center gap-2">
-                      <Target className="w-4 h-4" />
-                      How This Connects to Your Career Matches
-                    </h3>
-                    <p className="text-sm font-body mb-3">{styleInfo.careerConnection}</p>
-                    <p className="text-xs text-muted-foreground font-body flex items-start gap-1">
-                      <Star className="w-3 h-3 flex-shrink-0 mt-0.5" />
-                      <span>Your learning style contributes 10% to your overall career match scores, ensuring we recommend careers that fit how you naturally learn and work.</span>
-                    </p>
-                  </div>
-
-                  {/* Learning Style Scores Breakdown (Visual) */}
-                  <div className="p-4 bg-background/30 rounded-lg">
-                    <h3 className="font-semibold mb-3 text-sm">Your Learning Preferences</h3>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-medium">Concrete Experience</span>
-                          <span className="text-xs font-bold">{assessment.kolbScores.CE}</span>
-                        </div>
-                        <Progress value={(assessment.kolbScores.CE / 48) * 100} className="h-2" />
-                      </div>
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-medium">Reflective Observation</span>
-                          <span className="text-xs font-bold">{assessment.kolbScores.RO}</span>
-                        </div>
-                        <Progress value={(assessment.kolbScores.RO / 48) * 100} className="h-2" />
-                      </div>
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-medium">Abstract Conceptualization</span>
-                          <span className="text-xs font-bold">{assessment.kolbScores.AC}</span>
-                        </div>
-                        <Progress value={(assessment.kolbScores.AC / 48) * 100} className="h-2" />
-                      </div>
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-medium">Active Experimentation</span>
-                          <span className="text-xs font-bold">{assessment.kolbScores.AE}</span>
-                        </div>
-                        <Progress value={(assessment.kolbScores.AE / 48) * 100} className="h-2" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-          </StickyNote>
-
-          {/* Footer */}
-          <div className="mt-4 text-xs text-center text-muted-foreground">
-            Generated on {new Date().toLocaleDateString()} | Future Pathways Career Guidance System<br />
-            Visit us at futurepath.ae
-          </div>
-        </div>
-      )}
-
-      {/* Page 3: CVQ Values Analysis (Individual Assessment Only) */}
+      {/* Page 2: CVQ Values Analysis (Individual Assessment Only) */}
       {cvqResult && isPremiumAssessment(assessment?.assessmentType) && (
         <div className="print-page-career">
           <StickyNote color="purple" rotation="0" className="p-6">
@@ -685,9 +518,9 @@ export default function ResultsPrint() {
         </div>
       )}
 
-      {/* Personality Profile Fallback (school students without Kolb/CVQ data) */}
+      {/* Personality Profile (school students without CVQ data) */}
       {isPremiumAssessment(assessment?.assessmentType) &&
-        !assessment?.kolbScores?.learningStyle &&
+        !cvqResult &&
         (assessment?.riasecScores?.top3?.length > 0 || assessment?.interests?.length > 0 || assessment?.personalityTraits) && (
         <div className="print-page-career">
           <StickyNote color="green" rotation="0" className="p-6">

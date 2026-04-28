@@ -7,7 +7,6 @@ import { DemographicsStep } from "@/components/assessment/DemographicsStep";
 import { SubjectsStep } from "@/components/assessment/SubjectsStep";
 import { InterestsStep } from "@/components/assessment/InterestsStep";
 import { PersonalityStep } from "@/components/assessment/PersonalityStep";
-import KolbStep from "@/components/KolbStep";
 import RiasecStep from "@/components/RiasecStep";
 import CVQStep from "@/components/CVQStep";
 import { CountryStep } from "@/components/assessment/CountryStep";
@@ -26,7 +25,6 @@ interface AssessmentData {
   prioritySubjects: string[]; // Up to 3 subjects marked as priority (get more quiz questions)
   interests: string[];
   personalityTraits: Record<string, number>;
-  kolbResponses: Record<string, number>; // Kolb ELT responses (premium users only)
   riasecResponses: Record<string, number>; // RIASEC responses (premium users only)
   cvqResponses: Record<string, number>; // CVQ values responses (premium users only)
   countryId: string;
@@ -46,8 +44,8 @@ export default function Assessment() {
 
   const isPremiumUser = user?.isPremium || false;
   
-  // Premium users have 8 steps, free users have 7 steps
-  const totalSteps = isPremiumUser ? 8 : 7;
+  // Premium users have 7 steps, free users have 7 steps
+  const totalSteps = 7;
 
   const [assessmentData, setAssessmentData] = useState<AssessmentData>({
     name: "",
@@ -59,7 +57,6 @@ export default function Assessment() {
     prioritySubjects: [],
     interests: [],
     personalityTraits: {},
-    kolbResponses: {},
     riasecResponses: {},
     cvqResponses: {},
     countryId: "",
@@ -164,9 +161,6 @@ export default function Assessment() {
         
         // Include premium assessment scores if available
         if (isPremiumUser) {
-          if (Object.keys(assessmentData.kolbResponses).length > 0) {
-            backendData.kolbResponses = assessmentData.kolbResponses;
-          }
           if (Object.keys(assessmentData.riasecResponses).length > 0) {
             backendData.riasecResponses = assessmentData.riasecResponses;
           }
@@ -197,7 +191,7 @@ export default function Assessment() {
       (isPremiumUser && currentStep === 3) || // Premium: Save after Country, before Quiz
       (!isPremiumUser && currentStep === 6);  // Free: Save after Aspirations, before Quiz
     
-    const isAspirationsStepPremium = isPremiumUser && currentStep === 8;
+    const isAspirationsStepPremium = isPremiumUser && currentStep === 7;
     
     if (needsSaveBeforeQuiz || isAspirationsStepPremium) {
       // Save assessment before quiz (for both tiers) or after Aspirations (premium only)
@@ -223,11 +217,6 @@ export default function Assessment() {
           backendData.personalityTraits = Object.keys(assessmentData.personalityTraits).filter(
             k => assessmentData.personalityTraits[k]
           );
-        }
-        
-        // Include Kolb responses if premium user completed Kolb assessment
-        if (isPremiumUser && Object.keys(assessmentData.kolbResponses).length > 0) {
-          backendData.kolbResponses = assessmentData.kolbResponses;
         }
         
         // Include RIASEC scores if premium user completed RIASEC assessment
@@ -283,7 +272,7 @@ export default function Assessment() {
       return;
     }
     
-    // Premium users: Continue to next step (Kolb at step 5)
+    // Premium users: Continue to next step (RIASEC at step 5)
     // Free users: Generate recommendations and go to results
     if (isPremiumUser) {
       setCurrentStep(5);
@@ -559,14 +548,15 @@ export default function Assessment() {
           </>
         )}
         
-        {/* Step 5: Kolb (premium) | Country (free) */}
+        {/* Step 5: RIASEC (premium) | Country (free) */}
         {currentStep === 5 && (
           <>
             {isPremiumUser ? (
-              <KolbStep
-                responses={assessmentData.kolbResponses}
-                onUpdate={(responses) => updateAssessmentData("kolbResponses", responses)}
-                onNext={handleNext}
+              <RiasecStep
+                onComplete={(scores) => {
+                  updateAssessmentData("riasecResponses", scores);
+                  handleNext();
+                }}
                 onBack={() => setCurrentStep(4)}
               />
             ) : (
@@ -580,17 +570,27 @@ export default function Assessment() {
           </>
         )}
         
-        {/* Step 6: RIASEC (premium) | Aspirations (free) */}
+        {/* Step 6: CVQ (premium) | Aspirations (free) */}
         {currentStep === 6 && (
           <>
             {isPremiumUser ? (
-              <RiasecStep
-                onComplete={(scores) => {
-                  updateAssessmentData("riasecResponses", scores);
-                  handleNext();
-                }}
-                onBack={() => setCurrentStep(5)}
-              />
+              assessmentId ? (
+                <CVQStep
+                  assessmentId={assessmentId}
+                  responses={assessmentData.cvqResponses}
+                  onUpdate={(responses) => updateAssessmentData("cvqResponses", responses)}
+                  onNext={handleNext}
+                  onBack={() => setCurrentStep(5)}
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+                  <p className="text-lg text-destructive font-semibold">Error: Assessment not found</p>
+                  <p className="text-muted-foreground">Please go back and complete the previous steps.</p>
+                  <Button onClick={() => setCurrentStep(5)} data-testid="button-back-to-assessment">
+                    Go Back
+                  </Button>
+                </div>
+              )
             ) : (
               <AspirationsStep
                 data={assessmentData}
@@ -602,27 +602,16 @@ export default function Assessment() {
           </>
         )}
         
-        {/* Step 7: CVQ (premium) | Quiz (free) */}
+        {/* Step 7: Aspirations (premium) | Quiz (free) */}
         {currentStep === 7 && (
           <>
             {isPremiumUser ? (
-              assessmentId ? (
-                <CVQStep
-                  assessmentId={assessmentId}
-                  responses={assessmentData.cvqResponses}
-                  onUpdate={(responses) => updateAssessmentData("cvqResponses", responses)}
-                  onNext={handleNext}
-                  onBack={() => setCurrentStep(6)}
-                />
-              ) : (
-                <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-                  <p className="text-lg text-destructive font-semibold">Error: Assessment not found</p>
-                  <p className="text-muted-foreground">Please go back and complete the previous steps.</p>
-                  <Button onClick={() => setCurrentStep(6)} data-testid="button-back-to-assessment">
-                    Go Back
-                  </Button>
-                </div>
-              )
+              <AspirationsStep
+                data={assessmentData}
+                onUpdate={updateAssessmentData}
+                onNext={handleNext}
+                onBack={() => setCurrentStep(6)}
+              />
             ) : (
               assessmentId ? (
                 <QuizStep
@@ -640,16 +629,6 @@ export default function Assessment() {
               )
             )}
           </>
-        )}
-        
-        {/* Step 8: Aspirations (premium only - free tier ends at step 7) */}
-        {currentStep === 8 && isPremiumUser && (
-          <AspirationsStep
-            data={assessmentData}
-            onUpdate={updateAssessmentData}
-            onNext={handleNext}
-            onBack={() => setCurrentStep(7)}
-          />
         )}
       </div>
     </main>

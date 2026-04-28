@@ -1283,31 +1283,22 @@ export async function seedDatabase() {
       displayOrder: 2,
     },
     {
-      name: "Kolb Learning Style",
-      key: "kolb",
-      description: "Learning style affinity based on Kolb's Experiential Learning Theory",
-      weight: 10,
+      name: "RIASEC (Holland Code)",
+      key: "riasec",
+      description: "Career personality assessment based on Holland's RIASEC model (Realistic, Investigative, Artistic, Social, Enterprising, Conventional)",
+      weight: 35,
       isActive: true,
       requiresPremium: true,
       displayOrder: 3,
     },
     {
-      name: "RIASEC (Holland Code)",
-      key: "riasec",
-      description: "Career personality assessment based on Holland's RIASEC model (Realistic, Investigative, Artistic, Social, Enterprising, Conventional)",
-      weight: 30, // UPDATED from 10%
-      isActive: true,
-      requiresPremium: true,
-      displayOrder: 4,
-    },
-    {
       name: "Personal Values (CVQ)",
       key: "cvq",
       description: "Career values alignment based on Children's Values Questionnaire (Schwartz model)",
-      weight: 20, // NEW component
+      weight: 25,
       isActive: true,
       requiresPremium: true,
-      displayOrder: 5,
+      displayOrder: 4,
     },
   ];
   
@@ -1723,9 +1714,9 @@ export async function seedDatabase() {
       displayOrder: 0,
     },
     {
-      key: "kolb",
+      key: "premium",
       name: "Premium Assessment",
-      description: "Comprehensive career assessment including personality, learning style, and values assessments",
+      description: "Comprehensive career assessment including personality and values assessments",
       isActive: true,
       displayOrder: 1,
     },
@@ -1766,23 +1757,20 @@ export async function seedDatabase() {
       vision: { weight: 30, isEnabled: true },
       riasec: { weight: 0, isEnabled: false },
       cvq: { weight: 0, isEnabled: false },
-      kolb: { weight: 0, isEnabled: false },
     },
-    kolb: {
+    premium: {
       subjects: { weight: 20, isEnabled: true },
       interests: { weight: 0, isEnabled: false },
       vision: { weight: 20, isEnabled: true },
-      riasec: { weight: 30, isEnabled: true },
-      cvq: { weight: 20, isEnabled: true },
-      kolb: { weight: 10, isEnabled: true },
+      riasec: { weight: 35, isEnabled: true },
+      cvq: { weight: 25, isEnabled: true },
     },
     group: {
       subjects: { weight: 20, isEnabled: true },
       interests: { weight: 0, isEnabled: false },
       vision: { weight: 20, isEnabled: true },
-      riasec: { weight: 30, isEnabled: true },
-      cvq: { weight: 20, isEnabled: true },
-      kolb: { weight: 10, isEnabled: true },
+      riasec: { weight: 35, isEnabled: true },
+      cvq: { weight: 25, isEnabled: true },
     },
   };
   
@@ -1822,7 +1810,6 @@ export async function seedDatabase() {
 
 Student Assessment Data:
 - Overall Match Score: {{overallScore}}%
-- Learning Style: {{learningStyle}}
 - Top RIASEC Themes: {{riasecTop3}}
 - Top Personal Values: {{cvqTop3}}
 - Favorite Subjects: {{favoriteSubjects}}
@@ -1834,7 +1821,7 @@ Career Information:
 
 Write 4-5 paragraphs explaining:
 1. Why this career matches their personality and interests
-2. How their learning style fits the work environment
+2. How their interests and strengths fit the work environment
 3. How their values align with this career path
 4. Their subject strengths and skill development opportunities
 5. Growth potential and future outlook in the UAE`,
@@ -1853,7 +1840,6 @@ Write 4-5 paragraphs explaining:
 Student Information:
 - Grade Level: {{gradeLevel}}
 - Favorite Subjects: {{favoriteSubjects}}
-- Learning Style: {{learningStyle}}
 
 Career Requirements:
 - Education Level: {{educationLevel}}
