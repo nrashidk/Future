@@ -640,7 +640,7 @@ export default function Profile() {
                         <p className="font-medium">{latestAssessment.name || 'Assessment'}</p>
                         <p className="text-sm text-muted-foreground">
                           {new Date(latestAssessment.createdAt).toLocaleDateString()} 
-                          {latestAssessment.tier && ` • ${latestAssessment.tier === 'kolb' || latestAssessment.tier === 'premium' ? 'Premium' : 'Free'}`}
+                          {latestAssessment.tier && ` • ${latestAssessment.tier === 'premium' || latestAssessment.tier === 'group' ? 'Premium' : 'Free'}`}
                         </p>
                       </div>
                     );
