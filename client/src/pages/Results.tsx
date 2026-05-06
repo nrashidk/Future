@@ -177,7 +177,7 @@ export default function Results() {
       try {
         // Use anchor tag approach to prevent navigation and state update issues
         const link = document.createElement('a');
-        link.href = `/api/recommendations/pdf/${assessmentId}`;
+        link.href = `/api/recommendations/pdf/${assessmentId}?lang=${language}`;
         link.download = `career-report-${assessmentId}.pdf`;
         link.style.display = 'none';
         document.body.appendChild(link);
@@ -191,7 +191,7 @@ export default function Results() {
       } catch (error) {
         console.error("PDF download error:", error);
         // Fallback to window.location
-        window.location.href = `/api/recommendations/pdf/${assessmentId}`;
+        window.location.href = `/api/recommendations/pdf/${assessmentId}?lang=${language}`;
       }
     }
   };
@@ -471,7 +471,7 @@ export default function Results() {
                   return top3.map(domain => (
                     <p key={domain} className="flex items-start gap-2">
                       <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-                      <span><strong>{domain.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}:</strong> {explanations[domain]}</span>
+                      <span><strong>{t(`domain${domain.split('_').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join('')}`)}:</strong> {explanations[domain]}</span>
                     </p>
                   ));
                 })()}

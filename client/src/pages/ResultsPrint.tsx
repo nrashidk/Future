@@ -90,7 +90,7 @@ function mapSubjectsToVisionSectors(
 
 export default function ResultsPrint() {
   const { t } = useTranslation('results');
-  const { language } = useLanguage();
+  useLanguage(); // ensure LanguageContext is subscribed (sets html[dir] globally)
   const urlParams = new URLSearchParams(window.location.search);
   const assessmentId = urlParams.get("assessmentId");
   const guestToken = urlParams.get("guestToken");
@@ -689,8 +689,8 @@ export default function ResultsPrint() {
                     <div>
                       <div className="flex items-start justify-between mb-2 gap-2">
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-lg font-bold leading-tight mb-1">{language === 'ar' && rec.career?.titleAr ? rec.career.titleAr : rec.career?.title}</h3>
-                          <p className="text-xs text-muted-foreground font-body line-clamp-2">{language === 'ar' && rec.career?.descriptionAr ? rec.career.descriptionAr : rec.career?.description}</p>
+                          <h3 className="text-lg font-bold leading-tight mb-1">{langParam === 'ar' && rec.career?.titleAr ? rec.career.titleAr : rec.career?.title}</h3>
+                          <p className="text-xs text-muted-foreground font-body line-clamp-2">{langParam === 'ar' && rec.career?.descriptionAr ? rec.career.descriptionAr : rec.career?.description}</p>
                         </div>
                         <div className="bg-primary text-primary-foreground px-3 py-1.5 rounded-full font-bold text-base flex-shrink-0">
                           {Math.round(rec.overallMatchScore)}%
