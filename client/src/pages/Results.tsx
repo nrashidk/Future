@@ -79,11 +79,12 @@ function mapSubjectsToVisionSectors(
   if (matchedCategories.size === 0) return null;
 
   // Build message with actual country vision categories
-  const subjectsText = topSubjects.join(" and ");
+  const andWord = tFn('and');
+  const subjectsText = topSubjects.join(` ${andWord} `);
   const categoriesArray = Array.from(matchedCategories).slice(0, 2); // Limit to 2 categories
   const categoriesText = categoriesArray.length === 1
     ? categoriesArray[0]
-    : categoriesArray[0] + " and " + categoriesArray[1];
+    : `${categoriesArray[0]} ${andWord} ${categoriesArray[1]}`;
 
   return tFn('visionLinkageText', {
     subjects: subjectsText,

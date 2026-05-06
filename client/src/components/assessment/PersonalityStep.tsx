@@ -12,48 +12,48 @@ interface PersonalityStepProps {
   onBack?: () => void;
 }
 
-const questions = [
-  {
-    id: "teamwork",
-    question: "I prefer to work...",
-    options: [
-      { value: "1", label: "Alone, focusing on my own tasks" },
-      { value: "2", label: "Sometimes alone, sometimes with others" },
-      { value: "3", label: "In a team, collaborating with others" },
-    ],
-  },
-  {
-    id: "learning",
-    question: "When learning something new, I like to...",
-    options: [
-      { value: "1", label: "Read about it and study theory" },
-      { value: "2", label: "Mix theory with hands-on practice" },
-      { value: "3", label: "Jump in and learn by doing" },
-    ],
-  },
-  {
-    id: "planning",
-    question: "I approach tasks by...",
-    options: [
-      { value: "1", label: "Planning everything in detail first" },
-      { value: "2", label: "Having a general plan then adapting" },
-      { value: "3", label: "Being spontaneous and flexible" },
-    ],
-  },
-  {
-    id: "problem",
-    question: "When facing a problem, I...",
-    options: [
-      { value: "1", label: "Analyze it logically and systematically" },
-      { value: "2", label: "Look for creative and innovative solutions" },
-      { value: "3", label: "Seek advice and work with others" },
-    ],
-  },
-];
-
 export function PersonalityStep({ data, onUpdate, onNext, onBack }: PersonalityStepProps) {
   const { t } = useTranslation('assessment');
   const [answers, setAnswers] = useState<Record<string, string>>(data.personalityTraits || {});
+
+  const questions = [
+    {
+      id: "teamwork",
+      question: t('personality.q_teamwork'),
+      options: [
+        { value: "1", label: t('personality.q_teamwork_1') },
+        { value: "2", label: t('personality.q_teamwork_2') },
+        { value: "3", label: t('personality.q_teamwork_3') },
+      ],
+    },
+    {
+      id: "learning",
+      question: t('personality.q_learning'),
+      options: [
+        { value: "1", label: t('personality.q_learning_1') },
+        { value: "2", label: t('personality.q_learning_2') },
+        { value: "3", label: t('personality.q_learning_3') },
+      ],
+    },
+    {
+      id: "planning",
+      question: t('personality.q_planning'),
+      options: [
+        { value: "1", label: t('personality.q_planning_1') },
+        { value: "2", label: t('personality.q_planning_2') },
+        { value: "3", label: t('personality.q_planning_3') },
+      ],
+    },
+    {
+      id: "problem",
+      question: t('personality.q_problem'),
+      options: [
+        { value: "1", label: t('personality.q_problem_1') },
+        { value: "2", label: t('personality.q_problem_2') },
+        { value: "3", label: t('personality.q_problem_3') },
+      ],
+    },
+  ];
 
   const handleAnswerChange = (questionId: string, value: string) => {
     const newAnswers = { ...answers, [questionId]: value };

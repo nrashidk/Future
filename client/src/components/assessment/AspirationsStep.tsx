@@ -12,19 +12,22 @@ interface AspirationsStepProps {
   onBack?: () => void;
 }
 
-const strengthOptions = [
-  "Critical Thinking",
-  "Creativity",
-  "Communication",
-  "Leadership",
-  "Teamwork",
-  "Problem Solving",
-  "Attention to Detail",
-  "Adaptability",
-];
+const STRENGTH_KEYS: Record<string, string> = {
+  "Critical Thinking": "aspirations.strengthCriticalThinking",
+  "Creativity": "aspirations.strengthCreativity",
+  "Communication": "aspirations.strengthCommunication",
+  "Leadership": "aspirations.strengthLeadership",
+  "Teamwork": "aspirations.strengthTeamwork",
+  "Problem Solving": "aspirations.strengthProblemSolving",
+  "Attention to Detail": "aspirations.strengthAttentionToDetail",
+  "Adaptability": "aspirations.strengthAdaptability",
+};
+
+const strengthOptions = Object.keys(STRENGTH_KEYS);
 
 export function AspirationsStep({ data, onUpdate, onNext, onBack }: AspirationsStepProps) {
   const { t } = useTranslation('assessment');
+
   const toggleStrength = (strength: string) => {
     const current = data.strengths || [];
     if (current.includes(strength)) {
@@ -84,10 +87,13 @@ export function AspirationsStep({ data, onUpdate, onNext, onBack }: AspirationsS
                       ? "bg-primary/20 ring-2 ring-primary"
                       : "bg-background/30"
                   }`}
+                  data-testid={`strength-${strength.toLowerCase().replace(/\s+/g, "-")}`}
                 >
                   <div className="flex items-center gap-2">
                     <Zap className={`w-4 h-4 ${isSelected ? "text-primary" : "text-muted-foreground"}`} />
-                    <span className="text-sm font-medium font-body">{strength}</span>
+                    <span className="text-sm font-medium font-body">
+                      {t(STRENGTH_KEYS[strength])}
+                    </span>
                   </div>
                 </div>
               );

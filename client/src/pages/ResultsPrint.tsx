@@ -74,11 +74,12 @@ function mapSubjectsToVisionSectors(
 
   if (matchedCategories.size === 0) return null;
 
-  const subjectsText = topSubjects.join(" and ");
+  const andWord = tFn('and');
+  const subjectsText = topSubjects.join(` ${andWord} `);
   const categoriesArray = Array.from(matchedCategories).slice(0, 2);
   const categoriesText = categoriesArray.length === 1
     ? categoriesArray[0]
-    : categoriesArray[0] + " and " + categoriesArray[1];
+    : `${categoriesArray[0]} ${andWord} ${categoriesArray[1]}`;
 
   return tFn('visionLinkageText', {
     subjects: subjectsText,

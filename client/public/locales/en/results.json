@@ -22,6 +22,7 @@
   "connectingVision": "Connecting to National Vision:",
   "visionGeneric": "Each recommendation shows how your subject strengths enable you to contribute to national development priorities and future goals.",
   "visionLinkageText": "Your top strengths in {{subjects}} directly align with {{country}}'s {{categories}} priorities in their national vision.",
+  "and": "and",
 
   "valuesTitle": "What Matters Most to You",
   "valuesSubtitle": "Based on our comprehensive values assessment",

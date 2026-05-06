@@ -12,30 +12,30 @@ interface SubjectsStepProps {
   onBack?: () => void;
 }
 
-const subjects = [
-  { id: "Mathematics", label: "Mathematics", icon: Calculator, color: "blue" as const },
-  { id: "Physics", label: "Physics", icon: Atom, color: "purple" as const },
-  { id: "Chemistry", label: "Chemistry", icon: FlaskConical, color: "green" as const },
-  { id: "Biology", label: "Biology", icon: Dna, color: "yellow" as const },
-  { id: "Computer Science", label: "Computer Science/IT", icon: Computer, color: "pink" as const },
-  { id: "English", label: "English/Literature", icon: BookOpen, color: "blue" as const },
-  { id: "History", label: "History", icon: Landmark, color: "purple" as const },
-  { id: "Geography", label: "Geography", icon: Globe2, color: "green" as const },
-  { id: "Economics", label: "Economics", icon: DollarSign, color: "yellow" as const },
-  { id: "Business", label: "Business Studies", icon: Briefcase, color: "pink" as const },
-  { id: "Art", label: "Art & Design", icon: Palette, color: "blue" as const },
-  { id: "Music", label: "Music", icon: Music, color: "purple" as const },
-];
-
 const MAX_PRIORITY_SUBJECTS = 3;
 
 export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepProps) {
   const { t } = useTranslation('assessment');
   const [phase, setPhase] = useState<"select" | "prioritize">("select");
-  
+
+  const subjects = [
+    { id: "Mathematics", labelKey: "subjects.subjectMathematics", icon: Calculator, color: "blue" as const },
+    { id: "Physics", labelKey: "subjects.subjectPhysics", icon: Atom, color: "purple" as const },
+    { id: "Chemistry", labelKey: "subjects.subjectChemistry", icon: FlaskConical, color: "green" as const },
+    { id: "Biology", labelKey: "subjects.subjectBiology", icon: Dna, color: "yellow" as const },
+    { id: "Computer Science", labelKey: "subjects.subjectComputerScience", icon: Computer, color: "pink" as const },
+    { id: "English", labelKey: "subjects.subjectEnglish", icon: BookOpen, color: "blue" as const },
+    { id: "History", labelKey: "subjects.subjectHistory", icon: Landmark, color: "purple" as const },
+    { id: "Geography", labelKey: "subjects.subjectGeography", icon: Globe2, color: "green" as const },
+    { id: "Economics", labelKey: "subjects.subjectEconomics", icon: DollarSign, color: "yellow" as const },
+    { id: "Business", labelKey: "subjects.subjectBusiness", icon: Briefcase, color: "pink" as const },
+    { id: "Art", labelKey: "subjects.subjectArt", icon: Palette, color: "blue" as const },
+    { id: "Music", labelKey: "subjects.subjectMusic", icon: Music, color: "purple" as const },
+  ];
+
   const favoriteSubjects = data.favoriteSubjects || [];
   const prioritySubjects = data.prioritySubjects || [];
-  
+
   useEffect(() => {
     if (prioritySubjects.length > 0 && favoriteSubjects.length > 0) {
       const validPriorities = prioritySubjects.filter((s: string) => favoriteSubjects.includes(s));
@@ -69,7 +69,6 @@ export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepPro
     if (favoriteSubjects.length >= 4) {
       setPhase("prioritize");
     } else {
-      // With 1-3 subjects, they are automatically the priority subjects
       onUpdate("prioritySubjects", favoriteSubjects.slice(0, MAX_PRIORITY_SUBJECTS));
       onNext();
     }
@@ -104,7 +103,7 @@ export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepPro
                 data-testid={`subject-${subject.id.toLowerCase().replace(/\s+/g, "-")}`}
               >
                 <Icon className="w-8 h-8 mx-auto mb-2 text-primary" />
-                <p className="font-semibold text-sm">{subject.label}</p>
+                <p className="font-semibold text-sm">{t(subject.labelKey)}</p>
                 {isSelected && (
                   <CheckCircle2 className="w-5 h-5 mx-auto mt-2 text-green-600" />
                 )}
@@ -165,7 +164,7 @@ export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepPro
           if (!subject) return null;
           const isPriority = prioritySubjects.includes(subjectId);
           const Icon = subject.icon;
-          
+
           return (
             <button
               key={subjectId}
@@ -173,18 +172,18 @@ export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepPro
               disabled={!isPriority && prioritySubjects.length >= MAX_PRIORITY_SUBJECTS}
               className={`
                 flex items-center gap-2 px-4 py-3 rounded-xl border-2 transition-all duration-200
-                ${isPriority 
-                  ? 'bg-primary/20 border-primary shadow-lg scale-105' 
+                ${isPriority
+                  ? 'bg-primary/20 border-primary shadow-lg scale-105'
                   : 'bg-card border-border hover:border-primary/50 hover:bg-primary/5'}
-                ${!isPriority && prioritySubjects.length >= MAX_PRIORITY_SUBJECTS 
-                  ? 'opacity-50 cursor-not-allowed' 
+                ${!isPriority && prioritySubjects.length >= MAX_PRIORITY_SUBJECTS
+                  ? 'opacity-50 cursor-not-allowed'
                   : 'cursor-pointer'}
               `}
               data-testid={`priority-${subjectId.toLowerCase().replace(/\s+/g, "-")}`}
             >
               <Icon className={`w-5 h-5 ${isPriority ? 'text-primary' : 'text-muted-foreground'}`} />
               <span className={`font-medium ${isPriority ? 'text-primary' : ''}`}>
-                {subject.label}
+                {t(subject.labelKey)}
               </span>
               {isPriority && (
                 <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
@@ -207,7 +206,7 @@ export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepPro
               const subject = subjects.find(s => s.id === subjectId);
               return subject ? (
                 <Badge key={subjectId} variant="secondary" className="bg-primary/20">
-                  {subject.label}
+                  {t(subject.labelKey)}
                 </Badge>
               ) : null;
             })}
