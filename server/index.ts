@@ -193,6 +193,13 @@ app.use((req, res, next) => {
   
   const server = await registerRoutes(app);
   
+  // Run SQL migrations before seeding — failures are fatal
+  {
+    console.log("\n🗄️  Running database migrations...");
+    const { runMigrations } = await import("./migrations/runner");
+    await runMigrations();
+  }
+
   // Seed database on startup (all environments - seed is idempotent)
   {
     const { seedDatabase } = await import("./seed");
