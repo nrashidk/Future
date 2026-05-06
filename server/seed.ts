@@ -4,6 +4,8 @@ import { validateQuestionBank, checkCoverage, flattenQuestionBank } from "../sha
 import { RIASEC_CAREER_AFFINITIES } from "./riasecAffinities";
 import { seedCVQItems } from "./cvq-seed";
 import { applyGrade8ArabicContent } from "./migrations/quiz-arabic-content";
+import { applyGrades9to12ArabicContent } from "./migrations/quiz-arabic-content-grades9-12";
+import { applyCareerArabicContent } from "./migrations/career-arabic-content";
 import { WEF_16_SKILLS, CAREER_WEF_SKILL_AFFINITIES } from "./wefSkillsData";
 
 export async function seedDatabase() {
@@ -1586,6 +1588,20 @@ export async function seedDatabase() {
     await applyGrade8ArabicContent();
   } catch (error: any) {
     console.error("  Grade 8 Arabic quiz content error (non-fatal, continuing):", error.message);
+  }
+
+  // Apply Arabic translations to Grade 9–12 quiz questions
+  try {
+    await applyGrades9to12ArabicContent();
+  } catch (error: any) {
+    console.error("  Grades 9–12 Arabic quiz content error (non-fatal, continuing):", error.message);
+  }
+
+  // Apply Arabic titles and descriptions to all 36 careers
+  try {
+    await applyCareerArabicContent();
+  } catch (error: any) {
+    console.error("  Career Arabic content error (non-fatal, continuing):", error.message);
   }
 
   // Seed Test Organization Admin Account (for testing admin functionality)
