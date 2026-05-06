@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Step {
   number: number;
@@ -17,6 +18,8 @@ interface ProgressTrackerProps {
 
 export function ProgressTracker({ currentStep, totalSteps, isPremium = false }: ProgressTrackerProps) {
   const { t } = useTranslation('assessment');
+  const { language } = useLanguage();
+  const isRTL = language === 'ar';
 
   const freeStepTitles = [
     t('progress.basicInfo'),
@@ -42,7 +45,7 @@ export function ProgressTracker({ currentStep, totalSteps, isPremium = false }: 
   
   const steps: Step[] = Array.from({ length: totalSteps }, (_, i) => ({
     number: i + 1,
-    title: stepTitles[i] || `Step ${i + 1}`,
+    title: stepTitles[i] || String(i + 1),
     completed: i + 1 < currentStep,
     current: i + 1 === currentStep,
   }));
@@ -51,9 +54,13 @@ export function ProgressTracker({ currentStep, totalSteps, isPremium = false }: 
 
   return (
     <div className="w-full max-w-6xl mx-auto px-4 py-6">
-      {/* Progress bar */}
+      {/* Progress bar — dir="ltr" keeps fill visually correct;
+          scaleX(-1) mirrors it so fill grows from the reading-start side in RTL */}
       <div className="mb-8">
-        <div className="h-3 bg-muted rounded-full overflow-hidden">
+        <div
+          className="h-3 bg-muted rounded-full overflow-hidden"
+          style={isRTL ? { transform: 'scaleX(-1)' } : undefined}
+        >
           <div
             className="h-full bg-gradient-to-r from-primary to-primary/80 transition-all duration-500 ease-out rounded-full"
             style={{ width: `${progress}%` }}
@@ -66,13 +73,18 @@ export function ProgressTracker({ currentStep, totalSteps, isPremium = false }: 
         </div>
       </div>
 
-      {/* Step indicators */}
+      {/* Step indicators — in RTL, flex-row naturally reverses order so
+          step 1 is on the right; connector fill anchors from inline-end */}
       <div className="hidden md:flex justify-between items-start relative gap-2">
-        {/* Connection line */}
+        {/* Full connector track */}
         <div className="absolute top-6 left-0 right-0 h-1 bg-muted -z-10" />
-        <div 
-          className="absolute top-6 left-0 h-1 bg-primary transition-all duration-500 -z-10"
-          style={{ width: `${progress}%` }}
+        {/* Progress fill — anchors from inline-start (left in LTR, right in RTL) */}
+        <div
+          className="absolute top-6 h-1 bg-primary transition-all duration-500 -z-10"
+          style={{
+            width: `${progress}%`,
+            ...(isRTL ? { right: 0 } : { left: 0 }),
+          }}
         />
 
         {steps.map((step) => (
