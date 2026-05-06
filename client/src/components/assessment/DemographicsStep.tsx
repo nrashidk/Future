@@ -91,7 +91,7 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
             </div>
             <div className="flex-1">
               <Label htmlFor="name" className="text-lg font-semibold">
-                {t('demographics.name')} {predefinedName && <span className="text-xs text-muted-foreground font-normal ml-2">({t('demographics.setBySchool')})</span>}
+                {t('demographics.name')} {predefinedName && <span className="text-xs text-muted-foreground font-normal ms-2">({t('demographics.setBySchool')})</span>}
               </Label>
             </div>
           </div>
@@ -114,7 +114,7 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
             </div>
             <div className="flex-1">
               <Label htmlFor="age" className="text-lg font-semibold">
-                {t('demographics.age')} {predefinedAge && <span className="text-xs text-muted-foreground font-normal ml-2">({t('demographics.setBySchool')})</span>}
+                {t('demographics.age')} {predefinedAge && <span className="text-xs text-muted-foreground font-normal ms-2">({t('demographics.setBySchool')})</span>}
               </Label>
             </div>
           </div>
@@ -139,7 +139,7 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
             </div>
             <div className="flex-1">
               <Label htmlFor="grade" className="text-lg font-semibold">
-                {t('demographics.grade')} {predefinedGrade && <span className="text-xs text-muted-foreground font-normal ml-2">({t('demographics.setBySchoolGrade', { grade: getGradeLabel(predefinedGrade) })})</span>}
+                {t('demographics.grade')} {predefinedGrade && <span className="text-xs text-muted-foreground font-normal ms-2">({t('demographics.setBySchoolGrade', { grade: getGradeLabel(predefinedGrade) })})</span>}
               </Label>
             </div>
           </div>
@@ -184,7 +184,7 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
             </div>
             <div className="flex-1">
               <Label htmlFor="gender" className="text-lg font-semibold">
-                {t('demographics.gender')} {predefinedGender && <span className="text-xs text-muted-foreground font-normal ml-2">({t('demographics.setBySchool')})</span>}
+                {t('demographics.gender')} {predefinedGender && <span className="text-xs text-muted-foreground font-normal ms-2">({t('demographics.setBySchool')})</span>}
               </Label>
             </div>
           </div>
@@ -264,7 +264,7 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
             </div>
             
             {!isOrgStudent && data.age && data.age < 18 && (
-              <p className="text-xs text-muted-foreground font-body mt-2 ml-7">
+              <p className="text-xs text-muted-foreground font-body mt-2 ms-7">
                 {t('demographics.under18Note')}
               </p>
             )}

@@ -122,5 +122,8 @@
   "keyInterestsTitle": "Your Key Interests",
   "personalityTraitsTitle": "Your Personality Traits",
   "personalityMatchDesc": "Your personality type and interests contribute to your career match scores, ensuring the recommendations below align with how you naturally think and what excites you most.",
-  "generatedOn": "Generated on {{date}}"
+  "generatedOn": "Generated on {{date}}",
+  "footerBrandLine": "Future Pathways Career Guidance System",
+  "footerVisitLine": "Visit us at futurepath.ae",
+  "weightSuffix": "weight"
 }

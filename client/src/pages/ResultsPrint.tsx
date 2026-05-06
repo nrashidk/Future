@@ -425,7 +425,7 @@ export default function ResultsPrint() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between">
                                 <span className="text-xs font-semibold truncate">{info.name}</span>
-                                <span className="text-xs font-bold ml-1">{Math.round(score)}%</span>
+                                <span className="text-xs font-bold ms-1">{Math.round(score)}%</span>
                               </div>
                               <p className="text-xs text-muted-foreground">{info.description}</p>
                               <Progress value={score} className="h-1 mt-1" />
@@ -463,7 +463,7 @@ export default function ResultsPrint() {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center justify-between">
                                 <span className="text-xs font-medium truncate">{info.name}</span>
-                                <span className="text-xs font-bold ml-1">{Math.round(score)}%</span>
+                                <span className="text-xs font-bold ms-1">{Math.round(score)}%</span>
                               </div>
                               <Progress value={score} className="h-1 mt-0.5" />
                             </div>
@@ -542,8 +542,8 @@ export default function ResultsPrint() {
 
           {/* Footer */}
           <div className="mt-2 text-xs text-center text-muted-foreground">
-            {t('generatedOn', { date: new Date().toLocaleDateString() })} | Future Pathways Career Guidance System<br />
-            Visit us at futurepath.ae
+            {t('generatedOn', { date: new Date().toLocaleDateString() })} | {t('footerBrandLine')}<br />
+            {t('footerVisitLine')}
           </div>
         </div>
       )}
@@ -661,8 +661,8 @@ export default function ResultsPrint() {
           </StickyNote>
 
           <div className="mt-4 text-xs text-center text-muted-foreground">
-            {t('generatedOn', { date: new Date().toLocaleDateString() })} | Future Pathways Career Guidance System<br />
-            Visit us at futurepath.ae
+            {t('generatedOn', { date: new Date().toLocaleDateString() })} | {t('footerBrandLine')}<br />
+            {t('footerVisitLine')}
           </div>
         </div>
       )}
@@ -714,7 +714,7 @@ export default function ResultsPrint() {
                               <span className="text-[11px] font-bold">{Math.round(value)}%</span>
                             </div>
                             <Progress value={value} className="h-1" />
-                            <span className="text-[10px] text-muted-foreground">{weight} weight</span>
+                            <span className="text-[10px] text-muted-foreground">{weight} {t('weightSuffix')}</span>
                           </div>
                         ))}
                       </div>
@@ -774,8 +774,8 @@ export default function ResultsPrint() {
             </div>
 
             <div className="mt-4 text-xs text-center text-muted-foreground">
-              {t('generatedOn', { date: new Date().toLocaleDateString() })} | Future Pathways Career Guidance System<br />
-              Visit us at futurepath.ae
+              {t('generatedOn', { date: new Date().toLocaleDateString() })} | {t('footerBrandLine')}<br />
+              {t('footerVisitLine')}
             </div>
           </div>
         ));

@@ -122,5 +122,8 @@
   "keyInterestsTitle": "اهتماماتك الرئيسية",
   "personalityTraitsTitle": "سمات شخصيتك",
   "personalityMatchDesc": "تُسهم شخصيتك واهتماماتك في درجات مطابقة مسارك المهني، مما يضمن توافق التوصيات مع طريقة تفكيرك الطبيعية وما يثير حماسك.",
-  "generatedOn": "تم الإنشاء في {{date}}"
+  "generatedOn": "تم الإنشاء في {{date}}",
+  "footerBrandLine": "نظام التوجيه المهني - مسارات المستقبل",
+  "footerVisitLine": "زورونا على futurepath.ae",
+  "weightSuffix": "وزن"
 }

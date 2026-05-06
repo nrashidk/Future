@@ -265,13 +265,13 @@ export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps
                     data-testid="button-read-more-vision"
                   >
                     {isDetailsOpen ? t('country.showLess') : t('country.readMore')}
-                    <ChevronDown className={`ml-2 w-4 h-4 transition-transform ${isDetailsOpen ? "rotate-180" : ""}`} />
+                    <ChevronDown className={`ms-2 w-4 h-4 transition-transform ${isDetailsOpen ? "rotate-180" : ""}`} />
                   </Button>
                 </CollapsibleTrigger>
 
                 <CollapsibleContent className="mt-4 space-y-4">
                   {Object.entries(countryDetails.targets || {}).map(([category, targets]: [string, any]) => (
-                    <div key={category} className="border-l-2 border-primary/30 pl-4">
+                    <div key={category} className="border-s-2 border-primary/30 ps-4">
                       <h5 className="font-bold capitalize mb-2 text-primary">
                         {category === "tech" ? "Technology" : category === "climate" ? "Climate & Environment" : category === "economic" ? "Economy" : category}
                       </h5>
@@ -280,7 +280,7 @@ export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps
                           <div key={idx} className="text-sm font-body">
                             <span className="font-semibold">{target.metric}:</span>{" "}
                             <span className="text-foreground/90">{target.value}</span>
-                            <span className="text-xs text-foreground/60 ml-2">
+                            <span className="text-xs text-foreground/60 ms-2">
                               ({target.year}) • {target.focusArea}
                             </span>
                           </div>
