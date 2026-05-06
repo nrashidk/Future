@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Globe2, Target, Eye, ChevronDown, TrendingUp } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 
 interface CountryStepProps {
   data: any;
@@ -14,6 +15,7 @@ interface CountryStepProps {
 }
 
 export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps) {
+  const { t } = useTranslation('assessment');
   const [selectedCountryId, setSelectedCountryId] = useState(data.countryId || "");
   const [selectedCurriculum, setSelectedCurriculum] = useState(data.curriculum || "");
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -63,9 +65,9 @@ export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps
     return (
       <div className="space-y-8 animate-in fade-in duration-500">
         <div className="text-center mb-8">
-          <h2 className="text-4xl font-bold mb-3">Where Are You From? 🌍</h2>
+          <h2 className="text-4xl font-bold mb-3">{t('country.title')}</h2>
           <p className="text-lg text-muted-foreground font-body">
-            Loading countries...
+            {t('country.loading')}
           </p>
         </div>
       </div>
@@ -76,9 +78,9 @@ export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps
     return (
       <div className="space-y-8 animate-in fade-in duration-500">
         <div className="text-center mb-8">
-          <h2 className="text-4xl font-bold mb-3">Where Are You From? 🌍</h2>
+          <h2 className="text-4xl font-bold mb-3">{t('country.title')}</h2>
           <p className="text-lg text-destructive font-body">
-            Error loading countries. Please refresh the page.
+            {t('country.error')}
           </p>
           <p className="text-sm text-muted-foreground mt-2">
             {countriesError instanceof Error ? countriesError.message : "Unknown error"}
@@ -92,9 +94,9 @@ export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps
     return (
       <div className="space-y-8 animate-in fade-in duration-500">
         <div className="text-center mb-8">
-          <h2 className="text-4xl font-bold mb-3">Where Are You From? 🌍</h2>
+          <h2 className="text-4xl font-bold mb-3">{t('country.title')}</h2>
           <p className="text-lg text-muted-foreground font-body">
-            No countries available. Please contact support.
+            {t('country.noCountries')}
           </p>
         </div>
       </div>
@@ -104,9 +106,9 @@ export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="text-center mb-8">
-        <h2 className="text-4xl font-bold mb-3">Where Are You From? 🌍</h2>
+        <h2 className="text-4xl font-bold mb-3">{t('country.title')}</h2>
         <p className="text-lg text-muted-foreground font-body">
-          We'll align your career path with your country's vision and opportunities
+          {t('country.subtitle')}
         </p>
       </div>
 
@@ -115,7 +117,7 @@ export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps
           <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
             <Globe2 className="w-6 h-6 text-primary" />
           </div>
-          <h3 className="text-xl font-semibold">Select Your Country</h3>
+          <h3 className="text-xl font-semibold">{t('country.selectCountry')}</h3>
         </div>
         {isMobile ? (
           <select
@@ -124,7 +126,7 @@ export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps
             className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background/50 border-foreground/20 px-3 py-2 text-lg ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
             data-testid="select-country"
           >
-            <option value="">Choose your country</option>
+            <option value="">{t('country.chooseCountry')}</option>
             {countries.map((country: any) => (
               <option key={country.id} value={country.id}>
                 {country.name}
@@ -134,7 +136,7 @@ export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps
         ) : (
           <Select value={selectedCountryId} onValueChange={handleCountryChange}>
             <SelectTrigger className="bg-background/50 border-foreground/20 text-lg" data-testid="select-country">
-              <SelectValue placeholder="Choose your country" />
+              <SelectValue placeholder={t('country.chooseCountry')} />
             </SelectTrigger>
             <SelectContent position="popper" className="z-[9999] max-h-[300px]">
               {countries.map((country: any) => (
@@ -154,9 +156,9 @@ export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps
               <Target className="w-6 h-6 text-primary" />
             </div>
             <div>
-              <h3 className="text-xl font-semibold">Select Your Curriculum</h3>
+              <h3 className="text-xl font-semibold">{t('country.selectCurriculum')}</h3>
               <p className="text-sm text-foreground/70 font-body">
-                Choose the curriculum that matches your school's educational program
+                {t('country.curriculumHint')}
               </p>
             </div>
           </div>
@@ -167,7 +169,7 @@ export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps
               className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background/50 border-foreground/20 px-3 py-2 text-lg ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               data-testid="select-curriculum"
             >
-              <option value="">Choose your curriculum</option>
+              <option value="">{t('country.chooseCurriculum')}</option>
               {availableCurricula.map((curriculum: string) => (
                 <option key={curriculum} value={curriculum}>
                   {curriculum}
@@ -177,7 +179,7 @@ export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps
           ) : (
             <Select value={selectedCurriculum} onValueChange={handleCurriculumChange}>
               <SelectTrigger className="bg-background/50 border-foreground/20 text-lg" data-testid="select-curriculum">
-                <SelectValue placeholder="Choose your curriculum" />
+                <SelectValue placeholder={t('country.chooseCurriculum')} />
               </SelectTrigger>
               <SelectContent position="popper" className="z-[9999] max-h-[300px]">
                 {availableCurricula.map((curriculum: string) => (
@@ -248,9 +250,9 @@ export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps
                     <TrendingUp className="w-5 h-5 text-primary" />
                   </div>
                   <div className="flex-1">
-                    <h4 className="text-lg font-bold">2030/2050 Development Goals</h4>
+                    <h4 className="text-lg font-bold">{t('country.devGoals')}</h4>
                     <p className="text-sm text-foreground/70 font-body mt-1">
-                      See how your country is working towards the future
+                      {t('country.devGoalsHint')}
                     </p>
                   </div>
                 </div>
@@ -262,7 +264,7 @@ export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps
                     className="w-full mt-2 hover-elevate active-elevate-2"
                     data-testid="button-read-more-vision"
                   >
-                    {isDetailsOpen ? "Show less" : "Read more"}
+                    {isDetailsOpen ? t('country.showLess') : t('country.readMore')}
                     <ChevronDown className={`ml-2 w-4 h-4 transition-transform ${isDetailsOpen ? "rotate-180" : ""}`} />
                   </Button>
                 </CollapsibleTrigger>
@@ -289,7 +291,7 @@ export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps
                   
                   {countryDetails.nationalGoals && countryDetails.nationalGoals.length > 0 && (
                     <div className="border-t border-foreground/10 pt-4 mt-4">
-                      <h5 className="font-bold mb-2">Key National Goals</h5>
+                      <h5 className="font-bold mb-2">{t('country.nationalGoals')}</h5>
                       <ul className="space-y-1">
                         {countryDetails.nationalGoals.map((goal: string, index: number) => (
                           <li key={index} className="text-sm font-body text-foreground/90 flex items-start gap-2">
@@ -316,7 +318,7 @@ export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps
             className="px-8 py-6 text-lg rounded-full"
             data-testid="button-back-country"
           >
-            Back
+            {t('nav.back')}
           </Button>
         )}
         <Button
@@ -326,7 +328,7 @@ export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps
           className="px-12 py-6 text-lg rounded-full shadow-lg"
           data-testid="button-next-country"
         >
-          Continue
+          {t('nav.continue')}
         </Button>
       </div>
     </div>

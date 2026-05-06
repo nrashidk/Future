@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calculator, Atom, FlaskConical, Dna, Computer, BookOpen, Landmark, Globe2, DollarSign, Briefcase, Palette, Music, Star, CheckCircle2 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 
 interface SubjectsStepProps {
   data: any;
@@ -29,6 +30,7 @@ const subjects = [
 const MAX_PRIORITY_SUBJECTS = 3;
 
 export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepProps) {
+  const { t } = useTranslation('assessment');
   const [phase, setPhase] = useState<"select" | "prioritize">("select");
   
   const favoriteSubjects = data.favoriteSubjects || [];
@@ -80,9 +82,9 @@ export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepPro
     return (
       <div className="space-y-8 animate-in fade-in duration-500">
         <div className="text-center mb-8">
-          <h2 className="text-4xl font-bold mb-3">What Subjects Do You Love?</h2>
+          <h2 className="text-4xl font-bold mb-3">{t('subjects.title')}</h2>
           <p className="text-lg text-muted-foreground font-body">
-            Select all the subjects you enjoy learning (choose as many as you like!)
+            {t('subjects.subtitle')}
           </p>
         </div>
 
@@ -114,7 +116,7 @@ export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepPro
         {favoriteSubjects.length > 0 && (
           <div className="text-center p-4 bg-primary/10 rounded-lg">
             <p className="font-body text-sm">
-              <span className="font-semibold">{favoriteSubjects.length}</span> subject{favoriteSubjects.length !== 1 ? 's' : ''} selected
+              {t('subjects.selected', { count: favoriteSubjects.length })}
             </p>
           </div>
         )}
@@ -128,7 +130,7 @@ export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepPro
               className="px-8 py-6 text-lg rounded-full"
               data-testid="button-back-subjects"
             >
-              Back
+              {t('nav.back')}
             </Button>
           )}
           <Button
@@ -138,7 +140,7 @@ export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepPro
             className="px-12 py-6 text-lg rounded-full shadow-lg"
             data-testid="button-next-subjects"
           >
-            Continue
+            {t('nav.continue')}
           </Button>
         </div>
       </div>
@@ -148,12 +150,12 @@ export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepPro
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="text-center mb-8">
-        <h2 className="text-4xl font-bold mb-3">Which Subjects Matter Most?</h2>
+        <h2 className="text-4xl font-bold mb-3">{t('subjects.priorityTitle')}</h2>
         <p className="text-lg text-muted-foreground font-body">
-          Mark up to {MAX_PRIORITY_SUBJECTS} subjects as your top priorities for career planning
+          {t('subjects.prioritySubtitle', { max: MAX_PRIORITY_SUBJECTS })}
         </p>
         <p className="text-sm text-muted-foreground font-body mt-2">
-          Priority subjects will get more quiz questions to better assess your knowledge
+          {t('subjects.priorityHint')}
         </p>
       </div>
 
@@ -196,7 +198,7 @@ export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepPro
         <div className="flex items-center justify-center gap-2">
           <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
           <p className="font-body text-sm">
-            <span className="font-semibold">{prioritySubjects.length}</span> of {MAX_PRIORITY_SUBJECTS} priority subjects selected
+            {t('subjects.prioritySelected', { count: prioritySubjects.length, max: MAX_PRIORITY_SUBJECTS })}
           </p>
         </div>
         {prioritySubjects.length > 0 && (
@@ -216,12 +218,12 @@ export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepPro
       <div className="bg-card border rounded-lg p-4">
         <h4 className="font-semibold mb-2 flex items-center gap-2">
           <Star className="w-4 h-4 text-yellow-500" />
-          Why mark priority subjects?
+          {t('subjects.whyPriority')}
         </h4>
         <ul className="text-sm text-muted-foreground space-y-1 font-body">
-          <li>Priority subjects receive more quiz questions (4 instead of 2)</li>
-          <li>Better assessment of your knowledge in areas that matter most to you</li>
-          <li>Career recommendations will focus more on these subjects</li>
+          <li>{t('subjects.whyPriority1')}</li>
+          <li>{t('subjects.whyPriority2')}</li>
+          <li>{t('subjects.whyPriority3')}</li>
         </ul>
       </div>
 
@@ -233,7 +235,7 @@ export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepPro
           className="px-8 py-6 text-lg rounded-full"
           data-testid="button-back-to-select"
         >
-          Back
+          {t('nav.back')}
         </Button>
         <Button
           size="lg"
@@ -242,7 +244,7 @@ export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepPro
           className="px-12 py-6 text-lg rounded-full shadow-lg"
           data-testid="button-next-priorities"
         >
-          Continue
+          {t('nav.continue')}
         </Button>
       </div>
     </div>

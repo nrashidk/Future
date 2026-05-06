@@ -25,6 +25,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { isPremiumAssessment } from "@shared/assessmentTier";
 import i18n from "@/i18n/config";
+import { useTranslation } from "react-i18next";
 
 // Helper to get display name
 function getCountryDisplayName(country: any): string {
@@ -81,6 +82,7 @@ function mapSubjectsToVisionSectors(
 }
 
 export default function ResultsPrint() {
+  const { t } = useTranslation('results');
   const urlParams = new URLSearchParams(window.location.search);
   const assessmentId = urlParams.get("assessmentId");
   const guestToken = urlParams.get("guestToken");
@@ -211,9 +213,9 @@ export default function ResultsPrint() {
             <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-white/20 mb-4">
               <Star className="w-10 h-10" />
             </div>
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">Your Career Pathways!</h1>
+            <h1 className="text-4xl md:text-5xl font-bold mb-4">{t('pageTitle')}</h1>
             <p className="text-xl text-primary-foreground/90 font-body">
-              Based on your interests, skills, and country's vision, here are your perfect matches
+              {t('pageSubtitle')}
             </p>
           </div>
         </div>
@@ -231,36 +233,36 @@ export default function ResultsPrint() {
               <StickyNote color={assessment?.assessmentType === 'school' ? 'blue' : 'purple'} rotation="0" className="p-4">
                 <div className="flex items-center gap-3 mb-3">
                   <User className="w-7 h-7 text-primary flex-shrink-0" />
-                  <h2 className="text-xl font-bold">Student Profile</h2>
+                  <h2 className="text-xl font-bold">{t('studentProfile')}</h2>
                 </div>
                 <div className="grid grid-cols-5 gap-3">
                   {displayName && (
                     <div className="p-2 bg-primary/20 rounded-lg text-center">
-                      <p className="text-xs text-muted-foreground font-body mb-0.5">Name</p>
+                      <p className="text-xs text-muted-foreground font-body mb-0.5">{t('profileName')}</p>
                       <p className="font-semibold text-sm leading-tight">{displayName}</p>
                     </div>
                   )}
                   {displayAge && (
                     <div className="p-2 bg-primary/20 rounded-lg text-center">
-                      <p className="text-xs text-muted-foreground font-body mb-0.5">Age</p>
-                      <p className="font-semibold text-sm">{displayAge} years</p>
+                      <p className="text-xs text-muted-foreground font-body mb-0.5">{t('profileAge')}</p>
+                      <p className="font-semibold text-sm">{displayAge} {t('yearsOld')}</p>
                     </div>
                   )}
                   {displayGrade && (
                     <div className="p-2 bg-primary/20 rounded-lg text-center">
-                      <p className="text-xs text-muted-foreground font-body mb-0.5">Grade</p>
-                      <p className="font-semibold text-sm">Grade {String(displayGrade).replace('grade', '')}</p>
+                      <p className="text-xs text-muted-foreground font-body mb-0.5">{t('profileGrade')}</p>
+                      <p className="font-semibold text-sm">{t('gradeLabel')} {String(displayGrade).replace('grade', '')}</p>
                     </div>
                   )}
                   {displayGender && (
                     <div className="p-2 bg-primary/20 rounded-lg text-center">
-                      <p className="text-xs text-muted-foreground font-body mb-0.5">Gender</p>
+                      <p className="text-xs text-muted-foreground font-body mb-0.5">{t('profileGender')}</p>
                       <p className="font-semibold text-sm capitalize">{displayGender}</p>
                     </div>
                   )}
                   {country && (
                     <div className="p-2 bg-primary/20 rounded-lg text-center">
-                      <p className="text-xs text-muted-foreground font-body mb-0.5">Country</p>
+                      <p className="text-xs text-muted-foreground font-body mb-0.5">{t('profileCountry')}</p>
                       <p className="font-semibold text-sm leading-tight">{country.name}</p>
                     </div>
                   )}
@@ -276,9 +278,9 @@ export default function ResultsPrint() {
             <StickyNote color="purple" rotation="0" className="p-8">
               <div className="text-center mb-6">
                 <CheckCircle2 className="w-12 h-12 text-primary mx-auto mb-3" />
-                <h2 className="text-3xl font-bold mb-2">Your Subject Strengths</h2>
+                <h2 className="text-3xl font-bold mb-2">{t('subjectStrengthsTitle')}</h2>
                 <p className="text-muted-foreground font-body">
-                  We tested your skills in your favorite subjects to validate your career matches
+                  {t('subjectStrengthsSubtitle')}
                 </p>
               </div>
 
@@ -289,10 +291,10 @@ export default function ResultsPrint() {
                     {quizData.totalScore}%
                   </div>
                   <div className="text-sm font-semibold">
-                    {quizData.totalScore >= 80 ? "Excellent Mastery" : 
-                     quizData.totalScore >= 60 ? "Strong Understanding" :
-                     quizData.totalScore >= 40 ? "Good Foundation" : 
-                     "Room to Grow"}
+                    {quizData.totalScore >= 80 ? t('masteryExcellent') : 
+                     quizData.totalScore >= 60 ? t('masteryStrong') :
+                     quizData.totalScore >= 40 ? t('masteryGood') : 
+                     t('masteryGrow')}
                   </div>
                 </div>
               </div>
@@ -311,7 +313,7 @@ export default function ResultsPrint() {
                       </div>
                       <Progress value={score.percentage} className="h-2 mb-1" />
                       <p className="text-xs text-muted-foreground font-body">
-                        {score.correct} of {score.total} correct
+                        {t('correctOfTotal', { correct: score.correct, total: score.total })}
                       </p>
                     </div>
                 ))}
@@ -322,22 +324,22 @@ export default function ResultsPrint() {
                 {quizData.totalScore >= 70 ? (
                   <div className="flex items-start gap-2">
                     <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
-                    <p className="font-body">Your strong subject performance validates your favorite subjects align with your actual skills!</p>
+                    <p className="font-body">{t('insightStrong')}</p>
                   </div>
                 ) : quizData.totalScore >= 50 ? (
                   <div className="flex items-start gap-2">
                     <BookOpen className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                    <p className="font-body">You have a good foundation. The recommendations below focus on careers that match your strongest subjects.</p>
+                    <p className="font-body">{t('insightModerate')}</p>
                   </div>
                 ) : (
                   <div className="flex items-start gap-2">
                     <Star className="w-4 h-4 text-orange-500 flex-shrink-0 mt-0.5" />
-                    <p className="font-body">Don't worry! The recommendations highlight careers where you can build on your interests while developing your skills.</p>
+                    <p className="font-body">{t('insightGrowth')}</p>
                   </div>
                 )}
                 <div className="flex items-start gap-2">
                   <Target className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-                  <p className="font-body">Your career recommendations below consider both your interests AND demonstrated competencies to ensure the best matches.</p>
+                  <p className="font-body">{t('insightValidation')}</p>
                 </div>
                 {country && (() => {
                   const visionLinkage = mapSubjectsToVisionSectors(quizData.subjectScores, country);
@@ -345,14 +347,14 @@ export default function ResultsPrint() {
                     <div className="flex items-start gap-2">
                       <TrendingUp className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
                       <p className="font-body">
-                        <strong>Connecting to National Vision:</strong> {visionLinkage} The careers recommended below leverage your proven strengths to contribute to these priorities.
+                        <strong>{t('connectingVision')}</strong> {visionLinkage}
                       </p>
                     </div>
                   ) : (
                     <div className="flex items-start gap-2">
                       <TrendingUp className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
                       <p className="font-body">
-                        <strong>Connecting to National Vision:</strong> Each recommendation shows how your subject strengths enable you to contribute to national development priorities and future goals.
+                        <strong>{t('connectingVision')}</strong> {t('visionGeneric')}
                       </p>
                     </div>
                   );
@@ -373,9 +375,9 @@ export default function ResultsPrint() {
                 <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-2">
                   <Heart className="w-6 h-6 text-primary" />
                 </div>
-                <h2 className="text-2xl font-bold mb-1">What Matters Most to You</h2>
+                <h2 className="text-2xl font-bold mb-1">{t('valuesTitle')}</h2>
                 <p className="text-xs text-muted-foreground font-body">
-                  Based on our comprehensive values assessment
+                  {t('valuesSubtitle')}
                 </p>
               </div>
 
@@ -383,17 +385,17 @@ export default function ResultsPrint() {
               <div className="grid grid-cols-2 gap-4">
                 {/* Left: Top 3 Values */}
                 <div className="p-3 bg-background/30 rounded-lg">
-                  <h3 className="text-sm font-semibold mb-2">Your Top 3 Core Values</h3>
+                  <h3 className="text-sm font-semibold mb-2">{t('top3Title')}</h3>
                   <div className="space-y-2">
                     {(() => {
                       const domainNames: Record<string, { name: string; icon: any; description: string }> = {
-                        achievement: { name: "Achievement", icon: Target, description: "Success & competence" },
-                        benevolence: { name: "Benevolence", icon: Heart, description: "Caring for others" },
-                        universalism: { name: "Universalism", icon: Globe, description: "Fairness & equality" },
-                        self_direction: { name: "Self-Direction", icon: Sparkles, description: "Independence & creativity" },
-                        security: { name: "Security", icon: Shield, description: "Safety & stability" },
-                        power: { name: "Power", icon: Crown, description: "Influence & authority" },
-                        hedonism: { name: "Hedonism", icon: Smile, description: "Pleasure & enjoyment" },
+                        achievement: { name: t('domainAchievement'), icon: Target, description: t('domainAchievementDesc') },
+                        benevolence: { name: t('domainBenevolence'), icon: Heart, description: t('domainBenevolenceDesc') },
+                        universalism: { name: t('domainUniversalism'), icon: Globe, description: t('domainUniversalismDesc') },
+                        self_direction: { name: t('domainSelfDirection'), icon: Sparkles, description: t('domainSelfDirectionDesc') },
+                        security: { name: t('domainSecurity'), icon: Shield, description: t('domainSecurityDesc') },
+                        power: { name: t('domainPower'), icon: Crown, description: t('domainPowerDesc') },
+                        hedonism: { name: t('domainHedonism'), icon: Smile, description: t('domainHedonismDesc') },
                       };
 
                       const scores = cvqResult.normalizedScores as Record<string, number>;
@@ -429,17 +431,17 @@ export default function ResultsPrint() {
 
                 {/* Right: All Domain Scores */}
                 <div className="p-3 bg-background/30 rounded-lg">
-                  <h3 className="text-sm font-semibold mb-2">Complete Values Profile</h3>
+                  <h3 className="text-sm font-semibold mb-2">{t('allValuesTitle')}</h3>
                   <div className="space-y-1.5">
                     {(() => {
                       const domainNames: Record<string, { name: string; icon: any }> = {
-                        achievement: { name: "Achievement", icon: Target },
-                        benevolence: { name: "Benevolence", icon: Heart },
-                        universalism: { name: "Universalism", icon: Globe },
-                        self_direction: { name: "Self-Direction", icon: Sparkles },
-                        security: { name: "Security", icon: Shield },
-                        power: { name: "Power", icon: Crown },
-                        hedonism: { name: "Hedonism", icon: Smile },
+                        achievement: { name: t('domainAchievement'), icon: Target },
+                        benevolence: { name: t('domainBenevolence'), icon: Heart },
+                        universalism: { name: t('domainUniversalism'), icon: Globe },
+                        self_direction: { name: t('domainSelfDirection'), icon: Sparkles },
+                        security: { name: t('domainSecurity'), icon: Shield },
+                        power: { name: t('domainPower'), icon: Crown },
+                        hedonism: { name: t('domainHedonism'), icon: Smile },
                       };
 
                       const scores = cvqResult.normalizedScores as Record<string, number>;
@@ -472,7 +474,7 @@ export default function ResultsPrint() {
                   <div>
                     <h3 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
                       <BookOpen className="w-3.5 h-3.5" />
-                      What Your Values Mean
+                      {t('whatMeansTitle')}
                     </h3>
                     <div className="space-y-1.5 text-xs font-body">
                       {(() => {
@@ -482,20 +484,29 @@ export default function ResultsPrint() {
                           .slice(0, 3)
                           .map(([d]) => d);
 
+                        const domainLabels: Record<string, string> = {
+                          achievement: t('domainAchievement'),
+                          benevolence: t('domainBenevolence'),
+                          universalism: t('domainUniversalism'),
+                          self_direction: t('domainSelfDirection'),
+                          security: t('domainSecurity'),
+                          power: t('domainPower'),
+                          hedonism: t('domainHedonism'),
+                        };
                         const explanations: Record<string, string> = {
-                          achievement: "You're driven by success and recognition.",
-                          benevolence: "You care deeply about helping others.",
-                          universalism: "You believe in fairness and equality.",
-                          self_direction: "You value independence and creativity.",
-                          security: "You prioritize safety and stability.",
-                          power: "You're motivated by influence.",
-                          hedonism: "You value enjoying life.",
+                          achievement: t('explanationAchievement'),
+                          benevolence: t('explanationBenevolence'),
+                          universalism: t('explanationUniversalism'),
+                          self_direction: t('explanationSelfDirection'),
+                          security: t('explanationSecurity'),
+                          power: t('explanationPower'),
+                          hedonism: t('explanationHedonism'),
                         };
 
                         return top3.map(domain => (
                           <p key={domain} className="flex items-start gap-1.5">
                             <CheckCircle2 className="w-3 h-3 text-primary flex-shrink-0 mt-0.5" />
-                            <span><strong>{domain.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}:</strong> {explanations[domain]}</span>
+                            <span><strong>{domainLabels[domain]}:</strong> {explanations[domain]}</span>
                           </p>
                         ));
                       })()}
@@ -506,14 +517,14 @@ export default function ResultsPrint() {
                   <div>
                     <h3 className="text-sm font-semibold mb-2 flex items-center gap-1.5">
                       <Target className="w-3.5 h-3.5" />
-                      Career Connection
+                      {t('careerConnectionTitle')}
                     </h3>
                     <p className="text-xs font-body mb-2">
-                      Your values are matched against each career's work values using scientific O*NET data.
+                      {t('careerConnectionDesc')}
                     </p>
                     <p className="text-xs text-muted-foreground font-body flex items-start gap-1">
                       <Star className="w-3 h-3 flex-shrink-0 mt-0.5" />
-                      <span>Values contribute 20% to career match scores, ensuring recommended careers fulfill what you care about.</span>
+                      <span>{t('weightLabel', { pct: 20 })}</span>
                     </p>
                   </div>
                 </div>
@@ -523,7 +534,7 @@ export default function ResultsPrint() {
 
           {/* Footer */}
           <div className="mt-2 text-xs text-center text-muted-foreground">
-            Generated on {new Date().toLocaleDateString()} | Future Pathways Career Guidance System<br />
+            {t('generatedOn', { date: new Date().toLocaleDateString() })} | Future Pathways Career Guidance System<br />
             Visit us at futurepath.ae
           </div>
         </div>
@@ -540,9 +551,9 @@ export default function ResultsPrint() {
                 <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-primary/10 mb-3">
                   <Brain className="w-7 h-7 text-primary" />
                 </div>
-                <h2 className="text-2xl font-bold mb-1">Your Personality Profile</h2>
+                <h2 className="text-2xl font-bold mb-1">{t('personalityProfileTitle')}</h2>
                 <p className="text-sm text-muted-foreground font-body">
-                  Based on your interests and personality assessment
+                  {t('personalityProfileSubtitle')}
                 </p>
               </div>
 
@@ -551,17 +562,17 @@ export default function ResultsPrint() {
                 <div className="p-4 bg-background/30 rounded-lg">
                   <h3 className="font-semibold mb-3 flex items-center gap-2 text-sm">
                     <Sparkles className="w-4 h-4" />
-                    Your Personality Types (Holland Codes)
+                    {t('hollandCodesTitle')}
                   </h3>
                   <div className="grid grid-cols-3 gap-3">
                     {(() => {
                       const riasecInfo: Record<string, { icon: any; label: string; desc: string }> = {
-                        R: { icon: Wrench, label: "Realistic", desc: "Hands-on, practical, enjoys building and fixing things" },
-                        I: { icon: Brain, label: "Investigative", desc: "Analytical, curious, loves researching and solving problems" },
-                        A: { icon: Sparkles, label: "Artistic", desc: "Creative, imaginative, expressive and original" },
-                        S: { icon: Users, label: "Social", desc: "Helpful, empathetic, loves working with and supporting people" },
-                        E: { icon: TrendingUp, label: "Enterprising", desc: "Leadership-driven, persuasive, enjoys influencing others" },
-                        C: { icon: Target, label: "Conventional", desc: "Organised, detail-oriented, follows clear rules and processes" },
+                        R: { icon: Wrench, label: t('riasecRealistic'), desc: t('riasecRealisticDesc') },
+                        I: { icon: Brain, label: t('riasecInvestigative'), desc: t('riasecInvestigativeDesc') },
+                        A: { icon: Sparkles, label: t('riasecArtistic'), desc: t('riasecArtisticDesc') },
+                        S: { icon: Users, label: t('riasecSocial'), desc: t('riasecSocialDesc') },
+                        E: { icon: TrendingUp, label: t('riasecEnterprising'), desc: t('riasecEnterprisingDesc') },
+                        C: { icon: Target, label: t('riasecConventional'), desc: t('riasecConventionalDesc') },
                       };
                       const scores = assessment.riasecScores as Record<string, any>;
                       return (assessment.riasecScores.top3 as string[]).map((code: string) => {
@@ -592,7 +603,7 @@ export default function ResultsPrint() {
                 <div className="p-4 bg-background/30 rounded-lg">
                   <h3 className="font-semibold mb-2 flex items-center gap-2 text-sm">
                     <Star className="w-4 h-4" />
-                    Your Key Interests
+                    {t('keyInterestsTitle')}
                   </h3>
                   <div className="flex flex-wrap gap-2">
                     {(assessment.interests as string[]).map((interest: string) => (
@@ -613,7 +624,7 @@ export default function ResultsPrint() {
                 <div className="p-4 bg-background/30 rounded-lg">
                   <h3 className="font-semibold mb-3 flex items-center gap-2 text-sm">
                     <Lightbulb className="w-4 h-4" />
-                    Your Personality Traits
+                    {t('personalityTraitsTitle')}
                   </h3>
                   <div className="grid grid-cols-2 gap-2">
                     {Object.entries(assessment.personalityTraits as Record<string, number>)
@@ -635,14 +646,14 @@ export default function ResultsPrint() {
               <div className="p-3 bg-background/30 rounded-lg">
                 <p className="text-xs text-muted-foreground font-body flex items-start gap-1.5">
                   <Target className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-primary" />
-                  <span>Your personality type and interests contribute to your career match scores, ensuring the recommendations below align with how you naturally think and what excites you most.</span>
+                  <span>{t('personalityMatchDesc')}</span>
                 </p>
               </div>
             </div>
           </StickyNote>
 
           <div className="mt-4 text-xs text-center text-muted-foreground">
-            Generated on {new Date().toLocaleDateString()} | Future Pathways Career Guidance System<br />
+            {t('generatedOn', { date: new Date().toLocaleDateString() })} | Future Pathways Career Guidance System<br />
             Visit us at futurepath.ae
           </div>
         </div>
@@ -681,10 +692,10 @@ export default function ResultsPrint() {
                       {/* 2×2 Score Breakdown */}
                       <div className="grid grid-cols-2 gap-1.5">
                         {[
-                          { label: "Subject", Icon: BookOpen, value: rec.subjectMatchScore, weight: "30%" },
-                          { label: "Interest", Icon: Star, value: rec.interestMatchScore, weight: "30%" },
-                          { label: "Vision", Icon: Target, value: rec.countryVisionAlignment, weight: "20%" },
-                          { label: "Market", Icon: TrendingUp, value: rec.futureMarketDemand, weight: "20%" },
+                          { label: t('subjectMatch'), Icon: BookOpen, value: rec.subjectMatchScore, weight: "30%" },
+                          { label: t('interestMatch'), Icon: Star, value: rec.interestMatchScore, weight: "30%" },
+                          { label: t('visionAlignment'), Icon: Target, value: rec.countryVisionAlignment, weight: "20%" },
+                          { label: t('marketDemand'), Icon: TrendingUp, value: rec.futureMarketDemand, weight: "20%" },
                         ].map(({ label, Icon, value, weight }) => (
                           <div key={label} className="p-1.5 bg-background/30 rounded-lg">
                             <div className="flex items-center justify-between mb-0.5">
@@ -708,7 +719,7 @@ export default function ResultsPrint() {
                         <div className="p-2 bg-background/30 rounded-lg flex-1">
                           <h4 className="text-xs font-semibold mb-1.5 flex items-center gap-1">
                             <CheckCircle2 className="w-3 h-3 text-primary flex-shrink-0" />
-                            Why This Career?
+                            {t('whyThisCareer')}
                           </h4>
                           <div className="text-xs font-body text-foreground/90 whitespace-pre-line">
                             {(rec as any).premiumReasoning || rec.reasoning}
@@ -718,7 +729,7 @@ export default function ResultsPrint() {
                           <div className="p-2 bg-background/30 rounded-lg">
                             <h4 className="text-xs font-semibold mb-1.5 flex items-center gap-1">
                               <CheckCircle2 className="w-3 h-3 text-primary flex-shrink-0" />
-                              Your Work Style Fit
+                              {t('workStyleFit')}
                             </h4>
                             <div className="text-xs font-body text-foreground/90 whitespace-pre-line">
                               {(rec as any).workStyleFit}
@@ -732,7 +743,7 @@ export default function ResultsPrint() {
                         <div className="p-2 bg-background/30 rounded-lg">
                           <h4 className="text-xs font-semibold mb-1.5 flex items-center gap-1">
                             <BookOpen className="w-3 h-3 flex-shrink-0" />
-                            Education Path
+                            {t('educationPath')}
                           </h4>
                           <p className="text-xs font-body">{rec.requiredEducation}</p>
                         </div>
@@ -740,7 +751,7 @@ export default function ResultsPrint() {
                           <div className="p-2 bg-background/30 rounded-lg flex-1">
                             <h4 className="text-xs font-semibold mb-1.5 flex items-center gap-1">
                               <CheckCircle2 className="w-3 h-3 text-primary flex-shrink-0" />
-                              Personal Strengths & Growth
+                              {t('strengthsGrowth')}
                             </h4>
                             <div className="text-xs font-body text-foreground/90 whitespace-pre-line">
                               {(rec as any).strengthsGrowth}
@@ -755,7 +766,7 @@ export default function ResultsPrint() {
             </div>
 
             <div className="mt-4 text-xs text-center text-muted-foreground">
-              Generated on {new Date().toLocaleDateString()} | Future Pathways Career Guidance System<br />
+              {t('generatedOn', { date: new Date().toLocaleDateString() })} | Future Pathways Career Guidance System<br />
               Visit us at futurepath.ae
             </div>
           </div>

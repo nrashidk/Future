@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Rocket, Star, Zap } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface AspirationsStepProps {
   data: any;
@@ -23,6 +24,7 @@ const strengthOptions = [
 ];
 
 export function AspirationsStep({ data, onUpdate, onNext, onBack }: AspirationsStepProps) {
+  const { t } = useTranslation('assessment');
   const toggleStrength = (strength: string) => {
     const current = data.strengths || [];
     if (current.includes(strength)) {
@@ -37,9 +39,9 @@ export function AspirationsStep({ data, onUpdate, onNext, onBack }: AspirationsS
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="text-center mb-8">
-        <h2 className="text-4xl font-bold mb-3">Dream Big! 🌟</h2>
+        <h2 className="text-4xl font-bold mb-3">{t('aspirations.title')}</h2>
         <p className="text-lg text-muted-foreground font-body">
-          Share your aspirations and what makes you special
+          {t('aspirations.subtitle')}
         </p>
       </div>
 
@@ -49,10 +51,10 @@ export function AspirationsStep({ data, onUpdate, onNext, onBack }: AspirationsS
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
               <Rocket className="w-5 h-5 text-primary" />
             </div>
-            <Label className="text-lg font-semibold">What are your career dreams?</Label>
+            <Label className="text-lg font-semibold">{t('aspirations.dreamsLabel')}</Label>
           </div>
           <Textarea
-            placeholder="Tell us about the kind of work you imagine doing in the future... (optional)"
+            placeholder={t('aspirations.dreamsPlaceholder')}
             value={(data.careerAspirations || []).join("\n")}
             onChange={(e) => onUpdate("careerAspirations", e.target.value.split("\n").filter(Boolean))}
             className="min-h-32 bg-background/50 border-foreground/20 font-body"
@@ -65,10 +67,10 @@ export function AspirationsStep({ data, onUpdate, onNext, onBack }: AspirationsS
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
               <Star className="w-5 h-5 text-primary" />
             </div>
-            <Label className="text-lg font-semibold">What are your strengths?</Label>
+            <Label className="text-lg font-semibold">{t('aspirations.strengthsLabel')}</Label>
           </div>
           <p className="text-sm text-muted-foreground mb-4 font-body">
-            Select the skills you're good at (choose at least one)
+            {t('aspirations.strengthsHint')}
           </p>
           <div className="grid grid-cols-2 gap-3">
             {strengthOptions.map((strength) => {
@@ -103,7 +105,7 @@ export function AspirationsStep({ data, onUpdate, onNext, onBack }: AspirationsS
             className="px-8 py-6 text-lg rounded-full"
             data-testid="button-back-aspirations"
           >
-            Back
+            {t('nav.back')}
           </Button>
         )}
         <Button
@@ -113,7 +115,7 @@ export function AspirationsStep({ data, onUpdate, onNext, onBack }: AspirationsS
           className="px-12 py-6 text-lg rounded-full shadow-lg"
           data-testid="button-submit-assessment"
         >
-          Self Assessment
+          {t('aspirations.selfAssessment')}
         </Button>
       </div>
     </div>

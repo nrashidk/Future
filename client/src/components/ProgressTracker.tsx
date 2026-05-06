@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface Step {
   number: number;
@@ -14,27 +15,29 @@ interface ProgressTrackerProps {
   isPremium?: boolean;
 }
 
-const freeStepTitles = [
-  "Basic Info",
-  "Subjects",
-  "Interests",
-  "Personality",
-  "Country",
-  "Aspirations",
-  "Results"
-];
-
-const premiumStepTitles = [
-  "Basic Info",
-  "Subjects",
-  "Country",
-  "Quiz",
-  "Career Personality",
-  "Personal Values",
-  "Aspirations"
-];
-
 export function ProgressTracker({ currentStep, totalSteps, isPremium = false }: ProgressTrackerProps) {
+  const { t } = useTranslation('assessment');
+
+  const freeStepTitles = [
+    t('progress.basicInfo'),
+    t('progress.subjects'),
+    t('progress.interests'),
+    t('progress.personality'),
+    t('progress.country'),
+    t('progress.aspirations'),
+    t('progress.results'),
+  ];
+
+  const premiumStepTitles = [
+    t('progress.basicInfo'),
+    t('progress.subjects'),
+    t('progress.country'),
+    t('progress.quiz'),
+    t('progress.careerPersonality'),
+    t('progress.personalValues'),
+    t('progress.aspirations'),
+  ];
+
   const stepTitles = isPremium ? premiumStepTitles : freeStepTitles;
   
   const steps: Step[] = Array.from({ length: totalSteps }, (_, i) => ({
@@ -58,7 +61,7 @@ export function ProgressTracker({ currentStep, totalSteps, isPremium = false }: 
         </div>
         <div className="mt-2 text-center">
           <span className="text-sm font-medium text-muted-foreground font-body">
-            Step {currentStep} of {totalSteps}
+            {t('progress.stepOf', { current: currentStep, total: totalSteps })}
           </span>
         </div>
       </div>

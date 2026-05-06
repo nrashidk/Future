@@ -402,6 +402,8 @@ export const careers = pgTable("careers", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   title: text("title").notNull(),
   description: text("description").notNull(),
+  titleAr: text("title_ar"), // Arabic translation of title
+  descriptionAr: text("description_ar"), // Arabic translation of description
   requiredSkills: text("required_skills").array().notNull(),
   relatedSubjects: text("related_subjects").array().notNull(),
   category: text("category").notNull(),
@@ -561,6 +563,9 @@ export const quizQuestions = pgTable("quiz_questions", {
   options: jsonb("options"), // Array of answer options for multiple choice
   correctAnswer: text("correct_answer").notNull(), // Correct answer
   explanation: text("explanation"), // Explanation of correct answer
+  questionAr: text("question_ar"), // Arabic translation of question
+  optionsAr: jsonb("options_ar"), // Arabic translations of answer options
+  explanationAr: text("explanation_ar"), // Arabic explanation
   
   // Subject-based metadata
   subject: text("subject").notNull(), // Mathematics, Science, English, Arabic, Social Studies, Computer Science
@@ -657,6 +662,7 @@ export const cvqItems = pgTable("cvq_items", {
   id: varchar("id").primaryKey(), // CVQ-A1, CVQ-H1, etc.
   domain: text("domain").notNull(), // achievement, honesty, kindness, respect, responsibility, peacefulness, environment
   text: text("text").notNull(), // Question text
+  textAr: text("text_ar"), // Arabic translation of question text
   isReverseScored: boolean("is_reverse_scored").notNull().default(false),
   position: integer("position").notNull(), // 1-3 within domain
   version: text("version").notNull().default("1.0.0"),

@@ -16,6 +16,7 @@ import {
   ArrowRight,
   ArrowLeft
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 /**
  * Career Personality Assessment
@@ -111,6 +112,7 @@ const LIKERT_OPTIONS = [
 ];
 
 export default function RiasecStep({ onComplete, onBack }: RiasecStepProps) {
+  const { t } = useTranslation('assessment');
   const [responses, setResponses] = useState<Record<string, Likert>>(() => {
     // Load from sessionStorage if available (cleared on tab close for shared computers)
     const saved = sessionStorage.getItem("riasec_draft");
@@ -199,13 +201,13 @@ export default function RiasecStep({ onComplete, onBack }: RiasecStepProps) {
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
-          <h2 className="text-4xl font-bold mb-3">Career Personality</h2>
+          <h2 className="text-4xl font-bold mb-3">{t('riasec.title')}</h2>
           <p className="text-lg text-muted-foreground mb-4">
-            Explore the types of work environments and activities you naturally enjoy
+            {t('riasec.subtitle')}
           </p>
           <Progress value={progress} className="h-3 mb-2" data-testid="progress-riasec" />
           <p className="text-sm text-muted-foreground">
-            {Object.keys(responses).length} of {ITEMS.length} questions answered
+            {t('riasec.answeredOf', { answered: Object.keys(responses).length, total: ITEMS.length })}
           </p>
         </div>
 
@@ -240,7 +242,7 @@ export default function RiasecStep({ onComplete, onBack }: RiasecStepProps) {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-3">
                         <span className="text-sm font-semibold text-primary">
-                          Question {globalIndex + 1}
+                          {t('riasec.question', { number: globalIndex + 1 })}
                         </span>
                         <span className="text-xs text-muted-foreground">
                           ({themeInfo.name})
@@ -287,12 +289,12 @@ export default function RiasecStep({ onComplete, onBack }: RiasecStepProps) {
             onClick={handlePrevious}
             data-testid="button-riasec-previous"
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            {currentPage === 0 ? "Back" : "Previous"}
+            <ArrowLeft className="w-4 h-4 me-2" />
+            {currentPage === 0 ? t('nav.back') : t('nav.previous')}
           </Button>
 
           <div className="text-sm text-muted-foreground">
-            Page {currentPage + 1} of {totalPages}
+            {t('nav.pageOf', { page: currentPage + 1, total: totalPages })}
           </div>
 
           <Button
@@ -300,16 +302,16 @@ export default function RiasecStep({ onComplete, onBack }: RiasecStepProps) {
             disabled={currentPage === totalPages - 1 ? !isComplete : !isPageComplete}
             data-testid="button-riasec-next"
           >
-            {currentPage === totalPages - 1 ? "Complete Assessment" : "Next"}
-            <ArrowRight className="w-4 h-4 ml-2" />
+            {currentPage === totalPages - 1 ? t('riasec.completeAssessment') : t('nav.next')}
+            <ArrowRight className="w-4 h-4 ms-2" />
           </Button>
         </div>
 
         {/* Help Text */}
         <Card className="mt-8 p-6 bg-accent/10">
-          <h3 className="font-semibold mb-3">About This Assessment</h3>
+          <h3 className="font-semibold mb-3">{t('riasec.aboutTitle')}</h3>
           <p className="text-sm text-muted-foreground mb-3">
-            This assessment helps identify your career personality across six themes:
+            {t('riasec.aboutDesc')}
           </p>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
             {(Object.keys(THEME_INFO) as Theme[]).map(theme => {

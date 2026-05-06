@@ -27,6 +27,7 @@ import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 
 // Helper to get display name
 function getCountryDisplayName(country: any): string {
@@ -87,6 +88,7 @@ function mapSubjectsToVisionSectors(
 
 export default function Results() {
   useEffect(() => { document.title = "Your Career Results | Future Pathways"; }, []);
+  const { t } = useTranslation('results');
 
   const { isAuthenticated, user } = useAuth();
   const [, setLocation] = useLocation();
@@ -175,8 +177,8 @@ export default function Results() {
         document.body.removeChild(link);
         
         toast({
-          title: "Download Started",
-          description: "Your career report is being downloaded.",
+          title: t('downloadStarted'),
+          description: t('downloadDesc'),
         });
       } catch (error) {
         console.error("PDF download error:", error);
@@ -196,7 +198,7 @@ export default function Results() {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5">
         <div className="text-center">
           <GraduationCap className="w-16 h-16 text-primary mx-auto mb-4 animate-pulse" />
-          <p className="text-lg text-muted-foreground">Analyzing your profile...</p>
+          <p className="text-lg text-muted-foreground">{t('loading')}</p>
         </div>
       </div>
     );
@@ -207,16 +209,16 @@ export default function Results() {
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4">
         <div className="text-center max-w-md">
           <GraduationCap className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-          <h1 className="text-2xl font-bold mb-2">Unable to Load Results</h1>
+          <h1 className="text-2xl font-bold mb-2">{t('errorTitle')}</h1>
           <p className="text-muted-foreground mb-6">
-            We couldn't retrieve your career recommendations right now. This might be a temporary issue — please try again.
+            {t('errorDesc')}
           </p>
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <Button onClick={() => window.location.reload()} data-testid="button-retry">
-              Try Again
+              {t('retry')}
             </Button>
             <Button variant="outline" onClick={() => window.history.back()} data-testid="button-go-back">
-              Go Back
+              {t('goBack')}
             </Button>
           </div>
         </div>
@@ -232,9 +234,9 @@ export default function Results() {
           <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-white/20 mb-4">
             <Star className="w-10 h-10" />
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">Your Career Pathways!</h1>
+          <h1 className="text-4xl md:text-5xl font-bold mb-4">{t('pageTitle')}</h1>
           <p className="text-xl text-primary-foreground/90 font-body">
-            Based on your interests, skills, and country's vision, here are your perfect matches
+            {t('pageSubtitle')}
           </p>
         </div>
       </div>
@@ -245,9 +247,9 @@ export default function Results() {
           <StickyNote color="purple" rotation="1" className="p-8">
             <div className="text-center mb-6">
               <CheckCircle2 className="w-12 h-12 text-primary mx-auto mb-3" />
-              <h2 className="text-3xl font-bold mb-2">Your Subject Strengths</h2>
+              <h2 className="text-3xl font-bold mb-2">{t('subjectStrengthsTitle')}</h2>
               <p className="text-muted-foreground font-body">
-                We tested your skills in your favorite subjects to validate your career matches
+                {t('subjectStrengthsSubtitle')}
               </p>
             </div>
 
@@ -258,10 +260,10 @@ export default function Results() {
                   {quizData.totalScore}%
                 </div>
                 <div className="text-sm font-semibold" data-testid="text-competency-level">
-                  {quizData.totalScore >= 80 ? "Excellent Mastery" : 
-                   quizData.totalScore >= 60 ? "Strong Understanding" :
-                   quizData.totalScore >= 40 ? "Good Foundation" : 
-                   "Room to Grow"}
+                  {quizData.totalScore >= 80 ? t('masteryExcellent') : 
+                   quizData.totalScore >= 60 ? t('masteryStrong') :
+                   quizData.totalScore >= 40 ? t('masteryGood') : 
+                   t('masteryGrow')}
                 </div>
               </div>
             </div>
@@ -280,7 +282,7 @@ export default function Results() {
                     </div>
                     <Progress value={score.percentage} className="h-2 mb-1" />
                     <p className="text-xs text-muted-foreground font-body">
-                      {score.correct} of {score.total} correct
+                      {t('correctOfTotal', { correct: score.correct, total: score.total })}
                     </p>
                   </div>
               ))}
@@ -291,22 +293,22 @@ export default function Results() {
               {quizData.totalScore >= 70 ? (
                 <div className="flex items-start gap-2" data-testid="insight-strong-competency">
                   <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
-                  <p className="font-body">Your strong subject performance validates your favorite subjects align with your actual skills!</p>
+                  <p className="font-body">{t('insightStrong')}</p>
                 </div>
               ) : quizData.totalScore >= 50 ? (
                 <div className="flex items-start gap-2" data-testid="insight-moderate-competency">
                   <BookOpen className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />
-                  <p className="font-body">You have a good foundation. The recommendations below focus on careers that match your strongest subjects.</p>
+                  <p className="font-body">{t('insightModerate')}</p>
                 </div>
               ) : (
                 <div className="flex items-start gap-2" data-testid="insight-growth-competency">
                   <Star className="w-4 h-4 text-orange-500 flex-shrink-0 mt-0.5" />
-                  <p className="font-body">Don't worry! The recommendations highlight careers where you can build on your interests while developing your skills.</p>
+                  <p className="font-body">{t('insightGrowth')}</p>
                 </div>
               )}
               <div className="flex items-start gap-2" data-testid="insight-competency-validation">
                 <Target className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
-                <p className="font-body">Your career recommendations below consider both your interests AND demonstrated competencies to ensure the best matches.</p>
+                <p className="font-body">{t('insightValidation')}</p>
               </div>
               {country && (() => {
                 const visionLinkage = mapSubjectsToVisionSectors(quizData.subjectScores, country);
@@ -314,14 +316,14 @@ export default function Results() {
                   <div className="flex items-start gap-2" data-testid="insight-vision-linkage">
                     <TrendingUp className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
                     <p className="font-body">
-                      <strong>Connecting to National Vision:</strong> {visionLinkage} The careers recommended below leverage your proven strengths to contribute to these priorities.
+                      <strong>{t('connectingVision')}</strong> {visionLinkage}
                     </p>
                   </div>
                 ) : (
                   <div className="flex items-start gap-2" data-testid="insight-vision-linkage-generic">
                     <TrendingUp className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
                     <p className="font-body">
-                      <strong>Connecting to National Vision:</strong> Each recommendation shows how your subject strengths enable you to contribute to national development priorities and future goals.
+                      <strong>{t('connectingVision')}</strong> {t('visionGeneric')}
                     </p>
                   </div>
                 );
@@ -337,25 +339,25 @@ export default function Results() {
           <StickyNote color="purple" rotation="1" className="p-8">
             <div className="text-center mb-6">
               <Heart className="w-12 h-12 text-primary mx-auto mb-3" />
-              <h2 className="text-3xl font-bold mb-2">What Matters Most to You</h2>
+              <h2 className="text-3xl font-bold mb-2">{t('valuesTitle')}</h2>
               <p className="text-muted-foreground font-body">
-                Based on our comprehensive values assessment
+                {t('valuesSubtitle')}
               </p>
             </div>
 
             {/* Top 3 Values */}
             <div className="mb-6">
-              <h3 className="font-semibold mb-4 text-center">Your Top 3 Core Values</h3>
+              <h3 className="font-semibold mb-4 text-center">{t('top3Title')}</h3>
               <div className="grid md:grid-cols-3 gap-4">
                 {(() => {
                   const domainNames: Record<string, { name: string; icon: any; description: string }> = {
-                    achievement: { name: "Achievement", icon: Target, description: "Success and competence" },
-                    benevolence: { name: "Benevolence", icon: Heart, description: "Caring for others" },
-                    universalism: { name: "Universalism", icon: Globe, description: "Fairness and equality" },
-                    self_direction: { name: "Self-Direction", icon: Sparkles, description: "Independence and creativity" },
-                    security: { name: "Security", icon: Shield, description: "Safety and stability" },
-                    power: { name: "Power", icon: Crown, description: "Influence and authority" },
-                    hedonism: { name: "Hedonism", icon: Smile, description: "Pleasure and enjoyment" },
+                    achievement: { name: t('domainAchievement'), icon: Target, description: t('domainAchievementDesc') },
+                    benevolence: { name: t('domainBenevolence'), icon: Heart, description: t('domainBenevolenceDesc') },
+                    universalism: { name: t('domainUniversalism'), icon: Globe, description: t('domainUniversalismDesc') },
+                    self_direction: { name: t('domainSelfDirection'), icon: Sparkles, description: t('domainSelfDirectionDesc') },
+                    security: { name: t('domainSecurity'), icon: Shield, description: t('domainSecurityDesc') },
+                    power: { name: t('domainPower'), icon: Crown, description: t('domainPowerDesc') },
+                    hedonism: { name: t('domainHedonism'), icon: Smile, description: t('domainHedonismDesc') },
                   };
 
                   const scores = cvqResult.normalizedScores as Record<string, number>;
@@ -398,18 +400,18 @@ export default function Results() {
             <div className="mb-6 p-4 bg-background/30 rounded-lg">
               <h4 className="font-semibold mb-4 flex items-center gap-2">
                 <Star className="w-4 h-4 text-primary" />
-                Your Complete Values Profile
+                {t('allValuesTitle')}
               </h4>
               <div className="space-y-3">
                 {(() => {
                   const domainNames: Record<string, { name: string; icon: any }> = {
-                    achievement: { name: "Achievement", icon: Target },
-                    benevolence: { name: "Benevolence", icon: Heart },
-                    universalism: { name: "Universalism", icon: Globe },
-                    self_direction: { name: "Self-Direction", icon: Sparkles },
-                    security: { name: "Security", icon: Shield },
-                    power: { name: "Power", icon: Crown },
-                    hedonism: { name: "Hedonism", icon: Smile },
+                    achievement: { name: t('domainAchievement'), icon: Target },
+                    benevolence: { name: t('domainBenevolence'), icon: Heart },
+                    universalism: { name: t('domainUniversalism'), icon: Globe },
+                    self_direction: { name: t('domainSelfDirection'), icon: Sparkles },
+                    security: { name: t('domainSecurity'), icon: Shield },
+                    power: { name: t('domainPower'), icon: Crown },
+                    hedonism: { name: t('domainHedonism'), icon: Smile },
                   };
 
                   const scores = cvqResult.normalizedScores as Record<string, number>;
@@ -438,7 +440,7 @@ export default function Results() {
             <div className="mb-6 p-4 bg-background/30 rounded-lg">
               <h4 className="font-semibold mb-3 flex items-center gap-2">
                 <BookOpen className="w-4 h-4 text-primary" />
-                What Your Values Mean
+                {t('whatMeansTitle')}
               </h4>
               <div className="space-y-3 text-sm font-body">
                 {(() => {
@@ -449,13 +451,13 @@ export default function Results() {
                     .map(([d]) => d);
 
                   const explanations: Record<string, string> = {
-                    achievement: "You're driven by success and recognition. You want to demonstrate competence and be admired for your accomplishments.",
-                    benevolence: "You deeply care about others' well-being. Helping people and maintaining harmonious relationships is important to you.",
-                    universalism: "You believe in fairness and equality for all. Social justice and understanding diverse perspectives matter greatly to you.",
-                    self_direction: "You value independence and creativity. You prefer thinking for yourself and exploring new ideas in your own unique way.",
-                    security: "You prioritize safety and stability. A secure environment and predictable outcomes make you feel comfortable.",
-                    power: "You're motivated by influence and authority. Having control over resources and decisions is important to you.",
-                    hedonism: "You value pleasure and enjoying life. Having fun and experiencing gratification matters to you.",
+                    achievement: t('explanationAchievement'),
+                    benevolence: t('explanationBenevolence'),
+                    universalism: t('explanationUniversalism'),
+                    self_direction: t('explanationSelfDirection'),
+                    security: t('explanationSecurity'),
+                    power: t('explanationPower'),
+                    hedonism: t('explanationHedonism'),
                   };
 
                   return top3.map(domain => (
@@ -473,11 +475,9 @@ export default function Results() {
               <div className="flex items-start gap-2">
                 <Target className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="font-semibold mb-2 text-primary">How Your Values Shape Your Career Matches (20% Weight)</h4>
+                  <h4 className="font-semibold mb-2 text-primary">{t('careerConnectionTitle')}</h4>
                   <p className="text-sm font-body">
-                    Your values profile is matched against each career's work values using scientific O*NET data. 
-                    Careers that align with what matters most to you receive higher match scores. This ensures 
-                    you're not just skilled for a career, but that it fulfills what you truly care about.
+                    {t('careerConnectionDesc')}
                   </p>
                 </div>
               </div>
@@ -494,9 +494,9 @@ export default function Results() {
               <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-4">
                 <Star className="w-8 h-8 text-primary" />
               </div>
-              <h2 className="text-2xl font-bold mb-2">Want Even Better Career Matches?</h2>
+              <h2 className="text-2xl font-bold mb-2">{t('upgradeTitle')}</h2>
               <p className="text-muted-foreground font-body">
-                Unlock our advanced Individual Assessment for deeper insights
+                {t('upgradeSubtitle')}
               </p>
             </div>
 
@@ -506,9 +506,9 @@ export default function Results() {
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                   <div>
-                    <h4 className="font-semibold mb-1">Discover Your Learning Style</h4>
+                    <h4 className="font-semibold mb-1">{t('featureLearning')}</h4>
                     <p className="text-sm text-muted-foreground font-body">
-                      Take our scientifically-validated 24-question assessment to understand how you learn best
+                      {t('featureLearningDesc')}
                     </p>
                   </div>
                 </div>
@@ -518,9 +518,9 @@ export default function Results() {
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                   <div>
-                    <h4 className="font-semibold mb-1">Personalized Study Tips</h4>
+                    <h4 className="font-semibold mb-1">{t('featureTips')}</h4>
                     <p className="text-sm text-muted-foreground font-body">
-                      Get customized study strategies that match your unique learning preferences
+                      {t('featureTipsDesc')}
                     </p>
                   </div>
                 </div>
@@ -530,9 +530,9 @@ export default function Results() {
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                   <div>
-                    <h4 className="font-semibold mb-1">Enhanced Career Matching</h4>
+                    <h4 className="font-semibold mb-1">{t('featureMatching')}</h4>
                     <p className="text-sm text-muted-foreground font-body">
-                      Your personality and values are weighted into career match scores, ensuring better alignment
+                      {t('featureMatchingDesc')}
                     </p>
                   </div>
                 </div>
@@ -542,9 +542,9 @@ export default function Results() {
                 <div className="flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
                   <div>
-                    <h4 className="font-semibold mb-1">Detailed PDF Report</h4>
+                    <h4 className="font-semibold mb-1">{t('featureReport')}</h4>
                     <p className="text-sm text-muted-foreground font-body">
-                      Comprehensive report including your career personality and values insights
+                      {t('featureReportDesc')}
                     </p>
                   </div>
                 </div>
@@ -559,9 +559,9 @@ export default function Results() {
                 onClick={() => setLocation('/tier-selection')}
                 data-testid="button-upgrade-premium"
               >
-                <Star className="w-5 h-5 mr-2" />
-                Unlock Premium Assessment
-                <ArrowRight className="w-5 h-5 ml-2" />
+                <Star className="w-5 h-5 me-2" />
+                {t('btnUnlock')}
+                <ArrowRight className="w-5 h-5 ms-2" />
               </Button>
             </div>
           </StickyNote>
@@ -596,48 +596,48 @@ export default function Results() {
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm font-medium flex items-center gap-1.5">
                         <BookOpen className="w-4 h-4" />
-                        Subject Match
+                        {t('subjectMatch')}
                       </span>
                       <span className="text-sm font-bold">{Math.round(rec.subjectMatchScore)}%</span>
                     </div>
                     <Progress value={rec.subjectMatchScore} className="h-2" />
-                    <p className="text-xs text-muted-foreground mt-1">30% weight</p>
+                    <p className="text-xs text-muted-foreground mt-1">{t('weightLabel', { pct: 30 })}</p>
                   </div>
                   
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm font-medium flex items-center gap-1.5">
                         <Star className="w-4 h-4" />
-                        Interest Match
+                        {t('interestMatch')}
                       </span>
                       <span className="text-sm font-bold">{Math.round(rec.interestMatchScore)}%</span>
                     </div>
                     <Progress value={rec.interestMatchScore} className="h-2" />
-                    <p className="text-xs text-muted-foreground mt-1">30% weight</p>
+                    <p className="text-xs text-muted-foreground mt-1">{t('weightLabel', { pct: 30 })}</p>
                   </div>
                   
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm font-medium flex items-center gap-1.5">
                         <Target className="w-4 h-4" />
-                        Vision Alignment
+                        {t('visionAlignment')}
                       </span>
                       <span className="text-sm font-bold">{Math.round(rec.countryVisionAlignment)}%</span>
                     </div>
                     <Progress value={rec.countryVisionAlignment} className="h-2" />
-                    <p className="text-xs text-muted-foreground mt-1">20% weight</p>
+                    <p className="text-xs text-muted-foreground mt-1">{t('weightLabel', { pct: 20 })}</p>
                   </div>
                   
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm font-medium flex items-center gap-1.5">
                         <TrendingUp className="w-4 h-4" />
-                        Market Demand
+                        {t('marketDemand')}
                       </span>
                       <span className="text-sm font-bold">{Math.round(rec.futureMarketDemand)}%</span>
                     </div>
                     <Progress value={rec.futureMarketDemand} className="h-2" />
-                    <p className="text-xs text-muted-foreground mt-1">20% weight</p>
+                    <p className="text-xs text-muted-foreground mt-1">{t('weightLabel', { pct: 20 })}</p>
                   </div>
                 </div>
 
@@ -645,14 +645,14 @@ export default function Results() {
                 <div className="grid grid-cols-2 gap-3 mb-4">
                   <div className="p-3 bg-background/30 rounded-lg text-center">
                     <TrendingUp className="w-5 h-5 mx-auto mb-1 text-primary" />
-                    <p className="text-xs text-muted-foreground mb-1">Growth Outlook</p>
+                    <p className="text-xs text-muted-foreground mb-1">{t('growthOutlook')}</p>
                     <p className="font-bold text-sm">{rec.career?.growthOutlook}</p>
                   </div>
                   {rec.career?.averageSalary && (
                     <div className="p-3 bg-background/30 rounded-lg text-center">
                       <DollarSign className="w-5 h-5 mx-auto mb-1 text-primary" />
-                      <p className="text-xs text-muted-foreground mb-1">Average Salary</p>
-                      <p className="font-bold text-sm">Typical {rec.career.averageSalary}</p>
+                      <p className="text-xs text-muted-foreground mb-1">{t('avgSalary')}</p>
+                      <p className="font-bold text-sm">{t('typical')} {rec.career.averageSalary}</p>
                     </div>
                   )}
                 </div>
@@ -662,7 +662,7 @@ export default function Results() {
                   <div className="p-3 bg-background/30 rounded-lg space-y-2 mb-4">
                         {rec.matchedSubjects?.length > 0 && (
                           <div>
-                            <h4 className="text-xs font-semibold text-muted-foreground mb-1.5">✓ Validated by Your Competencies</h4>
+                            <h4 className="text-xs font-semibold text-muted-foreground mb-1.5">✓ {t('validatedCompetencies')}</h4>
                             <div className="flex flex-wrap gap-1.5">
                               {rec.matchedSubjects.map((item: any) => (
                                 <span
@@ -679,7 +679,7 @@ export default function Results() {
                         )}
                         {rec.supportingVisionPriorities?.length > 0 && (
                           <div>
-                            <h4 className="text-xs font-semibold text-muted-foreground mb-1.5">🎯 Supports National Vision</h4>
+                            <h4 className="text-xs font-semibold text-muted-foreground mb-1.5">🎯 {t('supportsVision')}</h4>
                             <div className="flex flex-wrap gap-1.5">
                               {rec.supportingVisionPriorities.map((priority: string, idx: number) => (
                                 <span
@@ -700,7 +700,7 @@ export default function Results() {
                 {/* Required Skills */}
                 {rec.career?.requiredSkills && rec.career.requiredSkills.length > 0 && (
                   <div className="mb-4">
-                    <h4 className="font-semibold mb-2 text-sm">Required Skills</h4>
+                    <h4 className="font-semibold mb-2 text-sm">{t('requiredSkills')}</h4>
                     <div className="flex flex-wrap gap-2">
                       {rec.career.requiredSkills.map((skill: string) => (
                         <span
@@ -718,7 +718,7 @@ export default function Results() {
                 <div className="p-3 bg-background/30 rounded-lg mb-3">
                   <h4 className="font-semibold mb-2 text-sm flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-primary" />
-                    Why This Career?
+                    {t('whyThisCareer')}
                   </h4>
                   <div className="text-sm font-body text-foreground/90 whitespace-pre-line">
                     {(rec as any).premiumReasoning || rec.reasoning}
@@ -730,7 +730,7 @@ export default function Results() {
                   <div className="p-3 bg-primary/10 rounded-lg border-2 border-primary/20 mb-3">
                     <h4 className="font-semibold mb-2 text-sm flex items-center gap-2 text-primary">
                       <CheckCircle2 className="w-4 h-4" />
-                      Your Work Style Fit
+                      {t('workStyleFit')}
                     </h4>
                     <div className="text-sm font-body text-foreground/90 whitespace-pre-line">
                       {(rec as any).workStyleFit}
@@ -743,7 +743,7 @@ export default function Results() {
                   <div className="p-3 bg-primary/10 rounded-lg border-2 border-primary/20 mb-3">
                     <h4 className="font-semibold mb-2 text-sm flex items-center gap-2 text-primary">
                       <CheckCircle2 className="w-4 h-4" />
-                      Personal Strengths & Growth Areas
+                      {t('strengthsGrowth')}
                     </h4>
                     <div className="text-sm font-body text-foreground/90 whitespace-pre-line">
                       {(rec as any).strengthsGrowth}
@@ -755,7 +755,7 @@ export default function Results() {
                 <div className="p-3 bg-background/30 rounded-lg mb-3">
                   <h4 className="font-semibold mb-2 text-sm flex items-center gap-2">
                     <BookOpen className="w-4 h-4" />
-                    Education Path
+                    {t('educationPath')}
                   </h4>
                   <p className="text-sm font-body">{rec.requiredEducation}</p>
                 </div>
@@ -765,7 +765,7 @@ export default function Results() {
                   <div>
                     <h4 className="font-semibold mb-2 text-sm flex items-center gap-2">
                       <ArrowRight className="w-4 h-4" />
-                      Next Steps
+                      {t('nextSteps')}
                     </h4>
                     <ul className="space-y-2">
                       {((rec as any).premiumActionSteps || rec.actionSteps).map((step: string, i: number) => (
@@ -791,17 +791,17 @@ export default function Results() {
             onClick={handleDownloadPDF}
             disabled={!assessmentId}
           >
-            <Download className="w-5 h-5 mr-2" />
-            Download PDF Report
+            <Download className="w-5 h-5 me-2" />
+            {t('downloadPdf')}
           </Button>
         </div>
 
         {!isAuthenticated && (
           <div className="mt-8">
             <StickyNote color="yellow" rotation="1" className="max-w-2xl mx-auto text-center p-6">
-              <h4 className="font-bold text-lg mb-2">Save Your Results!</h4>
+              <h4 className="font-bold text-lg mb-2">{t('saveResultsTitle')}</h4>
               <p className="text-sm font-body mb-4 text-muted-foreground">
-                Create an account to save your career recommendations and track your progress
+                {t('saveResultsDesc')}
               </p>
               <Button
                 size="lg"
@@ -809,7 +809,7 @@ export default function Results() {
                 className="rounded-full"
                 data-testid="button-signup-results"
               >
-                Create Free Account
+                {t('createAccount')}
               </Button>
             </StickyNote>
           </div>
@@ -819,9 +819,9 @@ export default function Results() {
           <div className="mt-8">
             <StickyNote color="green" rotation="-1" className="max-w-2xl mx-auto text-center p-6">
               <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-primary" />
-              <h4 className="font-bold text-lg mb-2">Your Results are Saved!</h4>
+              <h4 className="font-bold text-lg mb-2">{t('resultsSavedTitle')}</h4>
               <p className="text-sm font-body text-muted-foreground mb-4">
-                Come back anytime to review your career recommendations and track your progress
+                {t('resultsSavedDesc')}
               </p>
               <div className="flex flex-wrap gap-3 justify-center">
                 <Button
@@ -829,14 +829,14 @@ export default function Results() {
                   onClick={() => window.location.href = "/profile"}
                   data-testid="button-go-to-profile"
                 >
-                  View My Profile
+                  {t('viewProfile')}
                 </Button>
                 <Button
                   variant="outline"
                   onClick={() => window.location.href = "/assessment"}
                   data-testid="button-start-new-assessment"
                 >
-                  Start New Assessment
+                  {t('newAssessment')}
                 </Button>
               </div>
             </StickyNote>

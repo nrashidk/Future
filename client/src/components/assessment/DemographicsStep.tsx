@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { User, Cake, GraduationCap, Users2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface DemographicsStepProps {
   data: any;
@@ -32,6 +33,7 @@ const getGradeLabel = (gradeCode: string): string => {
 };
 
 export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, predefinedName, predefinedAge, predefinedGender }: DemographicsStepProps) {
+  const { t } = useTranslation('assessment');
   const [isMobile, setIsMobile] = useState(false);
   
   // Detect if user is an organization student (has predefinedGrade)
@@ -75,9 +77,9 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="text-center mb-8">
-        <h2 className="text-4xl font-bold mb-3">Let's Get to Know You! 👋</h2>
+        <h2 className="text-4xl font-bold mb-3">{t('demographics.title')}</h2>
         <p className="text-lg text-muted-foreground font-body">
-          Tell us a bit about yourself to get started
+          {t('demographics.subtitle')}
         </p>
       </div>
 
@@ -89,14 +91,14 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
             </div>
             <div className="flex-1">
               <Label htmlFor="name" className="text-lg font-semibold">
-                Your Name {predefinedName && <span className="text-xs text-muted-foreground font-normal ml-2">(Set by your school)</span>}
+                {t('demographics.name')} {predefinedName && <span className="text-xs text-muted-foreground font-normal ml-2">({t('demographics.setBySchool')})</span>}
               </Label>
             </div>
           </div>
           <Input
             id="name"
             type="text"
-            placeholder="Enter your full name"
+            placeholder={t('demographics.namePlaceholder')}
             value={data.name}
             onChange={(e) => onUpdate("name", e.target.value)}
             disabled={!!predefinedName}
@@ -112,7 +114,7 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
             </div>
             <div className="flex-1">
               <Label htmlFor="age" className="text-lg font-semibold">
-                Age {predefinedAge && <span className="text-xs text-muted-foreground font-normal ml-2">(Set by your school)</span>}
+                {t('demographics.age')} {predefinedAge && <span className="text-xs text-muted-foreground font-normal ml-2">({t('demographics.setBySchool')})</span>}
               </Label>
             </div>
           </div>
@@ -121,7 +123,7 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
             type="number"
             min="13"
             max="25"
-            placeholder="Your age"
+            placeholder={t('demographics.agePlaceholder')}
             value={data.age || ""}
             onChange={(e) => onUpdate("age", parseInt(e.target.value) || null)}
             disabled={!!predefinedAge}
@@ -137,7 +139,7 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
             </div>
             <div className="flex-1">
               <Label htmlFor="grade" className="text-lg font-semibold">
-                Current Grade {predefinedGrade && <span className="text-xs text-muted-foreground font-normal ml-2">(Set by your school: {getGradeLabel(predefinedGrade)})</span>}
+                {t('demographics.grade')} {predefinedGrade && <span className="text-xs text-muted-foreground font-normal ml-2">({t('demographics.setBySchoolGrade', { grade: getGradeLabel(predefinedGrade) })})</span>}
               </Label>
             </div>
           </div>
@@ -150,26 +152,26 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
               className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background/50 border-foreground/20 px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               data-testid="select-grade"
             >
-              <option value="">Select your grade</option>
-              <option value="grade8">Grade 8</option>
-              <option value="grade9">Grade 9</option>
-              <option value="grade10">Grade 10</option>
-              <option value="grade11">Grade 11</option>
-              <option value="grade12">Grade 12</option>
-              <option value="graduated">Recently Graduated</option>
+              <option value="">{t('demographics.selectGrade')}</option>
+              <option value="grade8">{t('demographics.grade8')}</option>
+              <option value="grade9">{t('demographics.grade9')}</option>
+              <option value="grade10">{t('demographics.grade10')}</option>
+              <option value="grade11">{t('demographics.grade11')}</option>
+              <option value="grade12">{t('demographics.grade12')}</option>
+              <option value="graduated">{t('demographics.graduated')}</option>
             </select>
           ) : (
             <Select value={data.grade} onValueChange={(value) => onUpdate("grade", value)} disabled={!!predefinedGrade}>
               <SelectTrigger className="bg-background/50 border-foreground/20" disabled={!!predefinedGrade} data-testid="select-grade">
-                <SelectValue placeholder="Select your grade" />
+                <SelectValue placeholder={t('demographics.selectGrade')} />
               </SelectTrigger>
               <SelectContent position="popper" className="z-[9999]">
-                <SelectItem value="grade8">Grade 8</SelectItem>
-                <SelectItem value="grade9">Grade 9</SelectItem>
-                <SelectItem value="grade10">Grade 10</SelectItem>
-                <SelectItem value="grade11">Grade 11</SelectItem>
-                <SelectItem value="grade12">Grade 12</SelectItem>
-                <SelectItem value="graduated">Recently Graduated</SelectItem>
+                <SelectItem value="grade8">{t('demographics.grade8')}</SelectItem>
+                <SelectItem value="grade9">{t('demographics.grade9')}</SelectItem>
+                <SelectItem value="grade10">{t('demographics.grade10')}</SelectItem>
+                <SelectItem value="grade11">{t('demographics.grade11')}</SelectItem>
+                <SelectItem value="grade12">{t('demographics.grade12')}</SelectItem>
+                <SelectItem value="graduated">{t('demographics.graduated')}</SelectItem>
               </SelectContent>
             </Select>
           )}
@@ -182,7 +184,7 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
             </div>
             <div className="flex-1">
               <Label htmlFor="gender" className="text-lg font-semibold">
-                Gender {predefinedGender && <span className="text-xs text-muted-foreground font-normal ml-2">(Set by your school)</span>}
+                {t('demographics.gender')} {predefinedGender && <span className="text-xs text-muted-foreground font-normal ml-2">({t('demographics.setBySchool')})</span>}
               </Label>
             </div>
           </div>
@@ -195,18 +197,18 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
               className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background/50 border-foreground/20 px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               data-testid="select-gender"
             >
-              <option value="">Select gender</option>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
+              <option value="">{t('demographics.selectGender')}</option>
+              <option value="male">{t('demographics.male')}</option>
+              <option value="female">{t('demographics.female')}</option>
             </select>
           ) : (
             <Select value={data.gender} onValueChange={(value) => onUpdate("gender", value)} disabled={!!predefinedGender}>
               <SelectTrigger className="bg-background/50 border-foreground/20" disabled={!!predefinedGender} data-testid="select-gender">
-                <SelectValue placeholder="Select gender" />
+                <SelectValue placeholder={t('demographics.selectGender')} />
               </SelectTrigger>
               <SelectContent position="popper" className="z-[9999]">
-                <SelectItem value="male">Male</SelectItem>
-                <SelectItem value="female">Female</SelectItem>
+                <SelectItem value="male">{t('demographics.male')}</SelectItem>
+                <SelectItem value="female">{t('demographics.female')}</SelectItem>
               </SelectContent>
             </Select>
           )}
@@ -217,7 +219,7 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
       <div className="max-w-3xl mx-auto mt-8">
         <StickyNote color="purple" rotation="0">
           <div className="space-y-4">
-            <h3 className="text-lg font-semibold mb-3">Before You Continue</h3>
+            <h3 className="text-lg font-semibold mb-3">{t('demographics.beforeContinue')}</h3>
             
             <div className="flex items-start gap-3">
               <Checkbox
@@ -231,29 +233,29 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
               <div className="flex-1">
                 {isOrgStudent ? (
                   <Label htmlFor="consent" className="text-sm font-body leading-relaxed">
-                    Your school has provided institutional consent. You agree to the{" "}
+                    {t('demographics.consentOrg')}{" "}
                     <Link href="/terms" className="text-primary hover:underline font-semibold" data-testid="link-consent-terms">
-                      Terms of Use
+                      {t('demographics.termsOfUse')}
                     </Link>
-                    {" "}and{" "}
+                    {" "}{t('demographics.and')}{" "}
                     <Link href="/privacy" className="text-primary hover:underline font-semibold" data-testid="link-consent-privacy">
-                      Privacy Policy
+                      {t('demographics.privacyPolicy')}
                     </Link>
                     .
                   </Label>
                 ) : (
                   <Label htmlFor="consent" className="text-sm font-body leading-relaxed cursor-pointer">
-                    I agree to the{" "}
+                    {t('demographics.consentAgree')}{" "}
                     <Link href="/terms" className="text-primary hover:underline font-semibold" data-testid="link-consent-terms">
-                      Terms of Use
+                      {t('demographics.termsOfUse')}
                     </Link>
-                    {" "}and{" "}
+                    {" "}{t('demographics.and')}{" "}
                     <Link href="/privacy" className="text-primary hover:underline font-semibold" data-testid="link-consent-privacy">
-                      Privacy Policy
+                      {t('demographics.privacyPolicy')}
                     </Link>
-                    . I understand this is an educational tool as described in the{" "}
+                    . {t('demographics.consentDisclaimer')}{" "}
                     <Link href="/disclaimer" className="text-primary hover:underline font-semibold" data-testid="link-consent-disclaimer">
-                      Disclaimer
+                      {t('demographics.disclaimer')}
                     </Link>
                     .
                   </Label>
@@ -263,7 +265,7 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
             
             {!isOrgStudent && data.age && data.age < 18 && (
               <p className="text-xs text-muted-foreground font-body mt-2 ml-7">
-                Note: Users under 18 require parental or institutional consent.
+                {t('demographics.under18Note')}
               </p>
             )}
           </div>
@@ -278,7 +280,7 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
           className="px-12 py-6 text-lg rounded-full shadow-lg"
           data-testid="button-next-demographics"
         >
-          Continue →
+          {t('nav.continue')}
         </Button>
       </div>
     </div>

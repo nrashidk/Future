@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { useTranslation } from "react-i18next";
 
 /**
  * Personal Values Assessment
@@ -65,6 +66,7 @@ const LIKERT_OPTIONS = [
 ];
 
 export default function CVQStep({ assessmentId, responses, onUpdate, onNext, onBack }: CVQStepProps) {
+  const { t } = useTranslation('assessment');
   const [localResponses, setLocalResponses] = useState<Record<string, Likert>>(responses as Record<string, Likert>);
   const [currentPage, setCurrentPage] = useState(0);
   const [startTime] = useState(Date.now());
@@ -76,11 +78,12 @@ export default function CVQStep({ assessmentId, responses, onUpdate, onNext, onB
     queryKey: ['/api/cvq/items'],
     select: (data: any) => {
       const items = data.items || [];
+      const lang = localStorage.getItem('fp_language') || 'en';
       // Map snake_case API response to camelCase for frontend
       return items.map((item: any) => ({
         id: item.id,
         domain: item.domain as CVQDomain,
-        text: item.text,
+        text: lang === 'ar' && item.textAr ? item.textAr : item.text,
         isReverseScored: item.is_reverse_scored || false,
         position: item.position,
       }));
@@ -150,7 +153,7 @@ export default function CVQStep({ assessmentId, responses, onUpdate, onNext, onB
     return (
       <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
         <Clock className="w-12 h-12 text-primary animate-pulse" />
-        <p className="text-lg text-muted-foreground">Loading values assessment...</p>
+        <p className="text-lg text-muted-foreground">{t('cvq.loading')}</p>
       </div>
     );
   }
@@ -159,18 +162,17 @@ export default function CVQStep({ assessmentId, responses, onUpdate, onNext, onB
     <div className="max-w-4xl mx-auto py-8 space-y-8">
       {/* Header */}
       <div className="text-center space-y-4">
-        <h2 className="text-3xl font-bold">Personal Values</h2>
+        <h2 className="text-3xl font-bold">{t('cvq.title')}</h2>
         <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-          Think about your values and what's important in your life. For each statement, 
-          rate how much the description sounds like you.
+          {t('cvq.subtitle')}
         </p>
       </div>
 
       {/* Progress Bar */}
       <div className="space-y-2">
         <div className="flex justify-between text-sm text-muted-foreground">
-          <span>Progress: {Object.keys(localResponses).length} / {cvqItems.length}</span>
-          <span>Page {currentPage + 1} of {totalPages}</span>
+          <span>{t('cvq.progress', { answered: Object.keys(localResponses).length, total: cvqItems.length })}</span>
+          <span>{t('nav.pageOf', { page: currentPage + 1, total: totalPages })}</span>
         </div>
         <Progress value={progress} className="h-2" data-testid="progress-cvq" />
       </div>
@@ -209,7 +211,7 @@ export default function CVQStep({ assessmentId, responses, onUpdate, onNext, onB
                         </span>
                         {answered && (
                           <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
-                            Answered
+                            {t('cvq.answered')}
                           </span>
                         )}
                       </div>
@@ -258,13 +260,13 @@ export default function CVQStep({ assessmentId, responses, onUpdate, onNext, onB
           onClick={currentPage === 0 ? onBack : handlePrevious}
           data-testid="button-back"
         >
-          <ArrowLeft className="w-4 h-4 mr-2" />
-          {currentPage === 0 ? "Back" : "Previous"}
+          <ArrowLeft className="w-4 h-4 me-2" />
+          {currentPage === 0 ? t('nav.back') : t('nav.previous')}
         </Button>
 
         <div className="text-sm text-muted-foreground">
           {!allAnswered && (
-            <span>Answer all questions to continue</span>
+            <span>{t('cvq.answerAll')}</span>
           )}
         </div>
 
@@ -273,8 +275,8 @@ export default function CVQStep({ assessmentId, responses, onUpdate, onNext, onB
             onClick={handleNext}
             data-testid="button-next-page"
           >
-            Next
-            <ArrowRight className="w-4 h-4 ml-2" />
+            {t('nav.next')}
+            <ArrowRight className="w-4 h-4 ms-2" />
           </Button>
         ) : (
           <Button
@@ -282,8 +284,8 @@ export default function CVQStep({ assessmentId, responses, onUpdate, onNext, onB
             disabled={!allAnswered || submitMutation.isPending}
             data-testid="button-submit-cvq"
           >
-            {submitMutation.isPending ? "Submitting..." : "Complete"}
-            <ArrowRight className="w-4 h-4 ml-2" />
+            {submitMutation.isPending ? t('cvq.submitting') : t('cvq.complete')}
+            <ArrowRight className="w-4 h-4 ms-2" />
           </Button>
         )}
       </div>

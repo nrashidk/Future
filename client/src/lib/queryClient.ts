@@ -12,6 +12,15 @@ function getCsrfToken(): string | null {
   return match ? match[1] : null;
 }
 
+function getAcceptLanguage(): string {
+  try {
+    const stored = localStorage.getItem("fp_language");
+    return stored === "ar" ? "ar" : "en";
+  } catch {
+    return "en";
+  }
+}
+
 export async function apiRequest(
   method: string,
   url: string,
@@ -27,6 +36,8 @@ export async function apiRequest(
   if (csrfToken && !["GET", "HEAD", "OPTIONS"].includes(method.toUpperCase())) {
     headers["x-csrf-token"] = csrfToken;
   }
+
+  headers["Accept-Language"] = getAcceptLanguage();
   
   const res = await fetch(url, {
     method,
@@ -47,6 +58,7 @@ export const getQueryFn: <T>(options: {
   async ({ queryKey }) => {
     const res = await fetch(queryKey.join("/") as string, {
       credentials: "include",
+      headers: { "Accept-Language": getAcceptLanguage() },
     });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {

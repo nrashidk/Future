@@ -68,9 +68,20 @@ export function transformQuizQuestionForFrontend(question: any): any {
       }))
     : question.options; // Invalid format, return as-is
 
+  // Transform Arabic options the same way
+  const optionsAr = question.optionsAr;
+  const transformedOptionsAr = Array.isArray(optionsAr)
+    ? optionsAr.map((text: string, idx: number) => ({
+        id: idx.toString(),
+        text
+      }))
+    : undefined;
+
   return {
     ...question,
     options: transformedOptions,
+    optionsAr: transformedOptionsAr,
+    questionAr: question.questionAr,
     // Hide correct answers for multiple choice questions
     correctAnswer: question.questionType === "rating" ? question.correctAnswer : undefined
   };

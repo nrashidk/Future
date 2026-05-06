@@ -3,6 +3,7 @@ import { StickyNote } from "@/components/StickyNote";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useTranslation } from "react-i18next";
 
 interface PersonalityStepProps {
   data: any;
@@ -51,6 +52,7 @@ const questions = [
 ];
 
 export function PersonalityStep({ data, onUpdate, onNext, onBack }: PersonalityStepProps) {
+  const { t } = useTranslation('assessment');
   const [answers, setAnswers] = useState<Record<string, string>>(data.personalityTraits || {});
 
   const handleAnswerChange = (questionId: string, value: string) => {
@@ -64,9 +66,9 @@ export function PersonalityStep({ data, onUpdate, onNext, onBack }: PersonalityS
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="text-center mb-8">
-        <h2 className="text-4xl font-bold mb-3">Let's Learn Your Style 🧠</h2>
+        <h2 className="text-4xl font-bold mb-3">{t('personality.title')}</h2>
         <p className="text-lg text-muted-foreground font-body">
-          Answer these quick questions to understand how you work best
+          {t('personality.subtitle')}
         </p>
       </div>
 
@@ -111,7 +113,7 @@ export function PersonalityStep({ data, onUpdate, onNext, onBack }: PersonalityS
             className="px-8 py-6 text-lg rounded-full"
             data-testid="button-back-personality"
           >
-            Back
+            {t('nav.back')}
           </Button>
         )}
         <Button
@@ -121,7 +123,7 @@ export function PersonalityStep({ data, onUpdate, onNext, onBack }: PersonalityS
           className="px-12 py-6 text-lg rounded-full shadow-lg"
           data-testid="button-next-personality"
         >
-          Continue
+          {t('nav.continue')}
         </Button>
       </div>
     </div>

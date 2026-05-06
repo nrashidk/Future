@@ -1,6 +1,7 @@
 import { StickyNote } from "@/components/StickyNote";
 import { Button } from "@/components/ui/button";
 import { Laptop, Palette, Heart, Lightbulb, Dumbbell, Microscope, Users, TrendingUp } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 interface InterestsStepProps {
   data: any;
@@ -21,6 +22,7 @@ const interests = [
 ];
 
 export function InterestsStep({ data, onUpdate, onNext, onBack }: InterestsStepProps) {
+  const { t } = useTranslation('assessment');
   const toggleInterest = (interestId: string) => {
     const current = data.interests || [];
     if (current.includes(interestId)) {
@@ -35,9 +37,9 @@ export function InterestsStep({ data, onUpdate, onNext, onBack }: InterestsStepP
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
       <div className="text-center mb-8">
-        <h2 className="text-4xl font-bold mb-3">What Gets You Excited? ✨</h2>
+        <h2 className="text-4xl font-bold mb-3">{t('interests.title')}</h2>
         <p className="text-lg text-muted-foreground font-body">
-          Choose the activities and topics that interest you most
+          {t('interests.subtitle')}
         </p>
       </div>
 
@@ -72,7 +74,7 @@ export function InterestsStep({ data, onUpdate, onNext, onBack }: InterestsStepP
       {(data.interests || []).length > 0 && (
         <div className="text-center p-4 bg-primary/10 rounded-lg">
           <p className="font-body text-sm">
-            <span className="font-semibold">{(data.interests || []).length}</span> interest{(data.interests || []).length !== 1 ? 's' : ''} selected
+            {t('interests.selected', { count: (data.interests || []).length })}
           </p>
         </div>
       )}
@@ -86,7 +88,7 @@ export function InterestsStep({ data, onUpdate, onNext, onBack }: InterestsStepP
             className="px-8 py-6 text-lg rounded-full"
             data-testid="button-back-interests"
           >
-            Back
+            {t('nav.back')}
           </Button>
         )}
         <Button
@@ -96,7 +98,7 @@ export function InterestsStep({ data, onUpdate, onNext, onBack }: InterestsStepP
           className="px-12 py-6 text-lg rounded-full shadow-lg"
           data-testid="button-next-interests"
         >
-          Continue
+          {t('nav.continue')}
         </Button>
       </div>
     </div>
