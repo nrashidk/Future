@@ -5,8 +5,31 @@ import { db } from "../db";
 import { users, assessments, recommendations, assessmentQuizzes, quizResponses, cvqResults, organizationMembers } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { dataExportLimiter } from "../middleware/rateLimiter.middleware";
+import { z } from "zod";
 
 export function registerUserRoutes(app: Express) {
+  /**
+   * PATCH /api/users/me/language
+   * Update user's preferred language (en or ar)
+   */
+  app.patch("/api/users/me/language", isAuthenticated, async (req: any, res) => {
+    try {
+      const schema = z.object({ language: z.enum(["en", "ar"]) });
+      const parsed = schema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid language. Must be 'en' or 'ar'." });
+      }
+      const userId = req.user.userId;
+      await db.update(users)
+        .set({ preferredLanguage: parsed.data.language })
+        .where(eq(users.id, userId));
+      res.json({ success: true, language: parsed.data.language });
+    } catch (error) {
+      console.error("Error updating language preference:", error);
+      res.status(500).json({ message: "Failed to update language preference" });
+    }
+  });
+
   /**
    * GET /api/users/me/export
    * GDPR Data Export: Returns all user data in a structured JSON format

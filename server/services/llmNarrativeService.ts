@@ -45,7 +45,8 @@ const DEFAULT_TEMPERATURE = 0.7;
 function replaceTemplateVariables(
   template: string,
   studentContext: StudentContext,
-  careerContext: CareerContext
+  careerContext: CareerContext,
+  language: string = "en"
 ): string {
   return template
     .replace(/\{\{gradeLevel\}\}/g, studentContext.gradeLevel)
@@ -59,7 +60,8 @@ function replaceTemplateVariables(
     .replace(/\{\{educationLevel\}\}/g, careerContext.educationLevel)
     .replace(/\{\{requiredSkills\}\}/g, careerContext.requiredSkills.join(", "))
     .replace(/\{\{relatedSubjects\}\}/g, careerContext.relatedSubjects.join(", "))
-    .replace(/\{\{salaryRange\}\}/g, careerContext.salaryRange);
+    .replace(/\{\{salaryRange\}\}/g, careerContext.salaryRange)
+    .replace(/\{\{language\}\}/g, language === "ar" ? "Arabic" : "English");
 }
 
 /**

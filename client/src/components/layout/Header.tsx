@@ -4,9 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/hooks/useAuth";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useTranslation } from "react-i18next";
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const { user } = useAuth();
+  const { t } = useTranslation("common");
   const isSuperadmin = user?.accountType === 'superadmin';
   const isOrgAdmin = user?.accountType === 'org_admin';
 
@@ -27,25 +30,25 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
           <Button variant="outline" size="sm" asChild className={navBtnClass} data-testid="button-nav-superadmin">
             <Link href="/superadmin" aria-current={onSuperadmin ? "page" : undefined} onClick={onNavigate} className={linkClass}>
               <Shield className="w-4 h-4" aria-hidden="true" />
-              Super Admin
+              {t("nav.superadmin")}
             </Link>
           </Button>
           <Button variant="outline" size="sm" asChild className={navBtnClass} data-testid="button-nav-admin">
             <Link href="/admin/organizations" aria-current={onOrgs ? "page" : undefined} onClick={onNavigate} className={linkClass}>
               <Building2 className="w-4 h-4" aria-hidden="true" />
-              Admin
+              {t("nav.admin")}
             </Link>
           </Button>
           <Button variant="outline" size="sm" asChild className={navBtnClass} data-testid="button-nav-questions">
             <Link href="/admin" aria-current={onAdmin ? "page" : undefined} onClick={onNavigate} className={linkClass}>
               <FileQuestion className="w-4 h-4" aria-hidden="true" />
-              Quiz
+              {t("nav.quiz")}
             </Link>
           </Button>
           <Button variant="outline" size="sm" asChild className={navBtnClass} data-testid="button-nav-analytics">
             <Link href="/analytics" aria-current={onAnalytics ? "page" : undefined} onClick={onNavigate} className={linkClass}>
               <BarChart className="w-4 h-4" aria-hidden="true" />
-              Analytics
+              {t("nav.analytics")}
             </Link>
           </Button>
         </>
@@ -55,19 +58,19 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
           <Button variant="outline" size="sm" asChild className={navBtnClass} data-testid="button-nav-admin">
             <Link href="/admin/organizations" aria-current={onOrgs ? "page" : undefined} onClick={onNavigate} className={linkClass}>
               <Building2 className="w-4 h-4" aria-hidden="true" />
-              Admin
+              {t("nav.admin")}
             </Link>
           </Button>
           <Button variant="outline" size="sm" asChild className={navBtnClass} data-testid="button-nav-assessment">
             <Link href="/assessment" aria-current={onAssessment ? "page" : undefined} onClick={onNavigate} className={linkClass}>
               <ClipboardCheck className="w-4 h-4" aria-hidden="true" />
-              Assessment
+              {t("nav.assessment")}
             </Link>
           </Button>
           <Button variant="outline" size="sm" asChild className={navBtnClass} data-testid="button-nav-analytics">
             <Link href="/analytics" aria-current={onAnalytics ? "page" : undefined} onClick={onNavigate} className={linkClass}>
               <BarChart className="w-4 h-4" aria-hidden="true" />
-              Analytics
+              {t("nav.analytics")}
             </Link>
           </Button>
         </>
@@ -76,7 +79,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
         <Button variant="outline" size="sm" asChild className={navBtnClass} data-testid="button-nav-assessment">
           <Link href="/assessment" aria-current={onAssessment ? "page" : undefined} onClick={onNavigate} className={linkClass}>
             <ClipboardCheck className="w-4 h-4" aria-hidden="true" />
-            Assessment
+            {t("nav.assessment")}
           </Link>
         </Button>
       )}
@@ -85,7 +88,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
           <Button variant="outline" size="sm" asChild className={navBtnClass} data-testid="button-nav-profile">
             <Link href="/profile" aria-current={onProfile ? "page" : undefined} onClick={onNavigate} className={linkClass}>
               <User className="w-4 h-4" aria-hidden="true" />
-              Profile
+              {t("nav.profile")}
             </Link>
           </Button>
           <Button
@@ -96,7 +99,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             className={`${linkClass} ${navBtnClass}`}
           >
             <LogOut className="w-4 h-4" aria-hidden="true" />
-            Logout
+            {t("nav.logout")}
           </Button>
         </>
       )}
@@ -106,8 +109,14 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
 
 export function Header() {
   const { user } = useAuth();
+  const { language, setLanguage } = useLanguage();
+  const { t } = useTranslation("common");
   const isSuperadmin = user?.accountType === 'superadmin';
   const isOrgAdmin = user?.accountType === 'org_admin';
+
+  const toggleLanguage = () => {
+    setLanguage(language === "en" ? "ar" : "en");
+  };
 
   return (
     <>
@@ -116,7 +125,7 @@ export function Header() {
         className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[9999] focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md focus:font-medium focus:shadow-lg"
         data-testid="link-skip-to-main"
       >
-        Skip to main content
+        {t("common.skipToMain")}
       </a>
       <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-sm border-b">
       <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
@@ -128,16 +137,36 @@ export function Header() {
         </Link>
 
         {/* Desktop nav */}
-        <nav aria-label="Main navigation" className="hidden md:flex gap-2">
+        <nav aria-label="Main navigation" className="hidden md:flex items-center gap-2">
           <NavLinks />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleLanguage}
+            data-testid="button-language-toggle"
+            aria-label={language === "en" ? t("language.switchToArabic") : t("language.switchToEnglish")}
+            className="font-medium min-w-[3rem]"
+          >
+            {t("language.toggle")}
+          </Button>
         </nav>
 
         {/* Mobile nav — hamburger + Sheet */}
         {user && (
-          <div className="md:hidden">
+          <div className="md:hidden flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={toggleLanguage}
+              data-testid="button-language-toggle-mobile"
+              aria-label={language === "en" ? t("language.switchToArabic") : t("language.switchToEnglish")}
+              className="font-medium"
+            >
+              {t("language.toggle")}
+            </Button>
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="outline" size="icon" data-testid="button-mobile-menu" aria-label="Open navigation menu">
+                <Button variant="outline" size="icon" data-testid="button-mobile-menu" aria-label={t("nav.openMenu")}>
                   <Menu className="w-5 h-5" aria-hidden="true" />
                 </Button>
               </SheetTrigger>
@@ -150,13 +179,25 @@ export function Header() {
           </div>
         )}
 
-        {/* Guest / logged-out state: show Login button on mobile too */}
+        {/* Guest / logged-out state: show Login + language toggle on mobile */}
         {!user && (
-          <Button variant="outline" size="sm" asChild data-testid="button-nav-login">
-            <Link href="/login" className="flex items-center gap-2">
-              Login
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={toggleLanguage}
+              data-testid="button-language-toggle-guest"
+              aria-label={language === "en" ? t("language.switchToArabic") : t("language.switchToEnglish")}
+              className="font-medium md:hidden"
+            >
+              {t("language.toggle")}
+            </Button>
+            <Button variant="outline" size="sm" asChild data-testid="button-nav-login">
+              <Link href="/login" className="flex items-center gap-2">
+                {t("nav.login")}
+              </Link>
+            </Button>
+          </div>
         )}
       </div>
     </header>

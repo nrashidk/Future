@@ -1,11 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Info, CheckCircle, XCircle, X, Pin } from "lucide-react";
 import { useState } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { useTranslation } from "react-i18next";
 
 interface Announcement {
   id: string;
   title: string;
   content: string;
+  titleAr?: string | null;
+  contentAr?: string | null;
   type: "info" | "warning" | "error" | "success";
   targetAudience: "all" | "students" | "admins" | "schools";
   isPinned: boolean;
@@ -15,6 +19,8 @@ interface Announcement {
 }
 
 export function AnnouncementBanner() {
+  const { language } = useLanguage();
+  const { t } = useTranslation("common");
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(() => {
     const saved = sessionStorage.getItem("dismissed_announcements");
     return saved ? new Set(JSON.parse(saved)) : new Set();
@@ -90,14 +96,15 @@ export function AnnouncementBanner() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h4 className="font-semibold text-sm" data-testid="announcement-title">
-                    <span className="opacity-60">Announcement:</span> {announcement.title}
+                    <span className="opacity-60">{t("announcement.label")}</span>{" "}
+                    {language === "ar" && announcement.titleAr ? announcement.titleAr : announcement.title}
                   </h4>
                   {announcement.isPinned && (
                     <Pin className="w-3 h-3 opacity-60" />
                   )}
                 </div>
                 <p className="text-sm mt-1 opacity-80" data-testid="announcement-content">
-                  {announcement.content}
+                  {language === "ar" && announcement.contentAr ? announcement.contentAr : announcement.content}
                 </p>
                 <p className="text-xs mt-2 opacity-50" data-testid="announcement-date">
                   {new Date(announcement.createdAt).toLocaleDateString('en-US', { 

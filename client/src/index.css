@@ -188,6 +188,14 @@
   }
 }
 
+/* Arabic typography — applied when html[lang="ar"] */
+:root:lang(ar),
+html[lang="ar"] {
+  --font-sans: Cairo, sans-serif;
+  --font-serif: Cairo, sans-serif;
+  --font-body: Cairo, sans-serif;
+}
+
 /**
  * Using the elevate system.
  * Automatic contrast adjustment.

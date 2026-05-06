@@ -1,0 +1,28 @@
+{
+  "nav": {
+    "home": "Future Pathways",
+    "assessment": "Assessment",
+    "profile": "Profile",
+    "logout": "Logout",
+    "login": "Login",
+    "admin": "Admin",
+    "quiz": "Quiz",
+    "analytics": "Analytics",
+    "superadmin": "Super Admin",
+    "openMenu": "Open navigation menu"
+  },
+  "language": {
+    "toggle": "العربية",
+    "current": "EN",
+    "switchToArabic": "Switch to Arabic",
+    "switchToEnglish": "Switch to English"
+  },
+  "announcement": {
+    "label": "Announcement:"
+  },
+  "common": {
+    "loading": "Loading…",
+    "error": "Something went wrong",
+    "skipToMain": "Skip to main content"
+  }
+}

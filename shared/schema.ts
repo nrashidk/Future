@@ -55,6 +55,9 @@ export const users = pgTable("users", {
   // Activity tracking
   lastLoginAt: timestamp("last_login_at"), // Track last login time for activity status
   
+  // Language preference
+  preferredLanguage: varchar("preferred_language", { length: 5 }).default("en"), // 'en' or 'ar'
+  
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => [
@@ -1315,6 +1318,8 @@ export const systemAnnouncements = pgTable("system_announcements", {
   backgroundColor: varchar("background_color", { length: 20 }).default("#ffffff"), // Custom background color for sticky note style
   publishAt: timestamp("publish_at"), // Optional scheduled publish date (announcement goes live on this date)
   expiresAt: timestamp("expires_at"), // Optional expiration date
+  titleAr: text("title_ar"), // Arabic translation of title
+  contentAr: text("content_ar"), // Arabic translation of content
   createdByUserId: varchar("created_by_user_id").notNull().references(() => users.id),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),

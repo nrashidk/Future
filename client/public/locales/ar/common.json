@@ -1,0 +1,28 @@
+{
+  "nav": {
+    "home": "مسارات المستقبل",
+    "assessment": "التقييم",
+    "profile": "الملف الشخصي",
+    "logout": "تسجيل الخروج",
+    "login": "تسجيل الدخول",
+    "admin": "الإدارة",
+    "quiz": "الاختبار",
+    "analytics": "التحليلات",
+    "superadmin": "المشرف العام",
+    "openMenu": "فتح قائمة التنقل"
+  },
+  "language": {
+    "toggle": "English",
+    "current": "AR",
+    "switchToArabic": "التبديل إلى العربية",
+    "switchToEnglish": "Switch to English"
+  },
+  "announcement": {
+    "label": "إعلان:"
+  },
+  "common": {
+    "loading": "جارٍ التحميل…",
+    "error": "حدث خطأ ما",
+    "skipToMain": "تخطى إلى المحتوى الرئيسي"
+  }
+}
