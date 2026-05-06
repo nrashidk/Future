@@ -3,6 +3,7 @@ import { uaeQuestionBank } from "./questionBanks/uae";
 import { validateQuestionBank, checkCoverage, flattenQuestionBank } from "../shared/questionTypes";
 import { RIASEC_CAREER_AFFINITIES } from "./riasecAffinities";
 import { seedCVQItems } from "./cvq-seed";
+import { applyGrade8ArabicContent } from "./migrations/quiz-arabic-content";
 import { WEF_16_SKILLS, CAREER_WEF_SKILL_AFFINITIES } from "./wefSkillsData";
 
 export async function seedDatabase() {
@@ -1232,6 +1233,9 @@ export async function seedDatabase() {
           options: question.options,
           correctAnswer: question.correctAnswer,
           explanation: question.explanation,
+          ...(question.questionAr ? { questionAr: question.questionAr } : {}),
+          ...(question.optionsAr ? { optionsAr: question.optionsAr } : {}),
+          ...(question.explanationAr ? { explanationAr: question.explanationAr } : {}),
           subject: question.subject,
           grade: numericGrade!,
           countryId: question.countryId, // Now properly links to UAE country
@@ -1575,6 +1579,13 @@ export async function seedDatabase() {
     await seedCVQItems();
   } catch (error: any) {
     console.error("  CVQ seed error (non-fatal, continuing):", error.message);
+  }
+
+  // Apply Arabic translations to Grade 8 quiz questions
+  try {
+    await applyGrade8ArabicContent();
+  } catch (error: any) {
+    console.error("  Grade 8 Arabic quiz content error (non-fatal, continuing):", error.message);
   }
 
   // Seed Test Organization Admin Account (for testing admin functionality)

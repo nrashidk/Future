@@ -41,7 +41,7 @@ function mapSubjectsToVisionSectors(
   country: any,
   tFn: (key: string, opts?: any) => string
 ): string | null {
-  if (!subjectScores || !country?.visionPlan) return null;
+  if (!subjectScores || !country?.targets || typeof country.targets !== 'object') return null;
 
   // Get top 2 subjects
   const topSubjects = Object.entries(subjectScores)
@@ -51,8 +51,8 @@ function mapSubjectsToVisionSectors(
 
   if (topSubjects.length === 0) return null;
 
-  // Extract actual vision categories from country data
-  const visionCategories = Object.keys(country.visionPlan);
+  // Extract vision categories from country.targets (jsonb object with keys like "tech","climate","economic")
+  const visionCategories = Object.keys(country.targets);
   
   // Map subjects to vision category keywords
   const subjectKeywords: Record<string, string[]> = {

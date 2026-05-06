@@ -7,7 +7,10 @@ export interface QuizQuestionSeed {
   options: string[];
   correctAnswer: string;
   explanation?: string;
-  
+  questionAr?: string;   // Arabic translation of the question
+  optionsAr?: string[];  // Arabic translations of answer options (same order as options)
+  explanationAr?: string; // Arabic translation of explanation
+
   subject: string;
   grade: GradeLevel;
   countryId: string;
