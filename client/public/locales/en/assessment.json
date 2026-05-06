@@ -120,7 +120,14 @@
     "devGoalsHint": "See how your country is working towards the future",
     "showLess": "Show less",
     "readMore": "Read more",
-    "nationalGoals": "Key National Goals"
+    "nationalGoals": "Key National Goals",
+    "unknownError": "An unexpected error occurred. Please try again.",
+    "mission": "Mission — {{name}}",
+    "vision": "Vision — {{name}}",
+    "prioritySectors": "Priority Sectors — {{name}}",
+    "categoryTech": "Technology",
+    "categoryClimate": "Climate & Environment",
+    "categoryEconomic": "Economy"
   },
   "aspirations": {
     "title": "Dream Big!",

@@ -83,7 +83,7 @@ export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps
             {t('country.error')}
           </p>
           <p className="text-sm text-muted-foreground mt-2">
-            {countriesError instanceof Error ? countriesError.message : "Unknown error"}
+            {countriesError instanceof Error ? countriesError.message : t('country.unknownError')}
           </p>
         </div>
       </div>
@@ -201,7 +201,7 @@ export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps
                 <Target className="w-5 h-5 text-primary" />
               </div>
               <div className="flex-1">
-                <h4 className="text-lg font-bold">Mission - {countryDetails.name}</h4>
+                <h4 className="text-lg font-bold">{t('country.mission', { name: countryDetails.name })}</h4>
                 {countryDetails.visionPlan && (
                   <span className="inline-block mt-1 px-3 py-1 bg-primary text-primary-foreground rounded-full text-xs font-medium">
                     {countryDetails.visionPlan}
@@ -219,7 +219,7 @@ export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps
               <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                 <Eye className="w-5 h-5 text-primary" />
               </div>
-              <h4 className="text-lg font-bold">Vision - {countryDetails.name}</h4>
+              <h4 className="text-lg font-bold">{t('country.vision', { name: countryDetails.name })}</h4>
             </div>
             <p className="font-body text-foreground/90 leading-relaxed">
               {countryDetails.vision}
@@ -228,7 +228,7 @@ export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps
 
           {countryDetails.prioritySectors && countryDetails.prioritySectors.length > 0 && (
             <StickyNote color="green" rotation="-2">
-              <h4 className="text-lg font-bold mb-3">Priority Sectors - {countryDetails.name}</h4>
+              <h4 className="text-lg font-bold mb-3">{t('country.prioritySectors', { name: countryDetails.name })}</h4>
               <div className="flex flex-wrap gap-2">
                 {countryDetails.prioritySectors.map((sector: string, index: number) => (
                   <span
@@ -273,7 +273,7 @@ export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps
                   {Object.entries(countryDetails.targets || {}).map(([category, targets]: [string, any]) => (
                     <div key={category} className="border-s-2 border-primary/30 ps-4">
                       <h5 className="font-bold capitalize mb-2 text-primary">
-                        {category === "tech" ? "Technology" : category === "climate" ? "Climate & Environment" : category === "economic" ? "Economy" : category}
+                        {category === "tech" ? t('country.categoryTech') : category === "climate" ? t('country.categoryClimate') : category === "economic" ? t('country.categoryEconomic') : category}
                       </h5>
                       <div className="space-y-2">
                         {Array.isArray(targets) && targets.map((target, idx) => (

@@ -120,7 +120,14 @@
     "devGoalsHint": "تعرف كيف تعمل بلدك نحو المستقبل",
     "showLess": "عرض أقل",
     "readMore": "اقرأ المزيد",
-    "nationalGoals": "الأهداف الوطنية الرئيسية"
+    "nationalGoals": "الأهداف الوطنية الرئيسية",
+    "unknownError": "حدث خطأ غير متوقع. يرجى المحاولة مرة أخرى.",
+    "mission": "الرسالة — {{name}}",
+    "vision": "الرؤية — {{name}}",
+    "prioritySectors": "القطاعات ذات الأولوية — {{name}}",
+    "categoryTech": "التكنولوجيا",
+    "categoryClimate": "المناخ والبيئة",
+    "categoryEconomic": "الاقتصاد"
   },
   "aspirations": {
     "title": "حلِّق عالياً!",
