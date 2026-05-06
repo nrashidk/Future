@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { GraduationCap, Crown, Users, ClipboardCheck, Home, User, LogOut, BarChart, Shield, Building2, FileQuestion, TrendingUp, ClipboardList, Cake, Users2 } from "lucide-react";
 import { StickyNote } from "@/components/StickyNote";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface Assessment {
   id: string;
@@ -102,6 +103,8 @@ export default function Profile() {
     }
   };
 
+  const { language, setLanguage } = useLanguage();
+
   const handleLogout = () => {
     window.location.href = "/api/logout";
   };
@@ -180,6 +183,15 @@ export default function Profile() {
                 <User className="w-4 h-4 mr-2" />
                 Profile
               </Link>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setLanguage(language === "en" ? "ar" : "en")}
+              data-testid="button-language-toggle-profile"
+              aria-label={language === "en" ? "Switch to Arabic" : "Switch to English"}
+            >
+              {language === "en" ? "العربية" : "English"}
             </Button>
             <Button 
               variant="outline" 

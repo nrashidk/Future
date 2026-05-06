@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -28,6 +29,7 @@ type RegisterForm = z.infer<typeof registerSchema>;
 export default function Register() {
   useEffect(() => { document.title = "Create Account | Future Pathways"; }, []);
 
+  const { language, setLanguage } = useLanguage();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
@@ -76,6 +78,17 @@ export default function Register() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/10 via-background to-accent/10">
+      <div className="absolute top-4 end-4">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setLanguage(language === "en" ? "ar" : "en")}
+          data-testid="button-language-toggle-register"
+          aria-label={language === "en" ? "Switch to Arabic" : "Switch to English"}
+        >
+          {language === "en" ? "العربية" : "English"}
+        </Button>
+      </div>
       <Card className="w-full max-w-md" data-testid="card-register">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">

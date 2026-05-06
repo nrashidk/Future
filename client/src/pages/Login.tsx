@@ -8,6 +8,7 @@ import { BsMicrosoft } from "react-icons/bs";
 import { Link, useLocation } from "wouter";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface AuthConfig {
   google: boolean;
@@ -18,6 +19,7 @@ interface AuthConfig {
 export default function Login() {
   useEffect(() => { document.title = "Sign In | Future Pathways"; }, []);
 
+  const { language, setLanguage } = useLanguage();
   const [location] = useLocation();
   const [error, setError] = useState<string | null>(null);
 
@@ -51,6 +53,17 @@ export default function Login() {
 
   return (
     <main id="main-content" className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/10 via-background to-accent/10">
+      <div className="absolute top-4 end-4">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setLanguage(language === "en" ? "ar" : "en")}
+          data-testid="button-language-toggle-login"
+          aria-label={language === "en" ? "Switch to Arabic" : "Switch to English"}
+        >
+          {language === "en" ? "العربية" : "English"}
+        </Button>
+      </div>
       <Card className="w-full max-w-md" data-testid="card-login">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">
