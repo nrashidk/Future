@@ -96,8 +96,15 @@ export function QuizStep({ assessmentId, onComplete }: QuizStepProps) {
     }
   });
 
-  const handleAnswerChange = (questionId: string, answerText: string) => {
-    setResponses(prev => ({ ...prev, [questionId]: answerText }));
+  const handleAnswerChange = (questionId: string, optionId: string) => {
+    // Always store canonical English option text for language-agnostic scoring
+    const question = questions.find((q: QuizQuestion) => q.id === questionId);
+    if (question) {
+      const canonicalOption = question.options.find((o: any) => o.id === optionId);
+      if (canonicalOption) {
+        setResponses(prev => ({ ...prev, [questionId]: canonicalOption.text }));
+      }
+    }
   };
 
   const handleSubmit = () => {
@@ -254,18 +261,18 @@ export function QuizStep({ assessmentId, onComplete }: QuizStepProps) {
                 </div>
 
                 <RadioGroup
-                  value={responses[question.id] || ""}
-                  onValueChange={(value) => handleAnswerChange(question.id, value)}
+                  value={question.options.find((o: any) => o.text === responses[question.id])?.id || ""}
+                  onValueChange={(optionId) => handleAnswerChange(question.id, optionId)}
                   className="space-y-2 ps-11"
                 >
                   {(language === 'ar' && (question as any).optionsAr?.length ? (question as any).optionsAr : question.options).map((option: any) => (
                     <div 
                       key={option.id} 
                       className="flex items-center gap-2 p-2 min-h-[44px] rounded-lg hover-elevate cursor-pointer"
-                      onClick={() => handleAnswerChange(question.id, option.text)}
+                      onClick={() => handleAnswerChange(question.id, option.id)}
                     >
                       <RadioGroupItem 
-                        value={option.text} 
+                        value={option.id} 
                         id={`${question.id}-${option.id}`}
                         data-testid={`radio-quiz-${question.id}-${option.id}`}
                       />

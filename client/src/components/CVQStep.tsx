@@ -47,26 +47,26 @@ interface CVQStepProps {
   onBack: () => void;
 }
 
-const DOMAIN_INFO: Record<CVQDomain, { name: string; icon: any; color: string; description: string }> = {
-  achievement: { name: "Achievement", icon: Target, color: "yellow", description: "Success, competence, recognition" },
-  benevolence: { name: "Benevolence", icon: Heart, color: "pink", description: "Caring for others, helpfulness" },
-  universalism: { name: "Universalism", icon: Globe, color: "green", description: "Fairness, equality, justice" },
-  self_direction: { name: "Self-Direction", icon: Sparkles, color: "purple", description: "Independence, creativity, freedom" },
-  security: { name: "Security", icon: Shield, color: "blue", description: "Safety, stability, harmony" },
-  power: { name: "Power", icon: Crown, color: "amber", description: "Influence, authority, wealth" },
-  hedonism: { name: "Hedonism", icon: Smile, color: "orange", description: "Pleasure, enjoying life" },
-};
-
-const LIKERT_OPTIONS = [
-  { value: 1, label: "Not Like Me" },
-  { value: 2, label: "A Little Like Me" },
-  { value: 3, label: "Somewhat Like Me" },
-  { value: 4, label: "Like Me" },
-  { value: 5, label: "Very Much Like Me" },
-];
-
 export default function CVQStep({ assessmentId, responses, onUpdate, onNext, onBack }: CVQStepProps) {
   const { t } = useTranslation('assessment');
+
+  const DOMAIN_INFO: Record<CVQDomain, { name: string; icon: any; color: string; description: string }> = {
+    achievement: { name: t('cvq.domainAchievement'), icon: Target, color: "yellow", description: t('cvq.domainAchievementDesc') },
+    benevolence: { name: t('cvq.domainBenevolence'), icon: Heart, color: "pink", description: t('cvq.domainBenevolenceDesc') },
+    universalism: { name: t('cvq.domainUniversalism'), icon: Globe, color: "green", description: t('cvq.domainUniversalismDesc') },
+    self_direction: { name: t('cvq.domainSelfDirection'), icon: Sparkles, color: "purple", description: t('cvq.domainSelfDirectionDesc') },
+    security: { name: t('cvq.domainSecurity'), icon: Shield, color: "blue", description: t('cvq.domainSecurityDesc') },
+    power: { name: t('cvq.domainPower'), icon: Crown, color: "amber", description: t('cvq.domainPowerDesc') },
+    hedonism: { name: t('cvq.domainHedonism'), icon: Smile, color: "orange", description: t('cvq.domainHedonismDesc') },
+  };
+
+  const LIKERT_OPTIONS = [
+    { value: 1, label: t('cvq.likert1') },
+    { value: 2, label: t('cvq.likert2') },
+    { value: 3, label: t('cvq.likert3') },
+    { value: 4, label: t('cvq.likert4') },
+    { value: 5, label: t('cvq.likert5') },
+  ];
   const [localResponses, setLocalResponses] = useState<Record<string, Likert>>(responses as Record<string, Likert>);
   const [currentPage, setCurrentPage] = useState(0);
   const [startTime] = useState(Date.now());

@@ -28,6 +28,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 // Helper to get display name
 function getCountryDisplayName(country: any): string {
@@ -37,7 +38,8 @@ function getCountryDisplayName(country: any): string {
 // Helper to map subjects to vision sectors using actual country vision data
 function mapSubjectsToVisionSectors(
   subjectScores: Record<string, { percentage: number }>,
-  country: any
+  country: any,
+  tFn: (key: string, opts?: any) => string
 ): string | null {
   if (!subjectScores || !country?.visionPlan) return null;
 
@@ -83,12 +85,17 @@ function mapSubjectsToVisionSectors(
     ? categoriesArray[0]
     : categoriesArray[0] + " and " + categoriesArray[1];
 
-  return `Your top strengths in ${subjectsText} directly align with ${getCountryDisplayName(country)}'s ${categoriesText} priorities in their national vision.`;
+  return tFn('visionLinkageText', {
+    subjects: subjectsText,
+    country: getCountryDisplayName(country),
+    categories: categoriesText,
+  });
 }
 
 export default function Results() {
   useEffect(() => { document.title = "Your Career Results | Future Pathways"; }, []);
   const { t } = useTranslation('results');
+  const { language } = useLanguage();
 
   const { isAuthenticated, user } = useAuth();
   const [, setLocation] = useLocation();
@@ -311,7 +318,7 @@ export default function Results() {
                 <p className="font-body">{t('insightValidation')}</p>
               </div>
               {country && (() => {
-                const visionLinkage = mapSubjectsToVisionSectors(quizData.subjectScores, country);
+                const visionLinkage = mapSubjectsToVisionSectors(quizData.subjectScores, country, t);
                 return visionLinkage ? (
                   <div className="flex items-start gap-2" data-testid="insight-vision-linkage">
                     <TrendingUp className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
@@ -582,8 +589,8 @@ export default function Results() {
                 {/* Header: Title and Match Score */}
                 <div className="flex items-start justify-between gap-4 mb-4">
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-xl font-bold mb-1">{rec.career?.title}</h3>
-                    <p className="text-muted-foreground font-body text-sm">{rec.career?.description}</p>
+                    <h3 className="text-xl font-bold mb-1">{language === 'ar' && rec.career?.titleAr ? rec.career.titleAr : rec.career?.title}</h3>
+                    <p className="text-muted-foreground font-body text-sm">{language === 'ar' && rec.career?.descriptionAr ? rec.career.descriptionAr : rec.career?.description}</p>
                   </div>
                   <div className="bg-primary text-primary-foreground px-4 py-2 rounded-full font-bold text-lg flex-shrink-0">
                     {Math.round(rec.overallMatchScore)}%
