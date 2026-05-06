@@ -1141,7 +1141,8 @@ export function registerAdminRoutes(app: Express) {
           if (!completedAssessment) continue;
 
           page = await browser.newPage();
-          const printUrl = `http://localhost:${process.env.PORT || 5000}/print/results?assessmentId=${completedAssessment.id}`;
+          const userLang = (memberUser as any).preferredLanguage || "en";
+          const printUrl = `http://localhost:${process.env.PORT || 5000}/print/results?assessmentId=${completedAssessment.id}&lang=${userLang}`;
           
           // Validate URL before navigation
           validatePdfUrl(printUrl);

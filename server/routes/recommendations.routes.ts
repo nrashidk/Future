@@ -468,12 +468,20 @@ export function registerRecommendationsRoutes(app: Express) {
         });
       }
 
+      // Resolve user's preferred language for narrative output
+      let narrativeLanguage = "en";
+      if (assessment.userId) {
+        const narrativeUser = await storage.getUser(assessment.userId);
+        narrativeLanguage = narrativeUser?.preferredLanguage || "en";
+      }
+
       // Generate education pathways narrative
       const result = await generateEducationPathwaysNarrative(
         storage,
         assessment,
         career,
-        recommendation.overallMatchScore
+        recommendation.overallMatchScore,
+        narrativeLanguage
       );
 
       if (!result.success) {

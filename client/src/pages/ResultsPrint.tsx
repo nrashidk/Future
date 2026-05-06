@@ -83,6 +83,14 @@ export default function ResultsPrint() {
   const urlParams = new URLSearchParams(window.location.search);
   const assessmentId = urlParams.get("assessmentId");
   const guestToken = urlParams.get("guestToken");
+  const langParam = urlParams.get("lang") || "en";
+
+  // Apply language direction for PDF rendering
+  useEffect(() => {
+    const dir = langParam === "ar" ? "rtl" : "ltr";
+    document.documentElement.lang = langParam;
+    document.documentElement.dir = dir;
+  }, [langParam]);
 
   const { data: recommendations = [], isLoading } = useQuery<any[]>({
     queryKey: assessmentId 

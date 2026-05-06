@@ -114,7 +114,8 @@ export async function generateNarrative(
   storage: IStorage,
   promptKey: string,
   studentContext: StudentContext,
-  careerContext: CareerContext
+  careerContext: CareerContext,
+  language: string = "en"
 ): Promise<NarrativeResult> {
   try {
     const credential = await storage.getApiCredential("anthropic");
@@ -140,7 +141,8 @@ export async function generateNarrative(
     const userPrompt = replaceTemplateVariables(
       template.userPromptTemplate,
       studentContext,
-      careerContext
+      careerContext,
+      language
     );
 
     const model = template.model || DEFAULT_MODEL;
@@ -178,12 +180,13 @@ export async function generateCareerReasoningNarrative(
   storage: IStorage,
   assessment: Assessment,
   career: Career,
-  overallScore: number
+  overallScore: number,
+  language: string = "en"
 ): Promise<NarrativeResult> {
   const studentContext = buildStudentContext(assessment, overallScore);
   const careerContext = buildCareerContext(career);
 
-  return generateNarrative(storage, "career_reasoning", studentContext, careerContext);
+  return generateNarrative(storage, "career_reasoning", studentContext, careerContext, language);
 }
 
 /**
@@ -193,12 +196,13 @@ export async function generateEducationPathwaysNarrative(
   storage: IStorage,
   assessment: Assessment,
   career: Career,
-  overallScore: number
+  overallScore: number,
+  language: string = "en"
 ): Promise<NarrativeResult> {
   const studentContext = buildStudentContext(assessment, overallScore);
   const careerContext = buildCareerContext(career);
 
-  return generateNarrative(storage, "education_pathways", studentContext, careerContext);
+  return generateNarrative(storage, "education_pathways", studentContext, careerContext, language);
 }
 
 /**
@@ -273,14 +277,15 @@ export async function generateAllPremiumNarratives(
   storage: IStorage,
   assessment: Assessment,
   career: Career,
-  overallScore: number
+  overallScore: number,
+  language: string = "en"
 ): Promise<{
   careerReasoning: NarrativeResult;
   educationPathways: NarrativeResult;
 }> {
   const [careerReasoning, educationPathways] = await Promise.all([
-    generateCareerReasoningNarrative(storage, assessment, career, overallScore),
-    generateEducationPathwaysNarrative(storage, assessment, career, overallScore),
+    generateCareerReasoningNarrative(storage, assessment, career, overallScore, language),
+    generateEducationPathwaysNarrative(storage, assessment, career, overallScore, language),
   ]);
 
   return { careerReasoning, educationPathways };

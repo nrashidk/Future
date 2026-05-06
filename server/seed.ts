@@ -1824,7 +1824,9 @@ Write 4-5 paragraphs explaining:
 2. How their interests and strengths fit the work environment
 3. How their values align with this career path
 4. Their subject strengths and skill development opportunities
-5. Growth potential and future outlook in the UAE`,
+5. Growth potential and future outlook in the UAE
+
+IMPORTANT: Write your entire response in {{language}}. If the language is Arabic, use right-to-left Arabic script throughout.`,
       model: "claude-sonnet-4-6",
       maxTokens: 1000,
       temperature: 0.7,
@@ -1854,7 +1856,9 @@ Provide guidance on:
 
 Important: Direct students to verify program accreditation at:
 - UAE Commission for Academic Accreditation: https://caa.ae/Pages/Institutes/All.aspx
-- Accredited Programs: https://caa.ae/Pages/Programs/All.aspx`,
+- Accredited Programs: https://caa.ae/Pages/Programs/All.aspx
+
+IMPORTANT: Write your entire response in {{language}}. If the language is Arabic, use right-to-left Arabic script throughout.`,
       model: "claude-sonnet-4-6",
       maxTokens: 800,
       temperature: 0.7,
@@ -1868,12 +1872,15 @@ Important: Direct students to verify program accreditation at:
       console.log(`✓ Created prompt template: ${template.name}`);
     } catch (error: any) {
       if (error?.message?.includes('unique') || error?.code === '23505' || error?.cause?.code === '23505') {
-        // Template exists — update the model to the current default in case it was a GPT model
+        // Template exists — update model and userPromptTemplate to current defaults
         try {
           const existing = await storage.getLlmPromptTemplateByKey(template.key);
-          if (existing && existing.model !== template.model) {
-            await storage.updateLlmPromptTemplate(existing.id, { model: template.model });
-            console.log(`  Prompt template ${template.name} already exists (model updated to ${template.model})`);
+          if (existing) {
+            await storage.updateLlmPromptTemplate(existing.id, {
+              model: template.model,
+              userPromptTemplate: template.userPromptTemplate,
+            });
+            console.log(`  Prompt template ${template.name} already exists (model + userPromptTemplate updated)`);
           } else {
             console.log(`  Prompt template ${template.name} already exists`);
           }

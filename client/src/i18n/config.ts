@@ -10,7 +10,7 @@ i18n
     fallbackLng: "en",
     supportedLngs: ["en", "ar"],
     defaultNS: "common",
-    ns: ["common"],
+    ns: ["common", "landing", "assessment", "results", "auth", "admin"],
     backend: {
       loadPath: "/locales/{{lng}}/{{ns}}.json",
     },
