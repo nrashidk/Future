@@ -2,12 +2,28 @@ import type { Express } from "express";
 import { storage } from "../storage";
 import { isAuthenticated } from "../auth";
 
+/** Detect preferred language from Accept-Language or X-Language header */
+function getRequestLanguage(req: any): string {
+  const acceptLang = (req.headers["accept-language"] || "").toLowerCase();
+  const xLang = (req.headers["x-language"] || "").toLowerCase();
+  if (acceptLang.startsWith("ar") || xLang === "ar") return "ar";
+  return "en";
+}
+
 export function registerCvqRoutes(app: Express) {
-  app.get("/api/cvq/items", async (req, res) => {
+  app.get("/api/cvq/items", async (req: any, res) => {
     try {
       const version = req.query.version as string | undefined;
       const items = await storage.getCvqItems(version);
-      res.json({ items });
+      const lang = getRequestLanguage(req);
+      // When Arabic is requested, surface textAr as the display text field
+      const shapedItems = lang === "ar"
+        ? items.map((item: any) => ({
+            ...item,
+            text: item.textAr || item.text,
+          }))
+        : items;
+      res.json({ items: shapedItems });
     } catch (error) {
       console.error("Error fetching CVQ items:", error);
       res.status(500).json({ message: "Failed to fetch CVQ items" });

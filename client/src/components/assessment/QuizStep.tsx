@@ -15,11 +15,18 @@ interface QuizStepProps {
   onComplete: () => void;
 }
 
+interface QuizOption {
+  id: string;
+  text: string;
+  textAr?: string;
+}
+
 interface QuizQuestion {
   id: string;
   question: string;
+  questionAr?: string | null;
   questionType: "multiple_choice" | "rating";
-  options: { id: string; text: string }[];
+  options: QuizOption[];
   domain: string;
   cognitiveLevel: string;
 }
@@ -255,17 +262,17 @@ export function QuizStep({ assessmentId, onComplete }: QuizStepProps) {
                   </div>
                   <div className="flex-1">
                     <Label className="text-base font-semibold leading-tight">
-                      {index + 1}. {language === 'ar' && (question as any).questionAr ? (question as any).questionAr : question.question}
+                      {index + 1}. {language === 'ar' && question.questionAr ? question.questionAr : question.question}
                     </Label>
                   </div>
                 </div>
 
                 <RadioGroup
-                  value={question.options.find((o: any) => o.text === responses[question.id])?.id || ""}
+                  value={question.options.find((o) => o.text === responses[question.id])?.id || ""}
                   onValueChange={(optionId) => handleAnswerChange(question.id, optionId)}
                   className="space-y-2 ps-11"
                 >
-                  {(language === 'ar' && (question as any).optionsAr?.length ? (question as any).optionsAr : question.options).map((option: any) => (
+                  {question.options.map((option) => (
                     <div 
                       key={option.id} 
                       className="flex items-center gap-2 p-2 min-h-[44px] rounded-lg hover-elevate cursor-pointer"
@@ -280,7 +287,7 @@ export function QuizStep({ assessmentId, onComplete }: QuizStepProps) {
                         htmlFor={`${question.id}-${option.id}`}
                         className="flex-1 cursor-pointer text-sm"
                       >
-                        {option.text}
+                        {language === 'ar' && option.textAr ? option.textAr : option.text}
                       </Label>
                     </div>
                   ))}

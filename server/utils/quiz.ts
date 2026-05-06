@@ -12,6 +12,18 @@ function shuffleArray<T>(array: T[]): T[] {
 }
 
 /**
+ * Shuffles an array of indices to produce a reusable permutation.
+ */
+function shuffleIndices(length: number): number[] {
+  const indices = Array.from({ length }, (_, i) => i);
+  for (let i = indices.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [indices[i], indices[j]] = [indices[j], indices[i]];
+  }
+  return indices;
+}
+
+/**
  * Shuffles an array of quiz questions randomly
  */
 export function shuffleQuestions(questions: any[]): any[] {
@@ -19,70 +31,77 @@ export function shuffleQuestions(questions: any[]): any[] {
 }
 
 /**
- * Shuffles the answer options for a single question while preserving correctAnswer linkage
- * Returns a new question object with shuffled options and updated correctAnswer reference
+ * Shuffles the answer options for a single question while preserving correctAnswer linkage.
+ * Applies the SAME permutation to optionsAr (Arabic options) so that option IDs remain
+ * synchronized between English and Arabic — critical for language-agnostic scoring.
  */
 export function shuffleOptions(question: any): any {
   if (!Array.isArray(question.options) || question.options.length === 0) {
     return question;
   }
 
-  // Create a mapping of original option text to new shuffled index
-  const shuffledOptions = shuffleArray(question.options);
-  
-  // Find the new position of the correct answer
+  // Generate one permutation and apply it to both English and Arabic options
+  const permutation = shuffleIndices(question.options.length);
+  const shuffledOptions = permutation.map((i) => question.options[i]);
+
+  // Apply the identical permutation to Arabic options (keeps IDs in sync)
+  const shuffledOptionsAr =
+    Array.isArray(question.optionsAr) && question.optionsAr.length === question.options.length
+      ? permutation.map((i) => question.optionsAr[i])
+      : question.optionsAr;
+
+  // Update correctAnswer reference to the new (shuffled) position
   let newCorrectAnswer = question.correctAnswer;
   if (question.questionType === "multiple_choice" && question.correctAnswer) {
     const correctAnswerText = question.correctAnswer;
     const newIndex = shuffledOptions.findIndex((opt) => opt === correctAnswerText);
-    // Keep correctAnswer as the actual text value (not index)
     newCorrectAnswer = newIndex >= 0 ? shuffledOptions[newIndex] : correctAnswerText;
   }
 
   return {
     ...question,
     options: shuffledOptions,
-    correctAnswer: newCorrectAnswer
+    optionsAr: shuffledOptionsAr,
+    correctAnswer: newCorrectAnswer,
   };
 }
 
 /**
- * Transforms quiz questions from database format to frontend format
- * Converts options from string[] to {id, text}[] and handles sensitive data
+ * Transforms quiz questions from database format to frontend format.
+ * Merges optionsAr into the options array as a `textAr` field so the frontend
+ * can switch display language without index-drift between parallel arrays.
+ * Hides correctAnswer for multiple-choice questions.
  */
 export function transformQuizQuestionForFrontend(question: any): any {
   // Check if options are already in {id, text} format to avoid double-wrapping
-  const isAlreadyTransformed = 
-    Array.isArray(question.options) && 
+  const isAlreadyTransformed =
+    Array.isArray(question.options) &&
     question.options.length > 0 &&
-    typeof question.options[0] === 'object' &&
-    'text' in question.options[0];
+    typeof question.options[0] === "object" &&
+    "text" in question.options[0];
 
-  // Transform options from string array to object array with id and text
-  const transformedOptions = isAlreadyTransformed
-    ? question.options // Already transformed
-    : Array.isArray(question.options)
-    ? question.options.map((text: string, idx: number) => ({
-        id: idx.toString(),
-        text
-      }))
-    : question.options; // Invalid format, return as-is
+  const enOptions: string[] = isAlreadyTransformed
+    ? question.options.map((o: any) => o.text)
+    : question.options ?? [];
 
-  // Transform Arabic options the same way
-  const optionsAr = question.optionsAr;
-  const transformedOptionsAr = Array.isArray(optionsAr)
-    ? optionsAr.map((text: string, idx: number) => ({
-        id: idx.toString(),
-        text
-      }))
-    : undefined;
+  const arOptions: string[] = Array.isArray(question.optionsAr)
+    ? question.optionsAr.map((o: any) => (typeof o === "string" ? o : o.text))
+    : [];
+
+  // Unified option objects: { id, text (EN), textAr? (AR) }
+  const transformedOptions = enOptions.map((text: string, idx: number) => ({
+    id: idx.toString(),
+    text,
+    ...(arOptions[idx] !== undefined ? { textAr: arOptions[idx] } : {}),
+  }));
 
   return {
     ...question,
     options: transformedOptions,
-    optionsAr: transformedOptionsAr,
-    questionAr: question.questionAr,
+    // Remove the parallel optionsAr array — it is now merged into options[].textAr
+    optionsAr: undefined,
+    questionAr: question.questionAr ?? null,
     // Hide correct answers for multiple choice questions
-    correctAnswer: question.questionType === "rating" ? question.correctAnswer : undefined
+    correctAnswer: question.questionType === "rating" ? question.correctAnswer : undefined,
   };
 }

@@ -3,6 +3,23 @@ import { storage } from "../storage";
 import { transformQuizQuestionForFrontend, shuffleQuestions, shuffleOptions } from "../utils/quiz";
 import { normalizeSubjectsAsync } from "../utils/subjects";
 
+/** Detect preferred language from standard Accept-Language or custom X-Language header */
+function getRequestLanguage(req: any): string {
+  const acceptLang = (req.headers["accept-language"] || "").toLowerCase();
+  const xLang = (req.headers["x-language"] || "").toLowerCase();
+  if (acceptLang.startsWith("ar") || xLang === "ar") return "ar";
+  return "en";
+}
+
+/** Shape a transformed question so `question.question` is in the requested language */
+function applyLanguageToQuestion(question: any, lang: string): any {
+  if (lang !== "ar") return question;
+  return {
+    ...question,
+    question: question.questionAr || question.question,
+  };
+}
+
 interface QuizDistributionConfig {
   baseQuestionsPerSubject: number;
   priorityBonus: number;
@@ -92,11 +109,12 @@ export function registerQuizRoutes(app: Express) {
       if (existingQuiz) {
         const responses = await storage.getQuizResponsesByQuizId(existingQuiz.id);
         const questionIds = responses.map(r => r.questionId);
+        const lang = getRequestLanguage(req);
         
         const allQuestions = await storage.getAllQuizQuestions();
         const questions = allQuestions
           .filter(q => questionIds.includes(q.id))
-          .map(transformQuizQuestionForFrontend);
+          .map(q => applyLanguageToQuestion(transformQuizQuestionForFrontend(q), lang));
         
         return res.json({ 
           quizId: existingQuiz.id, 
@@ -252,7 +270,9 @@ export function registerQuizRoutes(app: Express) {
         });
       }
       
-      const questionsForFrontend = questionsWithShuffledOptions.map(transformQuizQuestionForFrontend);
+      const lang = getRequestLanguage(req);
+      const questionsForFrontend = questionsWithShuffledOptions
+        .map(q => applyLanguageToQuestion(transformQuizQuestionForFrontend(q), lang));
       
       const distributionInfo = Object.fromEntries(
         Array.from(distribution).map(([subject, target]) => {
@@ -299,10 +319,11 @@ export function registerQuizRoutes(app: Express) {
       const responses = await storage.getQuizResponsesByQuizId(quiz.id);
       const questionIds = responses.map(r => r.questionId);
       
+      const lang = getRequestLanguage(req);
       const allQuestions = await storage.getAllQuizQuestions();
       const questions = allQuestions
         .filter(q => questionIds.includes(q.id))
-        .map(transformQuizQuestionForFrontend);
+        .map(q => applyLanguageToQuestion(transformQuizQuestionForFrontend(q), lang));
       
       res.json({ 
         quizId: quiz.id, 
