@@ -12,11 +12,11 @@
  */
 
 import { db } from './db';
-import { cvqItems, type InsertCvqItem } from '../shared/schema';
+import { cvqItems } from '../shared/schema';
 import { eq } from 'drizzle-orm';
 
 // CVQ Items based on validated PVQ-40 items, adapted for youth
-export const CVQ_SEED_DATA: InsertCvqItem[] = [
+export const CVQ_SEED_DATA: Array<typeof cvqItems.$inferInsert> = [
   // ACHIEVEMENT - Personal success through demonstrating competence (3 items)
   {
     id: 'CVQ-A1',
@@ -227,7 +227,7 @@ export async function seedCVQItems() {
     }
 
     // First-time seed — insert all items
-    await db.insert(cvqItems).values(CVQ_SEED_DATA as any);
+    await db.insert(cvqItems).values(CVQ_SEED_DATA);
     console.log(`✓ Created ${CVQ_SEED_DATA.length} CVQ items (7 domains × 3 questions) with Arabic translations`);
     console.log('  Domains: Achievement, Benevolence, Universalism, Self-Direction, Security, Power, Hedonism');
   } catch (error) {

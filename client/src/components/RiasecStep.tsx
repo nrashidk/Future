@@ -17,7 +17,6 @@ import {
   ArrowLeft
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
-import { useLanguage } from "@/contexts/LanguageContext";
 
 /**
  * Career Personality Assessment
@@ -31,8 +30,6 @@ export type Likert = 1 | 2 | 3 | 4 | 5;
 export type RiasecItem = {
   id: string;
   theme: Theme;
-  text: string;
-  textAr: string;
 };
 
 export type RiasecScores = {
@@ -51,54 +48,54 @@ interface RiasecStepProps {
   onBack: () => void;
 }
 
-// 30 original items (5 per theme) with Arabic translations
+// 30 items: id and theme only — text is served from the riasec.json locale namespace
 const ITEMS: RiasecItem[] = [
   // R — Realistic (hands-on, tools, outdoors)
-  { id: "R1", theme: "R", text: "I enjoy building, fixing, or operating physical things", textAr: "أستمتع ببناء الأشياء المادية وإصلاحها أو تشغيلها" },
-  { id: "R2", theme: "R", text: "I prefer tasks with clear, practical steps", textAr: "أفضّل المهام ذات الخطوات الواضحة والعملية" },
-  { id: "R3", theme: "R", text: "I like working with tools, machines, or equipment", textAr: "أحب العمل بالأدوات والآلات والمعدات" },
-  { id: "R4", theme: "R", text: "I would rather be active and hands-on than sitting at a desk all day", textAr: "أفضّل النشاط والعمل اليدوي على الجلوس خلف مكتب طوال اليوم" },
-  { id: "R5", theme: "R", text: "I enjoy outdoor or physical work when possible", textAr: "أستمتع بالعمل في الهواء الطلق أو العمل البدني كلما أمكن" },
+  { id: "R1", theme: "R" },
+  { id: "R2", theme: "R" },
+  { id: "R3", theme: "R" },
+  { id: "R4", theme: "R" },
+  { id: "R5", theme: "R" },
 
   // I — Investigative (ideas, analysis, science)
-  { id: "I1", theme: "I", text: "I'm drawn to figuring out how things work", textAr: "أنجذب إلى فهم كيفية عمل الأشياء" },
-  { id: "I2", theme: "I", text: "I like searching for patterns, causes, or mechanisms", textAr: "أحب البحث عن الأنماط والأسباب والآليات" },
-  { id: "I3", theme: "I", text: "I prefer problems that require research or analysis", textAr: "أفضّل المسائل التي تستلزم البحث أو التحليل" },
-  { id: "I4", theme: "I", text: "I enjoy experimenting to test a hypothesis", textAr: "أستمتع بإجراء التجارب لاختبار الفرضيات" },
-  { id: "I5", theme: "I", text: "I like reading technical or scientific material", textAr: "أحب قراءة المواد التقنية والعلمية" },
+  { id: "I1", theme: "I" },
+  { id: "I2", theme: "I" },
+  { id: "I3", theme: "I" },
+  { id: "I4", theme: "I" },
+  { id: "I5", theme: "I" },
 
   // A — Artistic (create/express, design)
-  { id: "A1", theme: "A", text: "I enjoy creating things (art, writing, music, design)", textAr: "أستمتع بإنشاء أشياء (فن، كتابة، موسيقى، تصميم)" },
-  { id: "A2", theme: "A", text: "I value freedom to try unconventional ideas", textAr: "أقدّر حرية تجربة الأفكار غير التقليدية" },
-  { id: "A3", theme: "A", text: "I'm energized by work that uses style, aesthetics, or storytelling", textAr: "يشحنني العمل الذي يعتمد على الأسلوب والجماليات أو رواية القصص" },
-  { id: "A4", theme: "A", text: "I prefer tasks without rigid rules", textAr: "أفضّل المهام التي لا تفرض قواعد صارمة" },
-  { id: "A5", theme: "A", text: "I like to express my viewpoint through what I make", textAr: "أحب التعبير عن وجهة نظري من خلال ما أصنعه" },
+  { id: "A1", theme: "A" },
+  { id: "A2", theme: "A" },
+  { id: "A3", theme: "A" },
+  { id: "A4", theme: "A" },
+  { id: "A5", theme: "A" },
 
   // S — Social (help/teach, service)
-  { id: "S1", theme: "S", text: "I enjoy helping people learn, grow, or solve problems", textAr: "أستمتع بمساعدة الآخرين على التعلم والنمو وحل المشكلات" },
-  { id: "S2", theme: "S", text: "I'm good at listening and understanding others' needs", textAr: "أجيد الإنصات وفهم احتياجات الآخرين" },
-  { id: "S3", theme: "S", text: "I prefer collaborative work with lots of interaction", textAr: "أفضّل العمل التعاوني الذي يتضمن تفاعلاً كثيراً" },
-  { id: "S4", theme: "S", text: "I'm fulfilled by roles that serve a community or cause", textAr: "أشعر بالرضا في الأدوار التي تخدم مجتمعاً أو قضية" },
-  { id: "S5", theme: "S", text: "People often come to me for guidance or support", textAr: "كثيراً ما يلجأ إليّ الآخرون للإرشاد والدعم" },
+  { id: "S1", theme: "S" },
+  { id: "S2", theme: "S" },
+  { id: "S3", theme: "S" },
+  { id: "S4", theme: "S" },
+  { id: "S5", theme: "S" },
 
   // E — Enterprising (lead/sell, influence)
-  { id: "E1", theme: "E", text: "I like persuading or motivating people toward a goal", textAr: "أحب إقناع الآخرين وتحفيزهم نحو تحقيق هدف" },
-  { id: "E2", theme: "E", text: "I'm comfortable taking the lead and making decisions", textAr: "أشعر بالارتياح حين أتولى القيادة وأتخذ القرارات" },
-  { id: "E3", theme: "E", text: "I enjoy spotting opportunities and taking initiative", textAr: "أستمتع برصد الفرص وأخذ زمام المبادرة" },
-  { id: "E4", theme: "E", text: "I'm drawn to competitive or results-driven environments", textAr: "أنجذب إلى البيئات التنافسية الموجهة بالنتائج" },
-  { id: "E5", theme: "E", text: "I like influencing outcomes and making things happen", textAr: "أحب التأثير في النتائج وتحقيق الأشياء على أرض الواقع" },
+  { id: "E1", theme: "E" },
+  { id: "E2", theme: "E" },
+  { id: "E3", theme: "E" },
+  { id: "E4", theme: "E" },
+  { id: "E5", theme: "E" },
 
   // C — Conventional (organization, data, procedures)
-  { id: "C1", theme: "C", text: "I enjoy organizing information or materials systematically", textAr: "أستمتع بتنظيم المعلومات والمواد بشكل منهجي" },
-  { id: "C2", theme: "C", text: "I prefer working with clear rules and procedures", textAr: "أفضّل العمل وفق قواعد وإجراءات واضحة" },
-  { id: "C3", theme: "C", text: "I'm good at managing details and keeping things in order", textAr: "أجيد إدارة التفاصيل والحفاظ على النظام" },
-  { id: "C4", theme: "C", text: "I like tasks that require accuracy and precision", textAr: "أحب المهام التي تتطلب الدقة والإتقان" },
-  { id: "C5", theme: "C", text: "I feel satisfied when everything is properly documented", textAr: "أشعر بالرضا حين يكون كل شيء موثقاً على النحو الصحيح" },
+  { id: "C1", theme: "C" },
+  { id: "C2", theme: "C" },
+  { id: "C3", theme: "C" },
+  { id: "C4", theme: "C" },
+  { id: "C5", theme: "C" },
 ];
 
 export default function RiasecStep({ onComplete, onBack }: RiasecStepProps) {
   const { t } = useTranslation('assessment');
-  const { language } = useLanguage();
+  const { t: tRiasec } = useTranslation('riasec');
 
   const THEME_INFO = {
     R: { name: t('riasec.themeR'), icon: Compass, color: "green", description: t('riasec.themeRDesc') },
@@ -251,7 +248,7 @@ export default function RiasecStep({ onComplete, onBack }: RiasecStepProps) {
                           ({themeInfo.name})
                         </span>
                       </div>
-                      <p className="text-lg font-medium mb-4">{language === 'ar' ? item.textAr : item.text}</p>
+                      <p className="text-lg font-medium mb-4">{tRiasec(`items.${item.id}`)}</p>
                       
                       <RadioGroup
                         value={responses[item.id]?.toString()}

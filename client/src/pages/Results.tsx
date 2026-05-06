@@ -35,6 +35,21 @@ function getCountryDisplayName(country: any): string {
   return country?.name || "your country";
 }
 
+// Map raw country.targets keys to results-namespace i18n keys for localized display
+const CATEGORY_I18N_KEY: Record<string, string> = {
+  tech: 'visionCategoryTech',
+  technology: 'visionCategoryTech',
+  climate: 'visionCategoryClimate',
+  environment: 'visionCategoryClimate',
+  economic: 'visionCategoryEconomic',
+  economy: 'visionCategoryEconomic',
+};
+
+function localizeCategory(raw: string, tFn: (key: string, opts?: any) => string): string {
+  const i18nKey = CATEGORY_I18N_KEY[raw.toLowerCase()];
+  return i18nKey ? tFn(i18nKey) : raw;
+}
+
 // Helper to map subjects to vision sectors using actual country vision data
 function mapSubjectsToVisionSectors(
   subjectScores: Record<string, { percentage: number }>,
@@ -53,7 +68,7 @@ function mapSubjectsToVisionSectors(
 
   // Extract vision categories from country.targets (jsonb object with keys like "tech","climate","economic")
   const visionCategories = Object.keys(country.targets);
-  
+
   // Map subjects to vision category keywords
   const subjectKeywords: Record<string, string[]> = {
     Mathematics: ["technology", "innovation", "economic", "industry"],
@@ -64,27 +79,28 @@ function mapSubjectsToVisionSectors(
     English: ["economic", "development", "global"],
   };
 
-  // Find matching vision categories for top subjects
-  const matchedCategories = new Set<string>();
+  // Find matching vision categories for top subjects (store raw keys for matching)
+  const matchedRawCategories = new Set<string>();
   topSubjects.forEach((subject) => {
     const keywords = subjectKeywords[subject] || [];
     visionCategories.forEach((category) => {
       const categoryLower = category.toLowerCase();
       if (keywords.some(keyword => categoryLower.includes(keyword))) {
-        matchedCategories.add(category);
+        matchedRawCategories.add(category);
       }
     });
   });
 
-  if (matchedCategories.size === 0) return null;
+  if (matchedRawCategories.size === 0) return null;
 
-  // Build message with actual country vision categories
+  // Translate raw category keys to localized display labels
   const andWord = tFn('and');
   const subjectsText = topSubjects.join(` ${andWord} `);
-  const categoriesArray = Array.from(matchedCategories).slice(0, 2); // Limit to 2 categories
-  const categoriesText = categoriesArray.length === 1
-    ? categoriesArray[0]
-    : `${categoriesArray[0]} ${andWord} ${categoriesArray[1]}`;
+  const rawArray = Array.from(matchedRawCategories).slice(0, 2);
+  const localizedArray = rawArray.map(raw => localizeCategory(raw, tFn));
+  const categoriesText = localizedArray.length === 1
+    ? localizedArray[0]
+    : `${localizedArray[0]} ${andWord} ${localizedArray[1]}`;
 
   return tFn('visionLinkageText', {
     subjects: subjectsText,

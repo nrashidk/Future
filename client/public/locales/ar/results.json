@@ -23,6 +23,9 @@
   "visionGeneric": "كل توصية تُظهر كيف تُمكّنك قوتك في المواد من المساهمة في أولويات التنمية الوطنية وأهداف المستقبل.",
   "visionLinkageText": "تتوافق نقاط قوتك في {{subjects}} مباشرةً مع أولويات {{country}} في {{categories}} ضمن رؤيتها الوطنية.",
   "and": "و",
+  "visionCategoryTech": "التكنولوجيا",
+  "visionCategoryClimate": "المناخ والبيئة",
+  "visionCategoryEconomic": "الاقتصاد",
 
   "valuesTitle": "ما الأهم بالنسبة لك",
   "valuesSubtitle": "بناءً على تقييم القيم الشامل",
