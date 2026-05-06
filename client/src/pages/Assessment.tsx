@@ -7,7 +7,7 @@ import { DemographicsStep } from "@/components/assessment/DemographicsStep";
 import { SubjectsStep } from "@/components/assessment/SubjectsStep";
 import { InterestsStep } from "@/components/assessment/InterestsStep";
 import { PersonalityStep } from "@/components/assessment/PersonalityStep";
-import RiasecStep from "@/components/RiasecStep";
+import RiasecStep, { type RiasecScores } from "@/components/RiasecStep";
 import CVQStep from "@/components/CVQStep";
 import { CountryStep } from "@/components/assessment/CountryStep";
 import { AspirationsStep } from "@/components/assessment/AspirationsStep";
@@ -272,13 +272,9 @@ export default function Assessment() {
       return;
     }
     
-    // Premium users: Continue to next step (RIASEC at step 5)
-    // Free users: Generate recommendations and go to results
-    if (isPremiumUser) {
-      setCurrentStep(5);
-      return;
-    }
-    
+    // Free users only: Generate recommendations after quiz (step 7)
+    // Premium users complete quiz at step 4 and continue to RIASEC → CVQ → Aspirations
+    // Premium recommendation generation is handled by handleNext at the Aspirations step (step 7)
     try {
       const { apiRequest } = await import("@/lib/queryClient");
       
@@ -295,6 +291,32 @@ export default function Assessment() {
         variant: "destructive",
       });
     }
+  };
+
+  // Save RIASEC scores immediately to the backend and advance to CVQ (step 6)
+  // We cannot rely on auto-save or state settling before the final Aspirations save,
+  // because React state updates are async and the closure at step 7 could miss the data.
+  const handleRiasecComplete = async (scores: RiasecScores) => {
+    updateAssessmentData("riasecResponses", scores);
+
+    if (!assessmentId) {
+      console.error("No assessmentId when RIASEC completed — cannot save scores");
+      setCurrentStep(6);
+      return;
+    }
+
+    try {
+      const { apiRequest } = await import("@/lib/queryClient");
+      await apiRequest("PATCH", `/api/assessments/${assessmentId}`, {
+        riasecResponses: scores,
+      });
+    } catch (error) {
+      // Non-fatal: RIASEC data is still in local state and will be included in the
+      // final Aspirations save (step 7).  Log for debugging but don't block the user.
+      console.error("Failed to save RIASEC scores immediately, will retry at step 7:", error);
+    }
+
+    setCurrentStep(6);
   };
 
   const handleBack = () => {
@@ -553,10 +575,7 @@ export default function Assessment() {
           <>
             {isPremiumUser ? (
               <RiasecStep
-                onComplete={(scores) => {
-                  updateAssessmentData("riasecResponses", scores);
-                  handleNext();
-                }}
+                onComplete={handleRiasecComplete}
                 onBack={() => setCurrentStep(4)}
               />
             ) : (
