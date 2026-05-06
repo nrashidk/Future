@@ -24,6 +24,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { isPremiumAssessment } from "@shared/assessmentTier";
+import i18n from "@/i18n/config";
 
 // Helper to get display name
 function getCountryDisplayName(country: any): string {
@@ -85,11 +86,13 @@ export default function ResultsPrint() {
   const guestToken = urlParams.get("guestToken");
   const langParam = urlParams.get("lang") || "en";
 
-  // Apply language direction for PDF rendering
+  // Apply language direction and i18n locale for PDF rendering
   useEffect(() => {
-    const dir = langParam === "ar" ? "rtl" : "ltr";
-    document.documentElement.lang = langParam;
+    const safeLang = langParam === "ar" ? "ar" : "en";
+    const dir = safeLang === "ar" ? "rtl" : "ltr";
+    document.documentElement.lang = safeLang;
     document.documentElement.dir = dir;
+    i18n.changeLanguage(safeLang);
   }, [langParam]);
 
   const { data: recommendations = [], isLoading } = useQuery<any[]>({

@@ -293,7 +293,13 @@ export function registerRecommendationsRoutes(app: Express) {
       
       // Include guest token if this is a guest assessment
       const guestTokenParam = assessment.guestSessionId ? `&guestToken=${assessment.guestSessionId}` : '';
-      const printUrl = `${baseUrl}/print/results?assessmentId=${assessment.id}${guestTokenParam}`;
+      // Resolve user preferred language for PDF rendering
+      let pdfLang = "en";
+      if (assessment.userId) {
+        const pdfUser = await storage.getUser(assessment.userId);
+        pdfLang = pdfUser?.preferredLanguage || "en";
+      }
+      const printUrl = `${baseUrl}/print/results?assessmentId=${assessment.id}${guestTokenParam}&lang=${pdfLang}`;
       
       // SECURITY: Comprehensive URL validation to prevent SSRF attacks
       try {
