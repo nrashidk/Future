@@ -19,21 +19,22 @@ interface DemographicsStepProps {
   predefinedGender?: string | null;
 }
 
-// Helper function to convert grade codes to readable labels
-const getGradeLabel = (gradeCode: string): string => {
-  const gradeMap: Record<string, string> = {
-    'grade8': 'Grade 8',
-    'grade9': 'Grade 9',
-    'grade10': 'Grade 10',
-    'grade11': 'Grade 11',
-    'grade12': 'Grade 12',
-    'graduated': 'Recently Graduated'
-  };
-  return gradeMap[gradeCode] || gradeCode;
-};
-
 export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, predefinedName, predefinedAge, predefinedGender }: DemographicsStepProps) {
   const { t } = useTranslation('assessment');
+
+  // Convert grade codes to localized labels using i18n keys
+  const getGradeLabel = (gradeCode: string): string => {
+    const gradeKeyMap: Record<string, string> = {
+      'grade8': 'demographics.grade8',
+      'grade9': 'demographics.grade9',
+      'grade10': 'demographics.grade10',
+      'grade11': 'demographics.grade11',
+      'grade12': 'demographics.grade12',
+      'graduated': 'demographics.graduated',
+    };
+    const key = gradeKeyMap[gradeCode];
+    return key ? t(key) : gradeCode;
+  };
   const [isMobile, setIsMobile] = useState(false);
   
   // Detect if user is an organization student (has predefinedGrade)
