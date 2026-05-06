@@ -1,5 +1,9 @@
 import type { Config } from "tailwindcss";
 
+// RTL note: Arabic/RTL layout is handled via html[dir="rtl"] set by LanguageContext.
+// Tailwind's logical properties (start/end) are used where direction-aware spacing is needed.
+// No additional RTL plugin is required — the app relies on CSS logical properties and
+// the Cairo font switch in index.css ([lang="ar"]) for Arabic rendering.
 export default {
   darkMode: ["class"],
   content: ["./client/index.html", "./client/src/**/*.{js,jsx,ts,tsx}"],
