@@ -83,8 +83,9 @@ function CareerReasoningText({
   fallback: string;
 }) {
   const { t } = useTranslation('results');
+  const { language } = useLanguage();
   const { data, isLoading, isError } = useQuery<any>({
-    queryKey: [`/api/recommendations/${assessmentId}/career-reasoning/${careerId}`],
+    queryKey: [`/api/recommendations/${assessmentId}/career-reasoning/${careerId}?lang=${language}`],
     retry: false,
     staleTime: Infinity,
   });
