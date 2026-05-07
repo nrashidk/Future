@@ -3,7 +3,7 @@ import { StickyNote } from "@/components/StickyNote";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Brain, CheckCircle2, Loader2 } from "lucide-react";
+import { Brain, CheckCircle2, Loader2, Construction } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -155,7 +155,9 @@ export function QuizStep({ assessmentId, onComplete }: QuizStepProps) {
           <div className="text-center space-y-6 max-w-2xl">
             <div className="relative inline-block">
               <StickyNote color="yellow" rotation="2" className="mb-4">
-                <div className="text-6xl mb-2">🚧</div>
+                <div className="flex justify-center mb-4">
+                  <Construction className="w-16 h-16 text-primary" aria-hidden="true" />
+                </div>
                 <h2 className="text-3xl font-bold mb-2">{t('quiz.comingSoon')}</h2>
                 <p className="text-base text-muted-foreground">
                   {t('quiz.comingSoonSubtitle')}
