@@ -21,7 +21,8 @@
     "errorSave": "Failed to save assessment: {{message}}",
     "errorRecsTitle": "Error",
     "errorRecs": "Failed to generate recommendations. Please try again.",
-    "stepLabel": "Step {{current}} of {{total}}"
+    "stepLabel": "Step {{current}} of {{total}}",
+    "unknownError": "Unknown error"
   },
   "demographics": {
     "title": "Let's Get to Know You!",
@@ -183,7 +184,8 @@
     "unableToGenerateDesc": "We couldn't create your quiz at this time. Please try again or continue to see your results.",
     "alreadySubmitted": "Quiz Already Submitted",
     "alreadySubmittedDesc": "Moving to the next step...",
-    "errorTitle": "Error"
+    "errorTitle": "Error",
+    "submitFailed": "Failed to submit quiz. Please try again."
   },
   "riasec": {
     "title": "Career Personality",

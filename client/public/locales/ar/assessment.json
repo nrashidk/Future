@@ -21,7 +21,8 @@
     "errorSave": "فشل حفظ التقييم: {{message}}",
     "errorRecsTitle": "خطأ",
     "errorRecs": "فشل إنشاء التوصيات. يرجى المحاولة مرة أخرى.",
-    "stepLabel": "الخطوة {{current}} من {{total}}"
+    "stepLabel": "الخطوة {{current}} من {{total}}",
+    "unknownError": "خطأ غير معروف"
   },
   "demographics": {
     "title": "دعنا نتعرف عليك!",
@@ -183,7 +184,8 @@
     "unableToGenerateDesc": "لم نتمكن من إنشاء اختبارك في هذا الوقت. يرجى المحاولة مرة أخرى أو المتابعة لرؤية نتائجك.",
     "alreadySubmitted": "الاختبار مقدَّم بالفعل",
     "alreadySubmittedDesc": "جارٍ الانتقال إلى الخطوة التالية...",
-    "errorTitle": "خطأ"
+    "errorTitle": "خطأ",
+    "submitFailed": "فشل إرسال الاختبار. يرجى المحاولة مرة أخرى."
   },
   "riasec": {
     "title": "الشخصية المهنية",

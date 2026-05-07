@@ -260,7 +260,7 @@ export default function Assessment() {
         console.error("Error saving assessment:", error);
         toast({
           title: t('page.errorSaveTitle'),
-          description: t('page.errorSave', { message: error instanceof Error ? error.message : 'Unknown error' }),
+          description: t('page.errorSave', { message: error instanceof Error ? error.message : t('page.unknownError') }),
           variant: "destructive",
         });
       }

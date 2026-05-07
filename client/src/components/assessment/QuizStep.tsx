@@ -81,7 +81,7 @@ export function QuizStep({ assessmentId, onComplete }: QuizStepProps) {
       }, 3000);
     },
     onError: (error: any) => {
-      const errorMessage = error?.message || "Failed to submit quiz. Please try again.";
+      const errorMessage = error?.message || t('quiz.submitFailed');
       
       // If quiz already submitted, auto-advance to next step
       if (errorMessage.includes("already been submitted")) {
