@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Loader2 } from "lucide-react";
 import { CredentialsModal } from "@/components/CredentialsModal";
 import { useTranslation } from "react-i18next";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 // Initialize Stripe (lazy loaded)
 let stripePromise: Promise<Stripe | null> | null = null;
@@ -74,12 +75,12 @@ function CheckoutForm({ amount, studentCount }: { amount: number | null; student
 
     const emailErr = validateEmail(email);
     if (emailErr) {
-      toast({ title: t("checkout.invalidEmailTitle"), description: emailErr, variant: "destructive" });
+      toast({ title: t("checkout.invalidEmailTitle"), description: t("checkout.invalidEmailDesc"), variant: "destructive" });
       return;
     }
     const phoneErr = validatePhone(phone);
     if (phoneErr) {
-      toast({ title: t("checkout.invalidPhoneTitle"), description: phoneErr, variant: "destructive" });
+      toast({ title: t("checkout.invalidPhoneTitle"), description: t("checkout.invalidPhoneDesc"), variant: "destructive" });
       return;
     }
 
@@ -298,6 +299,7 @@ function CheckoutForm({ amount, studentCount }: { amount: number | null; student
 
 export default function Checkout() {
   const { t } = useTranslation("pricing");
+  const { language } = useLanguage();
   useEffect(() => { document.title = `${t("checkout.pageTitle")} | Future Pathways`; }, [t]);
 
   const [, setLocation] = useLocation();
@@ -382,6 +384,7 @@ export default function Checkout() {
                   options={{
                     clientSecret,
                     appearance: { theme: 'stripe' },
+                    locale: language === "ar" ? "ar" : "en",
                   }}
                 >
                   <CheckoutForm amount={serverAmount} studentCount={studentCount} />

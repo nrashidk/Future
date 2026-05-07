@@ -112,7 +112,7 @@ export default function Register() {
                     <FormItem>
                       <FormLabel>{t("register.firstName")}</FormLabel>
                       <FormControl>
-                        <Input placeholder="John" {...field} data-testid="input-first-name" />
+                        <Input placeholder={t("register.firstNamePlaceholder")} {...field} data-testid="input-first-name" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -125,7 +125,7 @@ export default function Register() {
                     <FormItem>
                       <FormLabel>{t("register.lastName")}</FormLabel>
                       <FormControl>
-                        <Input placeholder="Doe" {...field} data-testid="input-last-name" />
+                        <Input placeholder={t("register.lastNamePlaceholder")} {...field} data-testid="input-last-name" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -140,7 +140,7 @@ export default function Register() {
                   <FormItem>
                     <FormLabel>{t("register.email")}</FormLabel>
                     <FormControl>
-                      <Input type="email" placeholder="john@example.com" {...field} data-testid="input-email" />
+                      <Input type="email" placeholder={t("register.emailPlaceholder")} {...field} data-testid="input-email" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

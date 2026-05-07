@@ -81,6 +81,8 @@
     "processing": "جارٍ المعالجة...",
     "pay": "ادفع {{amount}}$",
     "secureNotice": "دفع آمن مدعوم من Stripe. معلومات دفعك مشفّرة وآمنة.",
+    "invalidEmailDesc": "يرجى إدخال بريد إلكتروني صحيح",
+    "invalidPhoneDesc": "يرجى إدخال رقم هاتف صحيح مكوّن من 10 أرقام ويبدأ بـ 05",
     "missingInfoTitle": "معلومات ناقصة",
     "missingInfoDesc": "يرجى ملء جميع الحقول المطلوبة",
     "invalidEmailTitle": "بريد إلكتروني غير صالح",

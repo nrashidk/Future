@@ -18,23 +18,23 @@ interface TokenVerifyResponse {
   email?: string;
 }
 
-const resetPasswordSchema = z.object({
-  newPassword: z.string()
-    .min(8, "Password must be at least 8 characters")
-    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-    .regex(/[a-z]/, "Password must contain at least one lowercase letter")
-    .regex(/[0-9]/, "Password must contain at least one number"),
-  confirmPassword: z.string(),
-}).refine((data) => data.newPassword === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-});
-
-type ResetPasswordForm = z.infer<typeof resetPasswordSchema>;
-
 export default function ResetPassword() {
   const { t } = useTranslation("auth");
   useEffect(() => { document.title = `${t("resetPassword.pageTitle")} | Future Pathways`; }, [t]);
+
+  const resetPasswordSchema = z.object({
+    newPassword: z.string()
+      .min(8, t("resetPassword.validation.passwordMin"))
+      .regex(/[A-Z]/, t("resetPassword.validation.uppercase"))
+      .regex(/[a-z]/, t("resetPassword.validation.lowercase"))
+      .regex(/[0-9]/, t("resetPassword.validation.number")),
+    confirmPassword: z.string(),
+  }).refine((data) => data.newPassword === data.confirmPassword, {
+    message: t("resetPassword.validation.mismatch"),
+    path: ["confirmPassword"],
+  });
+
+  type ResetPasswordForm = z.infer<typeof resetPasswordSchema>;
 
   const { toast } = useToast();
   const [, setLocation] = useLocation();

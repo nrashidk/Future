@@ -95,13 +95,13 @@ export default function Profile() {
   const getAccountTypeBadge = () => {
     switch (user.accountType) {
       case 'superadmin':
-        return <Badge className="bg-red-500 hover:bg-red-600" data-testid="badge-account-type"><Shield className="w-3 h-3 mr-1" /> Superadmin</Badge>;
+        return <Badge className="bg-red-500 hover:bg-red-600" data-testid="badge-account-type"><Shield className="w-3 h-3 me-1" /> {t("account.badge.superadmin")}</Badge>;
       case 'org_admin':
-        return <Badge className="bg-purple-500 hover:bg-purple-600" data-testid="badge-account-type"><Users className="w-3 h-3 mr-1" /> School Admin</Badge>;
+        return <Badge className="bg-purple-500 hover:bg-purple-600" data-testid="badge-account-type"><Users className="w-3 h-3 me-1" /> {t("account.badge.schoolAdmin")}</Badge>;
       case 'org_student':
-        return <Badge variant="secondary" data-testid="badge-account-type"><User className="w-3 h-3 mr-1" /> Member</Badge>;
+        return <Badge variant="secondary" data-testid="badge-account-type"><User className="w-3 h-3 me-1" /> {t("account.badge.member")}</Badge>;
       default:
-        return <Badge variant="outline" data-testid="badge-account-type"><User className="w-3 h-3 mr-1" /> Individual Account</Badge>;
+        return <Badge variant="outline" data-testid="badge-account-type"><User className="w-3 h-3 me-1" /> {t("account.badge.individual")}</Badge>;
     }
   };
 
@@ -118,34 +118,34 @@ export default function Profile() {
           <Link href="/" className="flex items-center gap-2 hover-elevate rounded-lg px-3 py-2" data-testid="link-home">
             <GraduationCap className="w-6 h-6 text-primary" />
             <span className="font-bold text-lg">Future Pathways</span>
-            {isSuperadmin && <Badge variant="secondary">Superadmin</Badge>}
-            {isOrgAdmin && <Badge variant="secondary">School Admin</Badge>}
+            {isSuperadmin && <Badge variant="secondary">{t("account.badge.superadmin")}</Badge>}
+            {isOrgAdmin && <Badge variant="secondary">{t("account.badge.schoolAdmin")}</Badge>}
           </Link>
           <div className="flex gap-2">
             {isSuperadmin && (
               <>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-superadmin">
                   <Link href="/superadmin">
-                    <Shield className="w-4 h-4 mr-2" />
-                    Super Admin
+                    <Shield className="w-4 h-4 me-2" />
+                    {t("nav.superadmin")}
                   </Link>
                 </Button>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-admin">
                   <Link href="/admin/organizations">
-                    <Building2 className="w-4 h-4 mr-2" />
-                    Admin
+                    <Building2 className="w-4 h-4 me-2" />
+                    {t("nav.admin")}
                   </Link>
                 </Button>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-questions">
                   <Link href="/admin">
-                    <FileQuestion className="w-4 h-4 mr-2" />
-                    Quiz
+                    <FileQuestion className="w-4 h-4 me-2" />
+                    {t("nav.quiz")}
                   </Link>
                 </Button>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">
                   <Link href="/analytics">
-                    <BarChart className="w-4 h-4 mr-2" />
-                    Analytics
+                    <BarChart className="w-4 h-4 me-2" />
+                    {t("nav.analytics")}
                   </Link>
                 </Button>
               </>
@@ -154,20 +154,20 @@ export default function Profile() {
               <>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-admin">
                   <Link href="/admin/organizations">
-                    <Building2 className="w-4 h-4 mr-2" />
-                    Admin
+                    <Building2 className="w-4 h-4 me-2" />
+                    {t("nav.admin")}
                   </Link>
                 </Button>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-assessment">
                   <Link href="/assessment">
-                    <ClipboardCheck className="w-4 h-4 mr-2" />
-                    Assessment
+                    <ClipboardCheck className="w-4 h-4 me-2" />
+                    {t("nav.assessment")}
                   </Link>
                 </Button>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">
                   <Link href="/analytics">
-                    <BarChart className="w-4 h-4 mr-2" />
-                    Analytics
+                    <BarChart className="w-4 h-4 me-2" />
+                    {t("nav.analytics")}
                   </Link>
                 </Button>
               </>
@@ -175,15 +175,15 @@ export default function Profile() {
             {!isOrgAdmin && !isSuperadmin && (
               <Button variant="outline" size="sm" asChild data-testid="button-nav-assessment">
                 <Link href="/assessment">
-                  <ClipboardCheck className="w-4 h-4 mr-2" />
-                  Assessment
+                  <ClipboardCheck className="w-4 h-4 me-2" />
+                  {t("nav.assessment")}
                 </Link>
               </Button>
             )}
             <Button variant="outline" size="sm" asChild data-testid="button-nav-profile">
               <Link href="/profile">
-                <User className="w-4 h-4 mr-2" />
-                Profile
+                <User className="w-4 h-4 me-2" />
+                {t("nav.profile")}
               </Link>
             </Button>
             <Button
@@ -195,14 +195,14 @@ export default function Profile() {
             >
               {language === "en" ? "العربية" : "English"}
             </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
+            <Button
+              variant="outline"
+              size="sm"
               onClick={handleLogout}
               data-testid="button-logout-profile"
             >
-              <LogOut className="w-4 h-4 mr-2" />
-              Logout
+              <LogOut className="w-4 h-4 me-2" />
+              {t("nav.logout")}
             </Button>
           </div>
         </div>
@@ -379,14 +379,21 @@ export default function Profile() {
 
             const getGradeLabel = (gradeCode: string): string => {
               const gradeMap: Record<string, string> = {
-                grade8: 'Grade 8', grade9: 'Grade 9', grade10: 'Grade 10',
-                grade11: 'Grade 11', grade12: 'Grade 12', graduated: 'Recently Graduated',
+                grade8: t("details.grade8"), grade9: t("details.grade9"), grade10: t("details.grade10"),
+                grade11: t("details.grade11"), grade12: t("details.grade12"), graduated: t("details.graduated"),
               };
               return gradeMap[gradeCode] || gradeCode;
             };
 
             const getGenderLabel = (g: string): string => {
-              return g.charAt(0).toUpperCase() + g.slice(1);
+              const genderMap: Record<string, string> = {
+                male: t("details.genderMale"),
+                female: t("details.genderFemale"),
+                other: t("details.genderOther"),
+                prefernottoSay: t("details.genderPreferNotToSay"),
+                preferNotToSay: t("details.genderPreferNotToSay"),
+              };
+              return genderMap[g.toLowerCase()] || genderMap[g] || (g.charAt(0).toUpperCase() + g.slice(1));
             };
 
             if (!demoName && !demoAge && !demoGrade && !demoGender) return null;

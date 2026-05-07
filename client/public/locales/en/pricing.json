@@ -81,6 +81,8 @@
     "processing": "Processing...",
     "pay": "Pay ${{amount}}",
     "secureNotice": "Secure payment powered by Stripe. Your payment information is encrypted and secure.",
+    "invalidEmailDesc": "Please enter a valid email address",
+    "invalidPhoneDesc": "Please enter a valid 10-digit phone number starting with 05",
     "missingInfoTitle": "Missing Information",
     "missingInfoDesc": "Please fill in all required fields",
     "invalidEmailTitle": "Invalid Email",

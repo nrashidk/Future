@@ -13,7 +13,13 @@
     "grade": "Grade",
     "organization": "Organization",
     "accountType": "Account Type",
-    "notProvided": "Not provided"
+    "notProvided": "Not provided",
+    "badge": {
+      "superadmin": "Superadmin",
+      "schoolAdmin": "School Admin",
+      "member": "Member",
+      "individual": "Individual Account"
+    }
   },
   "details": {
     "title": "My Details",
@@ -22,7 +28,17 @@
     "age": "Age",
     "grade": "Grade",
     "gender": "Gender",
-    "yearsOld": "{{age}} years old"
+    "yearsOld": "{{age}} years old",
+    "grade8": "Grade 8",
+    "grade9": "Grade 9",
+    "grade10": "Grade 10",
+    "grade11": "Grade 11",
+    "grade12": "Grade 12",
+    "graduated": "Recently Graduated",
+    "genderMale": "Male",
+    "genderFemale": "Female",
+    "genderOther": "Other",
+    "genderPreferNotToSay": "Prefer Not to Say"
   },
   "premium": {
     "title": "Premium Status",

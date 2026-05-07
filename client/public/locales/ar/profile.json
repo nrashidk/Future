@@ -13,7 +13,13 @@
     "grade": "الصف",
     "organization": "المؤسسة",
     "accountType": "نوع الحساب",
-    "notProvided": "غير مُدخَل"
+    "notProvided": "غير مُدخَل",
+    "badge": {
+      "superadmin": "مشرف أعلى",
+      "schoolAdmin": "مدير المدرسة",
+      "member": "عضو",
+      "individual": "حساب فردي"
+    }
   },
   "details": {
     "title": "بياناتي",
@@ -22,7 +28,17 @@
     "age": "العمر",
     "grade": "الصف",
     "gender": "الجنس",
-    "yearsOld": "{{age}} سنة"
+    "yearsOld": "{{age}} سنة",
+    "grade8": "الصف الثامن",
+    "grade9": "الصف التاسع",
+    "grade10": "الصف العاشر",
+    "grade11": "الصف الحادي عشر",
+    "grade12": "الصف الثاني عشر",
+    "graduated": "خريج حديث",
+    "genderMale": "ذكر",
+    "genderFemale": "أنثى",
+    "genderOther": "آخر",
+    "genderPreferNotToSay": "أفضل عدم الإفصاح"
   },
   "premium": {
     "title": "حالة الاشتراك المميز",
