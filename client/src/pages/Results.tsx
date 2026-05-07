@@ -30,6 +30,23 @@ import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/contexts/LanguageContext";
+import type { Recommendation, Career } from "@shared/schema";
+
+interface WefSkillTag {
+  name: string;
+  nameAr: string | null;
+}
+
+interface EnrichedRecommendation extends Recommendation {
+  career?: Career;
+  wefSkillTags?: WefSkillTag[];
+  premiumReasoning?: string;
+  workStyleFit?: string;
+  strengthsGrowth?: string;
+  premiumActionSteps?: string[];
+  matchedSubjects?: Array<{ subject: string; competency: number }>;
+  supportingVisionPriorities?: string[];
+}
 
 /**
  * Return the Arabic variant when the UI is in Arabic mode and the field is
@@ -755,7 +772,7 @@ export default function Results() {
       <div className="max-w-7xl mx-auto px-4 -mt-8" role="region" aria-labelledby="recommendations-heading">
         <h2 id="recommendations-heading" className="sr-only">{t('recommendationsHeading')}</h2>
         <MasonryGrid>
-          {recommendations.map((rec: any, index: number) => (
+          {recommendations.map((rec: EnrichedRecommendation, index: number) => (
             <MasonryItem key={rec.id} className="animate-in fade-in duration-500" style={{ animationDelay: `${index * 100}ms` }}>
               <StickyNote
                 color={["yellow", "pink", "blue", "green", "purple"][index % 5] as any}
@@ -849,13 +866,13 @@ export default function Results() {
                 </div>
 
                 {/* Validated Competencies & Vision Priorities */}
-                {(rec.matchedSubjects?.length > 0 || rec.supportingVisionPriorities?.length > 0) && (
+                {((rec.matchedSubjects && rec.matchedSubjects.length > 0) || (rec.supportingVisionPriorities && rec.supportingVisionPriorities.length > 0)) && (
                   <div className="p-3 bg-background/30 rounded-lg space-y-2 mb-4">
-                        {rec.matchedSubjects?.length > 0 && (
+                        {rec.matchedSubjects && rec.matchedSubjects.length > 0 && (
                           <div>
                             <h4 className="text-xs font-semibold text-muted-foreground mb-1.5">✓ {t('validatedCompetencies')}</h4>
                             <div className="flex flex-wrap gap-1.5">
-                              {rec.matchedSubjects.map((item: any) => (
+                              {rec.matchedSubjects.map((item) => (
                                 <span
                                   key={item.subject}
                                   className="inline-flex items-center gap-1 bg-primary/10 px-2 py-0.5 rounded-full text-xs font-medium"
@@ -868,11 +885,11 @@ export default function Results() {
                             </div>
                           </div>
                         )}
-                        {rec.supportingVisionPriorities?.length > 0 && (
+                        {rec.supportingVisionPriorities && rec.supportingVisionPriorities.length > 0 && (
                           <div>
                             <h4 className="text-xs font-semibold text-muted-foreground mb-1.5">🎯 {t('supportsVision')}</h4>
                             <div className="flex flex-wrap gap-1.5">
-                              {rec.supportingVisionPriorities.map((priority: string, idx: number) => (
+                              {rec.supportingVisionPriorities.map((priority, idx) => (
                                 <span
                                   key={idx}
                                   className="inline-flex items-center gap-1 bg-accent/20 px-2 py-0.5 rounded-full text-xs font-medium"
@@ -910,14 +927,14 @@ export default function Results() {
                 })()}
 
                 {/* WEF Framework Skills — nameAr used when language is Arabic */}
-                {(rec as any).wefSkillTags?.length > 0 && (
+                {rec.wefSkillTags && rec.wefSkillTags.length > 0 && (
                   <div className="mb-4">
                     <h4 className="font-semibold mb-2 text-sm flex items-center gap-1.5">
                       <Globe className="w-4 h-4" />
                       {t('wefSkillsTitle', 'Future Skills (WEF)')}
                     </h4>
                     <div className="flex flex-wrap gap-1.5">
-                      {(rec as any).wefSkillTags.map((tag: { name: string; nameAr: string | null }) => (
+                      {rec.wefSkillTags.map((tag) => (
                         <span
                           key={tag.name}
                           className="bg-accent/20 px-2.5 py-0.5 rounded-full text-xs font-medium"
@@ -941,36 +958,36 @@ export default function Results() {
                       <CareerReasoningText
                         assessmentId={activeAssessmentId}
                         careerId={rec.careerId}
-                        fallback={(rec as any).premiumReasoning || rec.reasoning}
+                        fallback={rec.premiumReasoning || rec.reasoning}
                       />
                     ) : (
-                      <span className="whitespace-pre-line">{(rec as any).premiumReasoning || rec.reasoning}</span>
+                      <span className="whitespace-pre-line">{rec.premiumReasoning || rec.reasoning}</span>
                     )}
                   </div>
                 </div>
 
                 {/* Work Style Fit - Premium Only */}
-                {(rec as any).workStyleFit && (
+                {rec.workStyleFit && (
                   <div className="p-3 bg-primary/10 rounded-lg border-2 border-primary/20 mb-3">
                     <h4 className="font-semibold mb-2 text-sm flex items-center gap-2 text-primary">
                       <CheckCircle2 className="w-4 h-4" />
                       {t('workStyleFit')}
                     </h4>
                     <div className="text-sm font-body text-foreground/90 whitespace-pre-line">
-                      {(rec as any).workStyleFit}
+                      {rec.workStyleFit}
                     </div>
                   </div>
                 )}
 
                 {/* Personal Strengths & Growth Areas - Premium Only */}
-                {(rec as any).strengthsGrowth && (
+                {rec.strengthsGrowth && (
                   <div className="p-3 bg-primary/10 rounded-lg border-2 border-primary/20 mb-3">
                     <h4 className="font-semibold mb-2 text-sm flex items-center gap-2 text-primary">
                       <CheckCircle2 className="w-4 h-4" />
                       {t('strengthsGrowth')}
                     </h4>
                     <div className="text-sm font-body text-foreground/90 whitespace-pre-line">
-                      {(rec as any).strengthsGrowth}
+                      {rec.strengthsGrowth}
                     </div>
                   </div>
                 )}
@@ -985,14 +1002,14 @@ export default function Results() {
                 </div>
 
                 {/* Action Steps - Premium (7-8 steps) or Basic (2-3 steps) */}
-                {(((rec as any).premiumActionSteps && (rec as any).premiumActionSteps.length > 0) || (rec.actionSteps && rec.actionSteps.length > 0)) && (
+                {((rec.premiumActionSteps && rec.premiumActionSteps.length > 0) || (rec.actionSteps && rec.actionSteps.length > 0)) && (
                   <div>
                     <h4 className="font-semibold mb-2 text-sm flex items-center gap-2">
                       <ArrowRight className="w-4 h-4" />
                       {t('nextSteps')}
                     </h4>
                     <ul className="space-y-2">
-                      {((rec as any).premiumActionSteps || rec.actionSteps).map((step: string, i: number) => (
+                      {(rec.premiumActionSteps || rec.actionSteps).map((step: string, i: number) => (
                         <li key={i} className="flex items-start gap-2 text-sm font-body">
                           <span className="text-primary font-bold flex-shrink-0">{i + 1}.</span>
                           <span className="whitespace-pre-line">{step}</span>

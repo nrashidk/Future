@@ -27,6 +27,20 @@ import { isPremiumAssessment } from "@shared/assessmentTier";
 import i18n from "@/i18n/config";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/contexts/LanguageContext";
+import type { Recommendation, Career } from "@shared/schema";
+
+interface WefSkillTag {
+  name: string;
+  nameAr: string | null;
+}
+
+interface EnrichedRecommendation extends Recommendation {
+  career?: Career;
+  wefSkillTags?: WefSkillTag[];
+  premiumReasoning?: string;
+  workStyleFit?: string;
+  strengthsGrowth?: string;
+}
 
 // Synchronous RTL bootstrap — runs before React mounts so Puppeteer captures
 // html[dir="rtl"] and html[lang="ar"] (Cairo font) from the very first paint.
@@ -211,7 +225,7 @@ export default function ResultsPrint() {
   // browser with no cookies, so cookie-based auth is unavailable here.
   const narrativeQueries = useQueries({
     queries: (isPremium && assessmentId && recommendations.length > 0)
-      ? recommendations.map((rec: any) => {
+      ? recommendations.map((rec: EnrichedRecommendation) => {
           const params = new URLSearchParams();
           // lang overrides the student's stored preference so the PDF language
           // matches the explicit download language chosen by the user.
@@ -797,7 +811,7 @@ export default function ResultsPrint() {
         return pages.map((pair, pageIdx) => (
           <div key={pageIdx} className="print-page-career">
             <div className="grid grid-cols-2 gap-4 h-full">
-              {pair.map((rec: any, colIdx: number) => {
+              {pair.map((rec: EnrichedRecommendation, colIdx: number) => {
                 const color = pairColors[pageIdx % pairColors.length][colIdx] as any;
                 return (
                   <StickyNote key={rec.id} color={color} rotation="0" className="p-4 flex flex-col gap-3">
@@ -846,9 +860,9 @@ export default function ResultsPrint() {
                     </div>
 
                     {/* WEF Framework Skill Tags — nameAr used when langParam is 'ar' */}
-                    {(rec as any).wefSkillTags?.length > 0 && (
+                    {rec.wefSkillTags && rec.wefSkillTags.length > 0 && (
                       <div className="flex flex-wrap gap-1">
-                        {(rec as any).wefSkillTags.map((tag: { name: string; nameAr: string | null }) => (
+                        {rec.wefSkillTags.map((tag) => (
                           <span
                             key={tag.name}
                             className="bg-accent/20 px-2 py-0.5 rounded-full text-[10px] font-medium"
@@ -869,17 +883,17 @@ export default function ResultsPrint() {
                             {t('whyThisCareer')}
                           </h4>
                           <div className="text-xs font-body text-foreground/90 whitespace-pre-line">
-                            {narrativeMap[rec.careerId] || (rec as any).premiumReasoning || rec.reasoning}
+                            {narrativeMap[rec.careerId] || rec.premiumReasoning || rec.reasoning}
                           </div>
                         </div>
-                        {(rec as any).workStyleFit && (
+                        {rec.workStyleFit && (
                           <div className="p-2 bg-background/30 rounded-lg">
                             <h4 className="text-xs font-semibold mb-1.5 flex items-center gap-1">
                               <CheckCircle2 className="w-3 h-3 text-primary flex-shrink-0" />
                               {t('workStyleFit')}
                             </h4>
                             <div className="text-xs font-body text-foreground/90 whitespace-pre-line">
-                              {(rec as any).workStyleFit}
+                              {rec.workStyleFit}
                             </div>
                           </div>
                         )}
@@ -894,14 +908,14 @@ export default function ResultsPrint() {
                           </h4>
                           <p className="text-xs font-body">{rec.requiredEducation}</p>
                         </div>
-                        {(rec as any).strengthsGrowth && (
+                        {rec.strengthsGrowth && (
                           <div className="p-2 bg-background/30 rounded-lg flex-1">
                             <h4 className="text-xs font-semibold mb-1.5 flex items-center gap-1">
                               <CheckCircle2 className="w-3 h-3 text-primary flex-shrink-0" />
                               {t('strengthsGrowth')}
                             </h4>
                             <div className="text-xs font-body text-foreground/90 whitespace-pre-line">
-                              {(rec as any).strengthsGrowth}
+                              {rec.strengthsGrowth}
                             </div>
                           </div>
                         )}
