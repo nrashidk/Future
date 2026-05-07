@@ -13,6 +13,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useTranslation } from "react-i18next";
 import { StickyNote } from "@/components/StickyNote";
 import { 
   Gift, Plus, Send, Clock, CheckCircle, XCircle, 
@@ -108,6 +109,7 @@ function getStatusBadge(status: string) {
 
 export default function ContributeQuestions() {
   const { toast } = useToast();
+  const { t } = useTranslation('admin');
   const [isSubmitDialogOpen, setIsSubmitDialogOpen] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState<Question>({
@@ -437,37 +439,37 @@ export default function ContributeQuestions() {
         <StickyNote color="green" rotation="1" className="p-4">
           <div className="flex items-center gap-2 mb-2">
             <Gift className="w-5 h-5 text-green-600" />
-            <span className="text-sm text-muted-foreground">Available Credits</span>
+            <span className="text-sm text-muted-foreground">{t('contributions.availableCredits')}</span>
           </div>
           <p className="text-3xl font-bold">{balance?.availableCredits ?? 0}</p>
-          <p className="text-xs text-muted-foreground mt-1">Free assessments to use</p>
+          <p className="text-xs text-muted-foreground mt-1">{t('contributions.freeAssessments')}</p>
         </StickyNote>
 
         <StickyNote color="blue" rotation="-1" className="p-4">
           <div className="flex items-center gap-2 mb-2">
             <Star className="w-5 h-5 text-blue-600" />
-            <span className="text-sm text-muted-foreground">Pending Rewards</span>
+            <span className="text-sm text-muted-foreground">{t('contributions.pendingRewards')}</span>
           </div>
           <p className="text-3xl font-bold">{balance?.pendingRewardCredits ?? 0}</p>
-          <p className="text-xs text-muted-foreground mt-1">Waiting for allocation</p>
+          <p className="text-xs text-muted-foreground mt-1">{t('contributions.waitingAllocation')}</p>
         </StickyNote>
 
         <StickyNote color="yellow" rotation="2" className="p-4">
           <div className="flex items-center gap-2 mb-2">
             <CheckCircle className="w-5 h-5 text-yellow-600" />
-            <span className="text-sm text-muted-foreground">Approved Questions</span>
+            <span className="text-sm text-muted-foreground">{t('contributions.approvedQuestions')}</span>
           </div>
           <p className="text-3xl font-bold">{balance?.stats.totalApproved ?? 0}</p>
-          <p className="text-xs text-muted-foreground mt-1">Questions added to system</p>
+          <p className="text-xs text-muted-foreground mt-1">{t('contributions.addedToSystem')}</p>
         </StickyNote>
 
         <StickyNote color="pink" rotation="-2" className="p-4">
           <div className="flex items-center gap-2 mb-2">
             <Clock className="w-5 h-5 text-pink-600" />
-            <span className="text-sm text-muted-foreground">Pending Review</span>
+            <span className="text-sm text-muted-foreground">{t('contributions.pendingReview')}</span>
           </div>
           <p className="text-3xl font-bold">{balance?.stats.pendingSubmissions ?? 0}</p>
-          <p className="text-xs text-muted-foreground mt-1">Submissions awaiting review</p>
+          <p className="text-xs text-muted-foreground mt-1">{t('contributions.awaitingReview')}</p>
         </StickyNote>
       </div>
 

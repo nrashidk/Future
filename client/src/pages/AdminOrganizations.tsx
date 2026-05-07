@@ -25,6 +25,7 @@ import {
 import { StickyNote } from "@/components/StickyNote";
 import ContributeQuestions from "@/components/admin/ContributeQuestions";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
+import { useTranslation } from "react-i18next";
 
 async function downloadFile(url: string, defaultFilename: string, toast: any, setIsDownloading?: (v: boolean) => void): Promise<void> {
   try {
@@ -134,6 +135,7 @@ export default function AdminOrganizations() {
 
   const { user } = useAuth();
   const { toast } = useToast();
+  const { t } = useTranslation('admin');
   const [, navigate] = useLocation();
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [isCreateOrgDialogOpen, setIsCreateOrgDialogOpen] = useState(false);
@@ -285,35 +287,35 @@ export default function AdminOrganizations() {
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 hover-elevate rounded-lg px-3 py-2">
             <GraduationCap className="w-6 h-6 text-primary" />
-            <span className="font-bold text-lg">Future Pathways</span>
-            {user?.accountType === 'superadmin' && <Badge variant="secondary">Superadmin</Badge>}
-            {user?.accountType === 'org_admin' && <Badge variant="secondary">School Admin</Badge>}
+            <span className="font-bold text-lg">{t('nav.futurePathways')}</span>
+            {user?.accountType === 'superadmin' && <Badge variant="secondary">{t('badges.superadmin')}</Badge>}
+            {user?.accountType === 'org_admin' && <Badge variant="secondary">{t('badges.schoolAdmin')}</Badge>}
           </Link>
           <div className="flex gap-2">
             {user?.accountType === 'superadmin' && (
               <>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-superadmin">
                   <Link href="/superadmin">
-                    <Shield className="w-4 h-4 mr-2" />
-                    Super Admin
+                    <Shield className="w-4 h-4 me-2" />
+                    {t('nav.superAdmin')}
                   </Link>
                 </Button>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-admin">
                   <Link href="/admin/organizations">
-                    <Building2 className="w-4 h-4 mr-2" />
-                    Admin
+                    <Building2 className="w-4 h-4 me-2" />
+                    {t('nav.admin')}
                   </Link>
                 </Button>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-questions">
                   <Link href="/admin">
-                    <FileQuestion className="w-4 h-4 mr-2" />
-                    Quiz
+                    <FileQuestion className="w-4 h-4 me-2" />
+                    {t('nav.quiz')}
                   </Link>
                 </Button>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">
                   <Link href="/analytics">
-                    <BarChart className="w-4 h-4 mr-2" />
-                    Analytics
+                    <BarChart className="w-4 h-4 me-2" />
+                    {t('nav.analytics')}
                   </Link>
                 </Button>
               </>
@@ -322,20 +324,20 @@ export default function AdminOrganizations() {
               <>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-admin">
                   <Link href="/admin/organizations">
-                    <Building2 className="w-4 h-4 mr-2" />
-                    Admin
+                    <Building2 className="w-4 h-4 me-2" />
+                    {t('nav.admin')}
                   </Link>
                 </Button>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-assessment">
                   <Link href="/assessment">
-                    <ClipboardCheck className="w-4 h-4 mr-2" />
-                    Assessment
+                    <ClipboardCheck className="w-4 h-4 me-2" />
+                    {t('nav.assessment')}
                   </Link>
                 </Button>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">
                   <Link href="/analytics">
-                    <BarChart className="w-4 h-4 mr-2" />
-                    Analytics
+                    <BarChart className="w-4 h-4 me-2" />
+                    {t('nav.analytics')}
                   </Link>
                 </Button>
               </>
@@ -344,8 +346,8 @@ export default function AdminOrganizations() {
               <>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-profile">
                   <Link href="/profile">
-                    <User className="w-4 h-4 mr-2" />
-                    Profile
+                    <User className="w-4 h-4 me-2" />
+                    {t('nav.profile')}
                   </Link>
                 </Button>
                 <Button 
@@ -354,8 +356,8 @@ export default function AdminOrganizations() {
                   onClick={handleLogout}
                   data-testid="button-logout-admin-orgs"
                 >
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Logout
+                  <LogOut className="w-4 h-4 me-2" />
+                  {t('nav.logout')}
                 </Button>
               </>
             )}
@@ -371,24 +373,24 @@ export default function AdminOrganizations() {
         <div className="text-center">
           <div className="flex items-center justify-center gap-3 mb-4">
             <Building2 className="w-12 h-12 text-primary" />
-            <h1 className="text-4xl md:text-5xl font-bold">Admin Dashboard</h1>
+            <h1 className="text-4xl md:text-5xl font-bold">{t('orgs.title')}</h1>
           </div>
-          <p className="text-muted-foreground text-lg">Manage Group Assessments and Schools</p>
+          <p className="text-muted-foreground text-lg">{t('orgs.orgAdminDesc')}</p>
         </div>
 
         {/* Organization Selector */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 pb-4">
             <div>
-              <CardTitle className="text-lg">Select School</CardTitle>
+              <CardTitle className="text-lg">{t('orgs.selectSchool')}</CardTitle>
               <CardDescription>{organizations.length} school{organizations.length !== 1 ? 's' : ''}</CardDescription>
             </div>
             {user?.accountType !== 'org_admin' && (
               <Dialog open={isCreateOrgDialogOpen} onOpenChange={setIsCreateOrgDialogOpen}>
                 <DialogTrigger asChild>
                   <Button size="sm" data-testid="button-create-school">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add School
+                    <Plus className="w-4 h-4 me-2" />
+                    {t('orgs.addSchool')}
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
@@ -404,7 +406,7 @@ export default function AdminOrganizations() {
           </CardHeader>
           <CardContent>
             {orgsLoading ? (
-              <p className="text-sm text-muted-foreground text-center py-4">Loading schools...</p>
+              <p className="text-sm text-muted-foreground text-center py-4">{t('orgs.loading')}</p>
             ) : organizations.length === 0 ? (
               <div className="text-center py-8">
                 <StickyNote color="yellow" rotation="1" className="mx-auto mb-4">
@@ -419,7 +421,7 @@ export default function AdminOrganizations() {
                     {/* Search input */}
                     <div className="relative">
                       <Input
-                        placeholder="Search schools..."
+                        placeholder={t('orgs.searchSchools')}
                         value={schoolSearchQuery}
                         onChange={(e) => {
                           setSchoolSearchQuery(e.target.value);
@@ -567,19 +569,19 @@ export default function AdminOrganizations() {
             {/* Licenses Section */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <StickyNote color="green" rotation="1" className="p-6">
-                <p className="text-sm text-muted-foreground mb-2">Total Licenses</p>
+                <p className="text-sm text-muted-foreground mb-2">{t('orgs.licenseStatus')}</p>
                 <p className="text-3xl font-bold">
-                  {selectedOrg.isUnlimitedLicenses ? "Unlimited" : selectedOrg.totalLicenses}
+                  {selectedOrg.isUnlimitedLicenses ? t('orgs.unlimited') : selectedOrg.totalLicenses}
                 </p>
               </StickyNote>
               <StickyNote color="blue" rotation="-1" className="p-6">
-                <p className="text-sm text-muted-foreground mb-2">Used Licenses</p>
+                <p className="text-sm text-muted-foreground mb-2">{t('superadmin.licenseUtilization')}</p>
                 <p className="text-3xl font-bold">{selectedOrg.usedLicenses}</p>
               </StickyNote>
               <StickyNote color="yellow" rotation="2" className="p-6">
-                <p className="text-sm text-muted-foreground mb-2">Available</p>
+                <p className="text-sm text-muted-foreground mb-2">{t('orgs.available')}</p>
                 <p className="text-3xl font-bold">
-                  {selectedOrg.isUnlimitedLicenses ? "Unlimited" : (selectedOrg.totalLicenses - selectedOrg.usedLicenses)}
+                  {selectedOrg.isUnlimitedLicenses ? t('orgs.unlimited') : (selectedOrg.totalLicenses - selectedOrg.usedLicenses)}
                 </p>
               </StickyNote>
             </div>
@@ -589,7 +591,7 @@ export default function AdminOrganizations() {
               <CardHeader className="space-y-4 pb-4">
                 <div className="flex flex-row items-center justify-between gap-4 flex-wrap">
                   <div>
-                    <CardTitle className="text-lg">Student Roster</CardTitle>
+                    <CardTitle className="text-lg">{t('orgs.roster')}</CardTitle>
                     <CardDescription>
                       {filteredMembers.length === members.length 
                         ? `${members.length} members`
@@ -604,24 +606,24 @@ export default function AdminOrganizations() {
                   <div className="flex gap-2 flex-wrap items-center">
                     <Select value={roleFilter} onValueChange={(v) => setRoleFilter(v as typeof roleFilter)}>
                       <SelectTrigger className="w-[130px]" data-testid="select-role-filter">
-                        <SelectValue placeholder="Filter by role" />
+                        <SelectValue placeholder={t('orgs.filterRole')} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">All Roles</SelectItem>
-                        <SelectItem value="admin">Admins Only</SelectItem>
-                        <SelectItem value="student">Students Only</SelectItem>
+                        <SelectItem value="all">{t('orgs.allRoles')}</SelectItem>
+                        <SelectItem value="admin">{t('orgs.admins')}</SelectItem>
+                        <SelectItem value="student">{t('orgs.students')}</SelectItem>
                       </SelectContent>
                     </Select>
                     <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
                       <SelectTrigger className="w-[140px]" data-testid="select-status-filter">
-                        <SelectValue placeholder="Filter by status" />
+                        <SelectValue placeholder={t('orgs.filterStatus')} />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">All Status</SelectItem>
-                        <SelectItem value="not_active">Not Active</SelectItem>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="in_progress">In Progress</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="all">{t('orgs.allStatus')}</SelectItem>
+                        <SelectItem value="not_active">{t('orgs.notActive')}</SelectItem>
+                        <SelectItem value="active">{t('orgs.active')}</SelectItem>
+                        <SelectItem value="in_progress">{t('orgs.inProgress')}</SelectItem>
+                        <SelectItem value="completed">{t('orgs.completed')}</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -640,8 +642,8 @@ export default function AdminOrganizations() {
                     }}
                     disabled={members.filter(m => m.isLocked).length === 0}
                   >
-                    <FileDown className="w-4 h-4 mr-2" />
-                    Export Reports (ZIP)
+                    <FileDown className="w-4 h-4 me-2" />
+                    {t('orgs.exportReports')}
                   </Button>
                   <Button 
                     variant="outline" 
@@ -656,8 +658,8 @@ export default function AdminOrganizations() {
                     }}
                     disabled={members.length === 0}
                   >
-                    <Download className="w-4 h-4 mr-2" />
-                    Export Data (CSV)
+                    <Download className="w-4 h-4 me-2" />
+                    {t('orgs.exportStudents')}
                   </Button>
                   {selectedMemberIds.length > 0 && (
                     <div className="flex gap-2">
@@ -668,31 +670,31 @@ export default function AdminOrganizations() {
                         disabled={bulkResetPasswordsMutation.isPending}
                         data-testid="button-bulk-reset-passwords"
                       >
-                        <Key className="w-4 h-4 mr-2" />
-                        Reset Passwords ({selectedMemberIds.length})
+                        <Key className="w-4 h-4 me-2" />
+                        {t('orgs.bulkReset')} ({selectedMemberIds.length})
                       </Button>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button variant="destructive" size="sm" data-testid="button-bulk-delete">
-                            <Trash2 className="w-4 h-4 mr-2" />
-                            Delete Selected ({selectedMemberIds.length})
+                            <Trash2 className="w-4 h-4 me-2" />
+                            {t('orgs.bulkDelete')} ({selectedMemberIds.length})
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
                           <AlertDialogHeader>
-                            <AlertDialogTitle>Delete {selectedMemberIds.length} Students</AlertDialogTitle>
+                            <AlertDialogTitle>{t('orgs.bulkDelete')}</AlertDialogTitle>
                             <AlertDialogDescription>
-                              Are you sure you want to delete {selectedMemberIds.length} selected student(s)? This action cannot be undone.
+                              {t('orgs.confirmDelete')}
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogCancel>{t('orgs.cancel')}</AlertDialogCancel>
                             <AlertDialogAction 
                               onClick={() => bulkDeleteMutation.mutate(selectedMemberIds)}
                               className="bg-destructive hover:bg-destructive/90"
                               data-testid="button-confirm-bulk-delete"
                             >
-                              Delete {selectedMemberIds.length} Students
+                              {t('orgs.delete')}
                             </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
@@ -703,7 +705,7 @@ export default function AdminOrganizations() {
                         onClick={() => setSelectedMemberIds([])}
                         data-testid="button-clear-selection"
                       >
-                        Clear
+                        {t('orgs.deselectAll')}
                       </Button>
                     </div>
                   )}
@@ -755,8 +757,8 @@ export default function AdminOrganizations() {
                   <Dialog open={isBulkUploadDialogOpen} onOpenChange={setIsBulkUploadDialogOpen}>
                     <DialogTrigger asChild>
                       <Button variant="outline" size="sm" data-testid="button-bulk-upload">
-                        <Upload className="w-4 h-4 mr-2" />
-                        CSV Upload
+                        <Upload className="w-4 h-4 me-2" />
+                        {t('orgs.bulkUpload')}
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="max-w-2xl">
@@ -773,8 +775,8 @@ export default function AdminOrganizations() {
                   <Dialog open={isCreateMemberDialogOpen} onOpenChange={setIsCreateMemberDialogOpen}>
                     <DialogTrigger asChild>
                       <Button size="sm" data-testid="button-create-member">
-                        <Plus className="w-4 h-4 mr-2" />
-                        Add Student
+                        <Plus className="w-4 h-4 me-2" />
+                        {t('orgs.addStudent')}
                       </Button>
                     </DialogTrigger>
                     <DialogContent>
@@ -792,24 +794,24 @@ export default function AdminOrganizations() {
               </CardHeader>
               <CardContent>
                 {membersLoading ? (
-                  <p className="text-sm text-muted-foreground text-center py-8">Loading students...</p>
+                  <p className="text-sm text-muted-foreground text-center py-8">{t('orgs.loading')}</p>
                 ) : members.length === 0 ? (
                   <div className="text-center py-8">
                     <StickyNote color="purple" rotation="-2" className="mx-auto">
                       <Users className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
-                      <p className="text-sm text-muted-foreground">No students yet</p>
-                      <p className="text-xs text-muted-foreground mt-1">Add students to get started</p>
+                      <p className="text-sm text-muted-foreground">{t('orgs.noMembers')}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{t('orgs.rosterDesc')}</p>
                     </StickyNote>
                   </div>
                 ) : filteredMembers.length === 0 ? (
                   <div className="text-center py-8">
-                    <p className="text-sm text-muted-foreground">No members match the current filters</p>
+                    <p className="text-sm text-muted-foreground">{t('orgs.noMembersFilter')}</p>
                     <Button 
                       variant="ghost" 
                       onClick={() => { setRoleFilter("all"); setStatusFilter("all"); }}
                       className="mt-2 text-primary"
                     >
-                      Clear filters
+                      {t('orgs.deselectAll')}
                     </Button>
                   </div>
                 ) : (
@@ -825,13 +827,13 @@ export default function AdminOrganizations() {
                               data-testid="checkbox-select-all"
                             />
                           </TableHead>
-                          <TableHead>Name</TableHead>
-                          <TableHead>Username</TableHead>
-                          <TableHead>Gender</TableHead>
-                          <TableHead>Grade</TableHead>
-                          <TableHead>Student ID</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead className="text-right">Actions</TableHead>
+                          <TableHead>{t('orgs.name')}</TableHead>
+                          <TableHead>{t('orgs.username')}</TableHead>
+                          <TableHead>{t('orgs.gender')}</TableHead>
+                          <TableHead>{t('orgs.grade')}</TableHead>
+                          <TableHead>{t('orgs.studentId')}</TableHead>
+                          <TableHead>{t('orgs.status')}</TableHead>
+                          <TableHead className="text-right">{t('orgs.actions')}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -856,8 +858,8 @@ export default function AdminOrganizations() {
                               <div className="flex gap-1 flex-wrap">
                                 {member.isLocked && (
                                   <Badge variant="secondary" className="text-xs">
-                                    <Lock className="w-3 h-3 mr-1" />
-                                    Locked
+                                    <Lock className="w-3 h-3 me-1" />
+                                    {t('orgs.lockedLabel')}
                                   </Badge>
                                 )}
                                 {(() => {
@@ -894,8 +896,8 @@ export default function AdminOrganizations() {
                   <div className="flex items-center gap-3">
                     <Gift className="w-6 h-6 text-primary" />
                     <div>
-                      <CardTitle>Contribute Questions & Earn Credits</CardTitle>
-                      <CardDescription>Submit quiz questions to earn free assessment credits for your school</CardDescription>
+                      <CardTitle>{t('orgs.contributeTab')}</CardTitle>
+                      <CardDescription>{t('contributions.submitFirst')}</CardDescription>
                     </div>
                   </div>
                 </CardHeader>

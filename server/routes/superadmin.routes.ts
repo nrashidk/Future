@@ -2234,4 +2234,134 @@ export function registerSuperadminRoutes(app: Express) {
       res.status(500).json({ message: "Failed to create student" });
     }
   });
+
+  // Translation Manager endpoints
+  const SUPPORTED_NAMESPACES = ["common", "landing", "assessment", "results", "auth", "admin", "riasec", "profile", "legal", "pricing"];
+  const SUPPORTED_LANGS = ["en", "ar"];
+
+  const readLocaleFile = async (lang: string, ns: string): Promise<Record<string, any>> => {
+    const { readFile } = await import("fs/promises");
+    const { join } = await import("path");
+    try {
+      const filePath = join(process.cwd(), "client", "public", "locales", lang, `${ns}.json`);
+      const content = await readFile(filePath, "utf-8");
+      return JSON.parse(content);
+    } catch {
+      return {};
+    }
+  };
+
+  const writeLocaleFile = async (lang: string, ns: string, data: Record<string, any>): Promise<void> => {
+    const { writeFile } = await import("fs/promises");
+    const { join } = await import("path");
+    const filePath = join(process.cwd(), "client", "public", "locales", lang, `${ns}.json`);
+    await writeFile(filePath, JSON.stringify(data, null, 2), "utf-8");
+  };
+
+  const flattenObject = (obj: Record<string, any>, prefix = ""): Record<string, string> => {
+    const result: Record<string, string> = {};
+    for (const [key, value] of Object.entries(obj)) {
+      const fullKey = prefix ? `${prefix}.${key}` : key;
+      if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+        Object.assign(result, flattenObject(value, fullKey));
+      } else {
+        result[fullKey] = String(value ?? "");
+      }
+    }
+    return result;
+  };
+
+  const setNestedKey = (obj: Record<string, any>, key: string, value: string): Record<string, any> => {
+    const parts = key.split(".");
+    const result = { ...obj };
+    let current: Record<string, any> = result;
+    for (let i = 0; i < parts.length - 1; i++) {
+      if (!current[parts[i]] || typeof current[parts[i]] !== "object") {
+        current[parts[i]] = {};
+      } else {
+        current[parts[i]] = { ...current[parts[i]] };
+      }
+      current = current[parts[i]];
+    }
+    current[parts[parts.length - 1]] = value;
+    return result;
+  };
+
+  // GET /api/superadmin/translations/coverage — returns per-namespace coverage stats
+  app.get("/api/superadmin/translations/coverage", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const coverage = await Promise.all(
+        SUPPORTED_NAMESPACES.map(async (ns) => {
+          const enData = await readLocaleFile("en", ns);
+          const arData = await readLocaleFile("ar", ns);
+          const enFlat = flattenObject(enData);
+          const arFlat = flattenObject(arData);
+          const totalKeys = Object.keys(enFlat).length;
+          const translatedKeys = Object.keys(enFlat).filter(k => arFlat[k] && arFlat[k].trim() !== "").length;
+          return {
+            namespace: ns,
+            totalKeys,
+            translatedKeys,
+            coveragePercent: totalKeys > 0 ? Math.round((translatedKeys / totalKeys) * 100) : 0,
+          };
+        })
+      );
+      const totalKeys = coverage.reduce((sum, c) => sum + c.totalKeys, 0);
+      const translatedKeys = coverage.reduce((sum, c) => sum + c.translatedKeys, 0);
+      const overallCoverage = totalKeys > 0 ? Math.round((translatedKeys / totalKeys) * 100) : 0;
+      res.json({ namespaces: coverage, overallCoverage });
+    } catch (error) {
+      console.error("Error fetching translation coverage:", error);
+      res.status(500).json({ message: "Failed to fetch translation coverage" });
+    }
+  });
+
+  // GET /api/superadmin/translations/:namespace — returns flat en/ar key-value pairs
+  app.get("/api/superadmin/translations/:namespace", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const { namespace } = req.params;
+      if (!SUPPORTED_NAMESPACES.includes(namespace)) {
+        return res.status(400).json({ message: "Invalid namespace" });
+      }
+      const enData = await readLocaleFile("en", namespace);
+      const arData = await readLocaleFile("ar", namespace);
+      const enFlat = flattenObject(enData);
+      const arFlat = flattenObject(arData);
+      const keys = Object.keys(enFlat);
+      const translations = keys.map(key => ({
+        key,
+        en: enFlat[key] || "",
+        ar: arFlat[key] || "",
+        isMissing: !arFlat[key] || arFlat[key].trim() === "",
+      }));
+      res.json({ namespace, translations });
+    } catch (error) {
+      console.error("Error fetching translations:", error);
+      res.status(500).json({ message: "Failed to fetch translations" });
+    }
+  });
+
+  // PATCH /api/superadmin/translations/:namespace — update a single translation key
+  app.patch("/api/superadmin/translations/:namespace", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const { namespace } = req.params;
+      if (!SUPPORTED_NAMESPACES.includes(namespace)) {
+        return res.status(400).json({ message: "Invalid namespace" });
+      }
+      const { lang, key, value } = req.body;
+      if (!lang || !key || typeof value !== "string") {
+        return res.status(400).json({ message: "lang, key, and value are required" });
+      }
+      if (!SUPPORTED_LANGS.includes(lang)) {
+        return res.status(400).json({ message: "Invalid language" });
+      }
+      const existing = await readLocaleFile(lang, namespace);
+      const updated = setNestedKey(existing, key, value);
+      await writeLocaleFile(lang, namespace, updated);
+      res.json({ success: true, namespace, lang, key, value });
+    } catch (error) {
+      console.error("Error updating translation:", error);
+      res.status(500).json({ message: "Failed to update translation" });
+    }
+  });
 }

@@ -22,13 +22,15 @@ import {
   TrendingUp, AlertCircle, CheckCircle, Clock, Home, User, LogOut,
   ChevronUp, ChevronDown, History, Infinity, BarChart, Copy, FileQuestion,
   Settings, Globe, Gift, FileText, Megaphone, Briefcase, Eye, RefreshCw,
-  UserCog, Info, AlertTriangle, XCircle
+  UserCog, Info, AlertTriangle, XCircle, Languages
 } from "lucide-react";
 import ScoringConfigEditor from "@/components/admin/ScoringConfigEditor";
 import CountryManagement from "@/components/admin/CountryManagement";
 import ContributionReviewQueue from "@/components/admin/ContributionReviewQueue";
 import SubjectManagement from "@/components/admin/SubjectManagement";
+import TranslationManager from "@/components/admin/TranslationManager";
 import { CredentialsModal } from "@/components/CredentialsModal";
+import { useTranslation } from "react-i18next";
 
 interface Metrics {
   totalSchools: number;
@@ -179,6 +181,7 @@ export default function SuperadminDashboard() {
   useEffect(() => { document.title = "Superadmin Dashboard | Future Pathways"; }, []);
 
   const { toast } = useToast();
+  const { t } = useTranslation('admin');
   const [searchQuery, setSearchQuery] = useState("");
   const [studentSearchQuery, setStudentSearchQuery] = useState("");
   const [userTypeFilter, setUserTypeFilter] = useState<string>("all");
@@ -455,7 +458,9 @@ export default function SuperadminDashboard() {
   const [editingAnnouncement, setEditingAnnouncement] = useState<SystemAnnouncement | null>(null);
   const [announcementForm, setAnnouncementForm] = useState({
     title: "",
+    titleAr: "",
     content: "",
+    contentAr: "",
     type: "info",
     targetAudience: "all",
     isPinned: false,
@@ -650,7 +655,7 @@ export default function SuperadminDashboard() {
   });
 
   const resetAnnouncementForm = () => {
-    setAnnouncementForm({ title: "", content: "", type: "info", targetAudience: "all", isPinned: false, backgroundColor: "#ffffff", publishAt: "", expiresAt: "" });
+    setAnnouncementForm({ title: "", titleAr: "", content: "", contentAr: "", type: "info", targetAudience: "all", isPinned: false, backgroundColor: "#ffffff", publishAt: "", expiresAt: "" });
   };
 
   const resetCareerForm = () => {
@@ -669,11 +674,13 @@ export default function SuperadminDashboard() {
     setIsResetPasswordModalOpen(true);
   };
 
-  const openEditAnnouncement = (announcement: SystemAnnouncement) => {
+  const openEditAnnouncement = (announcement: SystemAnnouncement & { titleAr?: string; contentAr?: string }) => {
     setEditingAnnouncement(announcement);
     setAnnouncementForm({
       title: announcement.title,
+      titleAr: announcement.titleAr || "",
       content: announcement.content,
+      contentAr: announcement.contentAr || "",
       type: announcement.type,
       targetAudience: announcement.targetAudience,
       isPinned: announcement.isPinned,
@@ -901,39 +908,43 @@ export default function SuperadminDashboard() {
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <div className="flex flex-wrap items-center gap-3">
           <TabsList className="flex-wrap flex-1">
-            <TabsTrigger value="organizations" data-testid="tab-schools">Schools</TabsTrigger>
+            <TabsTrigger value="organizations" data-testid="tab-schools">{t('superadmin.tabSchools')}</TabsTrigger>
             <TabsTrigger value="students" data-testid="tab-students">
-              <Users className="w-4 h-4 mr-2" />
-              Students
+              <Users className="w-4 h-4 me-2" />
+              {t('superadmin.tabStudents')}
             </TabsTrigger>
-            <TabsTrigger value="activity" data-testid="tab-activity">Recent Activity</TabsTrigger>
+            <TabsTrigger value="activity" data-testid="tab-activity">{t('superadmin.tabActivity')}</TabsTrigger>
             <TabsTrigger value="files" data-testid="tab-files">
-              <FileText className="w-4 h-4 mr-2" />
-              Files
+              <FileText className="w-4 h-4 me-2" />
+              {t('superadmin.tabFiles')}
             </TabsTrigger>
             <TabsTrigger value="announcements" data-testid="tab-announcements">
-              <Megaphone className="w-4 h-4 mr-2" />
-              Announcements
+              <Megaphone className="w-4 h-4 me-2" />
+              {t('superadmin.tabAnnouncements')}
             </TabsTrigger>
             <TabsTrigger value="careers" data-testid="tab-careers">
-              <Briefcase className="w-4 h-4 mr-2" />
-              Careers
+              <Briefcase className="w-4 h-4 me-2" />
+              {t('superadmin.tabCareers')}
             </TabsTrigger>
             <TabsTrigger value="countries" data-testid="tab-countries">
-              <Globe className="w-4 h-4 mr-2" />
-              Countries
+              <Globe className="w-4 h-4 me-2" />
+              {t('superadmin.tabCountries')}
             </TabsTrigger>
             <TabsTrigger value="subjects" data-testid="tab-subjects">
-              <GraduationCap className="w-4 h-4 mr-2" />
-              Subjects
+              <GraduationCap className="w-4 h-4 me-2" />
+              {t('superadmin.tabSubjects')}
             </TabsTrigger>
             <TabsTrigger value="scoring" data-testid="tab-scoring">
-              <Settings className="w-4 h-4 mr-2" />
-              Scoring
+              <Settings className="w-4 h-4 me-2" />
+              {t('superadmin.tabScoring')}
             </TabsTrigger>
             <TabsTrigger value="contributions" data-testid="tab-contributions">
-              <Gift className="w-4 h-4 mr-2" />
-              Contributions
+              <Gift className="w-4 h-4 me-2" />
+              {t('superadmin.tabContributions')}
+            </TabsTrigger>
+            <TabsTrigger value="translations" data-testid="tab-translations">
+              <Languages className="w-4 h-4 me-2" />
+              {t('superadmin.tabTranslations')}
             </TabsTrigger>
           </TabsList>
           {activeTab === "organizations" && (
@@ -1687,6 +1698,10 @@ export default function SuperadminDashboard() {
           <TabsContent value="contributions" className="space-y-4">
             <ContributionReviewQueue />
           </TabsContent>
+
+          <TabsContent value="translations" className="space-y-4">
+            <TranslationManager />
+          </TabsContent>
         </Tabs>
       </main>
 
@@ -2213,26 +2228,53 @@ export default function SuperadminDashboard() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="announcement-title">Title *</Label>
-              <Input
-                id="announcement-title"
-                value={announcementForm.title}
-                onChange={(e) => setAnnouncementForm({ ...announcementForm, title: e.target.value })}
-                placeholder="Announcement title"
-                data-testid="input-announcement-title"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="announcement-title">{t('superadmin.announcementTitle')} (EN) *</Label>
+                <Input
+                  id="announcement-title"
+                  value={announcementForm.title}
+                  onChange={(e) => setAnnouncementForm({ ...announcementForm, title: e.target.value })}
+                  placeholder="Announcement title"
+                  data-testid="input-announcement-title"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="announcement-title-ar">{t('superadmin.announcementTitle')} (AR)</Label>
+                <Input
+                  id="announcement-title-ar"
+                  value={announcementForm.titleAr}
+                  onChange={(e) => setAnnouncementForm({ ...announcementForm, titleAr: e.target.value })}
+                  placeholder="عنوان الإعلان"
+                  dir="rtl"
+                  data-testid="input-announcement-title-ar"
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="announcement-content">Content *</Label>
-              <Textarea
-                id="announcement-content"
-                value={announcementForm.content}
-                onChange={(e) => setAnnouncementForm({ ...announcementForm, content: e.target.value })}
-                placeholder="Announcement content"
-                rows={4}
-                data-testid="input-announcement-content"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="announcement-content">{t('superadmin.announcementContent')} (EN) *</Label>
+                <Textarea
+                  id="announcement-content"
+                  value={announcementForm.content}
+                  onChange={(e) => setAnnouncementForm({ ...announcementForm, content: e.target.value })}
+                  placeholder="Announcement content"
+                  rows={4}
+                  data-testid="input-announcement-content"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="announcement-content-ar">{t('superadmin.announcementContent')} (AR)</Label>
+                <Textarea
+                  id="announcement-content-ar"
+                  value={announcementForm.contentAr}
+                  onChange={(e) => setAnnouncementForm({ ...announcementForm, contentAr: e.target.value })}
+                  placeholder="محتوى الإعلان"
+                  rows={4}
+                  dir="rtl"
+                  data-testid="input-announcement-content-ar"
+                />
+              </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

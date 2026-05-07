@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useTranslation } from "react-i18next";
 import { 
   Settings, Save, RefreshCw, AlertTriangle, CheckCircle, 
   Key, MessageSquare, Sparkles, History, Eye, EyeOff,
@@ -89,6 +90,7 @@ interface ChangeLog {
 
 export default function ScoringConfigEditor() {
   const { toast } = useToast();
+  const { t } = useTranslation('admin');
   const [editingTier, setEditingTier] = useState<string | null>(null);
   const [tierWeights, setTierWeights] = useState<Record<string, Record<string, { weight: number; isEnabled: boolean }>>>({});
   const [editingPrompt, setEditingPrompt] = useState<LlmPromptTemplate | null>(null);
@@ -262,20 +264,20 @@ export default function ScoringConfigEditor() {
       <Tabs defaultValue="weights" className="space-y-4">
         <TabsList>
           <TabsTrigger value="weights" data-testid="tab-scoring-weights">
-            <Settings className="w-4 h-4 mr-2" />
-            Scoring Weights
+            <Settings className="w-4 h-4 me-2" />
+            {t('scoring.scoringWeights')}
           </TabsTrigger>
           <TabsTrigger value="llm" data-testid="tab-llm-config">
-            <Sparkles className="w-4 h-4 mr-2" />
-            LLM Configuration
+            <Sparkles className="w-4 h-4 me-2" />
+            {t('scoring.llmConfig')}
           </TabsTrigger>
           <TabsTrigger value="prompts" data-testid="tab-prompts">
-            <MessageSquare className="w-4 h-4 mr-2" />
-            Prompt Templates
+            <MessageSquare className="w-4 h-4 me-2" />
+            {t('scoring.promptTemplates')}
           </TabsTrigger>
           <TabsTrigger value="history" data-testid="tab-config-history">
-            <History className="w-4 h-4 mr-2" />
-            Change History
+            <History className="w-4 h-4 me-2" />
+            {t('scoring.changeHistory')}
           </TabsTrigger>
         </TabsList>
 

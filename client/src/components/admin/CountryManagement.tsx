@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useTranslation } from "react-i18next";
 import { 
   Globe, Plus, Edit, Trash2, Sparkles, BookOpen, 
   CheckCircle, Clock, RefreshCw, Loader2, ArrowRightLeft
@@ -42,6 +43,7 @@ const GRADES = ["8", "9", "10", "11", "12"];
 
 export default function CountryManagement() {
   const { toast } = useToast();
+  const { t } = useTranslation('admin');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isGenerateQuestionsOpen, setIsGenerateQuestionsOpen] = useState(false);
@@ -239,19 +241,19 @@ export default function CountryManagement() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold">Country Management</h2>
+          <h2 className="text-2xl font-bold">{t('countries.title')}</h2>
           <p className="text-muted-foreground">
-            Add and manage countries with their vision, curricula, and quiz questions
+            {t('countries.subtitle')}
           </p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setIsRenameModalOpen(true)} data-testid="button-rename-curriculum">
-            <ArrowRightLeft className="w-4 h-4 mr-2" />
-            Rename Curriculum
+            <ArrowRightLeft className="w-4 h-4 me-2" />
+            {t('countries.renameCurriculum')}
           </Button>
           <Button onClick={() => setIsCreateModalOpen(true)} data-testid="button-add-country">
-            <Plus className="w-4 h-4 mr-2" />
-            Add Country
+            <Plus className="w-4 h-4 me-2" />
+            {t('countries.addCountry')}
           </Button>
         </div>
       </div>

@@ -14,6 +14,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Home, Plus, Download, Upload, Edit, Trash2, GraduationCap, User, LogOut, Building2, Shield, BarChart, FileQuestion, Search } from "lucide-react";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
+import { useTranslation } from "react-i18next";
 
 interface QuizQuestion {
   id: string;
@@ -51,6 +52,7 @@ export default function Admin() {
 
   const { user } = useAuth();
   const { toast } = useToast();
+  const { t } = useTranslation('admin');
   const [filters, setFilters] = useState({
     countryId: "all",
     curriculum: "all",
@@ -93,10 +95,10 @@ export default function Admin() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/questions'] });
-      toast({ title: "Success", description: "Question deleted successfully" });
+      toast({ title: "Success", description: t('quiz.deleteSuccess') });
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to delete question", variant: "destructive" });
+      toast({ title: "Error", description: t('quiz.deleteError'), variant: "destructive" });
     },
   });
 
@@ -109,9 +111,9 @@ export default function Admin() {
       if (filters.subject && filters.subject !== 'all') params.set('subject', filters.subject);
       if (filters.grade && filters.grade !== 'all') params.set('grade', filters.grade);
       window.location.href = `/api/admin/questions/export?${params.toString()}`;
-      toast({ title: "Success", description: `Questions exported as ${format.toUpperCase()}` });
+      toast({ title: "Success", description: t('quiz.exportedAs', { format: format.toUpperCase() }) });
     } catch (error) {
-      toast({ title: "Error", description: "Failed to export questions", variant: "destructive" });
+      toast({ title: "Error", description: t('quiz.exportError'), variant: "destructive" });
     }
   };
 
@@ -126,9 +128,9 @@ export default function Admin() {
       await apiRequest('POST', '/api/admin/questions/bulk-upload', { questions });
 
       queryClient.invalidateQueries({ queryKey: ['/api/admin/questions'] });
-      toast({ title: "Success", description: "Questions imported successfully" });
+      toast({ title: "Success", description: t('quiz.importSuccess') });
     } catch (error) {
-      toast({ title: "Error", description: "Failed to import questions", variant: "destructive" });
+      toast({ title: "Error", description: t('quiz.importError'), variant: "destructive" });
     }
   };
 
@@ -142,34 +144,34 @@ export default function Admin() {
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 hover-elevate rounded-lg px-3 py-2">
             <GraduationCap className="w-6 h-6 text-primary" />
-            <span className="font-bold text-lg">Future Pathways</span>
-            {user?.accountType === 'superadmin' && <Badge variant="secondary">Superadmin</Badge>}
+            <span className="font-bold text-lg">{t('nav.futurePathways')}</span>
+            {user?.accountType === 'superadmin' && <Badge variant="secondary">{t('badges.superadmin')}</Badge>}
           </Link>
           <div className="flex gap-2">
             {user?.accountType === 'superadmin' && (
               <>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-superadmin">
                   <Link href="/superadmin">
-                    <Shield className="w-4 h-4 mr-2" />
-                    Super Admin
+                    <Shield className="w-4 h-4 me-2" />
+                    {t('nav.superAdmin')}
                   </Link>
                 </Button>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-schools">
                   <Link href="/admin/organizations">
-                    <Building2 className="w-4 h-4 mr-2" />
-                    Schools
+                    <Building2 className="w-4 h-4 me-2" />
+                    {t('nav.schools')}
                   </Link>
                 </Button>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-questions">
                   <Link href="/admin">
-                    <FileQuestion className="w-4 h-4 mr-2" />
-                    Quiz
+                    <FileQuestion className="w-4 h-4 me-2" />
+                    {t('nav.quiz')}
                   </Link>
                 </Button>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">
                   <Link href="/analytics">
-                    <BarChart className="w-4 h-4 mr-2" />
-                    Analytics
+                    <BarChart className="w-4 h-4 me-2" />
+                    {t('nav.analytics')}
                   </Link>
                 </Button>
               </>
@@ -178,8 +180,8 @@ export default function Admin() {
               <>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-profile">
                   <Link href="/profile">
-                    <User className="w-4 h-4 mr-2" />
-                    Profile
+                    <User className="w-4 h-4 me-2" />
+                    {t('nav.profile')}
                   </Link>
                 </Button>
                 <Button 
@@ -188,8 +190,8 @@ export default function Admin() {
                   onClick={handleLogout}
                   data-testid="button-logout-admin"
                 >
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Logout
+                  <LogOut className="w-4 h-4 me-2" />
+                  {t('nav.logout')}
                 </Button>
               </>
             )}
@@ -205,17 +207,17 @@ export default function Admin() {
         <div className="mb-12 text-center">
           <div className="flex items-center justify-center gap-3 mb-4">
             <FileQuestion className="w-12 h-12 text-primary" />
-            <h1 className="text-4xl md:text-5xl font-bold">Quiz Dashboard</h1>
+            <h1 className="text-4xl md:text-5xl font-bold">{t('quiz.title')}</h1>
           </div>
-          <p className="text-muted-foreground text-lg">Manage Quiz Question Bank</p>
+          <p className="text-muted-foreground text-lg">{t('quiz.subtitle')}</p>
         </div>
 
         <div className="mb-8 flex flex-wrap gap-4 items-end">
           <div className="flex-1 min-w-[300px]">
-            <Label htmlFor="search-question">Search Questions</Label>
+            <Label htmlFor="search-question">{t('quiz.searchLabel')}</Label>
             <Input
               id="search-question"
-              placeholder="Type to search by question text..."
+              placeholder={t('quiz.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               data-testid="input-search-question"
@@ -223,13 +225,13 @@ export default function Admin() {
           </div>
 
           <div className="flex-1 min-w-[200px]">
-            <Label htmlFor="filter-country">Country</Label>
+            <Label htmlFor="filter-country">{t('quiz.filterCountry')}</Label>
             <Select value={filters.countryId} onValueChange={(value) => setFilters(f => ({ ...f, countryId: value, curriculum: "all" }))}>
               <SelectTrigger id="filter-country" data-testid="select-filter-country">
-                <SelectValue placeholder="All Countries" />
+                <SelectValue placeholder={t('quiz.allCountries')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Countries</SelectItem>
+                <SelectItem value="all">{t('quiz.allCountries')}</SelectItem>
                 {countries.map(c => (
                   <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                 ))}
@@ -239,13 +241,13 @@ export default function Admin() {
 
           {availableCurricula.length > 0 && (
             <div className="flex-1 min-w-[200px]">
-              <Label htmlFor="filter-curriculum">Curriculum</Label>
+              <Label htmlFor="filter-curriculum">{t('quiz.filterCurriculum')}</Label>
               <Select value={filters.curriculum} onValueChange={(value) => setFilters(f => ({ ...f, curriculum: value }))}>
                 <SelectTrigger id="filter-curriculum" data-testid="select-filter-curriculum">
-                  <SelectValue placeholder="All Curricula" />
+                  <SelectValue placeholder={t('quiz.allCurricula')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Curricula</SelectItem>
+                  <SelectItem value="all">{t('quiz.allCurricula')}</SelectItem>
                   {availableCurricula.map((curriculum: string) => (
                     <SelectItem key={curriculum} value={curriculum}>{curriculum}</SelectItem>
                   ))}
@@ -255,13 +257,13 @@ export default function Admin() {
           )}
 
           <div className="flex-1 min-w-[200px]">
-            <Label htmlFor="filter-subject">Subject</Label>
+            <Label htmlFor="filter-subject">{t('quiz.filterSubject')}</Label>
             <Select value={filters.subject} onValueChange={(value) => setFilters(f => ({ ...f, subject: value }))}>
               <SelectTrigger id="filter-subject" data-testid="select-filter-subject">
-                <SelectValue placeholder="All Subjects" />
+                <SelectValue placeholder={t('quiz.allSubjects')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Subjects</SelectItem>
+                <SelectItem value="all">{t('quiz.allSubjects')}</SelectItem>
                 {SUBJECTS.map(s => (
                   <SelectItem key={s} value={s}>{s}</SelectItem>
                 ))}
@@ -270,15 +272,15 @@ export default function Admin() {
           </div>
 
           <div className="flex-1 min-w-[200px]">
-            <Label htmlFor="filter-grade">Grade</Label>
+            <Label htmlFor="filter-grade">{t('quiz.filterGrade')}</Label>
             <Select value={filters.grade} onValueChange={(value) => setFilters(f => ({ ...f, grade: value }))}>
               <SelectTrigger id="filter-grade" data-testid="select-filter-grade">
-                <SelectValue placeholder="All Grades" />
+                <SelectValue placeholder={t('quiz.allGrades')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Grades</SelectItem>
+                <SelectItem value="all">{t('quiz.allGrades')}</SelectItem>
                 {GRADES.map(g => (
-                  <SelectItem key={g} value={g}>Grade {g}</SelectItem>
+                  <SelectItem key={g} value={g}>{t('quiz.gradeN', { n: g })}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -286,25 +288,25 @@ export default function Admin() {
 
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => handleExport('json')} data-testid="button-export-json">
-              <Download className="w-4 h-4 mr-2" />
-              Export JSON
+              <Download className="w-4 h-4 me-2" />
+              {t('quiz.exportJSON')}
             </Button>
             <Button variant="outline" onClick={() => handleExport('csv')} data-testid="button-export-csv">
-              <Download className="w-4 h-4 mr-2" />
-              Export CSV
+              <Download className="w-4 h-4 me-2" />
+              {t('quiz.exportCSV')}
             </Button>
             <Button variant="outline" asChild data-testid="button-import">
               <label>
-                <Upload className="w-4 h-4 mr-2" />
-                Import JSON
+                <Upload className="w-4 h-4 me-2" />
+                {t('quiz.importJSON')}
                 <input type="file" accept=".json" className="hidden" onChange={handleImport} />
               </label>
             </Button>
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
               <DialogTrigger asChild>
                 <Button data-testid="button-create-question">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Question
+                  <Plus className="w-4 h-4 me-2" />
+                  {t('quiz.createQuestion')}
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
@@ -320,7 +322,6 @@ export default function Admin() {
           </div>
         </div>
 
-        {/* Filter questions by search query */}
         {(() => {
           const filteredQuestions = searchQuery.trim()
             ? questions.filter(q => q.question.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -331,21 +332,21 @@ export default function Admin() {
               {isLoading ? (
                 <Card>
                   <CardContent className="p-8 text-center text-muted-foreground">
-                    Loading questions...
+                    {t('quiz.loading')}
                   </CardContent>
                 </Card>
               ) : filteredQuestions.length === 0 ? (
                 <Card>
                   <CardContent className="p-8 text-center text-muted-foreground">
                     {searchQuery.trim() 
-                      ? `No questions found matching "${searchQuery}". Try a different search term.`
-                      : "No questions found. Create your first question to get started."}
+                      ? t('quiz.noQuestionsSearch', { query: searchQuery })
+                      : t('quiz.noQuestions')}
                   </CardContent>
                 </Card>
               ) : (
                 <>
                   <p className="text-sm text-muted-foreground mb-2">
-                    Showing {filteredQuestions.length} of {questions.length} questions
+                    {t('quiz.showingOf', { count: filteredQuestions.length, total: questions.length })}
                   </p>
                   {filteredQuestions.map((question, index) => (
               <Card key={question.id} data-testid={`question-card-${index}`}>
@@ -358,7 +359,7 @@ export default function Admin() {
                           {question.subject}
                         </span>
                         <span className="bg-accent/50 px-2 py-1 rounded text-xs">
-                          Grade {question.grade}
+                          {t('quiz.gradeN', { n: question.grade })}
                         </span>
                         {question.curriculum && (
                           <span className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-2 py-1 rounded text-xs">
@@ -413,7 +414,7 @@ export default function Admin() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    <p className="text-sm font-medium">Options:</p>
+                    <p className="text-sm font-medium">{t('quiz.options')}</p>
                     <ul className="list-disc list-inside space-y-1">
                       {question.options.map((option, i) => {
                         const isObject = typeof option === 'object' && option !== null;
@@ -427,14 +428,14 @@ export default function Admin() {
                             key={i}
                             className={isCorrect ? "text-green-600 font-medium" : ""}
                           >
-                            {optionText} {isCorrect && "(Correct)"}
+                            {optionText} {isCorrect && t('quiz.correct')}
                           </li>
                         );
                       })}
                     </ul>
                     {question.explanation && (
                       <div className="mt-3 p-3 bg-muted rounded">
-                        <p className="text-sm font-medium mb-1">Explanation:</p>
+                        <p className="text-sm font-medium mb-1">{t('quiz.explanation')}</p>
                         <p className="text-sm text-muted-foreground">{question.explanation}</p>
                       </div>
                     )}
@@ -462,6 +463,7 @@ function QuestionForm({
   countries: Array<{ id: string; name: string }>;
 }) {
   const { toast } = useToast();
+  const { t } = useTranslation('admin');
   
   const normalizeOptions = (opts: any): string[] => {
     if (!opts || !Array.isArray(opts)) return ["", "", "", ""];
@@ -529,11 +531,13 @@ function QuestionForm({
       });
     },
     onSuccess: () => {
-      toast({ title: "Success", description: `Question ${question ? 'updated' : 'created'} successfully` });
+      const action = question ? t('quiz.updated') : t('quiz.created');
+      toast({ title: "Success", description: t('quiz.saveSuccess', { action }) });
       onSuccess();
     },
     onError: () => {
-      toast({ title: "Error", description: `Failed to ${question ? 'update' : 'create'} question`, variant: "destructive" });
+      const action = question ? t('quiz.updated') : t('quiz.created');
+      toast({ title: "Error", description: t('quiz.saveError', { action }), variant: "destructive" });
     },
   });
 
@@ -555,15 +559,15 @@ function QuestionForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <DialogHeader>
-        <DialogTitle>{question ? 'Edit' : 'Create'} Question</DialogTitle>
+        <DialogTitle>{question ? t('quiz.editQuestion') : t('quiz.createQuestionTitle')}</DialogTitle>
         <DialogDescription>
-          {question ? 'Update' : 'Add'} a quiz question to the question bank
+          {question ? t('quiz.updateQuestion') : t('quiz.addToBank')}
         </DialogDescription>
       </DialogHeader>
 
       <div className="space-y-4">
         <div>
-          <Label htmlFor="question">Question *</Label>
+          <Label htmlFor="question">{t('quiz.questionLabel')}</Label>
           <Textarea
             id="question"
             value={formData.question}
@@ -576,10 +580,10 @@ function QuestionForm({
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label htmlFor="subject">Subject *</Label>
+            <Label htmlFor="subject">{t('quiz.subject')}</Label>
             <Select value={formData.subject} onValueChange={(value) => setFormData(f => ({ ...f, subject: value }))} required>
               <SelectTrigger id="subject" data-testid="select-subject">
-                <SelectValue placeholder="Select subject" />
+                <SelectValue placeholder={t('quiz.selectSubject')} />
               </SelectTrigger>
               <SelectContent>
                 {SUBJECTS.map(s => (
@@ -590,14 +594,14 @@ function QuestionForm({
           </div>
 
           <div>
-            <Label htmlFor="grade">Grade *</Label>
+            <Label htmlFor="grade">{t('quiz.grade')}</Label>
             <Select value={formData.grade} onValueChange={(value) => setFormData(f => ({ ...f, grade: value }))} required>
               <SelectTrigger id="grade" data-testid="select-grade">
-                <SelectValue placeholder="Select grade" />
+                <SelectValue placeholder={t('quiz.selectGrade')} />
               </SelectTrigger>
               <SelectContent>
                 {GRADES.map(g => (
-                  <SelectItem key={g} value={g}>Grade {g}</SelectItem>
+                  <SelectItem key={g} value={g}>{t('quiz.gradeN', { n: g })}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -606,7 +610,7 @@ function QuestionForm({
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label htmlFor="topic">Topic *</Label>
+            <Label htmlFor="topic">{t('quiz.topic')}</Label>
             <Input
               id="topic"
               value={formData.topic}
@@ -617,13 +621,13 @@ function QuestionForm({
           </div>
 
           <div>
-            <Label htmlFor="countryId">Country</Label>
+            <Label htmlFor="countryId">{t('quiz.country')}</Label>
             <Select value={formData.countryId} onValueChange={(value) => setFormData(f => ({ ...f, countryId: value }))}>
               <SelectTrigger id="countryId" data-testid="select-countryId">
-                <SelectValue placeholder="Global (All Countries)" />
+                <SelectValue placeholder={t('quiz.globalCountry')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Global (All Countries)</SelectItem>
+                <SelectItem value="all">{t('quiz.globalCountry')}</SelectItem>
                 {countries.map(c => (
                   <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
                 ))}
@@ -634,10 +638,10 @@ function QuestionForm({
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label htmlFor="difficulty">Difficulty *</Label>
+            <Label htmlFor="difficulty">{t('quiz.difficulty')}</Label>
             <Select value={formData.difficulty} onValueChange={(value) => setFormData(f => ({ ...f, difficulty: value }))} required>
               <SelectTrigger id="difficulty" data-testid="select-difficulty">
-                <SelectValue placeholder="Select difficulty" />
+                <SelectValue placeholder={t('quiz.selectDifficulty')} />
               </SelectTrigger>
               <SelectContent>
                 {DIFFICULTIES.map(d => (
@@ -648,10 +652,10 @@ function QuestionForm({
           </div>
 
           <div>
-            <Label htmlFor="cognitiveLevel">Cognitive Level *</Label>
+            <Label htmlFor="cognitiveLevel">{t('quiz.cognitiveLevel')}</Label>
             <Select value={formData.cognitiveLevel} onValueChange={(value) => setFormData(f => ({ ...f, cognitiveLevel: value }))} required>
               <SelectTrigger id="cognitiveLevel" data-testid="select-cognitiveLevel">
-                <SelectValue placeholder="Select level" />
+                <SelectValue placeholder={t('quiz.selectCognitiveLevel')} />
               </SelectTrigger>
               <SelectContent>
                 {COGNITIVE_LEVELS.map(c => (
@@ -663,14 +667,14 @@ function QuestionForm({
         </div>
 
         <div>
-          <Label>Options *</Label>
+          <Label>{t('quiz.optionN', { n: '1-4' })}</Label>
           <div className="space-y-2 mt-2">
             {formData.options.map((option, index) => (
               <Input
                 key={index}
                 value={option}
                 onChange={(e) => updateOption(index, e.target.value)}
-                placeholder={`Option ${index + 1}`}
+                placeholder={t('quiz.optionN', { n: index + 1 })}
                 required={index < 2}
                 data-testid={`input-option-${index}`}
               />
@@ -679,10 +683,10 @@ function QuestionForm({
         </div>
 
         <div>
-          <Label htmlFor="correctAnswer">Correct Answer *</Label>
+          <Label htmlFor="correctAnswer">{t('quiz.correctAnswer')}</Label>
           <Select value={formData.correctAnswer} onValueChange={(value) => setFormData(f => ({ ...f, correctAnswer: value }))} required>
             <SelectTrigger id="correctAnswer" data-testid="select-correctAnswer">
-              <SelectValue placeholder="Select correct answer" />
+              <SelectValue placeholder={t('quiz.correctAnswer')} />
             </SelectTrigger>
             <SelectContent>
               {formData.options.filter(o => typeof o === 'string' && o.trim()).map((option, index) => (
@@ -690,10 +694,11 @@ function QuestionForm({
               ))}
             </SelectContent>
           </Select>
+          <p className="text-xs text-muted-foreground mt-1">{t('quiz.answerHint')}</p>
         </div>
 
         <div>
-          <Label htmlFor="explanation">Explanation</Label>
+          <Label htmlFor="explanation">{t('quiz.explanationLabel')}</Label>
           <Textarea
             id="explanation"
             value={formData.explanation}
@@ -706,7 +711,7 @@ function QuestionForm({
 
       <div className="flex justify-end gap-2">
         <Button type="submit" disabled={mutation.isPending} data-testid="button-submit-question">
-          {mutation.isPending ? "Saving..." : (question ? "Update" : "Create")}
+          {mutation.isPending ? t('quiz.saving') : (question ? t('quiz.save') : t('quiz.create'))}
         </Button>
       </div>
     </form>

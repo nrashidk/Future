@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useTranslation } from "react-i18next";
 import { StickyNote } from "@/components/StickyNote";
 import { Input } from "@/components/ui/input";
 import { 
@@ -179,6 +180,7 @@ function QuestionCard({ question, index, isSelected, onToggle }: {
 
 export default function ContributionReviewQueue() {
   const { toast } = useToast();
+  const { t } = useTranslation('admin');
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
   const [selectedQuestions, setSelectedQuestions] = useState<Set<number>>(new Set());
   const [feedback, setFeedback] = useState("");
@@ -355,7 +357,7 @@ export default function ContributionReviewQueue() {
         <StickyNote color="yellow" rotation="1" className="p-4">
           <div className="flex items-center gap-2 mb-2">
             <Clock className="w-5 h-5 text-yellow-600" />
-            <span className="text-sm text-muted-foreground">Pending Review</span>
+            <span className="text-sm text-muted-foreground">{t('contributions.pendingReview')}</span>
           </div>
           <p className="text-3xl font-bold">{stats?.totalPending ?? 0}</p>
         </StickyNote>
@@ -363,7 +365,7 @@ export default function ContributionReviewQueue() {
         <StickyNote color="blue" rotation="-1" className="p-4">
           <div className="flex items-center gap-2 mb-2">
             <HelpCircle className="w-5 h-5 text-blue-600" />
-            <span className="text-sm text-muted-foreground">In Review</span>
+            <span className="text-sm text-muted-foreground">{t('contributions.inReview')}</span>
           </div>
           <p className="text-3xl font-bold">{stats?.totalInReview ?? 0}</p>
         </StickyNote>
@@ -371,7 +373,7 @@ export default function ContributionReviewQueue() {
         <StickyNote color="green" rotation="2" className="p-4">
           <div className="flex items-center gap-2 mb-2">
             <CheckCircle className="w-5 h-5 text-green-600" />
-            <span className="text-sm text-muted-foreground">Approved</span>
+            <span className="text-sm text-muted-foreground">{t('contributions.approved')}</span>
           </div>
           <p className="text-3xl font-bold">{stats?.totalApproved ?? 0}</p>
         </StickyNote>
@@ -379,7 +381,7 @@ export default function ContributionReviewQueue() {
         <StickyNote color="pink" rotation="-2" className="p-4">
           <div className="flex items-center gap-2 mb-2">
             <XCircle className="w-5 h-5 text-pink-600" />
-            <span className="text-sm text-muted-foreground">Rejected</span>
+            <span className="text-sm text-muted-foreground">{t('contributions.rejected')}</span>
           </div>
           <p className="text-3xl font-bold">{stats?.totalRejected ?? 0}</p>
         </StickyNote>
@@ -392,8 +394,8 @@ export default function ContributionReviewQueue() {
             <div className="flex items-center gap-3">
               <Settings className="w-5 h-5" />
               <div>
-                <CardTitle className="text-lg">Reward Settings</CardTitle>
-                <CardDescription>Configure school contribution reward limits</CardDescription>
+                <CardTitle className="text-lg">{t('contributions.rewardSettings')}</CardTitle>
+                <CardDescription>{t('contributions.rewardSettingsDesc')}</CardDescription>
               </div>
             </div>
           </div>

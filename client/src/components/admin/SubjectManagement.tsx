@@ -12,6 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { useTranslation } from "react-i18next";
 import { 
   Plus, Edit, Trash2, Search, GraduationCap, Copy, 
   BookOpen, Calculator, FlaskConical, Languages, Globe2, Code, AlertCircle
@@ -56,6 +57,7 @@ function getSubjectIcon(code: string) {
 
 export default function SubjectManagement() {
   const { toast } = useToast();
+  const { t } = useTranslation('admin');
   const [selectedCountry, setSelectedCountry] = useState<string>("");
   const [selectedCurriculum, setSelectedCurriculum] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -276,10 +278,10 @@ export default function SubjectManagement() {
           <div>
             <CardTitle className="flex items-center gap-2">
               <GraduationCap className="h-5 w-5" />
-              Subject Management
+              {t('subjects.title')}
             </CardTitle>
             <CardDescription>
-              Manage curriculum-scoped subjects for quiz questions
+              {t('subjects.subtitle')}
             </CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -289,8 +291,8 @@ export default function SubjectManagement() {
               onClick={() => setShowCloneDialog(true)}
               data-testid="button-clone-subjects"
             >
-              <Copy className="w-4 h-4 mr-2" />
-              Clone Subjects
+              <Copy className="w-4 h-4 me-2" />
+              {t('subjects.cloneSubjects')}
             </Button>
             <Button 
               size="sm" 
@@ -300,8 +302,8 @@ export default function SubjectManagement() {
               }}
               data-testid="button-add-subject"
             >
-              <Plus className="w-4 h-4 mr-2" />
-              Add Subject
+              <Plus className="w-4 h-4 me-2" />
+              {t('subjects.addSubject')}
             </Button>
           </div>
         </div>
