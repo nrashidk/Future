@@ -45,6 +45,7 @@ export default function Assessment() {
   const [isGuest, setIsGuest] = useState(false);
   const [assessmentId, setAssessmentId] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [aspirationsError, setAspirationsError] = useState<string | null>(null);
 
   const isPremiumUser = user?.isPremium || false;
   
@@ -238,6 +239,9 @@ export default function Assessment() {
           backendData.cvqResponses = assessmentData.cvqResponses;
         }
         
+        // Clear any previous inline error before retrying
+        if (isAspirationsStepPremium) setAspirationsError(null);
+
         // Save assessment — distinct error handling so the user gets the right message
         let assessment;
         try {
@@ -252,11 +256,9 @@ export default function Assessment() {
           }
         } catch (saveError) {
           console.error("Error saving assessment:", saveError);
-          toast({
-            title: t("errors.saveFailed"),
-            description: t("errors.saveFailedDesc", { message: saveError instanceof Error ? saveError.message : t("errors.unknownError") }),
-            variant: "destructive",
-          });
+          const msg = t("errors.saveFailedDesc", { message: saveError instanceof Error ? saveError.message : t("errors.unknownError") });
+          toast({ title: t("errors.saveFailed"), description: msg, variant: "destructive" });
+          if (isAspirationsStepPremium) setAspirationsError(msg);
           return; // stop here; finally will clear isGenerating
         }
         
@@ -270,11 +272,9 @@ export default function Assessment() {
             setLocation("/results?assessmentId=" + assessment.id);
           } catch (genError) {
             console.error("Error generating recommendations:", genError);
-            toast({
-              title: t("errors.generateFailed"),
-              description: t("errors.generateFailedDesc"),
-              variant: "destructive",
-            });
+            const msg = t("errors.generateFailedDesc");
+            toast({ title: t("errors.generateFailed"), description: msg, variant: "destructive" });
+            setAspirationsError(msg);
           }
         } else {
           // Advance to quiz step - React batches state updates so assessmentId will be available
@@ -641,6 +641,7 @@ export default function Assessment() {
                 onNext={handleNext}
                 onBack={() => setCurrentStep(5)}
                 isGenerating={isGenerating}
+                submitError={aspirationsError}
               />
             )}
           </>
@@ -656,6 +657,7 @@ export default function Assessment() {
                 onNext={handleNext}
                 onBack={() => setCurrentStep(6)}
                 isGenerating={isGenerating}
+                submitError={aspirationsError}
               />
             ) : (
               assessmentId ? (

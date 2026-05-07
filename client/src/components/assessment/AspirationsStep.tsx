@@ -2,7 +2,7 @@ import { StickyNote } from "@/components/StickyNote";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Loader2, Rocket, Star, Zap } from "lucide-react";
+import { AlertCircle, Loader2, Rocket, Star, Zap } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 interface AspirationsStepProps {
@@ -11,6 +11,7 @@ interface AspirationsStepProps {
   onNext: () => void;
   onBack?: () => void;
   isGenerating?: boolean;
+  submitError?: string | null;
 }
 
 const STRENGTH_KEYS: Record<string, string> = {
@@ -26,7 +27,7 @@ const STRENGTH_KEYS: Record<string, string> = {
 
 const strengthOptions = Object.keys(STRENGTH_KEYS);
 
-export function AspirationsStep({ data, onUpdate, onNext, onBack, isGenerating = false }: AspirationsStepProps) {
+export function AspirationsStep({ data, onUpdate, onNext, onBack, isGenerating = false, submitError = null }: AspirationsStepProps) {
   const { t } = useTranslation('assessment');
 
   const toggleStrength = (strength: string) => {
@@ -103,35 +104,47 @@ export function AspirationsStep({ data, onUpdate, onNext, onBack, isGenerating =
         </StickyNote>
       </div>
 
-      <div className="flex justify-center gap-4 pt-8">
-        {onBack && (
+      <div className="flex flex-col items-center gap-4 pt-8">
+        <div className="flex justify-center gap-4">
+          {onBack && (
+            <Button
+              size="lg"
+              variant="outline"
+              onClick={onBack}
+              disabled={isGenerating}
+              className="px-8 py-6 text-lg rounded-full"
+              data-testid="button-back-aspirations"
+            >
+              {t('nav.back')}
+            </Button>
+          )}
           <Button
             size="lg"
-            variant="outline"
-            onClick={onBack}
-            disabled={isGenerating}
-            className="px-8 py-6 text-lg rounded-full"
-            data-testid="button-back-aspirations"
+            onClick={onNext}
+            disabled={!canProceed || isGenerating}
+            className="px-12 py-6 text-lg rounded-full shadow-lg"
+            data-testid="button-submit-assessment"
           >
-            {t('nav.back')}
+            {isGenerating ? (
+              <>
+                <Loader2 className="me-2 h-5 w-5 animate-spin" />
+                {t('aspirations.generating')}
+              </>
+            ) : (
+              t('aspirations.selfAssessment')
+            )}
           </Button>
+        </div>
+        {submitError && (
+          <div
+            className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive max-w-md w-full"
+            data-testid="text-aspirations-submit-error"
+            role="alert"
+          >
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>{submitError}</span>
+          </div>
         )}
-        <Button
-          size="lg"
-          onClick={onNext}
-          disabled={!canProceed || isGenerating}
-          className="px-12 py-6 text-lg rounded-full shadow-lg"
-          data-testid="button-submit-assessment"
-        >
-          {isGenerating ? (
-            <>
-              <Loader2 className="me-2 h-5 w-5 animate-spin" />
-              {t('aspirations.generating')}
-            </>
-          ) : (
-            t('aspirations.selfAssessment')
-          )}
-        </Button>
       </div>
     </div>
   );
