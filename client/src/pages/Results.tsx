@@ -69,6 +69,30 @@ function getCountryDisplayName(country: any): string {
   return country?.name || "your country";
 }
 
+// Map DB growth outlook prefix words to their results.json i18n keys
+const GROWTH_LEVEL_I18N: Record<string, string> = {
+  "Excellent": "growthExcellent",
+  "Very Good": "growthVeryGood",
+  "Good": "growthGood",
+  "Moderate": "growthModerate",
+  "Depends on venture": "growthDepends",
+};
+
+function localizeGrowthOutlook(outlook: string, tFn: (key: string, opts?: any) => string): string {
+  // Standalone match (no percentage): "Depends on venture"
+  const standaloneKey = GROWTH_LEVEL_I18N[outlook.trim()];
+  if (standaloneKey) return tFn(standaloneKey);
+  // Pattern: "Excellent (25% growth)"
+  const match = outlook.match(/^([^(]+?)\s*\((\d+)%\s*growth\)$/i);
+  if (match) {
+    const prefix = match[1].trim();
+    const pct = match[2];
+    const levelKey = GROWTH_LEVEL_I18N[prefix];
+    if (levelKey) return tFn('growthPctPattern', { level: tFn(levelKey), pct });
+  }
+  return outlook;
+}
+
 // Map raw country.targets keys to results-namespace i18n keys for localized display
 const CATEGORY_I18N_KEY: Record<string, string> = {
   tech: 'visionCategoryTech',
@@ -160,8 +184,8 @@ export default function Results() {
   // Guest token is now sent via httpOnly cookie automatically
   const { data: recommendations = [], isLoading, isError: isRecommendationsError } = useQuery<any[]>({
     queryKey: urlAssessmentId 
-      ? [`/api/recommendations?assessmentId=${urlAssessmentId}`]
-      : ["/api/recommendations"],
+      ? [`/api/recommendations?assessmentId=${urlAssessmentId}&lang=${language}`]
+      : [`/api/recommendations?lang=${language}`],
     enabled: true,
   });
 
@@ -704,7 +728,7 @@ export default function Results() {
                   <div className="p-3 bg-background/30 rounded-lg text-center">
                     <TrendingUp className="w-5 h-5 mx-auto mb-1 text-primary" />
                     <p className="text-xs text-muted-foreground mb-1">{t('growthOutlook')}</p>
-                    <p className="font-bold text-sm">{rec.career?.growthOutlook}</p>
+                    <p className="font-bold text-sm">{localizeGrowthOutlook(rec.career?.growthOutlook || '', t)}</p>
                   </div>
                   {rec.career?.averageSalary && (
                     <div className="p-3 bg-background/30 rounded-lg text-center">
@@ -760,7 +784,10 @@ export default function Results() {
                   <div className="mb-4">
                     <h4 className="font-semibold mb-2 text-sm">{t('requiredSkills')}</h4>
                     <div className="flex flex-wrap gap-2">
-                      {rec.career.requiredSkills.map((skill: string) => (
+                      {(language === 'ar' && rec.career.requiredSkillsAr?.length
+                        ? rec.career.requiredSkillsAr
+                        : rec.career.requiredSkills
+                      ).map((skill: string) => (
                         <span
                           key={skill}
                           className="bg-primary/10 px-3 py-1 rounded-full text-sm font-medium"

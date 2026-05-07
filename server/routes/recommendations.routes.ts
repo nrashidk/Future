@@ -13,6 +13,23 @@ import {
   generateEnhancedActionSteps,
 } from "../services/premiumNarratives";
 import { isPremiumAssessment } from "../utils/assessmentTier";
+import type { Career } from "@shared/schema";
+
+/**
+ * When the client requests lang=ar, merge Arabic fields over English equivalents
+ * so both the raw AR fields AND the primary fields carry localised content.
+ */
+function localizeCareer(career: Career | undefined, isArabic: boolean): Career | undefined {
+  if (!career || !isArabic) return career;
+  return {
+    ...career,
+    title: career.titleAr || career.title,
+    description: career.descriptionAr || career.description,
+    requiredSkills: (career.requiredSkillsAr && career.requiredSkillsAr.length > 0)
+      ? career.requiredSkillsAr
+      : career.requiredSkills,
+  };
+}
 
 export function registerRecommendationsRoutes(app: Express) {
   // Generate recommendations using dynamic matching service
@@ -155,11 +172,16 @@ export function registerRecommendationsRoutes(app: Express) {
   });
 
   // Get recommendations for an assessment (or guest with guestToken)
+  // Accepts optional ?lang=ar (or Accept-Language: ar) to promote Arabic career fields
   app.get("/api/recommendations", async (req: any, res) => {
     try {
       let assessmentId = req.query.assessmentId as string | undefined;
       // Support both query param (legacy) and httpOnly cookie (secure)
       const guestToken = (req.query.guestToken as string | undefined) || req.cookies?.guest_token;
+      // Resolve requested language: query param takes priority over Accept-Language header
+      const langParam = (req.query.lang as string | undefined) || '';
+      const acceptLang = (req.headers['accept-language'] || '').toLowerCase();
+      const isArabic = langParam === 'ar' || (!langParam && acceptLang.startsWith('ar'));
 
       // If no assessmentId but guestToken provided, try to find guest assessment
       if (!assessmentId && guestToken) {
@@ -254,7 +276,7 @@ export function registerRecommendationsRoutes(app: Express) {
                 // Return enriched recommendation with both component reasoning and premium narratives
                 return {
                   ...rec,
-                  career,
+                  career: localizeCareer(career, isArabic),
                   // Add premium fields (not stored in DB, generated on-demand)
                   premiumReasoning,
                   workStyleFit,
@@ -264,13 +286,13 @@ export function registerRecommendationsRoutes(app: Express) {
               } catch (error) {
                 console.error('[Premium Narratives] Error generating for career:', career.id, error);
                 // Fallback: return basic recommendation without premium narratives
-                return { ...rec, career };
+                return { ...rec, career: localizeCareer(career, isArabic) };
               }
             }
           }
 
           // Free tier or missing premium data: return basic recommendation
-          return { ...rec, career };
+          return { ...rec, career: localizeCareer(career, isArabic) };
         })
       );
 

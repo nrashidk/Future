@@ -43,6 +43,28 @@ function getCountryDisplayName(country: any): string {
   return country?.name || "your country";
 }
 
+// Map DB growth outlook prefix words to their results.json i18n keys
+const GROWTH_LEVEL_I18N: Record<string, string> = {
+  "Excellent": "growthExcellent",
+  "Very Good": "growthVeryGood",
+  "Good": "growthGood",
+  "Moderate": "growthModerate",
+  "Depends on venture": "growthDepends",
+};
+
+function localizeGrowthOutlook(outlook: string, tFn: (key: string, opts?: any) => string): string {
+  const standaloneKey = GROWTH_LEVEL_I18N[outlook.trim()];
+  if (standaloneKey) return tFn(standaloneKey);
+  const match = outlook.match(/^([^(]+?)\s*\((\d+)%\s*growth\)$/i);
+  if (match) {
+    const prefix = match[1].trim();
+    const pct = match[2];
+    const levelKey = GROWTH_LEVEL_I18N[prefix];
+    if (levelKey) return tFn('growthPctPattern', { level: tFn(levelKey), pct });
+  }
+  return outlook;
+}
+
 
 
 // Map raw country.targets keys to results-namespace i18n keys for localized display
@@ -135,10 +157,10 @@ export default function ResultsPrint() {
 
   const { data: recommendations = [], isLoading } = useQuery<any[]>({
     queryKey: assessmentId 
-      ? [`/api/recommendations?assessmentId=${assessmentId}${guestToken ? `&guestToken=${guestToken}` : ''}`] 
+      ? [`/api/recommendations?assessmentId=${assessmentId}${guestToken ? `&guestToken=${guestToken}` : ''}&lang=${langParam}`] 
       : guestToken 
-        ? [`/api/recommendations?guestToken=${guestToken}`]
-        : ["/api/recommendations"],
+        ? [`/api/recommendations?guestToken=${guestToken}&lang=${langParam}`]
+        : [`/api/recommendations?lang=${langParam}`],
     enabled: true,
   });
 
@@ -773,6 +795,15 @@ export default function ResultsPrint() {
                           </div>
                         ))}
                       </div>
+
+                      {/* Growth Outlook row */}
+                      {rec.career?.growthOutlook && (
+                        <div className="flex items-center gap-1.5 mt-1.5 p-1.5 bg-background/20 rounded-lg">
+                          <TrendingUp className="w-3 h-3 text-primary flex-shrink-0" />
+                          <span className="text-[10px] text-muted-foreground">{t('growthOutlook')}:</span>
+                          <span className="text-[10px] font-semibold">{localizeGrowthOutlook(rec.career.growthOutlook, t)}</span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Two-column content: Why+WorkStyle | Education+Strengths */}
