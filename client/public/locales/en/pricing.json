@@ -81,6 +81,8 @@
     "processing": "Processing...",
     "pay": "Pay ${{amount}}",
     "secureNotice": "Secure payment powered by Stripe. Your payment information is encrypted and secure.",
+    "emailPlaceholder": "you@domain.com",
+    "phonePlaceholder": "0501234567",
     "invalidEmailDesc": "Please enter a valid email address",
     "invalidPhoneDesc": "Please enter a valid 10-digit phone number starting with 05",
     "paymentSuccessDesc": "Your payment was processed successfully.",

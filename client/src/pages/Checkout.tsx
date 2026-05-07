@@ -201,7 +201,7 @@ function CheckoutForm({ amount, studentCount }: { amount: number | null; student
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@domain.com"
+            placeholder={t("checkout.emailPlaceholder")}
             required
             data-testid="input-email"
           />
@@ -216,7 +216,7 @@ function CheckoutForm({ amount, studentCount }: { amount: number | null; student
             type="tel"
             value={phone}
             onChange={(e) => setPhone(sanitizePhone(e.target.value))}
-            placeholder="0501234567"
+            placeholder={t("checkout.phonePlaceholder")}
             maxLength={10}
             required
             data-testid="input-phone"

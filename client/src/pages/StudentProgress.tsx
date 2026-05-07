@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { GraduationCap, TrendingUp, Target, Brain, Heart, ArrowLeft, Calendar, Award, ChevronRight } from "lucide-react";
 import { StickyNote } from "@/components/StickyNote";
 import { useTranslation } from "react-i18next";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface CareerEvolutionData {
   grade: string;
@@ -34,6 +35,7 @@ interface CareerEvolutionResponse {
 
 export default function StudentProgress() {
   const { t } = useTranslation("profile");
+  const { language } = useLanguage();
   useEffect(() => { document.title = `${t("progress.pageTitle")} | Future Pathways`; }, [t]);
 
   const { user, isLoading: isAuthLoading } = useAuth();
@@ -70,7 +72,7 @@ export default function StudentProgress() {
 
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return t("progress.notCompletedDate");
-    return new Date(dateStr).toLocaleDateString('en-US', { 
+    return new Date(dateStr).toLocaleDateString(language === 'ar' ? 'ar-AE' : 'en-US', { 
       month: 'short', 
       year: 'numeric' 
     });
