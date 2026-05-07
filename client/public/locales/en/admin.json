@@ -661,7 +661,9 @@
     "failedToUpdateCareer": "Failed to update career",
     "failedToDeleteCareer": "Failed to delete career",
     "success": "Success",
-    "bulkDeleteConfirm": "Are you sure you want to delete {{n}} school(s)? This action cannot be undone."
+    "bulkDeleteConfirm": "Are you sure you want to delete {{n}} school(s)? This action cannot be undone.",
+    "announcementTitleArPlaceholder": "Announcement title in Arabic",
+    "announcementContentArPlaceholder": "Announcement content in Arabic"
   },
   "scoring": {
     "title": "Scoring Configuration",
@@ -1196,6 +1198,10 @@
     "countryNameArCol": "Arabic Name",
     "countryNameArPlaceholder": "Enter Arabic name...",
     "countrySaved": "Country name saved",
-    "countrySavedDesc": "Arabic country name updated successfully"
+    "countrySavedDesc": "Arabic country name updated successfully",
+    "dbCareersAllDone": "All careers have Arabic translations",
+    "dbCareersMissing": "{{n}} career(s) missing Arabic translations",
+    "arabicTitleLabel": "Arabic Title",
+    "arabicDescLabel": "Arabic Description"
   }
 }

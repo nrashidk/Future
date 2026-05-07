@@ -499,8 +499,8 @@ export default function TranslationManager() {
                   <CardTitle className="text-base">{t('translation.dbCareers')}</CardTitle>
                   <CardDescription>
                     {careersWithMissingAr.length > 0
-                      ? t('translation.dbCvqMissing', { n: careersWithMissingAr.length })
-                      : t('translation.dbCvqAllDone')}
+                      ? t('translation.dbCareersMissing', { n: careersWithMissingAr.length })
+                      : t('translation.dbCareersAllDone')}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
@@ -528,7 +528,7 @@ export default function TranslationManager() {
                                 </div>
                                 <div className="space-y-2">
                                   <div className="space-y-1">
-                                    <Label className="text-xs" htmlFor={`title-ar-${career.id}`}>{t('translation.arabicTitle')} — Title</Label>
+                                    <Label className="text-xs" htmlFor={`title-ar-${career.id}`}>{t('translation.arabicTitleLabel')}</Label>
                                     <Input
                                       id={`title-ar-${career.id}`}
                                       value={careerArValues.titleAr}
@@ -539,7 +539,7 @@ export default function TranslationManager() {
                                     />
                                   </div>
                                   <div className="space-y-1">
-                                    <Label className="text-xs" htmlFor={`desc-ar-${career.id}`}>{t('translation.arabicTitle')} — Description</Label>
+                                    <Label className="text-xs" htmlFor={`desc-ar-${career.id}`}>{t('translation.arabicDescLabel')}</Label>
                                     <Textarea
                                       id={`desc-ar-${career.id}`}
                                       value={careerArValues.descriptionAr}

@@ -2244,7 +2244,7 @@ export default function SuperadminDashboard() {
                   id="announcement-title-ar"
                   value={announcementForm.titleAr}
                   onChange={(e) => setAnnouncementForm({ ...announcementForm, titleAr: e.target.value })}
-                  placeholder="عنوان الإعلان"
+                  placeholder={t('superadmin.announcementTitleArPlaceholder')}
                   dir="rtl"
                   data-testid="input-announcement-title-ar"
                 />
@@ -2268,7 +2268,7 @@ export default function SuperadminDashboard() {
                   id="announcement-content-ar"
                   value={announcementForm.contentAr}
                   onChange={(e) => setAnnouncementForm({ ...announcementForm, contentAr: e.target.value })}
-                  placeholder="محتوى الإعلان"
+                  placeholder={t('superadmin.announcementContentArPlaceholder')}
                   rows={4}
                   dir="rtl"
                   data-testid="input-announcement-content-ar"

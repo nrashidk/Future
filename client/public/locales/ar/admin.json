@@ -661,7 +661,9 @@
     "failedToUpdateCareer": "فشل تحديث المهنة",
     "failedToDeleteCareer": "فشل حذف المهنة",
     "success": "نجاح",
-    "bulkDeleteConfirm": "هل أنت متأكد أنك تريد حذف {{n}} مدرسة؟ لا يمكن التراجع عن هذا الإجراء."
+    "bulkDeleteConfirm": "هل أنت متأكد أنك تريد حذف {{n}} مدرسة؟ لا يمكن التراجع عن هذا الإجراء.",
+    "announcementTitleArPlaceholder": "عنوان الإعلان بالعربية",
+    "announcementContentArPlaceholder": "محتوى الإعلان بالعربية"
   },
   "scoring": {
     "title": "إعداد التقييم",
@@ -1196,6 +1198,10 @@
     "countryNameArCol": "الاسم بالعربية",
     "countryNameArPlaceholder": "أدخل الاسم بالعربية...",
     "countrySaved": "تم حفظ اسم الدولة",
-    "countrySavedDesc": "تم تحديث الاسم العربي للدولة بنجاح"
+    "countrySavedDesc": "تم تحديث الاسم العربي للدولة بنجاح",
+    "dbCareersAllDone": "جميع المهن لديها ترجمات عربية",
+    "dbCareersMissing": "{{n}} مهنة (مهن) تفتقر إلى الترجمة العربية",
+    "arabicTitleLabel": "العنوان بالعربية",
+    "arabicDescLabel": "الوصف بالعربية"
   }
 }
