@@ -281,6 +281,7 @@ export const wefSkills = pgTable("wef_skills", {
   competencyType: text("competency_type").notNull(), // 'foundational_literacy' or 'competency'
   category: text("category").notNull(), // 'Literacy', 'Numeracy', 'Critical Thinking', etc.
   description: text("description").notNull(),
+  descriptionAr: text("description_ar"), // Arabic translation of the description
   displayOrder: integer("display_order").notNull(), // 1-16 for UI ordering
   assessmentApplicable: boolean("assessment_applicable").notNull().default(false), // true for competencies, false for literacies
   relatedSubjects: text("related_subjects").array(), // Links to subjects for literacy skills

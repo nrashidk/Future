@@ -28,6 +28,7 @@ import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/contexts/LanguageContext";
 import type { Recommendation, Career } from "@shared/schema";
@@ -35,6 +36,7 @@ import type { Recommendation, Career } from "@shared/schema";
 interface WefSkillTag {
   name: string;
   nameAr: string | null;
+  descriptionAr: string | null;
 }
 
 interface EnrichedRecommendation extends Recommendation {
@@ -926,7 +928,7 @@ export default function Results() {
                   ) : null;
                 })()}
 
-                {/* WEF Framework Skills — nameAr used when language is Arabic */}
+                {/* WEF Framework Skills — nameAr/descriptionAr used when language is Arabic */}
                 {rec.wefSkillTags && rec.wefSkillTags.length > 0 && (
                   <div className="mb-4">
                     <h4 className="font-semibold mb-2 text-sm flex items-center gap-1.5">
@@ -934,15 +936,25 @@ export default function Results() {
                       {t('wefSkillsTitle', 'Future Skills (WEF)')}
                     </h4>
                     <div className="flex flex-wrap gap-1.5">
-                      {rec.wefSkillTags.map((tag) => (
-                        <span
-                          key={tag.name}
-                          className="bg-accent/20 px-2.5 py-0.5 rounded-full text-xs font-medium"
-                          data-testid={`badge-wef-${tag.name.toLowerCase().replace(/\s+/g, '-')}`}
-                        >
-                          {language === 'ar' ? (tag.nameAr ?? tag.name) : tag.name}
-                        </span>
-                      ))}
+                      {rec.wefSkillTags.map((tag) => {
+                        const label = language === 'ar' ? (tag.nameAr ?? tag.name) : tag.name;
+                        const desc = language === 'ar' ? (tag.descriptionAr ?? tag.name) : tag.name;
+                        return (
+                          <Tooltip key={tag.name}>
+                            <TooltipTrigger asChild>
+                              <span
+                                className="bg-accent/20 px-2.5 py-0.5 rounded-full text-xs font-medium cursor-default"
+                                data-testid={`badge-wef-${tag.name.toLowerCase().replace(/\s+/g, '-')}`}
+                              >
+                                {label}
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs text-center">
+                              {desc}
+                            </TooltipContent>
+                          </Tooltip>
+                        );
+                      })}
                     </div>
                   </div>
                 )}

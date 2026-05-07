@@ -32,6 +32,7 @@ import type { Recommendation, Career } from "@shared/schema";
 interface WefSkillTag {
   name: string;
   nameAr: string | null;
+  descriptionAr: string | null;
 }
 
 interface EnrichedRecommendation extends Recommendation {
@@ -866,6 +867,7 @@ export default function ResultsPrint() {
                           <span
                             key={tag.name}
                             className="bg-accent/20 px-2 py-0.5 rounded-full text-[10px] font-medium"
+                            title={langParam === 'ar' ? (tag.descriptionAr ?? tag.name) : tag.name}
                           >
                             {langParam === 'ar' ? (tag.nameAr ?? tag.name) : tag.name}
                           </span>
