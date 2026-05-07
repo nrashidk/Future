@@ -71,11 +71,11 @@ export async function seedDatabase() {
       // Patch existing record with Arabic fields (idempotent update)
       try {
         await storage.updateCountry(country.id, {
-          nameAr: (country as any).nameAr,
-          missionAr: (country as any).missionAr,
-          visionAr: (country as any).visionAr,
-          prioritySectorsAr: (country as any).prioritySectorsAr,
-          nationalGoalsAr: (country as any).nationalGoalsAr,
+          nameAr: country.nameAr,
+          missionAr: country.missionAr,
+          visionAr: country.visionAr,
+          prioritySectorsAr: country.prioritySectorsAr,
+          nationalGoalsAr: country.nationalGoalsAr,
         });
         console.log(`✓ Arabic content applied to: ${country.name}`);
       } catch (updateError) {
