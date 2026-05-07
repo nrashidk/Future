@@ -535,10 +535,34 @@ export function registerRecommendationsRoutes(app: Express) {
         return res.status(404).json({ message: "Recommendation not found for this career" });
       }
 
+      // Resolve user's preferred language for narrative output
+      let narrativeLanguage = "en";
+      if (assessment.userId) {
+        const narrativeUser = await storage.getUser(assessment.userId);
+        narrativeLanguage = narrativeUser?.preferredLanguage || "en";
+      }
+
       // Import LLM service
       const { generateCareerReasoningNarrative, isLlmServiceAvailable } = await import("../services/llmNarrativeService");
 
-      // Check if LLM service is available
+      // Serve from cache first — this works even when LLM credentials are
+      // disabled (e.g. admin removed the API key after initial generation).
+      const cachedNarrative = await storage.getLlmNarrativeCache(
+        assessmentId, careerId, "career_reasoning", narrativeLanguage
+      ).catch(() => null);
+
+      if (cachedNarrative) {
+        return res.json({
+          success: true,
+          careerId,
+          careerTitle: career.title,
+          careerReasoning: cachedNarrative,
+          model: "cached",
+          fromCache: true,
+        });
+      }
+
+      // Cache miss — LLM must be available to generate a fresh narrative
       const llmAvailable = await isLlmServiceAvailable(storage);
       if (!llmAvailable) {
         return res.status(503).json({
@@ -547,14 +571,7 @@ export function registerRecommendationsRoutes(app: Express) {
         });
       }
 
-      // Resolve user's preferred language for narrative output
-      let narrativeLanguage = "en";
-      if (assessment.userId) {
-        const narrativeUser = await storage.getUser(assessment.userId);
-        narrativeLanguage = narrativeUser?.preferredLanguage || "en";
-      }
-
-      // Generate career reasoning narrative
+      // Generate career reasoning narrative (also writes to cache on success)
       const result = await generateCareerReasoningNarrative(
         storage,
         assessment,
@@ -645,10 +662,38 @@ export function registerRecommendationsRoutes(app: Express) {
         return res.status(404).json({ message: "Recommendation not found for this career" });
       }
 
+      // Resolve user's preferred language for narrative output
+      let narrativeLanguage = "en";
+      if (assessment.userId) {
+        const narrativeUser = await storage.getUser(assessment.userId);
+        narrativeLanguage = narrativeUser?.preferredLanguage || "en";
+      }
+
       // Import LLM service
       const { generateEducationPathwaysNarrative, isLlmServiceAvailable } = await import("../services/llmNarrativeService");
 
-      // Check if LLM service is available
+      // Serve from cache first — this works even when LLM credentials are
+      // disabled (e.g. admin removed the API key after initial generation).
+      const cachedPathways = await storage.getLlmNarrativeCache(
+        assessmentId, careerId, "education_pathways", narrativeLanguage
+      ).catch(() => null);
+
+      if (cachedPathways) {
+        return res.json({
+          success: true,
+          careerId,
+          careerTitle: career.title,
+          educationPathways: cachedPathways,
+          model: "cached",
+          fromCache: true,
+          caaLinks: {
+            institutions: "https://caa.ae/Pages/Institutes/All.aspx",
+            programs: "https://caa.ae/Pages/Programs/All.aspx"
+          }
+        });
+      }
+
+      // Cache miss — LLM must be available to generate a fresh narrative
       const llmAvailable = await isLlmServiceAvailable(storage);
       if (!llmAvailable) {
         return res.status(503).json({ 
@@ -657,14 +702,7 @@ export function registerRecommendationsRoutes(app: Express) {
         });
       }
 
-      // Resolve user's preferred language for narrative output
-      let narrativeLanguage = "en";
-      if (assessment.userId) {
-        const narrativeUser = await storage.getUser(assessment.userId);
-        narrativeLanguage = narrativeUser?.preferredLanguage || "en";
-      }
-
-      // Generate education pathways narrative
+      // Generate education pathways narrative (also writes to cache on success)
       const result = await generateEducationPathwaysNarrative(
         storage,
         assessment,
