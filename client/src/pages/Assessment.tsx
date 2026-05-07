@@ -255,11 +255,14 @@ export default function Assessment() {
           // Advance to quiz step - React batches state updates so assessmentId will be available
           setCurrentStep((prev) => prev + 1);
         }
+      } catch (error) {
+        console.error("Error saving assessment:", error);
         toast({
           title: t("errors.saveFailed"),
           description: t("errors.saveFailedDesc", { message: error instanceof Error ? error.message : t("errors.unknownError") }),
           variant: "destructive",
         });
+      }
     } else {
       // For all other steps: Just advance
       setCurrentStep((prev) => prev + 1);
