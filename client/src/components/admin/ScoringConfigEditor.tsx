@@ -16,7 +16,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useTranslation } from "react-i18next";
 import { 
-  Settings, Save, RefreshCw, AlertTriangle, CheckCircle, 
+  Settings, Save, AlertTriangle, CheckCircle, 
   Key, MessageSquare, Sparkles, History, Eye, EyeOff,
   TestTube, Trash2
 } from "lucide-react";
@@ -119,13 +119,13 @@ export default function ScoringConfigEditor() {
       return apiRequest('PATCH', `/api/superadmin/scoring-config/tiers/${tierKey}/weights`, { weights });
     },
     onSuccess: () => {
-      toast({ title: "Weights Updated", description: "Tier weights have been saved successfully" });
+      toast({ title: t('scoring.weightsUpdated'), description: t('scoring.weightsUpdatedDesc') });
       setEditingTier(null);
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/scoring-config'] });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/scoring-config/changelog'] });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to update weights", variant: "destructive" });
+      toast({ title: t('superadmin.errorTitle'), description: error.message || t('scoring.failedUpdateWeights'), variant: "destructive" });
     },
   });
 
@@ -134,14 +134,14 @@ export default function ScoringConfigEditor() {
       return apiRequest('PATCH', `/api/superadmin/llm-prompts/${data.id}`, data.updates);
     },
     onSuccess: () => {
-      toast({ title: "Prompt Updated", description: "LLM prompt template has been saved" });
+      toast({ title: t('scoring.promptUpdated'), description: t('scoring.promptUpdatedDesc') });
       setIsPromptModalOpen(false);
       setEditingPrompt(null);
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/llm-prompts'] });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/scoring-config/changelog'] });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to update prompt", variant: "destructive" });
+      toast({ title: t('superadmin.errorTitle'), description: error.message || t('scoring.failedUpdatePrompt'), variant: "destructive" });
     },
   });
 
@@ -150,13 +150,13 @@ export default function ScoringConfigEditor() {
       return apiRequest('POST', '/api/superadmin/api-credentials', data);
     },
     onSuccess: () => {
-      toast({ title: "API Key Saved", description: "Anthropic API key has been saved securely" });
+      toast({ title: t('scoring.apiKeySaved'), description: t('scoring.anthropicKeySavedDesc') });
       setNewApiKey("");
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/api-credentials'] });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/scoring-config/changelog'] });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to save API key", variant: "destructive" });
+      toast({ title: t('superadmin.errorTitle'), description: error.message || t('scoring.failedSaveKey'), variant: "destructive" });
     },
   });
 
@@ -167,14 +167,14 @@ export default function ScoringConfigEditor() {
     },
     onSuccess: (data: any) => {
       if (data.success) {
-        toast({ title: "Test Passed", description: data.message });
+        toast({ title: t('scoring.testPassed'), description: data.message });
       } else {
-        toast({ title: "Test Failed", description: data.message, variant: "destructive" });
+        toast({ title: t('scoring.testFailed'), description: data.message, variant: "destructive" });
       }
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/api-credentials'] });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to test API key", variant: "destructive" });
+      toast({ title: t('superadmin.errorTitle'), description: error.message || t('scoring.failedTestKey'), variant: "destructive" });
     },
   });
 
@@ -183,12 +183,12 @@ export default function ScoringConfigEditor() {
       return apiRequest('DELETE', `/api/superadmin/api-credentials/${provider}`);
     },
     onSuccess: () => {
-      toast({ title: "API Key Deleted", description: "API credential has been removed" });
+      toast({ title: t('scoring.apiKeyDeleted'), description: t('scoring.apiKeyDeletedDesc') });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/api-credentials'] });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/scoring-config/changelog'] });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to delete API key", variant: "destructive" });
+      toast({ title: t('superadmin.errorTitle'), description: error.message || t('scoring.failedDeleteKey'), variant: "destructive" });
     },
   });
 
@@ -227,8 +227,8 @@ export default function ScoringConfigEditor() {
     const total = calculateTotalWeight(tierKey);
     if (Math.abs(total - 100) > 0.01) {
       toast({ 
-        title: "Invalid Weights", 
-        description: `Enabled weights must sum to 100%. Current: ${total}%`, 
+        title: t('scoring.invalidWeights'), 
+        description: t('scoring.invalidWeightsDesc', { n: total }), 
         variant: "destructive" 
       });
       return;
@@ -283,7 +283,7 @@ export default function ScoringConfigEditor() {
 
         <TabsContent value="weights" className="space-y-4">
           {configLoading ? (
-            <div className="text-center py-8 text-muted-foreground">Loading configuration...</div>
+            <div className="text-center py-8 text-muted-foreground">{t('scoring.loading')}</div>
           ) : (
             <>
               {configData && !configData.isValid && (
@@ -291,7 +291,7 @@ export default function ScoringConfigEditor() {
                   <CardHeader className="pb-2">
                     <CardTitle className="flex items-center gap-2 text-destructive">
                       <AlertTriangle className="w-5 h-5" />
-                      Configuration Errors
+                      {t('scoring.configErrors')}
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
@@ -312,9 +312,9 @@ export default function ScoringConfigEditor() {
                         <CardTitle className="flex items-center gap-2">
                           {tier.name}
                           {tier.isActive ? (
-                            <Badge variant="outline" className="text-green-600 border-green-600">Active</Badge>
+                            <Badge variant="outline" className="text-green-600 border-green-600">{t('scoring.active')}</Badge>
                           ) : (
-                            <Badge variant="outline" className="text-muted-foreground">Inactive</Badge>
+                            <Badge variant="outline" className="text-muted-foreground">{t('scoring.inactive')}</Badge>
                           )}
                         </CardTitle>
                         <CardDescription>{tier.description}</CardDescription>
@@ -323,7 +323,7 @@ export default function ScoringConfigEditor() {
                         {editingTier === tier.key ? (
                           <>
                             <div className={`text-sm font-medium ${Math.abs(calculateTotalWeight(tier.key) - 100) < 0.01 ? 'text-green-600' : 'text-destructive'}`}>
-                              Total: {calculateTotalWeight(tier.key)}%
+                              {t('scoring.totalPct', { n: calculateTotalWeight(tier.key) })}
                             </div>
                             <Button
                               size="sm"
@@ -331,7 +331,7 @@ export default function ScoringConfigEditor() {
                               onClick={() => setEditingTier(null)}
                               data-testid={`button-cancel-${tier.key}`}
                             >
-                              Cancel
+                              {t('scoring.cancel')}
                             </Button>
                             <Button
                               size="sm"
@@ -339,14 +339,14 @@ export default function ScoringConfigEditor() {
                               disabled={updateWeightsMutation.isPending}
                               data-testid={`button-save-${tier.key}`}
                             >
-                              <Save className="w-4 h-4 mr-2" />
-                              Save
+                              <Save className="w-4 h-4 me-2" />
+                              {t('scoring.save')}
                             </Button>
                           </>
                         ) : (
                           <>
                             <div className={`text-sm font-medium ${tier.totalWeight === 100 ? 'text-green-600' : 'text-destructive'}`}>
-                              Total: {tier.totalWeight}%
+                              {t('scoring.totalPct', { n: tier.totalWeight })}
                             </div>
                             <Button
                               size="sm"
@@ -354,7 +354,7 @@ export default function ScoringConfigEditor() {
                               onClick={() => startEditingTier(tier)}
                               data-testid={`button-edit-${tier.key}`}
                             >
-                              Edit Weights
+                              {t('scoring.editWeights')}
                             </Button>
                           </>
                         )}
@@ -365,10 +365,10 @@ export default function ScoringConfigEditor() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Component</TableHead>
-                          <TableHead className="w-24">Enabled</TableHead>
-                          <TableHead className="w-48">Weight</TableHead>
-                          <TableHead className="w-20 text-right">%</TableHead>
+                          <TableHead>{t('scoring.component')}</TableHead>
+                          <TableHead className="w-24">{t('scoring.enabled')}</TableHead>
+                          <TableHead className="w-48">{t('scoring.weight')}</TableHead>
+                          <TableHead className="w-20 text-right">{t('scoring.pctHeader')}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -438,27 +438,26 @@ export default function ScoringConfigEditor() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Key className="w-5 h-5" />
-                Anthropic (Claude) API Key
+                {t('scoring.anthropicCardTitle')}
               </CardTitle>
               <CardDescription>
-                Configure your Anthropic API key for generating personalized premium report narratives using Claude.
-                The key is stored securely and used for Career Reasoning and Education Pathways recommendations.
+                {t('scoring.anthropicCardDesc')}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {credentialsLoading ? (
-                <div className="text-muted-foreground">Loading...</div>
+                <div className="text-muted-foreground">{t('scoring.loadingCredentials')}</div>
               ) : anthropicCredential ? (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between p-4 border rounded-lg">
                     <div>
-                      <div className="font-medium">Anthropic (Claude)</div>
+                      <div className="font-medium">{t('scoring.anthropicLabel')}</div>
                       <div className="text-sm text-muted-foreground font-mono">
-                        {anthropicCredential.apiKeyMasked || 'Key configured'}
+                        {anthropicCredential.apiKeyMasked || t('scoring.keyConfigured')}
                       </div>
                       {anthropicCredential.lastTestedAt && (
                         <div className="text-xs text-muted-foreground mt-1">
-                          Last tested: {new Date(anthropicCredential.lastTestedAt).toLocaleString()}
+                          {t('scoring.lastTestedLabel')} {new Date(anthropicCredential.lastTestedAt).toLocaleString()}
                           {' - '}
                           <span className={anthropicCredential.lastTestResult === 'success' ? 'text-green-600' : 'text-destructive'}>
                             {anthropicCredential.lastTestResult}
@@ -468,7 +467,7 @@ export default function ScoringConfigEditor() {
                     </div>
                     <div className="flex items-center gap-2">
                       <Badge variant={anthropicCredential.isActive ? "default" : "secondary"}>
-                        {anthropicCredential.isActive ? "Active" : "Inactive"}
+                        {anthropicCredential.isActive ? t('scoring.active') : t('scoring.inactive')}
                       </Badge>
                       <Button
                         size="sm"
@@ -477,8 +476,8 @@ export default function ScoringConfigEditor() {
                         disabled={testApiKeyMutation.isPending}
                         data-testid="button-test-anthropic"
                       >
-                        <TestTube className="w-4 h-4 mr-2" />
-                        Test
+                        <TestTube className="w-4 h-4 me-2" />
+                        {t('scoring.test')}
                       </Button>
                       <Button
                         size="sm"
@@ -493,7 +492,7 @@ export default function ScoringConfigEditor() {
                   </div>
 
                   <div className="pt-4 border-t">
-                    <Label>Update API Key</Label>
+                    <Label>{t('scoring.updateKey')}</Label>
                     <div className="flex gap-2 mt-2">
                       <div className="relative flex-1">
                         <Input
@@ -518,8 +517,8 @@ export default function ScoringConfigEditor() {
                         disabled={!newApiKey || saveApiKeyMutation.isPending}
                         data-testid="button-save-api-key"
                       >
-                        <Save className="w-4 h-4 mr-2" />
-                        Update
+                        <Save className="w-4 h-4 me-2" />
+                        {t('scoring.update')}
                       </Button>
                     </div>
                   </div>
@@ -527,10 +526,10 @@ export default function ScoringConfigEditor() {
               ) : (
                 <div className="space-y-4">
                   <div className="p-4 border border-dashed rounded-lg text-center text-muted-foreground">
-                    No Anthropic API key configured. Premium report narratives will not be generated.
+                    {t('scoring.noAnthropicKey')}
                   </div>
                   <div>
-                    <Label>Add Anthropic (Claude) API Key</Label>
+                    <Label>{t('scoring.addAnthropicLabel')}</Label>
                     <div className="flex gap-2 mt-2">
                       <div className="relative flex-1">
                         <Input
@@ -555,8 +554,8 @@ export default function ScoringConfigEditor() {
                         disabled={!newApiKey || saveApiKeyMutation.isPending}
                         data-testid="button-add-api-key"
                       >
-                        <Key className="w-4 h-4 mr-2" />
-                        Add Key
+                        <Key className="w-4 h-4 me-2" />
+                        {t('scoring.addKey')}
                       </Button>
                     </div>
                   </div>
@@ -569,24 +568,23 @@ export default function ScoringConfigEditor() {
         <TabsContent value="prompts" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>LLM Prompt Templates</CardTitle>
+              <CardTitle>{t('scoring.llmPrompts')}</CardTitle>
               <CardDescription>
-                Configure the prompts used to generate personalized premium report content.
-                Use template variables like {"{{careerTitle}}"}, {"{{riasecTop3}}"}, etc.
+                {t('scoring.llmPromptsDesc')}
               </CardDescription>
             </CardHeader>
             <CardContent>
               {promptsLoading ? (
-                <div className="text-muted-foreground">Loading prompts...</div>
+                <div className="text-muted-foreground">{t('scoring.loadingPrompts')}</div>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Model</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="w-24">Actions</TableHead>
+                      <TableHead>{t('scoring.promptName')}</TableHead>
+                      <TableHead>{t('scoring.descriptionCol')}</TableHead>
+                      <TableHead>{t('scoring.model')}</TableHead>
+                      <TableHead>{t('scoring.status')}</TableHead>
+                      <TableHead className="w-24">{t('scoring.actions')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -601,9 +599,9 @@ export default function ScoringConfigEditor() {
                         </TableCell>
                         <TableCell>
                           {prompt.isActive ? (
-                            <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">Active</Badge>
+                            <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">{t('scoring.active')}</Badge>
                           ) : (
-                            <Badge variant="secondary">Inactive</Badge>
+                            <Badge variant="secondary">{t('scoring.inactive')}</Badge>
                           )}
                         </TableCell>
                         <TableCell>
@@ -613,7 +611,7 @@ export default function ScoringConfigEditor() {
                             onClick={() => openPromptEditor(prompt)}
                             data-testid={`button-edit-prompt-${prompt.key}`}
                           >
-                            Edit
+                            {t('scoring.editPrompt')}
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -628,25 +626,25 @@ export default function ScoringConfigEditor() {
         <TabsContent value="history" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Configuration Change History</CardTitle>
+              <CardTitle>{t('scoring.changeHistoryTitle')}</CardTitle>
               <CardDescription>
-                Audit log of all changes made to scoring methodology and LLM configuration.
+                {t('scoring.changeHistoryDesc')}
               </CardDescription>
             </CardHeader>
             <CardContent>
               {changelogLoading ? (
-                <div className="text-muted-foreground">Loading history...</div>
+                <div className="text-muted-foreground">{t('scoring.loadingHistory')}</div>
               ) : changelog?.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">No changes recorded yet.</div>
+                <div className="text-center py-8 text-muted-foreground">{t('scoring.noChangesYet')}</div>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Change Type</TableHead>
-                      <TableHead>Entity</TableHead>
-                      <TableHead>Changed By</TableHead>
-                      <TableHead>Description</TableHead>
+                      <TableHead>{t('scoring.dateCol')}</TableHead>
+                      <TableHead>{t('scoring.changeType')}</TableHead>
+                      <TableHead>{t('scoring.entity')}</TableHead>
+                      <TableHead>{t('scoring.changedBy')}</TableHead>
+                      <TableHead>{t('scoring.descriptionCol')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -681,7 +679,7 @@ export default function ScoringConfigEditor() {
       <Dialog open={isPromptModalOpen} onOpenChange={setIsPromptModalOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Prompt Template: {editingPrompt?.name}</DialogTitle>
+            <DialogTitle>{t('scoring.editPromptModalTitle', { name: editingPrompt?.name })}</DialogTitle>
             <DialogDescription>{editingPrompt?.description}</DialogDescription>
           </DialogHeader>
           
@@ -689,7 +687,7 @@ export default function ScoringConfigEditor() {
             <div className="space-y-4">
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <Label>Model</Label>
+                  <Label>{t('scoring.model')}</Label>
                   <Select
                     value={editingPrompt.model}
                     onValueChange={(v) => setEditingPrompt({ ...editingPrompt, model: v })}
@@ -698,14 +696,14 @@ export default function ScoringConfigEditor() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="claude-sonnet-4-6">Claude Sonnet 4.6 (Recommended)</SelectItem>
-                      <SelectItem value="claude-haiku-4-5">Claude Haiku 4.5 (Fast)</SelectItem>
-                      <SelectItem value="claude-opus-4-6">Claude Opus 4.6 (Most Powerful)</SelectItem>
+                      <SelectItem value="claude-sonnet-4-6">{t('scoring.claudeSonnet')}</SelectItem>
+                      <SelectItem value="claude-haiku-4-5">{t('scoring.claudeHaiku')}</SelectItem>
+                      <SelectItem value="claude-opus-4-6">{t('scoring.claudeOpus')}</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 <div>
-                  <Label>Max Tokens</Label>
+                  <Label>{t('scoring.maxTokens')}</Label>
                   <Input
                     type="number"
                     value={editingPrompt.maxTokens}
@@ -714,7 +712,7 @@ export default function ScoringConfigEditor() {
                   />
                 </div>
                 <div>
-                  <Label>Temperature (0-1)</Label>
+                  <Label>{t('scoring.temperatureLabel')}</Label>
                   <Input
                     type="number"
                     step="0.1"
@@ -733,11 +731,11 @@ export default function ScoringConfigEditor() {
                   onCheckedChange={(v) => setEditingPrompt({ ...editingPrompt, isActive: v })}
                   data-testid="switch-prompt-active"
                 />
-                <Label>Active</Label>
+                <Label>{t('scoring.activeLabel')}</Label>
               </div>
 
               <div>
-                <Label>System Prompt</Label>
+                <Label>{t('scoring.systemPrompt')}</Label>
                 <Textarea
                   value={editingPrompt.systemPrompt}
                   onChange={(e) => setEditingPrompt({ ...editingPrompt, systemPrompt: e.target.value })}
@@ -747,9 +745,9 @@ export default function ScoringConfigEditor() {
               </div>
 
               <div>
-                <Label>User Prompt Template</Label>
+                <Label>{t('scoring.userPrompt')}</Label>
                 <p className="text-xs text-muted-foreground mb-2">
-                  Available variables: {"{{careerTitle}}, {{overallScore}}, {{riasecTop3}}, {{cvqTop3}}, {{favoriteSubjects}}, {{gradeLevel}}, {{educationLevel}}, {{requiredSkills}}, {{relatedSubjects}}"}
+                  {t('scoring.availableVars', { vars: '{{careerTitle}}, {{overallScore}}, {{riasecTop3}}, {{cvqTop3}}, {{favoriteSubjects}}, {{gradeLevel}}, {{educationLevel}}, {{requiredSkills}}, {{relatedSubjects}}' })}
                 </p>
                 <Textarea
                   value={editingPrompt.userPromptTemplate}
@@ -763,15 +761,15 @@ export default function ScoringConfigEditor() {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsPromptModalOpen(false)}>
-              Cancel
+              {t('scoring.cancel')}
             </Button>
             <Button 
               onClick={savePrompt}
               disabled={updatePromptMutation.isPending}
               data-testid="button-save-prompt"
             >
-              <Save className="w-4 h-4 mr-2" />
-              Save Changes
+              <Save className="w-4 h-4 me-2" />
+              {t('scoring.saveChanges')}
             </Button>
           </DialogFooter>
         </DialogContent>

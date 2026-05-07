@@ -75,18 +75,8 @@ interface Question {
   cognitiveLevel: "knowledge" | "comprehension" | "application" | "analysis";
 }
 
-const COGNITIVE_LEVELS = [
-  { value: "knowledge", label: "Knowledge (Recall facts)" },
-  { value: "comprehension", label: "Comprehension (Understand concepts)" },
-  { value: "application", label: "Application (Use in new situations)" },
-  { value: "analysis", label: "Analysis (Break down complex ideas)" },
-];
-
-const DIFFICULTIES = [
-  { value: "easy", label: "Easy" },
-  { value: "medium", label: "Medium" },
-  { value: "hard", label: "Hard" },
-];
+const COGNITIVE_LEVEL_KEYS = ["knowledge", "comprehension", "application", "analysis"] as const;
+const DIFFICULTY_KEYS = ["easy", "medium", "hard"] as const;
 
 function makeStatusBadge(status: string, t: (key: string) => string) {
   switch (status) {
@@ -259,7 +249,7 @@ export default function ContributeQuestions() {
         const lines = text.split('\n').filter(line => line.trim());
         
         if (lines.length < 2) {
-          setCsvErrors(["CSV file must have a header row and at least one data row"]);
+          setCsvErrors([t('contributions.csvMustHaveHeader')]);
           setIsParsingCsv(false);
           return;
         }
@@ -273,7 +263,7 @@ export default function ContributeQuestions() {
         const missingColumns = requiredColumns.filter(col => !headers.includes(col));
         
         if (missingColumns.length > 0) {
-          setCsvErrors([`Missing required columns: ${missingColumns.join(', ')}`]);
+          setCsvErrors([t('contributions.csvMissingColumns', { cols: missingColumns.join(', ') })]);
           setIsParsingCsv(false);
           return;
         }
@@ -323,26 +313,26 @@ export default function ContributeQuestions() {
           const explanation = row['explanation'] || '';
 
           if (!question) {
-            errors.push(`Row ${i + 1}: Missing question text`);
+            errors.push(t('contributions.csvRowMissingQuestion', { row: i + 1 }));
             continue;
           }
           if (!optionA || !optionB || !optionC || !optionD) {
-            errors.push(`Row ${i + 1}: Missing one or more options`);
+            errors.push(t('contributions.csvRowMissingOptions', { row: i + 1 }));
             continue;
           }
           if (!correctAnswer) {
-            errors.push(`Row ${i + 1}: Missing correct answer`);
+            errors.push(t('contributions.csvRowMissingAnswer', { row: i + 1 }));
             continue;
           }
           if (!topic) {
-            errors.push(`Row ${i + 1}: Missing topic`);
+            errors.push(t('contributions.csvRowMissingTopic', { row: i + 1 }));
             continue;
           }
 
           // Validate correct answer matches one of the options
           const options = [optionA, optionB, optionC, optionD];
           if (!options.includes(correctAnswer)) {
-            errors.push(`Row ${i + 1}: Correct answer doesn't match any option`);
+            errors.push(t('contributions.csvRowAnswerMismatch', { row: i + 1 }));
             continue;
           }
 
@@ -391,7 +381,7 @@ export default function ContributeQuestions() {
     };
     
     reader.onerror = () => {
-      setCsvErrors(["Failed to read CSV file"]);
+      setCsvErrors([t('contributions.csvReadError')]);
       setIsParsingCsv(false);
     };
     
@@ -584,7 +574,7 @@ export default function ContributeQuestions() {
                         disabled={!submissionConfig.curriculum}
                       >
                         <SelectTrigger data-testid="select-subject">
-                          <SelectValue placeholder="Select subject" />
+                          <SelectValue placeholder={t('contributions.selectSubject')} />
                         </SelectTrigger>
                         <SelectContent>
                           {curriculumSubjects.length > 0 
@@ -722,8 +712,8 @@ export default function ContributeQuestions() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {DIFFICULTIES.map((d) => (
-                              <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
+                            {DIFFICULTY_KEYS.map((d) => (
+                              <SelectItem key={d} value={d}>{t(`contributions.difficulty${d.charAt(0).toUpperCase() + d.slice(1)}`)}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
@@ -739,8 +729,8 @@ export default function ContributeQuestions() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
-                            {COGNITIVE_LEVELS.map((c) => (
-                              <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                            {COGNITIVE_LEVEL_KEYS.map((c) => (
+                              <SelectItem key={c} value={c}>{t(`contributions.cognitive${c.charAt(0).toUpperCase() + c.slice(1)}`)}</SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
