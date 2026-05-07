@@ -293,11 +293,20 @@ export function registerRecommendationsRoutes(app: Express) {
       
       // Include guest token if this is a guest assessment
       const guestTokenParam = assessment.guestSessionId ? `&guestToken=${assessment.guestSessionId}` : '';
-      // Resolve user preferred language for PDF rendering
-      let pdfLang = "en";
-      if (assessment.userId) {
+      // Resolve language for PDF rendering:
+      // 1. Honour explicit ?lang= from the download request (allowlisted)
+      // 2. Fall back to stored user preference
+      // 3. Default to "en"
+      const ALLOWED_LANGS = ["en", "ar"] as const;
+      type AllowedLang = typeof ALLOWED_LANGS[number];
+      const requestedLang = typeof req.query.lang === "string" ? req.query.lang.toLowerCase() : null;
+      let pdfLang: AllowedLang = "en";
+      if (requestedLang && (ALLOWED_LANGS as readonly string[]).includes(requestedLang)) {
+        pdfLang = requestedLang as AllowedLang;
+      } else if (assessment.userId) {
         const pdfUser = await storage.getUser(assessment.userId);
-        pdfLang = pdfUser?.preferredLanguage || "en";
+        const storedLang = pdfUser?.preferredLanguage ?? "";
+        pdfLang = (ALLOWED_LANGS as readonly string[]).includes(storedLang) ? (storedLang as AllowedLang) : "en";
       }
       const printUrl = `${baseUrl}/print/results?assessmentId=${assessment.id}${guestTokenParam}&lang=${pdfLang}`;
       
