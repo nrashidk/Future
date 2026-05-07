@@ -61,7 +61,7 @@ export default function Assessment() {
   // True when the student has started filling in data and hasn't finished yet
   const isInProgress = currentStep > 1 && !resumePrompt;
 
-  // Browser-level guard: fires on refresh, tab-close, address-bar navigation, browser back/forward
+  // Guard 1 — hard navigations (refresh, tab-close, address-bar, external link, full-page redirect)
   useEffect(() => {
     if (!isInProgress) return;
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -72,13 +72,48 @@ export default function Assessment() {
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [isInProgress]);
 
-  // SPA navigation guard: wraps header nav buttons so accidental clicks prompt confirmation.
-  // Intentional setLocation("/results…") calls bypass this — they are called directly, not via guardedNavigate.
+  // Guard 2 — browser back/forward (popstate).
+  // We push a sentinel history entry so the first Back press stays on /assessment
+  // and fires popstate rather than immediately leaving. On confirmation we step back
+  // two entries (sentinel + the original /assessment entry) to reach the real prev page.
+  useEffect(() => {
+    if (!isInProgress) return;
+
+    // Sentinel: one extra /assessment entry in the history stack
+    history.pushState(null, "", window.location.href);
+
+    const handlePopState = () => {
+      // Re-push so the URL stays on /assessment while the dialog is open
+      history.pushState(null, "", window.location.href);
+      if (window.confirm(t("leaveConfirm"))) {
+        // Confirmed: remove this guard and jump back past both pushed entries
+        window.removeEventListener("popstate", handlePopState);
+        history.go(-2);
+      }
+      // Cancelled: the re-push already keeps us on /assessment — nothing else needed
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [isInProgress, t]);
+
+  // Guard 3 — SPA header nav buttons.
+  // Intentional setLocation("/results…") calls bypass this by using setLocation directly.
   const guardedNavigate = useCallback((path: string) => {
     if (!isInProgress || window.confirm(t("leaveConfirm"))) {
       setLocation(path);
     }
   }, [isInProgress, setLocation, t]);
+
+  // Guard 4 — logout (full-page redirect to /api/logout).
+  // beforeunload would also catch this, but an explicit prompt gives a clearer UX.
+  const guardedLogout = useCallback(() => {
+    if (!isInProgress || window.confirm(t("leaveConfirm"))) {
+      window.location.href = "/api/logout";
+    }
+  }, [isInProgress, t]);
   
   // Premium users have 7 steps, free users have 7 steps
   const totalSteps = 7;
@@ -665,7 +700,7 @@ export default function Assessment() {
                 <Button
                   variant="outline"
                   className="min-h-[44px]"
-                  onClick={() => window.location.href = "/api/logout"}
+                  onClick={guardedLogout}
                   data-testid="button-logout"
                 >
                   <LogOut className="w-4 h-4 me-2" aria-hidden="true" />
