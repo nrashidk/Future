@@ -1091,15 +1091,20 @@ export function registerAdminRoutes(app: Express) {
       // Security is maintained through strict URL validation below
       const puppeteer = (await import("puppeteer")).default;
       const { execSync } = await import("child_process");
-      let chromiumPath: string;
+      // Prefer the system Chromium (required in Replit / containerised envs where
+      // Puppeteer's bundled browser is absent).  If 'which chromium' fails we
+      // omit executablePath entirely so Puppeteer falls back to its own bundled
+      // browser — this keeps the export working in standard Node environments.
+      let chromiumPath: string | undefined;
       try {
-        chromiumPath = execSync('which chromium').toString().trim();
+        const found = execSync('which chromium').toString().trim();
+        if (found) chromiumPath = found;
       } catch {
-        chromiumPath = 'chromium';
+        chromiumPath = undefined;
       }
       browser = await puppeteer.launch({
         headless: true,
-        executablePath: chromiumPath,
+        ...(chromiumPath ? { executablePath: chromiumPath } : {}),
         args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
       });
 

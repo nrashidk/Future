@@ -348,20 +348,24 @@ export function registerRecommendationsRoutes(app: Express) {
       const puppeteer = await import("puppeteer");
       const { execSync } = await import("child_process");
 
-      // Find Chromium executable dynamically
-      let chromiumPath: string;
+      // Prefer the system Chromium (required in Replit / containerised envs where
+      // Puppeteer's bundled browser is absent).  If 'which chromium' fails we
+      // omit executablePath entirely so Puppeteer falls back to its own bundled
+      // browser — this keeps PDF generation working in standard Node environments.
+      let chromiumPath: string | undefined;
       try {
-        chromiumPath = execSync('which chromium').toString().trim();
+        const found = execSync('which chromium').toString().trim();
+        if (found) chromiumPath = found;
       } catch {
-        chromiumPath = 'chromium';
+        chromiumPath = undefined;
       }
 
-      // Launch headless browser with system Chromium
+      // Launch headless browser
       // Note: --no-sandbox is required in containerized environments like Replit
       // Security is maintained through strict URL validation below
       browser = await puppeteer.default.launch({
         headless: true,
-        executablePath: chromiumPath,
+        ...(chromiumPath ? { executablePath: chromiumPath } : {}),
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
