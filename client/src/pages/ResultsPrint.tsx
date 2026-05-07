@@ -21,8 +21,8 @@ import {
   Building2,
   MapPin,
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useQuery, useQueries } from "@tanstack/react-query";
+import { useEffect, useMemo } from "react";
 import { isPremiumAssessment } from "@shared/assessmentTier";
 import i18n from "@/i18n/config";
 import { useTranslation } from "react-i18next";
@@ -204,13 +204,48 @@ export default function ResultsPrint() {
     enabled: !!(user as any)?.organizationId,
   });
 
+  const isPremium = isPremiumAssessment(assessment?.assessmentType);
+
+  // Fetch LLM "Why This Career?" narrative for every premium career card in
+  // parallel. guestToken is passed as a query param — Puppeteer starts a fresh
+  // browser with no cookies, so cookie-based auth is unavailable here.
+  const narrativeQueries = useQueries({
+    queries: (isPremium && assessmentId && recommendations.length > 0)
+      ? recommendations.map((rec: any) => {
+          const qs = guestToken ? `?guestToken=${encodeURIComponent(guestToken)}` : '';
+          return {
+            queryKey: [`/api/recommendations/${assessmentId}/career-reasoning/${rec.careerId}${qs}`],
+            retry: false,
+            staleTime: Infinity,
+          };
+        })
+      : [],
+  });
+
+  // Build a fast careerId → narrative lookup for the render below.
+  const narrativeMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    narrativeQueries.forEach((q, i) => {
+      const careerId = recommendations[i]?.careerId;
+      if (careerId && (q.data as any)?.careerReasoning) {
+        map[careerId] = (q.data as any).careerReasoning;
+      }
+    });
+    return map;
+  }, [narrativeQueries, recommendations]);
+
+  // True once every narrative query has either resolved or errored.
+  // Non-premium assessments have no narrative queries so this is immediately true.
+  const allNarrativesSettled = narrativeQueries.every(q => !q.isLoading && !q.isFetching);
+
   useEffect(() => { document.title = t('printDocTitle'); }, [t]);
 
-  // Signal Puppeteer only after translations are loaded and React has re-rendered.
+  // Signal Puppeteer only after translations are loaded, React has re-rendered,
+  // AND all LLM narrative fetches have settled (hit or miss).
   // Awaiting changeLanguage() ensures locale JSON is fetched; the double rAF
   // gives React two frames to flush the translation state update into the DOM.
   useEffect(() => {
-    if (!isLoading && recommendations.length > 0) {
+    if (!isLoading && recommendations.length > 0 && allNarrativesSettled) {
       const safeLang = langParam === "ar" ? "ar" : "en";
       i18n.changeLanguage(safeLang).then(() => {
         requestAnimationFrame(() => {
@@ -220,7 +255,7 @@ export default function ResultsPrint() {
         });
       });
     }
-  }, [isLoading, recommendations, langParam]);
+  }, [isLoading, recommendations, langParam, allNarrativesSettled]);
 
   if (isLoading) {
     return (
@@ -816,7 +851,7 @@ export default function ResultsPrint() {
                             {t('whyThisCareer')}
                           </h4>
                           <div className="text-xs font-body text-foreground/90 whitespace-pre-line">
-                            {(rec as any).premiumReasoning || rec.reasoning}
+                            {narrativeMap[rec.careerId] || (rec as any).premiumReasoning || rec.reasoning}
                           </div>
                         </div>
                         {(rec as any).workStyleFit && (
