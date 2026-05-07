@@ -1398,17 +1398,24 @@ export class DatabaseStorage implements IStorage {
       );
     }
 
-    // Use optimized query with UNNEST for sector expansion
-    // Unnests both priority_sectors and priority_sectors_ar in parallel so Arabic
-    // names can be returned without an extra lookup.
+    // Use optimized query with UNNEST for sector expansion.
+    // English sectors (priority_sectors) are NOT NULL so they always drive row
+    // generation. Arabic names are fetched by ordinal position from
+    // priority_sectors_ar, which may be NULL — a LATERAL subquery returns NULL
+    // safely in that case rather than dropping the row.
     const result = await db.execute(sql`
       WITH country_sectors AS (
         SELECT 
           c.id as country_id,
           s.sector,
-          s.sector_ar
+          (
+            SELECT ar.elem
+            FROM unnest(c.priority_sectors_ar) WITH ORDINALITY AS ar(elem, pos)
+            WHERE ar.pos = s.pos
+            LIMIT 1
+          ) AS sector_ar
         FROM countries c,
-          LATERAL unnest(c.priority_sectors, c.priority_sectors_ar) AS s(sector, sector_ar)
+          LATERAL unnest(c.priority_sectors) WITH ORDINALITY AS s(sector, pos)
         ${countryId ? sql`WHERE c.id = ${countryId}` : sql``}
       ),
       filtered_assessments AS (
