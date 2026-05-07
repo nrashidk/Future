@@ -12,9 +12,11 @@ import CVQStep from "@/components/CVQStep";
 import { CountryStep } from "@/components/assessment/CountryStep";
 import { AspirationsStep } from "@/components/assessment/AspirationsStep";
 import { QuizStep } from "@/components/assessment/QuizStep";
-import { GraduationCap, LogIn, LogOut, User, ClipboardCheck, Building2, BarChart, Shield, FileQuestion } from "lucide-react";
+import { GraduationCap, LogIn, LogOut, User, ClipboardCheck, Building2, BarChart, Shield, FileQuestion, RotateCcw, PlayCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
+
+const DRAFT_KEY = "fp_assessment_draft";
 
 interface AssessmentData {
   name: string;
@@ -46,6 +48,11 @@ export default function Assessment() {
   const [assessmentId, setAssessmentId] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [aspirationsError, setAspirationsError] = useState<string | null>(null);
+  const [resumePrompt, setResumePrompt] = useState<{
+    assessmentId: string;
+    currentStep: number;
+    assessmentData: AssessmentData;
+  } | null>(null);
 
   const isPremiumUser = user?.isPremium || false;
   
@@ -75,6 +82,30 @@ export default function Assessment() {
       setIsGuest(true);
     }
   }, []);
+
+  // On mount (after auth resolves): check sessionStorage for a saved draft and offer resume
+  useEffect(() => {
+    if (isLoading) return;
+    try {
+      const raw = sessionStorage.getItem(DRAFT_KEY);
+      if (!raw) return;
+      const draft = JSON.parse(raw) as { assessmentId: string; currentStep: number; assessmentData: AssessmentData };
+      if (draft.assessmentId && typeof draft.currentStep === "number" && draft.currentStep > 1) {
+        setResumePrompt(draft);
+      }
+    } catch {
+      try { sessionStorage.removeItem(DRAFT_KEY); } catch {}
+    }
+  }, [isLoading]);
+
+  // Persist draft to sessionStorage whenever assessmentId / step / data changes
+  // Guards: only save once an assessment has been created (assessmentId set) and past step 1
+  useEffect(() => {
+    if (!assessmentId || currentStep <= 1) return;
+    try {
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ assessmentId, currentStep, assessmentData }));
+    } catch {}
+  }, [assessmentId, currentStep, assessmentData]);
 
   // Routing guard: Redirect authenticated non-premium users to tier selection
   useEffect(() => {
@@ -189,6 +220,21 @@ export default function Assessment() {
     setAssessmentData((prev) => ({ ...prev, [field]: value }));
   };
 
+  const handleResume = () => {
+    if (!resumePrompt) return;
+    setAssessmentId(resumePrompt.assessmentId);
+    setCurrentStep(resumePrompt.currentStep);
+    setAssessmentData(resumePrompt.assessmentData);
+    setResumePrompt(null);
+  };
+
+  const handleStartFresh = () => {
+    try { sessionStorage.removeItem(DRAFT_KEY); } catch {}
+    try { sessionStorage.removeItem("riasec_draft"); } catch {}
+    try { sessionStorage.removeItem("cvq_draft"); } catch {}
+    setResumePrompt(null);
+  };
+
   const handleNext = async () => {
     // Re-entry guard: prevent double-submission while generation is in progress
     if (isGenerating) return;
@@ -269,6 +315,7 @@ export default function Assessment() {
           // Premium: Generate recommendations and redirect
           try {
             await apiRequest("POST", `/api/recommendations/generate/${assessment.id}`, {});
+            try { sessionStorage.removeItem(DRAFT_KEY); } catch {}
             setLocation("/results?assessmentId=" + assessment.id);
           } catch (genError) {
             console.error("Error generating recommendations:", genError);
@@ -305,7 +352,8 @@ export default function Assessment() {
       // Generate recommendations based on assessment + quiz
       await apiRequest("POST", `/api/recommendations/generate/${assessmentId}`, {});
       
-      // Navigate to results
+      // Navigate to results (clear draft so resume prompt doesn't appear on next visit)
+      try { sessionStorage.removeItem(DRAFT_KEY); } catch {}
       setLocation("/results?assessmentId=" + assessmentId);
     } catch (error) {
       console.error("Error generating recommendations:", error);
@@ -515,9 +563,48 @@ export default function Assessment() {
       {/* Progress Tracker */}
       <ProgressTracker currentStep={currentStep} totalSteps={totalSteps} isPremium={isPremiumUser} />
 
+      {/* Resume Prompt — shown instead of step content when a saved draft is detected */}
+      {resumePrompt && (
+        <div className="max-w-2xl mx-auto px-4 py-16 flex items-center justify-center min-h-[60vh]">
+          <div className="bg-card rounded-xl border shadow-md p-8 space-y-6 text-center w-full">
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto">
+              <PlayCircle className="w-8 h-8 text-primary" aria-hidden="true" />
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-2xl font-bold">{t("resume.title")}</h2>
+              <p className="text-muted-foreground font-body">
+                {t("resume.subtitle", { step: resumePrompt.currentStep, total: totalSteps })}
+              </p>
+              <p className="text-sm text-muted-foreground font-body">{t("resume.info")}</p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Button
+                size="lg"
+                onClick={handleResume}
+                className="flex-1 sm:flex-none"
+                data-testid="button-resume-assessment"
+              >
+                <PlayCircle className="w-4 h-4 me-2" aria-hidden="true" />
+                {t("resume.continueBtn", { step: resumePrompt.currentStep })}
+              </Button>
+              <Button
+                size="lg"
+                variant="outline"
+                onClick={handleStartFresh}
+                className="flex-1 sm:flex-none"
+                data-testid="button-start-fresh"
+              >
+                <RotateCcw className="w-4 h-4 me-2" aria-hidden="true" />
+                {t("resume.freshBtn")}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Step Content */}
       <div
-        className="max-w-4xl mx-auto px-4"
+        className={resumePrompt ? "hidden" : "max-w-4xl mx-auto px-4"}
         role="region"
         aria-labelledby="assessment-step-heading"
       >

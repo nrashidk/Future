@@ -1,6 +1,13 @@
 {
   "pageTitle": "Career Assessment",
   "loading": "Loading...",
+  "resume": {
+    "title": "Welcome back!",
+    "subtitle": "You have an assessment in progress at step {{step}} of {{total}}.",
+    "info": "Your answers are saved in this browser session and are ready to continue.",
+    "continueBtn": "Continue from step {{step}}",
+    "freshBtn": "Start over"
+  },
   "guestBanner": {
     "text": "You're in guest mode. Create an account to save your progress!",
     "signUp": "Sign Up"
