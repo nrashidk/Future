@@ -28,6 +28,16 @@ import i18n from "@/i18n/config";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/contexts/LanguageContext";
 
+// Synchronous RTL bootstrap — runs before React mounts so Puppeteer captures
+// html[dir="rtl"] and html[lang="ar"] (Cairo font) from the very first paint.
+// Puppeteer starts a fresh browser with no localStorage, so the URL is canonical.
+{
+  const _lang = new URLSearchParams(window.location.search).get("lang") === "ar" ? "ar" : "en";
+  document.documentElement.lang = _lang;
+  document.documentElement.dir = _lang === "ar" ? "rtl" : "ltr";
+  i18n.changeLanguage(_lang); // begins fetching locale JSON early
+}
+
 // Helper to get display name
 function getCountryDisplayName(country: any): string {
   return country?.name || "your country";
@@ -115,12 +125,11 @@ export default function ResultsPrint() {
   const guestToken = urlParams.get("guestToken");
   const langParam = urlParams.get("lang") || "en";
 
-  // Apply language direction and i18n locale for PDF rendering
+  // Keep html[lang/dir] in sync if langParam changes at runtime (browser nav).
   useEffect(() => {
     const safeLang = langParam === "ar" ? "ar" : "en";
-    const dir = safeLang === "ar" ? "rtl" : "ltr";
     document.documentElement.lang = safeLang;
-    document.documentElement.dir = dir;
+    document.documentElement.dir = safeLang === "ar" ? "rtl" : "ltr";
     i18n.changeLanguage(safeLang);
   }, [langParam]);
 
@@ -175,12 +184,21 @@ export default function ResultsPrint() {
 
   useEffect(() => { document.title = t('printDocTitle'); }, [t]);
 
-  // Signal when data is ready for PDF capture
+  // Signal Puppeteer only after translations are loaded and React has re-rendered.
+  // Awaiting changeLanguage() ensures locale JSON is fetched; the double rAF
+  // gives React two frames to flush the translation state update into the DOM.
   useEffect(() => {
     if (!isLoading && recommendations.length > 0) {
-      (window as any).__REPORT_READY__ = true;
+      const safeLang = langParam === "ar" ? "ar" : "en";
+      i18n.changeLanguage(safeLang).then(() => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            (window as any).__REPORT_READY__ = true;
+          });
+        });
+      });
     }
-  }, [isLoading, recommendations]);
+  }, [isLoading, recommendations, langParam]);
 
   if (isLoading) {
     return (
@@ -193,6 +211,10 @@ export default function ResultsPrint() {
   return (
     <div className="print-container">
       <style>{`
+        /* Ensure Cairo is available in the Puppeteer sandbox regardless of
+           whether the non-blocking <link> in index.html has fired yet. */
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+
         @page {
           size: A4 portrait;
           margin: 0;
@@ -230,6 +252,20 @@ export default function ResultsPrint() {
         .print-container {
           background: white;
         }
+
+        /* RTL overrides: text/flex flow right-to-left, Cairo font applied */
+        [dir="rtl"] .print-container {
+          direction: rtl;
+          font-family: 'Cairo', sans-serif;
+        }
+        [dir="rtl"] .flex { direction: rtl; }
+        [dir="rtl"] p, [dir="rtl"] span, [dir="rtl"] div,
+        [dir="rtl"] h1, [dir="rtl"] h2, [dir="rtl"] h3, [dir="rtl"] h4 {
+          text-align: start;
+        }
+        [dir="rtl"] .text-center { text-align: center !important; }
+        [dir="rtl"] .ml-auto { margin-inline-start: auto; margin-inline-end: 0; }
+        [dir="rtl"] .mr-auto { margin-inline-end: auto; margin-inline-start: 0; }
       `}</style>
 
       {/* Page 1: Hero + Subject Competency */}
