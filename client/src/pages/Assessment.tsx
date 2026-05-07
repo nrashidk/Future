@@ -189,6 +189,9 @@ export default function Assessment() {
   };
 
   const handleNext = async () => {
+    // Re-entry guard: prevent double-submission while generation is in progress
+    if (isGenerating) return;
+
     // Premium: Save after Country (step 3), before Quiz (step 4)
     // Free: Save after Aspirations (step 6), before Quiz (step 7)
     const needsSaveBeforeQuiz = 
@@ -198,7 +201,9 @@ export default function Assessment() {
     const isAspirationsStepPremium = isPremiumUser && currentStep === 7;
     
     if (needsSaveBeforeQuiz || isAspirationsStepPremium) {
-      // Save assessment before quiz (for both tiers) or after Aspirations (premium only)
+      // Show loading state from the very start of the premium pipeline (save + generate)
+      if (isAspirationsStepPremium) setIsGenerating(true);
+
       try {
         const { apiRequest } = await import("@/lib/queryClient");
         
@@ -233,41 +238,51 @@ export default function Assessment() {
           backendData.cvqResponses = assessmentData.cvqResponses;
         }
         
-        // Create or update assessment (idempotent)
+        // Save assessment — distinct error handling so the user gets the right message
         let assessment;
-        if (assessmentId) {
-          // Update existing assessment
-          const response = await apiRequest("PATCH", `/api/assessments/${assessmentId}`, backendData);
-          assessment = await response.json();
-        } else {
-          // Create new assessment (guest token is now stored in httpOnly cookie automatically)
-          const response = await apiRequest("POST", "/api/assessments", backendData);
-          assessment = await response.json();
+        try {
+          if (assessmentId) {
+            // Update existing assessment
+            const response = await apiRequest("PATCH", `/api/assessments/${assessmentId}`, backendData);
+            assessment = await response.json();
+          } else {
+            // Create new assessment (guest token is now stored in httpOnly cookie automatically)
+            const response = await apiRequest("POST", "/api/assessments", backendData);
+            assessment = await response.json();
+          }
+        } catch (saveError) {
+          console.error("Error saving assessment:", saveError);
+          toast({
+            title: t("errors.saveFailed"),
+            description: t("errors.saveFailedDesc", { message: saveError instanceof Error ? saveError.message : t("errors.unknownError") }),
+            variant: "destructive",
+          });
+          return; // stop here; finally will clear isGenerating
         }
         
         // Set assessmentId immediately after save
         setAssessmentId(assessment.id);
         
         if (isAspirationsStepPremium) {
-          // Premium: After Aspirations, generate recommendations and redirect
-          setIsGenerating(true);
+          // Premium: Generate recommendations and redirect
           try {
             await apiRequest("POST", `/api/recommendations/generate/${assessment.id}`, {});
             setLocation("/results?assessmentId=" + assessment.id);
-          } finally {
-            setIsGenerating(false);
+          } catch (genError) {
+            console.error("Error generating recommendations:", genError);
+            toast({
+              title: t("errors.generateFailed"),
+              description: t("errors.generateFailedDesc"),
+              variant: "destructive",
+            });
           }
         } else {
           // Advance to quiz step - React batches state updates so assessmentId will be available
           setCurrentStep((prev) => prev + 1);
         }
-      } catch (error) {
-        console.error("Error saving assessment:", error);
-        toast({
-          title: t("errors.saveFailed"),
-          description: t("errors.saveFailedDesc", { message: error instanceof Error ? error.message : t("errors.unknownError") }),
-          variant: "destructive",
-        });
+      } finally {
+        // Always clear loading state when the full pipeline finishes (success, save error, or generate error)
+        if (isAspirationsStepPremium) setIsGenerating(false);
       }
     } else {
       // For all other steps: Just advance
