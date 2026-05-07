@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useTranslation } from "react-i18next";
+import { useLanguage } from "@/contexts/LanguageContext";
 import {
   BarChart as RechartsBarChart,
   Bar,
@@ -57,6 +58,7 @@ interface CareerTrend {
 
 interface SectorData {
   sector: string;
+  sectorAr: string | null;
   studentCount: number;
   avgAlignment: number;
 }
@@ -71,6 +73,7 @@ interface Organization {
 export default function Analytics() {
   const { user } = useAuth();
   const { t } = useTranslation('admin');
+  const { language } = useLanguage();
   useEffect(() => { document.title = t('pageTitles.analytics'); }, [t]);
   const [activeCountryId, setActiveCountryId] = useState<string | null>(null);
   const isOrgAdmin = user?.accountType === 'org_admin';
@@ -560,7 +563,7 @@ export default function Analytics() {
                         <Briefcase className="w-4 h-4 text-primary" />
                       </div>
                       <h4 className="font-bold text-sm mb-2 line-clamp-3" data-testid={`sector-${index}`}>
-                        {sector.sector}
+                        {language === 'ar' && sector.sectorAr ? sector.sectorAr : sector.sector}
                       </h4>
                       <div className="mt-auto space-y-2">
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">

@@ -246,6 +246,7 @@ export interface IStorage {
   }>>;
   getSectorPipeline(countryId?: string, organizationId?: string): Promise<Array<{
     sector: string;
+    sectorAr: string | null;
     studentCount: number;
     avgAlignment: number;
   }>>;
@@ -1398,12 +1399,16 @@ export class DatabaseStorage implements IStorage {
     }
 
     // Use optimized query with UNNEST for sector expansion
+    // Unnests both priority_sectors and priority_sectors_ar in parallel so Arabic
+    // names can be returned without an extra lookup.
     const result = await db.execute(sql`
       WITH country_sectors AS (
         SELECT 
           c.id as country_id,
-          unnest(c.priority_sectors) as sector
-        FROM countries c
+          s.sector,
+          s.sector_ar
+        FROM countries c,
+          LATERAL unnest(c.priority_sectors, c.priority_sectors_ar) AS s(sector, sector_ar)
         ${countryId ? sql`WHERE c.id = ${countryId}` : sql``}
       ),
       filtered_assessments AS (
@@ -1417,17 +1422,19 @@ export class DatabaseStorage implements IStorage {
       )
       SELECT 
         cs.sector,
+        cs.sector_ar,
         COUNT(DISTINCT fa.id)::int as student_count,
         COALESCE(AVG(r.country_vision_alignment), 0)::float as avg_alignment
       FROM country_sectors cs
       LEFT JOIN filtered_assessments fa ON fa.country_id = cs.country_id
       LEFT JOIN recommendations r ON r.assessment_id = fa.id
-      GROUP BY cs.sector
+      GROUP BY cs.sector, cs.sector_ar
       ORDER BY student_count DESC
     `);
 
     return (result.rows as any[]).map(row => ({
       sector: row.sector,
+      sectorAr: row.sector_ar || null,
       studentCount: row.student_count || 0,
       avgAlignment: row.avg_alignment || 0
     }));
