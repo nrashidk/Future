@@ -67,7 +67,16 @@ export default function CVQStep({ assessmentId, responses, onUpdate, onNext, onB
     { value: 4, label: t('cvq.likert4') },
     { value: 5, label: t('cvq.likert5') },
   ];
-  const [localResponses, setLocalResponses] = useState<Record<string, Likert>>(responses as Record<string, Likert>);
+  const [localResponses, setLocalResponses] = useState<Record<string, Likert>>(() => {
+    // Restore from sessionStorage draft first (covers mid-step page refresh); fall back to prop
+    if (Object.keys(responses).length === 0) {
+      try {
+        const saved = sessionStorage.getItem("cvq_draft");
+        if (saved) return JSON.parse(saved) as Record<string, Likert>;
+      } catch {}
+    }
+    return responses as Record<string, Likert>;
+  });
   const [currentPage, setCurrentPage] = useState(0);
   const [startTime] = useState(Date.now());
   

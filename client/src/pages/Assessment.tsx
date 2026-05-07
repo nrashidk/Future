@@ -224,7 +224,33 @@ export default function Assessment() {
     if (!resumePrompt) return;
     setAssessmentId(resumePrompt.assessmentId);
     setCurrentStep(resumePrompt.currentStep);
-    setAssessmentData(resumePrompt.assessmentData);
+
+    // Merge RIASEC and CVQ drafts from their own sessionStorage keys into parent state
+    // so that step 5 (RIASEC) and step 6 (CVQ) re-render with the correct data even
+    // when the main draft's cvqResponses/riasecResponses are empty (mid-step refresh).
+    let merged = { ...resumePrompt.assessmentData };
+
+    // CVQ: raw item responses (Record<string, number>) match assessmentData.cvqResponses type
+    if (Object.keys(merged.cvqResponses).length === 0) {
+      try {
+        const cvqRaw = sessionStorage.getItem("cvq_draft");
+        if (cvqRaw) merged = { ...merged, cvqResponses: JSON.parse(cvqRaw) };
+      } catch {}
+    }
+
+    // RIASEC: raw item responses are in riasec_draft; computed scores live in
+    // assessmentData.riasecResponses (set after handleRiasecComplete).
+    // If scores are absent (mid-step refresh at step 5), store the raw draft so
+    // the final Aspirations save has the best available data while RiasecStep
+    // self-restores its UI from riasec_draft independently.
+    if (Object.keys(merged.riasecResponses).length === 0) {
+      try {
+        const riasecRaw = sessionStorage.getItem("riasec_draft");
+        if (riasecRaw) merged = { ...merged, riasecResponses: JSON.parse(riasecRaw) };
+      } catch {}
+    }
+
+    setAssessmentData(merged);
     setResumePrompt(null);
   };
 
