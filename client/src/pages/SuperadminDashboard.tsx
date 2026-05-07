@@ -178,10 +178,9 @@ interface Country {
 }
 
 export default function SuperadminDashboard() {
-  useEffect(() => { document.title = "Superadmin Dashboard | Future Pathways"; }, []);
-
   const { toast } = useToast();
   const { t } = useTranslation('admin');
+  useEffect(() => { document.title = t('pageTitles.superadmin'); }, [t]);
   const [searchQuery, setSearchQuery] = useState("");
   const [studentSearchQuery, setStudentSearchQuery] = useState("");
   const [userTypeFilter, setUserTypeFilter] = useState<string>("all");

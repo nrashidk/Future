@@ -1234,5 +1234,12 @@
     "dbCareersMissing": "{{n}} career(s) missing Arabic translations",
     "arabicTitleLabel": "Arabic Title",
     "arabicDescLabel": "Arabic Description"
+  },
+
+  "pageTitles": {
+    "analytics": "Analytics | Future Pathways",
+    "superadmin": "Superadmin Dashboard | Future Pathways",
+    "adminOrganizations": "Organization Management | Future Pathways",
+    "quizManager": "Quiz Manager | Future Pathways"
   }
 }

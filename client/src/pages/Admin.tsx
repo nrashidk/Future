@@ -48,11 +48,10 @@ const normalizeCountryId = (value: string): string | null => {
 };
 
 export default function Admin() {
-  useEffect(() => { document.title = "Quiz Manager | Future Pathways"; }, []);
-
   const { user } = useAuth();
   const { toast } = useToast();
   const { t } = useTranslation('admin');
+  useEffect(() => { document.title = t('pageTitles.quizManager'); }, [t]);
   const [filters, setFilters] = useState({
     countryId: "all",
     curriculum: "all",

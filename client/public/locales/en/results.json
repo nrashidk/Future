@@ -128,5 +128,10 @@
   "generatedOn": "Generated on {{date}}",
   "footerBrandLine": "Future Pathways Career Guidance System",
   "footerVisitLine": "Visit us at futurepath.ae",
-  "weightSuffix": "weight"
+  "weightSuffix": "weight",
+
+  "pageDocTitle": "Your Career Results | Future Pathways",
+  "printDocTitle": "Career Report | Future Pathways",
+  "migrateSuccessTitle": "Success!",
+  "recommendationsHeading": "Career Recommendations"
 }

@@ -110,9 +110,9 @@ function mapSubjectsToVisionSectors(
 }
 
 export default function Results() {
-  useEffect(() => { document.title = "Your Career Results | Future Pathways"; }, []);
   const { t } = useTranslation('results');
   const { language } = useLanguage();
+  useEffect(() => { document.title = t('pageDocTitle'); }, [t]);
 
   const { isAuthenticated, user } = useAuth();
   const [, setLocation] = useLocation();
@@ -181,7 +181,7 @@ export default function Results() {
     },
     onSuccess: (data: any) => {
       toast({
-        title: "Success!",
+        title: t('migrateSuccessTitle'),
         description: data.message,
       });
       localStorage.removeItem("guestAssessments");
@@ -594,7 +594,7 @@ export default function Results() {
 
       {/* Recommendations */}
       <div className="max-w-7xl mx-auto px-4 -mt-8" role="region" aria-labelledby="recommendations-heading">
-        <h2 id="recommendations-heading" className="sr-only">Career Recommendations</h2>
+        <h2 id="recommendations-heading" className="sr-only">{t('recommendationsHeading')}</h2>
         <MasonryGrid>
           {recommendations.map((rec: any, index: number) => (
             <MasonryItem key={rec.id} className="animate-in fade-in duration-500" style={{ animationDelay: `${index * 100}ms` }}>

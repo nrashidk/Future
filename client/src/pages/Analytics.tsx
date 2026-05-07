@@ -69,10 +69,9 @@ interface Organization {
 }
 
 export default function Analytics() {
-  useEffect(() => { document.title = "Analytics | Future Pathways"; }, []);
-
   const { user } = useAuth();
   const { t } = useTranslation('admin');
+  useEffect(() => { document.title = t('pageTitles.analytics'); }, [t]);
   const [activeCountryId, setActiveCountryId] = useState<string | null>(null);
   const isOrgAdmin = user?.accountType === 'org_admin';
   const isSuperadmin = user?.accountType === 'superadmin';

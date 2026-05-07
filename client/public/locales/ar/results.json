@@ -128,5 +128,10 @@
   "generatedOn": "تم الإنشاء في {{date}}",
   "footerBrandLine": "نظام التوجيه المهني - مسارات المستقبل",
   "footerVisitLine": "زورونا على futurepath.ae",
-  "weightSuffix": "وزن"
+  "weightSuffix": "وزن",
+
+  "pageDocTitle": "نتائج مسارك المهني | مسارات المستقبل",
+  "printDocTitle": "تقرير المسار المهني | مسارات المستقبل",
+  "migrateSuccessTitle": "تم بنجاح!",
+  "recommendationsHeading": "التوصيات المهنية"
 }

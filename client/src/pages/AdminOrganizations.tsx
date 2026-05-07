@@ -131,11 +131,10 @@ function getMemberStatus(member: OrganizationMember, t: (key: string) => string)
 }
 
 export default function AdminOrganizations() {
-  useEffect(() => { document.title = "Organization Management | Future Pathways"; }, []);
-
   const { user } = useAuth();
   const { toast } = useToast();
   const { t } = useTranslation('admin');
+  useEffect(() => { document.title = t('pageTitles.adminOrganizations'); }, [t]);
   const [, navigate] = useLocation();
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [isCreateOrgDialogOpen, setIsCreateOrgDialogOpen] = useState(false);

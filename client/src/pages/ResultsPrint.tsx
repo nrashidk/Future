@@ -173,7 +173,7 @@ export default function ResultsPrint() {
     enabled: !!(user as any)?.organizationId,
   });
 
-  useEffect(() => { document.title = "Career Report | Future Pathways"; }, []);
+  useEffect(() => { document.title = t('printDocTitle'); }, [t]);
 
   // Signal when data is ready for PDF capture
   useEffect(() => {
