@@ -119,25 +119,17 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserByOAuthProvider(provider: string, providerId: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
-  createUser(userData: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    username: string;
-    passwordHash: string;
-    accountType: string;
-    grade?: string;
-  }): Promise<User>;
   updateUserRole(targetUserId: string, newRole: 'user' | 'superadmin', newAccountType?: 'individual' | 'org_admin' | 'org_student' | null): Promise<User>;
   updateUserPremiumStatus(userId: string, stripeCustomerId: string | null): Promise<User>;
   createStandaloneUser(userData: {
     firstName: string;
     lastName: string;
     email: string;
-    phone: string;
+    phone?: string;
     isPremium?: boolean;
     purchasedLicenses?: number;
     stripeCustomerId?: string | null;
+    passwordComplexity?: 'medium' | 'strong';
   }): Promise<{ user: User; username: string; password: string }>;
   updateUserFields(userId: string, fields: {
     phone?: string;
@@ -533,10 +525,11 @@ export class DatabaseStorage implements IStorage {
     firstName: string;
     lastName: string;
     email: string;
-    phone: string;
+    phone?: string;
     isPremium?: boolean;
     purchasedLicenses?: number;
     stripeCustomerId?: string | null;
+    passwordComplexity?: 'medium' | 'strong';
   }): Promise<{ user: User; username: string; password: string }> {
     const { generateUsername, generatePassword } = await import("./utils/passwordGenerator");
     const { hashPassword } = await import("./utils/passwordHash");
@@ -560,7 +553,7 @@ export class DatabaseStorage implements IStorage {
     }
     
     // Generate and hash password
-    const password = generatePassword('medium');
+    const password = generatePassword(userData.passwordComplexity ?? 'medium');
     const passwordHash = await hashPassword(password);
     
     // Create user
@@ -570,7 +563,7 @@ export class DatabaseStorage implements IStorage {
       firstName: userData.firstName,
       lastName: userData.lastName,
       email: userData.email,
-      phone: userData.phone,
+      ...(userData.phone ? { phone: userData.phone } : {}),
       role: 'user',
       accountType: 'individual',
       isOrgGenerated: false,
@@ -634,21 +627,6 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async createUser(userData: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    username: string;
-    passwordHash: string;
-    accountType: string;
-    grade?: string;
-  }): Promise<User> {
-    const [user] = await db
-      .insert(users)
-      .values(userData)
-      .returning();
-    return user;
-  }
 
   // Admin-only method to update user role (requires superadmin verification at route level)
   async updateUserRole(

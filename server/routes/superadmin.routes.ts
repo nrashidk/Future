@@ -2197,10 +2197,7 @@ export function registerSuperadminRoutes(app: Express) {
 
   app.post("/api/superadmin/students", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
     try {
-      const { generateUsername, generatePassword } = await import("../utils/passwordGenerator");
-      const { hashPassword } = await import("../utils/passwordHash");
-
-      const { firstName, lastName, email, username: requestedUsername, grade } = req.body;
+      const { firstName, lastName, email, grade } = req.body;
       if (!firstName || !lastName || !email || !grade) {
         return res.status(400).json({ message: "First name, last name, email, and grade are required" });
       }
@@ -2210,38 +2207,22 @@ export function registerSuperadminRoutes(app: Express) {
         return res.status(409).json({ message: "A user with this email already exists" });
       }
 
-      let finalUsername = requestedUsername?.trim();
-      if (!finalUsername) {
-        const base = generateUsername(firstName, lastName);
-        finalUsername = base;
-        let attempts = 0;
-        while (await storage.getUserByUsername(finalUsername)) {
-          attempts++;
-          finalUsername = `${base}.${attempts}`;
-        }
-      } else {
-        const existingByUsername = await storage.getUserByUsername(finalUsername);
-        if (existingByUsername) {
-          return res.status(409).json({ message: "Username is already taken" });
-        }
-      }
-
-      const password = generatePassword("strong");
-      const passwordHash = await hashPassword(password);
-
-      const newUser = await storage.createUser({
+      const { user, username, password } = await storage.createStandaloneUser({
         firstName,
         lastName,
         email,
-        username: finalUsername,
-        passwordHash,
-        accountType: "free",
-        grade: `grade${grade}`,
+        passwordComplexity: "strong",
       });
 
       res.json({
-        user: { id: newUser.id, username: newUser.username, email: newUser.email, firstName: newUser.firstName, lastName: newUser.lastName },
-        credentials: { username: finalUsername, password },
+        user: {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          firstName: user.firstName,
+          lastName: user.lastName,
+        },
+        credentials: { username, password },
       });
     } catch (error) {
       console.error("Error creating student:", error);
