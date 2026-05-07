@@ -49,7 +49,7 @@ export function sanitizeObject<T extends Record<string, any>>(obj: T): T {
         return sanitizeObject(item);
       }
       return item;
-    }) as T;
+    }) as unknown as T;
   }
   
   const sanitized: Record<string, any> = {};

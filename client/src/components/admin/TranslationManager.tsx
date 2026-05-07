@@ -247,7 +247,7 @@ export default function TranslationManager() {
     if (editingValues.ar) {
       const enVars = extractVars(editingValues.en);
       const arVars = extractVars(editingValues.ar);
-      const missing = [...enVars].filter(v => !arVars.has(v));
+      const missing = Array.from(enVars).filter(v => !arVars.has(v));
       if (missing.length > 0) {
         setVarWarning(missing.join(', '));
         toast({

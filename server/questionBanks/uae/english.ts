@@ -15,7 +15,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Vocabulary - Synonyms",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "Identify the verb in this sentence: 'The students study hard for their exams.'",
@@ -28,7 +29,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Parts of Speech",
         difficulty: "easy",
-        cognitiveLevel: "comprehension"
+        cognitiveLevel: "comprehension",
+        curriculum: "MoE National"
       },
       {
         question: "Which sentence is written in the passive voice?",
@@ -41,7 +43,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Active and Passive Voice",
         difficulty: "medium",
-        cognitiveLevel: "comprehension"
+        cognitiveLevel: "comprehension",
+        curriculum: "MoE National"
       },
       {
         question: "What is the main purpose of a thesis statement in an essay?",
@@ -54,7 +57,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Writing - Essay Structure",
         difficulty: "medium",
-        cognitiveLevel: "comprehension"
+        cognitiveLevel: "comprehension",
+        curriculum: "MoE National"
       },
       {
         question: "Which of these is a metaphor?",
@@ -67,7 +71,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Literature - Figurative Language",
         difficulty: "medium",
-        cognitiveLevel: "analysis"
+        cognitiveLevel: "analysis",
+        curriculum: "MoE National"
       },
       {
         question: "What is the plural form of 'child'?",
@@ -80,7 +85,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Irregular Plurals",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "Which punctuation mark is used to show possession?",
@@ -93,7 +99,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Punctuation",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "What does the suffix '-ful' mean in words like 'beautiful' and 'helpful'?",
@@ -106,7 +113,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Vocabulary - Suffixes",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "Which sentence is grammatically correct?",
@@ -119,7 +127,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Pronouns",
         difficulty: "easy",
-        cognitiveLevel: "application"
+        cognitiveLevel: "application",
+        curriculum: "MoE National"
       },
       {
         question: "What type of noun is 'happiness'?",
@@ -132,7 +141,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Types of Nouns",
         difficulty: "easy",
-        cognitiveLevel: "comprehension"
+        cognitiveLevel: "comprehension",
+        curriculum: "MoE National"
       }
     ],
     "9": [
@@ -147,7 +157,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Adverbs",
         difficulty: "medium",
-        cognitiveLevel: "comprehension"
+        cognitiveLevel: "comprehension",
+        curriculum: "MoE National"
       },
       {
         question: "Which literary device gives human qualities to non-human things?",
@@ -160,7 +171,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Literature - Literary Devices",
         difficulty: "medium",
-        cognitiveLevel: "comprehension"
+        cognitiveLevel: "comprehension",
+        curriculum: "MoE National"
       },
       {
         question: "What is the correct past tense of 'run'?",
@@ -173,7 +185,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Irregular Verbs",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "Which word is an antonym for 'expand'?",
@@ -186,7 +199,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Vocabulary - Antonyms",
         difficulty: "medium",
-        cognitiveLevel: "comprehension"
+        cognitiveLevel: "comprehension",
+        curriculum: "MoE National"
       },
       {
         question: "In a narrative, what is the 'climax'?",
@@ -199,7 +213,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Literature - Story Elements",
         difficulty: "medium",
-        cognitiveLevel: "comprehension"
+        cognitiveLevel: "comprehension",
+        curriculum: "MoE National"
       },
       {
         question: "Which sentence uses a simile?",
@@ -212,7 +227,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Literature - Figurative Language",
         difficulty: "easy",
-        cognitiveLevel: "comprehension"
+        cognitiveLevel: "comprehension",
+        curriculum: "MoE National"
       },
       {
         question: "What is the subject in the sentence: 'After school, the students played football'?",
@@ -225,7 +241,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Sentence Structure",
         difficulty: "medium",
-        cognitiveLevel: "application"
+        cognitiveLevel: "application",
+        curriculum: "MoE National"
       },
       {
         question: "Which transition word shows contrast?",
@@ -238,7 +255,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Writing - Transitions",
         difficulty: "medium",
-        cognitiveLevel: "comprehension"
+        cognitiveLevel: "comprehension",
+        curriculum: "MoE National"
       },
       {
         question: "What is the main difference between a fact and an opinion?",
@@ -251,7 +269,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Reading - Critical Thinking",
         difficulty: "hard",
-        cognitiveLevel: "analysis"
+        cognitiveLevel: "analysis",
+        curriculum: "MoE National"
       },
       {
         question: "Which sentence correctly uses a compound sentence structure?",
@@ -264,7 +283,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Sentence Types",
         difficulty: "hard",
-        cognitiveLevel: "application"
+        cognitiveLevel: "application",
+        curriculum: "MoE National"
       }
     ],
     "10": [
@@ -279,7 +299,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Writing - Text Types",
         difficulty: "easy",
-        cognitiveLevel: "comprehension"
+        cognitiveLevel: "comprehension",
+        curriculum: "MoE National"
       },
       {
         question: "What does the prefix 'anti-' mean in words like 'antibiotic' and 'antisocial'?",
@@ -292,7 +313,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Vocabulary - Prefixes and Suffixes",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "Which sentence uses a semicolon correctly?",
@@ -305,7 +327,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Punctuation",
         difficulty: "medium",
-        cognitiveLevel: "application"
+        cognitiveLevel: "application",
+        curriculum: "MoE National"
       },
       {
         question: "What literary device is used in: 'The classroom was a zoo'?",
@@ -318,7 +341,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Literature - Literary Devices",
         difficulty: "easy",
-        cognitiveLevel: "comprehension"
+        cognitiveLevel: "comprehension",
+        curriculum: "MoE National"
       },
       {
         question: "In critical reading, what does it mean to 'infer'?",
@@ -331,7 +355,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Reading - Comprehension Skills",
         difficulty: "medium",
-        cognitiveLevel: "analysis"
+        cognitiveLevel: "analysis",
+        curriculum: "MoE National"
       },
       {
         question: "What is a 'theme' in literature?",
@@ -344,7 +369,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Literature - Theme",
         difficulty: "easy",
-        cognitiveLevel: "comprehension"
+        cognitiveLevel: "comprehension",
+        curriculum: "MoE National"
       },
       {
         question: "Which sentence demonstrates correct subject-verb agreement?",
@@ -357,7 +383,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Subject-Verb Agreement",
         difficulty: "medium",
-        cognitiveLevel: "application"
+        cognitiveLevel: "application",
+        curriculum: "MoE National"
       }
     ],
     "11": [
@@ -372,7 +399,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Writing - Organization",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "Which word is correctly spelled?",
@@ -385,7 +413,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Spelling - Common Errors",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "What is the purpose of a counterargument in an argumentative essay?",
@@ -398,7 +427,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Writing - Argumentation",
         difficulty: "medium",
-        cognitiveLevel: "comprehension"
+        cognitiveLevel: "comprehension",
+        curriculum: "MoE National"
       },
       {
         question: "What is 'irony' in literature?",
@@ -411,7 +441,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Literature - Literary Devices",
         difficulty: "medium",
-        cognitiveLevel: "comprehension"
+        cognitiveLevel: "comprehension",
+        curriculum: "MoE National"
       },
       {
         question: "Which sentence uses parallel structure correctly?",
@@ -424,7 +455,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Parallel Structure",
         difficulty: "medium",
-        cognitiveLevel: "application"
+        cognitiveLevel: "application",
+        curriculum: "MoE National"
       },
       {
         question: "What is the difference between 'its' and 'it's'?",
@@ -437,7 +469,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Common Errors",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "What is 'tone' in writing?",
@@ -450,7 +483,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Literature - Tone and Mood",
         difficulty: "medium",
-        cognitiveLevel: "comprehension"
+        cognitiveLevel: "comprehension",
+        curriculum: "MoE National"
       }
     ],
     "12": [
@@ -465,7 +499,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Writing - Research and Citations",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "What is a 'complex sentence'?",
@@ -478,7 +513,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Sentence Types",
         difficulty: "medium",
-        cognitiveLevel: "comprehension"
+        cognitiveLevel: "comprehension",
+        curriculum: "MoE National"
       },
       {
         question: "In Shakespeare's plays, what is a 'soliloquy'?",
@@ -491,7 +527,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Literature - Drama",
         difficulty: "medium",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "Which phrase contains a dangling modifier? ",
@@ -504,7 +541,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Modifiers",
         difficulty: "hard",
-        cognitiveLevel: "analysis"
+        cognitiveLevel: "analysis",
+        curriculum: "MoE National"
       },
       {
         question: "What is the primary purpose of a literature review in research writing?",
@@ -517,7 +555,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Writing - Academic Writing",
         difficulty: "medium",
-        cognitiveLevel: "comprehension"
+        cognitiveLevel: "comprehension",
+        curriculum: "MoE National"
       },
       {
         question: "What is 'syntax' in language study?",
@@ -530,7 +569,8 @@ export const english: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Linguistics - Sentence Structure",
         difficulty: "medium",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       }
     ]
   }

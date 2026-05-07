@@ -1447,7 +1447,7 @@ export function registerSuperadminRoutes(app: Express) {
     try {
       const assessments = await storage.getAssessmentsByUser(req.params.userId);
       const completed = assessments.filter(a => a.isCompleted).sort((a, b) =>
-        new Date(b.completedAt ?? b.createdAt).getTime() - new Date(a.completedAt ?? a.createdAt).getTime()
+        new Date(b.completedAt ?? b.createdAt ?? 0).getTime() - new Date(a.completedAt ?? a.createdAt ?? 0).getTime()
       );
       if (!completed.length) {
         return res.status(404).json({ message: "No completed assessments found for this student" });
@@ -2352,8 +2352,8 @@ export function registerSuperadminRoutes(app: Express) {
   // PATCH /api/superadmin/cvq-items/:id — update Arabic text of a CVQ item
   app.patch("/api/superadmin/cvq-items/:id", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
     try {
-      const id = parseInt(req.params.id, 10);
-      if (isNaN(id)) {
+      const id = req.params.id;
+      if (!id || typeof id !== "string") {
         return res.status(400).json({ message: "Invalid CVQ item ID" });
       }
       const { textAr } = req.body;

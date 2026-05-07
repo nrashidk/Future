@@ -15,7 +15,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Plurals",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "Which word means 'school' in Arabic?",
@@ -28,7 +29,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Vocabulary - Common Words",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "What is the dual form of (طالب) 'student'?",
@@ -41,7 +43,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Dual Forms",
         difficulty: "medium",
-        cognitiveLevel: "comprehension"
+        cognitiveLevel: "comprehension",
+        curriculum: "MoE National"
       },
       {
         question: "Which sentence is grammatically correct?",
@@ -54,7 +57,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Sentence Structure",
         difficulty: "medium",
-        cognitiveLevel: "application"
+        cognitiveLevel: "application",
+        curriculum: "MoE National"
       },
       {
         question: "What type of noun is (محمد) 'Muhammad' in Arabic grammar?",
@@ -67,7 +71,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Types of Nouns",
         difficulty: "easy",
-        cognitiveLevel: "comprehension"
+        cognitiveLevel: "comprehension",
+        curriculum: "MoE National"
       },
       {
         question: "What does (بيت) mean in Arabic?",
@@ -80,7 +85,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Vocabulary - Common Words",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "Which is the correct feminine form of (طالب) 'male student'?",
@@ -93,7 +99,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Gender",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "What is the meaning of (يكتب) yaktubu?",
@@ -106,7 +113,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Verbs",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "Which word means 'today' in Arabic?",
@@ -119,7 +127,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Vocabulary - Time Expressions",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "What is the correct definite article in Arabic?",
@@ -132,7 +141,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Articles",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       }
     ],
     "9": [
@@ -147,7 +157,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Vocabulary - Verbs",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "What is the past tense of (يذهب) 'he goes'?",
@@ -160,7 +171,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Verb Tenses",
         difficulty: "medium",
-        cognitiveLevel: "application"
+        cognitiveLevel: "application",
+        curriculum: "MoE National"
       },
       {
         question: "Which preposition means 'in' or 'at' in Arabic?",
@@ -173,7 +185,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Prepositions",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "How do you say 'Thank you' in Arabic?",
@@ -186,7 +199,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Vocabulary - Common Expressions",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "What is the plural of (معلم) 'teacher'?",
@@ -199,7 +213,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Plurals",
         difficulty: "medium",
-        cognitiveLevel: "comprehension"
+        cognitiveLevel: "comprehension",
+        curriculum: "MoE National"
       },
       {
         question: "Which sentence structure is correct in Arabic nominal sentences (الجملة الاسمية)?",
@@ -212,7 +227,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Sentence Types",
         difficulty: "medium",
-        cognitiveLevel: "comprehension"
+        cognitiveLevel: "comprehension",
+        curriculum: "MoE National"
       },
       {
         question: "What does (حديقة) mean?",
@@ -225,7 +241,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Vocabulary - Places",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "Which pronoun means 'they' (masculine) in Arabic?",
@@ -238,7 +255,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Pronouns",
         difficulty: "medium",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "In the phrase (كتاب الطالب) 'the student's book', what grammatical relationship is shown?",
@@ -251,7 +269,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Possessive Construction",
         difficulty: "hard",
-        cognitiveLevel: "analysis"
+        cognitiveLevel: "analysis",
+        curriculum: "MoE National"
       },
       {
         question: "What does (مكتبة) mean in Arabic?",
@@ -264,7 +283,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Vocabulary - Common Words",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       }
     ],
     "10": [
@@ -279,7 +299,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Verbal Nouns",
         difficulty: "medium",
-        cognitiveLevel: "comprehension"
+        cognitiveLevel: "comprehension",
+        curriculum: "MoE National"
       },
       {
         question: "Which is the correct passive voice form of (قرأ الطالب الكتاب) 'The student read the book'?",
@@ -292,7 +313,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Passive Voice",
         difficulty: "hard",
-        cognitiveLevel: "application"
+        cognitiveLevel: "application",
+        curriculum: "MoE National"
       },
       {
         question: "In Arabic poetry, what is (البحر) al-bahr?",
@@ -305,7 +327,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Literature - Arabic Poetry",
         difficulty: "medium",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "What does (التشبيه) at-tashbīh mean in Arabic rhetoric?",
@@ -318,7 +341,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Literature - Rhetoric",
         difficulty: "medium",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "Which case ending is used for the subject (فاعل) in Arabic?",
@@ -331,7 +355,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Case Endings",
         difficulty: "medium",
-        cognitiveLevel: "comprehension"
+        cognitiveLevel: "comprehension",
+        curriculum: "MoE National"
       },
       {
         question: "What is the اسم الفاعل (active participle) of (درس) 'to study'?",
@@ -344,7 +369,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Participles",
         difficulty: "medium",
-        cognitiveLevel: "application"
+        cognitiveLevel: "application",
+        curriculum: "MoE National"
       },
       {
         question: "Which verb form (وزن) is (استخرج) from?",
@@ -357,7 +383,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Verb Forms",
         difficulty: "hard",
-        cognitiveLevel: "analysis"
+        cognitiveLevel: "analysis",
+        curriculum: "MoE National"
       }
     ],
     "11": [
@@ -372,7 +399,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Literature - Rhetoric",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "What does (الجملة الفعلية) mean in Arabic grammar?",
@@ -385,7 +413,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Sentence Types",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "In the word (مُسْتَشْفَى), what is the grammatical pattern?",
@@ -398,7 +427,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Morphology",
         difficulty: "hard",
-        cognitiveLevel: "analysis"
+        cognitiveLevel: "analysis",
+        curriculum: "MoE National"
       },
       {
         question: "What is (الطباق) at-tibāq in Arabic rhetoric?",
@@ -411,7 +441,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Literature - Rhetoric",
         difficulty: "medium",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "Which is the correct اسم المفعول (passive participle) of (كتب)?",
@@ -424,7 +455,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Participles",
         difficulty: "medium",
-        cognitiveLevel: "application"
+        cognitiveLevel: "application",
+        curriculum: "MoE National"
       },
       {
         question: "What is the feminine plural form of (مسلم) 'Muslim (male)'?",
@@ -437,7 +469,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Plurals",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "In Arabic morphology, what does (الميزان الصرفي) mean?",
@@ -450,7 +483,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Morphology",
         difficulty: "medium",
-        cognitiveLevel: "comprehension"
+        cognitiveLevel: "comprehension",
+        curriculum: "MoE National"
       }
     ],
     "12": [
@@ -465,7 +499,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Case Endings",
         difficulty: "hard",
-        cognitiveLevel: "comprehension"
+        cognitiveLevel: "comprehension",
+        curriculum: "MoE National"
       },
       {
         question: "Who is considered the father of Arabic poetry?",
@@ -478,7 +513,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Literature - Classical Poetry",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "What is the function of (إن وأخواتها) in Arabic?",
@@ -491,7 +527,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Particles",
         difficulty: "medium",
-        cognitiveLevel: "comprehension"
+        cognitiveLevel: "comprehension",
+        curriculum: "MoE National"
       },
       {
         question: "What is (السجع) as-saj' in Arabic prose?",
@@ -504,7 +541,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Literature - Prose",
         difficulty: "medium",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "In the conditional sentence (إن تدرس تنجح), what type of conditional is (إن)?",
@@ -517,7 +555,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Grammar - Conditionals",
         difficulty: "hard",
-        cognitiveLevel: "application"
+        cognitiveLevel: "application",
+        curriculum: "MoE National"
       },
       {
         question: "What is (التشبيه) at-tashbīh in Arabic rhetoric?",
@@ -530,7 +569,8 @@ export const arabic: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Literature - Rhetoric",
         difficulty: "medium",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       }
     ]
   }

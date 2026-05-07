@@ -15,7 +15,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Biology - Photosynthesis",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "Which state of matter has a definite volume but no definite shape?",
@@ -28,7 +29,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Chemistry - States of Matter",
         difficulty: "easy",
-        cognitiveLevel: "comprehension"
+        cognitiveLevel: "comprehension",
+        curriculum: "MoE National"
       },
       {
         question: "What type of energy is stored in food?",
@@ -41,7 +43,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Physics - Energy Forms",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "What is the chemical formula for water?",
@@ -54,7 +57,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Chemistry - Chemical Formulas",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "Which organ in the human body pumps blood?",
@@ -67,7 +71,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Biology - Human Body Systems",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "What happens to the volume of a gas when temperature increases (at constant pressure)?",
@@ -80,7 +85,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Physics - Gas Laws",
         difficulty: "medium",
-        cognitiveLevel: "comprehension"
+        cognitiveLevel: "comprehension",
+        curriculum: "MoE National"
       },
       {
         question: "Which part of the cell controls all cellular activities and contains DNA?",
@@ -93,7 +99,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Biology - Cell Structure",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "What is the pH value of a neutral solution?",
@@ -106,7 +113,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Chemistry - Acids and Bases",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "What type of rock is formed when magma cools and solidifies?",
@@ -119,7 +127,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Earth Science - Rock Cycle",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "What is the SI unit for measuring force?",
@@ -132,7 +141,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Physics - Forces and Motion",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       }
     ],
     "9": [
@@ -147,7 +157,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Biology - Ecosystems",
         difficulty: "easy",
-        cognitiveLevel: "comprehension"
+        cognitiveLevel: "comprehension",
+        curriculum: "MoE National"
       },
       {
         question: "What happens during a chemical reaction?",
@@ -160,7 +171,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Chemistry - Chemical Reactions",
         difficulty: "easy",
-        cognitiveLevel: "comprehension"
+        cognitiveLevel: "comprehension",
+        curriculum: "MoE National"
       },
       {
         question: "What is the relationship between speed, distance, and time?",
@@ -173,7 +185,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Physics - Motion",
         difficulty: "medium",
-        cognitiveLevel: "application"
+        cognitiveLevel: "application",
+        curriculum: "MoE National"
       },
       {
         question: "Which blood vessels carry blood away from the heart?",
@@ -186,7 +199,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Biology - Circulatory System",
         difficulty: "medium",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "What is the atomic number of an element?",
@@ -199,7 +213,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Chemistry - Atomic Structure",
         difficulty: "medium",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "What type of energy transformation occurs in a light bulb?",
@@ -212,7 +227,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Physics - Energy Transformations",
         difficulty: "medium",
-        cognitiveLevel: "application"
+        cognitiveLevel: "application",
+        curriculum: "MoE National"
       },
       {
         question: "Which process do plants use to release energy from glucose?",
@@ -225,7 +241,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Biology - Cellular Processes",
         difficulty: "medium",
-        cognitiveLevel: "comprehension"
+        cognitiveLevel: "comprehension",
+        curriculum: "MoE National"
       },
       {
         question: "According to the law of conservation of mass, what happens to mass during a chemical reaction?",
@@ -238,7 +255,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Chemistry - Conservation Laws",
         difficulty: "medium",
-        cognitiveLevel: "comprehension"
+        cognitiveLevel: "comprehension",
+        curriculum: "MoE National"
       },
       {
         question: "A ball is dropped from a height. As it falls, what happens to its potential and kinetic energy?",
@@ -251,7 +269,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Physics - Energy Conservation",
         difficulty: "hard",
-        cognitiveLevel: "analysis"
+        cognitiveLevel: "analysis",
+        curriculum: "MoE National"
       },
       {
         question: "If an organism has 46 chromosomes in its body cells, how many chromosomes will its gametes (sex cells) have?",
@@ -264,7 +283,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Biology - Cell Division",
         difficulty: "hard",
-        cognitiveLevel: "application"
+        cognitiveLevel: "application",
+        curriculum: "MoE National"
       }
     ],
     "10": [
@@ -279,7 +299,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Physics - Newton's Laws of Motion",
         difficulty: "medium",
-        cognitiveLevel: "application"
+        cognitiveLevel: "application",
+        curriculum: "MoE National"
       },
       {
         question: "In a redox reaction, what happens to the oxidizing agent?",
@@ -292,7 +313,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Chemistry - Redox Reactions",
         difficulty: "medium",
-        cognitiveLevel: "comprehension"
+        cognitiveLevel: "comprehension",
+        curriculum: "MoE National"
       },
       {
         question: "Which organelle is known as the 'powerhouse of the cell'?",
@@ -305,7 +327,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Biology - Cell Biology",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "What is the SI unit for electric current?",
@@ -318,7 +341,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Physics - Electricity",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "According to Mendel's law of segregation, what happens to alleles during gamete formation?",
@@ -331,7 +355,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Biology - Genetics",
         difficulty: "medium",
-        cognitiveLevel: "comprehension"
+        cognitiveLevel: "comprehension",
+        curriculum: "MoE National"
       },
       {
         question: "What is the voltage across a resistor with resistance 10 Ω carrying a current of 2 A? (Use Ohm's Law: V = IR)",
@@ -344,7 +369,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Physics - Ohm's Law",
         difficulty: "easy",
-        cognitiveLevel: "application"
+        cognitiveLevel: "application",
+        curriculum: "MoE National"
       },
       {
         question: "What is the process by which cells divide to produce gametes (sex cells)?",
@@ -357,7 +383,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Biology - Cell Division",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       }
     ],
     "11": [
@@ -372,7 +399,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Chemistry - Periodic Table",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "What is kinetic energy?",
@@ -385,7 +413,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Physics - Energy",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       },
       {
         question: "In a heterozygous individual (Aa), which allele is expressed in the phenotype?",
@@ -398,7 +427,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Biology - Genetics",
         difficulty: "medium",
-        cognitiveLevel: "comprehension"
+        cognitiveLevel: "comprehension",
+        curriculum: "MoE National"
       },
       {
         question: "What type of bond is formed when atoms share electrons?",
@@ -411,7 +441,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Chemistry - Chemical Bonding",
         difficulty: "medium",
-        cognitiveLevel: "comprehension"
+        cognitiveLevel: "comprehension",
+        curriculum: "MoE National"
       },
       {
         question: "A car accelerates from rest to 20 m/s in 5 seconds. What is its acceleration?",
@@ -424,7 +455,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Physics - Kinematics",
         difficulty: "medium",
-        cognitiveLevel: "application"
+        cognitiveLevel: "application",
+        curriculum: "MoE National"
       },
       {
         question: "What is the balanced equation for the combustion of methane (CH₄)?",
@@ -437,7 +469,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Chemistry - Chemical Equations",
         difficulty: "medium",
-        cognitiveLevel: "application"
+        cognitiveLevel: "application",
+        curriculum: "MoE National"
       },
       {
         question: "Which biome receives less than 25 cm of rain per year?",
@@ -450,7 +483,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Biology - Ecosystems",
         difficulty: "easy",
-        cognitiveLevel: "knowledge"
+        cognitiveLevel: "knowledge",
+        curriculum: "MoE National"
       }
     ],
     "12": [
@@ -465,7 +499,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Physics - Work and Energy",
         difficulty: "medium",
-        cognitiveLevel: "application"
+        cognitiveLevel: "application",
+        curriculum: "MoE National"
       },
       {
         question: "What is the molarity of a solution containing 2 moles of NaCl dissolved in 4 liters of water?",
@@ -478,7 +513,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Chemistry - Solutions",
         difficulty: "medium",
-        cognitiveLevel: "application"
+        cognitiveLevel: "application",
+        curriculum: "MoE National"
       },
       {
         question: "In photosynthesis, what molecule is split to release oxygen?",
@@ -491,7 +527,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Biology - Photosynthesis",
         difficulty: "hard",
-        cognitiveLevel: "comprehension"
+        cognitiveLevel: "comprehension",
+        curriculum: "MoE National"
       },
       {
         question: "Calculate the momentum of a 1500 kg car traveling at 20 m/s (momentum = mass × velocity)",
@@ -504,7 +541,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Physics - Momentum",
         difficulty: "medium",
-        cognitiveLevel: "application"
+        cognitiveLevel: "application",
+        curriculum: "MoE National"
       },
       {
         question: "What happens to the equilibrium of the reaction N₂ + 3H₂ ⇌ 2NH₃ if pressure is increased?",
@@ -517,7 +555,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Chemistry - Chemical Equilibrium",
         difficulty: "hard",
-        cognitiveLevel: "analysis"
+        cognitiveLevel: "analysis",
+        curriculum: "MoE National"
       },
       {
         question: "A wave has a frequency of 500 Hz and travels at 1500 m/s. What is its wavelength?",
@@ -530,7 +569,8 @@ export const science: SubjectQuestionBank = {
         countryId: "uae",
         topic: "Physics - Waves",
         difficulty: "hard",
-        cognitiveLevel: "application"
+        cognitiveLevel: "application",
+        curriculum: "MoE National"
       }
     ]
   }

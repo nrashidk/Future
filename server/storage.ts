@@ -117,6 +117,15 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserByOAuthProvider(provider: string, providerId: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
+  createUser(userData: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    username: string;
+    passwordHash: string;
+    accountType: string;
+    grade?: string;
+  }): Promise<User>;
   updateUserRole(targetUserId: string, newRole: 'user' | 'superadmin', newAccountType?: 'individual' | 'org_admin' | 'org_student' | null): Promise<User>;
   updateUserPremiumStatus(userId: string, stripeCustomerId: string | null): Promise<User>;
   createStandaloneUser(userData: {
@@ -610,6 +619,22 @@ export class DatabaseStorage implements IStorage {
         target: users.id,
         set: safeUpdateData,
       })
+      .returning();
+    return user;
+  }
+
+  async createUser(userData: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    username: string;
+    passwordHash: string;
+    accountType: string;
+    grade?: string;
+  }): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(userData)
       .returning();
     return user;
   }

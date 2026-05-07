@@ -20,6 +20,7 @@ interface Assessment {
   createdAt: string;
   tier: string;
   status: string;
+  isCompleted: boolean;
 }
 
 interface Organization {
