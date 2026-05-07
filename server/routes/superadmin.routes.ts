@@ -1804,11 +1804,13 @@ export function registerSuperadminRoutes(app: Express) {
         return res.status(404).json({ message: "Career not found" });
       }
       
-      const { title, description, requiredSkills, relatedSubjects, category, educationLevel, averageSalary, growthOutlook, icon, valuesProfile, onetCode, countryId } = req.body;
+      const { title, description, titleAr, descriptionAr, requiredSkills, relatedSubjects, category, educationLevel, averageSalary, growthOutlook, icon, valuesProfile, onetCode, countryId } = req.body;
       
       const updates: Record<string, any> = {};
       if (title !== undefined) updates.title = title;
       if (description !== undefined) updates.description = description;
+      if (titleAr !== undefined) updates.titleAr = titleAr || null;
+      if (descriptionAr !== undefined) updates.descriptionAr = descriptionAr || null;
       if (requiredSkills !== undefined) updates.requiredSkills = Array.isArray(requiredSkills) ? requiredSkills : [requiredSkills];
       if (relatedSubjects !== undefined) updates.relatedSubjects = Array.isArray(relatedSubjects) ? relatedSubjects : [relatedSubjects];
       if (category !== undefined) updates.category = category;
