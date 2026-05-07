@@ -154,6 +154,10 @@
     "planning_3": "Spontaneous",
     "problem_1": "Analytical",
     "problem_2": "Creative",
-    "problem_3": "Collaborative"
+    "problem_3": "Collaborative",
+    "teamwork": "Teamwork",
+    "learning": "Learning Style",
+    "planning": "Planning",
+    "problem": "Problem Solving"
   }
 }

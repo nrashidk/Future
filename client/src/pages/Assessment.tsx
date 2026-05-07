@@ -28,6 +28,16 @@ const TRAIT_KEY_MAP: Record<string, Record<string, string>> = {
   problem:   { "1": "problem_1",   "2": "problem_2",   "3": "problem_3"   },
 };
 
+// Reverse of TRAIT_KEY_MAP — converts a stored trait key back to { questionId, answer }
+// so cross-device resume can restore PersonalityStep radio-button state.
+// e.g. "teamwork_2" → { questionId: "teamwork", answer: "2" }
+const TRAIT_KEY_REVERSE: Record<string, { questionId: string; answer: string }> =
+  Object.fromEntries(
+    Object.entries(TRAIT_KEY_MAP).flatMap(([questionId, answers]) =>
+      Object.entries(answers).map(([answer, traitKey]) => [traitKey, { questionId, answer }])
+    )
+  );
+
 interface AssessmentData {
   name: string;
   age: number | null;
@@ -188,15 +198,27 @@ export default function Assessment() {
         const inProgress = allAssessments.find(a => !a.isCompleted && a.currentStep > 1);
         if (!inProgress) return;
 
-        // Resolve personalityTraits: the DB stores this as JSONB (unknown at the type
-        // level). Free-tier assessments save it as a string[] of selected trait names;
-        // premium assessments may store a Record<string,number>. We narrow safely.
+        // Resolve personalityTraits: the DB stores this as JSONB (unknown at the type level).
+        // Free-tier: stored as string[] (trait keys like "teamwork_2" after Task #59, or
+        // legacy question-ID keys like "teamwork"). We convert back to { questionId: answer }
+        // so PersonalityStep can pre-select the correct radio button on resume.
+        // Premium: stored as Record<string,number> (RIASEC/CVQ scores) — passed through as-is.
         const rawPt = inProgress.personalityTraits;
-        const personalityTraits: Record<string, number> = Array.isArray(rawPt)
-          ? Object.fromEntries((rawPt as string[]).map(trait => [trait, 1]))
-          : rawPt !== null && typeof rawPt === "object" && !Array.isArray(rawPt)
-            ? (rawPt as Record<string, number>)
-            : {};
+        const personalityTraits: Record<string, number> = (() => {
+          if (Array.isArray(rawPt)) {
+            const entries: Array<[string, string | number]> = (rawPt as string[]).map(item => {
+              const rev = TRAIT_KEY_REVERSE[item];
+              // New format: "teamwork_2" → restore { teamwork: "2" } for PersonalityStep
+              // Old format: "teamwork"   → store as truthy placeholder { teamwork: 1 }
+              return rev ? [rev.questionId, rev.answer] : [item, 1];
+            });
+            return Object.fromEntries(entries) as Record<string, number>;
+          }
+          if (rawPt !== null && typeof rawPt === "object") {
+            return rawPt as Record<string, number>;
+          }
+          return {};
+        })();
 
         // Map backend assessment fields to the AssessmentData shape.
         // Raw RIASEC/CVQ item responses are not persisted (only computed scores are
