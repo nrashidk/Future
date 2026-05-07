@@ -184,6 +184,25 @@ export function registerRecommendationsRoutes(app: Express) {
       // Fetch CVQ result for premium users (needed for enhanced narratives)
       const cvqResult = isPremium && assessmentId ? await storage.getCvqResultByAssessmentId(assessmentId) : null;
 
+      // Resolve user's preferred language for narrative generation
+      let narrativeLanguage = "en";
+      if (assessment?.userId) {
+        const narrativeUser = await storage.getUser(assessment.userId);
+        narrativeLanguage = narrativeUser?.preferredLanguage || "en";
+      }
+
+      // Check LLM availability once for the whole request (avoids per-career round trips)
+      let llmAvailable = false;
+      let llmNarrativeModule: typeof import("../services/llmNarrativeService") | null = null;
+      if (isPremium) {
+        try {
+          llmNarrativeModule = await import("../services/llmNarrativeService");
+          llmAvailable = await llmNarrativeModule.isLlmServiceAvailable(storage);
+        } catch {
+          llmAvailable = false;
+        }
+      }
+
       // Enrich with career details and generate premium narratives on-demand
       const enriched = await Promise.all(
         recommendations.map(async (rec) => {
@@ -205,10 +224,29 @@ export function registerRecommendationsRoutes(app: Express) {
                   riasecScores: assessment.riasecScores as any,
                   cvqScores: hasCvqData ? (cvqResult.normalizedScores as Record<string, any>) : undefined,
                   overallScore: rec.overallMatchScore,
+                  language: narrativeLanguage,
                 };
 
-                // Generate premium content
-                const enhancedReasoning = generateEnhancedReasoning(narrativeContext);
+                // Generate "Why This Career?" via LLM (with {{language}} variable support)
+                // when the LLM service is configured; fall back to heuristic generator otherwise.
+                let premiumReasoning: string;
+                if (llmAvailable && llmNarrativeModule) {
+                  const llmResult = await llmNarrativeModule.generateCareerReasoningNarrative(
+                    storage,
+                    assessment,
+                    career,
+                    rec.overallMatchScore,
+                    narrativeLanguage
+                  );
+                  premiumReasoning = llmResult.success && llmResult.narrative
+                    ? llmResult.narrative
+                    : generateEnhancedReasoning(narrativeContext);
+                } else {
+                  premiumReasoning = generateEnhancedReasoning(narrativeContext);
+                }
+
+                // Work Style Fit and Strengths/Growth use heuristic generators
+                // (no LLM prompt templates exist for these sections yet)
                 const workStyleFit = generateWorkStyleFit(narrativeContext);
                 const strengthsGrowth = generateStrengthsGrowth(narrativeContext);
                 const enhancedActionSteps = generateEnhancedActionSteps(narrativeContext);
@@ -218,7 +256,7 @@ export function registerRecommendationsRoutes(app: Express) {
                   ...rec,
                   career,
                   // Add premium fields (not stored in DB, generated on-demand)
-                  premiumReasoning: enhancedReasoning,
+                  premiumReasoning,
                   workStyleFit,
                   strengthsGrowth,
                   premiumActionSteps: enhancedActionSteps,
