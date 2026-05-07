@@ -31,6 +31,27 @@ import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/contexts/LanguageContext";
 
+/**
+ * Return the Arabic variant when the UI is in Arabic mode and the field is
+ * non-empty, otherwise fall back to the English value.
+ */
+function localizeField(ar: string | null | undefined, en: string | null | undefined): string {
+  return (ar && ar.trim()) ? ar : (en || '');
+}
+
+/**
+ * Return the Arabic skill array when the UI is in Arabic mode and the array is
+ * non-empty, otherwise fall back to the English array.
+ */
+function localizeSkills(
+  language: string,
+  arSkills: string[] | null | undefined,
+  enSkills: string[] | null | undefined
+): string[] {
+  if (language === 'ar' && arSkills && arSkills.length > 0) return arSkills;
+  return enSkills || [];
+}
+
 // LLM-powered "Why This Career?" for premium users — fetches per career card
 function CareerReasoningText({
   assessmentId,
@@ -568,6 +589,86 @@ export default function Results() {
         </div>
       )}
 
+      {/* Personality Profile – Holland Codes (premium) or Personality Traits (free) */}
+      {assessment && (
+        (isPremiumAssessment(assessment?.assessmentType) && assessment.riasecScores) ||
+        (!isPremiumAssessment(assessment?.assessmentType) && assessment.personalityTraits &&
+          (Array.isArray(assessment.personalityTraits)
+            ? assessment.personalityTraits.length > 0
+            : Object.keys(assessment.personalityTraits as object).length > 0))
+      ) && (
+        <div className="max-w-4xl mx-auto px-4 mb-8">
+          <StickyNote color="blue" rotation="-1" className="p-8">
+            <div className="text-center mb-6">
+              <Star className="w-12 h-12 text-primary mx-auto mb-3" />
+              <h2 className="text-3xl font-bold mb-2">{t('personalityProfileTitle')}</h2>
+              <p className="text-muted-foreground font-body">
+                {t('personalityProfileSubtitle')}
+              </p>
+            </div>
+
+            {/* Holland Code bars (Premium – RIASEC assessment) */}
+            {isPremiumAssessment(assessment?.assessmentType) && assessment.riasecScores && (() => {
+              const RIASEC_MAP: Record<string, { nameKey: string; descKey: string }> = {
+                R: { nameKey: 'riasecRealistic',     descKey: 'riasecRealisticDesc'     },
+                I: { nameKey: 'riasecInvestigative', descKey: 'riasecInvestigativeDesc' },
+                A: { nameKey: 'riasecArtistic',      descKey: 'riasecArtisticDesc'      },
+                S: { nameKey: 'riasecSocial',        descKey: 'riasecSocialDesc'        },
+                E: { nameKey: 'riasecEnterprising',  descKey: 'riasecEnterprisingDesc'  },
+                C: { nameKey: 'riasecConventional',  descKey: 'riasecConventionalDesc'  },
+              };
+              const scores = assessment.riasecScores as Record<string, number>;
+              const maxScore = Math.max(...Object.values(scores));
+              const sorted = Object.entries(scores).sort(([, a], [, b]) => b - a);
+              return (
+                <>
+                  <h3 className="font-semibold mb-4">{t('hollandCodesTitle')}</h3>
+                  <div className="space-y-3 mb-4">
+                    {sorted.map(([theme, score]) => {
+                      const meta = RIASEC_MAP[theme];
+                      if (!meta) return null;
+                      const pct = maxScore > 0 ? Math.round((score / maxScore) * 100) : 0;
+                      return (
+                        <div key={theme} data-testid={`riasec-bar-${theme.toLowerCase()}`}>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm font-medium">{t(meta.nameKey)}</span>
+                            <span className="text-xs text-muted-foreground">{t(meta.descKey)}</span>
+                          </div>
+                          <Progress value={pct} className="h-2" />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              );
+            })()}
+
+            {/* Personality Traits (Free tier) */}
+            {!isPremiumAssessment(assessment?.assessmentType) && assessment.personalityTraits && (
+              <>
+                <h3 className="font-semibold mb-3">{t('personalityTraitsTitle')}</h3>
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {(Array.isArray(assessment.personalityTraits)
+                    ? assessment.personalityTraits
+                    : Object.keys(assessment.personalityTraits as object)
+                  ).map((trait: string) => (
+                    <span
+                      key={trait}
+                      className="bg-primary/10 px-3 py-1 rounded-full text-sm font-medium"
+                      data-testid={`badge-trait-${trait.toLowerCase().replace(/\s+/g, '-')}`}
+                    >
+                      {trait}
+                    </span>
+                  ))}
+                </div>
+              </>
+            )}
+
+            <p className="text-sm text-muted-foreground font-body">{t('personalityMatchDesc')}</p>
+          </StickyNote>
+        </div>
+      )}
+
       {/* Upgrade Prompt (Free Users Only - hide for premium users and premium assessments) */}
       {!isPremiumAssessment(assessment?.assessmentType) && !user?.isPremium && (
         <div className="max-w-4xl mx-auto px-4 mb-8">
@@ -664,8 +765,16 @@ export default function Results() {
                 {/* Header: Title and Match Score */}
                 <div className="flex items-start justify-between gap-4 mb-4">
                   <div className="flex-1 min-w-0">
-                    <h3 className="text-xl font-bold mb-1">{language === 'ar' && rec.career?.titleAr ? rec.career.titleAr : rec.career?.title}</h3>
-                    <p className="text-muted-foreground font-body text-sm">{language === 'ar' && rec.career?.descriptionAr ? rec.career.descriptionAr : rec.career?.description}</p>
+                    <h3 className="text-xl font-bold mb-1" data-testid={`text-career-title-${rec.careerId}`}>
+                      {language === 'ar'
+                        ? localizeField(rec.career?.titleAr, rec.career?.title)
+                        : (rec.career?.title || '')}
+                    </h3>
+                    <p className="text-muted-foreground font-body text-sm" data-testid={`text-career-desc-${rec.careerId}`}>
+                      {language === 'ar'
+                        ? localizeField(rec.career?.descriptionAr, rec.career?.description)
+                        : (rec.career?.description || '')}
+                    </p>
                   </div>
                   <div className="bg-primary text-primary-foreground px-4 py-2 rounded-full font-bold text-lg flex-shrink-0">
                     {Math.round(rec.overallMatchScore)}%
@@ -779,25 +888,26 @@ export default function Results() {
                       </div>
                     )}
 
-                {/* Required Skills */}
-                {rec.career?.requiredSkills && rec.career.requiredSkills.length > 0 && (
+                {/* Required Skills — Arabic labels via requiredSkillsAr with English fallback */}
+                {(() => {
+                  const skills = localizeSkills(language, rec.career?.requiredSkillsAr, rec.career?.requiredSkills);
+                  return skills.length > 0 ? (
                   <div className="mb-4">
                     <h4 className="font-semibold mb-2 text-sm">{t('requiredSkills')}</h4>
                     <div className="flex flex-wrap gap-2">
-                      {(language === 'ar' && rec.career.requiredSkillsAr?.length
-                        ? rec.career.requiredSkillsAr
-                        : rec.career.requiredSkills
-                      ).map((skill: string) => (
-                        <span
-                          key={skill}
-                          className="bg-primary/10 px-3 py-1 rounded-full text-sm font-medium"
-                        >
-                          {skill}
-                        </span>
-                      ))}
+                      {skills.map((skill: string) => (
+                          <span
+                            key={skill}
+                            className="bg-primary/10 px-3 py-1 rounded-full text-sm font-medium"
+                            data-testid={`badge-skill-${skill.toLowerCase().replace(/\s+/g, '-')}`}
+                          >
+                            {skill}
+                          </span>
+                        ))}
                     </div>
                   </div>
-                )}
+                  ) : null;
+                })()}
 
                 {/* Why This Career - LLM (Premium) or Basic */}
                 <div className="p-3 bg-background/30 rounded-lg mb-3">
