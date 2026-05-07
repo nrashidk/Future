@@ -298,12 +298,12 @@ export default function SuperadminDashboard() {
       return apiRequest('DELETE', `/api/superadmin/organizations/${selectedOrgId}/admins/${memberId}`);
     },
     onSuccess: () => {
-      toast({ title: "Admin Removed", description: "Admin has been removed from the school" });
+      toast({ title: t('superadmin.adminRemoved'), description: t('superadmin.adminRemovedDesc') });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations', selectedOrgId, 'admins'] });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations'] });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to remove admin", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: error.message || "Failed to remove admin", variant: "destructive" });
     },
   });
 
@@ -312,12 +312,12 @@ export default function SuperadminDashboard() {
       return apiRequest('PATCH', `/api/superadmin/organizations/${selectedOrgId}/admins/${memberId}/promote`);
     },
     onSuccess: () => {
-      toast({ title: "Admin Promoted", description: "Admin has been promoted to primary" });
+      toast({ title: t('superadmin.adminPromoted'), description: t('superadmin.adminPromotedDesc') });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations', selectedOrgId, 'admins'] });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations'] });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to promote admin", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: error.message || "Failed to promote admin", variant: "destructive" });
     },
   });
 
@@ -327,11 +327,11 @@ export default function SuperadminDashboard() {
       return res.json();
     },
     onSuccess: (data: any) => {
-      toast({ title: "Impersonation Started", description: data.message || "Now impersonating user" });
+      toast({ title: t('superadmin.impersonationStarted'), description: data.message || "Now impersonating user" });
       window.location.href = '/';
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to impersonate user", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: error.message || "Failed to impersonate user", variant: "destructive" });
     },
   });
 
@@ -344,8 +344,8 @@ export default function SuperadminDashboard() {
       const successCount = data.results.filter((r: any) => r.success).length;
       const failCount = data.results.filter((r: any) => !r.success).length;
       toast({ 
-        title: "Bulk Password Reset Complete", 
-        description: `${successCount} succeeded, ${failCount} failed`,
+        title: t('superadmin.bulkResetComplete'),
+        description: t('superadmin.bulkResetResult', { success: successCount, fail: failCount }),
         variant: failCount > 0 ? "destructive" : "default"
       });
       setBulkResetResults(data.results);
@@ -355,7 +355,7 @@ export default function SuperadminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations'] });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to reset passwords", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: error.message || "Failed to reset passwords", variant: "destructive" });
     },
   });
 
@@ -368,8 +368,8 @@ export default function SuperadminDashboard() {
       const successCount = data.results.filter((r: any) => r.success).length;
       const failCount = data.results.filter((r: any) => !r.success).length;
       toast({ 
-        title: "Bulk Delete Complete", 
-        description: `${successCount} schools deleted, ${failCount} failed`,
+        title: t('superadmin.bulkDeleteComplete'),
+        description: t('superadmin.bulkDeleteResult', { success: successCount, fail: failCount }),
         variant: failCount > 0 ? "destructive" : "default"
       });
       setSelectedOrgIds(new Set());
@@ -377,7 +377,7 @@ export default function SuperadminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/metrics'] });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to delete schools", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: error.message || "Failed to delete schools", variant: "destructive" });
     },
   });
 
@@ -386,13 +386,13 @@ export default function SuperadminDashboard() {
       return apiRequest('PATCH', `/api/superadmin/organizations/${selectedOrgId}/licenses`, data);
     },
     onSuccess: () => {
-      toast({ title: "Licenses Updated", description: "License settings have been updated" });
+      toast({ title: t('superadmin.licensesUpdated'), description: t('superadmin.licensesUpdatedDesc') });
       setIsLicenseModalOpen(false);
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations'] });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/metrics'] });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to update licenses", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: error.message || "Failed to update licenses", variant: "destructive" });
     },
   });
 
@@ -423,7 +423,7 @@ export default function SuperadminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/metrics'] });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to create school", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: error.message || "Failed to create school", variant: "destructive" });
     },
   });
 
@@ -446,7 +446,7 @@ export default function SuperadminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/students'] });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to create student", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: error.message || "Failed to create student", variant: "destructive" });
     },
   });
   const [deleteOrgConfirmName, setDeleteOrgConfirmName] = useState("");
@@ -516,14 +516,14 @@ export default function SuperadminDashboard() {
       return apiRequest('DELETE', `/api/superadmin/organizations/${orgId}`);
     },
     onSuccess: () => {
-      toast({ title: "School Deleted", description: "The school and all its members have been deleted" });
+      toast({ title: t('superadmin.schoolDeleted'), description: t('superadmin.schoolDeletedDesc') });
       setIsDeleteOrgModalOpen(false);
       setDeleteOrgConfirmName("");
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations'] });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/metrics'] });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to delete school", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: error.message || "Failed to delete school", variant: "destructive" });
     },
   });
 
@@ -535,10 +535,10 @@ export default function SuperadminDashboard() {
     },
     onSuccess: (data: any) => {
       setResetPasswordResult({ username: data.username, newPassword: data.newPassword });
-      toast({ title: "Password Reset", description: "New password has been generated" });
+      toast({ title: t('superadmin.passwordReset'), description: t('superadmin.passwordResetDesc') });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to reset password", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: error.message || "Failed to reset password", variant: "destructive" });
     },
   });
 
@@ -548,11 +548,11 @@ export default function SuperadminDashboard() {
       return apiRequest('DELETE', `/api/superadmin/files/${fileId}`);
     },
     onSuccess: () => {
-      toast({ title: "File Deleted", description: "File has been deleted" });
+      toast({ title: t('superadmin.fileDeleted'), description: t('superadmin.fileDeletedDesc') });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/files'] });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to delete file", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: error.message || "Failed to delete file", variant: "destructive" });
     },
   });
 
@@ -562,13 +562,13 @@ export default function SuperadminDashboard() {
       return apiRequest('POST', '/api/superadmin/announcements', data);
     },
     onSuccess: () => {
-      toast({ title: "Announcement Created", description: "New announcement has been created" });
+      toast({ title: t('superadmin.announcementCreated'), description: t('superadmin.announcementCreatedDesc') });
       setIsAnnouncementModalOpen(false);
       resetAnnouncementForm();
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/announcements'] });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to create announcement", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: error.message || "Failed to create announcement", variant: "destructive" });
     },
   });
 
@@ -577,14 +577,14 @@ export default function SuperadminDashboard() {
       return apiRequest('PATCH', `/api/superadmin/announcements/${id}`, data);
     },
     onSuccess: () => {
-      toast({ title: "Announcement Updated", description: "Announcement has been updated" });
+      toast({ title: t('superadmin.announcementUpdated'), description: t('superadmin.announcementUpdatedDesc') });
       setIsAnnouncementModalOpen(false);
       setEditingAnnouncement(null);
       resetAnnouncementForm();
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/announcements'] });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to update announcement", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: error.message || "Failed to update announcement", variant: "destructive" });
     },
   });
 
@@ -593,11 +593,11 @@ export default function SuperadminDashboard() {
       return apiRequest('DELETE', `/api/superadmin/announcements/${id}`);
     },
     onSuccess: () => {
-      toast({ title: "Announcement Deleted", description: "Announcement has been deleted" });
+      toast({ title: t('superadmin.announcementDeleted'), description: t('superadmin.announcementDeletedDesc') });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/announcements'] });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to delete announcement", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: error.message || "Failed to delete announcement", variant: "destructive" });
     },
   });
 
@@ -611,13 +611,13 @@ export default function SuperadminDashboard() {
       });
     },
     onSuccess: () => {
-      toast({ title: "Career Created", description: "New career has been added" });
+      toast({ title: t('superadmin.careerCreated'), description: t('superadmin.careerCreatedDesc') });
       setIsCareerModalOpen(false);
       resetCareerForm();
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/careers'] });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to create career", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: error.message || "Failed to create career", variant: "destructive" });
     },
   });
 
@@ -630,14 +630,14 @@ export default function SuperadminDashboard() {
       });
     },
     onSuccess: () => {
-      toast({ title: "Career Updated", description: "Career has been updated" });
+      toast({ title: t('superadmin.careerUpdated'), description: t('superadmin.careerUpdatedDesc') });
       setIsCareerModalOpen(false);
       setEditingCareer(null);
       resetCareerForm();
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/careers'] });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to update career", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: error.message || "Failed to update career", variant: "destructive" });
     },
   });
 
@@ -646,11 +646,11 @@ export default function SuperadminDashboard() {
       return apiRequest('DELETE', `/api/superadmin/careers/${id}`);
     },
     onSuccess: () => {
-      toast({ title: "Career Deleted", description: "Career has been deleted" });
+      toast({ title: t('superadmin.careerDeleted'), description: t('superadmin.careerDeletedDesc') });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/careers'] });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to delete career", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: error.message || "Failed to delete career", variant: "destructive" });
     },
   });
 
@@ -798,37 +798,37 @@ export default function SuperadminDashboard() {
           <div className="flex gap-2">
             <Button variant="outline" size="sm" asChild data-testid="button-nav-superadmin">
               <Link href="/superadmin">
-                <Shield className="w-4 h-4 mr-2" />
-                Super Admin
+                <Shield className="w-4 h-4 me-2" />
+                {t('nav.superAdmin')}
               </Link>
             </Button>
             <Button variant="outline" size="sm" asChild data-testid="button-nav-schools">
               <Link href="/admin/organizations">
-                <Building2 className="w-4 h-4 mr-2" />
-                Schools
+                <Building2 className="w-4 h-4 me-2" />
+                {t('nav.schools')}
               </Link>
             </Button>
             <Button variant="outline" size="sm" asChild data-testid="button-nav-questions">
               <Link href="/admin">
-                <FileQuestion className="w-4 h-4 mr-2" />
-                Quiz
+                <FileQuestion className="w-4 h-4 me-2" />
+                {t('nav.quiz')}
               </Link>
             </Button>
             <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">
               <Link href="/analytics">
-                <BarChart className="w-4 h-4 mr-2" />
-                Analytics
+                <BarChart className="w-4 h-4 me-2" />
+                {t('nav.analytics')}
               </Link>
             </Button>
             <Button variant="outline" size="sm" asChild data-testid="button-nav-profile">
               <Link href="/profile">
-                <User className="w-4 h-4 mr-2" />
-                Profile
+                <User className="w-4 h-4 me-2" />
+                {t('nav.profile')}
               </Link>
             </Button>
             <Button variant="outline" size="sm" onClick={handleLogout} data-testid="button-logout">
-              <LogOut className="w-4 h-4 mr-2" />
-              Logout
+              <LogOut className="w-4 h-4 me-2" />
+              {t('nav.logout')}
             </Button>
           </div>
         </div>
@@ -838,15 +838,15 @@ export default function SuperadminDashboard() {
         <div className="text-center">
           <div className="flex items-center justify-center gap-3 mb-4">
             <Shield className="w-12 h-12 text-primary" />
-            <h1 className="text-4xl md:text-5xl font-bold">Super Admin Dashboard</h1>
+            <h1 className="text-4xl md:text-5xl font-bold">{t('superadmin.title')}</h1>
           </div>
-          <p className="text-muted-foreground text-lg">Manage all schools, licenses, and administrators</p>
+          <p className="text-muted-foreground text-lg">{t('superadmin.subtitle')}</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-4 pb-2">
-              <CardTitle className="text-sm font-medium">Total Schools</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('superadmin.totalSchools')}</CardTitle>
               <Building2 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -854,14 +854,14 @@ export default function SuperadminDashboard() {
                 {metricsLoading ? "..." : metrics?.totalSchools || 0}
               </div>
               <p className="text-xs text-muted-foreground">
-                {metrics?.unlimitedSchools || 0} with unlimited licenses
+                {t('superadmin.unlimitedSchools', { n: metrics?.unlimitedSchools || 0 })}
               </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-4 pb-2">
-              <CardTitle className="text-sm font-medium">Total Admins</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('superadmin.totalAdmins')}</CardTitle>
               <Shield className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -869,14 +869,14 @@ export default function SuperadminDashboard() {
                 {metricsLoading ? "..." : metrics?.totalAdmins || 0}
               </div>
               <p className="text-xs text-muted-foreground">
-                Across all schools
+                {t('superadmin.acrossAllSchools')}
               </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-4 pb-2">
-              <CardTitle className="text-sm font-medium">Total Students</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('superadmin.totalStudents')}</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -884,14 +884,14 @@ export default function SuperadminDashboard() {
                 {metricsLoading ? "..." : metrics?.totalStudents || 0}
               </div>
               <p className="text-xs text-muted-foreground">
-                {metrics?.studentsCompleted || 0} completed ({metrics?.completionRate || 0}%)
+                {t('superadmin.completedOf', { completed: metrics?.studentsCompleted || 0, rate: metrics?.completionRate || 0 })}
               </p>
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between gap-4 pb-2">
-              <CardTitle className="text-sm font-medium">License Utilization</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('superadmin.licenseUtilization')}</CardTitle>
               <Key className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
@@ -899,7 +899,7 @@ export default function SuperadminDashboard() {
                 {metricsLoading ? "..." : `${metrics?.utilizationRate || 0}%`}
               </div>
               <p className="text-xs text-muted-foreground">
-                {metrics?.usedLicenses || 0} / {metrics?.totalLicenses || 0} licenses used
+                {t('superadmin.licensesUsed', { used: metrics?.usedLicenses || 0, total: metrics?.totalLicenses || 0 })}
               </p>
             </CardContent>
           </Card>
@@ -949,14 +949,14 @@ export default function SuperadminDashboard() {
           </TabsList>
           {activeTab === "organizations" && (
             <Button onClick={() => setIsCreateOrgModalOpen(true)} data-testid="button-create-school">
-              <Plus className="w-4 h-4 mr-2" />
-              Add School
+              <Plus className="w-4 h-4 me-2" />
+              {t('superadmin.addSchool')}
             </Button>
           )}
           {activeTab === "students" && (
             <Button onClick={() => setIsAddStudentOpen(true)} data-testid="button-add-student">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Student
+              <Plus className="w-4 h-4 me-2" />
+              {t('superadmin.addStudent')}
             </Button>
           )}
           </div>
@@ -966,36 +966,36 @@ export default function SuperadminDashboard() {
               <CardHeader>
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
-                    <CardTitle>Schools Directory</CardTitle>
-                    <CardDescription>Manage all schools and their licenses</CardDescription>
+                    <CardTitle>{t('superadmin.schoolsDirectory')}</CardTitle>
+                    <CardDescription>{t('superadmin.schoolsDirectoryDesc')}</CardDescription>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <Input
-                        placeholder="Search schools..."
+                        placeholder={t('superadmin.searchSchools')}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-9 w-64"
+                        className="ps-9 w-64"
                         data-testid="input-search-orgs"
                       />
                     </div>
                     <Select value={licenseFilter} onValueChange={setLicenseFilter}>
                       <SelectTrigger className="w-40" data-testid="select-license-filter">
-                        <Filter className="w-4 h-4 mr-2" />
+                        <Filter className="w-4 h-4 me-2" />
                         <SelectValue placeholder="Filter" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">All Status</SelectItem>
-                        <SelectItem value="unlimited">Unlimited</SelectItem>
-                        <SelectItem value="low">Low Licenses</SelectItem>
-                        <SelectItem value="exhausted">Exhausted</SelectItem>
+                        <SelectItem value="all">{t('superadmin.filterAll')}</SelectItem>
+                        <SelectItem value="unlimited">{t('superadmin.filterUnlimited')}</SelectItem>
+                        <SelectItem value="low">{t('superadmin.filterLow')}</SelectItem>
+                        <SelectItem value="exhausted">{t('superadmin.filterExhausted')}</SelectItem>
                       </SelectContent>
                     </Select>
                     <Button variant="outline" size="sm" asChild data-testid="button-export-orgs">
                       <a href="/api/superadmin/export/organizations?format=csv" download>
-                        <Download className="w-4 h-4 mr-2" />
-                        Export CSV
+                        <Download className="w-4 h-4 me-2" />
+                        {t('superadmin.exportCSV')}
                       </a>
                     </Button>
                   </div>
@@ -1004,7 +1004,7 @@ export default function SuperadminDashboard() {
               <CardContent>
                 {selectedOrgIds.size > 0 && (
                   <div className="flex items-center gap-4 p-3 mb-4 bg-muted rounded-lg">
-                    <span className="text-sm font-medium">{selectedOrgIds.size} school(s) selected</span>
+                    <span className="text-sm font-medium">{t('superadmin.selectedOrgs', { n: selectedOrgIds.size })}</span>
                     <div className="flex gap-2">
                       <Button
                         size="sm"
@@ -1017,8 +1017,8 @@ export default function SuperadminDashboard() {
                         disabled={bulkDeleteOrgsMutation.isPending}
                         data-testid="button-bulk-delete-orgs"
                       >
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Delete Schools
+                        <Trash2 className="w-4 h-4 me-2" />
+                        {t('superadmin.deleteSchools')}
                       </Button>
                       <Button
                         size="sm"
@@ -1026,15 +1026,15 @@ export default function SuperadminDashboard() {
                         onClick={() => setSelectedOrgIds(new Set())}
                         data-testid="button-clear-org-selection"
                       >
-                        Clear Selection
+                        {t('superadmin.clearSelection')}
                       </Button>
                     </div>
                   </div>
                 )}
                 {orgsLoading ? (
-                  <div className="text-center py-8 text-muted-foreground">Loading schools...</div>
+                  <div className="text-center py-8 text-muted-foreground">{t('superadmin.loadingSchools')}</div>
                 ) : sortedOrgs.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">No schools found</div>
+                  <div className="text-center py-8 text-muted-foreground">{t('superadmin.noSchools')}</div>
                 ) : (
                   <div className="overflow-x-auto">
                     <Table>
@@ -1061,11 +1061,11 @@ export default function SuperadminDashboard() {
                             }}
                           >
                             <div className="flex items-center gap-1">
-                              School
+                              {t('superadmin.schoolName')}
                               {sortBy === "name" && (sortOrder === "asc" ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />)}
                             </div>
                           </TableHead>
-                          <TableHead>Primary Admin</TableHead>
+                          <TableHead>{t('superadmin.primaryAdminHeader')}</TableHead>
                           <TableHead 
                             className="cursor-pointer hover-elevate"
                             onClick={() => {
@@ -1074,7 +1074,7 @@ export default function SuperadminDashboard() {
                             }}
                           >
                             <div className="flex items-center gap-1">
-                              Students
+                              {t('superadmin.students')}
                               {sortBy === "students" && (sortOrder === "asc" ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />)}
                             </div>
                           </TableHead>
@@ -1086,12 +1086,12 @@ export default function SuperadminDashboard() {
                             }}
                           >
                             <div className="flex items-center gap-1">
-                              Licenses
+                              {t('superadmin.licenses')}
                               {sortBy === "licenses" && (sortOrder === "asc" ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />)}
                             </div>
                           </TableHead>
-                          <TableHead>Admins</TableHead>
-                          <TableHead>Actions</TableHead>
+                          <TableHead>{t('superadmin.adminsColHeader')}</TableHead>
+                          <TableHead>{t('superadmin.actions')}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1115,7 +1115,7 @@ export default function SuperadminDashboard() {
                             <TableCell>
                               <div className="font-medium">{org.name}</div>
                               <div className="text-xs text-muted-foreground">
-                                Created {new Date(org.createdAt).toLocaleDateString()}
+                                {t('superadmin.createdDate', { date: new Date(org.createdAt).toLocaleDateString() })}
                               </div>
                             </TableCell>
                             <TableCell>
@@ -1134,20 +1134,20 @@ export default function SuperadminDashboard() {
                                   )}
                                 </div>
                               ) : (
-                                <span className="text-muted-foreground">No admin</span>
+                                <span className="text-muted-foreground">{t('superadmin.noAdmin')}</span>
                               )}
                             </TableCell>
                             <TableCell>
                               <div className="font-medium">{org.studentCount}</div>
                               <div className="text-xs text-muted-foreground">
-                                {org.completedCount} completed
+                                {t('superadmin.nCompleted', { n: org.completedCount })}
                               </div>
                             </TableCell>
                             <TableCell>
                               {org.isUnlimitedLicenses ? (
                                 <Badge variant="secondary" className="gap-1">
                                   <Infinity className="w-3 h-3" />
-                                  Unlimited
+                                  {t('superadmin.filterUnlimited')}
                                 </Badge>
                               ) : (
                                 <div>
@@ -1155,13 +1155,13 @@ export default function SuperadminDashboard() {
                                     {org.usedLicenses} / {org.totalLicenses}
                                   </div>
                                   <div className="text-xs text-muted-foreground">
-                                    {org.utilizationRate}% used
+                                    {t('superadmin.usedPercent', { n: org.utilizationRate })}
                                   </div>
                                 </div>
                               )}
                             </TableCell>
                             <TableCell>
-                              <Badge variant="outline">{org.adminCount} admin{org.adminCount !== 1 ? "s" : ""}</Badge>
+                              <Badge variant="outline">{t('superadmin.nAdmins', { n: org.adminCount })}</Badge>
                             </TableCell>
                             <TableCell>
                               <div className="flex gap-1">
@@ -1169,7 +1169,7 @@ export default function SuperadminDashboard() {
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => openAdminsModal(org.id)}
-                                  title="Manage Admins"
+                                  title={t('superadmin.viewAdmins')}
                                   data-testid={`button-manage-admins-${org.id}`}
                                 >
                                   <Users className="w-4 h-4" />
@@ -1178,7 +1178,7 @@ export default function SuperadminDashboard() {
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => openLicenseModal(org.id)}
-                                  title="Manage Licenses"
+                                  title={t('superadmin.manageLicenses')}
                                   data-testid={`button-manage-licenses-${org.id}`}
                                 >
                                   <Key className="w-4 h-4" />
@@ -1187,7 +1187,7 @@ export default function SuperadminDashboard() {
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => openEventsModal(org.id)}
-                                  title="View History"
+                                  title={t('superadmin.viewHistory')}
                                   data-testid={`button-view-history-${org.id}`}
                                 >
                                   <History className="w-4 h-4" />
@@ -1196,7 +1196,7 @@ export default function SuperadminDashboard() {
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => openDeleteOrgModal(org.id)}
-                                  title="Delete School"
+                                  title={t('superadmin.deleteSchool')}
                                   className="text-destructive hover:text-destructive"
                                   data-testid={`button-delete-org-${org.id}`}
                                 >
@@ -1219,36 +1219,36 @@ export default function SuperadminDashboard() {
               <CardHeader>
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
-                    <CardTitle>Users Directory</CardTitle>
-                    <CardDescription>View all students, school admins, and premium users with assessment history</CardDescription>
+                    <CardTitle>{t('superadmin.usersDirectory')}</CardTitle>
+                    <CardDescription>{t('superadmin.studentsDesc')}</CardDescription>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     <div className="relative">
-                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <Input
-                        placeholder="Search users..."
+                        placeholder={t('superadmin.searchStudents')}
                         value={studentSearchQuery}
                         onChange={(e) => setStudentSearchQuery(e.target.value)}
-                        className="pl-9 w-64"
+                        className="ps-9 w-64"
                         data-testid="input-search-students"
                       />
                     </div>
                     <Select value={userTypeFilter} onValueChange={setUserTypeFilter}>
                       <SelectTrigger className="w-40" data-testid="select-user-type-filter">
-                        <Filter className="w-4 h-4 mr-2" />
+                        <Filter className="w-4 h-4 me-2" />
                         <SelectValue placeholder="Filter" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="all">All Types</SelectItem>
-                        <SelectItem value="students">School Students</SelectItem>
-                        <SelectItem value="org_admins">School Admins</SelectItem>
-                        <SelectItem value="premium">Premium Users</SelectItem>
+                        <SelectItem value="all">{t('superadmin.filterAllTypes')}</SelectItem>
+                        <SelectItem value="students">{t('superadmin.filterStudentsType')}</SelectItem>
+                        <SelectItem value="org_admins">{t('superadmin.filterOrgAdminsType')}</SelectItem>
+                        <SelectItem value="premium">{t('superadmin.filterPremiumType')}</SelectItem>
                       </SelectContent>
                     </Select>
                     <Button variant="outline" size="sm" asChild data-testid="button-export-students">
                       <a href="/api/superadmin/export/students?format=csv" download>
-                        <Download className="w-4 h-4 mr-2" />
-                        Export CSV
+                        <Download className="w-4 h-4 me-2" />
+                        {t('superadmin.exportCSV')}
                       </a>
                     </Button>
                   </div>
@@ -1257,7 +1257,7 @@ export default function SuperadminDashboard() {
               <CardContent>
                 {selectedUserIds.size > 0 && (
                   <div className="flex items-center gap-4 p-3 mb-4 bg-muted rounded-lg">
-                    <span className="text-sm font-medium">{selectedUserIds.size} user(s) selected</span>
+                    <span className="text-sm font-medium">{t('superadmin.selectedUsers', { n: selectedUserIds.size })}</span>
                     <div className="flex gap-2">
                       <Button
                         size="sm"
@@ -1266,8 +1266,8 @@ export default function SuperadminDashboard() {
                         disabled={bulkResetPasswordsMutation.isPending}
                         data-testid="button-bulk-reset-passwords"
                       >
-                        <Key className="w-4 h-4 mr-2" />
-                        Reset Passwords
+                        <Key className="w-4 h-4 me-2" />
+                        {t('superadmin.bulkResetBtn')}
                       </Button>
                       <Button
                         size="sm"
@@ -1275,13 +1275,13 @@ export default function SuperadminDashboard() {
                         onClick={() => setSelectedUserIds(new Set())}
                         data-testid="button-clear-user-selection"
                       >
-                        Clear Selection
+                        {t('superadmin.clearSelection')}
                       </Button>
                     </div>
                   </div>
                 )}
                 {studentsLoading ? (
-                  <div className="text-center py-8 text-muted-foreground">Loading users...</div>
+                  <div className="text-center py-8 text-muted-foreground">{t('superadmin.loadingUsers')}</div>
                 ) : (() => {
                   const filteredStudents = students.filter((s) => {
                     const searchLower = studentSearchQuery.toLowerCase();
@@ -1300,7 +1300,7 @@ export default function SuperadminDashboard() {
                   const allFilteredSelected = filteredStudents.length > 0 && filteredStudents.every(s => selectedUserIds.has(s.user.id));
                   
                   return filteredStudents.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">No users found</div>
+                    <div className="text-center py-8 text-muted-foreground">{t('superadmin.noStudents')}</div>
                   ) : (
                     <div className="overflow-x-auto">
                       <Table>
@@ -1319,11 +1319,11 @@ export default function SuperadminDashboard() {
                                 data-testid="checkbox-select-all-users"
                               />
                             </TableHead>
-                            <TableHead>Name</TableHead>
-                            <TableHead>Username</TableHead>
-                            <TableHead>User Type</TableHead>
-                            <TableHead>Assessments</TableHead>
-                            <TableHead>Actions</TableHead>
+                            <TableHead>{t('superadmin.name')}</TableHead>
+                            <TableHead>{t('superadmin.colUsername')}</TableHead>
+                            <TableHead>{t('superadmin.colUserType')}</TableHead>
+                            <TableHead>{t('superadmin.assessments')}</TableHead>
+                            <TableHead>{t('superadmin.actions')}</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -1359,10 +1359,10 @@ export default function SuperadminDashboard() {
                                     variant={student.user.accountType === 'org_admin' ? 'destructive' : student.user.accountType === 'org_student' ? 'secondary' : 'default'}
                                     className="w-fit"
                                   >
-                                    {student.user.accountType === 'org_admin' ? 'Admin' : student.user.accountType === 'org_student' ? 'Student' : 'Premium'}
+                                    {student.user.accountType === 'org_admin' ? t('superadmin.typeAdmin') : student.user.accountType === 'org_student' ? t('superadmin.typeStudent') : t('superadmin.typePremium')}
                                   </Badge>
                                   <span className="text-xs text-muted-foreground mt-1">
-                                    School: {student.organizationName || "Individual"}
+                                    {t('superadmin.schoolColon', { name: student.organizationName || t('superadmin.schoolIndividual') })}
                                   </span>
                                 </div>
                               </TableCell>
@@ -1370,7 +1370,7 @@ export default function SuperadminDashboard() {
                                 <div className="font-medium">{student.assessmentCount}</div>
                                 {student.latestAssessmentDate && (
                                   <div className="text-xs text-muted-foreground">
-                                    Last: {new Date(student.latestAssessmentDate).toLocaleDateString()}
+                                    {t('superadmin.lastDate', { date: new Date(student.latestAssessmentDate).toLocaleDateString() })}
                                   </div>
                                 )}
                               </TableCell>
@@ -1380,7 +1380,7 @@ export default function SuperadminDashboard() {
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => openResetPasswordModal(student.user.id)}
-                                    title="Reset Password"
+                                    title={t('superadmin.resetPassword')}
                                     data-testid={`button-reset-password-${student.user.id}`}
                                   >
                                     <Key className="w-4 h-4" />
@@ -1389,7 +1389,7 @@ export default function SuperadminDashboard() {
                                     variant="ghost"
                                     size="icon"
                                     asChild
-                                    title="View Results"
+                                    title={t('superadmin.viewResults')}
                                     data-testid={`button-view-results-${student.user.id}`}
                                   >
                                     <a href={`/api/superadmin/students/${student.user.id}/results`} target="_blank" rel="noopener noreferrer">
@@ -1400,7 +1400,7 @@ export default function SuperadminDashboard() {
                                     variant="ghost"
                                     size="icon"
                                     onClick={() => impersonateMutation.mutate(student.user.id)}
-                                    title="Impersonate User"
+                                    title={t('superadmin.impersonate')}
                                   data-testid={`button-impersonate-${student.user.id}`}
                                 >
                                   <UserCog className="w-4 h-4" />
@@ -1409,7 +1409,7 @@ export default function SuperadminDashboard() {
                                   variant="ghost"
                                   size="icon"
                                   asChild
-                                  title="View Assessments"
+                                  title={t('superadmin.viewHistory')}
                                   data-testid={`button-view-assessments-${student.user.id}`}
                                 >
                                   <a href={`/api/superadmin/students/${student.user.id}/assessments`} target="_blank" rel="noopener noreferrer">
@@ -1432,12 +1432,12 @@ export default function SuperadminDashboard() {
           <TabsContent value="activity" className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>Audit log of recent changes across all schools</CardDescription>
+                <CardTitle>{t('superadmin.recentActivity')}</CardTitle>
+                <CardDescription>{t('superadmin.recentActivityDesc')}</CardDescription>
               </CardHeader>
               <CardContent>
                 {allEvents.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">No recent activity</div>
+                  <div className="text-center py-8 text-muted-foreground">{t('superadmin.noRecentActivity')}</div>
                 ) : (
                   <div className="space-y-4">
                     {allEvents.slice(0, 20).map((event) => (
@@ -1446,10 +1446,10 @@ export default function SuperadminDashboard() {
                         <div className="flex-1 min-w-0">
                           <div className="font-medium">{event.eventDescription}</div>
                           <div className="text-sm text-muted-foreground">
-                            {event.organization?.name || "Unknown School"}
+                            {event.organization?.name || "-"}
                           </div>
                           <div className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
-                            <span>By {event.performer?.username || "Unknown"}</span>
+                            <span>{t('superadmin.activityBy', { name: event.performer?.username || "-" })}</span>
                             <span>{new Date(event.createdAt).toLocaleString()}</span>
                           </div>
                         </div>
@@ -1466,28 +1466,28 @@ export default function SuperadminDashboard() {
               <CardHeader>
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
-                    <CardTitle>File Management</CardTitle>
-                    <CardDescription>View and manage all uploaded files</CardDescription>
+                    <CardTitle>{t('superadmin.filesTitle')}</CardTitle>
+                    <CardDescription>{t('superadmin.filesDesc')}</CardDescription>
                   </div>
                 </div>
               </CardHeader>
               <CardContent>
                 {filesLoading ? (
-                  <div className="text-center py-8 text-muted-foreground">Loading files...</div>
+                  <div className="text-center py-8 text-muted-foreground">{t('superadmin.loadingFiles')}</div>
                 ) : files.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">No files found</div>
+                  <div className="text-center py-8 text-muted-foreground">{t('superadmin.noFiles')}</div>
                 ) : (
                   <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Filename</TableHead>
-                          <TableHead>Type</TableHead>
-                          <TableHead>Size</TableHead>
-                          <TableHead>Downloads</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Uploaded</TableHead>
-                          <TableHead>Actions</TableHead>
+                          <TableHead>{t('superadmin.filename')}</TableHead>
+                          <TableHead>{t('superadmin.fileType')}</TableHead>
+                          <TableHead>{t('superadmin.fileSize')}</TableHead>
+                          <TableHead>{t('superadmin.downloads')}</TableHead>
+                          <TableHead>{t('superadmin.colStatus')}</TableHead>
+                          <TableHead>{t('superadmin.colUploaded')}</TableHead>
+                          <TableHead>{t('superadmin.actions')}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1522,7 +1522,7 @@ export default function SuperadminDashboard() {
                                   variant="ghost"
                                   size="icon"
                                   asChild
-                                  title="Download"
+                                  title={t('superadmin.downloadFile')}
                                   data-testid={`button-download-file-${file.id}`}
                                 >
                                   <a href={`/api/files/${file.id}/download`} download>
@@ -1533,7 +1533,7 @@ export default function SuperadminDashboard() {
                                   variant="ghost"
                                   size="icon"
                                   onClick={() => deleteFileMutation.mutate(file.id)}
-                                  title="Delete"
+                                  title={t('superadmin.deleteFile')}
                                   className="text-destructive hover:text-destructive"
                                   data-testid={`button-delete-file-${file.id}`}
                                 >
@@ -1556,20 +1556,20 @@ export default function SuperadminDashboard() {
               <CardHeader>
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
-                    <CardTitle>System Announcements</CardTitle>
-                    <CardDescription>Create and manage announcements visible to users</CardDescription>
+                    <CardTitle>{t('superadmin.announcementsTitle')}</CardTitle>
+                    <CardDescription>{t('superadmin.announcementsDesc')}</CardDescription>
                   </div>
                   <Button onClick={() => { resetAnnouncementForm(); setEditingAnnouncement(null); setIsAnnouncementModalOpen(true); }} data-testid="button-new-announcement">
-                    <Plus className="w-4 h-4 mr-2" />
-                    New Announcement
+                    <Plus className="w-4 h-4 me-2" />
+                    {t('superadmin.newAnnouncement')}
                   </Button>
                 </div>
               </CardHeader>
               <CardContent>
                 {announcementsLoading ? (
-                  <div className="text-center py-8 text-muted-foreground">Loading announcements...</div>
+                  <div className="text-center py-8 text-muted-foreground">{t('superadmin.loadingAnnouncements')}</div>
                 ) : announcements.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">No announcements yet</div>
+                  <div className="text-center py-8 text-muted-foreground">{t('superadmin.noAnnouncements')}</div>
                 ) : (
                   <div className="space-y-4">
                     {announcements.map((announcement) => (
@@ -1578,24 +1578,24 @@ export default function SuperadminDashboard() {
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="font-medium">{announcement.title}</span>
-                            {announcement.isPinned && <Badge variant="secondary">Pinned</Badge>}
-                            {!announcement.isActive && <Badge variant="outline">Inactive</Badge>}
+                            {announcement.isPinned && <Badge variant="secondary">{t('superadmin.pinned')}</Badge>}
+                            {!announcement.isActive && <Badge variant="outline">{t('superadmin.inactive')}</Badge>}
                           </div>
                           <div className="text-sm text-muted-foreground mt-1 line-clamp-2">{announcement.content}</div>
                           <div className="text-xs text-muted-foreground mt-2 flex gap-4 flex-wrap">
-                            <span>Audience: {announcement.targetAudience === 'all' ? 'All Users' : announcement.targetAudience === 'students' ? 'School Students' : announcement.targetAudience === 'org_admins' ? 'School Admins' : announcement.targetAudience === 'premium' ? 'Premium Users' : announcement.targetAudience}</span>
+                            <span>{t('superadmin.announcementAudience')}: {announcement.targetAudience === 'all' ? t('superadmin.audienceAll') : announcement.targetAudience === 'students' ? t('superadmin.audienceStudents') : announcement.targetAudience === 'org_admins' ? t('superadmin.audienceOrgAdmins') : announcement.targetAudience === 'premium' ? t('superadmin.audiencePremium') : announcement.targetAudience}</span>
                             {announcement.publishAt && new Date(announcement.publishAt) > new Date() && (
-                              <Badge variant="outline" className="text-xs">Scheduled: {new Date(announcement.publishAt).toLocaleDateString()}</Badge>
+                              <Badge variant="outline" className="text-xs">{t('superadmin.scheduledBadge', { date: new Date(announcement.publishAt).toLocaleDateString() })}</Badge>
                             )}
-                            {announcement.expiresAt && <span>Expires: {new Date(announcement.expiresAt).toLocaleDateString()}</span>}
-                            <span>Created: {new Date(announcement.createdAt).toLocaleDateString()}</span>
+                            {announcement.expiresAt && <span>{t('superadmin.expiresBadge', { date: new Date(announcement.expiresAt).toLocaleDateString() })}</span>}
+                            <span>{t('superadmin.announcementCreatedDate', { date: new Date(announcement.createdAt).toLocaleDateString() })}</span>
                           </div>
                         </div>
                         <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => openEditAnnouncement(announcement)} title="Edit" data-testid={`button-edit-announcement-${announcement.id}`}>
+                          <Button variant="ghost" size="icon" onClick={() => openEditAnnouncement(announcement)} title={t('superadmin.editAnnouncement')} data-testid={`button-edit-announcement-${announcement.id}`}>
                             <Edit className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={() => deleteAnnouncementMutation.mutate(announcement.id)} title="Delete" className="text-destructive hover:text-destructive" data-testid={`button-delete-announcement-${announcement.id}`}>
+                          <Button variant="ghost" size="icon" onClick={() => deleteAnnouncementMutation.mutate(announcement.id)} title={t('superadmin.deleteAnnouncement')} className="text-destructive hover:text-destructive" data-testid={`button-delete-announcement-${announcement.id}`}>
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
@@ -1612,31 +1612,31 @@ export default function SuperadminDashboard() {
               <CardHeader>
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
-                    <CardTitle>Career Management</CardTitle>
-                    <CardDescription>Add, edit, or remove careers from the system</CardDescription>
+                    <CardTitle>{t('superadmin.careersTitle')}</CardTitle>
+                    <CardDescription>{t('superadmin.careersDesc')}</CardDescription>
                   </div>
                   <Button onClick={() => { resetCareerForm(); setEditingCareer(null); setIsCareerModalOpen(true); }} data-testid="button-new-career">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add Career
+                    <Plus className="w-4 h-4 me-2" />
+                    {t('superadmin.addCareer')}
                   </Button>
                 </div>
               </CardHeader>
               <CardContent>
                 {careersLoading ? (
-                  <div className="text-center py-8 text-muted-foreground">Loading careers...</div>
+                  <div className="text-center py-8 text-muted-foreground">{t('superadmin.loadingCareers')}</div>
                 ) : careers.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">No careers found</div>
+                  <div className="text-center py-8 text-muted-foreground">{t('superadmin.noCareers')}</div>
                 ) : (
                   <div className="overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Title</TableHead>
-                          <TableHead>Category</TableHead>
-                          <TableHead>Education</TableHead>
-                          <TableHead>Growth</TableHead>
-                          <TableHead>Skills</TableHead>
-                          <TableHead>Actions</TableHead>
+                          <TableHead>{t('superadmin.careerTitle')}</TableHead>
+                          <TableHead>{t('superadmin.careerCategory')}</TableHead>
+                          <TableHead>{t('superadmin.careerEducation')}</TableHead>
+                          <TableHead>{t('superadmin.careerGrowth')}</TableHead>
+                          <TableHead>{t('superadmin.colSkills')}</TableHead>
+                          <TableHead>{t('superadmin.actions')}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -1650,7 +1650,7 @@ export default function SuperadminDashboard() {
                             <TableCell>{career.educationLevel}</TableCell>
                             <TableCell>
                               <Badge variant={career.growthOutlook === "high" ? "default" : career.growthOutlook === "medium" ? "secondary" : "outline"}>
-                                {career.growthOutlook}
+                                {career.growthOutlook === "high" ? t('superadmin.growthHigh') : career.growthOutlook === "medium" ? t('superadmin.growthMedium') : career.growthOutlook === "low" ? t('superadmin.growthLow') : t('superadmin.growthDeclining')}
                               </Badge>
                             </TableCell>
                             <TableCell>
@@ -1665,10 +1665,10 @@ export default function SuperadminDashboard() {
                             </TableCell>
                             <TableCell>
                               <div className="flex gap-1">
-                                <Button variant="ghost" size="icon" onClick={() => openEditCareer(career)} title="Edit" data-testid={`button-edit-career-${career.id}`}>
+                                <Button variant="ghost" size="icon" onClick={() => openEditCareer(career)} title={t('superadmin.editCareer')} data-testid={`button-edit-career-${career.id}`}>
                                   <Edit className="w-4 h-4" />
                                 </Button>
-                                <Button variant="ghost" size="icon" onClick={() => deleteCareerMutation.mutate(career.id)} title="Delete" className="text-destructive hover:text-destructive" data-testid={`button-delete-career-${career.id}`}>
+                                <Button variant="ghost" size="icon" onClick={() => deleteCareerMutation.mutate(career.id)} title={t('superadmin.deleteCareer')} className="text-destructive hover:text-destructive" data-testid={`button-delete-career-${career.id}`}>
                                   <Trash2 className="w-4 h-4" />
                                 </Button>
                               </div>
@@ -1708,29 +1708,29 @@ export default function SuperadminDashboard() {
       <Dialog open={isAdminsModalOpen} onOpenChange={setIsAdminsModalOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Manage Admins - {selectedOrg?.name}</DialogTitle>
-            <DialogDescription>View and manage administrators for this school</DialogDescription>
+            <DialogTitle>{t('superadmin.manageAdminsTitle')} — {selectedOrg?.name}</DialogTitle>
+            <DialogDescription>{t('superadmin.adminsDesc')}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="flex justify-end">
               <Button size="sm" onClick={() => setIsAddAdminModalOpen(true)} data-testid="button-add-admin">
-                <UserPlus className="w-4 h-4 mr-2" />
-                Add Admin
+                <UserPlus className="w-4 h-4 me-2" />
+                {t('superadmin.addAdminBtn')}
               </Button>
             </div>
             {adminsLoading ? (
-              <div className="text-center py-4">Loading admins...</div>
+              <div className="text-center py-4">{t('superadmin.loadingAdmins')}</div>
             ) : orgAdmins.length === 0 ? (
-              <div className="text-center py-4 text-muted-foreground">No admins found</div>
+              <div className="text-center py-4 text-muted-foreground">{t('superadmin.noAdmins')}</div>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Username</TableHead>
-                    <TableHead>Contact</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead>{t('superadmin.name')}</TableHead>
+                    <TableHead>{t('superadmin.colUsername')}</TableHead>
+                    <TableHead>{t('superadmin.colContact')}</TableHead>
+                    <TableHead>{t('superadmin.colRole')}</TableHead>
+                    <TableHead>{t('superadmin.actions')}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1752,10 +1752,10 @@ export default function SuperadminDashboard() {
                         {admin.isPrimaryAdmin ? (
                           <Badge className="gap-1">
                             <Crown className="w-3 h-3" />
-                            Primary
+                            {t('superadmin.primaryAdminLabel')}
                           </Badge>
                         ) : (
-                          <Badge variant="outline">Admin</Badge>
+                          <Badge variant="outline">{t('superadmin.admin')}</Badge>
                         )}
                       </TableCell>
                       <TableCell>
@@ -1767,7 +1767,7 @@ export default function SuperadminDashboard() {
                                 size="icon"
                                 onClick={() => promoteAdminMutation.mutate(admin.memberId)}
                                 disabled={promoteAdminMutation.isPending}
-                                title="Promote to Primary"
+                                title={t('superadmin.promoteAdmin')}
                               >
                                 <Crown className="w-4 h-4" />
                               </Button>
@@ -1776,7 +1776,7 @@ export default function SuperadminDashboard() {
                                 size="icon"
                                 onClick={() => removeAdminMutation.mutate(admin.memberId)}
                                 disabled={removeAdminMutation.isPending}
-                                title="Remove Admin"
+                                title={t('superadmin.removeAdmin')}
                               >
                                 <Trash2 className="w-4 h-4 text-destructive" />
                               </Button>
@@ -1796,13 +1796,13 @@ export default function SuperadminDashboard() {
       <Dialog open={isAddAdminModalOpen} onOpenChange={setIsAddAdminModalOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add New Admin</DialogTitle>
-            <DialogDescription>Create a new administrator for {selectedOrg?.name}</DialogDescription>
+            <DialogTitle>{t('superadmin.addAdminTitle')}</DialogTitle>
+            <DialogDescription>{t('superadmin.addAdminForDesc', { name: selectedOrg?.name })}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="firstName">First Name *</Label>
+                <Label htmlFor="firstName">{t('superadmin.adminFirstName')}</Label>
                 <Input
                   id="firstName"
                   value={newAdminForm.firstName}
@@ -1811,7 +1811,7 @@ export default function SuperadminDashboard() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="lastName">Last Name *</Label>
+                <Label htmlFor="lastName">{t('superadmin.adminLastName')}</Label>
                 <Input
                   id="lastName"
                   value={newAdminForm.lastName}
@@ -1821,7 +1821,7 @@ export default function SuperadminDashboard() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">{t('superadmin.emailLabel')}</Label>
               <Input
                 id="email"
                 type="email"
@@ -1835,7 +1835,7 @@ export default function SuperadminDashboard() {
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
+              <Label htmlFor="phone">{t('superadmin.phoneLabel')}</Label>
               <Input
                 id="phone"
                 value={newAdminForm.phone}
@@ -1849,7 +1849,7 @@ export default function SuperadminDashboard() {
               )}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="username">Username (optional, will be auto-generated)</Label>
+              <Label htmlFor="username">{t('superadmin.adminUsername')}</Label>
               <Input
                 id="username"
                 value={newAdminForm.username}
@@ -1859,13 +1859,13 @@ export default function SuperadminDashboard() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddAdminModalOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setIsAddAdminModalOpen(false)}>{t('superadmin.cancel')}</Button>
             <Button 
               onClick={() => addAdminMutation.mutate(newAdminForm)}
               disabled={!newAdminForm.firstName || !newAdminForm.lastName || !!validateEmail(newAdminForm.email) || !!validatePhone(newAdminForm.phone) || addAdminMutation.isPending}
               data-testid="button-submit-add-admin"
             >
-              {addAdminMutation.isPending ? "Creating..." : "Create Admin"}
+              {addAdminMutation.isPending ? t('superadmin.creating') : t('superadmin.addAdminBtn')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1894,26 +1894,26 @@ export default function SuperadminDashboard() {
             setCreatedAdminCredentials(null);
           }}
           credentials={createdAdminCredentials}
-          title="Admin Account Created"
-          description="Save these credentials securely — they won't be shown again."
+          title={t('superadmin.credentialsModalTitle')}
+          description={t('superadmin.credentialsModalDesc')}
         />
       )}
 
       <Dialog open={isLicenseModalOpen} onOpenChange={setIsLicenseModalOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Manage Licenses - {selectedOrg?.name}</DialogTitle>
-            <DialogDescription>Adjust license allocation for this school</DialogDescription>
+            <DialogTitle>{t('superadmin.manageLicensesTitle', { school: selectedOrg?.name })}</DialogTitle>
+            <DialogDescription>{t('superadmin.manageLicensesDesc')}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="p-4 bg-muted rounded-lg">
-              <div className="text-sm text-muted-foreground">Current Usage</div>
+              <div className="text-sm text-muted-foreground">{t('superadmin.currentUsage')}</div>
               <div className="text-2xl font-bold">
-                {selectedOrg?.usedLicenses || 0} / {selectedOrg?.isUnlimitedLicenses ? "Unlimited" : selectedOrg?.totalLicenses || 0}
+                {selectedOrg?.usedLicenses || 0} / {selectedOrg?.isUnlimitedLicenses ? t('superadmin.filterUnlimited') : selectedOrg?.totalLicenses || 0}
               </div>
             </div>
             <div className="flex items-center justify-between">
-              <Label htmlFor="unlimited">Unlimited Licenses</Label>
+              <Label htmlFor="unlimited">{t('superadmin.unlimitedLicenses')}</Label>
               <Switch
                 id="unlimited"
                 checked={licenseForm.isUnlimited}
@@ -1924,7 +1924,7 @@ export default function SuperadminDashboard() {
             {!licenseForm.isUnlimited && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="totalLicenses">Total Licenses</Label>
+                  <Label htmlFor="totalLicenses">{t('superadmin.totalLicensesLabel')}</Label>
                   <Input
                     id="totalLicenses"
                     type="number"
@@ -1934,11 +1934,11 @@ export default function SuperadminDashboard() {
                     data-testid="input-total-licenses"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Cannot be less than {selectedOrg?.usedLicenses || 0} (currently in use)
+                    {t('superadmin.minLicensesNote', { n: selectedOrg?.usedLicenses || 0 })}
                   </p>
                 </div>
                 <div className="space-y-2">
-                  <Label>Quick Adjustment</Label>
+                  <Label>{t('superadmin.quickAdjust')}</Label>
                   <div className="flex gap-2">
                     <Button 
                       variant="outline" 
@@ -1967,7 +1967,7 @@ export default function SuperadminDashboard() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsLicenseModalOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setIsLicenseModalOpen(false)}>{t('superadmin.cancel')}</Button>
             <Button 
               onClick={() => updateLicensesMutation.mutate({
                 totalLicenses: licenseForm.totalLicenses,
@@ -1976,7 +1976,7 @@ export default function SuperadminDashboard() {
               disabled={updateLicensesMutation.isPending}
               data-testid="button-save-licenses"
             >
-              {updateLicensesMutation.isPending ? "Saving..." : "Save Changes"}
+              {updateLicensesMutation.isPending ? t('superadmin.saving') : t('superadmin.saveChanges')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1985,14 +1985,14 @@ export default function SuperadminDashboard() {
       <Dialog open={isEventsModalOpen} onOpenChange={setIsEventsModalOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Activity History - {selectedOrg?.name}</DialogTitle>
-            <DialogDescription>Recent changes and events for this school</DialogDescription>
+            <DialogTitle>{t('superadmin.activityHistory', { school: selectedOrg?.name })}</DialogTitle>
+            <DialogDescription>{t('superadmin.activityDesc')}</DialogDescription>
           </DialogHeader>
           <div className="max-h-96 overflow-y-auto">
             {eventsLoading ? (
-              <div className="text-center py-4">Loading events...</div>
+              <div className="text-center py-4">{t('superadmin.loadingEvents')}</div>
             ) : orgEvents.length === 0 ? (
-              <div className="text-center py-4 text-muted-foreground">No activity recorded</div>
+              <div className="text-center py-4 text-muted-foreground">{t('superadmin.noActivity')}</div>
             ) : (
               <div className="space-y-3">
                 {orgEvents.map((event) => (
@@ -2001,7 +2001,7 @@ export default function SuperadminDashboard() {
                     <div className="flex-1">
                       <div className="font-medium">{event.eventDescription}</div>
                       <div className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
-                        <span>By {event.performer?.username || "Unknown"} ({event.performedByRole})</span>
+                        <span>{t('superadmin.activityBy', { name: event.performer?.username || "-" })} ({event.performedByRole})</span>
                         <span>{new Date(event.createdAt).toLocaleString()}</span>
                       </div>
                     </div>
@@ -2016,12 +2016,12 @@ export default function SuperadminDashboard() {
       <Dialog open={isCreateOrgModalOpen} onOpenChange={setIsCreateOrgModalOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>Create New School</DialogTitle>
-            <DialogDescription>Create a new school with a primary administrator account</DialogDescription>
+            <DialogTitle>{t('superadmin.createSchool')}</DialogTitle>
+            <DialogDescription>{t('superadmin.createSchoolDesc')}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="orgName">School Name *</Label>
+              <Label htmlFor="orgName">{t('superadmin.schoolNameLabel')}</Label>
               <Input
                 id="orgName"
                 value={newOrgForm.organizationName}
@@ -2031,7 +2031,7 @@ export default function SuperadminDashboard() {
               />
             </div>
             <div className="flex items-center justify-between">
-              <Label htmlFor="unlimitedOrg">Unlimited Licenses</Label>
+              <Label htmlFor="unlimitedOrg">{t('superadmin.unlimitedLicenses')}</Label>
               <Switch
                 id="unlimitedOrg"
                 checked={newOrgForm.isUnlimitedLicenses}
@@ -2041,7 +2041,7 @@ export default function SuperadminDashboard() {
             </div>
             {!newOrgForm.isUnlimitedLicenses && (
               <div className="space-y-2">
-                <Label htmlFor="orgLicenses">Total Licenses</Label>
+                <Label htmlFor="orgLicenses">{t('superadmin.totalLicensesLabel')}</Label>
                 <Input
                   id="orgLicenses"
                   type="number"
@@ -2053,10 +2053,10 @@ export default function SuperadminDashboard() {
               </div>
             )}
             <div className="border-t pt-4">
-              <h4 className="font-medium mb-3">Primary Admin Details</h4>
+              <h4 className="font-medium mb-3">{t('superadmin.primaryAdmin')}</h4>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="adminFirst">First Name *</Label>
+                  <Label htmlFor="adminFirst">{t('superadmin.adminFirstName')}</Label>
                   <Input
                     id="adminFirst"
                     value={newOrgForm.adminFirstName}
@@ -2065,7 +2065,7 @@ export default function SuperadminDashboard() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="adminLast">Last Name *</Label>
+                  <Label htmlFor="adminLast">{t('superadmin.adminLastName')}</Label>
                   <Input
                     id="adminLast"
                     value={newOrgForm.adminLastName}
@@ -2075,7 +2075,7 @@ export default function SuperadminDashboard() {
                 </div>
               </div>
               <div className="space-y-2 mt-4">
-                <Label htmlFor="adminEmail">Admin Email</Label>
+                <Label htmlFor="adminEmail">{t('superadmin.adminEmail')}</Label>
                 <Input
                   id="adminEmail"
                   type="email"
@@ -2089,7 +2089,7 @@ export default function SuperadminDashboard() {
                 )}
               </div>
               <div className="space-y-2 mt-4">
-                <Label htmlFor="adminPhone">Admin Phone</Label>
+                <Label htmlFor="adminPhone">{t('superadmin.adminPhone')}</Label>
                 <Input
                   id="adminPhone"
                   value={newOrgForm.adminPhone}
@@ -2105,13 +2105,13 @@ export default function SuperadminDashboard() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateOrgModalOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setIsCreateOrgModalOpen(false)}>{t('superadmin.cancel')}</Button>
             <Button 
               onClick={() => createOrgMutation.mutate(newOrgForm)}
               disabled={!newOrgForm.organizationName || !newOrgForm.adminFirstName || !newOrgForm.adminLastName || !!validateEmail(newOrgForm.adminEmail) || !!validatePhone(newOrgForm.adminPhone) || createOrgMutation.isPending}
               data-testid="button-submit-create-org"
             >
-              {createOrgMutation.isPending ? "Creating..." : "Add School"}
+              {createOrgMutation.isPending ? t('superadmin.creating') : t('superadmin.addSchoolBtn')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2121,23 +2121,22 @@ export default function SuperadminDashboard() {
       <Dialog open={isDeleteOrgModalOpen} onOpenChange={setIsDeleteOrgModalOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle className="text-destructive">Delete School</DialogTitle>
+            <DialogTitle className="text-destructive">{t('superadmin.deleteSchoolTitle')}</DialogTitle>
             <DialogDescription>
-              This action cannot be undone. This will permanently delete the school,
-              all admins, students, and their assessment data.
+              {t('superadmin.deleteSchoolDesc')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="p-4 bg-destructive/10 rounded-lg border border-destructive/20">
-              <p className="text-sm font-medium">You are about to delete:</p>
+              <p className="text-sm font-medium">{t('superadmin.aboutToDelete')}</p>
               <p className="text-lg font-bold mt-1">{selectedOrg?.name}</p>
               <div className="mt-2 text-sm text-muted-foreground">
-                <p>{selectedOrg?.studentCount || 0} students</p>
-                <p>{selectedOrg?.adminCount || 0} admins</p>
+                <p>{t('superadmin.nStudents', { n: selectedOrg?.studentCount || 0 })}</p>
+                <p>{t('superadmin.nAdminsCount', { n: selectedOrg?.adminCount || 0 })}</p>
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Type the school name to confirm:</Label>
+              <Label>{t('superadmin.confirmDelete')}</Label>
               <Input
                 value={deleteOrgConfirmName}
                 onChange={(e) => setDeleteOrgConfirmName(e.target.value)}
@@ -2147,14 +2146,14 @@ export default function SuperadminDashboard() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsDeleteOrgModalOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setIsDeleteOrgModalOpen(false)}>{t('superadmin.cancel')}</Button>
             <Button
               variant="destructive"
               onClick={() => selectedOrgId && deleteOrgMutation.mutate(selectedOrgId)}
               disabled={deleteOrgConfirmName !== selectedOrg?.name || deleteOrgMutation.isPending}
               data-testid="button-confirm-delete-org"
             >
-              {deleteOrgMutation.isPending ? "Deleting..." : "Delete School"}
+              {deleteOrgMutation.isPending ? t('superadmin.deleting') : t('superadmin.deleteBtn')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2164,20 +2163,20 @@ export default function SuperadminDashboard() {
       <Dialog open={isResetPasswordModalOpen} onOpenChange={setIsResetPasswordModalOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Reset User Password</DialogTitle>
+            <DialogTitle>{t('superadmin.resetUserPasswordTitle')}</DialogTitle>
             <DialogDescription>
-              Generate a new password for this user. The current password will be replaced.
+              {t('superadmin.resetUserPasswordDesc')}
             </DialogDescription>
           </DialogHeader>
           {resetPasswordResult ? (
             <div className="space-y-4">
               <div className="p-4 bg-muted rounded-lg space-y-3">
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Username</p>
+                  <p className="text-xs text-muted-foreground mb-1">{t('superadmin.colUsername')}</p>
                   <p className="font-mono font-bold text-lg">{resetPasswordResult.username}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">New Password</p>
+                  <p className="text-xs text-muted-foreground mb-1">{t('superadmin.colNewPassword')}</p>
                   <p className="font-mono font-bold text-lg" data-testid="text-new-password">{resetPasswordResult.newPassword}</p>
                 </div>
               </div>
@@ -2186,31 +2185,31 @@ export default function SuperadminDashboard() {
                 className="w-full"
                 onClick={() => {
                   navigator.clipboard.writeText(`Username: ${resetPasswordResult.username}\nNew Password: ${resetPasswordResult.newPassword}`);
-                  toast({ title: "Copied!", description: "Credentials copied to clipboard" });
+                  toast({ title: t('superadmin.copied'), description: t('superadmin.credentialsCopied') });
                 }}
                 data-testid="button-copy-new-password"
               >
-                <Copy className="w-4 h-4 mr-2" />
-                Copy to Clipboard
+                <Copy className="w-4 h-4 me-2" />
+                {t('superadmin.copyToClipboard')}
               </Button>
             </div>
           ) : (
             <div className="text-center py-4">
-              <p className="text-muted-foreground">Click below to generate a new password for this user.</p>
+              <p className="text-muted-foreground">{t('superadmin.generatePasswordNote')}</p>
             </div>
           )}
           <DialogFooter>
             {resetPasswordResult ? (
-              <Button onClick={() => setIsResetPasswordModalOpen(false)} data-testid="button-close-reset-password">Done</Button>
+              <Button onClick={() => setIsResetPasswordModalOpen(false)} data-testid="button-close-reset-password">{t('superadmin.done')}</Button>
             ) : (
               <>
-                <Button variant="outline" onClick={() => setIsResetPasswordModalOpen(false)}>Cancel</Button>
+                <Button variant="outline" onClick={() => setIsResetPasswordModalOpen(false)}>{t('superadmin.cancel')}</Button>
                 <Button
                   onClick={() => selectedUserId && resetPasswordMutation.mutate(selectedUserId)}
                   disabled={resetPasswordMutation.isPending}
                   data-testid="button-reset-password"
                 >
-                  {resetPasswordMutation.isPending ? "Resetting..." : "Reset Password"}
+                  {resetPasswordMutation.isPending ? t('superadmin.resetting') : t('superadmin.resetPassword')}
                 </Button>
               </>
             )}
@@ -2222,15 +2221,15 @@ export default function SuperadminDashboard() {
       <Dialog open={isAnnouncementModalOpen} onOpenChange={setIsAnnouncementModalOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>{editingAnnouncement ? "Edit Announcement" : "New Announcement"}</DialogTitle>
+            <DialogTitle>{editingAnnouncement ? t('superadmin.editAnnouncementTitle') : t('superadmin.newAnnouncementTitle')}</DialogTitle>
             <DialogDescription>
-              {editingAnnouncement ? "Update the announcement details" : "Create a new announcement visible to users"}
+              {editingAnnouncement ? t('superadmin.editAnnouncementDesc') : t('superadmin.newAnnouncementDesc')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="announcement-title">{t('superadmin.announcementTitle')} (EN) *</Label>
+                <Label htmlFor="announcement-title">{t('superadmin.announcementTitleLabel')}</Label>
                 <Input
                   id="announcement-title"
                   value={announcementForm.title}
@@ -2278,30 +2277,30 @@ export default function SuperadminDashboard() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="announcement-type">Type</Label>
+                <Label htmlFor="announcement-type">{t('superadmin.announcementTypeLabel')}</Label>
                 <Select value={announcementForm.type} onValueChange={(v) => setAnnouncementForm({ ...announcementForm, type: v })}>
                   <SelectTrigger data-testid="select-announcement-type">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="info">Info</SelectItem>
-                    <SelectItem value="warning">Warning</SelectItem>
-                    <SelectItem value="success">Success</SelectItem>
-                    <SelectItem value="error">Error</SelectItem>
+                    <SelectItem value="info">{t('superadmin.typeInfo')}</SelectItem>
+                    <SelectItem value="warning">{t('superadmin.typeWarning')}</SelectItem>
+                    <SelectItem value="success">{t('superadmin.typeSuccess')}</SelectItem>
+                    <SelectItem value="error">{t('superadmin.typeError')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="announcement-audience">Target Audience</Label>
+                <Label htmlFor="announcement-audience">{t('superadmin.announcementAudienceLabel')}</Label>
                 <Select value={announcementForm.targetAudience} onValueChange={(v) => setAnnouncementForm({ ...announcementForm, targetAudience: v })}>
                   <SelectTrigger data-testid="select-announcement-audience">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">All Users</SelectItem>
-                    <SelectItem value="students">School Students Only</SelectItem>
-                    <SelectItem value="org_admins">School Admins Only</SelectItem>
-                    <SelectItem value="premium">Premium Users Only</SelectItem>
+                    <SelectItem value="all">{t('superadmin.allUsers')}</SelectItem>
+                    <SelectItem value="students">{t('superadmin.studentsOnly')}</SelectItem>
+                    <SelectItem value="org_admins">{t('superadmin.orgAdminsOnly')}</SelectItem>
+                    <SelectItem value="premium">{t('superadmin.premiumOnly')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -2314,10 +2313,10 @@ export default function SuperadminDashboard() {
                   onCheckedChange={(c) => setAnnouncementForm({ ...announcementForm, isPinned: c })}
                   data-testid="switch-announcement-pinned"
                 />
-                <Label htmlFor="announcement-pinned">Pin to top</Label>
+                <Label htmlFor="announcement-pinned">{t('superadmin.pinToTop')}</Label>
               </div>
               <div className="flex items-center gap-2">
-                <Label htmlFor="announcement-bgcolor">Background Color</Label>
+                <Label htmlFor="announcement-bgcolor">{t('superadmin.backgroundColor')}</Label>
                 <div className="flex items-center gap-2">
                   <input
                     id="announcement-bgcolor"
@@ -2340,7 +2339,7 @@ export default function SuperadminDashboard() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="announcement-publish">Publish Date (optional)</Label>
+                <Label htmlFor="announcement-publish">{t('superadmin.publishDate')}</Label>
                 <Input
                   id="announcement-publish"
                   type="date"
@@ -2348,10 +2347,10 @@ export default function SuperadminDashboard() {
                   onChange={(e) => setAnnouncementForm({ ...announcementForm, publishAt: e.target.value })}
                   data-testid="input-announcement-publish"
                 />
-                <p className="text-xs text-muted-foreground">Leave empty to publish immediately</p>
+                <p className="text-xs text-muted-foreground">{t('superadmin.publishHint')}</p>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="announcement-expires">Expires (optional)</Label>
+                <Label htmlFor="announcement-expires">{t('superadmin.expiresDate')}</Label>
                 <Input
                   id="announcement-expires"
                   type="date"
@@ -2359,12 +2358,12 @@ export default function SuperadminDashboard() {
                   onChange={(e) => setAnnouncementForm({ ...announcementForm, expiresAt: e.target.value })}
                   data-testid="input-announcement-expires"
                 />
-                <p className="text-xs text-muted-foreground">Leave empty for no expiration</p>
+                <p className="text-xs text-muted-foreground">{t('superadmin.expiresHint')}</p>
               </div>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setIsAnnouncementModalOpen(false); setEditingAnnouncement(null); }}>Cancel</Button>
+            <Button variant="outline" onClick={() => { setIsAnnouncementModalOpen(false); setEditingAnnouncement(null); }}>{t('superadmin.cancel')}</Button>
             <Button
               onClick={() => {
                 if (editingAnnouncement) {
@@ -2376,7 +2375,7 @@ export default function SuperadminDashboard() {
               disabled={!announcementForm.title || !announcementForm.content || createAnnouncementMutation.isPending || updateAnnouncementMutation.isPending}
               data-testid="button-save-announcement"
             >
-              {(createAnnouncementMutation.isPending || updateAnnouncementMutation.isPending) ? "Saving..." : (editingAnnouncement ? "Update" : "Create")}
+              {(createAnnouncementMutation.isPending || updateAnnouncementMutation.isPending) ? t('superadmin.saving') : (editingAnnouncement ? t('superadmin.update') : t('superadmin.create'))}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2386,15 +2385,15 @@ export default function SuperadminDashboard() {
       <Dialog open={isCareerModalOpen} onOpenChange={setIsCareerModalOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editingCareer ? "Edit Career" : "Add Career"}</DialogTitle>
+            <DialogTitle>{editingCareer ? t('superadmin.editCareerTitle') : t('superadmin.addCareerTitle')}</DialogTitle>
             <DialogDescription>
-              {editingCareer ? "Update career information" : "Add a new career to the system"}
+              {editingCareer ? t('superadmin.editCareerDesc') : t('superadmin.addCareerDesc')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="career-title">Title *</Label>
+                <Label htmlFor="career-title">{t('superadmin.careerTitleLabel')}</Label>
                 <Input
                   id="career-title"
                   value={careerForm.title}
@@ -2404,7 +2403,7 @@ export default function SuperadminDashboard() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="career-category">Category *</Label>
+                <Label htmlFor="career-category">{t('superadmin.careerCategoryLabel')}</Label>
                 <Input
                   id="career-category"
                   value={careerForm.category}
@@ -2415,7 +2414,7 @@ export default function SuperadminDashboard() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="career-description">Description *</Label>
+              <Label htmlFor="career-description">{t('superadmin.careerDescLabel')}</Label>
               <Textarea
                 id="career-description"
                 value={careerForm.description}
@@ -2427,37 +2426,37 @@ export default function SuperadminDashboard() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="career-education">Education Level *</Label>
+                <Label htmlFor="career-education">{t('superadmin.careerEducationLabel')}</Label>
                 <Select value={careerForm.educationLevel} onValueChange={(v) => setCareerForm({ ...careerForm, educationLevel: v })}>
                   <SelectTrigger data-testid="select-career-education">
-                    <SelectValue placeholder="Select level" />
+                    <SelectValue placeholder={t('superadmin.selectGrade')} />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="high_school">High School</SelectItem>
-                    <SelectItem value="diploma">Diploma</SelectItem>
-                    <SelectItem value="bachelors">Bachelor's Degree</SelectItem>
-                    <SelectItem value="masters">Master's Degree</SelectItem>
-                    <SelectItem value="doctorate">Doctorate</SelectItem>
+                    <SelectItem value="high_school">{t('superadmin.highSchool')}</SelectItem>
+                    <SelectItem value="diploma">{t('superadmin.diploma')}</SelectItem>
+                    <SelectItem value="bachelors">{t('superadmin.bachelors')}</SelectItem>
+                    <SelectItem value="masters">{t('superadmin.masters')}</SelectItem>
+                    <SelectItem value="doctorate">{t('superadmin.doctorate')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="career-growth">Growth Outlook *</Label>
+                <Label htmlFor="career-growth">{t('superadmin.careerGrowthLabel')}</Label>
                 <Select value={careerForm.growthOutlook} onValueChange={(v) => setCareerForm({ ...careerForm, growthOutlook: v })}>
                   <SelectTrigger data-testid="select-career-growth">
-                    <SelectValue placeholder="Select outlook" />
+                    <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="high">High Growth</SelectItem>
-                    <SelectItem value="medium">Medium Growth</SelectItem>
-                    <SelectItem value="low">Low Growth</SelectItem>
-                    <SelectItem value="declining">Declining</SelectItem>
+                    <SelectItem value="high">{t('superadmin.growthHigh')}</SelectItem>
+                    <SelectItem value="medium">{t('superadmin.growthMedium')}</SelectItem>
+                    <SelectItem value="low">{t('superadmin.growthLow')}</SelectItem>
+                    <SelectItem value="declining">{t('superadmin.growthDeclining')}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="career-skills">Required Skills (comma-separated)</Label>
+              <Label htmlFor="career-skills">{t('superadmin.careerSkillsLabel')}</Label>
               <Input
                 id="career-skills"
                 value={careerForm.requiredSkills}
@@ -2467,7 +2466,7 @@ export default function SuperadminDashboard() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="career-subjects">Related Subjects (comma-separated)</Label>
+              <Label htmlFor="career-subjects">{t('superadmin.careerSubjectsLabel')}</Label>
               <Input
                 id="career-subjects"
                 value={careerForm.relatedSubjects}
@@ -2478,7 +2477,7 @@ export default function SuperadminDashboard() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="career-salary">Average Salary (optional)</Label>
+                <Label htmlFor="career-salary">{t('superadmin.careerSalaryLabel')}</Label>
                 <Input
                   id="career-salary"
                   value={careerForm.averageSalary}
@@ -2488,7 +2487,7 @@ export default function SuperadminDashboard() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="career-icon">Icon (optional)</Label>
+                <Label htmlFor="career-icon">{t('superadmin.careerIconLabel')}</Label>
                 <Input
                   id="career-icon"
                   value={careerForm.icon}
@@ -2499,13 +2498,13 @@ export default function SuperadminDashboard() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="career-country">Country (optional - leave empty for global)</Label>
+              <Label htmlFor="career-country">{t('superadmin.careerCountryLabel')}</Label>
               <Select value={careerForm.countryId || "_global"} onValueChange={(v) => setCareerForm({ ...careerForm, countryId: v === "_global" ? "" : v })}>
                 <SelectTrigger data-testid="select-career-country">
-                  <SelectValue placeholder="Global (all countries)" />
+                  <SelectValue placeholder={t('superadmin.careerCountryGlobal')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="_global">Global (all countries)</SelectItem>
+                  <SelectItem value="_global">{t('superadmin.careerCountryGlobal')}</SelectItem>
                   {countries.map((country) => (
                     <SelectItem key={country.id} value={country.id}>
                       {country.name} ({country.code})
@@ -2514,12 +2513,12 @@ export default function SuperadminDashboard() {
                 </SelectContent>
               </Select>
               <p className="text-xs text-muted-foreground">
-                Select a country to make this career only available for that country's students
+                {t('superadmin.careerCountryNote')}
               </p>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setIsCareerModalOpen(false); setEditingCareer(null); }}>Cancel</Button>
+            <Button variant="outline" onClick={() => { setIsCareerModalOpen(false); setEditingCareer(null); }}>{t('superadmin.cancel')}</Button>
             <Button
               onClick={() => {
                 if (editingCareer) {
@@ -2531,7 +2530,7 @@ export default function SuperadminDashboard() {
               disabled={!careerForm.title || !careerForm.description || !careerForm.category || !careerForm.educationLevel || !careerForm.growthOutlook || createCareerMutation.isPending || updateCareerMutation.isPending}
               data-testid="button-save-career"
             >
-              {(createCareerMutation.isPending || updateCareerMutation.isPending) ? "Saving..." : (editingCareer ? "Update" : "Add Career")}
+              {(createCareerMutation.isPending || updateCareerMutation.isPending) ? t('superadmin.saving') : (editingCareer ? t('superadmin.update') : t('superadmin.addCareer'))}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2541,50 +2540,50 @@ export default function SuperadminDashboard() {
       <Dialog open={isAddStudentOpen} onOpenChange={setIsAddStudentOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Student</DialogTitle>
-            <DialogDescription>Create a free student account. Credentials will be shown after creation.</DialogDescription>
+            <DialogTitle>{t('superadmin.addStudentTitle')}</DialogTitle>
+            <DialogDescription>{t('superadmin.addStudentDesc')}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="student-first-name">First Name</Label>
-                <Input id="student-first-name" placeholder="First Name" value={newStudentForm.firstName} onChange={(e) => setNewStudentForm({ ...newStudentForm, firstName: e.target.value })} data-testid="input-student-firstname" />
+                <Label htmlFor="student-first-name">{t('superadmin.studentFirstName')}</Label>
+                <Input id="student-first-name" placeholder={t('superadmin.studentFirstName')} value={newStudentForm.firstName} onChange={(e) => setNewStudentForm({ ...newStudentForm, firstName: e.target.value })} data-testid="input-student-firstname" />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="student-last-name">Last Name</Label>
-                <Input id="student-last-name" placeholder="Last Name" value={newStudentForm.lastName} onChange={(e) => setNewStudentForm({ ...newStudentForm, lastName: e.target.value })} data-testid="input-student-lastname" />
+                <Label htmlFor="student-last-name">{t('superadmin.studentLastName')}</Label>
+                <Input id="student-last-name" placeholder={t('superadmin.studentLastName')} value={newStudentForm.lastName} onChange={(e) => setNewStudentForm({ ...newStudentForm, lastName: e.target.value })} data-testid="input-student-lastname" />
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="student-email">Email</Label>
+              <Label htmlFor="student-email">{t('superadmin.studentEmail')}</Label>
               <Input id="student-email" type="email" placeholder="student@email.com" value={newStudentForm.email} onChange={(e) => setNewStudentForm({ ...newStudentForm, email: e.target.value })} data-testid="input-student-email" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="student-username">Username (optional)</Label>
-              <Input id="student-username" placeholder="Leave blank to auto-generate" value={newStudentForm.username} onChange={(e) => setNewStudentForm({ ...newStudentForm, username: e.target.value })} data-testid="input-student-username" />
+              <Label htmlFor="student-username">{t('superadmin.studentUsername')}</Label>
+              <Input id="student-username" placeholder={t('superadmin.adminUsername')} value={newStudentForm.username} onChange={(e) => setNewStudentForm({ ...newStudentForm, username: e.target.value })} data-testid="input-student-username" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="student-grade">Grade</Label>
+              <Label htmlFor="student-grade">{t('superadmin.studentGrade')}</Label>
               <Select value={newStudentForm.grade} onValueChange={(v) => setNewStudentForm({ ...newStudentForm, grade: v })}>
                 <SelectTrigger id="student-grade" data-testid="select-student-grade">
-                  <SelectValue placeholder="Select grade" />
+                  <SelectValue placeholder={t('superadmin.selectGrade')} />
                 </SelectTrigger>
                 <SelectContent>
                   {["8", "9", "10", "11", "12"].map((g) => (
-                    <SelectItem key={g} value={g}>Grade {g}</SelectItem>
+                    <SelectItem key={g} value={g}>{t('superadmin.gradeN', { n: g })}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAddStudentOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setIsAddStudentOpen(false)}>{t('superadmin.cancel')}</Button>
             <Button
               onClick={() => createStudentMutation.mutate(newStudentForm)}
               disabled={!newStudentForm.firstName || !newStudentForm.lastName || !newStudentForm.email || !newStudentForm.grade || createStudentMutation.isPending}
               data-testid="button-submit-add-student"
             >
-              {createStudentMutation.isPending ? "Creating..." : "Add Student"}
+              {createStudentMutation.isPending ? t('superadmin.creating') : t('superadmin.addStudent')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2596,8 +2595,8 @@ export default function SuperadminDashboard() {
           open={isStudentCredModalOpen}
           onClose={() => { setIsStudentCredModalOpen(false); setCreatedStudentCredentials(null); }}
           credentials={createdStudentCredentials}
-          title="Student Account Created"
-          description="Save these credentials securely — they won't be shown again."
+          title={t('superadmin.studentCreatedTitle')}
+          description={t('superadmin.studentCreatedDesc')}
         />
       )}
     </div>

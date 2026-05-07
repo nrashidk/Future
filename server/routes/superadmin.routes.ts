@@ -1663,7 +1663,7 @@ export function registerSuperadminRoutes(app: Express) {
 
   app.post("/api/superadmin/announcements", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
     try {
-      const { title, content, type, targetAudience, isPinned, expiresAt } = req.body;
+      const { title, content, titleAr, contentAr, type, targetAudience, isPinned, expiresAt } = req.body;
       
       if (!title || !content) {
         return res.status(400).json({ message: "Title and content are required" });
@@ -1674,6 +1674,8 @@ export function registerSuperadminRoutes(app: Express) {
       const announcement = await storage.createSystemAnnouncement({
         title,
         content,
+        titleAr: titleAr || null,
+        contentAr: contentAr || null,
         type: type || "info",
         targetAudience: targetAudience || "all",
         isPinned: isPinned || false,
@@ -1696,11 +1698,13 @@ export function registerSuperadminRoutes(app: Express) {
         return res.status(404).json({ message: "Announcement not found" });
       }
       
-      const { title, content, type, targetAudience, isPinned, isActive, expiresAt, publishAt, backgroundColor } = req.body;
+      const { title, content, titleAr, contentAr, type, targetAudience, isPinned, isActive, expiresAt, publishAt, backgroundColor } = req.body;
       
       const updates: Record<string, any> = {};
       if (title !== undefined) updates.title = title;
       if (content !== undefined) updates.content = content;
+      if (titleAr !== undefined) updates.titleAr = titleAr || null;
+      if (contentAr !== undefined) updates.contentAr = contentAr || null;
       if (type !== undefined) updates.type = type;
       if (targetAudience !== undefined) updates.targetAudience = targetAudience;
       if (isPinned !== undefined) updates.isPinned = isPinned;
