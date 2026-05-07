@@ -15,6 +15,7 @@ import { QuizStep } from "@/components/assessment/QuizStep";
 import { GraduationCap, LogIn, LogOut, User, ClipboardCheck, Building2, BarChart, Shield, FileQuestion, RotateCcw, PlayCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
+import type { Assessment as AssessmentRecord } from "@shared/schema";
 
 const DRAFT_KEY = "fp_assessment_draft";
 
@@ -113,37 +114,43 @@ export default function Assessment() {
     const checkServerDraft = async () => {
       try {
         const { apiRequest } = await import("@/lib/queryClient");
+        // apiRequest throws on non-OK responses, so no need for a res.ok guard
         const res = await apiRequest("GET", "/api/assessments/my");
-        if (!res.ok) return;
-        const allAssessments: any[] = await res.json();
+        const allAssessments: AssessmentRecord[] = await res.json();
 
         // Most recent in-progress assessment (array is already ordered by createdAt desc)
         const inProgress = allAssessments.find(a => !a.isCompleted && a.currentStep > 1);
         if (!inProgress) return;
+
+        // Resolve personalityTraits: the DB stores this as JSONB (unknown at the type
+        // level). Free-tier assessments save it as a string[] of selected trait names;
+        // premium assessments may store a Record<string,number>. We narrow safely.
+        const rawPt = inProgress.personalityTraits;
+        const personalityTraits: Record<string, number> = Array.isArray(rawPt)
+          ? Object.fromEntries((rawPt as string[]).map(trait => [trait, 1]))
+          : rawPt !== null && typeof rawPt === "object" && !Array.isArray(rawPt)
+            ? (rawPt as Record<string, number>)
+            : {};
 
         // Map backend assessment fields to the AssessmentData shape.
         // Raw RIASEC/CVQ item responses are not persisted (only computed scores are
         // stored as riasecScores/cvqScores), so those fields start empty. Steps that
         // were already completed before the save don't need to be re-submitted.
         const hydratedData: AssessmentData = {
-          name: inProgress.name || "",
+          name: inProgress.name ?? "",
           age: inProgress.age ?? null,
-          grade: inProgress.grade || "",
-          gender: inProgress.gender || "",
+          grade: inProgress.grade ?? "",
+          gender: inProgress.gender ?? "",
           consentGiven: true,
-          favoriteSubjects: inProgress.favoriteSubjects || [],
-          prioritySubjects: inProgress.prioritySubjects || [],
-          interests: inProgress.interests || [],
-          personalityTraits: Array.isArray(inProgress.personalityTraits)
-            ? Object.fromEntries(
-                (inProgress.personalityTraits as string[]).map((trait: string) => [trait, 1])
-              )
-            : (inProgress.personalityTraits as Record<string, number> || {}),
+          favoriteSubjects: inProgress.favoriteSubjects ?? [],
+          prioritySubjects: inProgress.prioritySubjects ?? [],
+          interests: inProgress.interests ?? [],
+          personalityTraits,
           riasecResponses: {},
           cvqResponses: {},
-          countryId: inProgress.countryId || "",
-          careerAspirations: inProgress.careerAspirations || [],
-          strengths: inProgress.strengths || [],
+          countryId: inProgress.countryId ?? "",
+          careerAspirations: inProgress.careerAspirations ?? [],
+          strengths: inProgress.strengths ?? [],
         };
 
         setResumePrompt({
