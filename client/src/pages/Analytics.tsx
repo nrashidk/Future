@@ -335,7 +335,7 @@ export default function Analytics() {
               <div>
                 <p className="text-muted-foreground text-sm mb-1">{t('analytics.topGrade')}</p>
                 <p className="text-2xl font-bold" data-testid="metric-top-grade">
-                  {overviewLoading ? "..." : topGradeFormatted ? t('analytics.gradeN', { n: topGradeFormatted }) : "N/A"}
+                  {overviewLoading ? "..." : topGradeFormatted ? t('analytics.gradeN', { n: topGradeFormatted }) : t('analytics.na')}
                 </p>
               </div>
               <GraduationCap className="w-8 h-8 text-primary" />
@@ -347,7 +347,7 @@ export default function Analytics() {
               <div>
                 <p className="text-muted-foreground text-sm mb-1">{t('analytics.topCareer')}</p>
                 <p className="text-2xl font-bold line-clamp-2" data-testid="metric-top-career">
-                  {careersLoading ? "..." : topCareer?.careerTitle || "N/A"}
+                  {careersLoading ? "..." : topCareer?.careerTitle || t('analytics.na')}
                 </p>
               </div>
               <Sparkles className="w-8 h-8 text-primary" />

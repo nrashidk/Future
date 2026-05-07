@@ -184,6 +184,7 @@ export const organizationMembersRelations = relations(organizationMembers, ({ on
 export const countries = pgTable("countries", {
   id: varchar("id").primaryKey(),
   name: text("name").notNull(),
+  nameAr: text("name_ar"),
   code: varchar("code", { length: 3 }).notNull().unique(),
   abbreviation: text("abbreviation"), // Short name for display (UAE, USA, UK) - null means use full name
   mission: text("mission").notNull(),

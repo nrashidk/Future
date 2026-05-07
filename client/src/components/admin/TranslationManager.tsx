@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { CheckCircle, AlertCircle, Search, Globe, Edit, Save, X, AlertTriangle, ExternalLink } from "lucide-react";
+import { CheckCircle, AlertCircle, Search, Globe, Edit, Save, X, Check, AlertTriangle, ExternalLink } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "wouter";
 
@@ -74,6 +74,7 @@ interface QuizQuestionsData {
 interface Country {
   id: string;
   name: string;
+  nameAr?: string | null;
   code: string;
   isActive: boolean;
 }
@@ -103,6 +104,10 @@ export default function TranslationManager() {
   // CVQ state
   const [editingCvqId, setEditingCvqId] = useState<number | null>(null);
   const [cvqArValue, setCvqArValue] = useState("");
+
+  // Country nameAr state
+  const [editingCountryId, setEditingCountryId] = useState<string | null>(null);
+  const [countryArValue, setCountryArValue] = useState("");
 
   // Quiz questions state
   const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
@@ -148,6 +153,20 @@ export default function TranslationManager() {
 
   const { data: countriesList = [], isLoading: countriesListLoading } = useQuery<Country[]>({
     queryKey: ['/api/admin/countries'],
+  });
+
+  const updateCountryArMutation = useMutation({
+    mutationFn: async ({ id, nameAr }: { id: string; nameAr: string }) => {
+      return apiRequest('PATCH', `/api/superadmin/countries/${id}/name-ar`, { nameAr });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/countries'] });
+      setEditingCountryId(null);
+      toast({ title: t('translation.countrySaved'), description: t('translation.countrySavedDesc') });
+    },
+    onError: () => {
+      toast({ title: t('translation.saveError'), variant: "destructive" });
+    },
   });
 
   const updateMutation = useMutation({
@@ -718,15 +737,16 @@ export default function TranslationManager() {
                     <div className="text-center py-8 text-muted-foreground">{t('translation.noDbContent')}</div>
                   ) : (
                     <div className="space-y-2">
-                      <div className="grid grid-cols-[1fr_auto_auto] gap-3 text-xs font-semibold text-muted-foreground px-3 pb-1 border-b">
+                      <div className="grid grid-cols-[1fr_1fr_auto_auto] gap-3 text-xs font-semibold text-muted-foreground px-3 pb-1 border-b">
                         <span>{t('translation.englishTitle')}</span>
+                        <span>{t('translation.countryNameArCol')}</span>
                         <span>{t('countries.codeCol')}</span>
                         <span></span>
                       </div>
                       {countriesList.map(country => (
                         <div
                           key={country.id}
-                          className="grid grid-cols-[1fr_auto_auto] gap-3 items-center rounded-md border px-3 py-2"
+                          className="grid grid-cols-[1fr_1fr_auto_auto] gap-3 items-center rounded-md border px-3 py-2"
                           data-testid={`countries-row-${country.id}`}
                         >
                           <div className="flex items-center gap-2">
@@ -735,6 +755,46 @@ export default function TranslationManager() {
                               <Badge variant="secondary" className="text-xs">{t('countries.inactive')}</Badge>
                             )}
                           </div>
+                          {editingCountryId === country.id ? (
+                            <div className="flex gap-1">
+                              <Input
+                                value={countryArValue}
+                                onChange={e => setCountryArValue(e.target.value)}
+                                placeholder={t('translation.countryNameArPlaceholder')}
+                                className="h-7 text-sm text-right"
+                                dir="rtl"
+                                data-testid={`input-country-name-ar-${country.id}`}
+                              />
+                              <Button
+                                size="sm"
+                                onClick={() => updateCountryArMutation.mutate({ id: country.id, nameAr: countryArValue })}
+                                disabled={updateCountryArMutation.isPending}
+                                data-testid={`button-save-country-ar-${country.id}`}
+                              >
+                                <Check className="w-3.5 h-3.5" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setEditingCountryId(null)}
+                                data-testid={`button-cancel-country-ar-${country.id}`}
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <button
+                              className="text-sm text-right text-muted-foreground hover:text-foreground cursor-pointer truncate"
+                              dir="rtl"
+                              onClick={() => {
+                                setEditingCountryId(country.id);
+                                setCountryArValue(country.nameAr || "");
+                              }}
+                              data-testid={`button-edit-country-ar-${country.id}`}
+                            >
+                              {country.nameAr || <span className="text-muted-foreground/50 italic">{t('translation.countryNameArPlaceholder')}</span>}
+                            </button>
+                          )}
                           <Badge variant="outline" className="text-xs font-mono">{country.code}</Badge>
                           <Button
                             size="sm"

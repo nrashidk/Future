@@ -27,7 +27,7 @@ import ContributeQuestions from "@/components/admin/ContributeQuestions";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 import { useTranslation } from "react-i18next";
 
-async function downloadFile(url: string, defaultFilename: string, toast: any, setIsDownloading?: (v: boolean) => void): Promise<void> {
+async function downloadFile(url: string, defaultFilename: string, toast: any, t: (key: string) => string, setIsDownloading?: (v: boolean) => void): Promise<void> {
   try {
     setIsDownloading?.(true);
     const response = await fetch(url, { credentials: 'include' });
@@ -56,11 +56,11 @@ async function downloadFile(url: string, defaultFilename: string, toast: any, se
     document.body.removeChild(a);
     window.URL.revokeObjectURL(downloadUrl);
     
-    toast({ title: "Success", description: "Download started" });
+    toast({ title: t('orgs.downloadedTitle'), description: t('orgs.downloadStartedDesc') });
   } catch (error: any) {
     toast({ 
-      title: "Download Failed", 
-      description: error.message || "Failed to download file", 
+      title: t('orgs.downloadFailedDesc'), 
+      description: error.message || t('orgs.downloadFailedDesc'), 
       variant: "destructive" 
     });
   } finally {
@@ -114,20 +114,20 @@ interface OrganizationMember {
   };
 }
 
-function getMemberStatus(member: OrganizationMember): { label: string; variant: "default" | "secondary" | "outline" | "destructive"; description: string } {
+function getMemberStatus(member: OrganizationMember, t: (key: string) => string): { key: string; label: string; variant: "default" | "secondary" | "outline" | "destructive"; description: string } {
   if (member.role === 'admin') {
-    return { label: 'Admin', variant: 'secondary', description: 'School administrator (no assessment)' };
+    return { key: 'admin', label: t('orgs.adminLabel'), variant: 'secondary', description: t('orgs.statusAdminDesc') };
   }
   if (member.hasCompletedAssessment) {
-    return { label: 'Completed', variant: 'default', description: 'Assessment completed' };
+    return { key: 'completed', label: t('orgs.completedLabel'), variant: 'default', description: t('orgs.statusCompletedDesc') };
   }
   if (member.hasInProgressAssessment) {
-    return { label: 'In Progress', variant: 'outline', description: 'Assessment started but not finished' };
+    return { key: 'in_progress', label: t('orgs.inProgressLabel'), variant: 'outline', description: t('orgs.statusInProgressDesc') };
   }
   if (member.user.lastLoginAt) {
-    return { label: 'Active', variant: 'outline', description: 'Logged in, not started assessment' };
+    return { key: 'active', label: t('orgs.activeLabel'), variant: 'outline', description: t('orgs.statusActiveDesc') };
   }
-  return { label: 'Not Active', variant: 'secondary', description: 'Never logged in' };
+  return { key: 'not_active', label: t('orgs.notActiveLabel'), variant: 'secondary', description: t('orgs.statusNotActiveDesc') };
 }
 
 export default function AdminOrganizations() {
@@ -198,15 +198,15 @@ export default function AdminOrganizations() {
       return apiRequest('POST', `/api/admin/organizations/${selectedOrgId}/members/bulk-delete`, { memberIds });
     },
     onSuccess: () => {
-      toast({ title: "Success", description: "Selected students deleted successfully" });
+      toast({ title: t('superadmin.success'), description: t('orgs.bulkDeleteSuccess') });
       setSelectedMemberIds([]);
       queryClient.invalidateQueries({ queryKey: ['/api/admin/organizations', selectedOrgId, 'members'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/organizations'] });
     },
     onError: (error: any) => {
       toast({ 
-        title: "Error", 
-        description: error.message || "Failed to delete students", 
+        title: t('superadmin.error'), 
+        description: error.message || t('orgs.bulkDeleteError'), 
         variant: "destructive" 
       });
     },
@@ -222,8 +222,8 @@ export default function AdminOrganizations() {
       const successCount = data.results.filter((r: any) => r.success).length;
       const failCount = data.results.filter((r: any) => !r.success).length;
       toast({ 
-        title: "Bulk Password Reset Complete", 
-        description: `${successCount} succeeded, ${failCount} failed`,
+        title: t('orgs.bulkPasswordResetComplete'), 
+        description: t('orgs.bulkPasswordResetResult', { success: successCount, failed: failCount }),
         variant: failCount > 0 ? "destructive" : "default"
       });
       setBulkResetResults(data.results);
@@ -233,8 +233,8 @@ export default function AdminOrganizations() {
     },
     onError: (error: any) => {
       toast({ 
-        title: "Error", 
-        description: error.message || "Failed to reset passwords", 
+        title: t('superadmin.error'), 
+        description: error.message || t('orgs.bulkPasswordResetError'), 
         variant: "destructive" 
       });
     },
@@ -248,11 +248,11 @@ export default function AdminOrganizations() {
     
     // Status filter (only applies to non-admin members)
     if (statusFilter !== "all" && member.role !== "admin") {
-      const status = getMemberStatus(member);
-      if (statusFilter === "not_active" && status.label !== "Not Active") return false;
-      if (statusFilter === "active" && status.label !== "Active") return false;
-      if (statusFilter === "in_progress" && status.label !== "In Progress") return false;
-      if (statusFilter === "completed" && status.label !== "Completed") return false;
+      const status = getMemberStatus(member, t);
+      if (statusFilter === "not_active" && status.key !== "not_active") return false;
+      if (statusFilter === "active" && status.key !== "active") return false;
+      if (statusFilter === "in_progress" && status.key !== "in_progress") return false;
+      if (statusFilter === "completed" && status.key !== "completed") return false;
     }
     
     return true;
@@ -411,7 +411,7 @@ export default function AdminOrganizations() {
               <div className="text-center py-8">
                 <StickyNote color="yellow" rotation="1" className="mx-auto mb-4">
                   <Building2 className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground">No schools yet</p>
+                  <p className="text-sm text-muted-foreground">{t('orgs.noSchoolsYet')}</p>
                 </StickyNote>
               </div>
             ) : (
@@ -434,7 +434,7 @@ export default function AdminOrganizations() {
                     
                     {/* A-Z Letter Filter */}
                     <div className="flex flex-wrap gap-1 items-center">
-                      <span className="text-xs text-muted-foreground mr-2">Filter by letter:</span>
+                      <span className="text-xs text-muted-foreground mr-2">{t('orgs.filterByLetter')}</span>
                       <Button
                         variant={letterFilter === null ? "default" : "ghost"}
                         size="sm"
@@ -442,7 +442,7 @@ export default function AdminOrganizations() {
                         onClick={() => setLetterFilter(null)}
                         data-testid="letter-filter-all"
                       >
-                        All
+                        {t('orgs.allLetter')}
                       </Button>
                       {availableLetters.map((letter) => (
                         <Button
@@ -464,9 +464,9 @@ export default function AdminOrganizations() {
                     {/* Filter status */}
                     {(schoolSearchQuery || letterFilter) && (
                       <p className="text-xs text-muted-foreground">
-                        Showing {filteredOrganizations.length} of {organizations.length} schools
-                        {letterFilter && ` starting with "${letterFilter}"`}
-                        {schoolSearchQuery && ` matching "${schoolSearchQuery}"`}
+                        {t('orgs.showingSchools', { count: filteredOrganizations.length, total: organizations.length })}
+                        {letterFilter && t('orgs.startingWith', { letter: letterFilter })}
+                        {schoolSearchQuery && t('orgs.matchingQuery', { query: schoolSearchQuery })}
                       </p>
                     )}
                   </div>
@@ -483,12 +483,12 @@ export default function AdminOrganizations() {
                       <Building2 className="w-4 h-4" />
                       <span>{org.name}</span>
                       <Badge variant={selectedOrgId === org.id ? "secondary" : (org.isUnlimitedLicenses || org.usedLicenses < org.totalLicenses ? "default" : "secondary")} className="ml-1">
-                        {org.isUnlimitedLicenses ? "Unlimited" : `${org.usedLicenses}/${org.totalLicenses}`}
+                        {org.isUnlimitedLicenses ? t('orgs.unlimited') : `${org.usedLicenses}/${org.totalLicenses}`}
                       </Badge>
                       {(org.pendingRewardCredits ?? 0) > 0 && (
                         <Badge variant="outline" className="ml-1 bg-orange-50 text-orange-700 border-orange-200">
                           <Gift className="w-3 h-3 mr-1" />
-                          {org.pendingRewardCredits} pending
+                          {t('orgs.pendingN', { n: org.pendingRewardCredits })}
                         </Badge>
                       )}
                     </Button>
@@ -496,7 +496,7 @@ export default function AdminOrganizations() {
                   {filteredOrganizations.length === 0 && (schoolSearchQuery || letterFilter) && (
                     <div className="text-center py-4 w-full">
                       <p className="text-sm text-muted-foreground">
-                        No schools found {letterFilter && `starting with "${letterFilter}"`}{schoolSearchQuery && ` matching "${schoolSearchQuery}"`}
+                        {t('orgs.noSchoolsFound')}{letterFilter && t('orgs.startingWith', { letter: letterFilter })}{schoolSearchQuery && t('orgs.matchingQuery', { query: schoolSearchQuery })}
                       </p>
                       <Button 
                         variant="ghost" 
@@ -504,7 +504,7 @@ export default function AdminOrganizations() {
                         className="mt-2 text-primary"
                         onClick={() => { setLetterFilter(null); setSchoolSearchQuery(""); }}
                       >
-                        Clear filters
+                        {t('orgs.clearFilters')}
                       </Button>
                     </div>
                   )}
@@ -520,7 +520,7 @@ export default function AdminOrganizations() {
               <StickyNote color="blue" rotation="-1" className="mx-auto">
                 <Users className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
                 <p className="text-muted-foreground">
-                  Select a school above to view details
+                  {t('orgs.selectSchoolHint')}
                 </p>
               </StickyNote>
             </CardContent>
@@ -549,7 +549,7 @@ export default function AdminOrganizations() {
                     <DialogTrigger asChild>
                       <Button variant="outline" size="sm" data-testid="button-edit-school">
                         <Edit className="w-4 h-4 mr-2" />
-                        Edit Details
+                        {t('orgs.editDetails')}
                       </Button>
                     </DialogTrigger>
                     <DialogContent>
@@ -637,7 +637,8 @@ export default function AdminOrganizations() {
                       downloadFile(
                         `/api/admin/organizations/${selectedOrgId}/export/reports`,
                         'reports.zip',
-                        toast
+                        toast,
+                        t
                       );
                     }}
                     disabled={members.filter(m => m.isLocked).length === 0}
@@ -653,7 +654,8 @@ export default function AdminOrganizations() {
                       downloadFile(
                         `/api/admin/organizations/${selectedOrgId}/export/csv`,
                         'student_data.csv',
-                        toast
+                        toast,
+                        t
                       );
                     }}
                     disabled={members.length === 0}
@@ -712,9 +714,9 @@ export default function AdminOrganizations() {
                   <Dialog open={isBulkResetResultsModalOpen} onOpenChange={setIsBulkResetResultsModalOpen}>
                     <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                       <DialogHeader>
-                        <DialogTitle>Bulk Password Reset Results</DialogTitle>
+                        <DialogTitle>{t('orgs.bulkPasswordResetComplete')}</DialogTitle>
                         <DialogDescription>
-                          Copy and save these credentials. They will not be shown again.
+                          {t('orgs.newPasswordDesc')}
                         </DialogDescription>
                       </DialogHeader>
                       <div className="space-y-2">
@@ -742,14 +744,14 @@ export default function AdminOrganizations() {
                               .map(r => `${r.username}: ${r.newPassword}`)
                               .join('\n');
                             navigator.clipboard.writeText(text);
-                            toast({ title: "Copied", description: "Credentials copied to clipboard" });
+                            toast({ title: t('orgs.copiedCredentialsTitle'), description: t('orgs.credentialsCopiedClipboard') });
                           }}
                           data-testid="button-copy-bulk-credentials"
                         >
-                          Copy All
+                          {t('orgs.copyToClipboardBtn')}
                         </Button>
                         <Button onClick={() => setIsBulkResetResultsModalOpen(false)} data-testid="button-close-bulk-results">
-                          Close
+                          {t('orgs.closeBtn')}
                         </Button>
                       </div>
                     </DialogContent>
@@ -863,7 +865,7 @@ export default function AdminOrganizations() {
                                   </Badge>
                                 )}
                                 {(() => {
-                                  const status = getMemberStatus(member);
+                                  const status = getMemberStatus(member, t);
                                   return (
                                     <Badge 
                                       variant={status.variant} 
@@ -915,6 +917,7 @@ export default function AdminOrganizations() {
 
 function CreateOrganizationForm({ onSuccess }: { onSuccess: () => void }) {
   const { toast } = useToast();
+  const { t } = useTranslation('admin');
   const [formData, setFormData] = useState({
     organizationName: "",
     totalLicenses: 50,
@@ -961,10 +964,10 @@ function CreateOrganizationForm({ onSuccess }: { onSuccess: () => void }) {
         password: result.admin.credentials.password,
         organizationName: result.organization.name,
       });
-      toast({ title: "Success", description: "School and admin created successfully" });
+      toast({ title: t('superadmin.success'), description: t('orgs.schoolCreatedAndAdminSuccess') });
     },
     onError: (error: Error) => {
-      toast({ title: "Error", description: error.message || "Failed to create school", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: error.message || t('orgs.schoolCreatedError'), variant: "destructive" });
     },
   });
 
@@ -977,7 +980,7 @@ function CreateOrganizationForm({ onSuccess }: { onSuccess: () => void }) {
     if (createdCredentials) {
       const text = `School: ${createdCredentials.organizationName}\nUsername: ${createdCredentials.username}\nPassword: ${createdCredentials.password}`;
       navigator.clipboard.writeText(text);
-      toast({ title: "Copied", description: "Credentials copied to clipboard" });
+      toast({ title: t('orgs.copiedCredentialsTitle'), description: t('orgs.credentialsCopiedClipboard') });
     }
   };
 
@@ -1003,7 +1006,7 @@ IMPORTANT: Keep this file secure. The password cannot be recovered.
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-      toast({ title: "Downloaded", description: "Credentials file downloaded" });
+      toast({ title: t('orgs.downloadedTitle'), description: t('orgs.credentialsFileDownloaded') });
     }
   };
 
@@ -1011,23 +1014,23 @@ IMPORTANT: Keep this file secure. The password cannot be recovered.
     return (
       <div className="space-y-4">
         <DialogHeader>
-          <DialogTitle>School Created Successfully</DialogTitle>
+          <DialogTitle>{t('orgs.schoolCreatedTitle')}</DialogTitle>
           <DialogDescription>
-            Save the admin credentials below - the password cannot be recovered
+            {t('orgs.schoolCreatedTitleDesc')}
           </DialogDescription>
         </DialogHeader>
 
         <div className="rounded-lg border p-4 bg-muted/50 space-y-3">
           <div>
-            <Label className="text-xs text-muted-foreground">School Name</Label>
+            <Label className="text-xs text-muted-foreground">{t('orgs.orgSchoolNameLabel')}</Label>
             <p className="font-medium">{createdCredentials.organizationName}</p>
           </div>
           <div>
-            <Label className="text-xs text-muted-foreground">Admin Username</Label>
+            <Label className="text-xs text-muted-foreground">{t('orgs.orgAdminUsernameLabel')}</Label>
             <p className="font-mono font-medium">{createdCredentials.username}</p>
           </div>
           <div>
-            <Label className="text-xs text-muted-foreground">Admin Password</Label>
+            <Label className="text-xs text-muted-foreground">{t('orgs.orgAdminPasswordLabel')}</Label>
             <p className="font-mono font-medium text-primary">{createdCredentials.password}</p>
           </div>
         </div>
@@ -1035,13 +1038,13 @@ IMPORTANT: Keep this file secure. The password cannot be recovered.
         <div className="flex justify-end gap-2 pt-4">
           <Button variant="outline" onClick={handleDownloadCredentials} data-testid="button-download-credentials">
             <Download className="w-4 h-4 mr-2" />
-            Download
+            {t('orgs.downloadBtn')}
           </Button>
           <Button variant="outline" onClick={handleCopyCredentials} data-testid="button-copy-credentials">
-            Copy Credentials
+            {t('orgs.copyCredentials')}
           </Button>
           <Button onClick={onSuccess} data-testid="button-done">
-            Done
+            {t('orgs.doneBtn')}
           </Button>
         </div>
       </div>
@@ -1051,30 +1054,30 @@ IMPORTANT: Keep this file secure. The password cannot be recovered.
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <DialogHeader>
-        <DialogTitle>Create School</DialogTitle>
+        <DialogTitle>{t('orgs.createSchoolFormTitle')}</DialogTitle>
         <DialogDescription>
-          Add a new school with an admin account for group assessments
+          {t('orgs.createSchoolFormDesc')}
         </DialogDescription>
       </DialogHeader>
 
       <div className="space-y-4">
         <div>
-          <Label htmlFor="org-name">School Name *</Label>
+          <Label htmlFor="org-name">{t('orgs.schoolNameRequired')}</Label>
           <Input
             id="org-name"
             value={formData.organizationName}
             onChange={(e) => setFormData(f => ({ ...f, organizationName: e.target.value }))}
             required
-            placeholder="e.g., Al Ain High School"
+            placeholder={t('orgs.schoolNamePlaceholder')}
             data-testid="input-org-name"
           />
         </div>
 
         <div className="flex items-center justify-between rounded-lg border p-4">
           <div className="space-y-0.5">
-            <Label htmlFor="unlimited-licenses" className="text-base">Unlimited Licenses</Label>
+            <Label htmlFor="unlimited-licenses" className="text-base">{t('orgs.unlimitedLicensesToggle')}</Label>
             <p className="text-sm text-muted-foreground">
-              Allow unlimited student assessments (superadmin only)
+              {t('orgs.unlimitedLicensesToggleDesc')}
             </p>
           </div>
           <Switch
@@ -1087,7 +1090,7 @@ IMPORTANT: Keep this file secure. The password cannot be recovered.
 
         {!formData.isUnlimitedLicenses && (
           <div>
-            <Label htmlFor="total-licenses">Total Licenses *</Label>
+            <Label htmlFor="total-licenses">{t('orgs.totalLicensesRequired')}</Label>
             <Input
               id="total-licenses"
               type="number"
@@ -1101,16 +1104,16 @@ IMPORTANT: Keep this file secure. The password cannot be recovered.
         )}
 
         <div>
-          <Label htmlFor="org-country">Default Country (Optional)</Label>
+          <Label htmlFor="org-country">{t('orgs.defaultCountryLabel')}</Label>
           <Select 
             value={formData.countryId} 
             onValueChange={(value) => setFormData(f => ({ ...f, countryId: value, curriculum: "" }))}
           >
             <SelectTrigger id="org-country" data-testid="select-org-country">
-              <SelectValue placeholder="Select country (optional)" />
+              <SelectValue placeholder={t('orgs.selectCountryOptional')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="none">None</SelectItem>
+              <SelectItem value="none">{t('orgs.noneOption')}</SelectItem>
               {countries.map((country) => (
                 <SelectItem key={country.id} value={country.id}>
                   {country.name}
@@ -1119,19 +1122,19 @@ IMPORTANT: Keep this file secure. The password cannot be recovered.
             </SelectContent>
           </Select>
           <p className="text-xs text-muted-foreground mt-1">
-            If set, all students will automatically use this country and skip the country selection step
+            {t('orgs.defaultCountryHint')}
           </p>
         </div>
 
         {formData.countryId !== "none" && availableCurricula.length > 0 && (
           <div>
-            <Label htmlFor="org-curriculum">School Curriculum *</Label>
+            <Label htmlFor="org-curriculum">{t('orgs.schoolCurriculumLabel')}</Label>
             <Select 
               value={formData.curriculum} 
               onValueChange={(value) => setFormData(f => ({ ...f, curriculum: value }))}
             >
               <SelectTrigger id="org-curriculum" data-testid="select-org-curriculum">
-                <SelectValue placeholder="Select curriculum" />
+                <SelectValue placeholder={t('orgs.selectCurriculumOpt')} />
               </SelectTrigger>
               <SelectContent>
                 {availableCurricula.map((curriculum) => (
@@ -1142,7 +1145,7 @@ IMPORTANT: Keep this file secure. The password cannot be recovered.
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground mt-1">
-              Students will receive quiz questions aligned with this curriculum
+              {t('orgs.curriculumHint')}
             </p>
           </div>
         )}
@@ -1150,44 +1153,42 @@ IMPORTANT: Keep this file secure. The password cannot be recovered.
         <Separator />
 
         <div>
-          <h4 className="font-medium mb-3">School Admin Account</h4>
+          <h4 className="font-medium mb-3">{t('orgs.schoolAdminSection')}</h4>
           <p className="text-sm text-muted-foreground mb-4">
-            Create an admin account that can manage students and view reports
+            {t('orgs.schoolAdminSectionDesc')}
           </p>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label htmlFor="admin-first-name">First Name *</Label>
+              <Label htmlFor="admin-first-name">{t('orgs.firstNameRequired')}</Label>
               <Input
                 id="admin-first-name"
                 value={formData.adminFirstName}
                 onChange={(e) => setFormData(f => ({ ...f, adminFirstName: e.target.value }))}
                 required
-                placeholder="John"
                 data-testid="input-admin-first-name"
               />
             </div>
             <div>
-              <Label htmlFor="admin-last-name">Last Name *</Label>
+              <Label htmlFor="admin-last-name">{t('orgs.lastNameRequired')}</Label>
               <Input
                 id="admin-last-name"
                 value={formData.adminLastName}
                 onChange={(e) => setFormData(f => ({ ...f, adminLastName: e.target.value }))}
                 required
-                placeholder="Smith"
                 data-testid="input-admin-last-name"
               />
             </div>
           </div>
 
           <div className="mt-3">
-            <Label htmlFor="admin-email">Email (Optional)</Label>
+            <Label htmlFor="admin-email">{t('orgs.emailOptionalLabel')}</Label>
             <Input
               id="admin-email"
               type="email"
               value={formData.adminEmail}
               onChange={(e) => setFormData(f => ({ ...f, adminEmail: e.target.value }))}
-              placeholder="admin@school.ae"
+              placeholder={t('superadmin.adminEmailPlaceholder')}
               data-testid="input-admin-email"
             />
             {validateEmail(formData.adminEmail) && (
@@ -1196,16 +1197,16 @@ IMPORTANT: Keep this file secure. The password cannot be recovered.
           </div>
 
           <div className="mt-3">
-            <Label htmlFor="admin-username">Username (Optional)</Label>
+            <Label htmlFor="admin-username">{t('orgs.usernameOptionalLabel')}</Label>
             <Input
               id="admin-username"
               value={formData.adminUsername}
               onChange={(e) => setFormData(f => ({ ...f, adminUsername: e.target.value }))}
-              placeholder="Leave blank to auto-generate"
+              placeholder={t('orgs.usernameLeavePlaceholder')}
               data-testid="input-admin-username"
             />
             <p className="text-xs text-muted-foreground mt-1">
-              If not provided, a username will be generated from the admin's name
+              {t('orgs.usernameGeneratedHint')}
             </p>
           </div>
         </div>
@@ -1213,7 +1214,7 @@ IMPORTANT: Keep this file secure. The password cannot be recovered.
 
       <div className="flex justify-end gap-2 pt-4">
         <Button type="submit" disabled={mutation.isPending || !!validateEmail(formData.adminEmail)} data-testid="button-submit-school">
-          {mutation.isPending ? "Creating..." : "Create School"}
+          {mutation.isPending ? t('orgs.creatingSchool') : t('orgs.createSchoolFormBtn')}
         </Button>
       </div>
     </form>
@@ -1222,6 +1223,7 @@ IMPORTANT: Keep this file secure. The password cannot be recovered.
 
 function EditOrganizationForm({ organization, onSuccess }: { organization: Organization; onSuccess: () => void }) {
   const { toast } = useToast();
+  const { t } = useTranslation('admin');
   const [formData, setFormData] = useState({
     name: organization.name,
     logoUrl: organization.logoUrl || "",
@@ -1250,12 +1252,12 @@ function EditOrganizationForm({ organization, onSuccess }: { organization: Organ
       return apiRequest('PATCH', `/api/admin/organizations/${organization.id}`, payload);
     },
     onSuccess: () => {
-      toast({ title: "Success", description: "School updated successfully" });
+      toast({ title: t('superadmin.success'), description: t('orgs.schoolUpdateSuccess') });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/organizations'] });
       onSuccess();
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to update school", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: t('orgs.schoolUpdateError'), variant: "destructive" });
     },
   });
 
@@ -1266,13 +1268,13 @@ function EditOrganizationForm({ organization, onSuccess }: { organization: Organ
     // Validate file type
     const allowedTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml'];
     if (!allowedTypes.includes(file.type)) {
-      toast({ title: "Error", description: "Only PNG, JPG, GIF, WebP, and SVG files are allowed", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: t('orgs.logoTypeError'), variant: "destructive" });
       return;
     }
 
     // Validate file size (5MB max)
     if (file.size > 5 * 1024 * 1024) {
-      toast({ title: "Error", description: "File size must be less than 5MB", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: t('orgs.logoSizeError'), variant: "destructive" });
       return;
     }
 
@@ -1294,10 +1296,10 @@ function EditOrganizationForm({ organization, onSuccess }: { organization: Organ
 
       const result = await response.json();
       setFormData(f => ({ ...f, logoUrl: result.logoUrl }));
-      toast({ title: "Success", description: "Logo uploaded successfully" });
+      toast({ title: t('superadmin.success'), description: t('orgs.logoUploadSuccess') });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/organizations'] });
     } catch (error: any) {
-      toast({ title: "Error", description: error.message || "Failed to upload logo", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: error.message || t('orgs.logoUploadError'), variant: "destructive" });
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) {
@@ -1314,27 +1316,27 @@ function EditOrganizationForm({ organization, onSuccess }: { organization: Organ
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <DialogHeader>
-        <DialogTitle>Edit School</DialogTitle>
+        <DialogTitle>{t('orgs.editSchoolTitle')}</DialogTitle>
         <DialogDescription>
-          Update school details
+          {t('orgs.editSchoolDesc')}
         </DialogDescription>
       </DialogHeader>
 
       <div className="space-y-4">
         <div>
-          <Label htmlFor="edit-org-name">School Name *</Label>
+          <Label htmlFor="edit-org-name">{t('orgs.schoolNameReqLabel')}</Label>
           <Input
             id="edit-org-name"
             value={formData.name}
             onChange={(e) => setFormData(f => ({ ...f, name: e.target.value }))}
             required
-            placeholder="e.g., Al Ain High School"
+            placeholder={t('orgs.schoolNamePlaceholder')}
             data-testid="input-edit-org-name"
           />
         </div>
 
         <div>
-          <Label>School Logo (Optional)</Label>
+          <Label>{t('orgs.logoOptionalLabel')}</Label>
           <div className="flex gap-2 mt-1 mb-2">
             <Button
               type="button"
@@ -1344,7 +1346,7 @@ function EditOrganizationForm({ organization, onSuccess }: { organization: Organ
               data-testid="button-logo-url-mode"
             >
               <LinkIcon className="h-4 w-4 mr-1" />
-              URL
+              {t('orgs.urlModeBtn')}
             </Button>
             <Button
               type="button"
@@ -1354,7 +1356,7 @@ function EditOrganizationForm({ organization, onSuccess }: { organization: Organ
               data-testid="button-logo-upload-mode"
             >
               <Upload className="h-4 w-4 mr-1" />
-              Upload
+              {t('orgs.uploadModeBtn')}
             </Button>
           </div>
 
@@ -1364,11 +1366,11 @@ function EditOrganizationForm({ organization, onSuccess }: { organization: Organ
                 id="edit-org-logo"
                 value={formData.logoUrl}
                 onChange={(e) => setFormData(f => ({ ...f, logoUrl: e.target.value }))}
-                placeholder="https://example.com/logo.png"
+                placeholder={t('orgs.logoUrlPlaceholder')}
                 data-testid="input-edit-org-logo"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Add a direct link to your school logo
+                {t('orgs.logoUrlHint')}
               </p>
             </>
           ) : (
@@ -1385,10 +1387,10 @@ function EditOrganizationForm({ organization, onSuccess }: { organization: Organ
                 />
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                Upload PNG, JPG, GIF, WebP, or SVG (max 5MB)
+                {t('orgs.uploadLogoHint')}
               </p>
               {isUploading && (
-                <p className="text-xs text-primary mt-1">Uploading...</p>
+                <p className="text-xs text-primary mt-1">{t('orgs.uploadingLogo')}</p>
               )}
             </>
           )}
@@ -1396,7 +1398,7 @@ function EditOrganizationForm({ organization, onSuccess }: { organization: Organ
           {formData.logoUrl && (
             <div className="mt-3 p-3 border rounded-lg bg-muted/30">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-xs text-muted-foreground">Preview:</p>
+                <p className="text-xs text-muted-foreground">{t('orgs.logoPreviewLabel')}</p>
                 <Button
                   type="button"
                   variant="ghost"
@@ -1406,7 +1408,7 @@ function EditOrganizationForm({ organization, onSuccess }: { organization: Organ
                   data-testid="button-remove-logo"
                 >
                   <X className="h-3 w-3 mr-1" />
-                  Remove
+                  {t('orgs.removeLogoBtn')}
                 </Button>
               </div>
               <img 
@@ -1422,16 +1424,16 @@ function EditOrganizationForm({ organization, onSuccess }: { organization: Organ
         </div>
 
         <div>
-          <Label htmlFor="edit-org-country">Default Country</Label>
+          <Label htmlFor="edit-org-country">{t('orgs.defaultCountryLabel')}</Label>
           <Select 
             value={formData.countryId} 
             onValueChange={(value) => setFormData(f => ({ ...f, countryId: value, curriculum: "" }))}
           >
             <SelectTrigger id="edit-org-country" data-testid="select-edit-org-country">
-              <SelectValue placeholder="Select country (optional)" />
+              <SelectValue placeholder={t('orgs.selectCountryOptional')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="none">None</SelectItem>
+              <SelectItem value="none">{t('orgs.noneOption')}</SelectItem>
               {countries.map((country) => (
                 <SelectItem key={country.id} value={country.id}>
                   {country.name}
@@ -1443,13 +1445,13 @@ function EditOrganizationForm({ organization, onSuccess }: { organization: Organ
 
         {formData.countryId !== "none" && availableCurricula.length > 0 && (
           <div>
-            <Label htmlFor="edit-org-curriculum">School Curriculum</Label>
+            <Label htmlFor="edit-org-curriculum">{t('orgs.schoolCurriculumLabel')}</Label>
             <Select 
               value={formData.curriculum} 
               onValueChange={(value) => setFormData(f => ({ ...f, curriculum: value }))}
             >
               <SelectTrigger id="edit-org-curriculum" data-testid="select-edit-org-curriculum">
-                <SelectValue placeholder="Select curriculum" />
+                <SelectValue placeholder={t('orgs.selectCurriculumOpt')} />
               </SelectTrigger>
               <SelectContent>
                 {availableCurricula.map((curriculum) => (
@@ -1460,7 +1462,7 @@ function EditOrganizationForm({ organization, onSuccess }: { organization: Organ
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground mt-1">
-              Students will receive quiz questions aligned with this curriculum
+              {t('orgs.curriculumHint')}
             </p>
           </div>
         )}
@@ -1468,7 +1470,7 @@ function EditOrganizationForm({ organization, onSuccess }: { organization: Organ
 
       <div className="flex justify-end gap-2 pt-4">
         <Button type="submit" disabled={mutation.isPending || isUploading} data-testid="button-submit-edit-school">
-          {mutation.isPending ? "Updating..." : "Update School"}
+          {mutation.isPending ? t('orgs.updatingSchool') : t('orgs.updateSchoolBtn')}
         </Button>
       </div>
     </form>
@@ -1477,6 +1479,7 @@ function EditOrganizationForm({ organization, onSuccess }: { organization: Organ
 
 function CreateMemberForm({ organizationId, onSuccess }: { organizationId: string; onSuccess: () => void }) {
   const { toast } = useToast();
+  const { t } = useTranslation('admin');
   const [formData, setFormData] = useState({
     fullName: "",
     grade: "",
@@ -1494,14 +1497,14 @@ function CreateMemberForm({ organizationId, onSuccess }: { organizationId: strin
     },
     onSuccess: (data) => {
       setCreatedCredentials({ username: data.user.username, password: data.password });
-      toast({ title: "Success", description: "Student account created successfully" });
+      toast({ title: t('superadmin.success'), description: t('orgs.studentCreateSuccess') });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/organizations'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/organizations', organizationId, 'members'] });
     },
     onError: (error: any) => {
       toast({ 
-        title: "Error", 
-        description: error.message || "Failed to create student account", 
+        title: t('superadmin.error'), 
+        description: error.message || t('orgs.studentCreateError'), 
         variant: "destructive" 
       });
     },
@@ -1531,20 +1534,20 @@ function CreateMemberForm({ organizationId, onSuccess }: { organizationId: strin
     return (
       <div className="space-y-6">
         <DialogHeader>
-          <DialogTitle>Student Account Created</DialogTitle>
+          <DialogTitle>{t('orgs.studentAccountCreated')}</DialogTitle>
           <DialogDescription>
-            Save these credentials securely - they won't be shown again
+            {t('orgs.studentAccountCreatedDesc')}
           </DialogDescription>
         </DialogHeader>
 
         <StickyNote color="yellow" rotation="1" className="mx-auto">
           <div className="space-y-3">
             <div>
-              <p className="text-xs text-muted-foreground mb-1">Username</p>
+              <p className="text-xs text-muted-foreground mb-1">{t('orgs.usernameFieldLabel')}</p>
               <p className="font-mono font-bold text-lg">{createdCredentials.username}</p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground mb-1">Password</p>
+              <p className="text-xs text-muted-foreground mb-1">{t('orgs.passwordFieldLabel')}</p>
               <p className="font-mono font-bold text-lg">{createdCredentials.password}</p>
             </div>
           </div>
@@ -1553,13 +1556,13 @@ function CreateMemberForm({ organizationId, onSuccess }: { organizationId: strin
         <div className="flex gap-2 justify-end">
           <Button variant="outline" onClick={() => {
             navigator.clipboard.writeText(`Username: ${createdCredentials.username}\nPassword: ${createdCredentials.password}`);
-            toast({ title: "Copied!", description: "Credentials copied to clipboard" });
+            toast({ title: t('orgs.copiedTitle'), description: t('orgs.credentialsCopiedClipboard') });
           }}>
-            Copy to Clipboard
+            {t('orgs.copyToClipboardBtn')}
           </Button>
           <Button onClick={handleDownloadCredentials} data-testid="button-download-credentials">
             <Download className="w-4 h-4 mr-2" />
-            Download & Close
+            {t('orgs.downloadCloseBtn')}
           </Button>
         </div>
       </div>
@@ -1569,81 +1572,81 @@ function CreateMemberForm({ organizationId, onSuccess }: { organizationId: strin
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <DialogHeader>
-        <DialogTitle>Add Student</DialogTitle>
+        <DialogTitle>{t('orgs.addStudentFormTitle')}</DialogTitle>
         <DialogDescription>
-          Create a new student account with auto-generated credentials
+          {t('orgs.addStudentFormDesc')}
         </DialogDescription>
       </DialogHeader>
 
       <div className="space-y-4">
         <div>
-          <Label htmlFor="full-name">Full Name *</Label>
+          <Label htmlFor="full-name">{t('orgs.fullNameRequired')}</Label>
           <Input
             id="full-name"
             value={formData.fullName}
             onChange={(e) => setFormData(f => ({ ...f, fullName: e.target.value }))}
             required
-            placeholder="e.g., Ahmed Ali Mohamed"
+            placeholder={t('orgs.fullNamePlaceholder')}
             data-testid="input-full-name"
           />
         </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label htmlFor="grade">Grade</Label>
+            <Label htmlFor="grade">{t('orgs.gradeFieldLabel')}</Label>
             <Select value={formData.grade} onValueChange={(value) => setFormData(f => ({ ...f, grade: value }))}>
               <SelectTrigger id="grade" data-testid="select-grade">
-                <SelectValue placeholder="Select grade" />
+                <SelectValue placeholder={t('orgs.selectGradeOpt')} />
               </SelectTrigger>
               <SelectContent>
                 {["8", "9", "10", "11", "12"].map(g => (
-                  <SelectItem key={g} value={g}>Grade {g}</SelectItem>
+                  <SelectItem key={g} value={g}>{t('orgs.gradeItemN', { n: g })}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
           <div>
-            <Label htmlFor="student-id">Student ID</Label>
+            <Label htmlFor="student-id">{t('orgs.studentIdFieldLabel')}</Label>
             <Input
               id="student-id"
               value={formData.studentId}
               onChange={(e) => setFormData(f => ({ ...f, studentId: e.target.value }))}
-              placeholder="Optional"
+              placeholder={t('orgs.optionalPlaceholder')}
               data-testid="input-student-id"
             />
           </div>
         </div>
 
         <div>
-          <Label htmlFor="student-gender">Gender</Label>
+          <Label htmlFor="student-gender">{t('orgs.genderFieldLabel')}</Label>
           <Select value={formData.studentGender} onValueChange={(value) => setFormData(f => ({ ...f, studentGender: value }))}>
             <SelectTrigger id="student-gender" data-testid="select-student-gender">
-              <SelectValue placeholder="Select gender (optional)" />
+              <SelectValue placeholder={t('orgs.selectGenderOpt')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="male">Male</SelectItem>
-              <SelectItem value="female">Female</SelectItem>
+              <SelectItem value="male">{t('orgs.maleOption')}</SelectItem>
+              <SelectItem value="female">{t('orgs.femaleOption')}</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
         <div>
-          <Label htmlFor="username">Username (optional)</Label>
+          <Label htmlFor="username">{t('orgs.usernameOptField')}</Label>
           <Input
             id="username"
             value={formData.username}
             onChange={(e) => setFormData(f => ({ ...f, username: e.target.value }))}
-            placeholder="Auto-generated if empty"
+            placeholder={t('orgs.autoGeneratedPlaceholder')}
             data-testid="input-username"
           />
           <p className="text-xs text-muted-foreground mt-1">
-            Leave empty to auto-generate from name
+            {t('orgs.autoGeneratedHint')}
           </p>
         </div>
 
         <div>
-          <Label htmlFor="password-complexity">Password Complexity</Label>
+          <Label htmlFor="password-complexity">{t('orgs.passwordComplexityLabel')}</Label>
           <Select 
             value={formData.passwordComplexity} 
             onValueChange={(value: "easy" | "medium" | "strong") => setFormData(f => ({ ...f, passwordComplexity: value }))}
@@ -1652,9 +1655,9 @@ function CreateMemberForm({ organizationId, onSuccess }: { organizationId: strin
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="easy">Easy (8 chars, lowercase + numbers)</SelectItem>
-              <SelectItem value="medium">Medium (12 chars, mixed case + numbers)</SelectItem>
-              <SelectItem value="strong">Strong (16 chars, mixed case + numbers + symbols)</SelectItem>
+              <SelectItem value="easy">{t('orgs.passwordEasy')}</SelectItem>
+              <SelectItem value="medium">{t('orgs.passwordMedium')}</SelectItem>
+              <SelectItem value="strong">{t('orgs.passwordStrong')}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -1662,7 +1665,7 @@ function CreateMemberForm({ organizationId, onSuccess }: { organizationId: strin
 
       <div className="flex justify-end gap-2 pt-4">
         <Button type="submit" disabled={mutation.isPending} data-testid="button-submit-member">
-          {mutation.isPending ? "Creating..." : "Create Student Account"}
+          {mutation.isPending ? t('orgs.creatingStudentBtn') : t('orgs.createStudentAccountBtn')}
         </Button>
       </div>
     </form>
@@ -1671,6 +1674,7 @@ function CreateMemberForm({ organizationId, onSuccess }: { organizationId: strin
 
 function BulkUploadForm({ organizationId, onSuccess }: { organizationId: string; onSuccess: () => void }) {
   const { toast } = useToast();
+  const { t } = useTranslation('admin');
   const [file, setFile] = useState<File | null>(null);
   const [passwordComplexity, setPasswordComplexity] = useState<"easy" | "medium" | "strong">("medium");
   const [uploadResult, setUploadResult] = useState<{ success: number; failed: number; credentials: any[] } | null>(null);
@@ -1702,15 +1706,15 @@ function BulkUploadForm({ organizationId, onSuccess }: { organizationId: string;
     onSuccess: (data) => {
       setUploadResult(data);
       toast({ 
-        title: "Upload Complete", 
-        description: `${data.success} students created successfully` 
+        title: t('orgs.uploadCompleteTitle'), 
+        description: t('orgs.bulkUploadSuccess', { n: data.success }) 
       });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/organizations'] });
     },
     onError: (error: any) => {
       toast({ 
-        title: "Error", 
-        description: error.message || "Failed to upload students", 
+        title: t('superadmin.error'), 
+        description: error.message || t('orgs.bulkUploadError'), 
         variant: "destructive" 
       });
     },
@@ -1750,19 +1754,19 @@ function BulkUploadForm({ organizationId, onSuccess }: { organizationId: string;
     return (
       <div className="space-y-6">
         <DialogHeader>
-          <DialogTitle>Upload Complete</DialogTitle>
+          <DialogTitle>{t('orgs.uploadCompleteTitle')}</DialogTitle>
           <DialogDescription>
-            {uploadResult.success} students created successfully
+            {t('orgs.uploadCompleteDesc', { n: uploadResult.success })}
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid grid-cols-2 gap-4">
           <StickyNote color="green" rotation="1">
-            <p className="text-xs text-muted-foreground mb-1">Created</p>
+            <p className="text-xs text-muted-foreground mb-1">{t('orgs.createdLabel')}</p>
             <p className="text-3xl font-bold">{uploadResult.success}</p>
           </StickyNote>
           <StickyNote color="pink" rotation="-1">
-            <p className="text-xs text-muted-foreground mb-1">Failed</p>
+            <p className="text-xs text-muted-foreground mb-1">{t('orgs.failedLabel')}</p>
             <p className="text-3xl font-bold">{uploadResult.failed}</p>
           </StickyNote>
         </div>
@@ -1770,7 +1774,7 @@ function BulkUploadForm({ organizationId, onSuccess }: { organizationId: string;
         <div className="flex gap-2 justify-end">
           <Button onClick={handleDownloadCredentials} data-testid="button-download-all-credentials">
             <FileDown className="w-4 h-4 mr-2" />
-            Download Credentials CSV
+            {t('orgs.downloadCredentialsCSV')}
           </Button>
         </div>
       </div>
@@ -1780,21 +1784,21 @@ function BulkUploadForm({ organizationId, onSuccess }: { organizationId: string;
   return (
     <div className="space-y-6">
       <DialogHeader>
-        <DialogTitle>Bulk Upload Students</DialogTitle>
+        <DialogTitle>{t('orgs.bulkUploadFormTitle')}</DialogTitle>
         <DialogDescription>
-          Upload a CSV file with student information
+          {t('orgs.bulkUploadFormDesc')}
         </DialogDescription>
       </DialogHeader>
 
       <div className="space-y-4">
         <div className="bg-muted/50 p-4 rounded-lg space-y-3">
-          <p className="text-sm font-medium">CSV Format</p>
+          <p className="text-sm font-medium">{t('orgs.csvFormatLabel')}</p>
           <p className="text-xs text-muted-foreground">
-            Required columns: <span className="font-semibold">username, grade</span>
+            {t('orgs.csvRequiredCols')}<span className="font-semibold">username, grade</span>
             <br />
-            Optional columns: <span className="font-semibold">studentId, studentName, studentAge, studentGender</span>
+            {t('orgs.csvOptionalCols')}<span className="font-semibold">studentId, studentName, studentAge, studentGender</span>
             <br />
-            <span className="text-xs text-muted-foreground/70">Note: Pre-filling student info (name, age, gender) streamlines the assessment experience</span>
+            <span className="text-xs text-muted-foreground/70">{t('orgs.csvPreFillNote')}</span>
           </p>
           <Button 
             variant="outline" 
@@ -1803,12 +1807,12 @@ function BulkUploadForm({ organizationId, onSuccess }: { organizationId: string;
             data-testid="button-download-template"
           >
             <Download className="w-4 h-4 mr-2" />
-            Download Template
+            {t('orgs.downloadTemplateBtn')}
           </Button>
         </div>
 
         <div>
-          <Label htmlFor="csv-file">Upload CSV File *</Label>
+          <Label htmlFor="csv-file">{t('orgs.uploadCSVLabel')}</Label>
           <Input
             id="csv-file"
             type="file"
@@ -1820,7 +1824,7 @@ function BulkUploadForm({ organizationId, onSuccess }: { organizationId: string;
         </div>
 
         <div>
-          <Label htmlFor="bulk-password-complexity">Password Complexity</Label>
+          <Label htmlFor="bulk-password-complexity">{t('orgs.passwordComplexityLabel')}</Label>
           <Select 
             value={passwordComplexity} 
             onValueChange={(value: "easy" | "medium" | "strong") => setPasswordComplexity(value)}
@@ -1829,9 +1833,9 @@ function BulkUploadForm({ organizationId, onSuccess }: { organizationId: string;
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="easy">Easy (8 chars, lowercase + numbers)</SelectItem>
-              <SelectItem value="medium">Medium (12 chars, mixed case + numbers)</SelectItem>
-              <SelectItem value="strong">Strong (16 chars, mixed case + numbers + symbols)</SelectItem>
+              <SelectItem value="easy">{t('orgs.passwordEasy')}</SelectItem>
+              <SelectItem value="medium">{t('orgs.passwordMedium')}</SelectItem>
+              <SelectItem value="strong">{t('orgs.passwordStrong')}</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -1843,7 +1847,7 @@ function BulkUploadForm({ organizationId, onSuccess }: { organizationId: string;
           disabled={!file || mutation.isPending}
           data-testid="button-submit-bulk-upload"
         >
-          {mutation.isPending ? "Uploading..." : "Upload Students"}
+          {mutation.isPending ? t('orgs.uploadingStudents') : t('orgs.uploadStudentsBtn')}
         </Button>
       </div>
     </div>
@@ -1852,6 +1856,7 @@ function BulkUploadForm({ organizationId, onSuccess }: { organizationId: string;
 
 function MemberActions({ member, organizationId }: { member: OrganizationMember; organizationId: string }) {
   const { toast } = useToast();
+  const { t } = useTranslation('admin');
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
   const [newPassword, setNewPassword] = useState<string | null>(null);
 
@@ -1860,14 +1865,14 @@ function MemberActions({ member, organizationId }: { member: OrganizationMember;
       return apiRequest('DELETE', `/api/admin/organizations/${organizationId}/members/${member.id}`);
     },
     onSuccess: () => {
-      toast({ title: "Success", description: "Student deleted successfully" });
+      toast({ title: t('superadmin.success'), description: t('orgs.studentDeletedSuccess') });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/organizations', organizationId, 'members'] });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/organizations'] });
     },
     onError: (error: any) => {
       toast({ 
-        title: "Error", 
-        description: error.message || "Failed to delete student", 
+        title: t('superadmin.error'), 
+        description: error.message || t('orgs.studentDeletedError'), 
         variant: "destructive" 
       });
     },
@@ -1884,10 +1889,10 @@ function MemberActions({ member, organizationId }: { member: OrganizationMember;
     },
     onSuccess: (data) => {
       setNewPassword(data.password);
-      toast({ title: "Success", description: "Password reset successfully" });
+      toast({ title: t('superadmin.success'), description: t('orgs.passwordResetSuccess') });
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to reset password", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: t('orgs.passwordResetError'), variant: "destructive" });
     },
   });
 
@@ -1896,19 +1901,19 @@ function MemberActions({ member, organizationId }: { member: OrganizationMember;
       <Dialog open={true} onOpenChange={() => setNewPassword(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>New Password</DialogTitle>
+            <DialogTitle>{t('orgs.newPasswordTitle')}</DialogTitle>
             <DialogDescription>
-              Save this password securely - it won't be shown again
+              {t('orgs.studentAccountCreatedDesc')}
             </DialogDescription>
           </DialogHeader>
 
           <div className="rounded-lg border bg-muted/40 p-4 space-y-3">
             <div>
-              <p className="text-xs text-muted-foreground mb-1">Username</p>
+              <p className="text-xs text-muted-foreground mb-1">{t('orgs.usernameFieldLabel')}</p>
               <p className="font-mono font-semibold">{member.user.username}</p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground mb-1">New Password</p>
+              <p className="text-xs text-muted-foreground mb-1">{t('orgs.newPasswordLabel')}</p>
               <p className="font-mono font-bold text-lg">{newPassword}</p>
             </div>
           </div>
@@ -1916,12 +1921,12 @@ function MemberActions({ member, organizationId }: { member: OrganizationMember;
           <div className="flex gap-2 justify-end">
             <Button variant="outline" onClick={() => {
               navigator.clipboard.writeText(`Username: ${member.user.username}\nPassword: ${newPassword}`);
-              toast({ title: "Copied!", description: "Credentials copied to clipboard" });
+              toast({ title: t('orgs.copiedTitle'), description: t('orgs.credentialsCopiedClipboard') });
             }}>
-              Copy to Clipboard
+              {t('orgs.copyToClipboardBtn')}
             </Button>
             <Button onClick={() => setNewPassword(null)}>
-              Close
+              {t('orgs.closeBtn')}
             </Button>
           </div>
         </DialogContent>
@@ -1939,9 +1944,9 @@ function MemberActions({ member, organizationId }: { member: OrganizationMember;
         </DialogTrigger>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Reset Password</DialogTitle>
+            <DialogTitle>{t('orgs.resetPasswordTitle')}</DialogTitle>
             <DialogDescription>
-              Choose password complexity for {member.user.firstName} {member.user.lastName}
+              {t('orgs.resetPasswordDesc', { name: `${member.user.firstName} ${member.user.lastName}` })}
             </DialogDescription>
           </DialogHeader>
           
@@ -1954,7 +1959,7 @@ function MemberActions({ member, organizationId }: { member: OrganizationMember;
                 setIsResetDialogOpen(false);
               }}
             >
-              Easy (8 chars, lowercase + numbers)
+              {t('orgs.passwordEasy')}
             </Button>
             <Button 
               variant="outline" 
@@ -1964,7 +1969,7 @@ function MemberActions({ member, organizationId }: { member: OrganizationMember;
                 setIsResetDialogOpen(false);
               }}
             >
-              Medium (12 chars, mixed case + numbers)
+              {t('orgs.passwordMedium')}
             </Button>
             <Button 
               variant="outline" 
@@ -1974,7 +1979,7 @@ function MemberActions({ member, organizationId }: { member: OrganizationMember;
                 setIsResetDialogOpen(false);
               }}
             >
-              Strong (16 chars, mixed case + numbers + symbols)
+              {t('orgs.passwordStrong')}
             </Button>
           </div>
         </DialogContent>
@@ -1994,19 +1999,19 @@ function MemberActions({ member, organizationId }: { member: OrganizationMember;
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Delete Student</AlertDialogTitle>
+              <AlertDialogTitle>{t('orgs.deleteStudentTitle')}</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to delete <span className="font-semibold">{member.user.firstName} {member.user.lastName}</span>? This action cannot be undone.
+                {t('orgs.deleteStudentDesc', { name: `${member.user.firstName} ${member.user.lastName}` })}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogCancel>{t('orgs.cancel')}</AlertDialogCancel>
               <AlertDialogAction 
                 onClick={() => deleteMutation.mutate()}
                 className="bg-destructive hover:bg-destructive/90"
                 data-testid={`button-confirm-delete-${member.id}`}
               >
-                Delete
+                {t('orgs.delete')}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

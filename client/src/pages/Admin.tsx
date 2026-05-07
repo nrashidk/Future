@@ -95,10 +95,10 @@ export default function Admin() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/questions'] });
-      toast({ title: "Success", description: t('quiz.deleteSuccess') });
+      toast({ title: t('superadmin.success'), description: t('quiz.deleteSuccess') });
     },
     onError: () => {
-      toast({ title: "Error", description: t('quiz.deleteError'), variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: t('quiz.deleteError'), variant: "destructive" });
     },
   });
 
@@ -111,9 +111,9 @@ export default function Admin() {
       if (filters.subject && filters.subject !== 'all') params.set('subject', filters.subject);
       if (filters.grade && filters.grade !== 'all') params.set('grade', filters.grade);
       window.location.href = `/api/admin/questions/export?${params.toString()}`;
-      toast({ title: "Success", description: t('quiz.exportedAs', { format: format.toUpperCase() }) });
+      toast({ title: t('superadmin.success'), description: t('quiz.exportedAs', { format: format.toUpperCase() }) });
     } catch (error) {
-      toast({ title: "Error", description: t('quiz.exportError'), variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: t('quiz.exportError'), variant: "destructive" });
     }
   };
 
@@ -128,9 +128,9 @@ export default function Admin() {
       await apiRequest('POST', '/api/admin/questions/bulk-upload', { questions });
 
       queryClient.invalidateQueries({ queryKey: ['/api/admin/questions'] });
-      toast({ title: "Success", description: t('quiz.importSuccess') });
+      toast({ title: t('superadmin.success'), description: t('quiz.importSuccess') });
     } catch (error) {
-      toast({ title: "Error", description: t('quiz.importError'), variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: t('quiz.importError'), variant: "destructive" });
     }
   };
 
@@ -532,12 +532,12 @@ function QuestionForm({
     },
     onSuccess: () => {
       const action = question ? t('quiz.updated') : t('quiz.created');
-      toast({ title: "Success", description: t('quiz.saveSuccess', { action }) });
+      toast({ title: t('superadmin.success'), description: t('quiz.saveSuccess', { action }) });
       onSuccess();
     },
     onError: () => {
       const action = question ? t('quiz.updated') : t('quiz.created');
-      toast({ title: "Error", description: t('quiz.saveError', { action }), variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: t('quiz.saveError', { action }), variant: "destructive" });
     },
   });
 

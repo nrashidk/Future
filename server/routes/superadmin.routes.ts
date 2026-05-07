@@ -2412,6 +2412,32 @@ export function registerSuperadminRoutes(app: Express) {
     }
   });
 
+  // PATCH /api/superadmin/countries/:id/name-ar — update Arabic name of a country
+  app.patch("/api/superadmin/countries/:id/name-ar", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { nameAr } = req.body;
+      if (typeof nameAr !== "string") {
+        return res.status(400).json({ message: "nameAr is required" });
+      }
+      const { db } = await import("../db");
+      const { countries } = await import("../../shared/schema");
+      const { eq } = await import("drizzle-orm");
+      const updated = await db
+        .update(countries)
+        .set({ nameAr })
+        .where(eq(countries.id, id))
+        .returning();
+      if (!updated.length) {
+        return res.status(404).json({ message: "Country not found" });
+      }
+      res.json(updated[0]);
+    } catch (error) {
+      console.error("Error updating country nameAr:", error);
+      res.status(500).json({ message: "Failed to update country Arabic name" });
+    }
+  });
+
   // PATCH /api/superadmin/quiz-questions/:id — update Arabic translation of a quiz question
   app.patch("/api/superadmin/quiz-questions/:id", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
     try {

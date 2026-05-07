@@ -289,7 +289,7 @@ export default function SuperadminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations'] });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to add admin", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: error.message || "Failed to add admin", variant: "destructive" });
     },
   });
 
@@ -792,8 +792,8 @@ export default function SuperadminDashboard() {
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
           <Link href="/" className="flex items-center gap-2 hover-elevate rounded-lg px-3 py-2">
             <GraduationCap className="w-6 h-6 text-primary" />
-            <span className="font-bold text-lg">Future Pathways</span>
-            <Badge variant="secondary">Superadmin</Badge>
+            <span className="font-bold text-lg">{t('nav.futurePathways')}</span>
+            <Badge variant="secondary">{t('badges.superadmin')}</Badge>
           </Link>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" asChild data-testid="button-nav-superadmin">
@@ -983,7 +983,7 @@ export default function SuperadminDashboard() {
                     <Select value={licenseFilter} onValueChange={setLicenseFilter}>
                       <SelectTrigger className="w-40" data-testid="select-license-filter">
                         <Filter className="w-4 h-4 me-2" />
-                        <SelectValue placeholder="Filter" />
+                        <SelectValue placeholder={t('superadmin.filterPlaceholder')} />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">{t('superadmin.filterAll')}</SelectItem>
@@ -1236,7 +1236,7 @@ export default function SuperadminDashboard() {
                     <Select value={userTypeFilter} onValueChange={setUserTypeFilter}>
                       <SelectTrigger className="w-40" data-testid="select-user-type-filter">
                         <Filter className="w-4 h-4 me-2" />
-                        <SelectValue placeholder="Filter" />
+                        <SelectValue placeholder={t('superadmin.filterPlaceholder')} />
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">{t('superadmin.filterAllTypes')}</SelectItem>
