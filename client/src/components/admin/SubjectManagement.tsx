@@ -129,13 +129,13 @@ export default function SubjectManagement() {
       });
     },
     onSuccess: () => {
-      toast({ title: "Subject created", description: "The subject has been created successfully." });
+      toast({ title: t('subjects.createSuccess'), description: t('subjects.createSuccessDesc') });
       setShowAddDialog(false);
       resetForm();
       queryClient.invalidateQueries({ queryKey: ["/api/superadmin/subjects"] });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to create subject", variant: "destructive" });
+      toast({ title: t('subjects.error'), description: error.message || t('subjects.failedCreate'), variant: "destructive" });
     },
   });
 
@@ -152,14 +152,14 @@ export default function SubjectManagement() {
       });
     },
     onSuccess: () => {
-      toast({ title: "Subject updated", description: "The subject has been updated successfully." });
+      toast({ title: t('subjects.updateSuccess'), description: t('subjects.updateSuccessDesc') });
       setShowEditDialog(false);
       setSelectedSubject(null);
       resetForm();
       queryClient.invalidateQueries({ queryKey: ["/api/superadmin/subjects"] });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to update subject", variant: "destructive" });
+      toast({ title: t('subjects.error'), description: error.message || t('subjects.failedUpdate'), variant: "destructive" });
     },
   });
 
@@ -168,13 +168,13 @@ export default function SubjectManagement() {
       return apiRequest("DELETE", `/api/superadmin/subjects/${id}`);
     },
     onSuccess: () => {
-      toast({ title: "Subject deleted", description: "The subject has been deleted successfully." });
+      toast({ title: t('subjects.deleteSuccess'), description: t('subjects.deleteSuccessDesc') });
       setShowDeleteDialog(false);
       setSelectedSubject(null);
       queryClient.invalidateQueries({ queryKey: ["/api/superadmin/subjects"] });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to delete subject", variant: "destructive" });
+      toast({ title: t('subjects.error'), description: error.message || t('subjects.failedDelete'), variant: "destructive" });
     },
   });
 
@@ -184,15 +184,15 @@ export default function SubjectManagement() {
     },
     onSuccess: (data: any) => {
       toast({ 
-        title: "Subjects cloned", 
-        description: `${data.cloned} subjects cloned, ${data.skipped} skipped (already exist).` 
+        title: t('subjects.cloneSuccess'), 
+        description: t('subjects.cloneSuccessDesc', { cloned: data.cloned, skipped: data.skipped })
       });
       setShowCloneDialog(false);
       setCloneData({ sourceCountryId: "", sourceCurriculum: "", targetCountryId: "", targetCurriculum: "" });
       queryClient.invalidateQueries({ queryKey: ["/api/superadmin/subjects"] });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to clone subjects", variant: "destructive" });
+      toast({ title: t('subjects.error'), description: error.message || t('subjects.failedClone'), variant: "destructive" });
     },
   });
 
@@ -262,12 +262,12 @@ export default function SubjectManagement() {
       });
     },
     onSuccess: () => {
-      toast({ title: "Subject registered", description: "The subject has been added to this country." });
+      toast({ title: t('subjects.registerSuccess'), description: t('subjects.registerSuccessDesc') });
       queryClient.invalidateQueries({ queryKey: ["/api/superadmin/subjects"] });
       queryClient.invalidateQueries({ queryKey: ["/api/superadmin/subjects/question-counts"] });
     },
     onError: (error: any) => {
-      toast({ title: "Error", description: error.message || "Failed to register subject", variant: "destructive" });
+      toast({ title: t('subjects.error'), description: error.message || t('subjects.failedRegister'), variant: "destructive" });
     },
   });
 
@@ -311,16 +311,16 @@ export default function SubjectManagement() {
       <CardContent className="space-y-4">
         <div className="flex flex-wrap gap-4">
           <div className="flex-1 min-w-[200px]">
-            <Label>Filter by Country</Label>
+            <Label>{t('subjects.filterCountry')}</Label>
             <Select value={selectedCountry || "__all__"} onValueChange={(value) => {
               setSelectedCountry(value === "__all__" ? "" : value);
               setSelectedCurriculum("");
             }}>
               <SelectTrigger data-testid="select-filter-country">
-                <SelectValue placeholder="All countries" />
+                <SelectValue placeholder={t('subjects.allCountries')} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__all__">All countries</SelectItem>
+                <SelectItem value="__all__">{t('subjects.allCountries')}</SelectItem>
                 {countries.map(country => (
                   <SelectItem key={country.id} value={country.id}>
                     {country.abbreviation || country.name}
@@ -332,13 +332,13 @@ export default function SubjectManagement() {
           
           {selectedCountry && selectedCountryData?.curricula && selectedCountryData.curricula.length > 0 && (
             <div className="flex-1 min-w-[200px]">
-              <Label>Filter by Curriculum</Label>
+              <Label>{t('subjects.filterCurriculum')}</Label>
               <Select value={selectedCurriculum || "__all__"} onValueChange={(value) => setSelectedCurriculum(value === "__all__" ? "" : value)}>
                 <SelectTrigger data-testid="select-filter-curriculum">
-                  <SelectValue placeholder="All curricula" />
+                  <SelectValue placeholder={t('subjects.allCurricula')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__all__">All curricula</SelectItem>
+                  <SelectItem value="__all__">{t('subjects.allCurricula')}</SelectItem>
                   {selectedCountryData.curricula.map(curriculum => (
                     <SelectItem key={curriculum} value={curriculum}>
                       {curriculum}
@@ -350,11 +350,11 @@ export default function SubjectManagement() {
           )}
           
           <div className="flex-1 min-w-[200px]">
-            <Label>Search</Label>
+            <Label>{t('subjects.search')}</Label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
-                placeholder="Search subjects..."
+                placeholder={t('subjects.searchPlaceholder')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-9"
@@ -368,7 +368,7 @@ export default function SubjectManagement() {
           <div className="rounded-md border border-yellow-500/30 bg-yellow-500/5 p-4 space-y-3">
             <div className="flex items-center gap-2 text-sm font-medium">
               <AlertCircle className="h-4 w-4 text-yellow-500" />
-              <span>{unregisteredSubjects.length} subject{unregisteredSubjects.length > 1 ? "s" : ""} detected from quiz bank but not yet registered</span>
+              <span>{t('subjects.unregistered', { n: unregisteredSubjects.length })}</span>
             </div>
             <div className="flex flex-wrap gap-2">
               {unregisteredSubjects.map(us => {
@@ -380,7 +380,7 @@ export default function SubjectManagement() {
                   <div key={`${us.subject}-${us.curriculum}`} className="flex items-center gap-2 rounded-md border bg-background px-3 py-1.5 text-sm">
                     <span className="font-medium">{displayName}</span>
                     <Badge variant="outline" className="text-xs">{us.curriculum}</Badge>
-                    <span className="text-muted-foreground">{us.count} questions</span>
+                    <span className="text-muted-foreground">{us.count} {t('subjects.questionsCount')}</span>
                     <Button
                       size="sm"
                       variant="outline"
@@ -388,7 +388,7 @@ export default function SubjectManagement() {
                       disabled={registerSubjectMutation.isPending}
                       data-testid={`button-register-subject-${us.subject}`}
                     >
-                      Register
+                      {t('subjects.register')}
                     </Button>
                   </div>
                 );
@@ -398,25 +398,25 @@ export default function SubjectManagement() {
         )}
 
         {subjectsLoading ? (
-          <div className="text-center py-8 text-muted-foreground">Loading subjects...</div>
+          <div className="text-center py-8 text-muted-foreground">{t('subjects.loading')}</div>
         ) : filteredSubjects.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             {subjects.length === 0 
-              ? "No subjects found. Add your first subject to get started."
-              : "No subjects match your search criteria."}
+              ? t('subjects.noSubjects')
+              : t('subjects.noMatchingSubjects')}
           </div>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Subject</TableHead>
-                <TableHead>Code</TableHead>
-                <TableHead>Country</TableHead>
-                <TableHead>Curriculum</TableHead>
-                <TableHead>Questions</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Order</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t('subjects.nameCol')}</TableHead>
+                <TableHead>{t('subjects.codeCol')}</TableHead>
+                <TableHead>{t('subjects.countryCol')}</TableHead>
+                <TableHead>{t('subjects.curriculumCol')}</TableHead>
+                <TableHead>{t('subjects.questionsCol')}</TableHead>
+                <TableHead>{t('subjects.statusCol')}</TableHead>
+                <TableHead>{t('subjects.orderCol')}</TableHead>
+                <TableHead className="text-right">{t('subjects.actionsCol')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -445,7 +445,7 @@ export default function SubjectManagement() {
                     </TableCell>
                     <TableCell>
                       <Badge variant={subject.isActive ? "default" : "secondary"}>
-                        {subject.isActive ? "Active" : "Inactive"}
+                        {subject.isActive ? t('subjects.activeStatus') : t('subjects.inactiveStatus')}
                       </Badge>
                     </TableCell>
                     <TableCell>{subject.displayOrder}</TableCell>
@@ -475,28 +475,28 @@ export default function SubjectManagement() {
         )}
 
         <div className="text-sm text-muted-foreground">
-          Showing {filteredSubjects.length} of {subjects.length} subjects
+          {t('subjects.showingOf', { count: filteredSubjects.length, total: subjects.length })}
         </div>
       </CardContent>
 
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Add New Subject</DialogTitle>
+            <DialogTitle>{t('subjects.addSubjectTitle')}</DialogTitle>
             <DialogDescription>
-              Create a new curriculum-scoped subject for quiz questions.
+              {t('subjects.addSubjectDesc')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="add-country">Country *</Label>
+                <Label htmlFor="add-country">{t('subjects.countryLabel')}</Label>
                 <Select 
                   value={formData.countryId} 
                   onValueChange={(value) => setFormData(prev => ({ ...prev, countryId: value, curriculum: "" }))}
                 >
                   <SelectTrigger id="add-country" data-testid="select-add-country">
-                    <SelectValue placeholder="Select country" />
+                    <SelectValue placeholder={t('subjects.selectCountry')} />
                   </SelectTrigger>
                   <SelectContent>
                     {countries.map(country => (
@@ -509,14 +509,14 @@ export default function SubjectManagement() {
               </div>
               
               <div className="space-y-2">
-                <Label htmlFor="add-curriculum">Curriculum *</Label>
+                <Label htmlFor="add-curriculum">{t('subjects.curriculumLabel')}</Label>
                 <Select 
                   value={formData.curriculum} 
                   onValueChange={(value) => setFormData(prev => ({ ...prev, curriculum: value }))}
                   disabled={!formData.countryId || !selectedCountryForForm?.curricula?.length}
                 >
                   <SelectTrigger id="add-curriculum" data-testid="select-add-curriculum">
-                    <SelectValue placeholder="Select curriculum" />
+                    <SelectValue placeholder={t('subjects.selectCurriculum')} />
                   </SelectTrigger>
                   <SelectContent>
                     {selectedCountryForForm?.curricula?.map(curriculum => (
@@ -530,7 +530,7 @@ export default function SubjectManagement() {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="add-name">Subject Name *</Label>
+              <Label htmlFor="add-name">{t('subjects.subjectName')}</Label>
               <Input
                 id="add-name"
                 value={formData.name}
@@ -545,7 +545,7 @@ export default function SubjectManagement() {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="add-code">Subject Code *</Label>
+              <Label htmlFor="add-code">{t('subjects.subjectCode')}</Label>
               <Input
                 id="add-code"
                 value={formData.code}
@@ -553,11 +553,11 @@ export default function SubjectManagement() {
                 placeholder="e.g., mathematics"
                 data-testid="input-add-code"
               />
-              <p className="text-xs text-muted-foreground">Unique identifier used in the system</p>
+              <p className="text-xs text-muted-foreground">{t('subjects.subjectCodeHint')}</p>
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="add-description">Description</Label>
+              <Label htmlFor="add-description">{t('subjects.descriptionLabel')}</Label>
               <Textarea
                 id="add-description"
                 value={formData.description}
@@ -568,7 +568,7 @@ export default function SubjectManagement() {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="add-aliases">Aliases (comma-separated)</Label>
+              <Label htmlFor="add-aliases">{t('subjects.aliasesLabel')}</Label>
               <Input
                 id="add-aliases"
                 value={formData.aliases}
@@ -576,12 +576,12 @@ export default function SubjectManagement() {
                 placeholder="e.g., Math, Maths, Calculus"
                 data-testid="input-add-aliases"
               />
-              <p className="text-xs text-muted-foreground">Alternative names that map to this subject</p>
+              <p className="text-xs text-muted-foreground">{t('subjects.aliasesHint')}</p>
             </div>
             
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="add-order">Display Order</Label>
+                <Label htmlFor="add-order">{t('subjects.displayOrderLabel')}</Label>
                 <Input
                   id="add-order"
                   type="number"
@@ -592,7 +592,7 @@ export default function SubjectManagement() {
               </div>
               
               <div className="flex items-center justify-between space-x-2 pt-6">
-                <Label htmlFor="add-active">Active</Label>
+                <Label htmlFor="add-active">{t('subjects.activeLabel')}</Label>
                 <Switch
                   id="add-active"
                   checked={formData.isActive}
@@ -604,14 +604,14 @@ export default function SubjectManagement() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddDialog(false)}>
-              Cancel
+              {t('subjects.cancel')}
             </Button>
             <Button 
               onClick={() => createSubjectMutation.mutate(formData)}
               disabled={!formData.name || !formData.code || !formData.countryId || !formData.curriculum || createSubjectMutation.isPending}
               data-testid="button-confirm-add-subject"
             >
-              {createSubjectMutation.isPending ? "Creating..." : "Create Subject"}
+              {createSubjectMutation.isPending ? t('subjects.creating') : t('subjects.createSubject')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -620,15 +620,15 @@ export default function SubjectManagement() {
       <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit Subject</DialogTitle>
+            <DialogTitle>{t('subjects.editSubjectTitle')}</DialogTitle>
             <DialogDescription>
-              Update the subject details. Changing curriculum will affect which questions use this subject.
+              {t('subjects.editSubjectDescFull')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Country *</Label>
+                <Label>{t('subjects.countryLabel')}</Label>
                 <Select 
                   value={formData.countryId} 
                   onValueChange={(value) => {
@@ -636,7 +636,7 @@ export default function SubjectManagement() {
                   }}
                 >
                   <SelectTrigger data-testid="select-edit-country">
-                    <SelectValue placeholder="Select country" />
+                    <SelectValue placeholder={t('subjects.selectCountry')} />
                   </SelectTrigger>
                   <SelectContent>
                     {countries.map(country => (
@@ -648,14 +648,14 @@ export default function SubjectManagement() {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Curriculum *</Label>
+                <Label>{t('subjects.curriculumLabel')}</Label>
                 <Select 
                   value={formData.curriculum} 
                   onValueChange={(value) => setFormData(prev => ({ ...prev, curriculum: value }))}
                   disabled={!formData.countryId}
                 >
                   <SelectTrigger data-testid="select-edit-curriculum">
-                    <SelectValue placeholder="Select curriculum" />
+                    <SelectValue placeholder={t('subjects.selectCurriculum')} />
                   </SelectTrigger>
                   <SelectContent>
                     {countries.find(c => c.id === formData.countryId)?.curricula?.map(curriculum => (
@@ -669,7 +669,7 @@ export default function SubjectManagement() {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="edit-name">Subject Name *</Label>
+              <Label htmlFor="edit-name">{t('subjects.subjectName')}</Label>
               <Input
                 id="edit-name"
                 value={formData.name}
@@ -679,7 +679,7 @@ export default function SubjectManagement() {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="edit-code">Subject Code *</Label>
+              <Label htmlFor="edit-code">{t('subjects.subjectCode')}</Label>
               <Input
                 id="edit-code"
                 value={formData.code}
@@ -689,7 +689,7 @@ export default function SubjectManagement() {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="edit-description">Description</Label>
+              <Label htmlFor="edit-description">{t('subjects.descriptionLabel')}</Label>
               <Textarea
                 id="edit-description"
                 value={formData.description}
@@ -699,7 +699,7 @@ export default function SubjectManagement() {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="edit-aliases">Aliases (comma-separated)</Label>
+              <Label htmlFor="edit-aliases">{t('subjects.aliasesLabel')}</Label>
               <Input
                 id="edit-aliases"
                 value={formData.aliases}
@@ -710,7 +710,7 @@ export default function SubjectManagement() {
             
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="edit-order">Display Order</Label>
+                <Label htmlFor="edit-order">{t('subjects.displayOrderLabel')}</Label>
                 <Input
                   id="edit-order"
                   type="number"
@@ -721,7 +721,7 @@ export default function SubjectManagement() {
               </div>
               
               <div className="flex items-center justify-between space-x-2 pt-6">
-                <Label htmlFor="edit-active">Active</Label>
+                <Label htmlFor="edit-active">{t('subjects.activeLabel')}</Label>
                 <Switch
                   id="edit-active"
                   checked={formData.isActive}
@@ -733,14 +733,14 @@ export default function SubjectManagement() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowEditDialog(false)}>
-              Cancel
+              {t('subjects.cancel')}
             </Button>
             <Button 
               onClick={() => selectedSubject && updateSubjectMutation.mutate({ ...formData, id: selectedSubject.id })}
               disabled={!formData.name || !formData.code || updateSubjectMutation.isPending}
               data-testid="button-confirm-edit-subject"
             >
-              {updateSubjectMutation.isPending ? "Saving..." : "Save Changes"}
+              {updateSubjectMutation.isPending ? t('subjects.saving') : t('subjects.saveChanges')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -749,14 +749,14 @@ export default function SubjectManagement() {
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Subject</DialogTitle>
+            <DialogTitle>{t('subjects.deleteSubjectTitle')}</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete "{selectedSubject?.name}"? This action cannot be undone.
+              {t('subjects.deleteSubjectConfirm', { name: selectedSubject?.name })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
-              Cancel
+              {t('subjects.cancel')}
             </Button>
             <Button 
               variant="destructive"
@@ -764,7 +764,7 @@ export default function SubjectManagement() {
               disabled={deleteSubjectMutation.isPending}
               data-testid="button-confirm-delete-subject"
             >
-              {deleteSubjectMutation.isPending ? "Deleting..." : "Delete Subject"}
+              {deleteSubjectMutation.isPending ? t('subjects.deleting') : t('subjects.deleteSubjectTitle')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -773,23 +773,23 @@ export default function SubjectManagement() {
       <Dialog open={showCloneDialog} onOpenChange={setShowCloneDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Clone Subjects</DialogTitle>
+            <DialogTitle>{t('subjects.cloneTitle')}</DialogTitle>
             <DialogDescription>
-              Copy all subjects from one curriculum to another. Existing subjects will be skipped.
+              {t('subjects.cloneDescFull')}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-4 border rounded-lg p-4">
-              <h4 className="font-medium text-sm">Source</h4>
+              <h4 className="font-medium text-sm">{t('subjects.source')}</h4>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Country</Label>
+                  <Label>{t('subjects.country')}</Label>
                   <Select 
                     value={cloneData.sourceCountryId} 
                     onValueChange={(value) => setCloneData(prev => ({ ...prev, sourceCountryId: value, sourceCurriculum: "" }))}
                   >
                     <SelectTrigger data-testid="select-clone-source-country">
-                      <SelectValue placeholder="Select country" />
+                      <SelectValue placeholder={t('subjects.selectCountry')} />
                     </SelectTrigger>
                     <SelectContent>
                       {countries.map(country => (
@@ -801,14 +801,14 @@ export default function SubjectManagement() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Curriculum</Label>
+                  <Label>{t('subjects.curriculum')}</Label>
                   <Select 
                     value={cloneData.sourceCurriculum} 
                     onValueChange={(value) => setCloneData(prev => ({ ...prev, sourceCurriculum: value }))}
                     disabled={!cloneData.sourceCountryId}
                   >
                     <SelectTrigger data-testid="select-clone-source-curriculum">
-                      <SelectValue placeholder="Select curriculum" />
+                      <SelectValue placeholder={t('subjects.selectCurriculum')} />
                     </SelectTrigger>
                     <SelectContent>
                       {countries.find(c => c.id === cloneData.sourceCountryId)?.curricula?.map(curriculum => (
@@ -823,16 +823,16 @@ export default function SubjectManagement() {
             </div>
 
             <div className="space-y-4 border rounded-lg p-4">
-              <h4 className="font-medium text-sm">Target</h4>
+              <h4 className="font-medium text-sm">{t('subjects.target')}</h4>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Country</Label>
+                  <Label>{t('subjects.country')}</Label>
                   <Select 
                     value={cloneData.targetCountryId} 
                     onValueChange={(value) => setCloneData(prev => ({ ...prev, targetCountryId: value, targetCurriculum: "" }))}
                   >
                     <SelectTrigger data-testid="select-clone-target-country">
-                      <SelectValue placeholder="Select country" />
+                      <SelectValue placeholder={t('subjects.selectCountry')} />
                     </SelectTrigger>
                     <SelectContent>
                       {countries.map(country => (
@@ -844,14 +844,14 @@ export default function SubjectManagement() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Curriculum</Label>
+                  <Label>{t('subjects.curriculum')}</Label>
                   <Select 
                     value={cloneData.targetCurriculum} 
                     onValueChange={(value) => setCloneData(prev => ({ ...prev, targetCurriculum: value }))}
                     disabled={!cloneData.targetCountryId}
                   >
                     <SelectTrigger data-testid="select-clone-target-curriculum">
-                      <SelectValue placeholder="Select curriculum" />
+                      <SelectValue placeholder={t('subjects.selectCurriculum')} />
                     </SelectTrigger>
                     <SelectContent>
                       {countries.find(c => c.id === cloneData.targetCountryId)?.curricula?.map(curriculum => (
@@ -867,7 +867,7 @@ export default function SubjectManagement() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowCloneDialog(false)}>
-              Cancel
+              {t('subjects.cancel')}
             </Button>
             <Button 
               onClick={() => cloneSubjectsMutation.mutate(cloneData)}
@@ -880,7 +880,7 @@ export default function SubjectManagement() {
               }
               data-testid="button-confirm-clone-subjects"
             >
-              {cloneSubjectsMutation.isPending ? "Cloning..." : "Clone Subjects"}
+              {cloneSubjectsMutation.isPending ? t('subjects.cloning') : t('subjects.cloneSubjects')}
             </Button>
           </DialogFooter>
         </DialogContent>

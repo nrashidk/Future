@@ -5,13 +5,23 @@ import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Card, CardContent } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useTranslation } from "react-i18next";
+import {
+  BarChart as RechartsBarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 import { 
   Users, 
   TrendingUp, 
-  Globe, 
   Target,
   CheckCircle,
   BarChart3,
@@ -357,6 +367,69 @@ export default function Analytics() {
 
         <div className="mb-12">
           <div className="flex items-center gap-3 mb-6">
+            <GraduationCap className="w-6 h-6 text-primary" />
+            <h2 className="text-2xl font-bold">{t('analytics.gradeDistributionTitle')}</h2>
+          </div>
+          {overviewLoading ? (
+            <div className="h-60 flex items-center justify-center text-muted-foreground">
+              {t('analytics.gradeDistributionLoading')}
+            </div>
+          ) : overview?.gradeDistribution && overview.gradeDistribution.length > 0 ? (
+            <Card>
+              <CardContent className="pt-6">
+                <ResponsiveContainer width="100%" height={280}>
+                  <RechartsBarChart
+                    data={overview.gradeDistribution.map(d => ({
+                      ...d,
+                      label: t('analytics.gradeN', { n: d.grade.replace(/^grade\s*/i, '') }),
+                    }))}
+                    margin={{ top: 8, right: 24, left: 0, bottom: 8 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fontSize: 13 }}
+                      label={{
+                        value: t('analytics.chartAxisGrade'),
+                        position: 'insideBottom',
+                        offset: -2,
+                        fontSize: 13,
+                      }}
+                      height={48}
+                    />
+                    <YAxis
+                      allowDecimals={false}
+                      tick={{ fontSize: 13 }}
+                      label={{
+                        value: t('analytics.chartAxisStudents'),
+                        angle: -90,
+                        position: 'insideLeft',
+                        offset: 10,
+                        fontSize: 13,
+                      }}
+                      width={52}
+                    />
+                    <Tooltip
+                      formatter={(value: number) => [
+                        `${value} ${t('analytics.chartTooltipStudents')}`,
+                        t('analytics.chartAxisStudents'),
+                      ]}
+                      labelFormatter={(label: string) => label}
+                    />
+                    <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                  </RechartsBarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="h-60 flex items-center justify-center text-muted-foreground">
+              {t('analytics.gradeDistributionNoData')}
+            </div>
+          )}
+        </div>
+
+        <div className="mb-12">
+          <div className="flex items-center gap-3 mb-6">
             <TrendingUp className="w-6 h-6 text-primary" />
             <h2 className="text-2xl font-bold">{t('analytics.topCareers')}</h2>
           </div>
@@ -407,6 +480,51 @@ export default function Analytics() {
             </div>
           ) : (
             <div className="h-60 flex items-center justify-center text-muted-foreground">
+              {t('analytics.noCareers')}
+            </div>
+          )}
+        </div>
+
+        <div className="mb-12">
+          <div className="flex items-center gap-3 mb-6">
+            <BarChart className="w-6 h-6 text-primary" />
+            <h2 className="text-2xl font-bold">{t('analytics.careerTrendsTitle')}</h2>
+          </div>
+          {careersLoading ? (
+            <div className="h-32 flex items-center justify-center text-muted-foreground">
+              {t('analytics.loadingCareers')}
+            </div>
+          ) : careers && careers.length > 0 ? (
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-16 text-center">{t('analytics.colRank')}</TableHead>
+                      <TableHead>{t('analytics.colCareer')}</TableHead>
+                      <TableHead className="text-end">{t('analytics.colRecommendations')}</TableHead>
+                      <TableHead className="text-end">{t('analytics.colAvgMatch')}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {careers.map((career, index) => (
+                      <TableRow key={career.careerId} data-testid={`career-row-${career.careerId}`}>
+                        <TableCell className="text-center font-medium text-muted-foreground">
+                          #{index + 1}
+                        </TableCell>
+                        <TableCell className="font-medium">{career.careerTitle}</TableCell>
+                        <TableCell className="text-end">{career.recommendationCount}</TableCell>
+                        <TableCell className="text-end font-semibold text-primary">
+                          {career.avgMatchScore.toFixed(1)}%
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="h-32 flex items-center justify-center text-muted-foreground">
               {t('analytics.noCareers')}
             </div>
           )}
