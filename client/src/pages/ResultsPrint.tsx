@@ -212,9 +212,13 @@ export default function ResultsPrint() {
   const narrativeQueries = useQueries({
     queries: (isPremium && assessmentId && recommendations.length > 0)
       ? recommendations.map((rec: any) => {
-          const qs = guestToken ? `?guestToken=${encodeURIComponent(guestToken)}` : '';
+          const params = new URLSearchParams();
+          // lang overrides the student's stored preference so the PDF language
+          // matches the explicit download language chosen by the user.
+          params.set('lang', langParam === 'ar' ? 'ar' : 'en');
+          if (guestToken) params.set('guestToken', encodeURIComponent(guestToken));
           return {
-            queryKey: [`/api/recommendations/${assessmentId}/career-reasoning/${rec.careerId}${qs}`],
+            queryKey: [`/api/recommendations/${assessmentId}/career-reasoning/${rec.careerId}?${params.toString()}`],
             retry: false,
             staleTime: Infinity,
           };

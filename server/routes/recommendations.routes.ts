@@ -535,9 +535,12 @@ export function registerRecommendationsRoutes(app: Express) {
         return res.status(404).json({ message: "Recommendation not found for this career" });
       }
 
-      // Resolve user's preferred language for narrative output
-      let narrativeLanguage = "en";
-      if (assessment.userId) {
+      // Resolve narrative language: an explicit ?lang= query param takes
+      // priority (used by the PDF renderer so the report language matches the
+      // download language), falling back to the user's stored preference.
+      const langOverride = typeof req.query.lang === 'string' ? req.query.lang : null;
+      let narrativeLanguage = (langOverride === 'ar' || langOverride === 'en') ? langOverride : "en";
+      if (!langOverride && assessment.userId) {
         const narrativeUser = await storage.getUser(assessment.userId);
         narrativeLanguage = narrativeUser?.preferredLanguage || "en";
       }
