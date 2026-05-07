@@ -131,9 +131,9 @@ export function Header() {
       <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
         <Link href="/" className="flex items-center gap-2 hover-elevate rounded-lg px-3 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" data-testid="link-home">
           <GraduationCap className="w-6 h-6 text-primary" aria-hidden="true" />
-          <span className="font-bold text-lg">Future Pathways</span>
-          {isSuperadmin && <Badge variant="secondary">Superadmin</Badge>}
-          {isOrgAdmin && <Badge variant="secondary">School Admin</Badge>}
+          <span className="font-bold text-lg">{t("header.brandName")}</span>
+          {isSuperadmin && <Badge variant="secondary">{t("header.badgeSuperadmin")}</Badge>}
+          {isOrgAdmin && <Badge variant="secondary">{t("header.badgeSchoolAdmin")}</Badge>}
         </Link>
 
         {/* Desktop nav */}

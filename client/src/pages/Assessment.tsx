@@ -34,10 +34,9 @@ interface AssessmentData {
 }
 
 export default function Assessment() {
-  const { t } = useTranslation('assessment');
-  const { t: tCommon } = useTranslation('common');
-
-  useEffect(() => { document.title = t('page.title'); }, [t]);
+  const { t } = useTranslation("assessment");
+  const tCommon = useTranslation("common").t;
+  useEffect(() => { document.title = `${t("pageTitle")} | Future Pathways`; }, [t]);
 
   const [, setLocation] = useLocation();
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -256,14 +255,11 @@ export default function Assessment() {
           // Advance to quiz step - React batches state updates so assessmentId will be available
           setCurrentStep((prev) => prev + 1);
         }
-      } catch (error) {
-        console.error("Error saving assessment:", error);
         toast({
-          title: t('page.errorSaveTitle'),
-          description: t('page.errorSave', { message: error instanceof Error ? error.message : t('page.unknownError') }),
+          title: t("errors.saveFailed"),
+          description: t("errors.saveFailedDesc", { message: error instanceof Error ? error.message : t("errors.unknownError") }),
           variant: "destructive",
         });
-      }
     } else {
       // For all other steps: Just advance
       setCurrentStep((prev) => prev + 1);
@@ -290,8 +286,8 @@ export default function Assessment() {
     } catch (error) {
       console.error("Error generating recommendations:", error);
       toast({
-        title: t('page.errorRecsTitle'),
-        description: t('page.errorRecs'),
+        title: t("errors.generateFailed"),
+        description: t("errors.generateFailedDesc"),
         variant: "destructive",
       });
     }
@@ -343,7 +339,7 @@ export default function Assessment() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <GraduationCap className="w-16 h-16 text-primary mx-auto mb-4 animate-pulse" />
-          <p className="text-lg text-muted-foreground">{t('page.loading')}</p>
+          <p className="text-lg text-muted-foreground">{t("loading")}</p>
         </div>
       </div>
     );
@@ -357,7 +353,7 @@ export default function Assessment() {
           <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-sm font-body text-accent-foreground">
-                {t('page.guestBanner')}
+                {t("guestBanner.text")}
               </span>
             </div>
             <Button
@@ -366,8 +362,8 @@ export default function Assessment() {
               onClick={handleSaveAndLogin}
               data-testid="button-save-login"
             >
-              <LogIn className="w-4 h-4 me-2" />
-              {t('page.signUp')}
+              <LogIn className="w-4 h-4 me-2" aria-hidden="true" />
+              {t("guestBanner.signUp")}
             </Button>
           </div>
         </div>
@@ -377,10 +373,10 @@ export default function Assessment() {
       <div className="bg-background border-b sticky top-0 z-40 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <GraduationCap className="w-8 h-8 text-primary" />
+            <GraduationCap className="w-8 h-8 text-primary" aria-hidden="true" />
             <div>
-              <h1 className="text-xl font-bold">{tCommon('nav.home')}</h1>
-              <p className="text-sm text-muted-foreground font-body">{t('page.careerAssessment')}</p>
+              <h1 className="text-xl font-bold">{tCommon("header.brandName")}</h1>
+              <p className="text-sm text-muted-foreground font-body">{t("header.subtitle")}</p>
             </div>
           </div>
           <div className="flex gap-2">
@@ -392,8 +388,8 @@ export default function Assessment() {
                   onClick={() => setLocation("/superadmin")}
                   data-testid="button-nav-superadmin"
                 >
-                  <Shield className="w-4 h-4 me-2" />
-                  {tCommon('nav.superadmin')}
+                  <Shield className="w-4 h-4 me-2" aria-hidden="true" />
+                  {tCommon("nav.superadmin")}
                 </Button>
                 <Button
                   variant="outline"
@@ -401,8 +397,8 @@ export default function Assessment() {
                   onClick={() => setLocation("/admin/organizations")}
                   data-testid="button-nav-admin"
                 >
-                  <Building2 className="w-4 h-4 me-2" />
-                  {tCommon('nav.admin')}
+                  <Building2 className="w-4 h-4 me-2" aria-hidden="true" />
+                  {tCommon("nav.admin")}
                 </Button>
                 <Button
                   variant="outline"
@@ -410,8 +406,8 @@ export default function Assessment() {
                   onClick={() => setLocation("/admin")}
                   data-testid="button-nav-questions"
                 >
-                  <FileQuestion className="w-4 h-4 me-2" />
-                  {tCommon('nav.quiz')}
+                  <FileQuestion className="w-4 h-4 me-2" aria-hidden="true" />
+                  {tCommon("nav.quiz")}
                 </Button>
                 <Button
                   variant="outline"
@@ -419,8 +415,8 @@ export default function Assessment() {
                   onClick={() => setLocation("/analytics")}
                   data-testid="button-nav-analytics"
                 >
-                  <BarChart className="w-4 h-4 me-2" />
-                  {tCommon('nav.analytics')}
+                  <BarChart className="w-4 h-4 me-2" aria-hidden="true" />
+                  {tCommon("nav.analytics")}
                 </Button>
               </>
             )}
@@ -432,8 +428,8 @@ export default function Assessment() {
                   onClick={() => setLocation("/admin/organizations")}
                   data-testid="button-nav-admin"
                 >
-                  <Building2 className="w-4 h-4 me-2" />
-                  {tCommon('nav.admin')}
+                  <Building2 className="w-4 h-4 me-2" aria-hidden="true" />
+                  {tCommon("nav.admin")}
                 </Button>
                 <Button
                   variant="outline"
@@ -441,8 +437,8 @@ export default function Assessment() {
                   onClick={() => setLocation("/assessment")}
                   data-testid="button-nav-assessment"
                 >
-                  <ClipboardCheck className="w-4 h-4 me-2" />
-                  {tCommon('nav.assessment')}
+                  <ClipboardCheck className="w-4 h-4 me-2" aria-hidden="true" />
+                  {tCommon("nav.assessment")}
                 </Button>
                 <Button
                   variant="outline"
@@ -450,8 +446,8 @@ export default function Assessment() {
                   onClick={() => setLocation("/analytics")}
                   data-testid="button-nav-analytics"
                 >
-                  <BarChart className="w-4 h-4 me-2" />
-                  {tCommon('nav.analytics')}
+                  <BarChart className="w-4 h-4 me-2" aria-hidden="true" />
+                  {tCommon("nav.analytics")}
                 </Button>
               </>
             )}
@@ -462,8 +458,8 @@ export default function Assessment() {
                 onClick={() => setLocation("/assessment")}
                 data-testid="button-nav-assessment"
               >
-                <ClipboardCheck className="w-4 h-4 me-2" />
-                {tCommon('nav.assessment')}
+                <ClipboardCheck className="w-4 h-4 me-2" aria-hidden="true" />
+                {tCommon("nav.assessment")}
               </Button>
             )}
             {isAuthenticated && (
@@ -474,8 +470,8 @@ export default function Assessment() {
                   onClick={() => setLocation("/profile")}
                   data-testid="button-nav-profile"
                 >
-                  <User className="w-4 h-4 me-2" />
-                  {tCommon('nav.profile')}
+                  <User className="w-4 h-4 me-2" aria-hidden="true" />
+                  {tCommon("nav.profile")}
                 </Button>
                 <Button
                   variant="outline"
@@ -483,8 +479,8 @@ export default function Assessment() {
                   onClick={() => window.location.href = "/api/logout"}
                   data-testid="button-logout"
                 >
-                  <LogOut className="w-4 h-4 me-2" />
-                  {tCommon('nav.logout')}
+                  <LogOut className="w-4 h-4 me-2" aria-hidden="true" />
+                  {tCommon("nav.logout")}
                 </Button>
               </>
             )}
@@ -502,7 +498,7 @@ export default function Assessment() {
         aria-labelledby="assessment-step-heading"
       >
         <h2 id="assessment-step-heading" className="sr-only">
-          {t('page.stepLabel', { current: currentStep, total: totalSteps })}
+          {t("progress.stepOf", { current: currentStep, total: totalSteps })}
         </h2>
         {/* Step 1: Demographics (both tiers) */}
         {currentStep === 1 && (
@@ -559,8 +555,8 @@ export default function Assessment() {
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-                  <p className="text-lg text-destructive font-semibold">{t('page.loadingQuiz')}</p>
-                  <p className="text-muted-foreground">{t('page.loadingQuizSubtitle')}</p>
+                  <p className="text-lg text-destructive font-semibold">{t("errors.loadingQuiz")}</p>
+                  <p className="text-muted-foreground">{t("errors.loadingQuizDesc")}</p>
                 </div>
               )
             ) : (
@@ -607,10 +603,10 @@ export default function Assessment() {
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-                  <p className="text-lg text-destructive font-semibold">{t('page.errorNotFound')}</p>
-                  <p className="text-muted-foreground">{t('page.errorGoBackMsg')}</p>
+                  <p className="text-lg text-destructive font-semibold">{t("errors.notFound")}</p>
+                  <p className="text-muted-foreground">{t("errors.notFoundDesc")}</p>
                   <Button onClick={() => setCurrentStep(5)} data-testid="button-back-to-assessment">
-                    {t('page.goBack')}
+                    {t("errors.goBack")}
                   </Button>
                 </div>
               )
@@ -643,10 +639,10 @@ export default function Assessment() {
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-                  <p className="text-lg text-destructive font-semibold">{t('page.errorNotFound')}</p>
-                  <p className="text-muted-foreground">{t('page.errorGoBackMsg')}</p>
+                  <p className="text-lg text-destructive font-semibold">{t("errors.notFound")}</p>
+                  <p className="text-muted-foreground">{t("errors.notFoundDesc")}</p>
                   <Button onClick={() => setCurrentStep(6)} data-testid="button-back-to-assessment">
-                    {t('page.goBack')}
+                    {t("errors.goBack")}
                   </Button>
                 </div>
               )

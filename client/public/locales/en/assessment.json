@@ -1,4 +1,25 @@
 {
+  "pageTitle": "Career Assessment",
+  "loading": "Loading...",
+  "guestBanner": {
+    "text": "You're in guest mode. Create an account to save your progress!",
+    "signUp": "Sign Up"
+  },
+  "header": {
+    "subtitle": "Career Assessment"
+  },
+  "errors": {
+    "loadingQuiz": "Loading quiz...",
+    "loadingQuizDesc": "Please wait while we prepare your assessment.",
+    "notFound": "Assessment not found",
+    "notFoundDesc": "Please go back and complete the previous steps.",
+    "goBack": "Go Back",
+    "saveFailed": "Error",
+    "saveFailedDesc": "Failed to save assessment: {{message}}",
+    "generateFailed": "Error",
+    "generateFailedDesc": "Failed to generate recommendations. Please try again.",
+    "unknownError": "Unknown error"
+  },
   "nav": {
     "back": "Back",
     "continue": "Continue",

@@ -24,5 +24,10 @@
     "loading": "جارٍ التحميل…",
     "error": "حدث خطأ ما",
     "skipToMain": "تخطى إلى المحتوى الرئيسي"
+  },
+  "header": {
+    "brandName": "مسارات المستقبل",
+    "badgeSuperadmin": "مشرف أعلى",
+    "badgeSchoolAdmin": "مدير المدرسة"
   }
 }

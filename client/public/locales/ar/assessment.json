@@ -1,4 +1,25 @@
 {
+  "pageTitle": "تقييم المهنة",
+  "loading": "جارٍ التحميل...",
+  "guestBanner": {
+    "text": "أنت في وضع الضيف. أنشئ حساباً لحفظ تقدمك!",
+    "signUp": "تسجيل"
+  },
+  "header": {
+    "subtitle": "تقييم المهنة"
+  },
+  "errors": {
+    "loadingQuiz": "جارٍ تحميل الاختبار...",
+    "loadingQuizDesc": "يرجى الانتظار بينما نُعدّ تقييمك.",
+    "notFound": "التقييم غير موجود",
+    "notFoundDesc": "يرجى الرجوع وإكمال الخطوات السابقة.",
+    "goBack": "رجوع",
+    "saveFailed": "خطأ",
+    "saveFailedDesc": "فشل حفظ التقييم: {{message}}",
+    "generateFailed": "خطأ",
+    "generateFailedDesc": "فشل إنشاء التوصيات. يرجى المحاولة مجدداً.",
+    "unknownError": "خطأ غير معروف"
+  },
   "nav": {
     "back": "رجوع",
     "continue": "متابعة",

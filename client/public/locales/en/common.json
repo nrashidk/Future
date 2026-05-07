@@ -24,5 +24,10 @@
     "loading": "Loading…",
     "error": "Something went wrong",
     "skipToMain": "Skip to main content"
+  },
+  "header": {
+    "brandName": "Future Pathways",
+    "badgeSuperadmin": "Superadmin",
+    "badgeSchoolAdmin": "School Admin"
   }
 }
