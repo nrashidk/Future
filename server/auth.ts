@@ -8,7 +8,11 @@ import connectPg from "connect-pg-simple";
 import rateLimit from "express-rate-limit";
 import { storage } from "./storage";
 import { verifyPassword, hashPassword } from "./utils/passwordHash";
+import { logger } from "./utils/logger";
 import { z } from "zod";
+
+const MAX_FAILED_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -157,15 +161,46 @@ export async function setupAuth(app: Express) {
           user = await storage.getUserByEmail(username.toLowerCase());
         }
         if (!user || !user.passwordHash) {
+          logger.auth("Login failure: user not found", undefined, { username, action: "local_login" });
           return done(null, false, { message: 'Invalid username or password' });
+        }
+
+        // OWASP #41: Check if account is temporarily locked
+        if (user.lockedUntil && user.lockedUntil > new Date()) {
+          logger.security("Login attempt on locked account", {
+            userId: user.id,
+            action: "local_login",
+            lockedUntil: user.lockedUntil.toISOString(),
+          });
+          return done(null, false, { message: 'Account temporarily locked due to too many failed login attempts. Please try again later.' });
         }
 
         const isValid = await verifyPassword(password, user.passwordHash);
         if (!isValid) {
+          // Increment failed attempt counter and lock if threshold reached
+          const newAttempts = (user.failedLoginAttempts ?? 0) + 1;
+          const lockedUntil = newAttempts >= MAX_FAILED_ATTEMPTS
+            ? new Date(Date.now() + LOCKOUT_DURATION_MS)
+            : null;
+          await storage.updateUser(user.id, {
+            failedLoginAttempts: newAttempts,
+            ...(lockedUntil ? { lockedUntil } : {}),
+          });
+          logger.auth("Login failure: invalid password", user.id, {
+            action: "local_login",
+            failedAttempts: newAttempts,
+            locked: !!lockedUntil,
+          });
           return done(null, false, { message: 'Invalid username or password' });
         }
 
-        await storage.updateUser(user.id, { lastLoginAt: new Date() });
+        // Successful login: reset lockout counters
+        await storage.updateUser(user.id, {
+          lastLoginAt: new Date(),
+          failedLoginAttempts: 0,
+          lockedUntil: null,
+        });
+        logger.auth("Login success", user.id, { action: "local_login" });
 
         return done(null, {
           userId: user.id,
@@ -255,9 +290,14 @@ export async function setupAuth(app: Express) {
     });
   });
 
+  // OWASP #38-39: Enforce password complexity and length requirements
   const registerSchema = z.object({
     email: z.string().email("Invalid email address"),
-    password: z.string().min(8, "Password must be at least 8 characters"),
+    password: z.string()
+      .min(8, "Password must be at least 8 characters")
+      .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+      .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+      .regex(/[0-9]/, "Password must contain at least one number"),
     firstName: z.string().min(1, "First name is required"),
     lastName: z.string().min(1, "Last name is required"),
   });
@@ -306,10 +346,11 @@ export async function setupAuth(app: Express) {
         if (err) {
           return res.status(500).json({ message: "Account created but login failed" });
         }
+        logger.auth("Registration success", user.id, { action: "register" });
         return res.json({ success: true, user: { id: user.id, email: user.email } });
       });
     } catch (error) {
-      console.error("Registration error:", error);
+      logger.error("Registration error", error instanceof Error ? error : undefined);
       return res.status(500).json({ message: "Registration failed" });
     }
   });

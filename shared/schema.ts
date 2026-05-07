@@ -54,6 +54,8 @@ export const users = pgTable("users", {
   
   // Activity tracking
   lastLoginAt: timestamp("last_login_at"), // Track last login time for activity status
+  failedLoginAttempts: integer("failed_login_attempts").notNull().default(0),
+  lockedUntil: timestamp("locked_until"), // Account temporarily locked after repeated failures
   
   // Language preference
   preferredLanguage: varchar("preferred_language", { length: 5 }).default("en"), // 'en' or 'ar'

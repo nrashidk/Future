@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { z } from "zod";
+import { logger } from "../utils/logger";
 
 /**
  * Generic validation middleware factory
@@ -16,6 +17,13 @@ export function validateBody<T extends z.ZodSchema>(schema: T) {
           field: e.path.join('.'),
           message: e.message,
         }));
+        logger.security("Input validation failure", {
+          action: "validateBody",
+          resource: req.path,
+          ip: req.ip,
+          userId: (req as any).user?.userId,
+          errors: formattedErrors.map(e => e.field),
+        });
         return res.status(400).json({ 
           message: 'Validation failed', 
           errors: formattedErrors 

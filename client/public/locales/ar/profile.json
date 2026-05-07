@@ -13,6 +13,7 @@
     "grade": "الصف",
     "organization": "المؤسسة",
     "accountType": "نوع الحساب",
+    "lastLogin": "آخر تسجيل دخول",
     "notProvided": "غير مُدخَل",
     "badge": {
       "superadmin": "مشرف أعلى",

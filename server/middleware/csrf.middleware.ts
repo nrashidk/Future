@@ -1,5 +1,6 @@
 import { randomBytes } from "crypto";
 import type { Request, Response, NextFunction } from "express";
+import { logger } from "../utils/logger";
 
 const CSRF_TOKEN_LENGTH = 32;
 const CSRF_COOKIE_NAME = "csrf_token";
@@ -72,6 +73,12 @@ export function validateCsrf(req: Request, res: Response, next: NextFunction) {
   const headerToken = req.headers[CSRF_HEADER_NAME] as string;
   
   if (!cookieToken || !headerToken) {
+    logger.security("CSRF token missing", {
+      action: "csrf_validation",
+      resource: req.path,
+      ip: req.ip,
+      method: req.method,
+    });
     return res.status(403).json({ 
       message: "CSRF token missing",
       code: "CSRF_MISSING"
@@ -79,6 +86,12 @@ export function validateCsrf(req: Request, res: Response, next: NextFunction) {
   }
   
   if (cookieToken !== headerToken) {
+    logger.security("CSRF token mismatch", {
+      action: "csrf_validation",
+      resource: req.path,
+      ip: req.ip,
+      method: req.method,
+    });
     return res.status(403).json({ 
       message: "CSRF token mismatch",
       code: "CSRF_MISMATCH"

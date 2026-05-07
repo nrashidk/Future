@@ -26,7 +26,11 @@ export default function Register() {
 
   const registerSchema = z.object({
     email: z.string().email(t("register.validation.emailInvalid")),
-    password: z.string().min(8, t("register.validation.passwordMin")),
+    password: z.string()
+      .min(8, t("register.validation.passwordMin"))
+      .regex(/[A-Z]/, t("resetPassword.validation.uppercase"))
+      .regex(/[a-z]/, t("resetPassword.validation.lowercase"))
+      .regex(/[0-9]/, t("resetPassword.validation.number")),
     confirmPassword: z.string(),
     firstName: z.string().min(1, t("register.validation.firstNameRequired")),
     lastName: z.string().min(1, t("register.validation.lastNameRequired")),
@@ -159,6 +163,7 @@ export default function Register() {
                           type={showPassword ? "text" : "password"}
                           placeholder={t("register.passwordPlaceholder")}
                           className="pe-10"
+                          autoComplete="new-password"
                           {...field}
                           data-testid="input-password"
                         />
@@ -190,6 +195,7 @@ export default function Register() {
                           type={showConfirmPassword ? "text" : "password"}
                           placeholder={t("register.confirmPasswordPlaceholder")}
                           className="pe-10"
+                          autoComplete="new-password"
                           {...field}
                           data-testid="input-confirm-password"
                         />

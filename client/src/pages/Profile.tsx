@@ -356,6 +356,14 @@ export default function Profile() {
                       <p className="font-medium" data-testid="text-user-username">{user.username}</p>
                     </div>
                   )}
+                  {(user as any).lastLoginAt && (
+                    <div>
+                      <p className="text-sm text-muted-foreground">{t("account.lastLogin")}</p>
+                      <p className="font-medium" data-testid="text-last-login">
+                        {new Date((user as any).lastLoginAt).toLocaleString()}
+                      </p>
+                    </div>
+                  )}
                   <div>
                     <p className="text-sm text-muted-foreground mb-2">{t("account.accountType")}</p>
                     {getAccountTypeBadge()}

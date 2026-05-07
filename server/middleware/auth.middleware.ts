@@ -1,4 +1,5 @@
 import { storage } from "../storage";
+import { logger } from "../utils/logger";
 
 /**
  * Get superadmin emails from environment variable (normalized to lowercase)
@@ -34,6 +35,12 @@ export const isAdmin = async (req: any, res: any, next: any) => {
       user.role === "superadmin";
     
     if (!isSuperadmin) {
+      logger.security("Access control failure: admin access required", {
+        userId: req.user?.userId,
+        action: "isAdmin",
+        resource: req.path,
+        ip: req.ip,
+      });
       return res.status(403).json({ message: "Forbidden: Admin access required" });
     }
     
@@ -58,6 +65,12 @@ export const isOrgAdmin = async (req: any, res: any, next: any) => {
     const user = await storage.getUser(userId);
     
     if (!user || user.accountType !== "org_admin") {
+      logger.security("Access control failure: org admin access required", {
+        userId: req.user?.userId,
+        action: "isOrgAdmin",
+        resource: req.path,
+        ip: req.ip,
+      });
       return res.status(403).json({ message: "Forbidden: Organization admin access required" });
     }
     

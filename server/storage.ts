@@ -143,7 +143,7 @@ export interface IStorage {
     purchasedLicenses?: number;
     stripeCustomerId?: string | null;
   }): Promise<User>;
-  updateUser(userId: string, data: Partial<{ firstName: string; lastName: string; lastLoginAt: Date; profileImageUrl: string; oauthProvider: string; oauthProviderId: string }>): Promise<User>;
+  updateUser(userId: string, data: Partial<{ firstName: string; lastName: string; lastLoginAt: Date; profileImageUrl: string; oauthProvider: string; oauthProviderId: string; failedLoginAttempts: number; lockedUntil: Date | null; role: string }>): Promise<User>;
 
   // Country operations
   getAllCountries(): Promise<Country[]>;
@@ -686,7 +686,7 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async updateUser(userId: string, data: Partial<{ firstName: string; lastName: string; lastLoginAt: Date; profileImageUrl: string; oauthProvider: string; oauthProviderId: string }>): Promise<User> {
+  async updateUser(userId: string, data: Partial<{ firstName: string; lastName: string; lastLoginAt: Date; profileImageUrl: string; oauthProvider: string; oauthProviderId: string; failedLoginAttempts: number; lockedUntil: Date | null; role: string }>): Promise<User> {
     const [user] = await db
       .update(users)
       .set({

@@ -13,6 +13,7 @@
     "grade": "Grade",
     "organization": "Organization",
     "accountType": "Account Type",
+    "lastLogin": "Last login",
     "notProvided": "Not provided",
     "badge": {
       "superadmin": "Superadmin",

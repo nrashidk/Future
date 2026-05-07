@@ -130,6 +130,7 @@ export default function StudentLogin() {
                           className="pe-10"
                           data-testid="input-password"
                           disabled={isLoading}
+                          autoComplete="current-password"
                         />
                         <button
                           type="button"

@@ -200,6 +200,7 @@ export default function ResetPassword() {
                           type={showPassword ? "text" : "password"}
                           placeholder={t("resetPassword.newPasswordPlaceholder")}
                           className="pe-10"
+                          autoComplete="new-password"
                           {...field}
                           data-testid="input-new-password"
                         />
@@ -231,6 +232,7 @@ export default function ResetPassword() {
                           type={showConfirmPassword ? "text" : "password"}
                           placeholder={t("resetPassword.confirmPasswordPlaceholder")}
                           className="pe-10"
+                          autoComplete="new-password"
                           {...field}
                           data-testid="input-confirm-password"
                         />

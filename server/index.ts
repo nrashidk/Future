@@ -92,6 +92,14 @@ app.use('/api', (_req, res, next) => {
   next();
 });
 
+// OWASP #140: Prevent browser caching of HTML pages that may contain sensitive user data
+app.use((req, res, next) => {
+  if (!req.path.startsWith('/api') && (req.headers.accept?.includes('text/html') || req.path === '/')) {
+    res.setHeader('Cache-Control', 'no-store');
+  }
+  next();
+});
+
 // Request logging middleware (only in development)
 if (app.get("env") === "development") {
   app.use(morgan('dev'));
