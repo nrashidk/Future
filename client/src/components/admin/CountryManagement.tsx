@@ -21,13 +21,18 @@ import {
 interface Country {
   id: string;
   name: string;
+  nameAr: string | null;
   code: string;
   abbreviation: string | null;
   mission: string;
+  missionAr: string | null;
   vision: string;
+  visionAr: string | null;
   visionPlan: string | null;
   prioritySectors: string[];
+  prioritySectorsAr: string[] | null;
   nationalGoals: string[];
+  nationalGoalsAr: string[] | null;
   educationSystem: string | null;
   universitiesLink: string | null;
   universitiesLinkLabel: string | null;
@@ -601,6 +606,72 @@ export default function CountryManagement() {
                   data-testid="input-edit-sectors"
                 />
               </div>
+
+              <div className="border-t pt-4 mt-2">
+                <p className="text-sm font-semibold text-muted-foreground mb-3">{t('countries.arabicSection')}</p>
+                <div className="space-y-4">
+                  <div>
+                    <Label>{t('countries.editNameAr')}</Label>
+                    <Input
+                      dir="rtl"
+                      placeholder="الإمارات العربية المتحدة"
+                      value={selectedCountry.nameAr || ""}
+                      onChange={(e) => setSelectedCountry({ ...selectedCountry, nameAr: e.target.value || null })}
+                      data-testid="input-edit-name-ar"
+                    />
+                  </div>
+                  <div>
+                    <Label>{t('countries.missionArLabel')}</Label>
+                    <Textarea
+                      dir="rtl"
+                      rows={2}
+                      placeholder="نص رسالة الدولة بالعربية..."
+                      value={selectedCountry.missionAr || ""}
+                      onChange={(e) => setSelectedCountry({ ...selectedCountry, missionAr: e.target.value || null })}
+                      data-testid="input-edit-mission-ar"
+                    />
+                  </div>
+                  <div>
+                    <Label>{t('countries.visionArLabel')}</Label>
+                    <Textarea
+                      dir="rtl"
+                      rows={2}
+                      placeholder="نص رؤية الدولة بالعربية..."
+                      value={selectedCountry.visionAr || ""}
+                      onChange={(e) => setSelectedCountry({ ...selectedCountry, visionAr: e.target.value || null })}
+                      data-testid="input-edit-vision-ar"
+                    />
+                  </div>
+                  <div>
+                    <Label>{t('countries.editSectorsAr')}</Label>
+                    <Input
+                      dir="rtl"
+                      placeholder="الذكاء الاصطناعي, الطاقة المتجددة..."
+                      value={selectedCountry.prioritySectorsAr?.join("، ") || ""}
+                      onChange={(e) => setSelectedCountry({ 
+                        ...selectedCountry, 
+                        prioritySectorsAr: e.target.value.split(/[,،]/).map(s => s.trim()).filter(Boolean)
+                      })}
+                      data-testid="input-edit-sectors-ar"
+                    />
+                  </div>
+                  <div>
+                    <Label>{t('countries.editGoalsAr')}</Label>
+                    <Textarea
+                      dir="rtl"
+                      rows={3}
+                      placeholder="هدف وطني واحد في كل سطر..."
+                      value={selectedCountry.nationalGoalsAr?.join("\n") || ""}
+                      onChange={(e) => setSelectedCountry({ 
+                        ...selectedCountry, 
+                        nationalGoalsAr: e.target.value.split("\n").map(s => s.trim()).filter(Boolean)
+                      })}
+                      data-testid="input-edit-goals-ar"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <div className="flex items-center gap-2">
                 <Switch
                   checked={selectedCountry.isActive}

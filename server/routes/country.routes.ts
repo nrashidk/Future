@@ -22,13 +22,18 @@ const createCountrySchema = z.object({
 
 const updateCountrySchema = z.object({
   name: z.string().min(1).max(100).optional(),
+  nameAr: z.string().max(200).nullable().optional(),
   code: z.string().min(2).max(3).regex(/^[A-Z]+$/).optional(),
   abbreviation: z.string().max(10).nullable().optional(),
   mission: z.string().max(2000).optional(),
+  missionAr: z.string().max(2000).nullable().optional(),
   vision: z.string().max(2000).optional(),
+  visionAr: z.string().max(2000).nullable().optional(),
   visionPlan: z.string().max(100).nullable().optional(),
   prioritySectors: z.array(z.string()).optional(),
+  prioritySectorsAr: z.array(z.string()).nullable().optional(),
   nationalGoals: z.array(z.string()).optional(),
+  nationalGoalsAr: z.array(z.string()).nullable().optional(),
   educationSystem: z.string().max(1000).nullable().optional(),
   universitiesLink: z.string().url().nullable().optional().or(z.literal("")),
   universitiesLinkLabel: z.string().max(100).nullable().optional(),
