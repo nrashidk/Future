@@ -606,6 +606,19 @@ export default function CountryManagement() {
                   data-testid="input-edit-sectors"
                 />
               </div>
+              <div>
+                <Label>{t('countries.editGoals')}</Label>
+                <Textarea
+                  rows={3}
+                  placeholder="One national goal per line..."
+                  value={selectedCountry.nationalGoals?.join("\n") || ""}
+                  onChange={(e) => setSelectedCountry({ 
+                    ...selectedCountry, 
+                    nationalGoals: e.target.value.split("\n").map(s => s.trim()).filter(Boolean)
+                  })}
+                  data-testid="input-edit-goals"
+                />
+              </div>
 
               <div className="border-t pt-4 mt-2">
                 <p className="text-sm font-semibold text-muted-foreground mb-3">{t('countries.arabicSection')}</p>

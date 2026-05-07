@@ -1051,6 +1051,7 @@
     "editCurricula": "Curricula (comma-separated)",
     "editSubjects": "Subjects (comma-separated)",
     "editSectors": "Priority Sectors (comma-separated)",
+    "editGoals": "National Goals (one per line)",
     "arabicSection": "Arabic Translations (shown when app is in Arabic mode)",
     "editNameAr": "Country Name (Arabic)",
     "missionArLabel": "Mission Statement (Arabic)",
