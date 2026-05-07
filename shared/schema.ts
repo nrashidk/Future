@@ -1357,3 +1357,23 @@ export const insertSystemAnnouncementSchema = createInsertSchema(systemAnnouncem
   updatedAt: true,
 });
 export type InsertSystemAnnouncement = z.infer<typeof insertSystemAnnouncementSchema>;
+
+// ============================================
+// LLM Narrative Cache
+// ============================================
+
+export const llmNarrativeCache = pgTable("llm_narrative_cache", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  assessmentId: varchar("assessment_id").notNull().references(() => assessments.id, { onDelete: "cascade" }),
+  careerId: varchar("career_id").notNull().references(() => careers.id, { onDelete: "cascade" }),
+  promptKey: text("prompt_key").notNull(),
+  language: varchar("language", { length: 10 }).notNull().default("en"),
+  narrative: text("narrative").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  uniqueIndex("llm_narrative_cache_unique_idx").on(table.assessmentId, table.careerId, table.promptKey, table.language),
+  index("llm_narrative_cache_assessment_idx").on(table.assessmentId),
+  index("llm_narrative_cache_prompt_key_idx").on(table.promptKey),
+]);
+
+export type LlmNarrativeCache = typeof llmNarrativeCache.$inferSelect;

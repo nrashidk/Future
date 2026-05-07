@@ -109,6 +109,14 @@ export function registerRecommendationsRoutes(app: Express) {
       // Generate recommendations using dynamic matching service
       const careerMatches = await generateRecommendations(storage, req.params.assessmentId);
 
+      // Invalidate any cached LLM narratives for this assessment so a fresh
+      // run always generates new narratives with the latest data.
+      try {
+        await storage.invalidateLlmNarrativeCacheForAssessment(req.params.assessmentId);
+      } catch (cacheErr) {
+        console.warn("[LLM Cache] Failed to invalidate on re-run:", cacheErr);
+      }
+
       // Use transaction to ensure atomic delete→create→update operations
       await db.transaction(async (tx) => {
         // Delete existing recommendations

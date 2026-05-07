@@ -33,6 +33,7 @@ interface NarrativeResult {
   promptKey: string;
   model: string;
   tokensUsed?: number;
+  fromCache?: boolean;
 }
 
 const DEFAULT_MODEL = "claude-sonnet-4-6";
@@ -174,7 +175,9 @@ export async function generateNarrative(
 }
 
 /**
- * Generate "Why This Career?" narrative for premium reports
+ * Generate "Why This Career?" narrative for premium reports.
+ * Returns the cached result if available; calls the LLM and stores the
+ * result on a cache miss.
  */
 export async function generateCareerReasoningNarrative(
   storage: IStorage,
@@ -183,14 +186,38 @@ export async function generateCareerReasoningNarrative(
   overallScore: number,
   language: string = "en"
 ): Promise<NarrativeResult> {
+  const promptKey = "career_reasoning";
+
+  // Cache hit — return instantly without an LLM call
+  try {
+    const cached = await storage.getLlmNarrativeCache(assessment.id, career.id, promptKey, language);
+    if (cached) {
+      return { success: true, narrative: cached, promptKey, model: DEFAULT_MODEL, fromCache: true };
+    }
+  } catch (cacheErr) {
+    console.warn("[LLM Cache] Read error (career_reasoning), proceeding without cache:", cacheErr);
+  }
+
   const studentContext = buildStudentContext(assessment, overallScore);
   const careerContext = buildCareerContext(career);
+  const result = await generateNarrative(storage, promptKey, studentContext, careerContext, language);
 
-  return generateNarrative(storage, "career_reasoning", studentContext, careerContext, language);
+  // Persist successful result so subsequent calls skip the LLM
+  if (result.success && result.narrative) {
+    try {
+      await storage.setLlmNarrativeCache(assessment.id, career.id, promptKey, language, result.narrative);
+    } catch (cacheErr) {
+      console.warn("[LLM Cache] Write error (career_reasoning), continuing without cache:", cacheErr);
+    }
+  }
+
+  return result;
 }
 
 /**
- * Generate "Education Pathways" narrative for premium reports
+ * Generate "Education Pathways" narrative for premium reports.
+ * Returns the cached result if available; calls the LLM and stores the
+ * result on a cache miss.
  */
 export async function generateEducationPathwaysNarrative(
   storage: IStorage,
@@ -199,10 +226,32 @@ export async function generateEducationPathwaysNarrative(
   overallScore: number,
   language: string = "en"
 ): Promise<NarrativeResult> {
+  const promptKey = "education_pathways";
+
+  // Cache hit — return instantly without an LLM call
+  try {
+    const cached = await storage.getLlmNarrativeCache(assessment.id, career.id, promptKey, language);
+    if (cached) {
+      return { success: true, narrative: cached, promptKey, model: DEFAULT_MODEL, fromCache: true };
+    }
+  } catch (cacheErr) {
+    console.warn("[LLM Cache] Read error (education_pathways), proceeding without cache:", cacheErr);
+  }
+
   const studentContext = buildStudentContext(assessment, overallScore);
   const careerContext = buildCareerContext(career);
+  const result = await generateNarrative(storage, promptKey, studentContext, careerContext, language);
 
-  return generateNarrative(storage, "education_pathways", studentContext, careerContext, language);
+  // Persist successful result so subsequent calls skip the LLM
+  if (result.success && result.narrative) {
+    try {
+      await storage.setLlmNarrativeCache(assessment.id, career.id, promptKey, language, result.narrative);
+    } catch (cacheErr) {
+      console.warn("[LLM Cache] Write error (education_pathways), continuing without cache:", cacheErr);
+    }
+  }
+
+  return result;
 }
 
 /**

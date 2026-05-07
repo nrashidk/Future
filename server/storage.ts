@@ -38,6 +38,8 @@ import {
   contributionRewards,
   systemConfig,
   systemAnnouncements,
+  llmNarrativeCache,
+  type LlmNarrativeCache,
   type User,
   type UpsertUser,
   type Country,
@@ -454,6 +456,12 @@ export interface IStorage {
   updateSystemAnnouncement(id: string, data: Partial<InsertSystemAnnouncement>): Promise<SystemAnnouncement>;
   deleteSystemAnnouncement(id: string): Promise<boolean>;
   
+  // LLM Narrative Cache operations
+  getLlmNarrativeCache(assessmentId: string, careerId: string, promptKey: string, language: string): Promise<string | null>;
+  setLlmNarrativeCache(assessmentId: string, careerId: string, promptKey: string, language: string, narrative: string): Promise<void>;
+  invalidateLlmNarrativeCacheForAssessment(assessmentId: string): Promise<void>;
+  invalidateLlmNarrativeCacheForPromptKey(promptKey: string): Promise<void>;
+
   // Global user search (for superadmin)
   searchAllUsers(query: string, limit?: number): Promise<User[]>;
   getAllStudentsWithAssessments(): Promise<Array<{
@@ -3388,6 +3396,62 @@ export class DatabaseStorage implements IStorage {
       .filter(s => s.assessmentsByGrade.length > 0);
 
     return { gradeStats, studentProgress };
+  }
+
+  // ── LLM Narrative Cache ───────────────────────────────────────────────────
+
+  async getLlmNarrativeCache(
+    assessmentId: string,
+    careerId: string,
+    promptKey: string,
+    language: string
+  ): Promise<string | null> {
+    const [row] = await db
+      .select({ narrative: llmNarrativeCache.narrative })
+      .from(llmNarrativeCache)
+      .where(
+        and(
+          eq(llmNarrativeCache.assessmentId, assessmentId),
+          eq(llmNarrativeCache.careerId, careerId),
+          eq(llmNarrativeCache.promptKey, promptKey),
+          eq(llmNarrativeCache.language, language)
+        )
+      )
+      .limit(1);
+    return row?.narrative ?? null;
+  }
+
+  async setLlmNarrativeCache(
+    assessmentId: string,
+    careerId: string,
+    promptKey: string,
+    language: string,
+    narrative: string
+  ): Promise<void> {
+    await db
+      .insert(llmNarrativeCache)
+      .values({ assessmentId, careerId, promptKey, language, narrative })
+      .onConflictDoUpdate({
+        target: [
+          llmNarrativeCache.assessmentId,
+          llmNarrativeCache.careerId,
+          llmNarrativeCache.promptKey,
+          llmNarrativeCache.language,
+        ],
+        set: { narrative, createdAt: new Date() },
+      });
+  }
+
+  async invalidateLlmNarrativeCacheForAssessment(assessmentId: string): Promise<void> {
+    await db
+      .delete(llmNarrativeCache)
+      .where(eq(llmNarrativeCache.assessmentId, assessmentId));
+  }
+
+  async invalidateLlmNarrativeCacheForPromptKey(promptKey: string): Promise<void> {
+    await db
+      .delete(llmNarrativeCache)
+      .where(eq(llmNarrativeCache.promptKey, promptKey));
   }
 }
 

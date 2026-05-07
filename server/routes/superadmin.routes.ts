@@ -1043,6 +1043,14 @@ export function registerSuperadminRoutes(app: Express) {
       if (isActive !== undefined) updates.isActive = isActive;
       
       const updated = await storage.updateLlmPromptTemplate(id, updates);
+
+      // Invalidate cached narratives that were generated with the old template
+      // so the next request will call the LLM with the updated prompt.
+      try {
+        await storage.invalidateLlmNarrativeCacheForPromptKey(updated.key);
+      } catch (cacheErr) {
+        console.warn("[LLM Cache] Failed to invalidate on template update:", cacheErr);
+      }
       
       const currentUser = (req as any).currentUser;
       await storage.createScoringConfigChangeLog({
