@@ -290,7 +290,7 @@ export interface IStorage {
   getCareerWefSkillAffinitiesByCareer(careerId: string): Promise<CareerWefSkillAffinity[]>;
   getCareerWefSkillAffinitiesBulk(careerIds: string[]): Promise<CareerWefSkillAffinity[]>;
   getCareerWefSkillAffinityCount(): Promise<number>;
-  getWefSkillsForCareers(careerIds: string[]): Promise<Array<{ careerId: string; name: string; nameAr: string | null; descriptionAr: string | null; affinityScore: number }>>;
+  getWefSkillsForCareers(careerIds: string[]): Promise<Array<{ careerId: string; name: string; nameAr: string | null; description: string; descriptionAr: string | null; affinityScore: number }>>;
   
   // WEF Competency Results operations
   createWefCompetencyResult(result: InsertWefCompetencyResult): Promise<WefCompetencyResult>;
@@ -1743,13 +1743,14 @@ export class DatabaseStorage implements IStorage {
     return result[0]?.count || 0;
   }
 
-  async getWefSkillsForCareers(careerIds: string[]): Promise<Array<{ careerId: string; name: string; nameAr: string | null; descriptionAr: string | null; affinityScore: number }>> {
+  async getWefSkillsForCareers(careerIds: string[]): Promise<Array<{ careerId: string; name: string; nameAr: string | null; description: string; descriptionAr: string | null; affinityScore: number }>> {
     if (careerIds.length === 0) return [];
     return await db
       .select({
         careerId: careerWefSkillAffinities.careerId,
         name: wefSkills.name,
         nameAr: wefSkills.nameAr,
+        description: wefSkills.description,
         descriptionAr: wefSkills.descriptionAr,
         affinityScore: careerWefSkillAffinities.affinityScore,
       })

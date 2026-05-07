@@ -36,6 +36,7 @@ import type { Recommendation, Career } from "@shared/schema";
 interface WefSkillTag {
   name: string;
   nameAr: string | null;
+  description: string;
   descriptionAr: string | null;
 }
 
@@ -938,7 +939,7 @@ export default function Results() {
                     <div className="flex flex-wrap gap-1.5">
                       {rec.wefSkillTags.map((tag) => {
                         const label = language === 'ar' ? (tag.nameAr ?? tag.name) : tag.name;
-                        const desc = language === 'ar' ? (tag.descriptionAr ?? tag.name) : tag.name;
+                        const desc = language === 'ar' ? (tag.descriptionAr ?? tag.description) : tag.description;
                         return (
                           <Tooltip key={tag.name}>
                             <TooltipTrigger asChild>

@@ -237,10 +237,10 @@ export function registerRecommendationsRoutes(app: Express) {
       const careerIds = recommendations.map(r => r.careerId);
       const allWefSkills = await storage.getWefSkillsForCareers(careerIds);
       // Group by careerId, top 5 per career sorted by affinityScore desc
-      const wefSkillsByCareer = new Map<string, Array<{ name: string; nameAr: string | null; descriptionAr: string | null }>>();
+      const wefSkillsByCareer = new Map<string, Array<{ name: string; nameAr: string | null; description: string; descriptionAr: string | null }>>();
       for (const row of allWefSkills) {
         const list = wefSkillsByCareer.get(row.careerId) ?? [];
-        list.push({ name: row.name, nameAr: row.nameAr, descriptionAr: row.descriptionAr });
+        list.push({ name: row.name, nameAr: row.nameAr, description: row.description, descriptionAr: row.descriptionAr });
         wefSkillsByCareer.set(row.careerId, list);
       }
       // allWefSkills is ordered by affinityScore asc from the query; reverse to get desc, keep top 5
