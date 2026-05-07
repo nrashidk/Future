@@ -229,7 +229,7 @@ export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps
             </p>
           </StickyNote>
 
-          {countryDetails.prioritySectors && countryDetails.prioritySectors.length > 0 && (
+          {((countryDetails.prioritySectors && countryDetails.prioritySectors.length > 0) || (countryDetails.prioritySectorsAr && countryDetails.prioritySectorsAr.length > 0)) && (
             <StickyNote color="green" rotation="-2">
               <h4 className="text-lg font-bold mb-3">{t('country.prioritySectors', { name: isArabic && countryDetails.nameAr ? countryDetails.nameAr : countryDetails.name })}</h4>
               <div className="flex flex-wrap gap-2">
@@ -295,7 +295,7 @@ export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps
                     </div>
                   ))}
                   
-                  {countryDetails.nationalGoals && countryDetails.nationalGoals.length > 0 && (
+                  {((countryDetails.nationalGoals && countryDetails.nationalGoals.length > 0) || (countryDetails.nationalGoalsAr && countryDetails.nationalGoalsAr.length > 0)) && (
                     <div className="border-t border-foreground/10 pt-4 mt-4">
                       <h5 className="font-bold mb-2">{t('country.nationalGoals')}</h5>
                       <ul className="space-y-1">
