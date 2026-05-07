@@ -141,5 +141,19 @@
   "pageDocTitle": "نتائج مسارك المهني | مسارات المستقبل",
   "printDocTitle": "تقرير المسار المهني | مسارات المستقبل",
   "migrateSuccessTitle": "تم بنجاح!",
-  "recommendationsHeading": "التوصيات المهنية"
+  "recommendationsHeading": "التوصيات المهنية",
+  "traits": {
+    "teamwork_1": "مستقل",
+    "teamwork_2": "مرن",
+    "teamwork_3": "روح الفريق",
+    "learning_1": "نظري",
+    "learning_2": "متوازن",
+    "learning_3": "تطبيقي",
+    "planning_1": "منظم",
+    "planning_2": "قابل للتكيف",
+    "planning_3": "عفوي",
+    "problem_1": "تحليلي",
+    "problem_2": "مبدع",
+    "problem_3": "تعاوني"
+  }
 }

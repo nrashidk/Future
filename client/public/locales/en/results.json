@@ -141,5 +141,19 @@
   "pageDocTitle": "Your Career Results | Future Pathways",
   "printDocTitle": "Career Report | Future Pathways",
   "migrateSuccessTitle": "Success!",
-  "recommendationsHeading": "Career Recommendations"
+  "recommendationsHeading": "Career Recommendations",
+  "traits": {
+    "teamwork_1": "Independent",
+    "teamwork_2": "Flexible",
+    "teamwork_3": "Team Player",
+    "learning_1": "Theoretical",
+    "learning_2": "Balanced Learner",
+    "learning_3": "Hands-on",
+    "planning_1": "Organised",
+    "planning_2": "Adaptive",
+    "planning_3": "Spontaneous",
+    "problem_1": "Analytical",
+    "problem_2": "Creative",
+    "problem_3": "Collaborative"
+  }
 }

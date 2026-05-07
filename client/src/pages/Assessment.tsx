@@ -19,6 +19,15 @@ import type { Assessment as AssessmentRecord } from "@shared/schema";
 
 const DRAFT_KEY = "fp_assessment_draft";
 
+// Maps each PersonalityStep question ID + numeric answer to a locale trait key.
+// e.g. { teamwork: "2" } → "teamwork_2" → t('traits.teamwork_2') → "Flexible" / "مرن"
+const TRAIT_KEY_MAP: Record<string, Record<string, string>> = {
+  teamwork: { "1": "teamwork_1", "2": "teamwork_2", "3": "teamwork_3" },
+  learning:  { "1": "learning_1",  "2": "learning_2",  "3": "learning_3"  },
+  planning:  { "1": "planning_1",  "2": "planning_2",  "3": "planning_3"  },
+  problem:   { "1": "problem_1",   "2": "problem_2",   "3": "problem_3"   },
+};
+
 interface AssessmentData {
   name: string;
   age: number | null;
@@ -316,9 +325,9 @@ export default function Assessment() {
         
         // Only include personalityTraits for free users
         if (!isPremiumUser) {
-          backendData.personalityTraits = Object.keys(assessmentData.personalityTraits).filter(
-            k => assessmentData.personalityTraits[k]
-          );
+          backendData.personalityTraits = Object.entries(assessmentData.personalityTraits)
+            .filter(([, v]) => v)
+            .map(([k, v]) => TRAIT_KEY_MAP[k]?.[String(v)] ?? k);
         }
         
         // Include premium assessment scores if available
@@ -422,9 +431,9 @@ export default function Assessment() {
         
         // Only include personalityTraits for free users (who complete PersonalityStep)
         if (!isPremiumUser) {
-          backendData.personalityTraits = Object.keys(assessmentData.personalityTraits).filter(
-            k => assessmentData.personalityTraits[k]
-          );
+          backendData.personalityTraits = Object.entries(assessmentData.personalityTraits)
+            .filter(([, v]) => v)
+            .map(([k, v]) => TRAIT_KEY_MAP[k]?.[String(v)] ?? k);
         }
         
         // Include RIASEC scores if premium user completed RIASEC assessment

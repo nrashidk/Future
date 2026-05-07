@@ -678,7 +678,7 @@ export default function Results() {
                       className="bg-primary/10 px-3 py-1 rounded-full text-sm font-medium"
                       data-testid={`badge-trait-${trait.toLowerCase().replace(/\s+/g, '-')}`}
                     >
-                      {trait}
+                      {t(`traits.${trait}`, { defaultValue: trait })}
                     </span>
                   ))}
                 </div>
