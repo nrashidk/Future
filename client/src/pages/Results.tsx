@@ -909,6 +909,27 @@ export default function Results() {
                   ) : null;
                 })()}
 
+                {/* WEF Framework Skills — nameAr used when language is Arabic */}
+                {(rec as any).wefSkillTags?.length > 0 && (
+                  <div className="mb-4">
+                    <h4 className="font-semibold mb-2 text-sm flex items-center gap-1.5">
+                      <Globe className="w-4 h-4" />
+                      {t('wefSkillsTitle', 'Future Skills (WEF)')}
+                    </h4>
+                    <div className="flex flex-wrap gap-1.5">
+                      {(rec as any).wefSkillTags.map((tag: { name: string; nameAr: string | null }) => (
+                        <span
+                          key={tag.name}
+                          className="bg-accent/20 px-2.5 py-0.5 rounded-full text-xs font-medium"
+                          data-testid={`badge-wef-${tag.name.toLowerCase().replace(/\s+/g, '-')}`}
+                        >
+                          {language === 'ar' ? (tag.nameAr ?? tag.name) : tag.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Why This Career - LLM (Premium) or Basic */}
                 <div className="p-3 bg-background/30 rounded-lg mb-3">
                   <h4 className="font-semibold mb-2 text-sm flex items-center gap-2">

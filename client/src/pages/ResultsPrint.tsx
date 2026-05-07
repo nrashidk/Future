@@ -845,6 +845,20 @@ export default function ResultsPrint() {
                       )}
                     </div>
 
+                    {/* WEF Framework Skill Tags — nameAr used when langParam is 'ar' */}
+                    {(rec as any).wefSkillTags?.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {(rec as any).wefSkillTags.map((tag: { name: string; nameAr: string | null }) => (
+                          <span
+                            key={tag.name}
+                            className="bg-accent/20 px-2 py-0.5 rounded-full text-[10px] font-medium"
+                          >
+                            {langParam === 'ar' ? (tag.nameAr ?? tag.name) : tag.name}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
                     {/* Two-column content: Why+WorkStyle | Education+Strengths */}
                     <div className="grid grid-cols-2 gap-2 flex-1">
                       {/* Left: Why this Career? + Work Style Fit */}

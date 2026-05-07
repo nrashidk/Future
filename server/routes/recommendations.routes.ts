@@ -233,10 +233,27 @@ export function registerRecommendationsRoutes(app: Express) {
         }
       }
 
+      // Bulk-fetch WEF skill tags for all careers (one query, JOIN with wef_skills for nameAr)
+      const careerIds = recommendations.map(r => r.careerId);
+      const allWefSkills = await storage.getWefSkillsForCareers(careerIds);
+      // Group by careerId, top 5 per career sorted by affinityScore desc
+      const wefSkillsByCareer = new Map<string, Array<{ name: string; nameAr: string | null }>>();
+      for (const row of allWefSkills) {
+        const list = wefSkillsByCareer.get(row.careerId) ?? [];
+        list.push({ name: row.name, nameAr: row.nameAr });
+        wefSkillsByCareer.set(row.careerId, list);
+      }
+      // allWefSkills is ordered by affinityScore asc from the query; reverse to get desc, keep top 5
+      Array.from(wefSkillsByCareer.keys()).forEach((cid) => {
+        const list = wefSkillsByCareer.get(cid)!;
+        wefSkillsByCareer.set(cid, list.reverse().slice(0, 5));
+      });
+
       // Enrich with career details and generate premium narratives on-demand
       const enriched = await Promise.all(
         recommendations.map(async (rec) => {
           const career = await storage.getCareerById(rec.careerId);
+          const wefSkillTags = wefSkillsByCareer.get(rec.careerId) ?? [];
           
           // Premium tier: Generate enhanced narratives dynamically (not stored in DB)
           if (isPremium && assessment && career) {
@@ -285,6 +302,7 @@ export function registerRecommendationsRoutes(app: Express) {
                 return {
                   ...rec,
                   career: localizeCareer(career, isArabic),
+                  wefSkillTags,
                   // Add premium fields (not stored in DB, generated on-demand)
                   premiumReasoning,
                   workStyleFit,
@@ -294,13 +312,13 @@ export function registerRecommendationsRoutes(app: Express) {
               } catch (error) {
                 console.error('[Premium Narratives] Error generating for career:', career.id, error);
                 // Fallback: return basic recommendation without premium narratives
-                return { ...rec, career: localizeCareer(career, isArabic) };
+                return { ...rec, career: localizeCareer(career, isArabic), wefSkillTags };
               }
             }
           }
 
           // Free tier or missing premium data: return basic recommendation
-          return { ...rec, career: localizeCareer(career, isArabic) };
+          return { ...rec, career: localizeCareer(career, isArabic), wefSkillTags };
         })
       );
 

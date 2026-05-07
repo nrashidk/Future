@@ -290,6 +290,7 @@ export interface IStorage {
   getCareerWefSkillAffinitiesByCareer(careerId: string): Promise<CareerWefSkillAffinity[]>;
   getCareerWefSkillAffinitiesBulk(careerIds: string[]): Promise<CareerWefSkillAffinity[]>;
   getCareerWefSkillAffinityCount(): Promise<number>;
+  getWefSkillsForCareers(careerIds: string[]): Promise<Array<{ careerId: string; name: string; nameAr: string | null; affinityScore: number }>>;
   
   // WEF Competency Results operations
   createWefCompetencyResult(result: InsertWefCompetencyResult): Promise<WefCompetencyResult>;
@@ -1739,6 +1740,21 @@ export class DatabaseStorage implements IStorage {
       .select({ count: sql<number>`count(*)` })
       .from(careerWefSkillAffinities);
     return result[0]?.count || 0;
+  }
+
+  async getWefSkillsForCareers(careerIds: string[]): Promise<Array<{ careerId: string; name: string; nameAr: string | null; affinityScore: number }>> {
+    if (careerIds.length === 0) return [];
+    return await db
+      .select({
+        careerId: careerWefSkillAffinities.careerId,
+        name: wefSkills.name,
+        nameAr: wefSkills.nameAr,
+        affinityScore: careerWefSkillAffinities.affinityScore,
+      })
+      .from(careerWefSkillAffinities)
+      .innerJoin(wefSkills, eq(careerWefSkillAffinities.wefSkillId, wefSkills.id))
+      .where(inArray(careerWefSkillAffinities.careerId, careerIds))
+      .orderBy(careerWefSkillAffinities.affinityScore);
   }
 
   // WEF Competency Results operations
