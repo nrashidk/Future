@@ -134,7 +134,7 @@ function CheckoutForm({ amount, studentCount }: { amount: number | null; student
         } else if (data.wasLoggedIn) {
           toast({
             title: t("checkout.paymentSuccessTitle"),
-            description: data.message,
+            description: t("checkout.paymentSuccessDesc"),
           });
           if (data.organization) {
             setLocation("/school-admin");
@@ -144,13 +144,13 @@ function CheckoutForm({ amount, studentCount }: { amount: number | null; student
         } else if (data.requiresLogin) {
           toast({
             title: t("checkout.paymentSuccessTitle"),
-            description: data.message,
+            description: t("checkout.paymentSuccessDesc"),
           });
           setLocation("/login/student");
         } else {
           toast({
             title: t("checkout.paymentSuccessTitle"),
-            description: data.message,
+            description: t("checkout.paymentSuccessDesc"),
           });
         }
       }
@@ -206,7 +206,7 @@ function CheckoutForm({ amount, studentCount }: { amount: number | null; student
             data-testid="input-email"
           />
           {validateEmail(email) && (
-            <p className="text-xs text-destructive mt-1">{validateEmail(email)}</p>
+            <p className="text-xs text-destructive mt-1">{t("checkout.invalidEmailDesc")}</p>
           )}
         </div>
         <div className="mt-4">
@@ -222,7 +222,7 @@ function CheckoutForm({ amount, studentCount }: { amount: number | null; student
             data-testid="input-phone"
           />
           {validatePhone(phone) && (
-            <p className="text-xs text-destructive mt-1">{validatePhone(phone)}</p>
+            <p className="text-xs text-destructive mt-1">{t("checkout.invalidPhoneDesc")}</p>
           )}
         </div>
         {studentCount > 1 && (
