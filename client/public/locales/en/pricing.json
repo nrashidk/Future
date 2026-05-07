@@ -94,5 +94,18 @@
     "paymentSuccessTitle": "Payment Successful!",
     "errorTitle": "Error",
     "errorDesc": "An error occurred during payment"
+  },
+  "credentials": {
+    "copiedTitle": "Copied!",
+    "copiedDesc": "Credentials copied to clipboard",
+    "usernameLabel": "Username",
+    "passwordLabel": "Password",
+    "emailLabel": "Email",
+    "copyButton": "Copy to Clipboard",
+    "downloadButton": "Download & Close",
+    "schoolCreatedTitle": "School Created",
+    "accountCreatedTitle": "Account Created Successfully!",
+    "schoolCreatedDesc": "\"{{orgName}}\" has been created. Save these admin credentials — they won't be shown again.",
+    "accountCreatedDesc": "Your account has been created. Save these credentials securely — they won't be shown again."
   }
 }

@@ -94,5 +94,18 @@
     "paymentSuccessTitle": "تم الدفع بنجاح!",
     "errorTitle": "خطأ",
     "errorDesc": "حدث خطأ أثناء الدفع"
+  },
+  "credentials": {
+    "copiedTitle": "تم النسخ!",
+    "copiedDesc": "تم نسخ بيانات الاعتماد إلى الحافظة",
+    "usernameLabel": "اسم المستخدم",
+    "passwordLabel": "كلمة المرور",
+    "emailLabel": "البريد الإلكتروني",
+    "copyButton": "نسخ إلى الحافظة",
+    "downloadButton": "تنزيل وإغلاق",
+    "schoolCreatedTitle": "تم إنشاء المدرسة",
+    "accountCreatedTitle": "تم إنشاء الحساب بنجاح!",
+    "schoolCreatedDesc": "تم إنشاء \"{{orgName}}\". احفظ بيانات اعتماد المشرف — لن تُعرض مرة أخرى.",
+    "accountCreatedDesc": "تم إنشاء حسابك. احفظ بيانات الاعتماد بأمان — لن تُعرض مرة أخرى."
   }
 }

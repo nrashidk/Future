@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Copy, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { StickyNote } from "@/components/StickyNote";
+import { useTranslation } from "react-i18next";
 
 interface CredentialsModalProps {
   open: boolean;
@@ -19,17 +20,25 @@ interface CredentialsModalProps {
 
 export function CredentialsModal({ open, onClose, credentials, organizationName, title, description }: CredentialsModalProps) {
   const { toast } = useToast();
+  const { t } = useTranslation("pricing");
 
   const handleCopy = () => {
-    const lines = [`Username: ${credentials.username}`, `Password: ${credentials.password}`];
-    if (credentials.email) lines.push(`Email: ${credentials.email}`);
+    const lines = [
+      `${t("credentials.usernameLabel")}: ${credentials.username}`,
+      `${t("credentials.passwordLabel")}: ${credentials.password}`,
+    ];
+    if (credentials.email) lines.push(`${t("credentials.emailLabel")}: ${credentials.email}`);
     navigator.clipboard.writeText(lines.join("\n"));
-    toast({ title: "Copied!", description: "Credentials copied to clipboard" });
+    toast({ title: t("credentials.copiedTitle"), description: t("credentials.copiedDesc") });
   };
 
   const handleDownload = () => {
-    const lines = [`Login Credentials`, `Username: ${credentials.username}`, `Password: ${credentials.password}`];
-    if (credentials.email) lines.push(`Email: ${credentials.email}`);
+    const lines = [
+      t("credentials.downloadButton"),
+      `${t("credentials.usernameLabel")}: ${credentials.username}`,
+      `${t("credentials.passwordLabel")}: ${credentials.password}`,
+    ];
+    if (credentials.email) lines.push(`${t("credentials.emailLabel")}: ${credentials.email}`);
     const blob = new Blob([lines.join("\n")], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -40,11 +49,15 @@ export function CredentialsModal({ open, onClose, credentials, organizationName,
     onClose();
   };
 
-  const modalTitle = title ?? (organizationName ? "School Created" : "Account Created Successfully!");
+  const modalTitle = title ?? (
+    organizationName
+      ? t("credentials.schoolCreatedTitle")
+      : t("credentials.accountCreatedTitle")
+  );
   const modalDesc = description ?? (
     organizationName
-      ? `"${organizationName}" has been created. Save these admin credentials — they won't be shown again.`
-      : "Your account has been created. Save these credentials securely — they won't be shown again."
+      ? t("credentials.schoolCreatedDesc", { orgName: organizationName })
+      : t("credentials.accountCreatedDesc")
   );
 
   return (
@@ -58,16 +71,16 @@ export function CredentialsModal({ open, onClose, credentials, organizationName,
         <StickyNote color="yellow" rotation="1" className="mx-auto w-full">
           <div className="space-y-3">
             <div>
-              <p className="text-xs text-muted-foreground mb-1">Username</p>
+              <p className="text-xs text-muted-foreground mb-1">{t("credentials.usernameLabel")}</p>
               <p className="font-mono font-bold text-lg" data-testid="text-username">{credentials.username}</p>
             </div>
             <div>
-              <p className="text-xs text-muted-foreground mb-1">Password</p>
+              <p className="text-xs text-muted-foreground mb-1">{t("credentials.passwordLabel")}</p>
               <p className="font-mono font-bold text-lg" data-testid="text-password">{credentials.password}</p>
             </div>
             {credentials.email && (
               <div>
-                <p className="text-xs text-muted-foreground mb-1">Email</p>
+                <p className="text-xs text-muted-foreground mb-1">{t("credentials.emailLabel")}</p>
                 <p className="font-mono font-bold text-base break-all" data-testid="text-email">{credentials.email}</p>
               </div>
             )}
@@ -76,12 +89,12 @@ export function CredentialsModal({ open, onClose, credentials, organizationName,
 
         <div className="flex gap-2 justify-end">
           <Button variant="outline" onClick={handleCopy} data-testid="button-copy-all">
-            <Copy className="w-4 h-4 mr-2" />
-            Copy to Clipboard
+            <Copy className="w-4 h-4 me-2" />
+            {t("credentials.copyButton")}
           </Button>
           <Button onClick={handleDownload} data-testid="button-download-credentials">
-            <Download className="w-4 h-4 mr-2" />
-            Download &amp; Close
+            <Download className="w-4 h-4 me-2" />
+            {t("credentials.downloadButton")}
           </Button>
         </div>
       </DialogContent>

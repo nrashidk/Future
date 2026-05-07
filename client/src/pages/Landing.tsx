@@ -263,8 +263,8 @@ export default function Landing() {
       {/* CTA Section */}
       <div className="py-20 px-4 bg-gradient-to-r from-primary/10 to-accent/10">
         <div className="max-w-4xl mx-auto">
-          <div className={`grid md:grid-cols-2 gap-8 items-center ${isAr ? "md:flex-row-reverse" : ""}`}>
-            <StickyNote color="yellow" rotation="-1" className="p-8">
+          <div className={`flex flex-col md:flex-row gap-8 items-center ${isAr ? "md:flex-row-reverse" : ""}`}>
+            <StickyNote color="yellow" rotation="-1" className="p-8 md:flex-1">
               <div className="flex items-start gap-3 mb-4">
                 <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                   <GraduationCap className="w-7 h-7 text-primary" aria-hidden="true" />
@@ -278,7 +278,7 @@ export default function Landing() {
               </div>
             </StickyNote>
 
-            <div>
+            <div className="md:flex-1">
               <h3 className="text-3xl md:text-4xl font-bold mb-6">
                 {t("cta.title")}
               </h3>
