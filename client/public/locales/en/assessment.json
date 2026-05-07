@@ -4,7 +4,7 @@
   "resume": {
     "title": "Welcome back!",
     "subtitle": "You have an assessment in progress at step {{step}} of {{total}}.",
-    "info": "Your answers are saved in this browser session and are ready to continue.",
+    "info": "Your answers have been saved and are ready to continue.",
     "continueBtn": "Continue from step {{step}}",
     "freshBtn": "Start over"
   },

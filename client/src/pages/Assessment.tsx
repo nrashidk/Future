@@ -53,6 +53,7 @@ export default function Assessment() {
     currentStep: number;
     assessmentData: AssessmentData;
   } | null>(null);
+  const [apiResumeChecked, setApiResumeChecked] = useState(false);
 
   const isPremiumUser = user?.isPremium || false;
   
@@ -97,6 +98,67 @@ export default function Assessment() {
       try { sessionStorage.removeItem(DRAFT_KEY); } catch {}
     }
   }, [isLoading]);
+
+  // Cross-device resume: check the backend for an in-progress assessment.
+  // Only runs for authenticated users when sessionStorage has no draft
+  // (sessionStorage takes priority as it also holds richer RIASEC/CVQ raw drafts).
+  useEffect(() => {
+    if (isLoading || !isAuthenticated || apiResumeChecked) return;
+
+    setApiResumeChecked(true);
+
+    // sessionStorage draft takes priority — skip server check if one exists
+    if (sessionStorage.getItem(DRAFT_KEY)) return;
+
+    const checkServerDraft = async () => {
+      try {
+        const { apiRequest } = await import("@/lib/queryClient");
+        const res = await apiRequest("GET", "/api/assessments/my");
+        if (!res.ok) return;
+        const allAssessments: any[] = await res.json();
+
+        // Most recent in-progress assessment (array is already ordered by createdAt desc)
+        const inProgress = allAssessments.find(a => !a.isCompleted && a.currentStep > 1);
+        if (!inProgress) return;
+
+        // Map backend assessment fields to the AssessmentData shape.
+        // Raw RIASEC/CVQ item responses are not persisted (only computed scores are
+        // stored as riasecScores/cvqScores), so those fields start empty. Steps that
+        // were already completed before the save don't need to be re-submitted.
+        const hydratedData: AssessmentData = {
+          name: inProgress.name || "",
+          age: inProgress.age ?? null,
+          grade: inProgress.grade || "",
+          gender: inProgress.gender || "",
+          consentGiven: true,
+          favoriteSubjects: inProgress.favoriteSubjects || [],
+          prioritySubjects: inProgress.prioritySubjects || [],
+          interests: inProgress.interests || [],
+          personalityTraits: Array.isArray(inProgress.personalityTraits)
+            ? Object.fromEntries(
+                (inProgress.personalityTraits as string[]).map((trait: string) => [trait, 1])
+              )
+            : (inProgress.personalityTraits as Record<string, number> || {}),
+          riasecResponses: {},
+          cvqResponses: {},
+          countryId: inProgress.countryId || "",
+          careerAspirations: inProgress.careerAspirations || [],
+          strengths: inProgress.strengths || [],
+        };
+
+        setResumePrompt({
+          assessmentId: inProgress.id,
+          currentStep: inProgress.currentStep,
+          assessmentData: hydratedData,
+        });
+      } catch (err) {
+        // Non-fatal — student can always start fresh
+        console.error("Server draft check failed:", err);
+      }
+    };
+
+    checkServerDraft();
+  }, [isLoading, isAuthenticated, apiResumeChecked]);
 
   // Persist draft to sessionStorage whenever assessmentId / step / data changes
   // Guards: only save once an assessment has been created (assessmentId set) and past step 1
