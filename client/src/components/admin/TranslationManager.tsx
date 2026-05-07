@@ -11,8 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { CheckCircle, AlertCircle, Search, Globe, Edit, Save, X, AlertTriangle, Info } from "lucide-react";
+import { CheckCircle, AlertCircle, Search, Globe, Edit, Save, X, AlertTriangle, ExternalLink } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { useLocation } from "wouter";
 
 interface CoverageEntry {
   namespace: string;
@@ -56,6 +57,27 @@ interface CvqItem {
   isActive: boolean;
 }
 
+interface QuizQuestion {
+  id: string;
+  question: string;
+  questionAr?: string | null;
+  subject: string;
+  grade: number;
+}
+
+interface QuizQuestionsData {
+  questions: QuizQuestion[];
+  total: number;
+  missing: number;
+}
+
+interface Country {
+  id: string;
+  name: string;
+  code: string;
+  isActive: boolean;
+}
+
 const NAMESPACES = ["common", "landing", "assessment", "results", "auth", "admin", "riasec", "profile", "legal", "pricing"];
 
 const extractVars = (str: string): Set<string> => {
@@ -66,6 +88,7 @@ const extractVars = (str: string): Set<string> => {
 export default function TranslationManager() {
   const { toast } = useToast();
   const { t } = useTranslation('admin');
+  const [, navigate] = useLocation();
   const [selectedNs, setSelectedNs] = useState("common");
   const [searchQuery, setSearchQuery] = useState("");
   const [showMissingOnly, setShowMissingOnly] = useState(false);
@@ -80,6 +103,13 @@ export default function TranslationManager() {
   // CVQ state
   const [editingCvqId, setEditingCvqId] = useState<number | null>(null);
   const [cvqArValue, setCvqArValue] = useState("");
+
+  // Quiz questions state
+  const [editingQuestionId, setEditingQuestionId] = useState<string | null>(null);
+  const [questionArValue, setQuestionArValue] = useState("");
+  const [showQMissingOnly, setShowQMissingOnly] = useState(false);
+  const [questionPage, setQuestionPage] = useState(0);
+  const PAGE_SIZE = 30;
 
   const { data: coverage, isLoading: coverageLoading } = useQuery<CoverageData>({
     queryKey: ['/api/superadmin/translations/coverage'],
@@ -100,6 +130,24 @@ export default function TranslationManager() {
 
   const { data: cvqItems = [], isLoading: cvqLoading } = useQuery<CvqItem[]>({
     queryKey: ['/api/cvq/items'],
+  });
+
+  const { data: quizQuestionsData, isLoading: quizQuestionsLoading } = useQuery<QuizQuestionsData>({
+    queryKey: ['/api/superadmin/quiz-questions', showQMissingOnly, questionPage],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        limit: String(PAGE_SIZE),
+        offset: String(questionPage * PAGE_SIZE),
+        ...(showQMissingOnly ? { missingOnly: "true" } : {}),
+      });
+      const res = await fetch(`/api/superadmin/quiz-questions?${params}`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch quiz questions');
+      return res.json();
+    },
+  });
+
+  const { data: countriesList = [], isLoading: countriesListLoading } = useQuery<Country[]>({
+    queryKey: ['/api/admin/countries'],
   });
 
   const updateMutation = useMutation({
@@ -139,6 +187,21 @@ export default function TranslationManager() {
       setEditingCvqId(null);
       setCvqArValue("");
       toast({ title: t('translation.cvqSaved') });
+    },
+    onError: () => {
+      toast({ title: t('translation.saveError'), variant: "destructive" });
+    },
+  });
+
+  const updateQuestionArMutation = useMutation({
+    mutationFn: async ({ id, questionAr }: { id: string; questionAr: string }) => {
+      return apiRequest('PATCH', `/api/superadmin/quiz-questions/${id}`, { questionAr });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/quiz-questions'] });
+      setEditingQuestionId(null);
+      setQuestionArValue("");
+      toast({ title: t('translation.questionSaved') });
     },
     onError: () => {
       toast({ title: t('translation.saveError'), variant: "destructive" });
@@ -646,13 +709,46 @@ export default function TranslationManager() {
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base">{t('translation.dbCountries')}</CardTitle>
-                  <CardDescription>{t('translation.dbCountriesNote')}</CardDescription>
+                  <CardDescription>{t('translation.countriesTableNote')}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-start gap-3 p-4 rounded-md bg-muted">
-                    <Info className="w-5 h-5 text-muted-foreground mt-0.5 shrink-0" />
-                    <p className="text-sm text-muted-foreground">{t('translation.dbCountriesNote')}</p>
-                  </div>
+                  {countriesListLoading ? (
+                    <div className="text-center py-8 text-muted-foreground">{t('translation.loading')}</div>
+                  ) : countriesList.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">{t('translation.noDbContent')}</div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-[1fr_auto_auto] gap-3 text-xs font-semibold text-muted-foreground px-3 pb-1 border-b">
+                        <span>{t('translation.englishTitle')}</span>
+                        <span>{t('countries.codeCol')}</span>
+                        <span></span>
+                      </div>
+                      {countriesList.map(country => (
+                        <div
+                          key={country.id}
+                          className="grid grid-cols-[1fr_auto_auto] gap-3 items-center rounded-md border px-3 py-2"
+                          data-testid={`countries-row-${country.id}`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium">{country.name}</span>
+                            {!country.isActive && (
+                              <Badge variant="secondary" className="text-xs">{t('countries.inactive')}</Badge>
+                            )}
+                          </div>
+                          <Badge variant="outline" className="text-xs font-mono">{country.code}</Badge>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => navigate(`/admin?tab=countries&country=${country.id}`)}
+                            data-testid={`button-goto-country-${country.id}`}
+                          >
+                            <ExternalLink className="w-3.5 h-3.5 me-1.5" />
+                            {t('translation.goToCountryMgmt')}
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -661,14 +757,132 @@ export default function TranslationManager() {
             <TabsContent value="questions">
               <Card>
                 <CardHeader className="pb-3">
-                  <CardTitle className="text-base">{t('translation.dbQuestions')}</CardTitle>
-                  <CardDescription>{t('translation.dbQuestionsNote')}</CardDescription>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <CardTitle className="text-base">{t('translation.dbQuestions')}</CardTitle>
+                      {quizQuestionsData && (
+                        <CardDescription>
+                          {quizQuestionsData.missing === 0
+                            ? t('translation.dbQuestionsAllDone')
+                            : t('translation.dbQuestionsMissing', { n: quizQuestionsData.missing })}
+                        </CardDescription>
+                      )}
+                    </div>
+                    <Button
+                      variant={showQMissingOnly ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => { setShowQMissingOnly(v => !v); setQuestionPage(0); }}
+                      data-testid="button-q-missing-only"
+                    >
+                      <AlertCircle className="w-3.5 h-3.5 me-1.5" />
+                      {t('translation.missingOnly')}
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-start gap-3 p-4 rounded-md bg-muted">
-                    <Info className="w-5 h-5 text-muted-foreground mt-0.5 shrink-0" />
-                    <p className="text-sm text-muted-foreground">{t('translation.dbQuestionsNote')}</p>
-                  </div>
+                  {quizQuestionsLoading ? (
+                    <div className="text-center py-8 text-muted-foreground">{t('translation.loading')}</div>
+                  ) : !quizQuestionsData || quizQuestionsData.questions.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">{t('translation.noDbContent')}</div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-[auto_auto_1fr_1fr_auto] gap-2 text-xs font-semibold text-muted-foreground px-2 pb-1 border-b">
+                        <span className="w-6"></span>
+                        <span>{t('translation.questionSubject')} / {t('translation.questionGrade')}</span>
+                        <span>{t('translation.questionText')}</span>
+                        <span>{t('translation.questionTextAr')}</span>
+                        <span></span>
+                      </div>
+                      {quizQuestionsData.questions.map(q => (
+                        <div key={q.id} className="rounded-md border" data-testid={`q-row-${q.id}`}>
+                          {editingQuestionId === q.id ? (
+                            <div className="p-3 space-y-3">
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                  <p className="text-xs text-muted-foreground font-medium">{q.subject} · {t('countries.gradeN', { grade: q.grade })}</p>
+                                  <p className="text-sm">{q.question}</p>
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-xs" htmlFor={`q-ar-${q.id}`}>{t('translation.questionTextAr')}</Label>
+                                  <Textarea
+                                    id={`q-ar-${q.id}`}
+                                    value={questionArValue}
+                                    onChange={e => setQuestionArValue(e.target.value)}
+                                    dir="rtl"
+                                    rows={3}
+                                    className="text-sm"
+                                    placeholder={t('translation.questionPlaceholderAr')}
+                                    data-testid={`input-q-ar-${q.id}`}
+                                  />
+                                </div>
+                              </div>
+                              <div className="flex justify-end gap-2">
+                                <Button size="sm" variant="outline" onClick={() => { setEditingQuestionId(null); setQuestionArValue(""); }} data-testid={`cancel-q-${q.id}`}>
+                                  <X className="w-3.5 h-3.5 me-1.5" />
+                                  {t('translation.cancel')}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={() => updateQuestionArMutation.mutate({ id: q.id, questionAr: questionArValue })}
+                                  disabled={updateQuestionArMutation.isPending}
+                                  data-testid={`save-q-${q.id}`}
+                                >
+                                  <Save className="w-3.5 h-3.5 me-1.5" />
+                                  {updateQuestionArMutation.isPending ? t('translation.saving') : t('translation.save')}
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-[auto_auto_1fr_1fr_auto] gap-2 items-center p-2">
+                              <div className="w-6">
+                                {q.questionAr
+                                  ? <CheckCircle className="w-4 h-4 text-green-500" />
+                                  : <AlertCircle className="w-4 h-4 text-amber-500" />
+                                }
+                              </div>
+                              <div className="min-w-[80px]">
+                                <p className="text-xs font-medium text-muted-foreground">{q.subject}</p>
+                                <p className="text-xs text-muted-foreground">{t('countries.gradeN', { grade: q.grade })}</p>
+                              </div>
+                              <div>
+                                <p className="text-sm line-clamp-2">{q.question}</p>
+                              </div>
+                              <div dir="rtl">
+                                {q.questionAr
+                                  ? <p className="text-sm line-clamp-2">{q.questionAr}</p>
+                                  : <p className="text-sm italic text-amber-600 dark:text-amber-400">{t('translation.missing')}</p>
+                                }
+                              </div>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => { setEditingQuestionId(q.id); setQuestionArValue(q.questionAr || ""); }}
+                                data-testid={`edit-q-ar-${q.id}`}
+                              >
+                                <Edit className="w-3.5 h-3.5" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                      {/* Pagination */}
+                      {quizQuestionsData.total > PAGE_SIZE && (
+                        <div className="flex items-center justify-between pt-2">
+                          <p className="text-xs text-muted-foreground">
+                            {questionPage * PAGE_SIZE + 1}–{Math.min((questionPage + 1) * PAGE_SIZE, quizQuestionsData.total)} / {quizQuestionsData.total}
+                          </p>
+                          <div className="flex gap-2">
+                            <Button size="sm" variant="outline" disabled={questionPage === 0} onClick={() => setQuestionPage(p => p - 1)} data-testid="button-q-prev">
+                              ←
+                            </Button>
+                            <Button size="sm" variant="outline" disabled={(questionPage + 1) * PAGE_SIZE >= quizQuestionsData.total} onClick={() => setQuestionPage(p => p + 1)} data-testid="button-q-next">
+                              →
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>

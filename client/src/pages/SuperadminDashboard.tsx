@@ -2239,7 +2239,7 @@ export default function SuperadminDashboard() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="announcement-title-ar">{t('superadmin.announcementTitle')} (AR)</Label>
+                <Label htmlFor="announcement-title-ar">{t('superadmin.announcementTitleArLabel')}</Label>
                 <Input
                   id="announcement-title-ar"
                   value={announcementForm.titleAr}
@@ -2252,7 +2252,7 @@ export default function SuperadminDashboard() {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="announcement-content">{t('superadmin.announcementContent')} (EN) *</Label>
+                <Label htmlFor="announcement-content">{t('superadmin.announcementContentEnLabel')}</Label>
                 <Textarea
                   id="announcement-content"
                   value={announcementForm.content}
@@ -2263,7 +2263,7 @@ export default function SuperadminDashboard() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="announcement-content-ar">{t('superadmin.announcementContent')} (AR)</Label>
+                <Label htmlFor="announcement-content-ar">{t('superadmin.announcementContentArLabel')}</Label>
                 <Textarea
                   id="announcement-content-ar"
                   value={announcementForm.contentAr}

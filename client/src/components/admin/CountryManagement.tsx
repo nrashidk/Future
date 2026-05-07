@@ -87,16 +87,16 @@ export default function CountryManagement() {
       setIsCreateModalOpen(false);
       setNewCountryForm({ id: "", name: "", code: "", abbreviation: "", autoPopulate: true });
       toast({ 
-        title: "Country Created", 
+        title: t('countries.createSuccess'), 
         description: result.autoPopulated 
-          ? "Country created with LLM-populated data" 
-          : "Country created successfully. You can add details manually."
+          ? t('countries.createSuccessAI')
+          : t('countries.createSuccessManual')
       });
     },
     onError: (error: any) => {
       toast({ 
-        title: "Error", 
-        description: error.message || "Failed to create country", 
+        title: t('countries.errorTitle'), 
+        description: error.message || t('countries.createError'), 
         variant: "destructive" 
       });
     },
@@ -111,10 +111,10 @@ export default function CountryManagement() {
       queryClient.invalidateQueries({ queryKey: ['/api/countries'] });
       setIsEditModalOpen(false);
       setSelectedCountry(null);
-      toast({ title: "Success", description: "Country updated successfully" });
+      toast({ title: t('countries.updateSuccess'), description: t('countries.updateSuccessDesc') });
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to update country", variant: "destructive" });
+      toast({ title: t('countries.errorTitle'), description: t('countries.updateError'), variant: "destructive" });
     },
   });
 
@@ -125,12 +125,12 @@ export default function CountryManagement() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/countries'] });
       queryClient.invalidateQueries({ queryKey: ['/api/countries'] });
-      toast({ title: "Success", description: "Country deleted successfully" });
+      toast({ title: t('countries.updateSuccess'), description: t('countries.deleteSuccess') });
     },
     onError: (error: any) => {
       toast({ 
-        title: "Error", 
-        description: error.message || "Failed to delete country", 
+        title: t('countries.errorTitle'), 
+        description: error.message || t('countries.deleteError'), 
         variant: "destructive" 
       });
     },
@@ -143,13 +143,13 @@ export default function CountryManagement() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/countries'] });
       setRepopulatingCountryId(null);
-      toast({ title: "Success", description: "Country data refreshed with latest information" });
+      toast({ title: t('countries.updateSuccess'), description: t('countries.refreshSuccess') });
     },
     onError: (error: any) => {
       setRepopulatingCountryId(null);
       toast({ 
-        title: "Error", 
-        description: error.message || "Failed to refresh country data", 
+        title: t('countries.errorTitle'), 
+        description: error.message || t('countries.refreshError'), 
         variant: "destructive" 
       });
     },
@@ -169,14 +169,14 @@ export default function CountryManagement() {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/questions'] });
       setIsGenerateQuestionsOpen(false);
       toast({ 
-        title: "Questions Generated", 
-        description: `Created ${result.questionsCreated} questions (${result.tokensUsed} tokens used)`
+        title: t('countries.questionsGenerated'), 
+        description: t('countries.questionsGeneratedDesc', { n: result.questionsCreated, tokens: result.tokensUsed })
       });
     },
     onError: (error: any) => {
       toast({ 
-        title: "Error", 
-        description: error.message || "Failed to generate questions", 
+        title: t('countries.errorTitle'), 
+        description: error.message || t('countries.generateError'), 
         variant: "destructive" 
       });
     },
@@ -194,14 +194,14 @@ export default function CountryManagement() {
       setIsRenameModalOpen(false);
       setRenameForm({ countryId: "", oldName: "", newName: "" });
       toast({ 
-        title: "Curriculum Renamed", 
-        description: `Updated ${result.updated?.subjects || 0} subjects and ${result.updated?.questions || 0} questions`
+        title: t('countries.curriculumRenamed'), 
+        description: t('countries.curriculumRenamedDesc', { subjects: result.updated?.subjects || 0, questions: result.updated?.questions || 0 })
       });
     },
     onError: (error: any) => {
       toast({ 
-        title: "Error", 
-        description: error.message || "Failed to rename curriculum", 
+        title: t('countries.errorTitle'), 
+        description: error.message || t('countries.renameError'), 
         variant: "destructive" 
       });
     },
@@ -209,7 +209,7 @@ export default function CountryManagement() {
 
   const handleCreateCountry = () => {
     if (!newCountryForm.id || !newCountryForm.name || !newCountryForm.code) {
-      toast({ title: "Error", description: "ID, name, and code are required", variant: "destructive" });
+      toast({ title: t('countries.errorTitle'), description: t('countries.fieldRequiredError'), variant: "destructive" });
       return;
     }
     createMutation.mutate(newCountryForm);
@@ -217,7 +217,7 @@ export default function CountryManagement() {
 
   const handleGenerateQuestions = () => {
     if (!selectedCountry || !generateForm.subject) {
-      toast({ title: "Error", description: "Please select a subject", variant: "destructive" });
+      toast({ title: t('countries.errorTitle'), description: t('countries.selectSubjectError'), variant: "destructive" });
       return;
     }
     generateQuestionsMutation.mutate({
@@ -262,31 +262,29 @@ export default function CountryManagement() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Globe className="w-5 h-5" />
-            Countries ({countries.length})
+            {t('countries.countriesTable', { n: countries.length })}
           </CardTitle>
           <CardDescription>
-            Countries with their national vision, education system, and quiz content
+            {t('countries.countriesDesc')}
           </CardDescription>
         </CardHeader>
         <CardContent>
           {countries.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Globe className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p className="text-lg font-medium">No Countries Added</p>
-              <p className="text-sm mt-2">
-                Click "Add Country" to add a new country with AI-powered data population.
-              </p>
+              <p className="text-lg font-medium">{t('countries.noCountries')}</p>
+              <p className="text-sm mt-2">{t('countries.noCountriesDesc')}</p>
             </div>
           ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Country</TableHead>
-                <TableHead>Code</TableHead>
-                <TableHead>Vision</TableHead>
-                <TableHead>Curricula</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t('countries.nameCol')}</TableHead>
+                <TableHead>{t('countries.codeCol')}</TableHead>
+                <TableHead>{t('countries.visionCol')}</TableHead>
+                <TableHead>{t('countries.curriculaCol')}</TableHead>
+                <TableHead>{t('countries.statusCol')}</TableHead>
+                <TableHead className="text-right">{t('countries.actionsCol')}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -297,8 +295,8 @@ export default function CountryManagement() {
                       {country.name}
                       {country.llmPopulated && (
                         <Badge variant="secondary" className="text-xs">
-                          <Sparkles className="w-3 h-3 mr-1" />
-                          AI
+                          <Sparkles className="w-3 h-3 me-1" />
+                          {t('countries.aiLabel')}
                         </Badge>
                       )}
                     </div>
@@ -307,7 +305,7 @@ export default function CountryManagement() {
                     <Badge variant="outline">{country.code}</Badge>
                   </TableCell>
                   <TableCell className="max-w-xs truncate">
-                    {country.visionPlan || country.vision?.slice(0, 50) + "..." || "Not set"}
+                    {country.visionPlan || (country.vision ? country.vision.slice(0, 50) + "..." : t('countries.notSet'))}
                   </TableCell>
                   <TableCell>
                     {country.curricula?.length ? (
@@ -320,19 +318,19 @@ export default function CountryManagement() {
                         )}
                       </div>
                     ) : (
-                      <span className="text-muted-foreground">Not set</span>
+                      <span className="text-muted-foreground">{t('countries.notSet')}</span>
                     )}
                   </TableCell>
                   <TableCell>
                     {country.isActive ? (
                       <Badge className="bg-green-500">
-                        <CheckCircle className="w-3 h-3 mr-1" />
-                        Active
+                        <CheckCircle className="w-3 h-3 me-1" />
+                        {t('countries.active')}
                       </Badge>
                     ) : (
                       <Badge variant="secondary">
-                        <Clock className="w-3 h-3 mr-1" />
-                        Inactive
+                        <Clock className="w-3 h-3 me-1" />
+                        {t('countries.inactive')}
                       </Badge>
                     )}
                   </TableCell>
@@ -351,7 +349,7 @@ export default function CountryManagement() {
                           });
                           setIsGenerateQuestionsOpen(true);
                         }}
-                        title="Generate Quiz Questions"
+                        title={t('countries.generateQuestions')}
                         data-testid={`button-generate-${country.id}`}
                       >
                         <BookOpen className="w-4 h-4" />
@@ -361,7 +359,7 @@ export default function CountryManagement() {
                         variant="ghost"
                         onClick={() => handleRepopulate(country.id)}
                         disabled={repopulatingCountryId !== null}
-                        title="Refresh with AI"
+                        title={t('countries.refreshAI')}
                         data-testid={`button-refresh-${country.id}`}
                       >
                         <RefreshCw className={`w-4 h-4 ${repopulatingCountryId === country.id ? 'animate-spin' : ''}`} />
@@ -373,7 +371,7 @@ export default function CountryManagement() {
                           setSelectedCountry(country);
                           setIsEditModalOpen(true);
                         }}
-                        title="Edit Country"
+                        title={t('countries.editCountry')}
                         data-testid={`button-edit-${country.id}`}
                       >
                         <Edit className="w-4 h-4" />
@@ -382,12 +380,12 @@ export default function CountryManagement() {
                         size="icon" 
                         variant="ghost"
                         onClick={() => {
-                          if (confirm(`Are you sure you want to delete ${country.name}?`)) {
+                          if (confirm(t('countries.confirmDelete', { name: country.name }))) {
                             deleteMutation.mutate(country.id);
                           }
                         }}
                         disabled={country.id === "uae"}
-                        title={country.id === "uae" ? "Cannot delete default country" : "Delete Country"}
+                        title={country.id === "uae" ? t('countries.cannotDelete') : t('countries.deleteCountry')}
                         data-testid={`button-delete-${country.id}`}
                       >
                         <Trash2 className="w-4 h-4" />
@@ -405,15 +403,13 @@ export default function CountryManagement() {
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Add New Country</DialogTitle>
-            <DialogDescription>
-              Add a new country to the platform. Enable AI auto-populate to automatically research and fill in the country's vision, education system, and subjects.
-            </DialogDescription>
+            <DialogTitle>{t('countries.addCountryTitle')}</DialogTitle>
+            <DialogDescription>{t('countries.addCountryDesc')}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="countryId">Country ID *</Label>
+                <Label htmlFor="countryId">{t('countries.countryId')}</Label>
                 <Input
                   id="countryId"
                   placeholder="e.g., saudi"
@@ -423,7 +419,7 @@ export default function CountryManagement() {
                 />
               </div>
               <div>
-                <Label htmlFor="countryCode">Country Code *</Label>
+                <Label htmlFor="countryCode">{t('countries.countryCode')}</Label>
                 <Input
                   id="countryCode"
                   placeholder="e.g., SAU"
@@ -435,7 +431,7 @@ export default function CountryManagement() {
               </div>
             </div>
             <div>
-              <Label htmlFor="countryName">Country Name *</Label>
+              <Label htmlFor="countryName">{t('countries.countryName')}</Label>
               <Input
                 id="countryName"
                 placeholder="e.g., Saudi Arabia"
@@ -445,7 +441,7 @@ export default function CountryManagement() {
               />
             </div>
             <div>
-              <Label htmlFor="abbreviation">Abbreviation</Label>
+              <Label htmlFor="abbreviation">{t('countries.abbreviation')}</Label>
               <Input
                 id="abbreviation"
                 placeholder="e.g., KSA (optional)"
@@ -458,11 +454,9 @@ export default function CountryManagement() {
               <div className="space-y-0.5">
                 <Label htmlFor="autoPopulate" className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-primary" />
-                  AI Auto-Populate
+                  {t('countries.aiAutoPopulate')}
                 </Label>
-                <p className="text-sm text-muted-foreground">
-                  Research vision, goals, education system, and subjects automatically
-                </p>
+                <p className="text-sm text-muted-foreground">{t('countries.aiAutoPopulateDesc')}</p>
               </div>
               <Switch
                 id="autoPopulate"
@@ -474,7 +468,7 @@ export default function CountryManagement() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>
-              Cancel
+              {t('countries.cancel')}
             </Button>
             <Button 
               onClick={handleCreateCountry} 
@@ -483,13 +477,13 @@ export default function CountryManagement() {
             >
               {createMutation.isPending ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {newCountryForm.autoPopulate ? "Researching..." : "Creating..."}
+                  <Loader2 className="w-4 h-4 me-2 animate-spin" />
+                  {newCountryForm.autoPopulate ? t('countries.researching') : t('countries.creating')}
                 </>
               ) : (
                 <>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Country
+                  <Plus className="w-4 h-4 me-2" />
+                  {t('countries.createCountry')}
                 </>
               )}
             </Button>
@@ -500,16 +494,14 @@ export default function CountryManagement() {
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit {selectedCountry?.name}</DialogTitle>
-            <DialogDescription>
-              Update country information and settings
-            </DialogDescription>
+            <DialogTitle>{t('countries.editCountryTitle')}: {selectedCountry?.name}</DialogTitle>
+            <DialogDescription>{t('countries.editCountryDesc')}</DialogDescription>
           </DialogHeader>
           {selectedCountry && (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>Country Name</Label>
+                  <Label>{t('countries.editNameLabel')}</Label>
                   <Input
                     value={selectedCountry.name}
                     onChange={(e) => setSelectedCountry({ ...selectedCountry, name: e.target.value })}
@@ -517,7 +509,7 @@ export default function CountryManagement() {
                   />
                 </div>
                 <div>
-                  <Label>Vision Plan</Label>
+                  <Label>{t('countries.visionPlanLabel')}</Label>
                   <Input
                     placeholder="e.g., Vision 2030"
                     value={selectedCountry.visionPlan || ""}
@@ -527,7 +519,7 @@ export default function CountryManagement() {
                 </div>
               </div>
               <div>
-                <Label>Mission Statement</Label>
+                <Label>{t('countries.missionLabel')}</Label>
                 <Textarea
                   rows={2}
                   value={selectedCountry.mission}
@@ -536,7 +528,7 @@ export default function CountryManagement() {
                 />
               </div>
               <div>
-                <Label>Vision Statement</Label>
+                <Label>{t('countries.visionLabel')}</Label>
                 <Textarea
                   rows={2}
                   value={selectedCountry.vision}
@@ -546,7 +538,7 @@ export default function CountryManagement() {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>Universities Link</Label>
+                  <Label>{t('countries.editUniversitiesLink')}</Label>
                   <Input
                     placeholder="https://..."
                     value={selectedCountry.universitiesLink || ""}
@@ -555,7 +547,7 @@ export default function CountryManagement() {
                   />
                 </div>
                 <div>
-                  <Label>Universities Link Label</Label>
+                  <Label>{t('countries.editUniversitiesLinkLabel')}</Label>
                   <Input
                     placeholder="e.g., Ministry of Education"
                     value={selectedCountry.universitiesLinkLabel || ""}
@@ -565,7 +557,7 @@ export default function CountryManagement() {
                 </div>
               </div>
               <div>
-                <Label>Education System Description</Label>
+                <Label>{t('countries.editEducation')}</Label>
                 <Textarea
                   rows={2}
                   value={selectedCountry.educationSystem || ""}
@@ -574,7 +566,7 @@ export default function CountryManagement() {
                 />
               </div>
               <div>
-                <Label>Curricula (comma-separated)</Label>
+                <Label>{t('countries.editCurricula')}</Label>
                 <Input
                   placeholder="National, IB, Cambridge"
                   value={selectedCountry.curricula?.join(", ") || ""}
@@ -586,7 +578,7 @@ export default function CountryManagement() {
                 />
               </div>
               <div>
-                <Label>Subjects (comma-separated)</Label>
+                <Label>{t('countries.editSubjects')}</Label>
                 <Input
                   placeholder="Mathematics, Science, English..."
                   value={selectedCountry.subjects?.join(", ") || ""}
@@ -598,7 +590,7 @@ export default function CountryManagement() {
                 />
               </div>
               <div>
-                <Label>Priority Sectors (comma-separated)</Label>
+                <Label>{t('countries.editSectors')}</Label>
                 <Input
                   placeholder="Technology, Healthcare, Energy..."
                   value={selectedCountry.prioritySectors?.join(", ") || ""}
@@ -615,13 +607,13 @@ export default function CountryManagement() {
                   onCheckedChange={(checked) => setSelectedCountry({ ...selectedCountry, isActive: checked })}
                   data-testid="switch-edit-active"
                 />
-                <Label>Country is Active</Label>
+                <Label>{t('countries.countryIsActive')}</Label>
               </div>
             </div>
           )}
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>
-              Cancel
+              {t('countries.cancel')}
             </Button>
             <Button 
               onClick={() => selectedCountry && updateMutation.mutate({ 
@@ -631,7 +623,7 @@ export default function CountryManagement() {
               disabled={updateMutation.isPending}
               data-testid="button-save-country"
             >
-              {updateMutation.isPending ? "Saving..." : "Save Changes"}
+              {updateMutation.isPending ? t('countries.saving') : t('countries.saveChanges')}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -640,20 +632,20 @@ export default function CountryManagement() {
       <Dialog open={isGenerateQuestionsOpen} onOpenChange={setIsGenerateQuestionsOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Generate Quiz Questions</DialogTitle>
+            <DialogTitle>{t('countries.generateTitle')}</DialogTitle>
             <DialogDescription>
-              Use AI to generate curriculum-aligned quiz questions for {selectedCountry?.name}
+              {t('countries.generateDesc')} — {selectedCountry?.name}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>Subject *</Label>
+              <Label>{t('countries.generateSubject')}</Label>
               <Select 
                 value={generateForm.subject} 
                 onValueChange={(value) => setGenerateForm(f => ({ ...f, subject: value }))}
               >
                 <SelectTrigger data-testid="select-generate-subject">
-                  <SelectValue placeholder="Select subject" />
+                  <SelectValue placeholder={t('countries.selectSubjectPlaceholder')} />
                 </SelectTrigger>
                 <SelectContent>
                   {(selectedCountry?.subjects || ["Mathematics", "Science", "English", "Social Studies", "Computer Science"]).map((s) => (
@@ -664,7 +656,7 @@ export default function CountryManagement() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>Grade Level</Label>
+                <Label>{t('countries.gradeLevel')}</Label>
                 <Select 
                   value={generateForm.grade} 
                   onValueChange={(value) => setGenerateForm(f => ({ ...f, grade: value }))}
@@ -674,13 +666,13 @@ export default function CountryManagement() {
                   </SelectTrigger>
                   <SelectContent>
                     {GRADES.map((g) => (
-                      <SelectItem key={g} value={g}>Grade {g}</SelectItem>
+                      <SelectItem key={g} value={g}>{t('countries.gradeN', { grade: g })}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div>
-                <Label>Curriculum</Label>
+                <Label>{t('countries.generateCurriculum')}</Label>
                 <Select 
                   value={generateForm.curriculum} 
                   onValueChange={(value) => setGenerateForm(f => ({ ...f, curriculum: value }))}
@@ -697,7 +689,7 @@ export default function CountryManagement() {
               </div>
             </div>
             <div>
-              <Label>Number of Questions</Label>
+              <Label>{t('countries.generateCount')}</Label>
               <Select 
                 value={generateForm.count.toString()} 
                 onValueChange={(value) => setGenerateForm(f => ({ ...f, count: parseInt(value) }))}
@@ -706,17 +698,16 @@ export default function CountryManagement() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="5">5 questions</SelectItem>
-                  <SelectItem value="10">10 questions</SelectItem>
-                  <SelectItem value="15">15 questions</SelectItem>
-                  <SelectItem value="20">20 questions</SelectItem>
+                  {[5, 10, 15, 20].map(n => (
+                    <SelectItem key={n} value={String(n)}>{t('countries.questionCount', { n })}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsGenerateQuestionsOpen(false)}>
-              Cancel
+              {t('countries.cancel')}
             </Button>
             <Button 
               onClick={handleGenerateQuestions}
@@ -725,13 +716,13 @@ export default function CountryManagement() {
             >
               {generateQuestionsMutation.isPending ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Generating...
+                  <Loader2 className="w-4 h-4 me-2 animate-spin" />
+                  {t('countries.generating')}
                 </>
               ) : (
                 <>
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Generate Questions
+                  <Sparkles className="w-4 h-4 me-2" />
+                  {t('countries.generate')}
                 </>
               )}
             </Button>
@@ -742,14 +733,12 @@ export default function CountryManagement() {
       <Dialog open={isRenameModalOpen} onOpenChange={setIsRenameModalOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Rename Curriculum</DialogTitle>
-            <DialogDescription>
-              Rename a curriculum and automatically update all associated subjects and quiz questions.
-            </DialogDescription>
+            <DialogTitle>{t('countries.renameCurriculumTitle')}</DialogTitle>
+            <DialogDescription>{t('countries.renameCurriculumDesc')}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <Label>Country</Label>
+              <Label>{t('countries.nameCol')}</Label>
               <Select 
                 value={renameForm.countryId} 
                 onValueChange={(value) => {
@@ -757,7 +746,7 @@ export default function CountryManagement() {
                 }}
               >
                 <SelectTrigger data-testid="select-rename-country">
-                  <SelectValue placeholder="Select country" />
+                  <SelectValue placeholder={t('countries.selectCountry')} />
                 </SelectTrigger>
                 <SelectContent>
                   {countries.map((country) => (
@@ -769,13 +758,13 @@ export default function CountryManagement() {
             {renameForm.countryId && (
               <>
                 <div>
-                  <Label>Current Curriculum Name</Label>
+                  <Label>{t('countries.oldCurriculumName')}</Label>
                   <Select 
                     value={renameForm.oldName} 
                     onValueChange={(value) => setRenameForm(f => ({ ...f, oldName: value, newName: value }))}
                   >
                     <SelectTrigger data-testid="select-rename-old">
-                      <SelectValue placeholder="Select curriculum to rename" />
+                      <SelectValue placeholder={t('countries.selectCurriculumPlaceholder')} />
                     </SelectTrigger>
                     <SelectContent>
                       {countries.find(c => c.id === renameForm.countryId)?.curricula?.map((c) => (
@@ -785,9 +774,9 @@ export default function CountryManagement() {
                   </Select>
                 </div>
                 <div>
-                  <Label>New Curriculum Name</Label>
+                  <Label>{t('countries.newCurriculumName')}</Label>
                   <Input
-                    placeholder="Enter new name"
+                    placeholder={t('countries.enterNewNamePlaceholder')}
                     value={renameForm.newName}
                     onChange={(e) => setRenameForm(f => ({ ...f, newName: e.target.value }))}
                     data-testid="input-rename-new"
@@ -798,7 +787,7 @@ export default function CountryManagement() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsRenameModalOpen(false)}>
-              Cancel
+              {t('countries.cancel')}
             </Button>
             <Button 
               onClick={() => renameCurriculumMutation.mutate(renameForm)}
@@ -807,13 +796,13 @@ export default function CountryManagement() {
             >
               {renameCurriculumMutation.isPending ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Renaming...
+                  <Loader2 className="w-4 h-4 me-2 animate-spin" />
+                  {t('countries.renaming')}
                 </>
               ) : (
                 <>
-                  <ArrowRightLeft className="w-4 h-4 mr-2" />
-                  Rename Curriculum
+                  <ArrowRightLeft className="w-4 h-4 me-2" />
+                  {t('countries.renameBtn')}
                 </>
               )}
             </Button>

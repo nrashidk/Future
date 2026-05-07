@@ -2376,6 +2376,68 @@ export function registerSuperadminRoutes(app: Express) {
     }
   });
 
+  // GET /api/superadmin/quiz-questions — list quiz questions for translation
+  app.get("/api/superadmin/quiz-questions", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const { db } = await import("../db");
+      const { quizQuestions } = await import("../../shared/schema");
+      const { isNull, or, eq } = await import("drizzle-orm");
+      const { sql } = await import("drizzle-orm");
+      const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
+      const offset = parseInt(req.query.offset as string) || 0;
+      const missingOnly = req.query.missingOnly === "true";
+
+      const baseQuery = db.select({
+        id: quizQuestions.id,
+        question: quizQuestions.question,
+        questionAr: quizQuestions.questionAr,
+        subject: quizQuestions.subject,
+        grade: quizQuestions.grade,
+      }).from(quizQuestions);
+
+      const rows = missingOnly
+        ? await baseQuery.where(or(isNull(quizQuestions.questionAr), eq(quizQuestions.questionAr, ""))).limit(limit).offset(offset)
+        : await baseQuery.limit(limit).offset(offset);
+
+      const [{ count }] = await db.select({ count: sql<number>`count(*)` }).from(quizQuestions);
+      const [{ missingCount }] = await db
+        .select({ missingCount: sql<number>`count(*)` })
+        .from(quizQuestions)
+        .where(or(isNull(quizQuestions.questionAr), eq(quizQuestions.questionAr, "")));
+
+      res.json({ questions: rows, total: Number(count), missing: Number(missingCount) });
+    } catch (error) {
+      console.error("Error fetching quiz questions:", error);
+      res.status(500).json({ message: "Failed to fetch quiz questions" });
+    }
+  });
+
+  // PATCH /api/superadmin/quiz-questions/:id — update Arabic translation of a quiz question
+  app.patch("/api/superadmin/quiz-questions/:id", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { questionAr } = req.body;
+      if (typeof questionAr !== "string") {
+        return res.status(400).json({ message: "questionAr is required" });
+      }
+      const { db } = await import("../db");
+      const { quizQuestions } = await import("../../shared/schema");
+      const { eq } = await import("drizzle-orm");
+      const updated = await db
+        .update(quizQuestions)
+        .set({ questionAr })
+        .where(eq(quizQuestions.id, id))
+        .returning();
+      if (!updated.length) {
+        return res.status(404).json({ message: "Question not found" });
+      }
+      res.json(updated[0]);
+    } catch (error) {
+      console.error("Error updating quiz question:", error);
+      res.status(500).json({ message: "Failed to update quiz question" });
+    }
+  });
+
   // PATCH /api/superadmin/translations/:namespace — update a single translation key
   app.patch("/api/superadmin/translations/:namespace", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
     try {
