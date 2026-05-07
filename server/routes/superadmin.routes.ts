@@ -2197,9 +2197,9 @@ export function registerSuperadminRoutes(app: Express) {
 
   app.post("/api/superadmin/students", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
     try {
-      const { firstName, lastName, email, grade } = req.body;
-      if (!firstName || !lastName || !email || !grade) {
-        return res.status(400).json({ message: "First name, last name, email, and grade are required" });
+      const { firstName, lastName, email } = req.body;
+      if (!firstName || !lastName || !email) {
+        return res.status(400).json({ message: "First name, last name, and email are required" });
       }
 
       const existingByEmail = await storage.getUserByEmail(email);
