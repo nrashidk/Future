@@ -88,20 +88,20 @@ const DIFFICULTIES = [
   { value: "hard", label: "Hard" },
 ];
 
-function getStatusBadge(status: string) {
+function makeStatusBadge(status: string, t: (key: string) => string) {
   switch (status) {
     case "pending":
-      return <Badge variant="secondary"><Clock className="w-3 h-3 mr-1" />Pending Review</Badge>;
+      return <Badge variant="secondary"><Clock className="w-3 h-3 me-1" />{t('contributions.reviewPending')}</Badge>;
     case "llm_verified":
-      return <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200"><CheckCircle className="w-3 h-3 mr-1" />Quality Checked</Badge>;
+      return <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200"><CheckCircle className="w-3 h-3 me-1" />{t('contributions.reviewLlmVerified')}</Badge>;
     case "in_review":
-      return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200"><HelpCircle className="w-3 h-3 mr-1" />In Review</Badge>;
+      return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200"><HelpCircle className="w-3 h-3 me-1" />{t('contributions.reviewInReview')}</Badge>;
     case "approved":
-      return <Badge className="bg-green-500"><CheckCircle className="w-3 h-3 mr-1" />Approved</Badge>;
+      return <Badge className="bg-green-500"><CheckCircle className="w-3 h-3 me-1" />{t('contributions.reviewApproved')}</Badge>;
     case "rejected":
-      return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />Rejected</Badge>;
+      return <Badge variant="destructive"><XCircle className="w-3 h-3 me-1" />{t('contributions.reviewRejected')}</Badge>;
     case "needs_changes":
-      return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200"><AlertCircle className="w-3 h-3 mr-1" />Needs Changes</Badge>;
+      return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200"><AlertCircle className="w-3 h-3 me-1" />{t('contributions.reviewNeedsChanges')}</Badge>;
     default:
       return <Badge variant="secondary">{status}</Badge>;
   }
@@ -162,8 +162,8 @@ export default function ContributeQuestions() {
     },
     onSuccess: () => {
       toast({
-        title: "Questions Submitted",
-        description: "Your questions have been submitted for review. You'll be notified when they're reviewed.",
+        title: t('contributions.submitSuccess'),
+        description: t('contributions.submitSuccessDesc'),
       });
       setIsSubmitDialogOpen(false);
       setQuestions([]);
@@ -186,8 +186,8 @@ export default function ContributeQuestions() {
     },
     onError: (error: any) => {
       toast({
-        title: "Submission Failed",
-        description: error.message || "Failed to submit questions. Please try again.",
+        title: t('contributions.submitError'),
+        description: error.message || t('contributions.submitError'),
         variant: "destructive",
       });
     },
@@ -195,19 +195,19 @@ export default function ContributeQuestions() {
 
   const addQuestion = () => {
     if (!currentQuestion.question.trim()) {
-      toast({ title: "Please enter a question", variant: "destructive" });
+      toast({ title: t('contributions.toastEnterQuestion'), variant: "destructive" });
       return;
     }
     if (currentQuestion.options.some(o => !o.trim())) {
-      toast({ title: "Please fill in all 4 options", variant: "destructive" });
+      toast({ title: t('contributions.toastFillOptions'), variant: "destructive" });
       return;
     }
     if (!currentQuestion.correctAnswer.trim()) {
-      toast({ title: "Please enter the correct answer", variant: "destructive" });
+      toast({ title: t('contributions.toastEnterAnswer'), variant: "destructive" });
       return;
     }
     if (!currentQuestion.topic.trim()) {
-      toast({ title: "Please enter a topic", variant: "destructive" });
+      toast({ title: t('contributions.toastEnterTopic'), variant: "destructive" });
       return;
     }
 
@@ -221,7 +221,7 @@ export default function ContributeQuestions() {
       difficulty: "medium",
       cognitiveLevel: "comprehension",
     });
-    toast({ title: "Question added", description: `${questions.length + 1} question(s) ready for submission` });
+    toast({ title: t('contributions.toastQuestionAdded'), description: t('contributions.toastQuestionAddedDesc', { n: questions.length + 1 }) });
   };
 
   const removeQuestion = (index: number) => {
@@ -232,11 +232,11 @@ export default function ContributeQuestions() {
     const questionsToSubmit = submissionMode === "csv" ? csvQuestions : questions;
     
     if (questionsToSubmit.length === 0) {
-      toast({ title: "Add at least one question", variant: "destructive" });
+      toast({ title: t('contributions.toastAddQuestion'), variant: "destructive" });
       return;
     }
     if (!submissionConfig.countryId || !submissionConfig.curriculum || !submissionConfig.subject) {
-      toast({ title: "Please select country, curriculum and subject", variant: "destructive" });
+      toast({ title: t('contributions.toastSelectFields'), variant: "destructive" });
       return;
     }
 
@@ -374,18 +374,18 @@ export default function ContributeQuestions() {
         
         if (parsedQuestions.length > 0) {
           toast({
-            title: "CSV Parsed Successfully",
-            description: `${parsedQuestions.length} question(s) ready for submission${errors.length > 0 ? `, ${errors.length} row(s) skipped` : ''}`,
+            title: t('contributions.parseSuccess'),
+            description: t('contributions.questionsReady', { n: parsedQuestions.length }),
           });
         } else {
           toast({
-            title: "No Valid Questions Found",
-            description: "Please check the CSV format and try again",
+            title: t('contributions.parseError'),
+            description: t('contributions.noValidQuestions'),
             variant: "destructive",
           });
         }
       } catch (error) {
-        setCsvErrors(["Failed to parse CSV file. Please check the format."]);
+        setCsvErrors([t('contributions.parseError')]);
       }
       setIsParsingCsv(false);
     };
@@ -402,7 +402,7 @@ export default function ContributeQuestions() {
     const file = event.target.files?.[0];
     if (file) {
       if (!file.name.endsWith('.csv')) {
-        toast({ title: "Please upload a CSV file", variant: "destructive" });
+        toast({ title: t('contributions.toastCsvOnly'), variant: "destructive" });
         return;
       }
       parseCsvFile(file);
@@ -480,9 +480,9 @@ export default function ContributeQuestions() {
             <div className="flex items-center gap-3">
               <AlertCircle className="w-5 h-5 text-orange-500" />
               <div>
-                <p className="font-medium text-orange-700">Rewards Pending Allocation</p>
+                <p className="font-medium text-orange-700">{t('contributions.pendingAllocation')}</p>
                 <p className="text-sm text-orange-600">
-                  Your school has {balance?.pendingRewardCredits} credits approved and waiting for allocation by an administrator.
+                  {t('contributions.pendingAllocationDesc', { n: balance?.pendingRewardCredits })}
                 </p>
               </div>
             </div>
@@ -496,22 +496,22 @@ export default function ContributeQuestions() {
             <div>
               <CardTitle className="flex items-center gap-2">
                 <TrendingUp className="w-5 h-5" />
-                {balance?.currentYear ?? new Date().getFullYear()} Progress
+                {t('contributions.yearlyProgress', { year: balance?.currentYear ?? new Date().getFullYear() })}
               </CardTitle>
               <CardDescription>
-                {balance?.questionsPerCredit ?? 5} approved questions = 1 free assessment credit
+                {t('contributions.yearlyDesc', { questionsPerCredit: balance?.questionsPerCredit ?? 5 })}
               </CardDescription>
             </div>
             <Badge variant="outline" className="text-sm">
-              <Calendar className="w-3 h-3 mr-1" />
-              {balance?.yearlyCreditsEarned ?? 0} / {balance?.maxYearlyCredits ?? 50} credits this year
+              <Calendar className="w-3 h-3 me-1" />
+              {t('contributions.yearlyEarned', { earned: balance?.yearlyCreditsEarned ?? 0, max: balance?.maxYearlyCredits ?? 50 })}
             </Badge>
           </div>
         </CardHeader>
         <CardContent>
           <Progress value={yearlyProgress} className="h-3" />
           <p className="text-xs text-muted-foreground mt-2">
-            {balance?.yearlyCreditsRemaining ?? 50} credits remaining this year
+            {t('contributions.creditsRemaining', { n: balance?.yearlyCreditsRemaining ?? 50 })}
           </p>
         </CardContent>
       </Card>
@@ -520,21 +520,21 @@ export default function ContributeQuestions() {
         <CardHeader>
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div>
-              <CardTitle>Contribute Questions</CardTitle>
+              <CardTitle>{t('contributions.contributeTitle')}</CardTitle>
               <CardDescription>
-                Submit curriculum-aligned quiz questions to earn free assessment credits
+                {t('contributions.contributeDesc')}
               </CardDescription>
             </div>
             <Dialog open={isSubmitDialogOpen} onOpenChange={setIsSubmitDialogOpen}>
               <Button onClick={() => setIsSubmitDialogOpen(true)} data-testid="button-new-submission">
-                <Plus className="w-4 h-4 mr-2" />
-                New Submission
+                <Plus className="w-4 h-4 me-2" />
+                {t('contributions.newSubmission')}
               </Button>
               <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle>Submit Quiz Questions</DialogTitle>
+                  <DialogTitle>{t('contributions.submitTitle')}</DialogTitle>
                   <DialogDescription>
-                    Add questions that match your school's curriculum. Each 5 approved questions = 1 free assessment credit.
+                    {t('contributions.submitDialogDesc', { n: balance?.questionsPerCredit ?? 5 })}
                   </DialogDescription>
                 </DialogHeader>
 
@@ -542,13 +542,13 @@ export default function ContributeQuestions() {
                   {/* Configuration Selects - shared between manual and CSV modes */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div className="space-y-2">
-                      <Label>Country</Label>
+                      <Label>{t('contributions.countryLabel')}</Label>
                       <Select
                         value={submissionConfig.countryId}
                         onValueChange={(v) => setSubmissionConfig({...submissionConfig, countryId: v, curriculum: "", subject: ""})}
                       >
                         <SelectTrigger data-testid="select-country">
-                          <SelectValue placeholder="Select country" />
+                          <SelectValue placeholder={t('contributions.selectCountry')} />
                         </SelectTrigger>
                         <SelectContent>
                           {countries.map((country) => (
@@ -559,14 +559,14 @@ export default function ContributeQuestions() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Curriculum</Label>
+                      <Label>{t('contributions.curriculumLabel')}</Label>
                       <Select
                         value={submissionConfig.curriculum}
                         onValueChange={(v) => setSubmissionConfig({...submissionConfig, curriculum: v, subject: ""})}
                         disabled={!selectedCountry}
                       >
                         <SelectTrigger data-testid="select-curriculum">
-                          <SelectValue placeholder="Select curriculum" />
+                          <SelectValue placeholder={t('contributions.selectCurriculum')} />
                         </SelectTrigger>
                         <SelectContent>
                           {(selectedCountry?.curricula || []).map((c) => (
@@ -577,7 +577,7 @@ export default function ContributeQuestions() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Subject</Label>
+                      <Label>{t('contributions.selectSubject')}</Label>
                       <Select
                         value={submissionConfig.subject}
                         onValueChange={(v) => setSubmissionConfig({...submissionConfig, subject: v})}
@@ -600,17 +600,17 @@ export default function ContributeQuestions() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Grade</Label>
+                      <Label>{t('contributions.gradeSelect')}</Label>
                       <Select
                         value={String(submissionConfig.grade)}
                         onValueChange={(v) => setSubmissionConfig({...submissionConfig, grade: parseInt(v)})}
                       >
                         <SelectTrigger data-testid="select-grade">
-                          <SelectValue placeholder="Select grade" />
+                          <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                           {[8, 9, 10, 11, 12].map((g) => (
-                            <SelectItem key={g} value={String(g)}>Grade {g}</SelectItem>
+                            <SelectItem key={g} value={String(g)}>{t('contributions.gradeN', { n: g })}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
@@ -623,7 +623,6 @@ export default function ContributeQuestions() {
                     onValueChange={(v) => {
                       const newMode = v as "manual" | "csv";
                       setSubmissionMode(newMode);
-                      // Clear data when switching modes to prevent confusion
                       if (newMode === "manual") {
                         setCsvQuestions([]);
                         setCsvErrors([]);
@@ -638,24 +637,24 @@ export default function ContributeQuestions() {
                   >
                     <TabsList className="grid w-full grid-cols-2">
                       <TabsTrigger value="manual" data-testid="tab-manual-entry">
-                        <Edit className="w-4 h-4 mr-2" />
-                        Manual Entry
+                        <Edit className="w-4 h-4 me-2" />
+                        {t('contributions.manualEntry')}
                       </TabsTrigger>
                       <TabsTrigger value="csv" data-testid="tab-csv-upload">
-                        <Upload className="w-4 h-4 mr-2" />
-                        CSV Bulk Upload
+                        <Upload className="w-4 h-4 me-2" />
+                        {t('contributions.csvUpload')}
                       </TabsTrigger>
                     </TabsList>
 
                     {/* Manual Entry Tab */}
                     <TabsContent value="manual" className="mt-4">
                       <div className="border rounded-lg p-4 space-y-4">
-                        <h4 className="font-medium">Add Question</h4>
+                        <h4 className="font-medium">{t('contributions.addQuestionSection')}</h4>
                     
                     <div className="space-y-2">
-                      <Label>Question Text</Label>
+                      <Label>{t('contributions.questionLabel')}</Label>
                       <Textarea
-                        placeholder="Enter your question..."
+                        placeholder={t('contributions.questionPlaceholder')}
                         value={currentQuestion.question}
                         onChange={(e) => setCurrentQuestion({...currentQuestion, question: e.target.value})}
                         className="min-h-[80px]"
@@ -666,9 +665,9 @@ export default function ContributeQuestions() {
                     <div className="grid grid-cols-2 gap-4">
                       {[0, 1, 2, 3].map((i) => (
                         <div key={i} className="space-y-2">
-                          <Label>Option {String.fromCharCode(65 + i)}</Label>
+                          <Label>{t('contributions.option', { n: String.fromCharCode(65 + i) })}</Label>
                           <Input
-                            placeholder={`Option ${String.fromCharCode(65 + i)}`}
+                            placeholder={t('contributions.option', { n: String.fromCharCode(65 + i) })}
                             value={currentQuestion.options[i]}
                             onChange={(e) => {
                               const newOptions = [...currentQuestion.options];
@@ -683,13 +682,13 @@ export default function ContributeQuestions() {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>Correct Answer</Label>
+                        <Label>{t('contributions.correctAnswer')}</Label>
                         <Select
                           value={currentQuestion.correctAnswer}
                           onValueChange={(v) => setCurrentQuestion({...currentQuestion, correctAnswer: v})}
                         >
                           <SelectTrigger data-testid="select-correct-answer">
-                            <SelectValue placeholder="Select correct answer" />
+                            <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
                             {currentQuestion.options.filter(o => o.trim()).map((opt, i) => (
@@ -702,9 +701,9 @@ export default function ContributeQuestions() {
                       </div>
 
                       <div className="space-y-2">
-                        <Label>Topic</Label>
+                        <Label>{t('contributions.topicLabel')}</Label>
                         <Input
-                          placeholder="e.g., Algebra, Photosynthesis"
+                          placeholder={t('contributions.topicPlaceholder')}
                           value={currentQuestion.topic}
                           onChange={(e) => setCurrentQuestion({...currentQuestion, topic: e.target.value})}
                           data-testid="input-topic"
@@ -714,7 +713,7 @@ export default function ContributeQuestions() {
 
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label>Difficulty</Label>
+                        <Label>{t('contributions.difficulty')}</Label>
                         <Select
                           value={currentQuestion.difficulty}
                           onValueChange={(v) => setCurrentQuestion({...currentQuestion, difficulty: v as any})}
@@ -731,7 +730,7 @@ export default function ContributeQuestions() {
                       </div>
 
                       <div className="space-y-2">
-                        <Label>Cognitive Level</Label>
+                        <Label>{t('contributions.cognitiveLevel')}</Label>
                         <Select
                           value={currentQuestion.cognitiveLevel}
                           onValueChange={(v) => setCurrentQuestion({...currentQuestion, cognitiveLevel: v as any})}
@@ -749,9 +748,9 @@ export default function ContributeQuestions() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Explanation (Optional)</Label>
+                      <Label>{t('contributions.explanationLabel')}</Label>
                       <Textarea
-                        placeholder="Explain why this is the correct answer..."
+                        placeholder={t('contributions.explanationPlaceholder')}
                         value={currentQuestion.explanation}
                         onChange={(e) => setCurrentQuestion({...currentQuestion, explanation: e.target.value})}
                         data-testid="input-explanation"
@@ -759,14 +758,14 @@ export default function ContributeQuestions() {
                     </div>
 
                         <Button onClick={addQuestion} variant="outline" className="w-full" data-testid="button-add-question">
-                          <Plus className="w-4 h-4 mr-2" />
-                          Add Question to Submission ({questions.length} added)
+                          <Plus className="w-4 h-4 me-2" />
+                          {t('contributions.addToListBtn', { n: questions.length })}
                         </Button>
                       </div>
 
                       {questions.length > 0 && (
                         <div className="border rounded-lg p-4">
-                          <h4 className="font-medium mb-3">Questions to Submit ({questions.length})</h4>
+                          <h4 className="font-medium mb-3">{t('contributions.questionsToSubmitList', { n: questions.length })}</h4>
                           <div className="space-y-2 max-h-[200px] overflow-y-auto">
                             {questions.map((q, i) => (
                               <div key={i} className="flex items-center justify-between p-2 bg-muted rounded">
@@ -794,12 +793,12 @@ export default function ContributeQuestions() {
                       <div className="border rounded-lg p-4 space-y-4">
                         <div className="flex items-center justify-between flex-wrap gap-4">
                           <div>
-                            <h4 className="font-medium">Bulk Upload Questions</h4>
-                            <p className="text-sm text-muted-foreground">Upload a CSV file with multiple questions at once</p>
+                            <h4 className="font-medium">{t('contributions.bulkUploadTitle')}</h4>
+                            <p className="text-sm text-muted-foreground">{t('contributions.bulkUploadDesc')}</p>
                           </div>
                           <Button variant="outline" size="sm" onClick={downloadCsvTemplate} data-testid="button-download-template">
-                            <Download className="w-4 h-4 mr-2" />
-                            Download Template
+                            <Download className="w-4 h-4 me-2" />
+                            {t('contributions.downloadTemplate')}
                           </Button>
                         </div>
 
@@ -814,7 +813,7 @@ export default function ContributeQuestions() {
                           />
                           <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                           <p className="text-sm text-muted-foreground mb-4">
-                            Upload a CSV file with columns: question, option_a, option_b, option_c, option_d, correct_answer, topic
+                            {t('contributions.csvFormat')}
                           </p>
                           <Button 
                             variant="outline" 
@@ -822,12 +821,10 @@ export default function ContributeQuestions() {
                             disabled={isParsingCsv}
                             data-testid="button-upload-csv"
                           >
-                            {isParsingCsv ? (
-                              "Parsing..."
-                            ) : (
+                            {isParsingCsv ? t('contributions.parsing') : (
                               <>
-                                <Upload className="w-4 h-4 mr-2" />
-                                Select CSV File
+                                <Upload className="w-4 h-4 me-2" />
+                                {t('contributions.selectCsvBtn')}
                               </>
                             )}
                           </Button>
@@ -838,14 +835,14 @@ export default function ContributeQuestions() {
                           <div className="border border-destructive/50 rounded-lg p-3 bg-destructive/10">
                             <h5 className="font-medium text-destructive mb-2 flex items-center gap-2">
                               <AlertCircle className="w-4 h-4" />
-                              Issues Found ({csvErrors.length})
+                              {t('contributions.csvIssues', { n: csvErrors.length })}
                             </h5>
                             <ul className="text-sm text-destructive space-y-1 max-h-32 overflow-y-auto">
                               {csvErrors.slice(0, 10).map((err, i) => (
                                 <li key={i}>{err}</li>
                               ))}
                               {csvErrors.length > 10 && (
-                                <li className="font-medium">...and {csvErrors.length - 10} more issues</li>
+                                <li className="font-medium">{t('contributions.csvMoreIssues', { n: csvErrors.length - 10 })}</li>
                               )}
                             </ul>
                           </div>
@@ -856,10 +853,10 @@ export default function ContributeQuestions() {
                       {csvQuestions.length > 0 && (
                         <div className="border rounded-lg p-4">
                           <div className="flex items-center justify-between mb-3">
-                            <h4 className="font-medium">Parsed Questions ({csvQuestions.length})</h4>
+                            <h4 className="font-medium">{t('contributions.parsedQuestions', { n: csvQuestions.length })}</h4>
                             <Button variant="ghost" size="sm" onClick={clearCsvData} data-testid="button-clear-csv">
-                              <Trash2 className="w-4 h-4 mr-1" />
-                              Clear
+                              <Trash2 className="w-4 h-4 me-1" />
+                              {t('contributions.clearCSV')}
                             </Button>
                           </div>
                           <div className="space-y-2 max-h-[200px] overflow-y-auto">
@@ -887,12 +884,10 @@ export default function ContributeQuestions() {
                     disabled={(submissionMode === "manual" ? questions.length === 0 : csvQuestions.length === 0) || submitMutation.isPending}
                     data-testid="button-submit-questions"
                   >
-                    {submitMutation.isPending ? (
-                      "Submitting..."
-                    ) : (
+                    {submitMutation.isPending ? t('contributions.submitting') : (
                       <>
-                        <Send className="w-4 h-4 mr-2" />
-                        Submit {submissionMode === "manual" ? questions.length : csvQuestions.length} Question{(submissionMode === "manual" ? questions.length : csvQuestions.length) !== 1 ? 's' : ''}
+                        <Send className="w-4 h-4 me-2" />
+                        {t('contributions.submitBtn', { n: submissionMode === "manual" ? questions.length : csvQuestions.length })}
                       </>
                     )}
                   </Button>
@@ -905,24 +900,24 @@ export default function ContributeQuestions() {
           {submissionsLoading ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-              <p className="text-muted-foreground mt-2">Loading submissions...</p>
+              <p className="text-muted-foreground mt-2">{t('contributions.loadingSubmissions')}</p>
             </div>
           ) : submissions.length === 0 ? (
             <div className="text-center py-8">
               <Gift className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">No submissions yet</p>
-              <p className="text-sm text-muted-foreground">Submit quiz questions to earn free assessment credits</p>
+              <p className="text-muted-foreground">{t('contributions.noSubmissions')}</p>
+              <p className="text-sm text-muted-foreground">{t('contributions.submitFirst')}</p>
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Subject</TableHead>
-                  <TableHead>Grade</TableHead>
-                  <TableHead>Questions</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Credits</TableHead>
-                  <TableHead>Submitted</TableHead>
+                  <TableHead>{t('contributions.subjectLabel')}</TableHead>
+                  <TableHead>{t('contributions.gradeLabel')}</TableHead>
+                  <TableHead>{t('contributions.questionsLabel')}</TableHead>
+                  <TableHead>{t('contributions.statusLabel')}</TableHead>
+                  <TableHead>{t('contributions.creditsLabel')}</TableHead>
+                  <TableHead>{t('contributions.submittedLabel')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -934,7 +929,7 @@ export default function ContributeQuestions() {
                         <p className="text-xs text-muted-foreground">{sub.curriculum}</p>
                       </div>
                     </TableCell>
-                    <TableCell>Grade {sub.grade}</TableCell>
+                    <TableCell>{t('contributions.gradeN', { n: sub.grade })}</TableCell>
                     <TableCell>
                       {sub.status === 'approved' ? (
                         <span className="text-green-600">{sub.approvedCount}/{sub.questionCount}</span>
@@ -942,7 +937,7 @@ export default function ContributeQuestions() {
                         sub.questionCount
                       )}
                     </TableCell>
-                    <TableCell>{getStatusBadge(sub.status)}</TableCell>
+                    <TableCell>{makeStatusBadge(sub.status, t)}</TableCell>
                     <TableCell>
                       {sub.creditsAwarded > 0 && (
                         <Badge className="bg-green-500">+{sub.creditsAwarded}</Badge>

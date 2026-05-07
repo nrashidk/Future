@@ -2256,10 +2256,12 @@ export function registerSuperadminRoutes(app: Express) {
   };
 
   const writeLocaleFile = async (lang: string, ns: string, data: Record<string, any>): Promise<void> => {
-    const { writeFile } = await import("fs/promises");
+    const { writeFile, rename } = await import("fs/promises");
     const { join } = await import("path");
     const filePath = join(process.cwd(), "client", "public", "locales", lang, `${ns}.json`);
-    await writeFile(filePath, JSON.stringify(data, null, 2), "utf-8");
+    const tmpPath = `${filePath}.tmp`;
+    await writeFile(tmpPath, JSON.stringify(data, null, 2), "utf-8");
+    await rename(tmpPath, filePath);
   };
 
   const flattenObject = (obj: Record<string, any>, prefix = ""): Record<string, string> => {
@@ -2342,6 +2344,35 @@ export function registerSuperadminRoutes(app: Express) {
     } catch (error) {
       console.error("Error fetching translations:", error);
       res.status(500).json({ message: "Failed to fetch translations" });
+    }
+  });
+
+  // PATCH /api/superadmin/cvq-items/:id — update Arabic text of a CVQ item
+  app.patch("/api/superadmin/cvq-items/:id", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id, 10);
+      if (isNaN(id)) {
+        return res.status(400).json({ message: "Invalid CVQ item ID" });
+      }
+      const { textAr } = req.body;
+      if (typeof textAr !== "string") {
+        return res.status(400).json({ message: "textAr is required" });
+      }
+      const { db } = await import("../db");
+      const { cvqItems } = await import("../../shared/schema");
+      const { eq } = await import("drizzle-orm");
+      const updated = await db
+        .update(cvqItems)
+        .set({ textAr })
+        .where(eq(cvqItems.id, id))
+        .returning();
+      if (!updated.length) {
+        return res.status(404).json({ message: "CVQ item not found" });
+      }
+      res.json(updated[0]);
+    } catch (error) {
+      console.error("Error updating CVQ item:", error);
+      res.status(500).json({ message: "Failed to update CVQ item" });
     }
   });
 

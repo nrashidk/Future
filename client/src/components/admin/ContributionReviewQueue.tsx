@@ -87,29 +87,29 @@ interface RewardSettings {
   maxSubmissionsPerDay: number;
 }
 
-function getStatusBadge(status: string) {
+function makeStatusBadge(status: string, t: (key: string) => string) {
   switch (status) {
     case "pending":
-      return <Badge variant="secondary"><Clock className="w-3 h-3 mr-1" />Pending LLM Check</Badge>;
+      return <Badge variant="secondary"><Clock className="w-3 h-3 me-1" />{t('contributions.pendingLlm')}</Badge>;
     case "llm_verified":
-      return <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200"><CheckCircle className="w-3 h-3 mr-1" />LLM Verified</Badge>;
+      return <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200"><CheckCircle className="w-3 h-3 me-1" />{t('contributions.llmVerified')}</Badge>;
     case "in_review":
-      return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200"><HelpCircle className="w-3 h-3 mr-1" />In Review</Badge>;
+      return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200"><HelpCircle className="w-3 h-3 me-1" />{t('contributions.reviewInReview')}</Badge>;
     case "approved":
-      return <Badge className="bg-green-500"><CheckCircle className="w-3 h-3 mr-1" />Approved</Badge>;
+      return <Badge className="bg-green-500"><CheckCircle className="w-3 h-3 me-1" />{t('contributions.reviewApproved')}</Badge>;
     case "rejected":
-      return <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" />Rejected</Badge>;
+      return <Badge variant="destructive"><XCircle className="w-3 h-3 me-1" />{t('contributions.reviewRejected')}</Badge>;
     case "needs_changes":
-      return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200"><AlertCircle className="w-3 h-3 mr-1" />Needs Changes</Badge>;
+      return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200"><AlertCircle className="w-3 h-3 me-1" />{t('contributions.reviewNeedsChanges')}</Badge>;
     default:
       return <Badge variant="secondary">{status}</Badge>;
   }
 }
 
-function getLlmScoreBadge(score?: number) {
+function makeLlmScoreBadge(score: number | undefined, t: (key: string, opts?: any) => string) {
   if (score === undefined) return null;
   const color = score >= 80 ? "bg-green-100 text-green-800" : score >= 50 ? "bg-yellow-100 text-yellow-800" : "bg-red-100 text-red-800";
-  return <Badge variant="outline" className={color}>LLM Score: {score}%</Badge>;
+  return <Badge variant="outline" className={color}>{t('contributions.llmScore', { score })}</Badge>;
 }
 
 function QuestionCard({ question, index, isSelected, onToggle }: { 
@@ -119,6 +119,7 @@ function QuestionCard({ question, index, isSelected, onToggle }: {
   onToggle: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const { t } = useTranslation('admin');
 
   return (
     <div className="border rounded-lg p-4 space-y-3">
@@ -144,16 +145,16 @@ function QuestionCard({ question, index, isSelected, onToggle }: {
             onClick={() => setExpanded(!expanded)}
             data-testid={`button-expand-question-${index}`}
           >
-            {expanded ? <ChevronDown className="w-4 h-4 mr-1" /> : <ChevronRight className="w-4 h-4 mr-1" />}
-            {expanded ? "Hide details" : "Show details"}
+            {expanded ? <ChevronDown className="w-4 h-4 me-1" /> : <ChevronRight className="w-4 h-4 me-1" />}
+            {expanded ? t('contributions.hideDetails') : t('contributions.showDetails')}
           </Button>
         </div>
       </div>
 
       {expanded && (
-        <div className="ml-7 space-y-3 border-l-2 pl-4">
+        <div className="ms-7 space-y-3 border-s-2 ps-4">
           <div>
-            <p className="text-sm text-muted-foreground mb-2">Options:</p>
+            <p className="text-sm text-muted-foreground mb-2">{t('contributions.colOptions')}</p>
             <div className="space-y-1">
               {question.options.map((opt, i) => (
                 <div 
@@ -168,7 +169,7 @@ function QuestionCard({ question, index, isSelected, onToggle }: {
           </div>
           {question.explanation && (
             <div>
-              <p className="text-sm text-muted-foreground mb-1">Explanation:</p>
+              <p className="text-sm text-muted-foreground mb-1">{t('contributions.explanationLabel')}</p>
               <p className="text-sm bg-blue-50 p-2 rounded">{question.explanation}</p>
             </div>
           )}
@@ -214,14 +215,14 @@ export default function ContributionReviewQueue() {
     },
     onSuccess: (data: any) => {
       toast({ 
-        title: "Settings Updated", 
-        description: data.message || `Max yearly credits updated.` 
+        title: t('contributions.maxCreditsUpdated'), 
+        description: data.message || t('contributions.maxCreditsUpdated'),
       });
       setEditingMaxCredits(false);
       queryClient.invalidateQueries({ queryKey: ['/api/contributions/admin/settings'] });
     },
     onError: (error: any) => {
-      toast({ title: "Update Failed", description: error.message, variant: "destructive" });
+      toast({ title: t('contributions.updateFailed'), description: error.message, variant: "destructive" });
     },
   });
 
@@ -234,8 +235,8 @@ export default function ContributionReviewQueue() {
     },
     onSuccess: (data: any) => {
       toast({ 
-        title: "Rewards Allocated", 
-        description: data.message || `Credits successfully allocated.` 
+        title: t('contributions.allocated'), 
+        description: data.message || t('contributions.allocatedDesc'),
       });
       setAllocatingOrgId(null);
       setCreditsToAllocate(0);
@@ -244,7 +245,7 @@ export default function ContributionReviewQueue() {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/organizations'] });
     },
     onError: (error: any) => {
-      toast({ title: "Allocation Failed", description: error.message, variant: "destructive" });
+      toast({ title: t('contributions.allocationFailed'), description: error.message, variant: "destructive" });
     },
   });
 
@@ -253,11 +254,11 @@ export default function ContributionReviewQueue() {
       return apiRequest('POST', `/api/contributions/admin/${submissionId}/claim`);
     },
     onSuccess: () => {
-      toast({ title: "Submission Claimed", description: "You can now review this submission." });
+      toast({ title: t('contributions.claimSuccess'), description: t('contributions.claimSuccessDesc') });
       queryClient.invalidateQueries({ queryKey: ['/api/contributions/admin/pending'] });
     },
     onError: (error: any) => {
-      toast({ title: "Failed to claim", description: error.message, variant: "destructive" });
+      toast({ title: t('contributions.updateFailed'), description: error.message, variant: "destructive" });
     },
   });
 
@@ -275,7 +276,7 @@ export default function ContributionReviewQueue() {
       });
     },
     onSuccess: () => {
-      toast({ title: "Review Complete", description: "The submission has been reviewed." });
+      toast({ title: t('contributions.reviewComplete'), description: t('contributions.reviewCompleteDesc') });
       setIsReviewDialogOpen(false);
       setSelectedSubmission(null);
       setSelectedQuestions(new Set());
@@ -284,7 +285,7 @@ export default function ContributionReviewQueue() {
       queryClient.invalidateQueries({ queryKey: ['/api/contributions/admin/stats'] });
     },
     onError: (error: any) => {
-      toast({ title: "Review Failed", description: error.message, variant: "destructive" });
+      toast({ title: t('contributions.updateFailed'), description: error.message, variant: "destructive" });
     },
   });
 
@@ -328,7 +329,7 @@ export default function ContributionReviewQueue() {
   const handleReject = () => {
     if (!selectedSubmission) return;
     if (!feedback.trim()) {
-      toast({ title: "Feedback required", description: "Please provide feedback for rejection.", variant: "destructive" });
+      toast({ title: t('contributions.feedbackRequired'), description: t('contributions.feedbackRequiredDesc'), variant: "destructive" });
       return;
     }
     reviewMutation.mutate({
@@ -341,7 +342,7 @@ export default function ContributionReviewQueue() {
   const handleNeedsChanges = () => {
     if (!selectedSubmission) return;
     if (!feedback.trim()) {
-      toast({ title: "Feedback required", description: "Please describe what changes are needed.", variant: "destructive" });
+      toast({ title: t('contributions.feedbackRequired'), description: t('contributions.changesRequiredDesc'), variant: "destructive" });
       return;
     }
     reviewMutation.mutate({
@@ -403,7 +404,7 @@ export default function ContributionReviewQueue() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="space-y-2">
-              <Label className="text-sm text-muted-foreground">Max Yearly Credits per School</Label>
+              <Label className="text-sm text-muted-foreground">{t('contributions.maxYearlyCredits')}</Label>
               {editingMaxCredits ? (
                 <div className="flex items-center gap-2">
                   <Input
@@ -453,15 +454,15 @@ export default function ContributionReviewQueue() {
               )}
             </div>
             <div className="space-y-2">
-              <Label className="text-sm text-muted-foreground">Questions per Credit</Label>
+              <Label className="text-sm text-muted-foreground">{t('contributions.questionsPerCredit')}</Label>
               <p className="text-2xl font-bold">{settings?.questionsPerCredit ?? 5}</p>
             </div>
             <div className="space-y-2">
-              <Label className="text-sm text-muted-foreground">Max Questions/Submission</Label>
+              <Label className="text-sm text-muted-foreground">{t('contributions.maxQuestionsSubmission')}</Label>
               <p className="text-2xl font-bold">{settings?.maxQuestionsPerSubmission ?? 50}</p>
             </div>
             <div className="space-y-2">
-              <Label className="text-sm text-muted-foreground">Max Submissions/Day</Label>
+              <Label className="text-sm text-muted-foreground">{t('contributions.maxSubmissionsDay')}</Label>
               <p className="text-2xl font-bold">{settings?.maxSubmissionsPerDay ?? 3}</p>
             </div>
           </div>
@@ -473,8 +474,8 @@ export default function ContributionReviewQueue() {
           <div className="flex items-center gap-3">
             <ClipboardCheck className="w-6 h-6" />
             <div>
-              <CardTitle>Contribution Review Queue</CardTitle>
-              <CardDescription>Review and approve quiz question submissions from schools</CardDescription>
+              <CardTitle>{t('contributions.adminTitle')}</CardTitle>
+              <CardDescription>{t('contributions.adminDesc')}</CardDescription>
             </div>
           </div>
         </CardHeader>
@@ -482,25 +483,25 @@ export default function ContributionReviewQueue() {
           {isLoading ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-              <p className="text-muted-foreground mt-2">Loading submissions...</p>
+              <p className="text-muted-foreground mt-2">{t('contributions.loadingSubmissions')}</p>
             </div>
           ) : submissions.length === 0 ? (
             <div className="text-center py-8">
               <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
-              <p className="text-muted-foreground">No submissions pending review</p>
-              <p className="text-sm text-muted-foreground">Great job! All caught up.</p>
+              <p className="text-muted-foreground">{t('contributions.noSubmissionsPending')}</p>
+              <p className="text-sm text-muted-foreground">{t('contributions.allCaughtUp')}</p>
             </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>School</TableHead>
-                  <TableHead>Subject</TableHead>
-                  <TableHead>Grade</TableHead>
-                  <TableHead>Questions</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Submitted</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>{t('contributions.schoolCol')}</TableHead>
+                  <TableHead>{t('contributions.subjectLabel')}</TableHead>
+                  <TableHead>{t('contributions.gradeLabel')}</TableHead>
+                  <TableHead>{t('contributions.questionsLabel')}</TableHead>
+                  <TableHead>{t('contributions.statusLabel')}</TableHead>
+                  <TableHead>{t('contributions.submittedLabel')}</TableHead>
+                  <TableHead className="text-right">{t('contributions.colActions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -511,7 +512,7 @@ export default function ContributionReviewQueue() {
                         <Building2 className="w-4 h-4 text-muted-foreground" />
                         <div>
                           <p className="font-medium">{sub.organizationName || sub.organizationId}</p>
-                          <p className="text-xs text-muted-foreground">{sub.submittedByName || "Unknown"}</p>
+                          <p className="text-xs text-muted-foreground">{sub.submittedByName || "—"}</p>
                         </div>
                       </div>
                     </TableCell>
@@ -523,15 +524,15 @@ export default function ContributionReviewQueue() {
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline">
-                        <GraduationCap className="w-3 h-3 mr-1" />
-                        Grade {sub.grade}
+                        <GraduationCap className="w-3 h-3 me-1" />
+                        {t('contributions.gradeN', { n: sub.grade })}
                       </Badge>
                     </TableCell>
                     <TableCell>{sub.questionCount}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        {getStatusBadge(sub.status)}
-                        {getLlmScoreBadge(sub.llmVerificationScore)}
+                        {makeStatusBadge(sub.status, t)}
+                        {makeLlmScoreBadge(sub.llmVerificationScore, t)}
                       </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">
@@ -539,18 +540,16 @@ export default function ContributionReviewQueue() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        {/* Review button for submissions ready for review */}
                         {(sub.status === "llm_verified" || sub.status === "in_review") && (
                           <Button
                             size="sm"
                             onClick={() => openReviewDialog(sub)}
                             data-testid={`button-review-${sub.id}`}
                           >
-                            <Eye className="w-4 h-4 mr-1" />
-                            Review
+                            <Eye className="w-4 h-4 me-1" />
+                            {t('contributions.reviewBtn')}
                           </Button>
                         )}
-                        {/* Claim button for approved - gives reward and removes from queue */}
                         {sub.status === "approved" && (
                           <Button
                             size="sm"
@@ -559,8 +558,8 @@ export default function ContributionReviewQueue() {
                             disabled={claimMutation.isPending}
                             data-testid={`button-claim-${sub.id}`}
                           >
-                            <CheckCircle className="w-4 h-4 mr-1" />
-                            Claim & Award
+                            <CheckCircle className="w-4 h-4 me-1" />
+                            {t('contributions.claimBtn')}
                           </Button>
                         )}
                       </div>
@@ -581,12 +580,12 @@ export default function ContributionReviewQueue() {
               <AlertCircle className="w-6 h-6 text-orange-500" />
               <div>
                 <CardTitle className="flex items-center gap-2">
-                  Pending Reward Allocation
+                  {t('contributions.pendingRewardTitle')}
                   <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
-                    {pendingRewardsOrgs.length} schools
+                    {t('contributions.pendingRewardSchools', { n: pendingRewardsOrgs.length })}
                   </Badge>
                 </CardTitle>
-                <CardDescription>Schools with approved contributions waiting for reward credits</CardDescription>
+                <CardDescription>{t('contributions.pendingRewardDesc')}</CardDescription>
               </div>
             </div>
           </CardHeader>
@@ -594,11 +593,11 @@ export default function ContributionReviewQueue() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>School</TableHead>
-                  <TableHead>Pending Credits</TableHead>
-                  <TableHead>Current Credits</TableHead>
-                  <TableHead>Year Used</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>{t('contributions.schoolCol')}</TableHead>
+                  <TableHead>{t('contributions.colPendingCredits')}</TableHead>
+                  <TableHead>{t('contributions.colCurrentCredits')}</TableHead>
+                  <TableHead>{t('contributions.colYearUsed')}</TableHead>
+                  <TableHead className="text-right">{t('contributions.colActions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -609,7 +608,7 @@ export default function ContributionReviewQueue() {
                         <Building2 className="w-4 h-4 text-muted-foreground" />
                         <span className="font-medium">{org.name}</span>
                         <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
-                          Pending Reward
+                          {t('contributions.pendingRewardBadge')}
                         </Badge>
                       </div>
                     </TableCell>
@@ -636,7 +635,7 @@ export default function ContributionReviewQueue() {
                             disabled={allocateRewardMutation.isPending || creditsToAllocate < 1}
                             data-testid={`button-confirm-allocate-${org.id}`}
                           >
-                            Confirm
+                            {t('contributions.confirm')}
                           </Button>
                           <Button
                             size="sm"
@@ -644,7 +643,7 @@ export default function ContributionReviewQueue() {
                             onClick={() => { setAllocatingOrgId(null); setCreditsToAllocate(0); }}
                             data-testid={`button-cancel-allocate-${org.id}`}
                           >
-                            Cancel
+                            {t('contributions.cancel')}
                           </Button>
                         </div>
                       ) : (
@@ -654,7 +653,7 @@ export default function ContributionReviewQueue() {
                           onClick={() => { setAllocatingOrgId(org.id); setCreditsToAllocate(org.pendingRewardCredits); }}
                           data-testid={`button-allocate-${org.id}`}
                         >
-                          Allocate Credits
+                          {t('contributions.allocateCredits')}
                         </Button>
                       )}
                     </TableCell>
@@ -673,29 +672,29 @@ export default function ContributionReviewQueue() {
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
                   <ClipboardCheck className="w-5 h-5" />
-                  Review Submission
+                  {t('contributions.reviewTitle')}
                 </DialogTitle>
                 <DialogDescription>
-                  Review questions from {selectedSubmission.organizationName || selectedSubmission.organizationId}
+                  {t('contributions.reviewDesc', { orgName: selectedSubmission.organizationName || selectedSubmission.organizationId })}
                 </DialogDescription>
               </DialogHeader>
 
               <div className="space-y-4 py-4">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-muted rounded-lg">
                   <div>
-                    <p className="text-sm text-muted-foreground">Subject</p>
+                    <p className="text-sm text-muted-foreground">{t('contributions.subjectLabel')}</p>
                     <p className="font-medium">{selectedSubmission.subject}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Curriculum</p>
+                    <p className="text-sm text-muted-foreground">{t('contributions.colCurriculum')}</p>
                     <p className="font-medium">{selectedSubmission.curriculum}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Grade</p>
-                    <p className="font-medium">Grade {selectedSubmission.grade}</p>
+                    <p className="text-sm text-muted-foreground">{t('contributions.gradeLabel')}</p>
+                    <p className="font-medium">{t('contributions.gradeN', { n: selectedSubmission.grade })}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Country</p>
+                    <p className="text-sm text-muted-foreground">{t('contributions.colCountry')}</p>
                     <p className="font-medium">{selectedSubmission.countryName || selectedSubmission.countryId}</p>
                   </div>
                 </div>
@@ -703,13 +702,13 @@ export default function ContributionReviewQueue() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-muted-foreground">
-                      {selectedQuestions.size} of {selectedSubmission.questions.length} selected
+                      {t('contributions.selectedOf', { selected: selectedQuestions.size, total: selectedSubmission.questions.length })}
                     </span>
-                    <Button variant="ghost" size="sm" onClick={selectAllQuestions}>Select All</Button>
-                    <Button variant="ghost" size="sm" onClick={deselectAllQuestions}>Deselect All</Button>
+                    <Button variant="ghost" size="sm" onClick={selectAllQuestions}>{t('contributions.selectAllBtn')}</Button>
+                    <Button variant="ghost" size="sm" onClick={deselectAllQuestions}>{t('contributions.deselectAllBtn')}</Button>
                   </div>
                   <Badge variant="secondary">
-                    Potential Credits: {Math.floor(selectedQuestions.size / 5)}
+                    {t('contributions.potentialCredits', { n: Math.floor(selectedQuestions.size / 5) })}
                   </Badge>
                 </div>
 
@@ -726,9 +725,9 @@ export default function ContributionReviewQueue() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Feedback for School (optional for approval, required for rejection)</Label>
+                  <Label>{t('contributions.reviewFeedbackLabel')}</Label>
                   <Textarea
-                    placeholder="Provide feedback about the submission..."
+                    placeholder={t('contributions.reviewFeedbackPlaceholder')}
                     value={feedback}
                     onChange={(e) => setFeedback(e.target.value)}
                     className="min-h-[100px]"
@@ -742,17 +741,17 @@ export default function ContributionReviewQueue() {
                   variant="outline" 
                   onClick={() => setIsReviewDialogOpen(false)}
                 >
-                  Cancel
+                  {t('contributions.cancel')}
                 </Button>
                 <Button 
                   variant="outline"
-                  className="text-yellow-600 border-yellow-300 hover:bg-yellow-50"
+                  className="text-yellow-600 border-yellow-300"
                   onClick={handleNeedsChanges}
                   disabled={reviewMutation.isPending}
                   data-testid="button-needs-changes"
                 >
-                  <AlertCircle className="w-4 h-4 mr-2" />
-                  Needs Changes
+                  <AlertCircle className="w-4 h-4 me-2" />
+                  {t('contributions.needsChanges')}
                 </Button>
                 <Button 
                   variant="destructive"
@@ -760,17 +759,17 @@ export default function ContributionReviewQueue() {
                   disabled={reviewMutation.isPending}
                   data-testid="button-reject"
                 >
-                  <XCircle className="w-4 h-4 mr-2" />
-                  Reject
+                  <XCircle className="w-4 h-4 me-2" />
+                  {t('contributions.reject')}
                 </Button>
                 <Button 
-                  className="bg-green-600 hover:bg-green-700"
+                  className="bg-green-600"
                   onClick={handleApprove}
                   disabled={reviewMutation.isPending || selectedQuestions.size === 0}
                   data-testid="button-approve"
                 >
-                  <CheckCircle className="w-4 h-4 mr-2" />
-                  Approve ({selectedQuestions.size} questions)
+                  <CheckCircle className="w-4 h-4 me-2" />
+                  {t('contributions.approveCount', { n: selectedQuestions.size })}
                 </Button>
               </DialogFooter>
             </>

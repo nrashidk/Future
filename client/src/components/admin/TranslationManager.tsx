@@ -9,10 +9,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest } from "@/lib/queryClient";
-import { CheckCircle, AlertCircle, Search, Globe, Edit, Save, X, AlertTriangle } from "lucide-react";
+import { CheckCircle, AlertCircle, Search, Globe, Edit, Save, X, AlertTriangle, Info } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 interface CoverageEntry {
@@ -48,6 +47,15 @@ interface Career {
   category: string;
 }
 
+interface CvqItem {
+  id: number;
+  domain: string;
+  text: string;
+  textAr?: string | null;
+  version: number;
+  isActive: boolean;
+}
+
 const NAMESPACES = ["common", "landing", "assessment", "results", "auth", "admin", "riasec", "profile", "legal", "pricing"];
 
 const extractVars = (str: string): Set<string> => {
@@ -69,6 +77,10 @@ export default function TranslationManager() {
   const [editingCareerId, setEditingCareerId] = useState<string | null>(null);
   const [careerArValues, setCareerArValues] = useState<{ titleAr: string; descriptionAr: string }>({ titleAr: "", descriptionAr: "" });
 
+  // CVQ state
+  const [editingCvqId, setEditingCvqId] = useState<number | null>(null);
+  const [cvqArValue, setCvqArValue] = useState("");
+
   const { data: coverage, isLoading: coverageLoading } = useQuery<CoverageData>({
     queryKey: ['/api/superadmin/translations/coverage'],
   });
@@ -84,6 +96,10 @@ export default function TranslationManager() {
 
   const { data: careers = [], isLoading: careersLoading } = useQuery<Career[]>({
     queryKey: ['/api/superadmin/careers'],
+  });
+
+  const { data: cvqItems = [], isLoading: cvqLoading } = useQuery<CvqItem[]>({
+    queryKey: ['/api/cvq/items'],
   });
 
   const updateMutation = useMutation({
@@ -114,6 +130,21 @@ export default function TranslationManager() {
     },
   });
 
+  const updateCvqArMutation = useMutation({
+    mutationFn: async ({ id, textAr }: { id: number; textAr: string }) => {
+      return apiRequest('PATCH', `/api/superadmin/cvq-items/${id}`, { textAr });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/cvq/items'] });
+      setEditingCvqId(null);
+      setCvqArValue("");
+      toast({ title: t('translation.cvqSaved') });
+    },
+    onError: () => {
+      toast({ title: t('translation.saveError'), variant: "destructive" });
+    },
+  });
+
   const handleStartEdit = (entry: TranslationEntry) => {
     setEditingKey(entry.key);
     setEditingValues({ en: entry.en, ar: entry.ar });
@@ -131,7 +162,6 @@ export default function TranslationManager() {
     const original = translations?.translations.find(t => t.key === editingKey);
     if (!original) return;
 
-    // {{variable}} parity check
     if (editingValues.ar) {
       const enVars = extractVars(editingValues.en);
       const arVars = extractVars(editingValues.ar);
@@ -182,6 +212,10 @@ export default function TranslationManager() {
   const careersWithMissingAr = useMemo(() => {
     return careers.filter(c => !c.titleAr || !c.descriptionAr);
   }, [careers]);
+
+  const cvqWithMissingAr = useMemo(() => {
+    return cvqItems.filter(c => !c.textAr);
+  }, [cvqItems]);
 
   return (
     <div className="space-y-6">
@@ -235,8 +269,10 @@ export default function TranslationManager() {
           <TabsTrigger value="ui" data-testid="tab-ui-strings">{t('translation.tabUiStrings')}</TabsTrigger>
           <TabsTrigger value="db" data-testid="tab-db-content">
             {t('translation.tabDbContent')}
-            {careersWithMissingAr.length > 0 && (
-              <Badge variant="destructive" className="ms-2 text-xs">{careersWithMissingAr.length}</Badge>
+            {(careersWithMissingAr.length + cvqWithMissingAr.length) > 0 && (
+              <Badge variant="destructive" className="ms-2 text-xs">
+                {careersWithMissingAr.length + cvqWithMissingAr.length}
+              </Badge>
             )}
           </TabsTrigger>
         </TabsList>
@@ -296,8 +332,8 @@ export default function TranslationManager() {
                 <div className="space-y-2">
                   <div className="grid grid-cols-[1fr_1fr_1fr_auto] gap-2 text-xs font-semibold text-muted-foreground px-2 pb-1 border-b">
                     <span>{t('translation.colKey')}</span>
-                    <span>EN</span>
-                    <span>AR</span>
+                    <span>{t('translation.englishTitle')}</span>
+                    <span>{t('translation.arabicTitle')}</span>
                     <span></span>
                   </div>
                   {filteredTranslations.map(entry => (
@@ -362,123 +398,281 @@ export default function TranslationManager() {
         </TabsContent>
 
         {/* Database Content Tab */}
-        <TabsContent value="db" className="mt-4 space-y-4">
-          {/* Careers */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base">{t('translation.dbCareers')}</CardTitle>
-              <CardDescription>
-                {careersWithMissingAr.length > 0
-                  ? `${careersWithMissingAr.length} career(s) missing Arabic translation`
-                  : "All careers have Arabic translations"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {careersLoading ? (
-                <div className="text-center py-8 text-muted-foreground">{t('translation.loading')}</div>
-              ) : careers.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">{t('translation.noDbContent')}</div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="grid grid-cols-[auto_1fr_1fr_auto] gap-3 text-xs font-semibold text-muted-foreground px-2 pb-1 border-b">
-                    <span className="w-8"></span>
-                    <span>{t('translation.englishTitle')}</span>
-                    <span>{t('translation.arabicTitle')}</span>
-                    <span></span>
-                  </div>
-                  {careers.map(career => (
-                    <div key={career.id} className="rounded-md border" data-testid={`career-row-${career.id}`}>
-                      {editingCareerId === career.id ? (
-                        <div className="p-3 space-y-3">
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="space-y-1">
-                              <Label className="text-xs text-muted-foreground">{t('translation.englishTitle')}</Label>
-                              <p className="text-sm font-medium">{career.title}</p>
-                              <p className="text-xs text-muted-foreground line-clamp-2">{career.description}</p>
-                            </div>
-                            <div className="space-y-2">
-                              <div className="space-y-1">
-                                <Label className="text-xs" htmlFor={`title-ar-${career.id}`}>{t('translation.arabicTitle')} — Title</Label>
-                                <Input
-                                  id={`title-ar-${career.id}`}
-                                  value={careerArValues.titleAr}
-                                  onChange={e => setCareerArValues(v => ({ ...v, titleAr: e.target.value }))}
-                                  dir="rtl"
-                                  className="text-sm"
-                                  data-testid={`input-career-title-ar-${career.id}`}
-                                />
+        <TabsContent value="db" className="mt-4">
+          <Tabs defaultValue="careers">
+            <TabsList className="mb-4">
+              <TabsTrigger value="careers" data-testid="tab-db-careers">
+                {t('translation.dbCareers')}
+                {careersWithMissingAr.length > 0 && (
+                  <Badge variant="destructive" className="ms-2 text-xs">{careersWithMissingAr.length}</Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="cvq" data-testid="tab-db-cvq">
+                {t('translation.dbCvq')}
+                {cvqWithMissingAr.length > 0 && (
+                  <Badge variant="destructive" className="ms-2 text-xs">{cvqWithMissingAr.length}</Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="countries" data-testid="tab-db-countries">{t('translation.dbCountries')}</TabsTrigger>
+              <TabsTrigger value="questions" data-testid="tab-db-questions">{t('translation.dbQuestions')}</TabsTrigger>
+            </TabsList>
+
+            {/* Careers sub-tab */}
+            <TabsContent value="careers">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">{t('translation.dbCareers')}</CardTitle>
+                  <CardDescription>
+                    {careersWithMissingAr.length > 0
+                      ? t('translation.dbCvqMissing', { n: careersWithMissingAr.length })
+                      : t('translation.dbCvqAllDone')}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {careersLoading ? (
+                    <div className="text-center py-8 text-muted-foreground">{t('translation.loading')}</div>
+                  ) : careers.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">{t('translation.noDbContent')}</div>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-[auto_1fr_1fr_auto] gap-3 text-xs font-semibold text-muted-foreground px-2 pb-1 border-b">
+                        <span className="w-8"></span>
+                        <span>{t('translation.englishTitle')}</span>
+                        <span>{t('translation.arabicTitle')}</span>
+                        <span></span>
+                      </div>
+                      {careers.map(career => (
+                        <div key={career.id} className="rounded-md border" data-testid={`career-row-${career.id}`}>
+                          {editingCareerId === career.id ? (
+                            <div className="p-3 space-y-3">
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                  <Label className="text-xs text-muted-foreground">{t('translation.englishTitle')}</Label>
+                                  <p className="text-sm font-medium">{career.title}</p>
+                                  <p className="text-xs text-muted-foreground line-clamp-2">{career.description}</p>
+                                </div>
+                                <div className="space-y-2">
+                                  <div className="space-y-1">
+                                    <Label className="text-xs" htmlFor={`title-ar-${career.id}`}>{t('translation.arabicTitle')} — Title</Label>
+                                    <Input
+                                      id={`title-ar-${career.id}`}
+                                      value={careerArValues.titleAr}
+                                      onChange={e => setCareerArValues(v => ({ ...v, titleAr: e.target.value }))}
+                                      dir="rtl"
+                                      className="text-sm"
+                                      data-testid={`input-career-title-ar-${career.id}`}
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-xs" htmlFor={`desc-ar-${career.id}`}>{t('translation.arabicTitle')} — Description</Label>
+                                    <Textarea
+                                      id={`desc-ar-${career.id}`}
+                                      value={careerArValues.descriptionAr}
+                                      onChange={e => setCareerArValues(v => ({ ...v, descriptionAr: e.target.value }))}
+                                      dir="rtl"
+                                      rows={3}
+                                      className="text-sm"
+                                      data-testid={`input-career-desc-ar-${career.id}`}
+                                    />
+                                  </div>
+                                </div>
                               </div>
-                              <div className="space-y-1">
-                                <Label className="text-xs" htmlFor={`desc-ar-${career.id}`}>{t('translation.arabicTitle')} — Description</Label>
-                                <Textarea
-                                  id={`desc-ar-${career.id}`}
-                                  value={careerArValues.descriptionAr}
-                                  onChange={e => setCareerArValues(v => ({ ...v, descriptionAr: e.target.value }))}
-                                  dir="rtl"
-                                  rows={3}
-                                  className="text-sm"
-                                  data-testid={`input-career-desc-ar-${career.id}`}
-                                />
+                              <div className="flex justify-end gap-2">
+                                <Button size="sm" variant="outline" onClick={() => setEditingCareerId(null)} data-testid={`cancel-career-${career.id}`}>
+                                  <X className="w-3.5 h-3.5 me-1.5" />
+                                  {t('translation.cancel')}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={() => updateCareerArMutation.mutate({ id: career.id, titleAr: careerArValues.titleAr, descriptionAr: careerArValues.descriptionAr })}
+                                  disabled={updateCareerArMutation.isPending}
+                                  data-testid={`save-career-${career.id}`}
+                                >
+                                  <Save className="w-3.5 h-3.5 me-1.5" />
+                                  {updateCareerArMutation.isPending ? t('translation.saving') : t('translation.save')}
+                                </Button>
                               </div>
                             </div>
-                          </div>
-                          <div className="flex justify-end gap-2">
-                            <Button size="sm" variant="outline" onClick={() => setEditingCareerId(null)} data-testid={`cancel-career-${career.id}`}>
-                              <X className="w-3.5 h-3.5 me-1.5" />
-                              {t('translation.cancel')}
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={() => updateCareerArMutation.mutate({ id: career.id, titleAr: careerArValues.titleAr, descriptionAr: careerArValues.descriptionAr })}
-                              disabled={updateCareerArMutation.isPending}
-                              data-testid={`save-career-${career.id}`}
-                            >
-                              <Save className="w-3.5 h-3.5 me-1.5" />
-                              {updateCareerArMutation.isPending ? t('translation.saving') : t('translation.save')}
-                            </Button>
-                          </div>
+                          ) : (
+                            <div className="grid grid-cols-[auto_1fr_1fr_auto] gap-3 items-center p-3">
+                              <div className="w-8">
+                                {career.titleAr && career.descriptionAr
+                                  ? <CheckCircle className="w-4 h-4 text-green-500" />
+                                  : <AlertCircle className="w-4 h-4 text-amber-500" />
+                                }
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium">{career.title}</p>
+                                <p className="text-xs text-muted-foreground line-clamp-1">{career.description}</p>
+                              </div>
+                              <div dir="rtl">
+                                {career.titleAr
+                                  ? <p className="text-sm font-medium">{career.titleAr}</p>
+                                  : <p className="text-sm italic text-amber-600 dark:text-amber-400">{t('translation.missing')}</p>
+                                }
+                                {career.descriptionAr
+                                  ? <p className="text-xs text-muted-foreground line-clamp-1">{career.descriptionAr}</p>
+                                  : <p className="text-xs italic text-amber-600 dark:text-amber-400">{t('translation.missing')}</p>
+                                }
+                              </div>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => {
+                                  setEditingCareerId(career.id);
+                                  setCareerArValues({ titleAr: career.titleAr || "", descriptionAr: career.descriptionAr || "" });
+                                }}
+                                data-testid={`edit-career-ar-${career.id}`}
+                              >
+                                <Edit className="w-3.5 h-3.5" />
+                              </Button>
+                            </div>
+                          )}
                         </div>
-                      ) : (
-                        <div className="grid grid-cols-[auto_1fr_1fr_auto] gap-3 items-center p-3">
-                          <div className="w-8">
-                            {career.titleAr && career.descriptionAr
-                              ? <CheckCircle className="w-4 h-4 text-green-500" />
-                              : <AlertCircle className="w-4 h-4 text-amber-500" />
-                            }
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium">{career.title}</p>
-                            <p className="text-xs text-muted-foreground line-clamp-1">{career.description}</p>
-                          </div>
-                          <div dir="rtl">
-                            {career.titleAr
-                              ? <p className="text-sm font-medium">{career.titleAr}</p>
-                              : <p className="text-sm italic text-amber-600 dark:text-amber-400">{t('translation.missing')}</p>
-                            }
-                            {career.descriptionAr
-                              ? <p className="text-xs text-muted-foreground line-clamp-1">{career.descriptionAr}</p>
-                              : <p className="text-xs italic text-amber-600 dark:text-amber-400">{t('translation.missing')}</p>
-                            }
-                          </div>
-                          <Button
-                            size="icon"
-                            variant="ghost"
-                            onClick={() => {
-                              setEditingCareerId(career.id);
-                              setCareerArValues({ titleAr: career.titleAr || "", descriptionAr: career.descriptionAr || "" });
-                            }}
-                            data-testid={`edit-career-ar-${career.id}`}
-                          >
-                            <Edit className="w-3.5 h-3.5" />
-                          </Button>
-                        </div>
-                      )}
+                      ))}
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* CVQ Items sub-tab */}
+            <TabsContent value="cvq">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">{t('translation.dbCvq')}</CardTitle>
+                  <CardDescription>
+                    {cvqWithMissingAr.length === 0
+                      ? t('translation.dbCvqAllDone')
+                      : t('translation.dbCvqMissing', { n: cvqWithMissingAr.length })}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {cvqLoading ? (
+                    <div className="text-center py-8 text-muted-foreground">{t('translation.loading')}</div>
+                  ) : cvqItems.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">{t('translation.noDbContent')}</div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="grid grid-cols-[auto_1fr_1fr_1fr_auto] gap-3 text-xs font-semibold text-muted-foreground px-2 pb-1 border-b">
+                        <span className="w-8"></span>
+                        <span>{t('translation.cvqDomain')}</span>
+                        <span>{t('translation.cvqText')}</span>
+                        <span>{t('translation.cvqTextAr')}</span>
+                        <span></span>
+                      </div>
+                      {cvqItems.map(item => (
+                        <div key={item.id} className="rounded-md border" data-testid={`cvq-row-${item.id}`}>
+                          {editingCvqId === item.id ? (
+                            <div className="p-3 space-y-3">
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                  <Label className="text-xs text-muted-foreground">{t('translation.cvqDomain')}: <span className="font-medium text-foreground">{item.domain}</span></Label>
+                                  <p className="text-sm">{item.text}</p>
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-xs" htmlFor={`cvq-ar-${item.id}`}>{t('translation.cvqTextAr')}</Label>
+                                  <Textarea
+                                    id={`cvq-ar-${item.id}`}
+                                    value={cvqArValue}
+                                    onChange={e => setCvqArValue(e.target.value)}
+                                    dir="rtl"
+                                    rows={2}
+                                    className="text-sm"
+                                    placeholder={t('translation.cvqPlaceholderAr')}
+                                    data-testid={`input-cvq-ar-${item.id}`}
+                                  />
+                                </div>
+                              </div>
+                              <div className="flex justify-end gap-2">
+                                <Button size="sm" variant="outline" onClick={() => { setEditingCvqId(null); setCvqArValue(""); }} data-testid={`cancel-cvq-${item.id}`}>
+                                  <X className="w-3.5 h-3.5 me-1.5" />
+                                  {t('translation.cancel')}
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={() => updateCvqArMutation.mutate({ id: item.id, textAr: cvqArValue })}
+                                  disabled={updateCvqArMutation.isPending}
+                                  data-testid={`save-cvq-${item.id}`}
+                                >
+                                  <Save className="w-3.5 h-3.5 me-1.5" />
+                                  {updateCvqArMutation.isPending ? t('translation.saving') : t('translation.save')}
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="grid grid-cols-[auto_1fr_1fr_1fr_auto] gap-3 items-center p-3">
+                              <div className="w-8">
+                                {item.textAr
+                                  ? <CheckCircle className="w-4 h-4 text-green-500" />
+                                  : <AlertCircle className="w-4 h-4 text-amber-500" />
+                                }
+                              </div>
+                              <div>
+                                <p className="text-xs font-medium text-muted-foreground">{item.domain}</p>
+                              </div>
+                              <div>
+                                <p className="text-sm line-clamp-2">{item.text}</p>
+                              </div>
+                              <div dir="rtl">
+                                {item.textAr
+                                  ? <p className="text-sm line-clamp-2">{item.textAr}</p>
+                                  : <p className="text-sm italic text-amber-600 dark:text-amber-400">{t('translation.missing')}</p>
+                                }
+                              </div>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => {
+                                  setEditingCvqId(item.id);
+                                  setCvqArValue(item.textAr || "");
+                                }}
+                                data-testid={`edit-cvq-ar-${item.id}`}
+                              >
+                                <Edit className="w-3.5 h-3.5" />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Countries sub-tab */}
+            <TabsContent value="countries">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">{t('translation.dbCountries')}</CardTitle>
+                  <CardDescription>{t('translation.dbCountriesNote')}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-start gap-3 p-4 rounded-md bg-muted">
+                    <Info className="w-5 h-5 text-muted-foreground mt-0.5 shrink-0" />
+                    <p className="text-sm text-muted-foreground">{t('translation.dbCountriesNote')}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Quiz Questions sub-tab */}
+            <TabsContent value="questions">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">{t('translation.dbQuestions')}</CardTitle>
+                  <CardDescription>{t('translation.dbQuestionsNote')}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-start gap-3 p-4 rounded-md bg-muted">
+                    <Info className="w-5 h-5 text-muted-foreground mt-0.5 shrink-0" />
+                    <p className="text-sm text-muted-foreground">{t('translation.dbQuestionsNote')}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </TabsContent>
       </Tabs>
     </div>
