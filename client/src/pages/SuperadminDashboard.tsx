@@ -289,7 +289,7 @@ export default function SuperadminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations'] });
     },
     onError: (error: any) => {
-      toast({ title: t('superadmin.error'), description: error.message || "Failed to add admin", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: error.message || t('superadmin.failedToAddAdmin'), variant: "destructive" });
     },
   });
 
@@ -303,7 +303,7 @@ export default function SuperadminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations'] });
     },
     onError: (error: any) => {
-      toast({ title: t('superadmin.error'), description: error.message || "Failed to remove admin", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: error.message || t('superadmin.failedToRemoveAdmin'), variant: "destructive" });
     },
   });
 
@@ -317,7 +317,7 @@ export default function SuperadminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations'] });
     },
     onError: (error: any) => {
-      toast({ title: t('superadmin.error'), description: error.message || "Failed to promote admin", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: error.message || t('superadmin.failedToPromoteAdmin'), variant: "destructive" });
     },
   });
 
@@ -331,7 +331,7 @@ export default function SuperadminDashboard() {
       window.location.href = '/';
     },
     onError: (error: any) => {
-      toast({ title: t('superadmin.error'), description: error.message || "Failed to impersonate user", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: error.message || t('superadmin.failedToImpersonate'), variant: "destructive" });
     },
   });
 
@@ -355,7 +355,7 @@ export default function SuperadminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations'] });
     },
     onError: (error: any) => {
-      toast({ title: t('superadmin.error'), description: error.message || "Failed to reset passwords", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: error.message || t('superadmin.failedToResetPasswords'), variant: "destructive" });
     },
   });
 
@@ -377,7 +377,7 @@ export default function SuperadminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/metrics'] });
     },
     onError: (error: any) => {
-      toast({ title: t('superadmin.error'), description: error.message || "Failed to delete schools", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: error.message || t('superadmin.failedToDeleteSchools'), variant: "destructive" });
     },
   });
 
@@ -392,7 +392,7 @@ export default function SuperadminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/metrics'] });
     },
     onError: (error: any) => {
-      toast({ title: t('superadmin.error'), description: error.message || "Failed to update licenses", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: error.message || t('superadmin.failedToUpdateLicenses'), variant: "destructive" });
     },
   });
 
@@ -423,7 +423,7 @@ export default function SuperadminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/metrics'] });
     },
     onError: (error: any) => {
-      toast({ title: t('superadmin.error'), description: error.message || "Failed to create school", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: error.message || t('superadmin.failedToCreateSchool'), variant: "destructive" });
     },
   });
 
@@ -446,7 +446,7 @@ export default function SuperadminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/students'] });
     },
     onError: (error: any) => {
-      toast({ title: t('superadmin.error'), description: error.message || "Failed to create student", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: error.message || t('superadmin.failedToCreateStudent'), variant: "destructive" });
     },
   });
   const [deleteOrgConfirmName, setDeleteOrgConfirmName] = useState("");
@@ -523,7 +523,7 @@ export default function SuperadminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/metrics'] });
     },
     onError: (error: any) => {
-      toast({ title: t('superadmin.error'), description: error.message || "Failed to delete school", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: error.message || t('superadmin.failedToDeleteSchool'), variant: "destructive" });
     },
   });
 
@@ -538,7 +538,7 @@ export default function SuperadminDashboard() {
       toast({ title: t('superadmin.passwordReset'), description: t('superadmin.passwordResetDesc') });
     },
     onError: (error: any) => {
-      toast({ title: t('superadmin.error'), description: error.message || "Failed to reset password", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: error.message || t('superadmin.failedToResetPassword'), variant: "destructive" });
     },
   });
 
@@ -552,7 +552,7 @@ export default function SuperadminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/files'] });
     },
     onError: (error: any) => {
-      toast({ title: t('superadmin.error'), description: error.message || "Failed to delete file", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: error.message || t('superadmin.failedToDeleteFile'), variant: "destructive" });
     },
   });
 
@@ -568,7 +568,7 @@ export default function SuperadminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/announcements'] });
     },
     onError: (error: any) => {
-      toast({ title: t('superadmin.error'), description: error.message || "Failed to create announcement", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: error.message || t('superadmin.failedToCreateAnnouncement'), variant: "destructive" });
     },
   });
 
@@ -584,7 +584,7 @@ export default function SuperadminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/announcements'] });
     },
     onError: (error: any) => {
-      toast({ title: t('superadmin.error'), description: error.message || "Failed to update announcement", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: error.message || t('superadmin.failedToUpdateAnnouncement'), variant: "destructive" });
     },
   });
 
@@ -597,7 +597,7 @@ export default function SuperadminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/announcements'] });
     },
     onError: (error: any) => {
-      toast({ title: t('superadmin.error'), description: error.message || "Failed to delete announcement", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: error.message || t('superadmin.failedToDeleteAnnouncement'), variant: "destructive" });
     },
   });
 
@@ -617,7 +617,7 @@ export default function SuperadminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/careers'] });
     },
     onError: (error: any) => {
-      toast({ title: t('superadmin.error'), description: error.message || "Failed to create career", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: error.message || t('superadmin.failedToCreateCareer'), variant: "destructive" });
     },
   });
 
@@ -637,7 +637,7 @@ export default function SuperadminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/careers'] });
     },
     onError: (error: any) => {
-      toast({ title: t('superadmin.error'), description: error.message || "Failed to update career", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: error.message || t('superadmin.failedToUpdateCareer'), variant: "destructive" });
     },
   });
 
@@ -650,7 +650,7 @@ export default function SuperadminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/careers'] });
     },
     onError: (error: any) => {
-      toast({ title: t('superadmin.error'), description: error.message || "Failed to delete career", variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: error.message || t('superadmin.failedToDeleteCareer'), variant: "destructive" });
     },
   });
 

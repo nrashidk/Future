@@ -260,9 +260,6 @@ export default function TranslationManager() {
     setVarWarning(null);
 
     const promises: Promise<any>[] = [];
-    if (editingValues.en !== original.en) {
-      promises.push(updateMutation.mutateAsync({ lang: "en", key: editingKey, value: editingValues.en }));
-    }
     if (editingValues.ar !== original.ar) {
       promises.push(updateMutation.mutateAsync({ lang: "ar", key: editingKey, value: editingValues.ar }));
     }
@@ -435,13 +432,9 @@ export default function TranslationManager() {
                               </div>
                             )}
                           </div>
-                          <Textarea
-                            value={editingValues.en}
-                            onChange={e => setEditingValues(v => ({ ...v, en: e.target.value }))}
-                            rows={2}
-                            className="text-xs"
-                            data-testid={`edit-en-${entry.key}`}
-                          />
+                          <div className="text-sm text-muted-foreground bg-muted/40 rounded-md px-2 py-1.5 line-clamp-3" data-testid={`display-en-${entry.key}`}>
+                            {editingValues.en || <span className="italic">{t('translation.empty')}</span>}
+                          </div>
                           <Textarea
                             value={editingValues.ar}
                             onChange={e => { setEditingValues(v => ({ ...v, ar: e.target.value })); setVarWarning(null); }}

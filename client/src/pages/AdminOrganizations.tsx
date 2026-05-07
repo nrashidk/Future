@@ -223,7 +223,7 @@ export default function AdminOrganizations() {
       const failCount = data.results.filter((r: any) => !r.success).length;
       toast({ 
         title: t('orgs.bulkPasswordResetComplete'), 
-        description: t('orgs.bulkPasswordResetResult', { success: successCount, failed: failCount }),
+        description: t('orgs.bulkPasswordResetResult', { success: successCount, fail: failCount }),
         variant: failCount > 0 ? "destructive" : "default"
       });
       setBulkResetResults(data.results);
