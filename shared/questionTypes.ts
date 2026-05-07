@@ -43,9 +43,11 @@ export interface QuizQuestionSeed {
   subject: string;
   grade: GradeLevel;
   countryId: string;
-  /** Curriculum this question belongs to. Overridden by CountryQuestionBank.curriculum
-   *  at flatten time — individual subject files may omit or repeat the bank value. */
-  curriculum: CurriculumType;
+  /** Curriculum this question belongs to.
+   *  Optional in subject files — `flattenQuestionBank` always overwrites it with
+   *  `CountryQuestionBank.curriculum`, so you only need to set it once on the bank.
+   *  If present and it mismatches the bank value, `validateQuestionBank` will warn. */
+  curriculum?: CurriculumType;
   topic: string;
   difficulty: "easy" | "medium" | "hard";
   cognitiveLevel: "knowledge" | "comprehension" | "application" | "analysis";
@@ -90,8 +92,9 @@ export function flattenQuestionBank(bank: CountryQuestionBank): QuizQuestionSeed
   return questions;
 }
 
-export function validateQuestionBank(bank: CountryQuestionBank): { valid: boolean; errors: string[] } {
+export function validateQuestionBank(bank: CountryQuestionBank): { valid: boolean; errors: string[]; warnings: string[] } {
   const errors: string[] = [];
+  const warnings: string[] = [];
   
   if (!bank.countryId || !bank.countryName) {
     errors.push("Country ID and name are required");
@@ -129,13 +132,25 @@ export function validateQuestionBank(bank: CountryQuestionBank): { valid: boolea
         if (!q.options.includes(q.correctAnswer)) {
           errors.push(`Correct answer not in options for question: "${q.question.substring(0, 50)}..."`);
         }
+
+        // Warn (non-fatal) if a per-question curriculum is set but mismatches the
+        // bank value. flattenQuestionBank will always use the bank value anyway,
+        // but the mismatch is a sign the field should be removed or aligned.
+        if (q.curriculum && q.curriculum !== bank.curriculum) {
+          warnings.push(
+            `${subject.subject} Grade ${grade} Q${idx + 1}: per-question curriculum ` +
+            `"${q.curriculum}" does not match bank curriculum "${bank.curriculum}". ` +
+            `Remove the per-question field or align it with the bank value.`
+          );
+        }
       });
     });
   });
   
   return {
     valid: errors.length === 0,
-    errors
+    errors,
+    warnings,
   };
 }
 

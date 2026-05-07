@@ -1223,6 +1223,10 @@ export async function seedDatabase() {
     validation.errors.forEach(err => console.error(`  - ${err}`));
     throw new Error("Invalid question bank");
   }
+  if (validation.warnings.length > 0) {
+    console.warn("⚠️  UAE question bank warnings:");
+    validation.warnings.forEach(w => console.warn(`  - ${w}`));
+  }
   
   // Check coverage
   const coverage = checkCoverage(uaeQuestionBank);

@@ -58,7 +58,7 @@ Required fields for every question (`QuizQuestionSeed`):
 | `subject`       | `string`                          | should match `SubjectQuestionBank.subject`     |
 | `grade`         | `GradeLevel`                      | `"8"` \| `"9"` \| `"10"` \| `"11"` \| `"12"` |
 | `countryId`     | `string`                          | matches `CountryQuestionBank.countryId`        |
-| `curriculum`    | `CurriculumType`                  | overridden by bank-level value at flatten time |
+| `curriculum`    | `CurriculumType` *(optional)*     | omit it — bank-level value is always used at flatten time; include only if you want per-question validation |
 | `topic`         | `string`                          | chapter / unit name                            |
 | `difficulty`    | `"easy"` \| `"medium"` \| `"hard"` |                                               |
 | `cognitiveLevel`| `"knowledge"` \| `"comprehension"` \| `"application"` \| `"analysis"` |  |
