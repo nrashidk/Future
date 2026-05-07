@@ -1,6 +1,35 @@
 export type GradeLevel = "8" | "9" | "10" | "11" | "12";
 export const ALL_GRADES: GradeLevel[] = ["8", "9", "10", "11", "12"];
 
+/**
+ * Well-known curriculum identifiers.  Add new ones here as additional countries
+ * are on-boarded — the type is intentionally extensible via `string & {}` so
+ * TypeScript won't reject a new curriculum name, but IDE auto-complete will
+ * suggest the known values and flag obvious typos.
+ *
+ * The canonical value for each country bank is set on `CountryQuestionBank.curriculum`
+ * and injected into every question by `flattenQuestionBank`, so individual subject
+ * files do NOT need to repeat it — but if they do, the value must match.
+ */
+export type CurriculumType =
+  | "MOE National"    // UAE Ministry of Education National Curriculum
+  | "MoE National"    // legacy alias — prefer "MOE National" for new banks
+  | "CBSE"            // India — Central Board of Secondary Education
+  | "IB"              // International Baccalaureate
+  | "Cambridge"       // Cambridge Assessment International Education
+  | "SABIS"           // SABIS® International School Network
+  | (string & {});    // extensible: any other curriculum name is accepted
+
+/** Canonical curriculum identifiers used for validation warnings. */
+export const KNOWN_CURRICULUM_TYPES: readonly string[] = [
+  "MOE National",
+  "MoE National",
+  "CBSE",
+  "IB",
+  "Cambridge",
+  "SABIS",
+] as const;
+
 export interface QuizQuestionSeed {
   question: string;
   questionType: "multiple_choice";
@@ -14,7 +43,9 @@ export interface QuizQuestionSeed {
   subject: string;
   grade: GradeLevel;
   countryId: string;
-  curriculum: string; // Curriculum type (e.g., 'MoE National', 'CBSE', 'IB')
+  /** Curriculum this question belongs to. Overridden by CountryQuestionBank.curriculum
+   *  at flatten time — individual subject files may omit or repeat the bank value. */
+  curriculum: CurriculumType;
   topic: string;
   difficulty: "easy" | "medium" | "hard";
   cognitiveLevel: "knowledge" | "comprehension" | "application" | "analysis";
@@ -34,7 +65,9 @@ export interface SubjectQuestionBank {
 export interface CountryQuestionBank {
   countryId: string;
   countryName: string;
-  curriculum: string; // Curriculum type (e.g., 'MoE National', 'CBSE', 'IB')
+  /** Canonical curriculum identifier for this bank. Injected into every question
+   *  by flattenQuestionBank() — set it once here; do not repeat per question. */
+  curriculum: CurriculumType;
   subjects: SubjectQuestionBank[];
 }
 
@@ -62,6 +95,15 @@ export function validateQuestionBank(bank: CountryQuestionBank): { valid: boolea
   
   if (!bank.countryId || !bank.countryName) {
     errors.push("Country ID and name are required");
+  }
+
+  // curriculum is required on the bank — it is injected into every question by flattenQuestionBank
+  if (!bank.curriculum || !bank.curriculum.trim()) {
+    errors.push(
+      `Bank "${bank.countryName}" is missing a curriculum value. ` +
+      `Set CountryQuestionBank.curriculum to one of: ${KNOWN_CURRICULUM_TYPES.join(", ")} ` +
+      `(or any other curriculum identifier).`
+    );
   }
   
   if (!bank.subjects || bank.subjects.length === 0) {
