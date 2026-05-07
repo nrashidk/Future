@@ -978,7 +978,7 @@ function CreateOrganizationForm({ onSuccess }: { onSuccess: () => void }) {
 
   const handleCopyCredentials = () => {
     if (createdCredentials) {
-      const text = `School: ${createdCredentials.organizationName}\nUsername: ${createdCredentials.username}\nPassword: ${createdCredentials.password}`;
+      const text = `${t('orgs.orgSchoolNameLabel')}: ${createdCredentials.organizationName}\n${t('orgs.orgAdminUsernameLabel')}: ${createdCredentials.username}\n${t('orgs.orgAdminPasswordLabel')}: ${createdCredentials.password}`;
       navigator.clipboard.writeText(text);
       toast({ title: t('orgs.copiedCredentialsTitle'), description: t('orgs.credentialsCopiedClipboard') });
     }
@@ -986,16 +986,16 @@ function CreateOrganizationForm({ onSuccess }: { onSuccess: () => void }) {
 
   const handleDownloadCredentials = () => {
     if (createdCredentials) {
-      const content = `Future Pathways - School Admin Credentials
-============================================
+      const content = `${t('orgs.credFileTitleAdmin')}
+${t('orgs.credFileSeparator')}
 
-School Name: ${createdCredentials.organizationName}
-Admin Username: ${createdCredentials.username}
-Admin Password: ${createdCredentials.password}
+${t('orgs.orgSchoolNameLabel')}: ${createdCredentials.organizationName}
+${t('orgs.orgAdminUsernameLabel')}: ${createdCredentials.username}
+${t('orgs.orgAdminPasswordLabel')}: ${createdCredentials.password}
 
-Login URL: ${window.location.origin}/student-login
+${t('orgs.loginUrlLabel')}: ${window.location.origin}/student-login
 
-IMPORTANT: Keep this file secure. The password cannot be recovered.
+${t('orgs.credFileImportant')}
 `;
       const blob = new Blob([content], { type: 'text/plain' });
       const url = URL.createObjectURL(blob);
@@ -1518,7 +1518,7 @@ function CreateMemberForm({ organizationId, onSuccess }: { organizationId: strin
   const handleDownloadCredentials = () => {
     if (!createdCredentials) return;
     
-    const content = `Username: ${createdCredentials.username}\nPassword: ${createdCredentials.password}`;
+    const content = `${t('orgs.usernameFieldLabel')}: ${createdCredentials.username}\n${t('orgs.passwordFieldLabel')}: ${createdCredentials.password}`;
     const blob = new Blob([content], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -1555,7 +1555,7 @@ function CreateMemberForm({ organizationId, onSuccess }: { organizationId: strin
 
         <div className="flex gap-2 justify-end">
           <Button variant="outline" onClick={() => {
-            navigator.clipboard.writeText(`Username: ${createdCredentials.username}\nPassword: ${createdCredentials.password}`);
+            navigator.clipboard.writeText(`${t('orgs.usernameFieldLabel')}: ${createdCredentials.username}\n${t('orgs.passwordFieldLabel')}: ${createdCredentials.password}`);
             toast({ title: t('orgs.copiedTitle'), description: t('orgs.credentialsCopiedClipboard') });
           }}>
             {t('orgs.copyToClipboardBtn')}
@@ -1920,7 +1920,7 @@ function MemberActions({ member, organizationId }: { member: OrganizationMember;
 
           <div className="flex gap-2 justify-end">
             <Button variant="outline" onClick={() => {
-              navigator.clipboard.writeText(`Username: ${member.user.username}\nPassword: ${newPassword}`);
+              navigator.clipboard.writeText(`${t('orgs.usernameFieldLabel')}: ${member.user.username}\n${t('orgs.passwordFieldLabel')}: ${newPassword}`);
               toast({ title: t('orgs.copiedTitle'), description: t('orgs.credentialsCopiedClipboard') });
             }}>
               {t('orgs.copyToClipboardBtn')}

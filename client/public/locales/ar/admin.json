@@ -324,7 +324,11 @@
     "statusNotActiveDesc": "لم يسجّل دخولاً قط",
     "editDetails": "تعديل التفاصيل",
     "resetPasswordTitle": "إعادة تعيين كلمة المرور",
-    "resetPasswordDesc": "اختر مستوى تعقيد كلمة المرور لـ {{name}}"
+    "resetPasswordDesc": "اختر مستوى تعقيد كلمة المرور لـ {{name}}",
+    "credFileTitleAdmin": "Future Pathways - بيانات اعتماد مدير المدرسة",
+    "credFileSeparator": "============================================",
+    "loginUrlLabel": "رابط تسجيل الدخول",
+    "credFileImportant": "تنبيه: احتفظ بهذا الملف بأمان. لا يمكن استرداد كلمة المرور."
   },
   "superadmin": {
     "title": "لوحة المدير العام",

@@ -324,7 +324,11 @@
     "statusNotActiveDesc": "Never logged in",
     "editDetails": "Edit Details",
     "resetPasswordTitle": "Reset Password",
-    "resetPasswordDesc": "Choose password complexity for {{name}}"
+    "resetPasswordDesc": "Choose password complexity for {{name}}",
+    "credFileTitleAdmin": "Future Pathways - School Admin Credentials",
+    "credFileSeparator": "============================================",
+    "loginUrlLabel": "Login URL",
+    "credFileImportant": "IMPORTANT: Keep this file secure. The password cannot be recovered."
   },
   "superadmin": {
     "title": "Super Admin Dashboard",
