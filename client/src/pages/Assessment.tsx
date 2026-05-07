@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { ProgressTracker } from "@/components/ProgressTracker";
@@ -57,6 +57,28 @@ export default function Assessment() {
   const [apiResumeChecked, setApiResumeChecked] = useState(false);
 
   const isPremiumUser = user?.isPremium || false;
+
+  // True when the student has started filling in data and hasn't finished yet
+  const isInProgress = currentStep > 1 && !resumePrompt;
+
+  // Browser-level guard: fires on refresh, tab-close, address-bar navigation, browser back/forward
+  useEffect(() => {
+    if (!isInProgress) return;
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = ""; // triggers the browser's built-in "Leave site?" dialog
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isInProgress]);
+
+  // SPA navigation guard: wraps header nav buttons so accidental clicks prompt confirmation.
+  // Intentional setLocation("/results…") calls bypass this — they are called directly, not via guardedNavigate.
+  const guardedNavigate = useCallback((path: string) => {
+    if (!isInProgress || window.confirm(t("leaveConfirm"))) {
+      setLocation(path);
+    }
+  }, [isInProgress, setLocation, t]);
   
   // Premium users have 7 steps, free users have 7 steps
   const totalSteps = 7;
@@ -552,7 +574,7 @@ export default function Assessment() {
                 <Button
                   variant="outline"
                   className="min-h-[44px]"
-                  onClick={() => setLocation("/superadmin")}
+                  onClick={() => guardedNavigate("/superadmin")}
                   data-testid="button-nav-superadmin"
                 >
                   <Shield className="w-4 h-4 me-2" aria-hidden="true" />
@@ -561,7 +583,7 @@ export default function Assessment() {
                 <Button
                   variant="outline"
                   className="min-h-[44px]"
-                  onClick={() => setLocation("/admin/organizations")}
+                  onClick={() => guardedNavigate("/admin/organizations")}
                   data-testid="button-nav-admin"
                 >
                   <Building2 className="w-4 h-4 me-2" aria-hidden="true" />
@@ -570,7 +592,7 @@ export default function Assessment() {
                 <Button
                   variant="outline"
                   className="min-h-[44px]"
-                  onClick={() => setLocation("/admin")}
+                  onClick={() => guardedNavigate("/admin")}
                   data-testid="button-nav-questions"
                 >
                   <FileQuestion className="w-4 h-4 me-2" aria-hidden="true" />
@@ -579,7 +601,7 @@ export default function Assessment() {
                 <Button
                   variant="outline"
                   className="min-h-[44px]"
-                  onClick={() => setLocation("/analytics")}
+                  onClick={() => guardedNavigate("/analytics")}
                   data-testid="button-nav-analytics"
                 >
                   <BarChart className="w-4 h-4 me-2" aria-hidden="true" />
@@ -592,7 +614,7 @@ export default function Assessment() {
                 <Button
                   variant="outline"
                   className="min-h-[44px]"
-                  onClick={() => setLocation("/admin/organizations")}
+                  onClick={() => guardedNavigate("/admin/organizations")}
                   data-testid="button-nav-admin"
                 >
                   <Building2 className="w-4 h-4 me-2" aria-hidden="true" />
@@ -601,7 +623,7 @@ export default function Assessment() {
                 <Button
                   variant="outline"
                   className="min-h-[44px]"
-                  onClick={() => setLocation("/assessment")}
+                  onClick={() => guardedNavigate("/assessment")}
                   data-testid="button-nav-assessment"
                 >
                   <ClipboardCheck className="w-4 h-4 me-2" aria-hidden="true" />
@@ -610,7 +632,7 @@ export default function Assessment() {
                 <Button
                   variant="outline"
                   className="min-h-[44px]"
-                  onClick={() => setLocation("/analytics")}
+                  onClick={() => guardedNavigate("/analytics")}
                   data-testid="button-nav-analytics"
                 >
                   <BarChart className="w-4 h-4 me-2" aria-hidden="true" />
@@ -622,7 +644,7 @@ export default function Assessment() {
               <Button
                 variant="outline"
                 className="min-h-[44px]"
-                onClick={() => setLocation("/assessment")}
+                onClick={() => guardedNavigate("/assessment")}
                 data-testid="button-nav-assessment"
               >
                 <ClipboardCheck className="w-4 h-4 me-2" aria-hidden="true" />
@@ -634,7 +656,7 @@ export default function Assessment() {
                 <Button
                   variant="outline"
                   className="min-h-[44px]"
-                  onClick={() => setLocation("/profile")}
+                  onClick={() => guardedNavigate("/profile")}
                   data-testid="button-nav-profile"
                 >
                   <User className="w-4 h-4 me-2" aria-hidden="true" />
