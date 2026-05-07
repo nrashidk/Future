@@ -132,7 +132,7 @@ export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps
             <option value="">{t('country.chooseCountry')}</option>
             {countries.map((country: any) => (
               <option key={country.id} value={country.id}>
-                {country.name}
+                {country.flag ? `${country.flag} ${country.name}` : country.name}
               </option>
             ))}
           </select>
@@ -144,7 +144,10 @@ export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps
             <SelectContent position="popper" className="z-[9999] max-h-[300px]">
               {countries.map((country: any) => (
                 <SelectItem key={country.id} value={country.id}>
-                  {country.name}
+                  <span className="flex items-center gap-2">
+                    {country.flag && <span aria-hidden="true">{country.flag}</span>}
+                    <span>{country.name}</span>
+                  </span>
                 </SelectItem>
               ))}
             </SelectContent>
