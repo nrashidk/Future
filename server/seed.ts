@@ -16,18 +16,28 @@ export async function seedDatabase() {
     {
       id: "uae",
       name: "United Arab Emirates",
+      nameAr: "الإمارات العربية المتحدة",
       code: "UAE",
       abbreviation: "UAE",
       flag: "🇦🇪",
       mission: "To establish the UAE as having the best government, education, and economy in the world through four key pillars: future-focused government, excellent education, diversified knowledge economy, and happy cohesive society.",
+      missionAr: "إرساء الإمارات العربية المتحدة دولةً ذات أفضل حكومة وتعليم واقتصاد في العالم، من خلال أربعة ركائز أساسية: حكومة تعمل للمستقبل، وتعليم متميز، واقتصاد متنوع قائم على المعرفة، ومجتمع سعيد ومتماسك.",
       vision: "To be the best country in the world by the UAE's 100th anniversary in 2071, leading in AI, space exploration, and sustainable development.",
+      visionAr: "أن تكون الإمارات العربية المتحدة أفضل دولة في العالم بحلول الذكرى المئوية عام 2071، رائدةً في الذكاء الاصطناعي واستكشاف الفضاء والتنمية المستدامة.",
       visionPlan: "UAE Centennial 2071",
       prioritySectors: ["Artificial Intelligence", "Space Exploration", "Biotechnology", "Renewable Energy", "Education", "Technology"],
+      prioritySectorsAr: ["الذكاء الاصطناعي", "استكشاف الفضاء", "التكنولوجيا الحيوية", "الطاقة المتجددة", "التعليم", "التكنولوجيا"],
       nationalGoals: [
         "100% AI reliance for government services by 2031",
         "50% clean energy by 2050",
         "Double GDP from AED 1.49 trillion to AED 3 trillion",
         "Mars colonization by 2117"
+      ],
+      nationalGoalsAr: [
+        "الاعتماد الكامل على الذكاء الاصطناعي في الخدمات الحكومية بحلول 2031",
+        "50% طاقة نظيفة بحلول 2050",
+        "مضاعفة الناتج المحلي الإجمالي من 1.49 إلى 3 تريليونات درهم",
+        "استعمار المريخ بحلول 2117"
       ],
       targets: {
         climate: [
@@ -57,7 +67,20 @@ export async function seedDatabase() {
       await storage.createCountry(country);
       console.log(`✓ Created country: ${country.name}`);
     } catch (error) {
-      console.log(`Country ${country.name} already exists`);
+      console.log(`Country ${country.name} already exists, applying Arabic content migration...`);
+      // Patch existing record with Arabic fields (idempotent update)
+      try {
+        await storage.updateCountry(country.id, {
+          nameAr: (country as any).nameAr,
+          missionAr: (country as any).missionAr,
+          visionAr: (country as any).visionAr,
+          prioritySectorsAr: (country as any).prioritySectorsAr,
+          nationalGoalsAr: (country as any).nationalGoalsAr,
+        });
+        console.log(`✓ Arabic content applied to: ${country.name}`);
+      } catch (updateError) {
+        console.error(`Failed to apply Arabic content to ${country.name}:`, updateError);
+      }
     }
   }
 

@@ -190,10 +190,14 @@ export const countries = pgTable("countries", {
   code: varchar("code", { length: 3 }).notNull().unique(),
   abbreviation: text("abbreviation"), // Short name for display (UAE, USA, UK) - null means use full name
   mission: text("mission").notNull(),
+  missionAr: text("mission_ar"),
   vision: text("vision").notNull(),
+  visionAr: text("vision_ar"),
   visionPlan: text("vision_plan"),
   prioritySectors: text("priority_sectors").array().notNull(),
+  prioritySectorsAr: text("priority_sectors_ar").array(),
   nationalGoals: text("national_goals").array().notNull(),
+  nationalGoalsAr: text("national_goals_ar").array(),
   targets: jsonb("targets"),
   flag: text("flag"),
   

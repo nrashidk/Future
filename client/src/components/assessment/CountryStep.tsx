@@ -6,6 +6,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Globe2, Target, Eye, ChevronDown, TrendingUp } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface CountryStepProps {
   data: any;
@@ -16,6 +17,8 @@ interface CountryStepProps {
 
 export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps) {
   const { t } = useTranslation('assessment');
+  const { language } = useLanguage();
+  const isArabic = language === 'ar';
   const [selectedCountryId, setSelectedCountryId] = useState(data.countryId || "");
   const [selectedCurriculum, setSelectedCurriculum] = useState(data.curriculum || "");
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -201,7 +204,7 @@ export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps
                 <Target className="w-5 h-5 text-primary" />
               </div>
               <div className="flex-1">
-                <h4 className="text-lg font-bold">{t('country.mission', { name: countryDetails.name })}</h4>
+                <h4 className="text-lg font-bold">{t('country.mission', { name: isArabic && countryDetails.nameAr ? countryDetails.nameAr : countryDetails.name })}</h4>
                 {countryDetails.visionPlan && (
                   <span className="inline-block mt-1 px-3 py-1 bg-primary text-primary-foreground rounded-full text-xs font-medium">
                     {countryDetails.visionPlan}
@@ -210,7 +213,7 @@ export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps
               </div>
             </div>
             <p className="font-body text-foreground/90 leading-relaxed">
-              {countryDetails.mission}
+              {isArabic && countryDetails.missionAr ? countryDetails.missionAr : countryDetails.mission}
             </p>
           </StickyNote>
 
@@ -219,18 +222,21 @@ export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps
               <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                 <Eye className="w-5 h-5 text-primary" />
               </div>
-              <h4 className="text-lg font-bold">{t('country.vision', { name: countryDetails.name })}</h4>
+              <h4 className="text-lg font-bold">{t('country.vision', { name: isArabic && countryDetails.nameAr ? countryDetails.nameAr : countryDetails.name })}</h4>
             </div>
             <p className="font-body text-foreground/90 leading-relaxed">
-              {countryDetails.vision}
+              {isArabic && countryDetails.visionAr ? countryDetails.visionAr : countryDetails.vision}
             </p>
           </StickyNote>
 
           {countryDetails.prioritySectors && countryDetails.prioritySectors.length > 0 && (
             <StickyNote color="green" rotation="-2">
-              <h4 className="text-lg font-bold mb-3">{t('country.prioritySectors', { name: countryDetails.name })}</h4>
+              <h4 className="text-lg font-bold mb-3">{t('country.prioritySectors', { name: isArabic && countryDetails.nameAr ? countryDetails.nameAr : countryDetails.name })}</h4>
               <div className="flex flex-wrap gap-2">
-                {countryDetails.prioritySectors.map((sector: string, index: number) => (
+                {(isArabic && countryDetails.prioritySectorsAr?.length
+                  ? countryDetails.prioritySectorsAr
+                  : countryDetails.prioritySectors
+                ).map((sector: string, index: number) => (
                   <span
                     key={index}
                     className="bg-primary/10 px-3 py-1 rounded-full text-sm font-medium font-body"
@@ -293,7 +299,10 @@ export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps
                     <div className="border-t border-foreground/10 pt-4 mt-4">
                       <h5 className="font-bold mb-2">{t('country.nationalGoals')}</h5>
                       <ul className="space-y-1">
-                        {countryDetails.nationalGoals.map((goal: string, index: number) => (
+                        {(isArabic && countryDetails.nationalGoalsAr?.length
+                          ? countryDetails.nationalGoalsAr
+                          : countryDetails.nationalGoals
+                        ).map((goal: string, index: number) => (
                           <li key={index} className="text-sm font-body text-foreground/90 flex items-start gap-2">
                             <span className="text-primary mt-0.5">•</span>
                             <span>{goal}</span>
