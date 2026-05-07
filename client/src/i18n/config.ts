@@ -17,6 +17,8 @@ i18n
     interpolation: {
       escapeValue: false,
     },
+    compatibilityJSON: "v4",
+    pluralSeparator: "_",
     react: {
       useSuspense: false,
     },
