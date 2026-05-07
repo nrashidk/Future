@@ -6,6 +6,23 @@
     "previous": "السابق",
     "pageOf": "صفحة {{page}} من {{total}}"
   },
+  "page": {
+    "title": "تقييم المسار المهني | مسارات المستقبل",
+    "loading": "جارٍ التحميل...",
+    "guestBanner": "أنت في وضع الضيف. أنشئ حساباً لحفظ تقدمك!",
+    "signUp": "إنشاء حساب",
+    "careerAssessment": "تقييم المسار المهني",
+    "loadingQuiz": "جارٍ تحميل الاختبار...",
+    "loadingQuizSubtitle": "يرجى الانتظار بينما نُعدّ تقييمك.",
+    "errorNotFound": "خطأ: لم يُعثر على التقييم",
+    "errorGoBackMsg": "يرجى العودة وإكمال الخطوات السابقة.",
+    "goBack": "العودة",
+    "errorSaveTitle": "خطأ",
+    "errorSave": "فشل حفظ التقييم: {{message}}",
+    "errorRecsTitle": "خطأ",
+    "errorRecs": "فشل إنشاء التوصيات. يرجى المحاولة مرة أخرى.",
+    "stepLabel": "الخطوة {{current}} من {{total}}"
+  },
   "demographics": {
     "title": "دعنا نتعرف عليك!",
     "subtitle": "أخبرنا قليلاً عنك للبدء",
@@ -165,7 +182,8 @@
     "unableToGenerate": "تعذّر إنشاء الاختبار",
     "unableToGenerateDesc": "لم نتمكن من إنشاء اختبارك في هذا الوقت. يرجى المحاولة مرة أخرى أو المتابعة لرؤية نتائجك.",
     "alreadySubmitted": "الاختبار مقدَّم بالفعل",
-    "alreadySubmittedDesc": "جارٍ الانتقال إلى الخطوة التالية..."
+    "alreadySubmittedDesc": "جارٍ الانتقال إلى الخطوة التالية...",
+    "errorTitle": "خطأ"
   },
   "riasec": {
     "title": "الشخصية المهنية",

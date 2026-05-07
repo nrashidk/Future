@@ -95,7 +95,7 @@ export function QuizStep({ assessmentId, onComplete }: QuizStepProps) {
         }, 1500);
       } else {
         toast({
-          title: "Error",
+          title: t('quiz.errorTitle'),
           description: errorMessage,
           variant: "destructive"
         });

@@ -6,6 +6,23 @@
     "previous": "Previous",
     "pageOf": "Page {{page}} of {{total}}"
   },
+  "page": {
+    "title": "Career Assessment | Future Pathways",
+    "loading": "Loading...",
+    "guestBanner": "You're in guest mode. Create an account to save your progress!",
+    "signUp": "Sign Up",
+    "careerAssessment": "Career Assessment",
+    "loadingQuiz": "Loading quiz...",
+    "loadingQuizSubtitle": "Please wait while we prepare your assessment.",
+    "errorNotFound": "Error: Assessment not found",
+    "errorGoBackMsg": "Please go back and complete the previous steps.",
+    "goBack": "Go Back",
+    "errorSaveTitle": "Error",
+    "errorSave": "Failed to save assessment: {{message}}",
+    "errorRecsTitle": "Error",
+    "errorRecs": "Failed to generate recommendations. Please try again.",
+    "stepLabel": "Step {{current}} of {{total}}"
+  },
   "demographics": {
     "title": "Let's Get to Know You!",
     "subtitle": "Tell us a bit about yourself to get started",
@@ -165,7 +182,8 @@
     "unableToGenerate": "Unable to Generate Quiz",
     "unableToGenerateDesc": "We couldn't create your quiz at this time. Please try again or continue to see your results.",
     "alreadySubmitted": "Quiz Already Submitted",
-    "alreadySubmittedDesc": "Moving to the next step..."
+    "alreadySubmittedDesc": "Moving to the next step...",
+    "errorTitle": "Error"
   },
   "riasec": {
     "title": "Career Personality",

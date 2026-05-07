@@ -14,6 +14,7 @@ import { AspirationsStep } from "@/components/assessment/AspirationsStep";
 import { QuizStep } from "@/components/assessment/QuizStep";
 import { GraduationCap, LogIn, LogOut, User, ClipboardCheck, Building2, BarChart, Shield, FileQuestion } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "react-i18next";
 
 interface AssessmentData {
   name: string;
@@ -33,7 +34,10 @@ interface AssessmentData {
 }
 
 export default function Assessment() {
-  useEffect(() => { document.title = "Career Assessment | Future Pathways"; }, []);
+  const { t } = useTranslation('assessment');
+  const { t: tCommon } = useTranslation('common');
+
+  useEffect(() => { document.title = t('page.title'); }, [t]);
 
   const [, setLocation] = useLocation();
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -255,8 +259,8 @@ export default function Assessment() {
       } catch (error) {
         console.error("Error saving assessment:", error);
         toast({
-          title: "Error",
-          description: `Failed to save assessment: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          title: t('page.errorSaveTitle'),
+          description: t('page.errorSave', { message: error instanceof Error ? error.message : 'Unknown error' }),
           variant: "destructive",
         });
       }
@@ -286,8 +290,8 @@ export default function Assessment() {
     } catch (error) {
       console.error("Error generating recommendations:", error);
       toast({
-        title: "Error",
-        description: "Failed to generate recommendations. Please try again.",
+        title: t('page.errorRecsTitle'),
+        description: t('page.errorRecs'),
         variant: "destructive",
       });
     }
@@ -339,7 +343,7 @@ export default function Assessment() {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <GraduationCap className="w-16 h-16 text-primary mx-auto mb-4 animate-pulse" />
-          <p className="text-lg text-muted-foreground">Loading...</p>
+          <p className="text-lg text-muted-foreground">{t('page.loading')}</p>
         </div>
       </div>
     );
@@ -353,7 +357,7 @@ export default function Assessment() {
           <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <span className="text-sm font-body text-accent-foreground">
-                You're in guest mode. Create an account to save your progress!
+                {t('page.guestBanner')}
               </span>
             </div>
             <Button
@@ -362,8 +366,8 @@ export default function Assessment() {
               onClick={handleSaveAndLogin}
               data-testid="button-save-login"
             >
-              <LogIn className="w-4 h-4 mr-2" />
-              Sign Up
+              <LogIn className="w-4 h-4 me-2" />
+              {t('page.signUp')}
             </Button>
           </div>
         </div>
@@ -375,8 +379,8 @@ export default function Assessment() {
           <div className="flex items-center gap-3">
             <GraduationCap className="w-8 h-8 text-primary" />
             <div>
-              <h1 className="text-xl font-bold">Future Pathways</h1>
-              <p className="text-sm text-muted-foreground font-body">Career Assessment</p>
+              <h1 className="text-xl font-bold">{tCommon('nav.home')}</h1>
+              <p className="text-sm text-muted-foreground font-body">{t('page.careerAssessment')}</p>
             </div>
           </div>
           <div className="flex gap-2">
@@ -388,8 +392,8 @@ export default function Assessment() {
                   onClick={() => setLocation("/superadmin")}
                   data-testid="button-nav-superadmin"
                 >
-                  <Shield className="w-4 h-4 mr-2" />
-                  Super Admin
+                  <Shield className="w-4 h-4 me-2" />
+                  {tCommon('nav.superadmin')}
                 </Button>
                 <Button
                   variant="outline"
@@ -397,8 +401,8 @@ export default function Assessment() {
                   onClick={() => setLocation("/admin/organizations")}
                   data-testid="button-nav-admin"
                 >
-                  <Building2 className="w-4 h-4 mr-2" />
-                  Admin
+                  <Building2 className="w-4 h-4 me-2" />
+                  {tCommon('nav.admin')}
                 </Button>
                 <Button
                   variant="outline"
@@ -406,8 +410,8 @@ export default function Assessment() {
                   onClick={() => setLocation("/admin")}
                   data-testid="button-nav-questions"
                 >
-                  <FileQuestion className="w-4 h-4 mr-2" />
-                  Quiz
+                  <FileQuestion className="w-4 h-4 me-2" />
+                  {tCommon('nav.quiz')}
                 </Button>
                 <Button
                   variant="outline"
@@ -415,8 +419,8 @@ export default function Assessment() {
                   onClick={() => setLocation("/analytics")}
                   data-testid="button-nav-analytics"
                 >
-                  <BarChart className="w-4 h-4 mr-2" />
-                  Analytics
+                  <BarChart className="w-4 h-4 me-2" />
+                  {tCommon('nav.analytics')}
                 </Button>
               </>
             )}
@@ -428,8 +432,8 @@ export default function Assessment() {
                   onClick={() => setLocation("/admin/organizations")}
                   data-testid="button-nav-admin"
                 >
-                  <Building2 className="w-4 h-4 mr-2" />
-                  Admin
+                  <Building2 className="w-4 h-4 me-2" />
+                  {tCommon('nav.admin')}
                 </Button>
                 <Button
                   variant="outline"
@@ -437,8 +441,8 @@ export default function Assessment() {
                   onClick={() => setLocation("/assessment")}
                   data-testid="button-nav-assessment"
                 >
-                  <ClipboardCheck className="w-4 h-4 mr-2" />
-                  Assessment
+                  <ClipboardCheck className="w-4 h-4 me-2" />
+                  {tCommon('nav.assessment')}
                 </Button>
                 <Button
                   variant="outline"
@@ -446,8 +450,8 @@ export default function Assessment() {
                   onClick={() => setLocation("/analytics")}
                   data-testid="button-nav-analytics"
                 >
-                  <BarChart className="w-4 h-4 mr-2" />
-                  Analytics
+                  <BarChart className="w-4 h-4 me-2" />
+                  {tCommon('nav.analytics')}
                 </Button>
               </>
             )}
@@ -458,8 +462,8 @@ export default function Assessment() {
                 onClick={() => setLocation("/assessment")}
                 data-testid="button-nav-assessment"
               >
-                <ClipboardCheck className="w-4 h-4 mr-2" />
-                Assessment
+                <ClipboardCheck className="w-4 h-4 me-2" />
+                {tCommon('nav.assessment')}
               </Button>
             )}
             {isAuthenticated && (
@@ -470,8 +474,8 @@ export default function Assessment() {
                   onClick={() => setLocation("/profile")}
                   data-testid="button-nav-profile"
                 >
-                  <User className="w-4 h-4 mr-2" />
-                  Profile
+                  <User className="w-4 h-4 me-2" />
+                  {tCommon('nav.profile')}
                 </Button>
                 <Button
                   variant="outline"
@@ -479,8 +483,8 @@ export default function Assessment() {
                   onClick={() => window.location.href = "/api/logout"}
                   data-testid="button-logout"
                 >
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Logout
+                  <LogOut className="w-4 h-4 me-2" />
+                  {tCommon('nav.logout')}
                 </Button>
               </>
             )}
@@ -498,7 +502,7 @@ export default function Assessment() {
         aria-labelledby="assessment-step-heading"
       >
         <h2 id="assessment-step-heading" className="sr-only">
-          Step {currentStep} of {totalSteps}
+          {t('page.stepLabel', { current: currentStep, total: totalSteps })}
         </h2>
         {/* Step 1: Demographics (both tiers) */}
         {currentStep === 1 && (
@@ -555,8 +559,8 @@ export default function Assessment() {
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-                  <p className="text-lg text-destructive font-semibold">Loading quiz...</p>
-                  <p className="text-muted-foreground">Please wait while we prepare your assessment.</p>
+                  <p className="text-lg text-destructive font-semibold">{t('page.loadingQuiz')}</p>
+                  <p className="text-muted-foreground">{t('page.loadingQuizSubtitle')}</p>
                 </div>
               )
             ) : (
@@ -603,10 +607,10 @@ export default function Assessment() {
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-                  <p className="text-lg text-destructive font-semibold">Error: Assessment not found</p>
-                  <p className="text-muted-foreground">Please go back and complete the previous steps.</p>
+                  <p className="text-lg text-destructive font-semibold">{t('page.errorNotFound')}</p>
+                  <p className="text-muted-foreground">{t('page.errorGoBackMsg')}</p>
                   <Button onClick={() => setCurrentStep(5)} data-testid="button-back-to-assessment">
-                    Go Back
+                    {t('page.goBack')}
                   </Button>
                 </div>
               )
@@ -639,10 +643,10 @@ export default function Assessment() {
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-                  <p className="text-lg text-destructive font-semibold">Error: Assessment not found</p>
-                  <p className="text-muted-foreground">Please go back and complete the previous steps.</p>
+                  <p className="text-lg text-destructive font-semibold">{t('page.errorNotFound')}</p>
+                  <p className="text-muted-foreground">{t('page.errorGoBackMsg')}</p>
                   <Button onClick={() => setCurrentStep(6)} data-testid="button-back-to-assessment">
-                    Go Back
+                    {t('page.goBack')}
                   </Button>
                 </div>
               )
