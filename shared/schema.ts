@@ -277,6 +277,7 @@ export const skills = pgTable("skills", {
 export const wefSkills = pgTable("wef_skills", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull().unique(),
+  nameAr: text("name_ar"), // Arabic translation of the skill name
   competencyType: text("competency_type").notNull(), // 'foundational_literacy' or 'competency'
   category: text("category").notNull(), // 'Literacy', 'Numeracy', 'Critical Thinking', etc.
   description: text("description").notNull(),

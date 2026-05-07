@@ -1621,6 +1621,7 @@ export class DatabaseStorage implements IStorage {
       if (skillData.assessmentApplicable !== undefined) updateData.assessmentApplicable = skillData.assessmentApplicable;
       if (skillData.version !== undefined) updateData.version = skillData.version;
       if (skillData.relatedSubjects !== undefined) updateData.relatedSubjects = skillData.relatedSubjects;
+      if (skillData.nameAr !== undefined) updateData.nameAr = skillData.nameAr;
       
       const [updated] = await db
         .update(wefSkills)

@@ -7,6 +7,7 @@ export const WEF_16_SKILLS: Omit<InsertWefSkill, "id" | "createdAt">[] = [
   // === FOUNDATIONAL LITERACIES (6 skills) ===
   {
     name: "Literacy",
+    nameAr: "القراءة والكتابة",
     competencyType: "foundational_literacy",
     category: "Communication",
     description: "Ability to read, write, and communicate effectively in multiple contexts",
@@ -17,6 +18,7 @@ export const WEF_16_SKILLS: Omit<InsertWefSkill, "id" | "createdAt">[] = [
   },
   {
     name: "Numeracy",
+    nameAr: "مهارات الأرقام",
     competencyType: "foundational_literacy",
     category: "Mathematical Thinking",
     description: "Ability to reason with numbers and mathematical concepts to solve problems",
@@ -27,6 +29,7 @@ export const WEF_16_SKILLS: Omit<InsertWefSkill, "id" | "createdAt">[] = [
   },
   {
     name: "Scientific Literacy",
+    nameAr: "الثقافة العلمية",
     competencyType: "foundational_literacy",
     category: "Scientific Thinking",
     description: "Understanding scientific concepts, methods, and ability to apply scientific reasoning",
@@ -37,6 +40,7 @@ export const WEF_16_SKILLS: Omit<InsertWefSkill, "id" | "createdAt">[] = [
   },
   {
     name: "ICT Literacy",
+    nameAr: "ثقافة تقنية المعلومات والاتصالات",
     competencyType: "foundational_literacy",
     category: "Digital Skills",
     description: "Proficiency in using digital technologies, communication tools, and networks",
@@ -47,6 +51,7 @@ export const WEF_16_SKILLS: Omit<InsertWefSkill, "id" | "createdAt">[] = [
   },
   {
     name: "Financial Literacy",
+    nameAr: "الثقافة المالية",
     competencyType: "foundational_literacy",
     category: "Economic Thinking",
     description: "Understanding financial concepts, managing personal finances, and economic decision-making",
@@ -57,6 +62,7 @@ export const WEF_16_SKILLS: Omit<InsertWefSkill, "id" | "createdAt">[] = [
   },
   {
     name: "Cultural and Civic Literacy",
+    nameAr: "الثقافة المدنية والثقافية",
     competencyType: "foundational_literacy",
     category: "Social Awareness",
     description: "Understanding cultural diversity, civic responsibilities, and global citizenship",
@@ -69,6 +75,7 @@ export const WEF_16_SKILLS: Omit<InsertWefSkill, "id" | "createdAt">[] = [
   // === COMPETENCIES AND CHARACTER QUALITIES (10 skills) ===
   {
     name: "Critical Thinking and Problem Solving",
+    nameAr: "التفكير النقدي وحل المشكلات",
     competencyType: "competency",
     category: "Cognitive Skills",
     description: "Ability to analyze information, evaluate evidence, and solve complex problems systematically",
@@ -79,6 +86,7 @@ export const WEF_16_SKILLS: Omit<InsertWefSkill, "id" | "createdAt">[] = [
   },
   {
     name: "Creativity",
+    nameAr: "الإبداع",
     competencyType: "competency",
     category: "Cognitive Skills",
     description: "Ability to generate novel ideas, think outside the box, and approach challenges innovatively",
@@ -89,6 +97,7 @@ export const WEF_16_SKILLS: Omit<InsertWefSkill, "id" | "createdAt">[] = [
   },
   {
     name: "Communication",
+    nameAr: "التواصل",
     competencyType: "competency",
     category: "Social Skills",
     description: "Ability to express ideas clearly, listen actively, and adapt communication to different audiences",
@@ -99,6 +108,7 @@ export const WEF_16_SKILLS: Omit<InsertWefSkill, "id" | "createdAt">[] = [
   },
   {
     name: "Collaboration",
+    nameAr: "التعاون",
     competencyType: "competency",
     category: "Social Skills",
     description: "Ability to work effectively in teams, respect diverse perspectives, and achieve shared goals",
@@ -109,6 +119,7 @@ export const WEF_16_SKILLS: Omit<InsertWefSkill, "id" | "createdAt">[] = [
   },
   {
     name: "Curiosity",
+    nameAr: "الفضول",
     competencyType: "competency",
     category: "Character Qualities",
     description: "Intrinsic desire to explore, ask questions, and pursue lifelong learning",
@@ -119,6 +130,7 @@ export const WEF_16_SKILLS: Omit<InsertWefSkill, "id" | "createdAt">[] = [
   },
   {
     name: "Initiative",
+    nameAr: "المبادرة",
     competencyType: "competency",
     category: "Character Qualities",
     description: "Ability to take proactive action, self-start, and drive projects forward independently",
@@ -129,6 +141,7 @@ export const WEF_16_SKILLS: Omit<InsertWefSkill, "id" | "createdAt">[] = [
   },
   {
     name: "Persistence and Grit",
+    nameAr: "المثابرة والعزيمة",
     competencyType: "competency",
     category: "Character Qualities",
     description: "Determination to overcome obstacles, resilience in face of setbacks, and sustained effort toward long-term goals",
@@ -139,6 +152,7 @@ export const WEF_16_SKILLS: Omit<InsertWefSkill, "id" | "createdAt">[] = [
   },
   {
     name: "Adaptability",
+    nameAr: "التكيّف",
     competencyType: "competency",
     category: "Character Qualities",
     description: "Flexibility to adjust to changing circumstances, embrace new situations, and learn from experiences",
@@ -149,6 +163,7 @@ export const WEF_16_SKILLS: Omit<InsertWefSkill, "id" | "createdAt">[] = [
   },
   {
     name: "Leadership",
+    nameAr: "القيادة",
     competencyType: "competency",
     category: "Social Skills",
     description: "Ability to inspire and guide others, take responsibility, and mobilize teams toward common objectives",
@@ -159,6 +174,7 @@ export const WEF_16_SKILLS: Omit<InsertWefSkill, "id" | "createdAt">[] = [
   },
   {
     name: "Social and Cultural Awareness",
+    nameAr: "الوعي الاجتماعي والثقافي",
     competencyType: "competency",
     category: "Social Skills",
     description: "Understanding of diverse perspectives, empathy for others, and awareness of social dynamics and cultural contexts",
