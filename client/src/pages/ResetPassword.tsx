@@ -13,6 +13,11 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, KeyRound, Loader2, CheckCircle2, XCircle, Eye, EyeOff } from "lucide-react";
 
+interface TokenVerifyResponse {
+  valid: boolean;
+  email?: string;
+}
+
 const resetPasswordSchema = z.object({
   newPassword: z.string()
     .min(8, "Password must be at least 8 characters")
@@ -40,7 +45,7 @@ export default function ResetPassword() {
   const urlParams = new URLSearchParams(window.location.search);
   const token = urlParams.get("token");
 
-  const { data: tokenStatus, isLoading: isVerifying, error: verifyError } = useQuery({
+  const { data: tokenStatus, isLoading: isVerifying, error: verifyError } = useQuery<TokenVerifyResponse>({
     queryKey: [`/api/password-reset/verify?token=${token}`],
     enabled: !!token,
     retry: false,
@@ -118,7 +123,7 @@ export default function ResetPassword() {
     );
   }
 
-  if (verifyError || !(tokenStatus as any)?.valid) {
+  if (verifyError || !tokenStatus?.valid) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
         <Card className="w-full max-w-md">

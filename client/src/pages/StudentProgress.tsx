@@ -222,7 +222,7 @@ export default function StudentProgress() {
                                 
                                 {gradeData.interests && gradeData.interests.length > 0 && (
                                   <div className="mt-4">
-                                    <p className="text-sm text-muted-foreground font-medium mb-2">Interests:</p>
+                                    <p className="text-sm text-muted-foreground font-medium mb-2">{t("progress.interests")}</p>
                                     <div className="flex flex-wrap gap-1">
                                       {gradeData.interests.slice(0, 5).map((interest, iIndex) => (
                                         <Badge key={iIndex} variant="outline" className="text-xs">
@@ -231,7 +231,7 @@ export default function StudentProgress() {
                                       ))}
                                       {gradeData.interests.length > 5 && (
                                         <Badge variant="outline" className="text-xs">
-                                          +{gradeData.interests.length - 5} more
+                                          +{gradeData.interests.length - 5} {t("progress.more")}
                                         </Badge>
                                       )}
                                     </div>

@@ -98,7 +98,7 @@ export function registerPasswordResetRoutes(app: Express) {
 
         // Send password reset email
         const userName = user.firstName || user.username || undefined;
-        const userLanguage = (user as any).preferredLanguage || "en";
+        const userLanguage = user.preferredLanguage || "en";
         
         if (user.email) {
           const emailResult = await sendPasswordResetEmail(user.email, token, userName, userLanguage);

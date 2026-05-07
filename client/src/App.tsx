@@ -95,14 +95,29 @@ function OgLocaleSync() {
   const { language } = useLanguage();
   useEffect(() => {
     const locale = language === "ar" ? "ar_AE" : "en_US";
-    let tag = document.querySelector<HTMLMetaElement>('meta[property="og:locale"]');
-    if (tag) {
-      tag.setAttribute("content", locale);
+    const inLanguage = language === "ar" ? "ar" : "en";
+
+    // Update og:locale meta tag
+    let ogTag = document.querySelector<HTMLMetaElement>('meta[property="og:locale"]');
+    if (ogTag) {
+      ogTag.setAttribute("content", locale);
     } else {
-      tag = document.createElement("meta");
-      tag.setAttribute("property", "og:locale");
-      tag.setAttribute("content", locale);
-      document.head.appendChild(tag);
+      ogTag = document.createElement("meta");
+      ogTag.setAttribute("property", "og:locale");
+      ogTag.setAttribute("content", locale);
+      document.head.appendChild(ogTag);
+    }
+
+    // Update JSON-LD inLanguage field
+    const ldScript = document.querySelector<HTMLScriptElement>('script[type="application/ld+json"]');
+    if (ldScript) {
+      try {
+        const data = JSON.parse(ldScript.textContent || "{}");
+        data.inLanguage = inLanguage;
+        ldScript.textContent = JSON.stringify(data);
+      } catch {
+        // ignore parse errors in structured data
+      }
     }
   }, [language]);
   return null;
