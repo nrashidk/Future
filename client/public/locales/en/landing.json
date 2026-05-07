@@ -1,1 +1,76 @@
-{}
+{
+  "pageTitle": "Future Pathways – Career Guidance for Students",
+  "hero": {
+    "title1": "Discover Your",
+    "title2": "Future Path",
+    "subtitle": "Find the perfect career that matches your interests, aligns with your country's vision, and prepares you for tomorrow's opportunities",
+    "getStarted": "Get Started",
+    "exploreGuest": "Explore as Guest →",
+    "trustedBy": "Trusted by {{count}} student",
+    "trustedByPlural": "Trusted by {{count}} students",
+    "partnerSchools": "Partner Schools"
+  },
+  "howItWorks": {
+    "title": "How It Works",
+    "subtitle": "Your journey to the perfect career in three simple steps",
+    "step1Title": "1. Share Your Profile",
+    "step1Desc": "Tell us about your favorite subjects, interests, and dreams",
+    "step2Title": "2. Find Alignment",
+    "step2Desc": "See how your passions match your country's vision and future needs",
+    "step3Title": "3. Get Your Path",
+    "step3Desc": "Receive personalized career recommendations with action steps"
+  },
+  "features": {
+    "title": "Why Choose Future Pathways?",
+    "subtitle": "Everything you need to plan your future career",
+    "visionTitle": "Country Vision Alignment",
+    "visionDesc": "Discover careers that contribute to your nation's development goals",
+    "skillsTitle": "Future Skills Mapping",
+    "skillsDesc": "Learn what skills will be in demand in tomorrow's job market",
+    "marketTitle": "Job Market Insights",
+    "marketDesc": "Get real data on career growth and opportunities in your country",
+    "matchTitle": "Personalized Match",
+    "matchDesc": "Recommendations based on your unique interests and strengths",
+    "progressTitle": "Progress Tracking",
+    "progressDesc": "Monitor your journey with visual progress indicators and badges",
+    "reportsTitle": "Detailed Reports",
+    "reportsDesc": "Download comprehensive PDF reports with your career roadmap"
+  },
+  "cta": {
+    "title": "Ready to Find Your Path?",
+    "subtitle": "Join thousands of students who have discovered their perfect career match. Start your journey today!",
+    "createAccount": "Create Account",
+    "continueGuest": "Continue as Guest",
+    "testimonial": "\"Future Pathways helped me discover careers I never knew existed. Now I'm excited about my future!\"",
+    "testimonialAuthor": "- Sarah, Grade 11"
+  },
+  "research": {
+    "title": "Research-Backed Methodology",
+    "subtitle": "Our career guidance system integrates cutting-edge frameworks and scientifically-validated assessments",
+    "personalityTitle": "Career Personality Assessment",
+    "personalityDesc": "Scientifically-validated personality assessment matching six career themes to individual interests",
+    "valuesTitle": "Personal Values Assessment",
+    "valuesDesc": "Cross-culturally validated assessment measuring 10 basic human values for value-based career alignment",
+    "quizTitle": "Subject Competency Quiz",
+    "quizDesc": "Curriculum-aligned knowledge validation that confirms academic strengths for career-path recommendations",
+    "wefTitle": "WEF Future Skills Framework",
+    "wefDesc": "World Economic Forum's 16 essential future-ready skills across Foundational Literacies and Core Competencies",
+    "wefSource": "Source: Future of Jobs Report 2025",
+    "visionTitle": "National Vision Integration",
+    "visionDesc": "Aligns career paths with country-specific development goals including UAE Centennial 2071",
+    "visionSource": "Source: UAE Centennial 2071 (2017)",
+    "curriculumTitle": "Curriculum-Aligned Assessments",
+    "curriculumDesc": "240 grade-differentiated questions covering core subjects aligned with UAE national curriculum standards",
+    "curriculumSource": "Source: UAE National Curriculum Framework (2023)",
+    "approachTitle": "Our Approach",
+    "approachDesc": "We map existing, research-validated assessments to the World Economic Forum's 16 future-ready skills framework, providing students with comprehensive insights into their career readiness. By integrating personality, values, and competencies, we deliver personalized career recommendations that align with both individual strengths and national development priorities."
+  },
+  "footer": {
+    "tagline": "Empowering students to build meaningful careers that shape the future",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Use",
+    "disclaimer": "Disclaimer",
+    "copyright": "© {{year}} Future Pathways. All Rights Reserved.",
+    "poweredBy": "Research-based Career & Learning Platform | Powered by WEF and other validated frameworks"
+  }
+}

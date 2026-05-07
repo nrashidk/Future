@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
 import { StickyNote } from "@/components/StickyNote";
 import { Header } from "@/components/layout/Header";
@@ -24,6 +25,8 @@ interface Organization {
 }
 
 export default function Landing() {
+  const { t, i18n } = useTranslation("landing");
+  const isAr = i18n.language === "ar";
   const [, setLocation] = useLocation();
   const { data: analytics, isLoading } = useQuery<{ totalStudents: number }>({
     queryKey: ['/api/public/student-count'],
@@ -37,7 +40,7 @@ export default function Landing() {
   const displayCount = isLoading ? "..." : studentCount.toLocaleString();
   const isPlural = studentCount !== 1;
 
-  useEffect(() => { document.title = "Future Pathways – Career Guidance for Students"; }, []);
+  useEffect(() => { document.title = t("pageTitle"); }, [t]);
 
   const handleLogin = () => setLocation("/login");
   const handleGuestStart = () => setLocation("/assessment");
@@ -47,10 +50,8 @@ export default function Landing() {
       <Header />
       <main id="main-content" className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10">
 
-
       {/* Hero Section */}
       <div className="relative min-h-screen flex items-center justify-center px-4 py-12 overflow-hidden">
-        {/* Main content */}
         <div className="relative z-10 max-w-6xl mx-auto text-center">
           <div className="mb-8 flex justify-center">
             <div className="relative">
@@ -60,12 +61,12 @@ export default function Landing() {
           </div>
 
           <h1 className="text-5xl md:text-7xl font-bold text-foreground mb-6">
-            Discover Your
-            <span className="block text-primary mt-2">Future Path</span>
+            {t("hero.title1")}
+            <span className="block text-primary mt-2">{t("hero.title2")}</span>
           </h1>
 
           <p className="text-xl md:text-2xl text-muted-foreground mb-8 max-w-3xl mx-auto font-body">
-            Find the perfect career that matches your interests, aligns with your country's vision, and prepares you for tomorrow's opportunities
+            {t("hero.subtitle")}
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
@@ -75,8 +76,8 @@ export default function Landing() {
               onClick={handleLogin}
               data-testid="button-signup"
             >
-              <Rocket className="mr-2 w-5 h-5" />
-              Get Started
+              <Rocket className={`w-5 h-5 ${isAr ? "ms-2" : "me-2"}`} />
+              {t("hero.getStarted")}
             </Button>
             <Button
               size="lg"
@@ -85,7 +86,7 @@ export default function Landing() {
               onClick={handleGuestStart}
               data-testid="button-guest"
             >
-              Explore as Guest →
+              {t("hero.exploreGuest")}
             </Button>
           </div>
 
@@ -93,21 +94,21 @@ export default function Landing() {
             <div className="flex items-center gap-2">
               <Users className="w-5 h-5 text-primary" />
               <span className="text-sm font-medium" data-testid="text-student-count">
-                Trusted by {displayCount} student{isPlural ? 's' : ''}
+                {isPlural
+                  ? t("hero.trustedByPlural", { count: displayCount })
+                  : t("hero.trustedBy", { count: displayCount })}
               </span>
             </div>
           </StickyNote>
 
-          {/* School Logos Section - Auto-scrolling with individual sticky notes */}
           {organizations.length > 0 && (
             <div className="mt-12 w-full">
               <div className="flex items-center justify-center gap-2 mb-4">
                 <Building2 className="w-5 h-5 text-primary" />
-                <h3 className="text-lg font-bold text-center">Partner Schools</h3>
+                <h3 className="text-lg font-bold text-center">{t("hero.partnerSchools")}</h3>
               </div>
               <div className="overflow-hidden">
                 <div className="flex items-center gap-6 animate-scroll">
-                  {/* Duplicate organizations twice for seamless loop */}
                   {[...organizations, ...organizations].map((org, index) => {
                     const colors: Array<"yellow" | "pink" | "blue" | "green"> = ["yellow", "pink", "blue", "green"];
                     const rotations: Array<"0" | "1" | "-1" | "2" | "-2"> = ["-1", "1", "-2", "2"];
@@ -151,10 +152,10 @@ export default function Landing() {
       <div className="py-20 px-4 bg-background/50 backdrop-blur-sm">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-4xl md:text-5xl font-bold text-center mb-4">
-            How It Works
+            {t("howItWorks.title")}
           </h2>
           <p className="text-center text-muted-foreground mb-16 text-lg font-body">
-            Your journey to the perfect career in three simple steps
+            {t("howItWorks.subtitle")}
           </p>
 
           <div className="grid md:grid-cols-3 gap-8">
@@ -163,9 +164,9 @@ export default function Landing() {
                 <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
                   <BookOpen className="w-8 h-8 text-primary" />
                 </div>
-                <h3 className="text-2xl font-bold mb-3">1. Share Your Profile</h3>
+                <h3 className="text-2xl font-bold mb-3">{t("howItWorks.step1Title")}</h3>
                 <p className="text-muted-foreground font-body">
-                  Tell us about your favorite subjects, interests, and dreams
+                  {t("howItWorks.step1Desc")}
                 </p>
               </div>
             </StickyNote>
@@ -175,9 +176,9 @@ export default function Landing() {
                 <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
                   <Target className="w-8 h-8 text-primary" />
                 </div>
-                <h3 className="text-2xl font-bold mb-3">2. Find Alignment</h3>
+                <h3 className="text-2xl font-bold mb-3">{t("howItWorks.step2Title")}</h3>
                 <p className="text-muted-foreground font-body">
-                  See how your passions match your country's vision and future needs
+                  {t("howItWorks.step2Desc")}
                 </p>
               </div>
             </StickyNote>
@@ -187,9 +188,9 @@ export default function Landing() {
                 <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
                   <TrendingUp className="w-8 h-8 text-primary" />
                 </div>
-                <h3 className="text-2xl font-bold mb-3">3. Get Your Path</h3>
+                <h3 className="text-2xl font-bold mb-3">{t("howItWorks.step3Title")}</h3>
                 <p className="text-muted-foreground font-body">
-                  Receive personalized career recommendations with action steps
+                  {t("howItWorks.step3Desc")}
                 </p>
               </div>
             </StickyNote>
@@ -201,58 +202,58 @@ export default function Landing() {
       <div className="py-20 px-4">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-4xl md:text-5xl font-bold text-center mb-4">
-            Why Choose Future Pathways?
+            {t("features.title")}
           </h2>
           <p className="text-center text-muted-foreground mb-16 text-lg font-body">
-            Everything you need to plan your future career
+            {t("features.subtitle")}
           </p>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             <StickyNote color="purple" rotation="1">
               <Target className="w-8 h-8 mb-3 text-primary" />
-              <h4 className="text-xl font-bold mb-2">Country Vision Alignment</h4>
+              <h4 className="text-xl font-bold mb-2">{t("features.visionTitle")}</h4>
               <p className="text-muted-foreground text-sm font-body">
-                Discover careers that contribute to your nation's development goals
+                {t("features.visionDesc")}
               </p>
             </StickyNote>
 
             <StickyNote color="green" rotation="-1">
               <Sparkles className="w-8 h-8 mb-3 text-primary" />
-              <h4 className="text-xl font-bold mb-2">Future Skills Mapping</h4>
+              <h4 className="text-xl font-bold mb-2">{t("features.skillsTitle")}</h4>
               <p className="text-muted-foreground text-sm font-body">
-                Learn what skills will be in demand in tomorrow's job market
+                {t("features.skillsDesc")}
               </p>
             </StickyNote>
 
             <StickyNote color="yellow" rotation="2">
               <TrendingUp className="w-8 h-8 mb-3 text-primary" />
-              <h4 className="text-xl font-bold mb-2">Job Market Insights</h4>
+              <h4 className="text-xl font-bold mb-2">{t("features.marketTitle")}</h4>
               <p className="text-muted-foreground text-sm font-body">
-                Get real data on career growth and opportunities in your country
+                {t("features.marketDesc")}
               </p>
             </StickyNote>
 
             <StickyNote color="pink" rotation="-2">
               <Heart className="w-8 h-8 mb-3 text-primary" />
-              <h4 className="text-xl font-bold mb-2">Personalized Match</h4>
+              <h4 className="text-xl font-bold mb-2">{t("features.matchTitle")}</h4>
               <p className="text-muted-foreground text-sm font-body">
-                Recommendations based on your unique interests and strengths
+                {t("features.matchDesc")}
               </p>
             </StickyNote>
 
             <StickyNote color="blue" rotation="1">
               <Lightbulb className="w-8 h-8 mb-3 text-primary" />
-              <h4 className="text-xl font-bold mb-2">Progress Tracking</h4>
+              <h4 className="text-xl font-bold mb-2">{t("features.progressTitle")}</h4>
               <p className="text-muted-foreground text-sm font-body">
-                Monitor your journey with visual progress indicators and badges
+                {t("features.progressDesc")}
               </p>
             </StickyNote>
 
             <StickyNote color="purple" rotation="-1">
               <BookOpen className="w-8 h-8 mb-3 text-primary" />
-              <h4 className="text-xl font-bold mb-2">Detailed Reports</h4>
+              <h4 className="text-xl font-bold mb-2">{t("features.reportsTitle")}</h4>
               <p className="text-muted-foreground text-sm font-body">
-                Download comprehensive PDF reports with your career roadmap
+                {t("features.reportsDesc")}
               </p>
             </StickyNote>
           </div>
@@ -262,29 +263,27 @@ export default function Landing() {
       {/* CTA Section */}
       <div className="py-20 px-4 bg-gradient-to-r from-primary/10 to-accent/10">
         <div className="max-w-4xl mx-auto">
-          <div className="grid md:grid-cols-2 gap-8 items-center">
+          <div className={`grid md:grid-cols-2 gap-8 items-center ${isAr ? "md:flex-row-reverse" : ""}`}>
             <StickyNote color="yellow" rotation="-1" className="p-8">
               <div className="flex items-start gap-3 mb-4">
                 <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                  <span className="text-2xl" aria-hidden="true">👩‍🎓</span>
+                  <GraduationCap className="w-7 h-7 text-primary" aria-hidden="true" />
                 </div>
                 <div>
                   <p className="font-body italic text-foreground/80">
-                    "Future Pathways helped me discover careers I never knew existed. 
-                    Now I'm excited about my future!"
+                    {t("cta.testimonial")}
                   </p>
-                  <p className="mt-2 font-semibold text-sm">- Sarah, Grade 11</p>
+                  <p className="mt-2 font-semibold text-sm">{t("cta.testimonialAuthor")}</p>
                 </div>
               </div>
             </StickyNote>
 
             <div>
               <h3 className="text-3xl md:text-4xl font-bold mb-6">
-                Ready to Find Your Path?
+                {t("cta.title")}
               </h3>
               <p className="text-muted-foreground mb-6 font-body text-lg">
-                Join thousands of students who have discovered their perfect career match. 
-                Start your journey today!
+                {t("cta.subtitle")}
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button
@@ -293,7 +292,7 @@ export default function Landing() {
                   onClick={handleLogin}
                   data-testid="button-cta-signup"
                 >
-                  Create Account
+                  {t("cta.createAccount")}
                 </Button>
                 <Button
                   size="lg"
@@ -302,7 +301,7 @@ export default function Landing() {
                   onClick={handleGuestStart}
                   data-testid="button-cta-guest"
                 >
-                  Continue as Guest
+                  {t("cta.continueGuest")}
                 </Button>
               </div>
             </div>
@@ -314,74 +313,69 @@ export default function Landing() {
       <div className="py-20 px-4 bg-background/30">
         <div className="max-w-6xl mx-auto">
           <h2 className="text-4xl md:text-5xl font-bold text-center mb-4">
-            Research-Backed Methodology
+            {t("research.title")}
           </h2>
           <p className="text-center text-muted-foreground mb-12 text-lg font-body max-w-3xl mx-auto">
-            Our career guidance system integrates cutting-edge frameworks and scientifically-validated assessments
+            {t("research.subtitle")}
           </p>
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-            {/* Row 1: Assessments without sources */}
             <StickyNote color="green" rotation="-1" className="p-6">
-              <h4 className="text-lg font-bold mb-2">Career Personality Assessment</h4>
+              <h4 className="text-lg font-bold mb-2">{t("research.personalityTitle")}</h4>
               <p className="text-sm text-muted-foreground font-body mb-2">
-                Scientifically-validated personality assessment matching six career themes to individual interests
+                {t("research.personalityDesc")}
               </p>
             </StickyNote>
 
             <StickyNote color="yellow" rotation="2" className="p-6">
-              <h4 className="text-lg font-bold mb-2">Personal Values Assessment</h4>
+              <h4 className="text-lg font-bold mb-2">{t("research.valuesTitle")}</h4>
               <p className="text-sm text-muted-foreground font-body mb-2">
-                Cross-culturally validated assessment measuring 10 basic human values for value-based career alignment
+                {t("research.valuesDesc")}
               </p>
             </StickyNote>
 
             <StickyNote color="pink" rotation="-2" className="p-6">
-              <h4 className="text-lg font-bold mb-2">Subject Competency Quiz</h4>
+              <h4 className="text-lg font-bold mb-2">{t("research.quizTitle")}</h4>
               <p className="text-sm text-muted-foreground font-body mb-2">
-                Curriculum-aligned knowledge validation that confirms academic strengths for career-path recommendations
+                {t("research.quizDesc")}
               </p>
             </StickyNote>
 
-            {/* Row 2: Items with source references */}
             <StickyNote color="blue" rotation="1" className="p-6">
-              <h4 className="text-lg font-bold mb-2">WEF Future Skills Framework</h4>
+              <h4 className="text-lg font-bold mb-2">{t("research.wefTitle")}</h4>
               <p className="text-sm text-muted-foreground font-body mb-2">
-                World Economic Forum's 16 essential future-ready skills across Foundational Literacies and Core Competencies
+                {t("research.wefDesc")}
               </p>
               <p className="text-xs text-muted-foreground italic">
-                Source: Future of Jobs Report 2025
+                {t("research.wefSource")}
               </p>
             </StickyNote>
 
             <StickyNote color="purple" rotation="1" className="p-6">
-              <h4 className="text-lg font-bold mb-2">National Vision Integration</h4>
+              <h4 className="text-lg font-bold mb-2">{t("research.visionTitle")}</h4>
               <p className="text-sm text-muted-foreground font-body mb-2">
-                Aligns career paths with country-specific development goals including UAE Centennial 2071
+                {t("research.visionDesc")}
               </p>
               <p className="text-xs text-muted-foreground italic">
-                Source: UAE Centennial 2071 (2017)
+                {t("research.visionSource")}
               </p>
             </StickyNote>
 
             <StickyNote color="orange" rotation="-1" className="p-6">
-              <h4 className="text-lg font-bold mb-2">Curriculum-Aligned Assessments</h4>
+              <h4 className="text-lg font-bold mb-2">{t("research.curriculumTitle")}</h4>
               <p className="text-sm text-muted-foreground font-body mb-2">
-                240 grade-differentiated questions covering core subjects aligned with UAE national curriculum standards
+                {t("research.curriculumDesc")}
               </p>
               <p className="text-xs text-muted-foreground italic">
-                Source: UAE National Curriculum Framework (2023)
+                {t("research.curriculumSource")}
               </p>
             </StickyNote>
           </div>
 
           <div className="bg-accent/5 border border-accent/20 rounded-lg p-6 max-w-4xl mx-auto">
-            <h4 className="font-bold text-lg mb-3 text-center">Our Approach</h4>
+            <h4 className="font-bold text-lg mb-3 text-center">{t("research.approachTitle")}</h4>
             <p className="text-sm text-muted-foreground font-body text-center leading-relaxed">
-              We map existing, research-validated assessments to the World Economic Forum's 16 future-ready skills framework, 
-              providing students with comprehensive insights into their career readiness. By integrating personality, 
-              values, and competencies, we deliver personalized career recommendations that align with both individual strengths 
-              and national development priorities.
+              {t("research.approachDesc")}
             </p>
           </div>
         </div>
@@ -395,28 +389,28 @@ export default function Landing() {
             <span className="font-bold text-foreground">Future Pathways</span>
           </div>
           <p className="text-sm font-body mb-4">
-            Empowering students to build meaningful careers that shape the future
+            {t("footer.tagline")}
           </p>
           
           <div className="flex flex-wrap items-center justify-center gap-4 text-xs mb-4">
             <Link href="/privacy" className="hover:text-foreground transition-colors" data-testid="link-footer-privacy">
-              Privacy Policy
+              {t("footer.privacy")}
             </Link>
             <span aria-hidden="true">•</span>
             <Link href="/terms" className="hover:text-foreground transition-colors" data-testid="link-footer-terms">
-              Terms of Use
+              {t("footer.terms")}
             </Link>
             <span aria-hidden="true">•</span>
             <Link href="/disclaimer" className="hover:text-foreground transition-colors" data-testid="link-footer-disclaimer">
-              Disclaimer
+              {t("footer.disclaimer")}
             </Link>
           </div>
           
           <p className="text-xs">
-            © {new Date().getFullYear()} Future Pathways. All Rights Reserved.
+            {t("footer.copyright", { year: new Date().getFullYear() })}
           </p>
           <p className="text-xs mt-2">
-            Research-based Career & Learning Platform | Powered by WEF and other validated frameworks
+            {t("footer.poweredBy")}
           </p>
         </div>
       </footer>

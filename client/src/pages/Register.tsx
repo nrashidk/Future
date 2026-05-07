@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useTranslation } from "react-i18next";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -13,27 +14,28 @@ import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { GraduationCap, Loader2, ArrowLeft, Eye, EyeOff } from "lucide-react";
 
-const registerSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(8, "Password must be at least 8 characters"),
-  confirmPassword: z.string(),
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
-}).refine(data => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-});
-
-type RegisterForm = z.infer<typeof registerSchema>;
-
 export default function Register() {
-  useEffect(() => { document.title = "Create Account | Future Pathways"; }, []);
-
+  const { t } = useTranslation("auth");
   const { language, setLanguage } = useLanguage();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  useEffect(() => { document.title = `${t("register.pageTitle")} | Future Pathways`; }, [t]);
+
+  const registerSchema = z.object({
+    email: z.string().email(t("register.validation.emailInvalid")),
+    password: z.string().min(8, t("register.validation.passwordMin")),
+    confirmPassword: z.string(),
+    firstName: z.string().min(1, t("register.validation.firstNameRequired")),
+    lastName: z.string().min(1, t("register.validation.lastNameRequired")),
+  }).refine(data => data.password === data.confirmPassword, {
+    message: t("register.validation.passwordsMismatch"),
+    path: ["confirmPassword"],
+  });
+
+  type RegisterForm = z.infer<typeof registerSchema>;
 
   const form = useForm<RegisterForm>({
     resolver: zodResolver(registerSchema),
@@ -58,15 +60,15 @@ export default function Register() {
     },
     onSuccess: () => {
       toast({
-        title: "Welcome!",
-        description: "Your account has been created successfully.",
+        title: t("register.successTitle"),
+        description: t("register.successDesc"),
       });
       setLocation("/auth/callback");
     },
     onError: (error: any) => {
       toast({
-        title: "Registration failed",
-        description: error.message || "Something went wrong. Please try again.",
+        title: t("register.errorTitle"),
+        description: error.message || t("register.errorDesc"),
         variant: "destructive",
       });
     },
@@ -96,10 +98,8 @@ export default function Register() {
               <GraduationCap className="h-12 w-12 text-primary" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold">Create an Account</CardTitle>
-          <CardDescription>
-            Sign up to save your progress and track your career journey
-          </CardDescription>
+          <CardTitle className="text-2xl font-bold">{t("register.title")}</CardTitle>
+          <CardDescription>{t("register.subtitle")}</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -110,13 +110,9 @@ export default function Register() {
                   name="firstName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>First Name</FormLabel>
+                      <FormLabel>{t("register.firstName")}</FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder="John"
-                          {...field}
-                          data-testid="input-first-name"
-                        />
+                        <Input placeholder="John" {...field} data-testid="input-first-name" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -127,13 +123,9 @@ export default function Register() {
                   name="lastName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Last Name</FormLabel>
+                      <FormLabel>{t("register.lastName")}</FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder="Doe"
-                          {...field}
-                          data-testid="input-last-name"
-                        />
+                        <Input placeholder="Doe" {...field} data-testid="input-last-name" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -146,14 +138,9 @@ export default function Register() {
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Email</FormLabel>
+                    <FormLabel>{t("register.email")}</FormLabel>
                     <FormControl>
-                      <Input
-                        type="email"
-                        placeholder="john@example.com"
-                        {...field}
-                        data-testid="input-email"
-                      />
+                      <Input type="email" placeholder="john@example.com" {...field} data-testid="input-email" />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -165,21 +152,21 @@ export default function Register() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password</FormLabel>
+                    <FormLabel>{t("register.password")}</FormLabel>
                     <FormControl>
                       <div className="relative">
                         <Input
                           type={showPassword ? "text" : "password"}
-                          placeholder="At least 8 characters"
-                          className="pr-10"
+                          placeholder={t("register.passwordPlaceholder")}
+                          className="pe-10"
                           {...field}
                           data-testid="input-password"
                         />
                         <button
                           type="button"
-                          className="absolute inset-y-0 right-0 flex items-center justify-center w-10 text-muted-foreground hover:text-foreground transition-colors"
+                          className="absolute inset-y-0 end-0 flex items-center justify-center w-10 text-muted-foreground hover:text-foreground transition-colors"
                           onClick={() => setShowPassword(!showPassword)}
-                          aria-label={showPassword ? "Hide password" : "Show password"}
+                          aria-label={showPassword ? t("register.hidePassword") : t("register.showPassword")}
                           data-testid="button-toggle-password"
                         >
                           {showPassword ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
@@ -196,21 +183,21 @@ export default function Register() {
                 name="confirmPassword"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Confirm Password</FormLabel>
+                    <FormLabel>{t("register.confirmPassword")}</FormLabel>
                     <FormControl>
                       <div className="relative">
                         <Input
                           type={showConfirmPassword ? "text" : "password"}
-                          placeholder="Confirm your password"
-                          className="pr-10"
+                          placeholder={t("register.confirmPasswordPlaceholder")}
+                          className="pe-10"
                           {...field}
                           data-testid="input-confirm-password"
                         />
                         <button
                           type="button"
-                          className="absolute inset-y-0 right-0 flex items-center justify-center w-10 text-muted-foreground hover:text-foreground transition-colors"
+                          className="absolute inset-y-0 end-0 flex items-center justify-center w-10 text-muted-foreground hover:text-foreground transition-colors"
                           onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+                          aria-label={showConfirmPassword ? t("register.hidePassword") : t("register.showPassword")}
                           data-testid="button-toggle-confirm-password"
                         >
                           {showConfirmPassword ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
@@ -230,11 +217,11 @@ export default function Register() {
               >
                 {registerMutation.isPending ? (
                   <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Creating account...
+                    <Loader2 className="w-4 h-4 me-2 animate-spin" />
+                    {t("register.creating")}
                   </>
                 ) : (
-                  "Create Account"
+                  t("register.createAccount")
                 )}
               </Button>
             </form>
@@ -242,19 +229,15 @@ export default function Register() {
         </CardContent>
         <CardFooter className="flex flex-col gap-4 text-center">
           <p className="text-sm text-muted-foreground">
-            Already have an account?{" "}
+            {t("register.alreadyHaveAccount")}{" "}
             <Link href="/login" className="text-primary hover:underline">
-              Sign in
+              {t("register.signIn")}
             </Link>
           </p>
-          <Button
-            variant="ghost"
-            asChild
-            data-testid="link-back"
-          >
+          <Button variant="ghost" asChild data-testid="link-back">
             <Link href="/">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Home
+              <ArrowLeft className="w-4 h-4 me-2" />
+              {t("register.backHome")}
             </Link>
           </Button>
         </CardFooter>

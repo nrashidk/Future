@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -27,7 +28,8 @@ const resetPasswordSchema = z.object({
 type ResetPasswordForm = z.infer<typeof resetPasswordSchema>;
 
 export default function ResetPassword() {
-  useEffect(() => { document.title = "Reset Password | Future Pathways"; }, []);
+  const { t } = useTranslation("auth");
+  useEffect(() => { document.title = `${t("resetPassword.pageTitle")} | Future Pathways`; }, [t]);
 
   const { toast } = useToast();
   const [, setLocation] = useLocation();
@@ -35,11 +37,9 @@ export default function ResetPassword() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   
-  // Get token from URL
   const urlParams = new URLSearchParams(window.location.search);
   const token = urlParams.get("token");
 
-  // Verify token on mount (GET request, no state change)
   const { data: tokenStatus, isLoading: isVerifying, error: verifyError } = useQuery({
     queryKey: [`/api/password-reset/verify?token=${token}`],
     enabled: !!token,
@@ -65,14 +65,14 @@ export default function ResetPassword() {
     onSuccess: () => {
       setResetSuccess(true);
       toast({
-        title: "Password Reset",
-        description: "Your password has been reset successfully.",
+        title: t("resetPassword.successToastTitle"),
+        description: t("resetPassword.successToastDesc"),
       });
     },
     onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to reset password",
+        title: t("resetPassword.errorTitle"),
+        description: error.message || t("resetPassword.errorDesc"),
         variant: "destructive",
       });
     },
@@ -82,7 +82,6 @@ export default function ResetPassword() {
     resetMutation.mutate(data);
   };
 
-  // No token provided
   if (!token) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
@@ -91,15 +90,13 @@ export default function ResetPassword() {
             <div className="mx-auto w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-4">
               <XCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
             </div>
-            <CardTitle data-testid="text-invalid-link">Invalid Reset Link</CardTitle>
-            <CardDescription>
-              This password reset link is missing the required token.
-            </CardDescription>
+            <CardTitle data-testid="text-invalid-link">{t("resetPassword.invalidTitle")}</CardTitle>
+            <CardDescription>{t("resetPassword.invalidDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             <Link href="/forgot-password">
               <Button className="w-full" data-testid="button-request-new-link">
-                Request New Reset Link
+                {t("resetPassword.requestNewLink")}
               </Button>
             </Link>
           </CardContent>
@@ -108,22 +105,20 @@ export default function ResetPassword() {
     );
   }
 
-  // Verifying token
   if (isVerifying) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
         <Card className="w-full max-w-md">
           <CardContent className="py-12 text-center">
             <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
-            <p className="text-muted-foreground">Verifying reset link...</p>
+            <p className="text-muted-foreground">{t("resetPassword.verifying")}</p>
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  // Token invalid or expired
-  if (verifyError || !tokenStatus?.valid) {
+  if (verifyError || !(tokenStatus as any)?.valid) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
         <Card className="w-full max-w-md">
@@ -131,21 +126,19 @@ export default function ResetPassword() {
             <div className="mx-auto w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-4">
               <XCircle className="w-6 h-6 text-red-600 dark:text-red-400" />
             </div>
-            <CardTitle data-testid="text-expired-link">Link Expired or Invalid</CardTitle>
-            <CardDescription>
-              This password reset link has expired or is invalid. Please request a new one.
-            </CardDescription>
+            <CardTitle data-testid="text-expired-link">{t("resetPassword.expiredTitle")}</CardTitle>
+            <CardDescription>{t("resetPassword.expiredDesc")}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-2">
             <Link href="/forgot-password">
               <Button className="w-full" data-testid="button-request-new-reset">
-                Request New Reset Link
+                {t("resetPassword.requestNewLink")}
               </Button>
             </Link>
             <Link href="/login">
               <Button variant="ghost" className="w-full" data-testid="link-back-to-login-expired">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Login
+                <ArrowLeft className="w-4 h-4 me-2" />
+                {t("resetPassword.backToLogin")}
               </Button>
             </Link>
           </CardContent>
@@ -154,7 +147,6 @@ export default function ResetPassword() {
     );
   }
 
-  // Password reset successful
   if (resetSuccess) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
@@ -163,15 +155,13 @@ export default function ResetPassword() {
             <div className="mx-auto w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-4">
               <CheckCircle2 className="w-6 h-6 text-green-600 dark:text-green-400" />
             </div>
-            <CardTitle data-testid="text-password-reset-success">Password Reset</CardTitle>
-            <CardDescription>
-              Your password has been reset successfully. You can now log in with your new password.
-            </CardDescription>
+            <CardTitle data-testid="text-password-reset-success">{t("resetPassword.successTitle")}</CardTitle>
+            <CardDescription>{t("resetPassword.successDesc")}</CardDescription>
           </CardHeader>
           <CardContent>
             <Link href="/login">
               <Button className="w-full" data-testid="button-go-to-login">
-                Go to Login
+                {t("resetPassword.goToLogin")}
               </Button>
             </Link>
           </CardContent>
@@ -180,7 +170,6 @@ export default function ResetPassword() {
     );
   }
 
-  // Show reset form
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
       <Card className="w-full max-w-md">
@@ -188,10 +177,8 @@ export default function ResetPassword() {
           <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">
             <KeyRound className="w-6 h-6 text-primary" />
           </div>
-          <CardTitle data-testid="text-reset-password-title">Reset Your Password</CardTitle>
-          <CardDescription>
-            Enter your new password below. Make sure it's strong and unique.
-          </CardDescription>
+          <CardTitle data-testid="text-reset-password-title">{t("resetPassword.title")}</CardTitle>
+          <CardDescription>{t("resetPassword.subtitle")}</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -201,23 +188,24 @@ export default function ResetPassword() {
                 name="newPassword"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>New Password</FormLabel>
+                    <FormLabel>{t("resetPassword.newPasswordLabel")}</FormLabel>
                     <FormControl>
                       <div className="relative">
                         <Input
                           type={showPassword ? "text" : "password"}
-                          placeholder="Enter new password"
-                          className="pr-10"
+                          placeholder={t("resetPassword.newPasswordPlaceholder")}
+                          className="pe-10"
                           {...field}
                           data-testid="input-new-password"
                         />
                         <button
                           type="button"
-                          className="absolute inset-y-0 right-0 flex items-center justify-center w-10 text-muted-foreground hover:text-foreground transition-colors"
+                          className="absolute inset-y-0 end-0 flex items-center justify-center w-10 text-muted-foreground hover:text-foreground transition-colors"
                           onClick={() => setShowPassword(!showPassword)}
+                          aria-label={showPassword ? t("resetPassword.hidePassword") : t("resetPassword.showPassword")}
                           data-testid="button-toggle-new-password"
                         >
-                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          {showPassword ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
                         </button>
                       </div>
                     </FormControl>
@@ -231,23 +219,24 @@ export default function ResetPassword() {
                 name="confirmPassword"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Confirm Password</FormLabel>
+                    <FormLabel>{t("resetPassword.confirmPasswordLabel")}</FormLabel>
                     <FormControl>
                       <div className="relative">
                         <Input
                           type={showConfirmPassword ? "text" : "password"}
-                          placeholder="Confirm new password"
-                          className="pr-10"
+                          placeholder={t("resetPassword.confirmPasswordPlaceholder")}
+                          className="pe-10"
                           {...field}
                           data-testid="input-confirm-password"
                         />
                         <button
                           type="button"
-                          className="absolute inset-y-0 right-0 flex items-center justify-center w-10 text-muted-foreground hover:text-foreground transition-colors"
+                          className="absolute inset-y-0 end-0 flex items-center justify-center w-10 text-muted-foreground hover:text-foreground transition-colors"
                           onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          aria-label={showConfirmPassword ? t("resetPassword.hidePassword") : t("resetPassword.showPassword")}
                           data-testid="button-toggle-confirm-password"
                         >
-                          {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          {showConfirmPassword ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
                         </button>
                       </div>
                     </FormControl>
@@ -257,12 +246,12 @@ export default function ResetPassword() {
               />
 
               <div className="text-xs text-muted-foreground space-y-1">
-                <p>Password requirements:</p>
+                <p>{t("resetPassword.requirements")}</p>
                 <ul className="list-disc list-inside">
-                  <li>At least 8 characters</li>
-                  <li>One uppercase letter</li>
-                  <li>One lowercase letter</li>
-                  <li>One number</li>
+                  <li>{t("resetPassword.req1")}</li>
+                  <li>{t("resetPassword.req2")}</li>
+                  <li>{t("resetPassword.req3")}</li>
+                  <li>{t("resetPassword.req4")}</li>
                 </ul>
               </div>
 
@@ -274,19 +263,19 @@ export default function ResetPassword() {
               >
                 {resetMutation.isPending ? (
                   <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Resetting...
+                    <Loader2 className="w-4 h-4 me-2 animate-spin" />
+                    {t("resetPassword.resetting")}
                   </>
                 ) : (
-                  "Reset Password"
+                  t("resetPassword.resetButton")
                 )}
               </Button>
 
               <div className="text-center">
                 <Link href="/login">
                   <Button variant="ghost" className="text-sm" data-testid="link-back-to-login-form">
-                    <ArrowLeft className="w-4 h-4 mr-1" />
-                    Back to Login
+                    <ArrowLeft className="w-4 h-4 me-1" />
+                    {t("resetPassword.backToLogin")}
                   </Button>
                 </Link>
               </div>

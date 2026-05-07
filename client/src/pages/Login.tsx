@@ -9,6 +9,7 @@ import { Link, useLocation } from "wouter";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useTranslation } from "react-i18next";
 
 interface AuthConfig {
   google: boolean;
@@ -17,11 +18,12 @@ interface AuthConfig {
 }
 
 export default function Login() {
-  useEffect(() => { document.title = "Sign In | Future Pathways"; }, []);
-
+  const { t } = useTranslation("auth");
   const { language, setLanguage } = useLanguage();
   const [location] = useLocation();
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => { document.title = `${t("login.pageTitle")} | Future Pathways`; }, [t]);
 
   const { data: authConfig, isLoading: isAuthConfigLoading, isError: isAuthConfigError } = useQuery<AuthConfig>({
     queryKey: ["/api/auth/config"],
@@ -32,14 +34,14 @@ export default function Login() {
     const errorParam = params.get("error");
     if (errorParam) {
       if (errorParam === "google_failed") {
-        setError("Google login failed. Please try again.");
+        setError(t("login.errorGoogle"));
       } else if (errorParam === "microsoft_failed") {
-        setError("Microsoft login failed. Please try again.");
+        setError(t("login.errorMicrosoft"));
       } else {
-        setError("Login failed. Please try again.");
+        setError(t("login.errorGeneric"));
       }
     }
-  }, []);
+  }, [t]);
 
   const handleGoogleLogin = () => {
     window.location.href = "/api/auth/google";
@@ -71,10 +73,8 @@ export default function Login() {
               <GraduationCap className="h-12 w-12 text-primary" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold">Welcome Back</CardTitle>
-          <CardDescription>
-            Sign in to save your progress and access your career results
-          </CardDescription>
+          <CardTitle className="text-2xl font-bold">{t("login.title")}</CardTitle>
+          <CardDescription>{t("login.subtitle")}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {error && (
@@ -92,7 +92,7 @@ export default function Login() {
 
           {isAuthConfigError && (
             <p className="text-sm text-muted-foreground text-center" data-testid="text-oauth-unavailable">
-              Social sign-in is temporarily unavailable. Use the email option below.
+              {t("login.oauthUnavailable")}
             </p>
           )}
 
@@ -104,7 +104,7 @@ export default function Login() {
               data-testid="button-google-login"
             >
               <SiGoogle className="h-5 w-5" />
-              Continue with Google
+              {t("login.withGoogle")}
             </Button>
           )}
           
@@ -116,7 +116,7 @@ export default function Login() {
               data-testid="button-microsoft-login"
             >
               <BsMicrosoft className="h-5 w-5" />
-              Continue with Microsoft
+              {t("login.withMicrosoft")}
             </Button>
           )}
 
@@ -126,7 +126,7 @@ export default function Login() {
                 <Separator />
               </div>
               <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">Or</span>
+                <span className="bg-card px-2 text-muted-foreground">{t("login.or")}</span>
               </div>
             </div>
           )}
@@ -139,26 +139,22 @@ export default function Login() {
           >
             <Link href="/login/student">
               <Mail className="h-5 w-5" />
-              Sign in with Email
+              {t("login.withEmail")}
             </Link>
           </Button>
         </CardContent>
         <CardFooter className="flex flex-col gap-4 text-center">
           <p className="text-sm text-muted-foreground">
-            Don't have an account?{" "}
+            {t("login.noAccount")}{" "}
             <Link href="/register" className="text-primary hover:underline" data-testid="link-register">
-              Create one
+              {t("login.createOne")}
             </Link>
           </p>
           <p className="text-sm text-muted-foreground">
-            Have login credentials? Use the email sign-in option above.
+            {t("login.haveCredentials")}
           </p>
-          <Button
-            variant="ghost"
-            asChild
-            data-testid="link-home"
-          >
-            <Link href="/">Back to Home</Link>
+          <Button variant="ghost" asChild data-testid="link-home">
+            <Link href="/">{t("login.backHome")}</Link>
           </Button>
         </CardFooter>
       </Card>

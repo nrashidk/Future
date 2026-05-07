@@ -1,11 +1,11 @@
 import { Switch, Route } from "wouter";
-import { lazy, Suspense, Component, ReactNode } from "react";
+import { lazy, Suspense, Component, ReactNode, useEffect } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Loader2 } from "lucide-react";
-import { LanguageProvider } from "@/contexts/LanguageContext";
+import { LanguageProvider, useLanguage } from "@/contexts/LanguageContext";
 
 const Landing = lazy(() => import("@/pages/Landing"));
 const TierSelection = lazy(() => import("@/pages/TierSelection"));
@@ -91,6 +91,23 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
   }
 }
 
+function OgLocaleSync() {
+  const { language } = useLanguage();
+  useEffect(() => {
+    const locale = language === "ar" ? "ar_AE" : "en_US";
+    let tag = document.querySelector<HTMLMetaElement>('meta[property="og:locale"]');
+    if (tag) {
+      tag.setAttribute("content", locale);
+    } else {
+      tag = document.createElement("meta");
+      tag.setAttribute("property", "og:locale");
+      tag.setAttribute("content", locale);
+      document.head.appendChild(tag);
+    }
+  }, [language]);
+  return null;
+}
+
 function Router() {
   return (
     <Suspense fallback={<PageLoader />}>
@@ -129,6 +146,7 @@ function App() {
       <TooltipProvider>
         <ErrorBoundary>
           <LanguageProvider>
+            <OgLocaleSync />
             <a
               href="#main-content"
               className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[9999] focus:px-4 focus:py-2 focus:rounded-md focus:bg-primary focus:text-primary-foreground focus:font-medium focus:text-sm"

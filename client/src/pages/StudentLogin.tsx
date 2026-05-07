@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,19 +12,21 @@ import { useLocation, Link } from "wouter";
 import { GraduationCap, Eye, EyeOff } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 
-const loginSchema = z.object({
-  username: z.string().min(1, "Username is required"),
-  password: z.string().min(1, "Password is required"),
-});
-
-type LoginFormData = z.infer<typeof loginSchema>;
-
 export default function StudentLogin() {
-  useEffect(() => { document.title = "Student Login | Future Pathways"; }, []);
+  const { t } = useTranslation("auth");
+  useEffect(() => { document.title = `${t("studentLogin.pageTitle")} | Future Pathways`; }, [t]);
+
   const { toast } = useToast();
   const [, navigate] = useLocation();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  const loginSchema = z.object({
+    username: z.string().min(1, t("studentLogin.validation.usernameRequired")),
+    password: z.string().min(1, t("studentLogin.validation.passwordRequired")),
+  });
+
+  type LoginFormData = z.infer<typeof loginSchema>;
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -38,26 +41,20 @@ export default function StudentLogin() {
     try {
       const response = await fetch("/api/login/username", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
 
       if (response.ok) {
-        // Clear all cached query data so no stale data from a previous user is shown
         queryClient.clear();
-        
-        // Fetch full user data to determine redirect
         const userResponse = await fetch("/api/auth/user", { credentials: "include" });
         const userData = await userResponse.json();
         
         toast({
-          title: "Welcome!",
-          description: "Successfully logged in.",
+          title: t("studentLogin.successTitle"),
+          description: t("studentLogin.successDesc"),
         });
         
-        // Redirect based on user role
         if (userData.role === 'superadmin') {
           navigate("/superadmin");
         } else if (userData.role === 'admin' || userData.accountType === 'org_admin') {
@@ -68,15 +65,15 @@ export default function StudentLogin() {
       } else {
         const error = await response.json();
         toast({
-          title: "Login failed",
-          description: error.message || "Invalid username or password",
+          title: t("studentLogin.errorTitle"),
+          description: error.message || t("studentLogin.errorDesc"),
           variant: "destructive",
         });
       }
     } catch (error) {
       toast({
-        title: "Error",
-        description: "An error occurred. Please try again.",
+        title: t("studentLogin.errorTitle"),
+        description: t("studentLogin.errorGeneric"),
         variant: "destructive",
       });
     } finally {
@@ -93,10 +90,8 @@ export default function StudentLogin() {
               <GraduationCap className="h-12 w-12 text-primary" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold">Login</CardTitle>
-          <CardDescription>
-            Enter the username and password provided by your school
-          </CardDescription>
+          <CardTitle className="text-2xl font-bold">{t("studentLogin.title")}</CardTitle>
+          <CardDescription>{t("studentLogin.subtitle")}</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -106,11 +101,11 @@ export default function StudentLogin() {
                 name="username"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Username or Email</FormLabel>
+                    <FormLabel>{t("studentLogin.usernameLabel")}</FormLabel>
                     <FormControl>
                       <Input
                         {...field}
-                        placeholder="Enter your username or email"
+                        placeholder={t("studentLogin.usernamePlaceholder")}
                         data-testid="input-username"
                         disabled={isLoading}
                         autoComplete="username"
@@ -125,22 +120,22 @@ export default function StudentLogin() {
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Password</FormLabel>
+                    <FormLabel>{t("studentLogin.passwordLabel")}</FormLabel>
                     <FormControl>
                       <div className="relative">
                         <Input
                           {...field}
                           type={showPassword ? "text" : "password"}
-                          placeholder="Enter your password"
-                          className="pr-10"
+                          placeholder={t("studentLogin.passwordPlaceholder")}
+                          className="pe-10"
                           data-testid="input-password"
                           disabled={isLoading}
                         />
                         <button
                           type="button"
-                          className="absolute inset-y-0 right-0 flex items-center justify-center w-10 text-muted-foreground hover:text-foreground transition-colors"
+                          className="absolute inset-y-0 end-0 flex items-center justify-center w-10 text-muted-foreground hover:text-foreground transition-colors"
                           onClick={() => setShowPassword(!showPassword)}
-                          aria-label={showPassword ? "Hide password" : "Show password"}
+                          aria-label={showPassword ? t("studentLogin.hidePassword") : t("studentLogin.showPassword")}
                           data-testid="button-toggle-password"
                         >
                           {showPassword ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
@@ -157,13 +152,13 @@ export default function StudentLogin() {
                 disabled={isLoading}
                 data-testid="button-login"
               >
-                {isLoading ? "Logging in..." : "Login"}
+                {isLoading ? t("studentLogin.loggingIn") : t("studentLogin.loginButton")}
               </Button>
               
               <div className="text-center">
                 <Link href="/forgot-password">
                   <Button variant="ghost" className="text-sm" data-testid="link-forgot-password">
-                    Forgot your password?
+                    {t("studentLogin.forgotPassword")}
                   </Button>
                 </Link>
               </div>
@@ -171,15 +166,13 @@ export default function StudentLogin() {
           </Form>
         </CardContent>
         <CardFooter className="flex flex-col gap-2 text-center text-sm text-muted-foreground">
-          <p>
-            Don't have an account? Contact your school administrator.
-          </p>
+          <p>{t("studentLogin.noAccount")}</p>
           <Button
             variant="ghost"
             onClick={() => navigate("/")}
             data-testid="link-home"
           >
-            Back to Home
+            {t("studentLogin.backHome")}
           </Button>
         </CardFooter>
       </Card>

@@ -9,6 +9,7 @@ import { GraduationCap, Crown, Users, ClipboardCheck, Home, User, LogOut, BarCha
 import { StickyNote } from "@/components/StickyNote";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useTranslation } from "react-i18next";
 
 interface Assessment {
   id: string;
@@ -39,7 +40,8 @@ interface OrgStats {
 }
 
 export default function Profile() {
-  useEffect(() => { document.title = "My Profile | Future Pathways"; }, []);
+  const { t } = useTranslation("profile");
+  useEffect(() => { document.title = `${t("pageTitle")} | Future Pathways`; }, [t]);
 
   const { user, isLoading } = useAuth();
   const [, navigate] = useLocation();
@@ -71,7 +73,7 @@ export default function Profile() {
       <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading your profile...</p>
+          <p className="text-muted-foreground">{t("loading")}</p>
         </div>
       </div>
     );
@@ -217,9 +219,9 @@ export default function Profile() {
         <div className="mb-12 text-center">
           <div className="flex items-center justify-center gap-3 mb-4">
             <User className="w-12 h-12 text-primary" />
-            <h1 className="text-4xl md:text-5xl font-bold">My Profile</h1>
+            <h1 className="text-4xl md:text-5xl font-bold">{t("title")}</h1>
           </div>
-          <p className="text-muted-foreground text-lg">Manage your account and view your progress</p>
+          <p className="text-muted-foreground text-lg">{t("subtitle")}</p>
         </div>
 
         <div className="grid gap-6">
@@ -228,7 +230,7 @@ export default function Profile() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <User className="w-5 h-5" />
-                Account Information
+                {t("account.title")}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -239,14 +241,14 @@ export default function Profile() {
                     {/* Left column: Name and Username */}
                     <div className="space-y-4">
                       <div>
-                        <p className="text-sm text-muted-foreground">Name</p>
+                        <p className="text-sm text-muted-foreground">{t("account.name")}</p>
                         <p className="font-medium" data-testid="text-user-name">
-                          {user.firstName || user.lastName ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : 'Not provided'}
+                          {user.firstName || user.lastName ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : t("account.notProvided")}
                         </p>
                       </div>
                       {user.username && (
                         <div>
-                          <p className="text-sm text-muted-foreground">Username</p>
+                          <p className="text-sm text-muted-foreground">{t("account.username")}</p>
                           <p className="font-medium" data-testid="text-user-username">{user.username}</p>
                         </div>
                       )}
@@ -256,7 +258,7 @@ export default function Profile() {
                     <div className="space-y-4">
                       {((user as any).organizationName || organization) && (
                         <div>
-                          <p className="text-sm text-muted-foreground mb-2">School</p>
+                          <p className="text-sm text-muted-foreground mb-2">{t("account.school")}</p>
                           <div className="flex items-center gap-3">
                             {(user as any).organizationLogoUrl && (
                               <img 
@@ -274,7 +276,7 @@ export default function Profile() {
                       )}
                       {(user as any).predefinedGrade && (
                         <div>
-                          <p className="text-sm text-muted-foreground">Grade</p>
+                          <p className="text-sm text-muted-foreground">{t("account.grade")}</p>
                           <p className="font-medium" data-testid="text-student-grade">{(user as any).predefinedGrade}</p>
                         </div>
                       )}
@@ -283,7 +285,7 @@ export default function Profile() {
                   
                   {/* Third line: Account Type */}
                   <div className="pt-2 border-t">
-                    <p className="text-sm text-muted-foreground mb-2">Account Type</p>
+                    <p className="text-sm text-muted-foreground mb-2">{t("account.accountType")}</p>
                     {getAccountTypeBadge()}
                   </div>
                 </>
@@ -294,14 +296,14 @@ export default function Profile() {
                     {/* Left column: Name and Email */}
                     <div className="space-y-4">
                       <div>
-                        <p className="text-sm text-muted-foreground">Name</p>
+                        <p className="text-sm text-muted-foreground">{t("account.name")}</p>
                         <p className="font-medium" data-testid="text-user-name">
-                          {user.firstName || user.lastName ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : 'Not provided'}
+                          {user.firstName || user.lastName ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : t("account.notProvided")}
                         </p>
                       </div>
                       {user.email && (
                         <div>
-                          <p className="text-sm text-muted-foreground">Email</p>
+                          <p className="text-sm text-muted-foreground">{t("account.email")}</p>
                           <p className="font-medium" data-testid="text-user-email">{user.email}</p>
                         </div>
                       )}
@@ -311,13 +313,13 @@ export default function Profile() {
                     <div className="space-y-4">
                       {user.username && (
                         <div>
-                          <p className="text-sm text-muted-foreground">Username</p>
+                          <p className="text-sm text-muted-foreground">{t("account.username")}</p>
                           <p className="font-medium" data-testid="text-user-username">{user.username}</p>
                         </div>
                       )}
                       {((user as any).organizationName || organization) && (
                         <div>
-                          <p className="text-sm text-muted-foreground">Organization</p>
+                          <p className="text-sm text-muted-foreground">{t("account.organization")}</p>
                           <p className="font-medium text-primary" data-testid="text-organization-name">
                             {(user as any).organizationName || organization?.name}
                           </p>
@@ -328,7 +330,7 @@ export default function Profile() {
                   
                   {/* Third line: Account Type */}
                   <div className="pt-2 border-t">
-                    <p className="text-sm text-muted-foreground mb-2">Account Type</p>
+                    <p className="text-sm text-muted-foreground mb-2">{t("account.accountType")}</p>
                     {getAccountTypeBadge()}
                   </div>
                 </>
@@ -336,25 +338,25 @@ export default function Profile() {
                 <>
                   {/* Regular layout for individual users */}
                   <div>
-                    <p className="text-sm text-muted-foreground">Name</p>
+                    <p className="text-sm text-muted-foreground">{t("account.name")}</p>
                     <p className="font-medium" data-testid="text-user-name">
-                      {user.firstName || user.lastName ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : 'Not provided'}
+                      {user.firstName || user.lastName ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : t("account.notProvided")}
                     </p>
                   </div>
                   {user.email && (
                     <div>
-                      <p className="text-sm text-muted-foreground">Email</p>
+                      <p className="text-sm text-muted-foreground">{t("account.email")}</p>
                       <p className="font-medium" data-testid="text-user-email">{user.email}</p>
                     </div>
                   )}
                   {user.username && (
                     <div>
-                      <p className="text-sm text-muted-foreground">Username</p>
+                      <p className="text-sm text-muted-foreground">{t("account.username")}</p>
                       <p className="font-medium" data-testid="text-user-username">{user.username}</p>
                     </div>
                   )}
                   <div>
-                    <p className="text-sm text-muted-foreground mb-2">Account Type</p>
+                    <p className="text-sm text-muted-foreground mb-2">{t("account.accountType")}</p>
                     {getAccountTypeBadge()}
                   </div>
                 </>
@@ -392,8 +394,8 @@ export default function Profile() {
             return (
               <div>
                 <div className="mb-4 text-center">
-                  <h2 className="text-xl font-bold">My Details</h2>
-                  <p className="text-sm text-muted-foreground">Your profile from your latest assessment</p>
+                  <h2 className="text-xl font-bold">{t("details.title")}</h2>
+                  <p className="text-sm text-muted-foreground">{t("details.subtitle")}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <StickyNote color="yellow" rotation="-1">
@@ -401,10 +403,10 @@ export default function Profile() {
                       <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                         <User className="w-4 h-4 text-primary" />
                       </div>
-                      <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Name</p>
+                      <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{t("details.name")}</p>
                     </div>
                     <p className="font-bold text-lg leading-snug" data-testid="text-demo-name">
-                      {demoName || <span className="text-muted-foreground font-normal text-base">Not provided</span>}
+                      {demoName || <span className="text-muted-foreground font-normal text-base">{t("account.notProvided")}</span>}
                     </p>
                   </StickyNote>
 
@@ -413,10 +415,10 @@ export default function Profile() {
                       <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                         <Cake className="w-4 h-4 text-primary" />
                       </div>
-                      <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Age</p>
+                      <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{t("details.age")}</p>
                     </div>
                     <p className="font-bold text-lg" data-testid="text-demo-age">
-                      {demoAge ? `${demoAge} years old` : <span className="text-muted-foreground font-normal text-base">Not provided</span>}
+                      {demoAge ? t("details.yearsOld", { age: demoAge }) : <span className="text-muted-foreground font-normal text-base">{t("account.notProvided")}</span>}
                     </p>
                   </StickyNote>
 
@@ -425,10 +427,10 @@ export default function Profile() {
                       <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                         <GraduationCap className="w-4 h-4 text-primary" />
                       </div>
-                      <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Grade</p>
+                      <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{t("details.grade")}</p>
                     </div>
                     <p className="font-bold text-lg" data-testid="text-demo-grade">
-                      {demoGrade ? getGradeLabel(demoGrade) : <span className="text-muted-foreground font-normal text-base">Not provided</span>}
+                      {demoGrade ? getGradeLabel(demoGrade) : <span className="text-muted-foreground font-normal text-base">{t("account.notProvided")}</span>}
                     </p>
                   </StickyNote>
 
@@ -437,10 +439,10 @@ export default function Profile() {
                       <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
                         <Users2 className="w-4 h-4 text-primary" />
                       </div>
-                      <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Gender</p>
+                      <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{t("details.gender")}</p>
                     </div>
                     <p className="font-bold text-lg" data-testid="text-demo-gender">
-                      {demoGender ? getGenderLabel(demoGender) : <span className="text-muted-foreground font-normal text-base">Not provided</span>}
+                      {demoGender ? getGenderLabel(demoGender) : <span className="text-muted-foreground font-normal text-base">{t("account.notProvided")}</span>}
                     </p>
                   </StickyNote>
                 </div>
@@ -454,47 +456,47 @@ export default function Profile() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Crown className="w-5 h-5 text-yellow-500" />
-                Premium Status
+                {t("premium.title")}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">Status</p>
+                <p className="text-sm text-muted-foreground">{t("premium.status")}</p>
                 {isOrgAdmin ? (
                   isOrgStatsLoading ? (
-                    <Badge variant="outline" data-testid="badge-premium-status">Loading...</Badge>
+                    <Badge variant="outline" data-testid="badge-premium-status">{t("premium.loading")}</Badge>
                   ) : orgStatsError ? (
-                    <Badge variant="outline" data-testid="badge-premium-status">Unavailable</Badge>
+                    <Badge variant="outline" data-testid="badge-premium-status">{t("premium.unavailable")}</Badge>
                   ) : orgStats && orgStats.totalLicenses > 0 ? (
                     <Badge className="bg-yellow-500 hover:bg-yellow-600" data-testid="badge-premium-status">
-                      <Crown className="w-3 h-3 mr-1" />
-                      Premium
+                      <Crown className="w-3 h-3 me-1" />
+                      {t("premium.premium")}
                     </Badge>
                   ) : (
-                    <Badge variant="outline" data-testid="badge-premium-status">Free</Badge>
+                    <Badge variant="outline" data-testid="badge-premium-status">{t("premium.free")}</Badge>
                   )
                 ) : user.isPremium ? (
                   <Badge className="bg-yellow-500 hover:bg-yellow-600" data-testid="badge-premium-status">
-                    <Crown className="w-3 h-3 mr-1" />
-                    Premium
+                    <Crown className="w-3 h-3 me-1" />
+                    {t("premium.premium")}
                   </Badge>
                 ) : (
-                  <Badge variant="outline" data-testid="badge-premium-status">Free</Badge>
+                  <Badge variant="outline" data-testid="badge-premium-status">{t("premium.free")}</Badge>
                 )}
               </div>
 
               {user.isPremium && !isOrgAdmin && !isOrgStudent && (
                 <>
                   <div className="flex items-center justify-between">
-                    <p className="text-sm text-muted-foreground">Purchased Licenses</p>
+                    <p className="text-sm text-muted-foreground">{t("premium.purchasedLicenses")}</p>
                     <p className="font-bold text-2xl" data-testid="text-purchased-licenses">{individualAvailableLicenses}</p>
                   </div>
                   <div className="flex items-center justify-between">
-                    <p className="text-sm text-muted-foreground">Used Licenses</p>
+                    <p className="text-sm text-muted-foreground">{t("premium.usedLicenses")}</p>
                     <p className="font-bold text-2xl" data-testid="text-used-licenses">{individualUsedLicenses}</p>
                   </div>
                   <div className="flex items-center justify-between">
-                    <p className="text-sm text-muted-foreground">Remaining Licenses</p>
+                    <p className="text-sm text-muted-foreground">{t("premium.remainingLicenses")}</p>
                     <p className="font-bold text-2xl text-primary" data-testid="text-remaining-licenses">{individualRemainingLicenses}</p>
                   </div>
 
@@ -502,8 +504,8 @@ export default function Profile() {
                     <div className="pt-4 border-t">
                       <Button asChild className="w-full" data-testid="button-start-assessment">
                         <Link href="/assessment">
-                          <ClipboardCheck className="w-4 h-4 mr-2" />
-                          Start Premium Assessment
+                          <ClipboardCheck className="w-4 h-4 me-2" />
+                          {t("premium.startPremium")}
                         </Link>
                       </Button>
                     </div>
@@ -512,11 +514,11 @@ export default function Profile() {
                   {individualRemainingLicenses === 0 && (
                     <div className="pt-4 border-t">
                       <p className="text-sm text-muted-foreground text-center">
-                        You've used all your licenses. Purchase more to continue.
+                        {t("premium.allUsed")}
                       </p>
                       <Button asChild variant="outline" className="w-full mt-2" data-testid="button-purchase-more">
                         <Link href="/tier-selection">
-                          Purchase More Licenses
+                          {t("premium.purchaseMore")}
                         </Link>
                       </Button>
                     </div>
@@ -528,10 +530,10 @@ export default function Profile() {
               {isOrgStudent && (
                 <div className="pt-4 border-t">
                   <p className="text-sm text-muted-foreground text-center mb-2">
-                    You have access to the premium assessment through your school.
+                    {t("premium.studentAccess")}
                   </p>
                   <div className="flex items-center justify-between mt-3">
-                    <p className="text-sm text-muted-foreground">Available Assessments</p>
+                    <p className="text-sm text-muted-foreground">{t("premium.availableAssessments")}</p>
                     <p className="font-bold text-2xl text-primary" data-testid="text-student-available-assessments">
                       {Math.max(0, 1 - assessments.filter(a => a.status === 'completed').length)}
                     </p>
@@ -542,43 +544,43 @@ export default function Profile() {
               {isOrgAdmin && isOrgStatsLoading && (
                 <div className="py-8 text-center text-muted-foreground">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-                  <p>Loading organization statistics...</p>
+                  <p>{t("premium.loadingStats")}</p>
                 </div>
               )}
 
               {isOrgAdmin && orgStatsError && (
                 <div className="py-8 text-center text-destructive">
-                  <p className="font-medium">Failed to load organization statistics</p>
-                  <p className="text-sm mt-2">Please try again later.</p>
+                  <p className="font-medium">{t("premium.statsError")}</p>
+                  <p className="text-sm mt-2">{t("premium.statsErrorRetry")}</p>
                 </div>
               )}
 
               {isOrgAdmin && orgStats && !isOrgStatsLoading && (
                 <>
                   <div className="flex items-center justify-between">
-                    <p className="text-sm text-muted-foreground">Total Licenses (Organization)</p>
+                    <p className="text-sm text-muted-foreground">{t("premium.totalLicenses")}</p>
                     <p className="font-bold text-2xl" data-testid="text-purchased-licenses">{orgStats.totalLicenses}</p>
                   </div>
                   <div className="flex items-center justify-between">
-                    <p className="text-sm text-muted-foreground">Used Licenses (Organization)</p>
+                    <p className="text-sm text-muted-foreground">{t("premium.usedLicensesOrg")}</p>
                     <p className="font-bold text-2xl" data-testid="text-used-licenses">{orgStats.usedLicenses}</p>
                   </div>
                   <div className="flex items-center justify-between">
-                    <p className="text-sm text-muted-foreground">Remaining Licenses (Organization)</p>
+                    <p className="text-sm text-muted-foreground">{t("premium.remainingLicensesOrg")}</p>
                     <p className="font-bold text-2xl text-primary" data-testid="text-remaining-licenses">{orgStats.remainingLicenses}</p>
                   </div>
 
                   <div className="pt-4 border-t">
                     <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm text-muted-foreground">Total Students</p>
+                      <p className="text-sm text-muted-foreground">{t("premium.totalStudents")}</p>
                       <p className="font-bold text-xl" data-testid="text-total-members">{orgStats.totalMembers}</p>
                     </div>
                     <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm text-muted-foreground">Completed Assessments</p>
+                      <p className="text-sm text-muted-foreground">{t("premium.completedAssessments")}</p>
                       <p className="font-bold text-xl text-green-600" data-testid="text-completed-assessments">{orgStats.completedAssessments}</p>
                     </div>
                     <div className="flex items-center justify-between">
-                      <p className="text-sm text-muted-foreground">Pending Assessments</p>
+                      <p className="text-sm text-muted-foreground">{t("premium.pendingAssessments")}</p>
                       <p className="font-bold text-xl text-orange-500" data-testid="text-pending-assessments">{orgStats.pendingAssessments}</p>
                     </div>
                   </div>
@@ -588,12 +590,12 @@ export default function Profile() {
               {!user.isPremium && !isOrgAdmin && (
                 <div className="pt-4 border-t">
                   <p className="text-sm text-muted-foreground text-center mb-4">
-                    Upgrade to Premium for advanced career assessments and personalized insights!
+                    {t("premium.upgradePrompt")}
                   </p>
                   <Button asChild className="w-full" data-testid="button-upgrade-premium">
                     <Link href="/tier-selection">
-                      <Crown className="w-4 h-4 mr-2" />
-                      Upgrade to Premium
+                      <Crown className="w-4 h-4 me-2" />
+                      {t("premium.upgrade")}
                     </Link>
                   </Button>
                 </div>
@@ -608,23 +610,23 @@ export default function Profile() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <ClipboardCheck className="w-5 h-5" />
-                  My Assessment History
+                  {t("assessment.title")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between mb-6 pb-4 border-b">
-                  <p className="text-sm text-muted-foreground">Completed Assessments</p>
+                  <p className="text-sm text-muted-foreground">{t("assessment.completed")}</p>
                   <p className="font-bold text-2xl text-green-600" data-testid="text-completed-assessments-count">
                     {individualCompletedAssessments}
                   </p>
                 </div>
                 {assessments.length === 0 ? (
                 <div className="text-center py-8">
-                  <p className="text-muted-foreground mb-4">You haven't taken any assessments yet.</p>
+                  <p className="text-muted-foreground mb-4">{t("assessment.noAssessments")}</p>
                   <Button asChild data-testid="button-start-first-assessment">
                     <Link href={isOrgStudent ? "/assessment" : "/tier-selection"}>
-                      <ClipboardCheck className="w-4 h-4 mr-2" />
-                      Start Your First Assessment
+                      <ClipboardCheck className="w-4 h-4 me-2" />
+                      {t("assessment.startFirst")}
                     </Link>
                   </Button>
                 </div>
@@ -635,8 +637,8 @@ export default function Profile() {
                     <div className="mb-4">
                       <Button asChild className="w-full" data-testid="button-continue-assessment">
                         <Link href="/assessment">
-                          <ClipboardCheck className="w-4 h-4 mr-2" />
-                          Continue Your Assessment
+                          <ClipboardCheck className="w-4 h-4 me-2" />
+                          {t("assessment.continueAssessment")}
                         </Link>
                       </Button>
                     </div>
@@ -649,10 +651,10 @@ export default function Profile() {
                     
                     return latestAssessment && (
                       <div className="p-3 border rounded-lg" data-testid={`assessment-item-${latestAssessment.id}`}>
-                        <p className="font-medium">{latestAssessment.name || 'Assessment'}</p>
+                        <p className="font-medium">{latestAssessment.name || t("assessment.assessment")}</p>
                         <p className="text-sm text-muted-foreground">
                           {new Date(latestAssessment.createdAt).toLocaleDateString()} 
-                          {latestAssessment.tier && ` • ${latestAssessment.tier === 'premium' || latestAssessment.tier === 'school' ? 'Premium' : 'Free'}`}
+                          {latestAssessment.tier && ` • ${latestAssessment.tier === 'premium' || latestAssessment.tier === 'school' ? t("premium.premium") : t("premium.free")}`}
                         </p>
                       </div>
                     );
@@ -663,8 +665,8 @@ export default function Profile() {
                     <div className="mt-4 pt-4 border-t">
                       <Button asChild variant="outline" className="w-full" data-testid="button-view-progress">
                         <Link href="/progress">
-                          <TrendingUp className="w-4 h-4 mr-2" />
-                          View Career Journey
+                          <TrendingUp className="w-4 h-4 me-2" />
+                          {t("assessment.viewJourney")}
                         </Link>
                       </Button>
                     </div>
@@ -681,17 +683,17 @@ export default function Profile() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Users className="w-5 h-5" />
-                  Organization Management
+                  {t("organization.title")}
                 </CardTitle>
                 <CardDescription>
-                  Manage your organization's students and assessments
+                  {t("organization.subtitle")}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <Button asChild className="w-full" variant="outline" data-testid="button-manage-organization">
                   <Link href="/admin/organizations">
-                    <Users className="w-4 h-4 mr-2" />
-                    Go to Admin Dashboard
+                    <Users className="w-4 h-4 me-2" />
+                    {t("organization.goToAdmin")}
                   </Link>
                 </Button>
               </CardContent>

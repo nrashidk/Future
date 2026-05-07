@@ -2,18 +2,19 @@ import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useTranslation } from "react-i18next";
 import { GraduationCap } from "lucide-react";
 
 export default function AuthCallback() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
+  const { t } = useTranslation("auth");
 
-  useEffect(() => { document.title = "Signing In | Future Pathways"; }, []);
+  useEffect(() => { document.title = `${t("callback.pageTitle")} | Future Pathways`; }, [t]);
 
   useEffect(() => {
     const migrateAndRedirect = async () => {
       try {
-        // Retry fetching current user with exponential backoff to handle session race conditions
         let user: any = null;
         const delays = [100, 300, 700, 1500];
         for (const delay of delays) {
@@ -34,7 +35,6 @@ export default function AuthCallback() {
           return;
         }
 
-        // Check if there are guest assessments to migrate
         const guestAssessmentIds = JSON.parse(localStorage.getItem("guestAssessments") || "[]");
         const guestSessionId = localStorage.getItem("guestSessionId");
 
@@ -47,15 +47,14 @@ export default function AuthCallback() {
 
           if (result) {
             toast({
-              title: "Welcome!",
-              description: "Your assessment has been saved to your account.",
+              title: t("callback.migratedTitle"),
+              description: t("callback.migratedDesc"),
             });
             localStorage.removeItem("guestAssessments");
             localStorage.removeItem("guestSessionId");
           }
         }
 
-        // Redirect based on user role
         if (user?.role === "superadmin") {
           setLocation("/admin");
         } else if (guestAssessmentIds.length > 0) {
@@ -70,13 +69,13 @@ export default function AuthCallback() {
     };
 
     migrateAndRedirect();
-  }, [setLocation, toast]);
+  }, [setLocation, toast, t]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5">
       <div className="text-center">
         <GraduationCap className="w-16 h-16 text-primary mx-auto mb-4 animate-pulse" />
-        <p className="text-lg text-muted-foreground">Completing sign-in...</p>
+        <p className="text-lg text-muted-foreground">{t("callback.completing")}</p>
       </div>
     </div>
   );

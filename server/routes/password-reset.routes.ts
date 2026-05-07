@@ -98,10 +98,10 @@ export function registerPasswordResetRoutes(app: Express) {
 
         // Send password reset email
         const userName = user.firstName || user.username || undefined;
-        const userEmail = user.email || `${user.username}@placeholder.local`;
+        const userLanguage = (user as any).preferredLanguage || "en";
         
         if (user.email) {
-          const emailResult = await sendPasswordResetEmail(user.email, token, userName);
+          const emailResult = await sendPasswordResetEmail(user.email, token, userName, userLanguage);
           if (!emailResult.success) {
             // Log the failure internally for operational visibility but do NOT
             // change the client response — returning a different status code here
