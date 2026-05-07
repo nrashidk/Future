@@ -1041,6 +1041,8 @@
     "noCountries": "لم تُضف دول بعد",
     "noCountriesDesc": "انقر على \"إضافة دولة\" لإضافة دولة جديدة بملء بيانات بالذكاء الاصطناعي.",
     "editCountryDesc": "تحديث معلومات الدولة وإعداداتها",
+    "editFlag": "العلم (رمز تعبيري)",
+    "editAbbreviation": "الاختصار",
     "editNameLabel": "اسم الدولة",
     "visionPlanLabel": "خطة الرؤية",
     "missionLabel": "رسالة الدولة",

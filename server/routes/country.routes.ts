@@ -25,6 +25,7 @@ const updateCountrySchema = z.object({
   nameAr: z.string().max(200).nullable().optional(),
   code: z.string().min(2).max(3).regex(/^[A-Z]+$/).optional(),
   abbreviation: z.string().max(10).nullable().optional(),
+  flag: z.string().max(10).nullable().optional(),
   mission: z.string().max(2000).optional(),
   missionAr: z.string().max(2000).nullable().optional(),
   vision: z.string().max(2000).optional(),

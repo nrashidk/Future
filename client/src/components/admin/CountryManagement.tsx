@@ -23,6 +23,7 @@ interface Country {
   name: string;
   nameAr: string | null;
   code: string;
+  flag: string | null;
   abbreviation: string | null;
   mission: string;
   missionAr: string | null;
@@ -520,6 +521,26 @@ export default function CountryManagement() {
                     value={selectedCountry.visionPlan || ""}
                     onChange={(e) => setSelectedCountry({ ...selectedCountry, visionPlan: e.target.value })}
                     data-testid="input-edit-vision-plan"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>{t('countries.editFlag')}</Label>
+                  <Input
+                    placeholder="e.g., 🇦🇪"
+                    value={selectedCountry.flag || ""}
+                    onChange={(e) => setSelectedCountry({ ...selectedCountry, flag: e.target.value || null })}
+                    data-testid="input-edit-flag"
+                  />
+                </div>
+                <div>
+                  <Label>{t('countries.editAbbreviation')}</Label>
+                  <Input
+                    placeholder="e.g., UAE"
+                    value={selectedCountry.abbreviation || ""}
+                    onChange={(e) => setSelectedCountry({ ...selectedCountry, abbreviation: e.target.value || null })}
+                    data-testid="input-edit-abbreviation"
                   />
                 </div>
               </div>

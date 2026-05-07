@@ -1041,6 +1041,8 @@
     "noCountries": "No Countries Added",
     "noCountriesDesc": "Click \"Add Country\" to add a new country with AI-powered data population.",
     "editCountryDesc": "Update country information and settings",
+    "editFlag": "Flag (emoji)",
+    "editAbbreviation": "Abbreviation",
     "editNameLabel": "Country Name",
     "visionPlanLabel": "Vision Plan",
     "missionLabel": "Mission Statement",
