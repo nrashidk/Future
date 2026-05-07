@@ -56,11 +56,17 @@ interface CareerTrend {
   avgMatchScore: number;
 }
 
+interface WefSkillRef {
+  name: string;
+  nameAr: string | null;
+}
+
 interface SectorData {
   sector: string;
   sectorAr: string | null;
   studentCount: number;
   avgAlignment: number;
+  prioritySkills: WefSkillRef[];
 }
 
 interface Organization {
@@ -565,6 +571,23 @@ export default function Analytics() {
                       <h4 className="font-bold text-sm mb-2 line-clamp-3" data-testid={`sector-${index}`}>
                         {language === 'ar' && sector.sectorAr ? sector.sectorAr : sector.sector}
                       </h4>
+                      {sector.prioritySkills && sector.prioritySkills.length > 0 && (
+                        <div className="mb-2">
+                          <p className="text-xs text-muted-foreground mb-1">{t('analytics.prioritySkills', 'Priority Skills')}</p>
+                          <div className="flex flex-wrap gap-1">
+                            {sector.prioritySkills.slice(0, 3).map((skill) => (
+                              <Badge
+                                key={skill.name}
+                                variant="secondary"
+                                className="text-xs"
+                                data-testid={`badge-sector-skill-${skill.name.toLowerCase().replace(/\s+/g, '-')}`}
+                              >
+                                {language === 'ar' && skill.nameAr ? skill.nameAr : skill.name}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                       <div className="mt-auto space-y-2">
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                           <Users className="w-3 h-3" />

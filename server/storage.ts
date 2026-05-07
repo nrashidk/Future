@@ -251,6 +251,7 @@ export interface IStorage {
     sectorAr: string | null;
     studentCount: number;
     avgAlignment: number;
+    prioritySkills: Array<{ name: string; nameAr: string | null }>;
   }>>;
 
   // Assessment Component operations
@@ -1412,6 +1413,7 @@ export class DatabaseStorage implements IStorage {
     // generation. Arabic names are fetched by ordinal position from
     // priority_sectors_ar, which may be NULL — a LATERAL subquery returns NULL
     // safely in that case rather than dropping the row.
+    // WEF skills are joined from country_priority_sectors → country_sector_wef_skills → wef_skills.
     const result = await db.execute(sql`
       WITH country_sectors AS (
         SELECT 
@@ -1427,6 +1429,23 @@ export class DatabaseStorage implements IStorage {
           LATERAL unnest(c.priority_sectors) WITH ORDINALITY AS s(sector, pos)
         ${countryId ? sql`WHERE c.id = ${countryId}` : sql``}
       ),
+      sector_wef_skills AS (
+        SELECT
+          cps.country_id,
+          cps.name AS sector_name,
+          COALESCE(
+            json_agg(
+              json_build_object('name', ws.name, 'nameAr', ws.name_ar)
+              ORDER BY csws.importance DESC
+            ) FILTER (WHERE ws.id IS NOT NULL),
+            '[]'::json
+          ) AS skills
+        FROM country_priority_sectors cps
+        LEFT JOIN country_sector_wef_skills csws ON csws.sector_id = cps.id
+        LEFT JOIN wef_skills ws ON ws.id = csws.wef_skill_id
+        ${countryId ? sql`WHERE cps.country_id = ${countryId}` : sql``}
+        GROUP BY cps.country_id, cps.name
+      ),
       filtered_assessments AS (
         SELECT a.*
         FROM assessments a
@@ -1440,11 +1459,13 @@ export class DatabaseStorage implements IStorage {
         cs.sector,
         cs.sector_ar,
         COUNT(DISTINCT fa.id)::int as student_count,
-        COALESCE(AVG(r.country_vision_alignment), 0)::float as avg_alignment
+        COALESCE(AVG(r.country_vision_alignment), 0)::float as avg_alignment,
+        COALESCE(sws.skills, '[]'::json) as priority_skills
       FROM country_sectors cs
+      LEFT JOIN sector_wef_skills sws ON sws.country_id = cs.country_id AND LOWER(TRIM(sws.sector_name)) = LOWER(TRIM(cs.sector))
       LEFT JOIN filtered_assessments fa ON fa.country_id = cs.country_id
       LEFT JOIN recommendations r ON r.assessment_id = fa.id
-      GROUP BY cs.sector, cs.sector_ar
+      GROUP BY cs.sector, cs.sector_ar, sws.skills
       ORDER BY student_count DESC
     `);
 
@@ -1452,7 +1473,8 @@ export class DatabaseStorage implements IStorage {
       sector: row.sector,
       sectorAr: row.sector_ar || null,
       studentCount: row.student_count || 0,
-      avgAlignment: row.avg_alignment || 0
+      avgAlignment: row.avg_alignment || 0,
+      prioritySkills: Array.isArray(row.priority_skills) ? row.priority_skills : (row.priority_skills ? JSON.parse(row.priority_skills) : []),
     }));
   }
 
