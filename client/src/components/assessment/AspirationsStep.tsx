@@ -2,7 +2,7 @@ import { StickyNote } from "@/components/StickyNote";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Rocket, Star, Zap } from "lucide-react";
+import { Loader2, Rocket, Star, Zap } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 interface AspirationsStepProps {
@@ -10,6 +10,7 @@ interface AspirationsStepProps {
   onUpdate: (field: string, value: any) => void;
   onNext: () => void;
   onBack?: () => void;
+  isGenerating?: boolean;
 }
 
 const STRENGTH_KEYS: Record<string, string> = {
@@ -25,7 +26,7 @@ const STRENGTH_KEYS: Record<string, string> = {
 
 const strengthOptions = Object.keys(STRENGTH_KEYS);
 
-export function AspirationsStep({ data, onUpdate, onNext, onBack }: AspirationsStepProps) {
+export function AspirationsStep({ data, onUpdate, onNext, onBack, isGenerating = false }: AspirationsStepProps) {
   const { t } = useTranslation('assessment');
 
   const toggleStrength = (strength: string) => {
@@ -108,6 +109,7 @@ export function AspirationsStep({ data, onUpdate, onNext, onBack }: AspirationsS
             size="lg"
             variant="outline"
             onClick={onBack}
+            disabled={isGenerating}
             className="px-8 py-6 text-lg rounded-full"
             data-testid="button-back-aspirations"
           >
@@ -117,11 +119,18 @@ export function AspirationsStep({ data, onUpdate, onNext, onBack }: AspirationsS
         <Button
           size="lg"
           onClick={onNext}
-          disabled={!canProceed}
+          disabled={!canProceed || isGenerating}
           className="px-12 py-6 text-lg rounded-full shadow-lg"
           data-testid="button-submit-assessment"
         >
-          {t('aspirations.selfAssessment')}
+          {isGenerating ? (
+            <>
+              <Loader2 className="me-2 h-5 w-5 animate-spin" />
+              {t('aspirations.generating')}
+            </>
+          ) : (
+            t('aspirations.selfAssessment')
+          )}
         </Button>
       </div>
     </div>

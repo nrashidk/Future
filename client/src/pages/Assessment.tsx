@@ -44,6 +44,7 @@ export default function Assessment() {
   const [currentStep, setCurrentStep] = useState(1);
   const [isGuest, setIsGuest] = useState(false);
   const [assessmentId, setAssessmentId] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const isPremiumUser = user?.isPremium || false;
   
@@ -249,8 +250,13 @@ export default function Assessment() {
         
         if (isAspirationsStepPremium) {
           // Premium: After Aspirations, generate recommendations and redirect
-          await apiRequest("POST", `/api/recommendations/generate/${assessment.id}`, {});
-          setLocation("/results?assessmentId=" + assessment.id);
+          setIsGenerating(true);
+          try {
+            await apiRequest("POST", `/api/recommendations/generate/${assessment.id}`, {});
+            setLocation("/results?assessmentId=" + assessment.id);
+          } finally {
+            setIsGenerating(false);
+          }
         } else {
           // Advance to quiz step - React batches state updates so assessmentId will be available
           setCurrentStep((prev) => prev + 1);
@@ -619,6 +625,7 @@ export default function Assessment() {
                 onUpdate={updateAssessmentData}
                 onNext={handleNext}
                 onBack={() => setCurrentStep(5)}
+                isGenerating={isGenerating}
               />
             )}
           </>
@@ -633,6 +640,7 @@ export default function Assessment() {
                 onUpdate={updateAssessmentData}
                 onNext={handleNext}
                 onBack={() => setCurrentStep(6)}
+                isGenerating={isGenerating}
               />
             ) : (
               assessmentId ? (
