@@ -1090,9 +1090,17 @@ export function registerAdminRoutes(app: Express) {
       // Note: --no-sandbox is required in containerized environments like Replit
       // Security is maintained through strict URL validation below
       const puppeteer = (await import("puppeteer")).default;
+      const { execSync } = await import("child_process");
+      let chromiumPath: string;
+      try {
+        chromiumPath = execSync('which chromium').toString().trim();
+      } catch {
+        chromiumPath = 'chromium';
+      }
       browser = await puppeteer.launch({
         headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+        executablePath: chromiumPath,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
       });
 
       // SECURITY: Comprehensive URL validation to prevent SSRF attacks
@@ -1141,7 +1149,10 @@ export function registerAdminRoutes(app: Express) {
           if (!completedAssessment) continue;
 
           page = await browser.newPage();
-          const userLang = memberUser.preferredLanguage || "en";
+          // Normalize language to the allowed set — never pass arbitrary DB values as URL params
+          const ALLOWED_LANGS = ["en", "ar"] as const;
+          const rawLang = memberUser.preferredLanguage || "en";
+          const userLang: string = (ALLOWED_LANGS as readonly string[]).includes(rawLang) ? rawLang : "en";
           const printUrl = `http://localhost:${process.env.PORT || 5000}/print/results?assessmentId=${completedAssessment.id}&lang=${userLang}`;
           
           // Validate URL before navigation
