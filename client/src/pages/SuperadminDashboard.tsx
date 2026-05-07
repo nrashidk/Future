@@ -1010,7 +1010,7 @@ export default function SuperadminDashboard() {
                         size="sm"
                         variant="destructive"
                         onClick={() => {
-                          if (confirm(`Are you sure you want to delete ${selectedOrgIds.size} school(s)? This action cannot be undone.`)) {
+                          if (confirm(t('superadmin.bulkDeleteConfirm', { n: selectedOrgIds.size }))) {
                             bulkDeleteOrgsMutation.mutate(Array.from(selectedOrgIds));
                           }
                         }}
@@ -1827,7 +1827,7 @@ export default function SuperadminDashboard() {
                 type="email"
                 value={newAdminForm.email}
                 onChange={(e) => setNewAdminForm({ ...newAdminForm, email: e.target.value })}
-                placeholder="admin@school.ae"
+                placeholder={t('superadmin.adminEmailPlaceholder')}
                 data-testid="input-admin-email"
               />
               {validateEmail(newAdminForm.email) && (
@@ -2026,7 +2026,7 @@ export default function SuperadminDashboard() {
                 id="orgName"
                 value={newOrgForm.organizationName}
                 onChange={(e) => setNewOrgForm({ ...newOrgForm, organizationName: e.target.value })}
-                placeholder="e.g., Dubai International School"
+                placeholder={t('superadmin.schoolNamePlaceholder')}
                 data-testid="input-org-name"
               />
             </div>
@@ -2081,7 +2081,7 @@ export default function SuperadminDashboard() {
                   type="email"
                   value={newOrgForm.adminEmail}
                   onChange={(e) => setNewOrgForm({ ...newOrgForm, adminEmail: e.target.value })}
-                  placeholder="admin@school.ae"
+                  placeholder={t('superadmin.adminEmailPlaceholder')}
                   data-testid="input-org-admin-email"
                 />
                 {validateEmail(newOrgForm.adminEmail) && (
@@ -2234,7 +2234,7 @@ export default function SuperadminDashboard() {
                   id="announcement-title"
                   value={announcementForm.title}
                   onChange={(e) => setAnnouncementForm({ ...announcementForm, title: e.target.value })}
-                  placeholder="Announcement title"
+                  placeholder={t('superadmin.announcementTitlePlaceholder')}
                   data-testid="input-announcement-title"
                 />
               </div>
@@ -2257,7 +2257,7 @@ export default function SuperadminDashboard() {
                   id="announcement-content"
                   value={announcementForm.content}
                   onChange={(e) => setAnnouncementForm({ ...announcementForm, content: e.target.value })}
-                  placeholder="Announcement content"
+                  placeholder={t('superadmin.announcementContentPlaceholder')}
                   rows={4}
                   data-testid="input-announcement-content"
                 />
@@ -2398,7 +2398,7 @@ export default function SuperadminDashboard() {
                   id="career-title"
                   value={careerForm.title}
                   onChange={(e) => setCareerForm({ ...careerForm, title: e.target.value })}
-                  placeholder="e.g., Software Engineer"
+                  placeholder={t('superadmin.careerTitlePlaceholder')}
                   data-testid="input-career-title"
                 />
               </div>
@@ -2408,7 +2408,7 @@ export default function SuperadminDashboard() {
                   id="career-category"
                   value={careerForm.category}
                   onChange={(e) => setCareerForm({ ...careerForm, category: e.target.value })}
-                  placeholder="e.g., Technology"
+                  placeholder={t('superadmin.careerCategoryPlaceholder')}
                   data-testid="input-career-category"
                 />
               </div>
@@ -2419,7 +2419,7 @@ export default function SuperadminDashboard() {
                 id="career-description"
                 value={careerForm.description}
                 onChange={(e) => setCareerForm({ ...careerForm, description: e.target.value })}
-                placeholder="Career description"
+                placeholder={t('superadmin.careerDescPlaceholder')}
                 rows={3}
                 data-testid="input-career-description"
               />
@@ -2461,7 +2461,7 @@ export default function SuperadminDashboard() {
                 id="career-skills"
                 value={careerForm.requiredSkills}
                 onChange={(e) => setCareerForm({ ...careerForm, requiredSkills: e.target.value })}
-                placeholder="e.g., Programming, Problem Solving, Communication"
+                placeholder={t('superadmin.careerSkillsPlaceholder')}
                 data-testid="input-career-skills"
               />
             </div>
@@ -2471,7 +2471,7 @@ export default function SuperadminDashboard() {
                 id="career-subjects"
                 value={careerForm.relatedSubjects}
                 onChange={(e) => setCareerForm({ ...careerForm, relatedSubjects: e.target.value })}
-                placeholder="e.g., Mathematics, Physics, Computer Science"
+                placeholder={t('superadmin.careerSubjectsPlaceholder')}
                 data-testid="input-career-subjects"
               />
             </div>
@@ -2482,7 +2482,7 @@ export default function SuperadminDashboard() {
                   id="career-salary"
                   value={careerForm.averageSalary}
                   onChange={(e) => setCareerForm({ ...careerForm, averageSalary: e.target.value })}
-                  placeholder="e.g., AED 180,000/year"
+                  placeholder={t('superadmin.careerSalaryPlaceholder')}
                   data-testid="input-career-salary"
                 />
               </div>
@@ -2492,7 +2492,7 @@ export default function SuperadminDashboard() {
                   id="career-icon"
                   value={careerForm.icon}
                   onChange={(e) => setCareerForm({ ...careerForm, icon: e.target.value })}
-                  placeholder="e.g., laptop"
+                  placeholder={t('superadmin.careerIconPlaceholder')}
                   data-testid="input-career-icon"
                 />
               </div>
@@ -2556,7 +2556,7 @@ export default function SuperadminDashboard() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="student-email">{t('superadmin.studentEmail')}</Label>
-              <Input id="student-email" type="email" placeholder="student@email.com" value={newStudentForm.email} onChange={(e) => setNewStudentForm({ ...newStudentForm, email: e.target.value })} data-testid="input-student-email" />
+              <Input id="student-email" type="email" placeholder={t('superadmin.studentEmailPlaceholder')} value={newStudentForm.email} onChange={(e) => setNewStudentForm({ ...newStudentForm, email: e.target.value })} data-testid="input-student-email" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="student-username">{t('superadmin.studentUsername')}</Label>

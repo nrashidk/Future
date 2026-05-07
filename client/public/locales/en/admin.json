@@ -656,7 +656,8 @@
     "failedToCreateCareer": "Failed to create career",
     "failedToUpdateCareer": "Failed to update career",
     "failedToDeleteCareer": "Failed to delete career",
-    "success": "Success"
+    "success": "Success",
+    "bulkDeleteConfirm": "Are you sure you want to delete {{n}} school(s)? This action cannot be undone."
   },
   "scoring": {
     "title": "Scoring Configuration",

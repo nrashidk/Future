@@ -656,7 +656,8 @@
     "failedToCreateCareer": "فشل إنشاء المهنة",
     "failedToUpdateCareer": "فشل تحديث المهنة",
     "failedToDeleteCareer": "فشل حذف المهنة",
-    "success": "نجاح"
+    "success": "نجاح",
+    "bulkDeleteConfirm": "هل أنت متأكد أنك تريد حذف {{n}} مدرسة؟ لا يمكن التراجع عن هذا الإجراء."
   },
   "scoring": {
     "title": "إعداد التقييم",
