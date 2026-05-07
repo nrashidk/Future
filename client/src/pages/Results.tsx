@@ -20,7 +20,8 @@ import {
   Shield,
   Crown,
   Smile,
-  DollarSign
+  DollarSign,
+  Loader2
 } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -29,6 +30,39 @@ import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/contexts/LanguageContext";
+
+// LLM-powered "Why This Career?" for premium users — fetches per career card
+function CareerReasoningText({
+  assessmentId,
+  careerId,
+  fallback,
+}: {
+  assessmentId: string;
+  careerId: string;
+  fallback: string;
+}) {
+  const { t } = useTranslation('results');
+  const { data, isLoading, isError } = useQuery<any>({
+    queryKey: [`/api/recommendations/${assessmentId}/career-reasoning/${careerId}`],
+    retry: false,
+    staleTime: Infinity,
+  });
+
+  if (isLoading) {
+    return (
+      <span className="flex items-center gap-2 text-muted-foreground">
+        <Loader2 className="w-3 h-3 animate-spin flex-shrink-0" />
+        {t('generatingInsights', 'Generating AI insights...')}
+      </span>
+    );
+  }
+
+  if (isError || !data?.careerReasoning) {
+    return <span className="whitespace-pre-line">{fallback}</span>;
+  }
+
+  return <span className="whitespace-pre-line">{data.careerReasoning}</span>;
+}
 
 // Helper to get display name
 function getCountryDisplayName(country: any): string {
@@ -738,14 +772,22 @@ export default function Results() {
                   </div>
                 )}
 
-                {/* Why This Career - Premium or Basic */}
+                {/* Why This Career - LLM (Premium) or Basic */}
                 <div className="p-3 bg-background/30 rounded-lg mb-3">
                   <h4 className="font-semibold mb-2 text-sm flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4 text-primary" />
                     {t('whyThisCareer')}
                   </h4>
-                  <div className="text-sm font-body text-foreground/90 whitespace-pre-line">
-                    {(rec as any).premiumReasoning || rec.reasoning}
+                  <div className="text-sm font-body text-foreground/90">
+                    {isPremiumAssessment(assessment?.assessmentType) && activeAssessmentId && rec.careerId ? (
+                      <CareerReasoningText
+                        assessmentId={activeAssessmentId}
+                        careerId={rec.careerId}
+                        fallback={(rec as any).premiumReasoning || rec.reasoning}
+                      />
+                    ) : (
+                      <span className="whitespace-pre-line">{(rec as any).premiumReasoning || rec.reasoning}</span>
+                    )}
                   </div>
                 </div>
 

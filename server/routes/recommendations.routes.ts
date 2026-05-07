@@ -411,6 +411,112 @@ export function registerRecommendationsRoutes(app: Express) {
     }
   });
 
+  // Career Reasoning - LLM-generated "Why This Career?" narrative for premium reports
+  // Protected with rate limiting to prevent LLM abuse
+  app.get("/api/recommendations/:assessmentId/career-reasoning/:careerId", recommendationsLimiter, async (req: any, res) => {
+    try {
+      const { assessmentId, careerId } = req.params;
+
+      const assessment = await storage.getAssessmentById(assessmentId);
+      if (!assessment) {
+        return res.status(404).json({ message: "Assessment not found" });
+      }
+
+      // AUTHORIZATION: Verify ownership - must be authenticated user OR valid guest token
+      const guestToken = req.cookies?.guest_token || req.query.guestToken;
+      let isAuthorized = false;
+
+      if (assessment.userId) {
+        if (typeof req.isAuthenticated === 'function' && req.isAuthenticated() && req.user) {
+          const userId = req.user.userId;
+          if (userId && userId === assessment.userId) {
+            isAuthorized = true;
+          }
+        }
+      } else if (guestToken && typeof guestToken === 'string' && guestToken.startsWith('guest_')) {
+        const guestAssessment = await storage.getAssessmentByGuestToken(guestToken);
+        if (guestAssessment && guestAssessment.id === assessmentId) {
+          isAuthorized = true;
+        }
+      }
+
+      if (!isAuthorized) {
+        if (assessment.userId) {
+          return res.status(401).json({ message: "Authentication required to access this assessment" });
+        }
+        return res.status(403).json({ message: "Invalid session. Please complete the assessment first." });
+      }
+
+      // Only available for premium assessments
+      if (!isPremiumAssessment(assessment.assessmentType)) {
+        return res.status(403).json({
+          message: "Career Reasoning is a premium feature",
+          isPremium: false
+        });
+      }
+
+      const career = await storage.getCareerById(careerId);
+      if (!career) {
+        return res.status(404).json({ message: "Career not found" });
+      }
+
+      // Get the recommendation for this career
+      const allRecommendations = await storage.getRecommendationsByAssessment(assessmentId);
+      const recommendation = allRecommendations.find(r => r.careerId === careerId);
+      if (!recommendation) {
+        return res.status(404).json({ message: "Recommendation not found for this career" });
+      }
+
+      // Import LLM service
+      const { generateCareerReasoningNarrative, isLlmServiceAvailable } = await import("../services/llmNarrativeService");
+
+      // Check if LLM service is available
+      const llmAvailable = await isLlmServiceAvailable(storage);
+      if (!llmAvailable) {
+        return res.status(503).json({
+          message: "AI service is not configured. Please contact the administrator.",
+          llmConfigured: false
+        });
+      }
+
+      // Resolve user's preferred language for narrative output
+      let narrativeLanguage = "en";
+      if (assessment.userId) {
+        const narrativeUser = await storage.getUser(assessment.userId);
+        narrativeLanguage = narrativeUser?.preferredLanguage || "en";
+      }
+
+      // Generate career reasoning narrative
+      const result = await generateCareerReasoningNarrative(
+        storage,
+        assessment,
+        career,
+        recommendation.overallMatchScore,
+        narrativeLanguage
+      );
+
+      if (!result.success) {
+        console.error("[Career Reasoning] LLM error:", result.error);
+        return res.status(500).json({
+          message: "Failed to generate career reasoning",
+          error: result.error
+        });
+      }
+
+      res.json({
+        success: true,
+        careerId,
+        careerTitle: career.title,
+        careerReasoning: result.narrative,
+        model: result.model,
+        tokensUsed: result.tokensUsed,
+      });
+    } catch (error) {
+      console.error("Error generating career reasoning:", error);
+      res.status(500).json({ message: "Failed to generate career reasoning" });
+    }
+  });
+
   // Education Pathways - LLM-generated university/program recommendations
   // Protected with rate limiting to prevent LLM abuse
   app.get("/api/recommendations/:assessmentId/education-pathways/:careerId", recommendationsLimiter, async (req: any, res) => {
