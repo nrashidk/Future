@@ -1,9 +1,12 @@
 import { readdir, readFile } from "fs/promises";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
+import { join } from "path";
 import { pool } from "../db";
 
-const MIGRATIONS_DIR = join(dirname(fileURLToPath(import.meta.url)), ".");
+// Use process.cwd() (project root) so the path is correct in both environments:
+// - dev: `tsx server/index.ts`  → cwd is project root, files at server/migrations/*.sql
+// - prod: `node dist/index.js`  → import.meta.url resolves to dist/, which has no .sql files;
+//   cwd is still the project root where server/migrations/*.sql are deployed alongside the bundle.
+const MIGRATIONS_DIR = join(process.cwd(), "server", "migrations");
 
 async function ensureMigrationsTable(): Promise<void> {
   await pool.query(`
