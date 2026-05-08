@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 
 export default function NotFound() {
   const { t } = useTranslation("legal");
-  useEffect(() => { document.title = `${t("notFound.pageTitle")} | Future Pathways`; }, [t]);
+  useEffect(() => { document.title = `${t("notFound.pageTitle")} | ${t("appName")}`; }, [t]);
 
   return (
     <main id="main-content" className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 p-4">

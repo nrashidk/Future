@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 
 export default function Disclaimer() {
   const { t } = useTranslation("legal");
-  useEffect(() => { document.title = `${t("disclaimer.pageTitle")} | Future Pathways`; }, [t]);
+  useEffect(() => { document.title = `${t("disclaimer.pageTitle")} | ${t("appName")}`; }, [t]);
 
   return (
     <PageLayout>

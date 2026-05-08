@@ -8,7 +8,7 @@ import { useTranslation } from "react-i18next";
 
 export default function TierSelection() {
   const { t } = useTranslation("pricing");
-  useEffect(() => { document.title = `${t("tierSelection.pageTitle")} | Future Pathways`; }, [t]);
+  useEffect(() => { document.title = `${t("tierSelection.pageTitle")} | ${t("appName")}`; }, [t]);
 
   const [, setLocation] = useLocation();
 

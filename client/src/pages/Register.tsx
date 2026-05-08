@@ -22,7 +22,7 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  useEffect(() => { document.title = `${t("register.pageTitle")} | Future Pathways`; }, [t]);
+  useEffect(() => { document.title = `${t("register.pageTitle")} | ${t("appName")}`; }, [t]);
 
   const registerSchema = z.object({
     email: z.string().email(t("register.validation.emailInvalid")),

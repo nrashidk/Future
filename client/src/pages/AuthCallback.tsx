@@ -10,7 +10,7 @@ export default function AuthCallback() {
   const { toast } = useToast();
   const { t } = useTranslation("auth");
 
-  useEffect(() => { document.title = `${t("callback.pageTitle")} | Future Pathways`; }, [t]);
+  useEffect(() => { document.title = `${t("callback.pageTitle")} | ${t("appName")}`; }, [t]);
 
   useEffect(() => {
     const migrateAndRedirect = async () => {

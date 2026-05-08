@@ -58,7 +58,7 @@ interface AssessmentData {
 export default function Assessment() {
   const { t } = useTranslation("assessment");
   const tCommon = useTranslation("common").t;
-  useEffect(() => { document.title = `${t("pageTitle")} | Future Pathways`; }, [t]);
+  useEffect(() => { document.title = `${t("pageTitle")} | ${t("appName")}`; }, [t]);
 
   const [, setLocation] = useLocation();
   const { user, isAuthenticated, isLoading } = useAuth();

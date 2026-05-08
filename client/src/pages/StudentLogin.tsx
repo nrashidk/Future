@@ -14,7 +14,7 @@ import { queryClient } from "@/lib/queryClient";
 
 export default function StudentLogin() {
   const { t } = useTranslation("auth");
-  useEffect(() => { document.title = `${t("studentLogin.pageTitle")} | Future Pathways`; }, [t]);
+  useEffect(() => { document.title = `${t("studentLogin.pageTitle")} | ${t("appName")}`; }, [t]);
 
   const { toast } = useToast();
   const [, navigate] = useLocation();

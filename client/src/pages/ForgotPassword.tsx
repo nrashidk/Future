@@ -15,7 +15,7 @@ import { ArrowLeft, Mail, Loader2, CheckCircle2 } from "lucide-react";
 
 export default function ForgotPassword() {
   const { t } = useTranslation("auth");
-  useEffect(() => { document.title = `${t("forgotPassword.pageTitle")} | Future Pathways`; }, [t]);
+  useEffect(() => { document.title = `${t("forgotPassword.pageTitle")} | ${t("appName")}`; }, [t]);
 
   const { toast } = useToast();
   const [emailSent, setEmailSent] = useState(false);

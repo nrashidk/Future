@@ -40,7 +40,7 @@ export default function Landing() {
   const displayCount = isLoading ? "..." : studentCount.toLocaleString();
   const isPlural = studentCount !== 1;
 
-  useEffect(() => { document.title = `${t("pageTitle")} | Future Pathways`; }, [t]);
+  useEffect(() => { document.title = t("pageTitle"); }, [t]);
 
   const handleLogin = () => setLocation("/login");
   const handleGuestStart = () => setLocation("/assessment");

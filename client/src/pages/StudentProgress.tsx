@@ -36,7 +36,7 @@ interface CareerEvolutionResponse {
 export default function StudentProgress() {
   const { t } = useTranslation("profile");
   const { language } = useLanguage();
-  useEffect(() => { document.title = `${t("progress.pageTitle")} | Future Pathways`; }, [t]);
+  useEffect(() => { document.title = `${t("progress.pageTitle")} | ${t("appName")}`; }, [t]);
 
   const { user, isLoading: isAuthLoading } = useAuth();
   const [, navigate] = useLocation();

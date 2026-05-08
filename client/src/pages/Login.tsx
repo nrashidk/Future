@@ -23,7 +23,7 @@ export default function Login() {
   const [location] = useLocation();
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => { document.title = `${t("login.pageTitle")} | Future Pathways`; }, [t]);
+  useEffect(() => { document.title = `${t("login.pageTitle")} | ${t("appName")}`; }, [t]);
 
   const { data: authConfig, isLoading: isAuthConfigLoading, isError: isAuthConfigError } = useQuery<AuthConfig>({
     queryKey: ["/api/auth/config"],

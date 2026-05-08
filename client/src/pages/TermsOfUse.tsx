@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 
 export default function TermsOfUse() {
   const { t } = useTranslation("legal");
-  useEffect(() => { document.title = `${t("terms.pageTitle")} | Future Pathways`; }, [t]);
+  useEffect(() => { document.title = `${t("terms.pageTitle")} | ${t("appName")}`; }, [t]);
 
   return (
     <PageLayout>

@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next";
 
 export default function PrivacyPolicy() {
   const { t } = useTranslation("legal");
-  useEffect(() => { document.title = `${t("privacy.pageTitle")} | Future Pathways`; }, [t]);
+  useEffect(() => { document.title = `${t("privacy.pageTitle")} | ${t("appName")}`; }, [t]);
 
   return (
     <PageLayout>

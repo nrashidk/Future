@@ -300,7 +300,7 @@ function CheckoutForm({ amount, studentCount }: { amount: number | null; student
 export default function Checkout() {
   const { t } = useTranslation("pricing");
   const { language } = useLanguage();
-  useEffect(() => { document.title = `${t("checkout.pageTitle")} | Future Pathways`; }, [t]);
+  useEffect(() => { document.title = `${t("checkout.pageTitle")} | ${t("appName")}`; }, [t]);
 
   const [, setLocation] = useLocation();
   const [clientSecret, setClientSecret] = useState<string>("");

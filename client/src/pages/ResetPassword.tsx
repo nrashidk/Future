@@ -20,7 +20,7 @@ interface TokenVerifyResponse {
 
 export default function ResetPassword() {
   const { t } = useTranslation("auth");
-  useEffect(() => { document.title = `${t("resetPassword.pageTitle")} | Future Pathways`; }, [t]);
+  useEffect(() => { document.title = `${t("resetPassword.pageTitle")} | ${t("appName")}`; }, [t]);
 
   const resetPasswordSchema = z.object({
     newPassword: z.string()

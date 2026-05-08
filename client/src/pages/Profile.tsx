@@ -42,7 +42,7 @@ interface OrgStats {
 
 export default function Profile() {
   const { t } = useTranslation("profile");
-  useEffect(() => { document.title = `${t("pageTitle")} | Future Pathways`; }, [t]);
+  useEffect(() => { document.title = `${t("pageTitle")} | ${t("appName")}`; }, [t]);
 
   const { user, isLoading } = useAuth();
   const [, navigate] = useLocation();

@@ -11,7 +11,7 @@ import { useTranslation } from "react-i18next";
 
 export default function GroupPricing() {
   const { t } = useTranslation("pricing");
-  useEffect(() => { document.title = `${t("groupPricing.pageTitle")} | Future Pathways`; }, [t]);
+  useEffect(() => { document.title = `${t("groupPricing.pageTitle")} | ${t("appName")}`; }, [t]);
 
   const [, setLocation] = useLocation();
   const [studentCount, setStudentCount] = useState<number>(100);
