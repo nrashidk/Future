@@ -1791,7 +1791,7 @@ export function registerSuperadminRoutes(app: Express) {
 
   app.post("/api/superadmin/careers", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
     try {
-      const { title, description, requiredSkills, relatedSubjects, category, educationLevel, averageSalary, growthOutlook, icon, valuesProfile, onetCode, countryId } = req.body;
+      const { title, description, titleAr, descriptionAr, requiredSkills, requiredSkillsAr, relatedSubjects, category, educationLevel, educationLevelAr, averageSalary, growthOutlook, icon, valuesProfile, onetCode, countryId } = req.body;
       
       if (!title || !description || !requiredSkills || !relatedSubjects || !category || !educationLevel || !growthOutlook) {
         return res.status(400).json({ message: "Missing required fields" });
@@ -1800,10 +1800,14 @@ export function registerSuperadminRoutes(app: Express) {
       const career = await storage.createCareer({
         title,
         description,
+        titleAr: titleAr || null,
+        descriptionAr: descriptionAr || null,
         requiredSkills: Array.isArray(requiredSkills) ? requiredSkills : [requiredSkills],
+        requiredSkillsAr: requiredSkillsAr ? (Array.isArray(requiredSkillsAr) ? requiredSkillsAr : [requiredSkillsAr]) : null,
         relatedSubjects: Array.isArray(relatedSubjects) ? relatedSubjects : [relatedSubjects],
         category,
         educationLevel,
+        educationLevelAr: educationLevelAr || null,
         averageSalary: averageSalary || null,
         growthOutlook,
         icon: icon || null,
@@ -1826,7 +1830,7 @@ export function registerSuperadminRoutes(app: Express) {
         return res.status(404).json({ message: "Career not found" });
       }
       
-      const { title, description, titleAr, descriptionAr, requiredSkills, relatedSubjects, category, educationLevel, averageSalary, growthOutlook, icon, valuesProfile, onetCode, countryId } = req.body;
+      const { title, description, titleAr, descriptionAr, requiredSkills, requiredSkillsAr, relatedSubjects, category, educationLevel, educationLevelAr, averageSalary, growthOutlook, icon, valuesProfile, onetCode, countryId } = req.body;
       
       const updates: Record<string, any> = {};
       if (title !== undefined) updates.title = title;
@@ -1834,9 +1838,11 @@ export function registerSuperadminRoutes(app: Express) {
       if (titleAr !== undefined) updates.titleAr = titleAr || null;
       if (descriptionAr !== undefined) updates.descriptionAr = descriptionAr || null;
       if (requiredSkills !== undefined) updates.requiredSkills = Array.isArray(requiredSkills) ? requiredSkills : [requiredSkills];
+      if (requiredSkillsAr !== undefined) updates.requiredSkillsAr = requiredSkillsAr ? (Array.isArray(requiredSkillsAr) ? requiredSkillsAr : [requiredSkillsAr]) : null;
       if (relatedSubjects !== undefined) updates.relatedSubjects = Array.isArray(relatedSubjects) ? relatedSubjects : [relatedSubjects];
       if (category !== undefined) updates.category = category;
       if (educationLevel !== undefined) updates.educationLevel = educationLevel;
+      if (educationLevelAr !== undefined) updates.educationLevelAr = educationLevelAr || null;
       if (averageSalary !== undefined) updates.averageSalary = averageSalary;
       if (growthOutlook !== undefined) updates.growthOutlook = growthOutlook;
       if (icon !== undefined) updates.icon = icon;

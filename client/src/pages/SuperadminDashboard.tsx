@@ -482,10 +482,14 @@ export default function SuperadminDashboard() {
   const [careerForm, setCareerForm] = useState({
     title: "",
     description: "",
+    titleAr: "",
+    descriptionAr: "",
     requiredSkills: "",
+    requiredSkillsAr: "",
     relatedSubjects: "",
     category: "",
     educationLevel: "",
+    educationLevelAr: "",
     averageSalary: "",
     growthOutlook: "",
     icon: "",
@@ -616,6 +620,7 @@ export default function SuperadminDashboard() {
       return apiRequest('POST', '/api/superadmin/careers', {
         ...data,
         requiredSkills: data.requiredSkills.split(',').map(s => s.trim()).filter(Boolean),
+        requiredSkillsAr: data.requiredSkillsAr ? data.requiredSkillsAr.split(',').map(s => s.trim()).filter(Boolean) : undefined,
         relatedSubjects: data.relatedSubjects.split(',').map(s => s.trim()).filter(Boolean),
       });
     },
@@ -635,6 +640,7 @@ export default function SuperadminDashboard() {
       return apiRequest('PATCH', `/api/superadmin/careers/${id}`, {
         ...data,
         requiredSkills: data.requiredSkills.split(',').map(s => s.trim()).filter(Boolean),
+        requiredSkillsAr: data.requiredSkillsAr ? data.requiredSkillsAr.split(',').map(s => s.trim()).filter(Boolean) : undefined,
         relatedSubjects: data.relatedSubjects.split(',').map(s => s.trim()).filter(Boolean),
       });
     },
@@ -668,7 +674,7 @@ export default function SuperadminDashboard() {
   };
 
   const resetCareerForm = () => {
-    setCareerForm({ title: "", description: "", requiredSkills: "", relatedSubjects: "", category: "", educationLevel: "", averageSalary: "", growthOutlook: "", icon: "", countryId: "" });
+    setCareerForm({ title: "", description: "", titleAr: "", descriptionAr: "", requiredSkills: "", requiredSkillsAr: "", relatedSubjects: "", category: "", educationLevel: "", educationLevelAr: "", averageSalary: "", growthOutlook: "", icon: "", countryId: "" });
   };
 
   const openDeleteOrgModal = (orgId: string) => {
@@ -705,10 +711,14 @@ export default function SuperadminDashboard() {
     setCareerForm({
       title: career.title,
       description: career.description,
+      titleAr: career.titleAr || "",
+      descriptionAr: career.descriptionAr || "",
       requiredSkills: career.requiredSkills.join(', '),
+      requiredSkillsAr: career.requiredSkillsAr?.join(', ') || "",
       relatedSubjects: career.relatedSubjects.join(', '),
       category: career.category,
       educationLevel: career.educationLevel,
+      educationLevelAr: career.educationLevelAr || "",
       averageSalary: career.averageSalary || "",
       growthOutlook: career.growthOutlook,
       icon: career.icon || "",
@@ -1654,6 +1664,11 @@ export default function SuperadminDashboard() {
                             <TableCell>
                               <div className="font-medium">{career.title}</div>
                               <div className="text-xs text-muted-foreground truncate max-w-[200px]">{career.description.substring(0, 50)}...</div>
+                              {(!career.titleAr || !career.descriptionAr || !career.requiredSkillsAr?.length) && (
+                                <Badge variant="outline" className="text-xs text-amber-600 border-amber-300 dark:text-amber-400 dark:border-amber-700 mt-1">
+                                  {t('superadmin.careerMissingArBadge')}
+                                </Badge>
+                              )}
                             </TableCell>
                             <TableCell><Badge variant="outline">{career.category}</Badge></TableCell>
                             <TableCell>{career.educationLevel}</TableCell>
@@ -2582,6 +2597,59 @@ export default function SuperadminDashboard() {
               <p className="text-xs text-muted-foreground">
                 {t('superadmin.careerCountryNote')}
               </p>
+            </div>
+            <div className="border-t pt-4 space-y-3">
+              <div>
+                <p className="text-sm font-semibold">{t('superadmin.careerArSection')}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{t('superadmin.careerArSectionNote')}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="career-title-ar">{t('superadmin.careerArTitleLabel')}</Label>
+                  <Input
+                    id="career-title-ar"
+                    value={careerForm.titleAr}
+                    onChange={(e) => setCareerForm({ ...careerForm, titleAr: e.target.value })}
+                    placeholder={t('superadmin.careerArTitlePlaceholder')}
+                    dir="rtl"
+                    data-testid="input-career-title-ar"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="career-education-ar">{t('superadmin.careerArEducationLabel')}</Label>
+                  <Input
+                    id="career-education-ar"
+                    value={careerForm.educationLevelAr}
+                    onChange={(e) => setCareerForm({ ...careerForm, educationLevelAr: e.target.value })}
+                    placeholder={t('superadmin.careerArEducationPlaceholder')}
+                    dir="rtl"
+                    data-testid="input-career-education-ar"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="career-desc-ar">{t('superadmin.careerArDescLabel')}</Label>
+                <Textarea
+                  id="career-desc-ar"
+                  value={careerForm.descriptionAr}
+                  onChange={(e) => setCareerForm({ ...careerForm, descriptionAr: e.target.value })}
+                  placeholder={t('superadmin.careerArDescPlaceholder')}
+                  rows={3}
+                  dir="rtl"
+                  data-testid="input-career-desc-ar"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="career-skills-ar">{t('superadmin.careerArSkillsLabel')}</Label>
+                <Input
+                  id="career-skills-ar"
+                  value={careerForm.requiredSkillsAr}
+                  onChange={(e) => setCareerForm({ ...careerForm, requiredSkillsAr: e.target.value })}
+                  placeholder={t('superadmin.careerArSkillsPlaceholder')}
+                  dir="rtl"
+                  data-testid="input-career-skills-ar"
+                />
+              </div>
             </div>
           </div>
           <DialogFooter>

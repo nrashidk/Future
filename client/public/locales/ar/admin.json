@@ -654,6 +654,17 @@
     "careerSubjectsPlaceholder": "مثال: الرياضيات، الفيزياء، علوم الحاسب",
     "careerSalaryPlaceholder": "مثال: 180,000 درهم/سنة",
     "careerIconPlaceholder": "مثال: laptop",
+    "careerArSection": "المحتوى بالعربية",
+    "careerArSectionNote": "اختياري — يُعرض عند تشغيل التطبيق بالعربية. اتركه فارغاً للعودة إلى الإنجليزية.",
+    "careerArTitleLabel": "العنوان (بالعربية)",
+    "careerArDescLabel": "الوصف (بالعربية)",
+    "careerArSkillsLabel": "المهارات المطلوبة (بالعربية، مفصولة بفاصلة)",
+    "careerArEducationLabel": "المستوى التعليمي (بالعربية)",
+    "careerArTitlePlaceholder": "مثال: مهندس برمجيات",
+    "careerArDescPlaceholder": "وصف المهنة بالعربية",
+    "careerArSkillsPlaceholder": "مثال: البرمجة، حل المشكلات، التواصل",
+    "careerArEducationPlaceholder": "مثال: بكالوريوس علوم الحاسب",
+    "careerMissingArBadge": "ترجمة عربية مفقودة",
     "studentEmailPlaceholder": "student@email.com",
     "failedToAddAdmin": "فشل إضافة المدير",
     "failedToRemoveAdmin": "فشل إزالة المدير",
@@ -1252,7 +1263,9 @@
     "dbCareersAllDone": "جميع المهن لديها ترجمات عربية",
     "dbCareersMissing": "{{n}} مهنة (مهن) تفتقر إلى الترجمة العربية",
     "arabicTitleLabel": "العنوان بالعربية",
-    "arabicDescLabel": "الوصف بالعربية"
+    "arabicDescLabel": "الوصف بالعربية",
+    "arabicSkillsLabel": "المهارات المطلوبة (بالعربية)",
+    "arabicEducationLabel": "المستوى التعليمي (بالعربية)"
   },
 
   "pageTitles": {

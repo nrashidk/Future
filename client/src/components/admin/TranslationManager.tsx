@@ -45,6 +45,8 @@ interface Career {
   description: string;
   titleAr?: string | null;
   descriptionAr?: string | null;
+  requiredSkillsAr?: string[] | null;
+  educationLevelAr?: string | null;
   category: string;
 }
 
@@ -99,7 +101,7 @@ export default function TranslationManager() {
 
   // DB content state
   const [editingCareerId, setEditingCareerId] = useState<string | null>(null);
-  const [careerArValues, setCareerArValues] = useState<{ titleAr: string; descriptionAr: string }>({ titleAr: "", descriptionAr: "" });
+  const [careerArValues, setCareerArValues] = useState<{ titleAr: string; descriptionAr: string; requiredSkillsAr: string; educationLevelAr: string }>({ titleAr: "", descriptionAr: "", requiredSkillsAr: "", educationLevelAr: "" });
 
   // CVQ state
   const [editingCvqId, setEditingCvqId] = useState<number | null>(null);
@@ -184,8 +186,13 @@ export default function TranslationManager() {
   });
 
   const updateCareerArMutation = useMutation({
-    mutationFn: async ({ id, titleAr, descriptionAr }: { id: string; titleAr: string; descriptionAr: string }) => {
-      return apiRequest('PATCH', `/api/superadmin/careers/${id}`, { titleAr, descriptionAr });
+    mutationFn: async ({ id, titleAr, descriptionAr, requiredSkillsAr, educationLevelAr }: { id: string; titleAr: string; descriptionAr: string; requiredSkillsAr: string; educationLevelAr: string }) => {
+      return apiRequest('PATCH', `/api/superadmin/careers/${id}`, {
+        titleAr,
+        descriptionAr,
+        requiredSkillsAr: requiredSkillsAr ? requiredSkillsAr.split(',').map(s => s.trim()).filter(Boolean) : null,
+        educationLevelAr: educationLevelAr || null,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/careers'] });
@@ -289,7 +296,7 @@ export default function TranslationManager() {
   const currentCoverage = coverage?.namespaces.find(n => n.namespace === selectedNs);
 
   const careersWithMissingAr = useMemo(() => {
-    return careers.filter(c => !c.titleAr || !c.descriptionAr);
+    return careers.filter(c => !c.titleAr || !c.descriptionAr || !c.requiredSkillsAr?.length);
   }, [careers]);
 
   const cvqWithMissingAr = useMemo(() => {
@@ -550,6 +557,28 @@ export default function TranslationManager() {
                                       data-testid={`input-career-desc-ar-${career.id}`}
                                     />
                                   </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-xs" htmlFor={`skills-ar-${career.id}`}>{t('translation.arabicSkillsLabel')}</Label>
+                                    <Input
+                                      id={`skills-ar-${career.id}`}
+                                      value={careerArValues.requiredSkillsAr}
+                                      onChange={e => setCareerArValues(v => ({ ...v, requiredSkillsAr: e.target.value }))}
+                                      dir="rtl"
+                                      className="text-sm"
+                                      data-testid={`input-career-skills-ar-${career.id}`}
+                                    />
+                                  </div>
+                                  <div className="space-y-1">
+                                    <Label className="text-xs" htmlFor={`education-ar-${career.id}`}>{t('translation.arabicEducationLabel')}</Label>
+                                    <Input
+                                      id={`education-ar-${career.id}`}
+                                      value={careerArValues.educationLevelAr}
+                                      onChange={e => setCareerArValues(v => ({ ...v, educationLevelAr: e.target.value }))}
+                                      dir="rtl"
+                                      className="text-sm"
+                                      data-testid={`input-career-education-ar-${career.id}`}
+                                    />
+                                  </div>
                                 </div>
                               </div>
                               <div className="flex justify-end gap-2">
@@ -559,7 +588,7 @@ export default function TranslationManager() {
                                 </Button>
                                 <Button
                                   size="sm"
-                                  onClick={() => updateCareerArMutation.mutate({ id: career.id, titleAr: careerArValues.titleAr, descriptionAr: careerArValues.descriptionAr })}
+                                  onClick={() => updateCareerArMutation.mutate({ id: career.id, titleAr: careerArValues.titleAr, descriptionAr: careerArValues.descriptionAr, requiredSkillsAr: careerArValues.requiredSkillsAr, educationLevelAr: careerArValues.educationLevelAr })}
                                   disabled={updateCareerArMutation.isPending}
                                   data-testid={`save-career-${career.id}`}
                                 >
@@ -571,7 +600,7 @@ export default function TranslationManager() {
                           ) : (
                             <div className="grid grid-cols-[auto_1fr_1fr_auto] gap-3 items-center p-3">
                               <div className="w-8">
-                                {career.titleAr && career.descriptionAr
+                                {career.titleAr && career.descriptionAr && career.requiredSkillsAr?.length
                                   ? <CheckCircle className="w-4 h-4 text-green-500" />
                                   : <AlertCircle className="w-4 h-4 text-amber-500" />
                                 }
@@ -595,7 +624,7 @@ export default function TranslationManager() {
                                 variant="ghost"
                                 onClick={() => {
                                   setEditingCareerId(career.id);
-                                  setCareerArValues({ titleAr: career.titleAr || "", descriptionAr: career.descriptionAr || "" });
+                                  setCareerArValues({ titleAr: career.titleAr || "", descriptionAr: career.descriptionAr || "", requiredSkillsAr: career.requiredSkillsAr?.join(', ') || "", educationLevelAr: career.educationLevelAr || "" });
                                 }}
                                 data-testid={`edit-career-ar-${career.id}`}
                               >

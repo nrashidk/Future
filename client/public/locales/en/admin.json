@@ -654,6 +654,17 @@
     "careerSubjectsPlaceholder": "e.g., Mathematics, Physics, Computer Science",
     "careerSalaryPlaceholder": "e.g., AED 180,000/year",
     "careerIconPlaceholder": "e.g., laptop",
+    "careerArSection": "Arabic Content",
+    "careerArSectionNote": "Optional — shown when the app is in Arabic mode. Leave blank to fall back to English.",
+    "careerArTitleLabel": "Title (Arabic)",
+    "careerArDescLabel": "Description (Arabic)",
+    "careerArSkillsLabel": "Required Skills (Arabic, comma-separated)",
+    "careerArEducationLabel": "Education Level (Arabic)",
+    "careerArTitlePlaceholder": "e.g., مهندس برمجيات",
+    "careerArDescPlaceholder": "Career description in Arabic",
+    "careerArSkillsPlaceholder": "e.g., البرمجة، حل المشكلات، التواصل",
+    "careerArEducationPlaceholder": "e.g., بكالوريوس علوم الحاسب",
+    "careerMissingArBadge": "Missing Arabic",
     "studentEmailPlaceholder": "student@email.com",
     "failedToAddAdmin": "Failed to add admin",
     "failedToRemoveAdmin": "Failed to remove admin",
@@ -1252,7 +1263,9 @@
     "dbCareersAllDone": "All careers have Arabic translations",
     "dbCareersMissing": "{{n}} career(s) missing Arabic translations",
     "arabicTitleLabel": "Arabic Title",
-    "arabicDescLabel": "Arabic Description"
+    "arabicDescLabel": "Arabic Description",
+    "arabicSkillsLabel": "Required Skills (Arabic)",
+    "arabicEducationLabel": "Education Level (Arabic)"
   },
 
   "pageTitles": {

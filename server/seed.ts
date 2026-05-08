@@ -1631,6 +1631,20 @@ export async function seedDatabase() {
     console.error("  Career Arabic content error (non-fatal, continuing):", error.message);
   }
 
+  // Validate Arabic completeness — warn about careers missing AR translations
+  try {
+    const allCareers = await storage.getAllCareers();
+    const missingAr = allCareers.filter(
+      c => !c.titleAr || !c.descriptionAr || !c.requiredSkillsAr?.length
+    );
+    if (missingAr.length > 0) {
+      console.warn(`⚠️  ${missingAr.length} career(s) missing Arabic translations: ${missingAr.map(c => c.title).join(', ')}`);
+      console.warn("   To fix: edit in the Superadmin Dashboard → Careers tab or use career-arabic-content.ts");
+    }
+  } catch {
+    // Non-fatal — don't block startup
+  }
+
   // Seed Test Organization Admin Account (for testing admin functionality)
   console.log("\n👤 Seeding test organization admin account...");
   try {
