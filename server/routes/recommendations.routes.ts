@@ -228,7 +228,10 @@ export function registerRecommendationsRoutes(app: Express) {
       // labels when the client requests Arabic output (lang=ar / Accept-Language: ar).
       // The reasoning field is stored with English sector names; we substitute them
       // at serve-time so the PDF (and web view) shows the correct localised label.
+      // countryNameEn/Ar capture the country name pair for the same substitution.
       let sectorArMap: Map<string, string> | null = null;
+      let countryNameEn: string | null = null;
+      let countryNameAr: string | null = null;
       if (isArabic && assessment?.countryId) {
         const country = await storage.getCountryById(assessment.countryId);
         const sectorsEn = country?.prioritySectors as string[] | undefined;
@@ -239,6 +242,10 @@ export function registerRecommendationsRoutes(app: Express) {
             const ar = sectorsAr[i];
             if (ar) sectorArMap!.set(en, ar);
           });
+        }
+        if (country?.name && country?.nameAr) {
+          countryNameEn = country.name;
+          countryNameAr = country.nameAr;
         }
       }
 
@@ -343,18 +350,27 @@ export function registerRecommendationsRoutes(app: Express) {
         })
       );
 
-      // Apply Arabic sector-name substitution to the reasoning field when
-      // the client is in Arabic mode.  premium narratives (premiumReasoning)
-      // are already generated in the right language, so we only need to patch
-      // the stored English reasoning text for free-tier users.
-      const localized = sectorArMap
+      // Apply Arabic sector-name and country-name substitutions to the reasoning
+      // field when the client is in Arabic mode.  Premium narratives
+      // (premiumReasoning) are already generated in the right language, so we
+      // only need to patch the stored English reasoning text.
+      const needsLocalization = sectorArMap || (countryNameEn && countryNameAr);
+      const localized = needsLocalization
         ? enriched.map((rec: any) => {
             if (!rec.reasoning) return rec;
             let localizedReasoning: string = rec.reasoning;
-            sectorArMap!.forEach((ar, en) => {
-              const pattern = new RegExp(`\\b${escapeRegExp(en)}\\b`, "gi");
-              localizedReasoning = localizedReasoning.replace(pattern, ar);
-            });
+            // 1. Substitute sector names (e.g. "Technology" → "التكنولوجيا")
+            if (sectorArMap) {
+              sectorArMap.forEach((ar, en) => {
+                const pattern = new RegExp(`\\b${escapeRegExp(en)}\\b`, "gi");
+                localizedReasoning = localizedReasoning.replace(pattern, ar);
+              });
+            }
+            // 2. Substitute country name (e.g. "UAE" → "الإمارات")
+            if (countryNameEn && countryNameAr) {
+              const countryPattern = new RegExp(`\\b${escapeRegExp(countryNameEn)}\\b`, "gi");
+              localizedReasoning = localizedReasoning.replace(countryPattern, countryNameAr);
+            }
             return localizedReasoning !== rec.reasoning
               ? { ...rec, reasoning: localizedReasoning }
               : rec;
