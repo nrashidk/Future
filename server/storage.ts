@@ -457,6 +457,7 @@ export interface IStorage {
   invalidateLlmNarrativeCacheForPromptKey(promptKey: string): Promise<void>;
   getLlmNarrativeCacheStats(): Promise<{
     totalCached: number;
+    cacheHits: number;
     promptBreakdown: Array<{ promptKey: string; count: number }>;
   }>;
 
@@ -3480,6 +3481,7 @@ export class DatabaseStorage implements IStorage {
 
   async getLlmNarrativeCacheStats(): Promise<{
     totalCached: number;
+    cacheHits: number;
     promptBreakdown: Array<{ promptKey: string; count: number }>;
   }> {
     const [totalRow] = await db
@@ -3495,8 +3497,12 @@ export class DatabaseStorage implements IStorage {
       .groupBy(llmNarrativeCache.promptKey)
       .orderBy(sql`count(*) desc`);
 
+    // cacheHits is approximated by row count: each cached row represents
+    // at least one saved LLM call (the first request that populated the cache).
+    const totalCached = totalRow?.count ?? 0;
     return {
-      totalCached: totalRow?.count ?? 0,
+      totalCached,
+      cacheHits: totalCached,
       promptBreakdown: breakdown,
     };
   }

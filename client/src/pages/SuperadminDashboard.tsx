@@ -46,6 +46,7 @@ interface Metrics {
 
 interface LlmCacheStats {
   totalCached: number;
+  cacheHits: number;
   promptBreakdown: Array<{ promptKey: string; count: number }>;
 }
 
@@ -1713,13 +1714,23 @@ export default function SuperadminDashboard() {
                   <p className="text-sm text-muted-foreground">{t('scoring.loading')}</p>
                 ) : llmCacheStats && llmCacheStats.totalCached > 0 ? (
                   <div className="space-y-3">
-                    <div>
-                      <span className="text-2xl font-bold" data-testid="text-llm-cache-total">
-                        {llmCacheStats.totalCached}
-                      </span>
-                      <span className="text-sm text-muted-foreground ms-2">
-                        {t('scoring.llmCacheTotalCached')}
-                      </span>
+                    <div className="flex flex-wrap items-end gap-4">
+                      <div>
+                        <span className="text-2xl font-bold" data-testid="text-llm-cache-total">
+                          {llmCacheStats.totalCached}
+                        </span>
+                        <span className="text-sm text-muted-foreground ms-2">
+                          {t('scoring.llmCacheTotalCached')}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-2xl font-bold text-green-600 dark:text-green-400" data-testid="text-llm-cache-hits">
+                          {llmCacheStats.cacheHits}
+                        </span>
+                        <span className="text-sm text-muted-foreground ms-2">
+                          {t('scoring.llmCacheHits')}
+                        </span>
+                      </div>
                     </div>
                     {llmCacheStats.promptBreakdown.length > 0 && (
                       <div>
