@@ -22,7 +22,7 @@ import {
   MapPin,
 } from "lucide-react";
 import { useQuery, useQueries } from "@tanstack/react-query";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { isPremiumAssessment } from "@shared/assessmentTier";
 import i18n from "@/i18n/config";
 import { useTranslation } from "react-i18next";
@@ -260,6 +260,33 @@ export default function ResultsPrint() {
 
   useEffect(() => { document.title = t('printDocTitle'); }, [t]);
 
+  // Safety-net timer ref — shared between the two effects below so the normal
+  // path can cancel the timeout when it fires first.
+  const reportReadyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 20-second safety net: if LLM insights (or any other async work) take too
+  // long, set __REPORT_READY__ unconditionally so Puppeteer never hangs.
+  // The timer is cleared by the normal-path effect below when data arrives
+  // within the deadline, and by the cleanup function on unmount.
+  useEffect(() => {
+    reportReadyTimerRef.current = setTimeout(() => {
+      if (!(window as any).__REPORT_READY__) {
+        console.warn(
+          "[ResultsPrint] Safety-net timeout fired — setting __REPORT_READY__ " +
+          "without waiting for all AI insights (LLM may be slow or unavailable)."
+        );
+        (window as any).__REPORT_READY__ = true;
+      }
+    }, 20000);
+
+    return () => {
+      if (reportReadyTimerRef.current !== null) {
+        clearTimeout(reportReadyTimerRef.current);
+        reportReadyTimerRef.current = null;
+      }
+    };
+  }, []); // intentionally runs once on mount
+
   // Signal Puppeteer only after translations are loaded, React has re-rendered,
   // AND all LLM narrative fetches have settled (hit or miss).
   // Awaiting changeLanguage() ensures locale JSON is fetched; the double rAF
@@ -270,6 +297,11 @@ export default function ResultsPrint() {
       i18n.changeLanguage(safeLang).then(() => {
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
+            // Cancel the safety-net timer — we beat the deadline.
+            if (reportReadyTimerRef.current !== null) {
+              clearTimeout(reportReadyTimerRef.current);
+              reportReadyTimerRef.current = null;
+            }
             (window as any).__REPORT_READY__ = true;
           });
         });
