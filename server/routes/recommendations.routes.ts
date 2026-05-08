@@ -221,6 +221,24 @@ export function registerRecommendationsRoutes(app: Express) {
         narrativeLanguage = narrativeUser?.preferredLanguage || "en";
       }
 
+      // Build English→Arabic sector name map so reasoning text shows Arabic sector
+      // labels when the client requests Arabic output (lang=ar / Accept-Language: ar).
+      // The reasoning field is stored with English sector names; we substitute them
+      // at serve-time so the PDF (and web view) shows the correct localised label.
+      let sectorArMap: Map<string, string> | null = null;
+      if (isArabic && assessment?.countryId) {
+        const country = await storage.getCountryById(assessment.countryId);
+        const sectorsEn = country?.prioritySectors as string[] | undefined;
+        const sectorsAr = country?.prioritySectorsAr as string[] | undefined;
+        if (sectorsEn && sectorsAr && sectorsAr.length > 0) {
+          sectorArMap = new Map<string, string>();
+          sectorsEn.forEach((en, i) => {
+            const ar = sectorsAr[i];
+            if (ar) sectorArMap!.set(en, ar);
+          });
+        }
+      }
+
       // Check LLM availability once for the whole request (avoids per-career round trips)
       let llmAvailable = false;
       let llmNarrativeModule: typeof import("../services/llmNarrativeService") | null = null;
@@ -322,7 +340,24 @@ export function registerRecommendationsRoutes(app: Express) {
         })
       );
 
-      res.json(enriched);
+      // Apply Arabic sector-name substitution to the reasoning field when
+      // the client is in Arabic mode.  premium narratives (premiumReasoning)
+      // are already generated in the right language, so we only need to patch
+      // the stored English reasoning text for free-tier users.
+      const localized = sectorArMap
+        ? enriched.map((rec: any) => {
+            if (!rec.reasoning) return rec;
+            let localizedReasoning: string = rec.reasoning;
+            sectorArMap!.forEach((ar, en) => {
+              localizedReasoning = localizedReasoning.replace(new RegExp(en, "gi"), ar);
+            });
+            return localizedReasoning !== rec.reasoning
+              ? { ...rec, reasoning: localizedReasoning }
+              : rec;
+          })
+        : enriched;
+
+      res.json(localized);
     } catch (error) {
       console.error("Error fetching recommendations:", error);
       res.status(500).json({ message: "Failed to fetch recommendations" });
