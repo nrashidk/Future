@@ -624,7 +624,7 @@ export default function SuperadminDashboard() {
       return apiRequest('POST', '/api/superadmin/careers', {
         ...data,
         requiredSkills: data.requiredSkills.split(',').map(s => s.trim()).filter(Boolean),
-        requiredSkillsAr: data.requiredSkillsAr ? data.requiredSkillsAr.split(',').map(s => s.trim()).filter(Boolean) : undefined,
+        requiredSkillsAr: data.requiredSkillsAr ? data.requiredSkillsAr.split(',').map(s => s.trim()).filter(Boolean) : null,
         relatedSubjects: data.relatedSubjects.split(',').map(s => s.trim()).filter(Boolean),
       });
     },
@@ -644,7 +644,7 @@ export default function SuperadminDashboard() {
       return apiRequest('PATCH', `/api/superadmin/careers/${id}`, {
         ...data,
         requiredSkills: data.requiredSkills.split(',').map(s => s.trim()).filter(Boolean),
-        requiredSkillsAr: data.requiredSkillsAr ? data.requiredSkillsAr.split(',').map(s => s.trim()).filter(Boolean) : undefined,
+        requiredSkillsAr: data.requiredSkillsAr ? data.requiredSkillsAr.split(',').map(s => s.trim()).filter(Boolean) : null,
         relatedSubjects: data.relatedSubjects.split(',').map(s => s.trim()).filter(Boolean),
       });
     },
