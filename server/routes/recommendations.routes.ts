@@ -31,6 +31,7 @@ function localizeCareer(career: Career | undefined, isArabic: boolean): Career |
     requiredSkills: (career.requiredSkillsAr && career.requiredSkillsAr.length > 0)
       ? career.requiredSkillsAr
       : career.requiredSkills,
+    educationLevel: career.educationLevelAr || career.educationLevel,
   };
 }
 

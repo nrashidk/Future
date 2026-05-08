@@ -164,7 +164,7 @@ function mapSubjectsToVisionSectors(
 
 export default function ResultsPrint() {
   const { t } = useTranslation('results');
-  useLanguage(); // ensure LanguageContext is subscribed (sets html[dir] globally)
+  const { language } = useLanguage(); // ensure LanguageContext is subscribed (sets html[dir] globally)
   const urlParams = new URLSearchParams(window.location.search);
   const assessmentId = urlParams.get("assessmentId");
   const guestToken = urlParams.get("guestToken");
@@ -997,7 +997,11 @@ export default function ResultsPrint() {
                             <BookOpen className="w-3 h-3 flex-shrink-0" />
                             {t('educationPath')}
                           </h4>
-                          <p className="text-xs font-body">{rec.requiredEducation}</p>
+                          <p className="text-xs font-body">
+                            {language === 'ar' && rec.career?.educationLevelAr
+                              ? rec.career.educationLevelAr
+                              : rec.requiredEducation}
+                          </p>
                         </div>
                         {rec.strengthsGrowth && (
                           <div className="p-2 bg-background/30 rounded-lg flex-1">

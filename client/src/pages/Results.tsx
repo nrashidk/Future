@@ -1019,7 +1019,11 @@ export default function Results() {
                     <BookOpen className="w-4 h-4" />
                     {t('educationPath')}
                   </h4>
-                  <p className="text-sm font-body">{rec.requiredEducation}</p>
+                  <p className="text-sm font-body">
+                    {language === 'ar' && rec.career?.educationLevelAr
+                      ? rec.career.educationLevelAr
+                      : rec.requiredEducation}
+                  </p>
                 </div>
 
                 {/* Action Steps - Premium (7-8 steps) or Basic (2-3 steps) */}

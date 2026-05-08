@@ -414,6 +414,7 @@ export const careers = pgTable("careers", {
   titleAr: text("title_ar"), // Arabic translation of title
   descriptionAr: text("description_ar"), // Arabic translation of description
   requiredSkillsAr: text("required_skills_ar").array(), // Arabic translation of required skills
+  educationLevelAr: text("education_level_ar"), // Arabic translation of education level
   requiredSkills: text("required_skills").array().notNull(),
   relatedSubjects: text("related_subjects").array().notNull(),
   category: text("category").notNull(),
