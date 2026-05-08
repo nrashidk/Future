@@ -1046,8 +1046,11 @@ export function registerSuperadminRoutes(app: Express) {
 
       // Invalidate cached narratives that were generated with the old template
       // so the next request will call the LLM with the updated prompt.
+      // Track the actual outcome so the client can show an accurate confirmation.
+      let cacheCleared = false;
       try {
         await storage.invalidateLlmNarrativeCacheForPromptKey(updated.key);
+        cacheCleared = true;
       } catch (cacheErr) {
         console.warn("[LLM Cache] Failed to invalidate on template update:", cacheErr);
       }
@@ -1063,7 +1066,7 @@ export function registerSuperadminRoutes(app: Express) {
         changeDescription: (req.body.changeReason as string) || null,
       });
       
-      res.json({ ...updated, cacheCleared: true });
+      res.json({ ...updated, cacheCleared });
     } catch (error) {
       console.error("Error updating LLM prompt:", error);
       res.status(500).json({ message: "Failed to update LLM prompt" });

@@ -130,11 +130,12 @@ export default function ScoringConfigEditor() {
   });
 
   const updatePromptMutation = useMutation({
-    mutationFn: async (data: { id: string; updates: Partial<LlmPromptTemplate> }) => {
-      return apiRequest('PATCH', `/api/superadmin/llm-prompts/${data.id}`, data.updates);
+    mutationFn: async (data: { id: string; updates: Partial<LlmPromptTemplate> }): Promise<{ cacheCleared: boolean }> => {
+      const res = await apiRequest('PATCH', `/api/superadmin/llm-prompts/${data.id}`, data.updates);
+      return res.json();
     },
-    onSuccess: (data: any) => {
-      const description = data?.cacheCleared
+    onSuccess: (data) => {
+      const description = data.cacheCleared
         ? t('scoring.promptUpdatedCacheClearedDesc')
         : t('scoring.promptUpdatedDesc');
       toast({ title: t('scoring.promptUpdated'), description });
