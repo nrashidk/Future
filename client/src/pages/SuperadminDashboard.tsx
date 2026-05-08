@@ -166,10 +166,14 @@ interface Career {
   id: string;
   title: string;
   description: string;
+  titleAr?: string | null;
+  descriptionAr?: string | null;
   requiredSkills: string[];
+  requiredSkillsAr?: string[] | null;
   relatedSubjects: string[];
   category: string;
   educationLevel: string;
+  educationLevelAr?: string | null;
   averageSalary: string | null;
   growthOutlook: string;
   icon: string | null;
