@@ -47,9 +47,9 @@ export async function runMigrations(): Promise<void> {
   await ensureMigrationsTable();
   const applied = await getAppliedMigrations();
 
-  const files = (await readdir(MIGRATIONS_DIR))
-    .filter((f) => f.endsWith(".sql"))
-    .sort();
+  const allFiles = await readdir(MIGRATIONS_DIR).catch(() => [] as string[]);
+  const files = allFiles.filter((f) => f.endsWith(".sql")).sort();
+  console.log(`  Migrations dir: ${MIGRATIONS_DIR} (${files.length} .sql file(s) found)`);
 
   let pending = 0;
   for (const file of files) {
