@@ -15,6 +15,9 @@ import {
 import { isPremiumAssessment } from "../utils/assessmentTier";
 import type { Career } from "@shared/schema";
 
+/** Escape regex metacharacters so user-supplied strings are treated as literals. */
+const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 /**
  * When the client requests lang=ar, merge Arabic fields over English equivalents
  * so both the raw AR fields AND the primary fields carry localised content.
@@ -349,7 +352,8 @@ export function registerRecommendationsRoutes(app: Express) {
             if (!rec.reasoning) return rec;
             let localizedReasoning: string = rec.reasoning;
             sectorArMap!.forEach((ar, en) => {
-              localizedReasoning = localizedReasoning.replace(new RegExp(en, "gi"), ar);
+              const pattern = new RegExp(`\\b${escapeRegExp(en)}\\b`, "gi");
+              localizedReasoning = localizedReasoning.replace(pattern, ar);
             });
             return localizedReasoning !== rec.reasoning
               ? { ...rec, reasoning: localizedReasoning }
