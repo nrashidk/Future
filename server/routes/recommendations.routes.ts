@@ -217,11 +217,16 @@ export function registerRecommendationsRoutes(app: Express) {
       // Fetch CVQ result for premium users (needed for enhanced narratives)
       const cvqResult = isPremium && assessmentId ? await storage.getCvqResultByAssessmentId(assessmentId) : null;
 
-      // Resolve user's preferred language for narrative generation
+      // Resolve user's preferred language for narrative generation.
+      // For authenticated users: read preferredLanguage from the DB record.
+      // For guest users (no userId): fall back to the lang query param / Accept-Language
+      // header that isArabic was derived from, so Arabic-mode guests get Arabic narratives.
       let narrativeLanguage = "en";
       if (assessment?.userId) {
         const narrativeUser = await storage.getUser(assessment.userId);
         narrativeLanguage = narrativeUser?.preferredLanguage || "en";
+      } else if (isArabic) {
+        narrativeLanguage = "ar";
       }
 
       // Build English→Arabic sector name map so reasoning text shows Arabic sector
