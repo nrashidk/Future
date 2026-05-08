@@ -15,6 +15,7 @@
     "accountType": "Account Type",
     "lastLogin": "Last login",
     "notProvided": "Not provided",
+    "schoolLogoAlt": "School logo",
     "badge": {
       "superadmin": "Superadmin",
       "schoolAdmin": "School Admin",

@@ -15,6 +15,7 @@
     "accountType": "نوع الحساب",
     "lastLogin": "آخر تسجيل دخول",
     "notProvided": "غير مُدخَل",
+    "schoolLogoAlt": "شعار المدرسة",
     "badge": {
       "superadmin": "مشرف أعلى",
       "schoolAdmin": "مدير المدرسة",

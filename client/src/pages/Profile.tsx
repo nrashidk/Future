@@ -264,7 +264,7 @@ export default function Profile() {
                             {(user as any).organizationLogoUrl && (
                               <img 
                                 src={(user as any).organizationLogoUrl} 
-                                alt="School logo" 
+                                alt={t("account.schoolLogoAlt")}
                                 className="h-10 w-10 object-contain rounded"
                                 data-testid="img-org-logo-profile"
                               />
@@ -360,7 +360,7 @@ export default function Profile() {
                     <div>
                       <p className="text-sm text-muted-foreground">{t("account.lastLogin")}</p>
                       <p className="font-medium" data-testid="text-last-login">
-                        {new Date((user as any).lastLoginAt).toLocaleString()}
+                        {new Date((user as any).lastLoginAt).toLocaleString(language === 'ar' ? 'ar-AE' : 'en-US')}
                       </p>
                     </div>
                   )}
@@ -669,7 +669,7 @@ export default function Profile() {
                       <div className="p-3 border rounded-lg" data-testid={`assessment-item-${latestAssessment.id}`}>
                         <p className="font-medium">{latestAssessment.name || t("assessment.assessment")}</p>
                         <p className="text-sm text-muted-foreground">
-                          {new Date(latestAssessment.createdAt).toLocaleDateString()} 
+                          {new Date(latestAssessment.createdAt).toLocaleDateString(language === 'ar' ? 'ar-AE' : 'en-US')} 
                           {latestAssessment.tier && ` • ${latestAssessment.tier === 'premium' || latestAssessment.tier === 'school' ? t("premium.premium") : t("premium.free")}`}
                         </p>
                       </div>
