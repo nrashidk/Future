@@ -777,6 +777,7 @@
     "failedUpdateWeights": "فشل تحديث الأوزان",
     "promptUpdated": "تم تحديث المطالبة",
     "promptUpdatedDesc": "تم حفظ قالب مطالبة LLM",
+    "promptUpdatedCacheClearedDesc": "تم حفظ قالب المطالبة — تم مسح السرديات المخزنة مؤقتاً، وسيرى الطلاب مخرجات ذكاء اصطناعي جديدة في زيارتهم التالية",
     "failedUpdatePrompt": "فشل تحديث المطالبة",
     "apiKeySaved": "تم حفظ مفتاح API",
     "anthropicKeySavedDesc": "تم حفظ مفتاح API لأنثروبيك بأمان",

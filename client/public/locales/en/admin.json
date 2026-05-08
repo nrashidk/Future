@@ -777,6 +777,7 @@
     "failedUpdateWeights": "Failed to update weights",
     "promptUpdated": "Prompt Updated",
     "promptUpdatedDesc": "LLM prompt template has been saved",
+    "promptUpdatedCacheClearedDesc": "LLM prompt template saved — cached narratives cleared, students will see fresh AI output on their next visit",
     "failedUpdatePrompt": "Failed to update prompt",
     "apiKeySaved": "API Key Saved",
     "anthropicKeySavedDesc": "Anthropic API key has been saved securely",

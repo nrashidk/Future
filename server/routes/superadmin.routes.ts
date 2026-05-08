@@ -1063,7 +1063,7 @@ export function registerSuperadminRoutes(app: Express) {
         changeDescription: (req.body.changeReason as string) || null,
       });
       
-      res.json(updated);
+      res.json({ ...updated, cacheCleared: true });
     } catch (error) {
       console.error("Error updating LLM prompt:", error);
       res.status(500).json({ message: "Failed to update LLM prompt" });

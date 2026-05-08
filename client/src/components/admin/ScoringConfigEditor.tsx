@@ -133,8 +133,11 @@ export default function ScoringConfigEditor() {
     mutationFn: async (data: { id: string; updates: Partial<LlmPromptTemplate> }) => {
       return apiRequest('PATCH', `/api/superadmin/llm-prompts/${data.id}`, data.updates);
     },
-    onSuccess: () => {
-      toast({ title: t('scoring.promptUpdated'), description: t('scoring.promptUpdatedDesc') });
+    onSuccess: (data: any) => {
+      const description = data?.cacheCleared
+        ? t('scoring.promptUpdatedCacheClearedDesc')
+        : t('scoring.promptUpdatedDesc');
+      toast({ title: t('scoring.promptUpdated'), description });
       setIsPromptModalOpen(false);
       setEditingPrompt(null);
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/llm-prompts'] });
