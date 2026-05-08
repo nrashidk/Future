@@ -632,13 +632,17 @@ export default function AdminOrganizations() {
                     variant="outline" 
                     size="sm" 
                     data-testid="button-export-reports"
-                    onClick={() => {
-                      downloadFile(
+                    onClick={async () => {
+                      await downloadFile(
                         `/api/admin/organizations/${selectedOrgId}/export/reports`,
                         'reports.zip',
                         toast,
                         t
                       );
+                      toast({
+                        title: t('orgs.exportReportsSummaryHintTitle'),
+                        description: t('orgs.exportReportsSummaryHintDesc'),
+                      });
                     }}
                     disabled={members.filter(m => m.isLocked).length === 0}
                   >

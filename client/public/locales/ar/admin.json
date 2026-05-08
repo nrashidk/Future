@@ -313,6 +313,8 @@
     "downloadStartedDesc": "بدأ التحميل",
     "downloadFailedDesc": "فشل تحميل الملف",
     "downloadedTitle": "تم التحميل",
+    "exportReportsSummaryHintTitle": "تحقق من ملخص التصدير",
+    "exportReportsSummaryHintDesc": "افتح ملف _export_summary.json داخل ملف ZIP لمعرفة أي تقارير PDF قد تحتوي على رؤى ذكاء اصطناعي غير مكتملة.",
     "credentialsFileDownloaded": "تم تحميل ملف بيانات الدخول",
     "schoolCreatedAndAdminSuccess": "تم إنشاء المدرسة والمدير بنجاح",
     "schoolCreatedError": "فشل إنشاء المدرسة",

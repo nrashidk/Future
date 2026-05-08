@@ -11,6 +11,7 @@ import { Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useToast } from "@/hooks/use-toast";
 import {
   BarChart as RechartsBarChart,
   Bar,
@@ -80,6 +81,7 @@ export default function Analytics() {
   const { user } = useAuth();
   const { t } = useTranslation('admin');
   const { language } = useLanguage();
+  const { toast } = useToast();
   useEffect(() => { document.title = t('pageTitles.analytics'); }, [t]);
   const [activeCountryId, setActiveCountryId] = useState<string | null>(null);
   const isOrgAdmin = user?.accountType === 'org_admin';
@@ -266,6 +268,10 @@ export default function Analytics() {
               data-testid="button-export-reports-analytics"
               onClick={() => {
                 window.open(`/api/admin/organizations/${organization.id}/export/reports`, '_blank');
+                toast({
+                  title: t('orgs.exportReportsSummaryHintTitle'),
+                  description: t('orgs.exportReportsSummaryHintDesc'),
+                });
               }}
             >
               <FileDown className="w-4 h-4 me-2" />

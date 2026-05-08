@@ -1140,6 +1140,18 @@ export function registerAdminRoutes(app: Express) {
         }
       };
 
+      // Track per-student export results for the summary file
+      const SAFETY_NET_WARNING = "[ResultsPrint] Safety-net timeout fired";
+      interface StudentExportResult {
+        fileName: string;
+        displayName: string;
+        username: string;
+        status: "ok" | "aiInsightsIncomplete" | "failed";
+        aiInsightsIncomplete: boolean;
+        note?: string;
+      }
+      const exportResults: StudentExportResult[] = [];
+
       // Generate each PDF
       for (const member of completedMembers) {
         let page: any = null;
@@ -1154,6 +1166,15 @@ export function registerAdminRoutes(app: Express) {
           if (!completedAssessment) continue;
 
           page = await browser.newPage();
+
+          // Listen for console messages to detect the AI-insights safety-net warning
+          let safetyNetFired = false;
+          page.on('console', (msg: any) => {
+            if (msg.type() === 'warning' && msg.text().includes(SAFETY_NET_WARNING)) {
+              safetyNetFired = true;
+            }
+          });
+
           // Normalize language to the allowed set — never pass arbitrary DB values as URL params
           const ALLOWED_LANGS = ["en", "ar"] as const;
           const rawLang = memberUser.preferredLanguage || "en";
@@ -1182,10 +1203,47 @@ export function registerAdminRoutes(app: Express) {
           const safeFileName = `${memberUser.username || member.id}_${memberUser.firstName}_${memberUser.lastName}.pdf`.replace(/[^a-zA-Z0-9._-]/g, '_');
           archive.append(Buffer.from(pdfBuffer), { name: safeFileName });
 
-          console.log(`Generated PDF for ${memberUser.username} (${safeFileName})`);
+          const displayName = [memberUser.firstName, memberUser.lastName].filter(Boolean).join(' ') || memberUser.username || member.id;
+          exportResults.push({
+            fileName: safeFileName,
+            displayName,
+            username: memberUser.username || member.id,
+            status: safetyNetFired ? "aiInsightsIncomplete" : "ok",
+            aiInsightsIncomplete: safetyNetFired,
+            ...(safetyNetFired ? { note: "AI insights may be partial — PDF was captured before all LLM content finished loading." } : {}),
+          });
+
+          if (safetyNetFired) {
+            console.warn(`[BulkExport] Safety-net fired for ${memberUser.username} (${safeFileName}) — AI insights may be incomplete`);
+          } else {
+            console.log(`Generated PDF for ${memberUser.username} (${safeFileName})`);
+          }
         } catch (error) {
           console.error(`Error generating PDF for member ${member.id}:`, error);
-          // Continue with next member on error
+          // Record the failure in the summary and continue with next member
+          try {
+            const memberUser = await storage.getUser(member.userId);
+            const displayName = memberUser
+              ? ([memberUser.firstName, memberUser.lastName].filter(Boolean).join(' ') || memberUser.username || member.id)
+              : member.id;
+            exportResults.push({
+              fileName: "",
+              displayName,
+              username: memberUser?.username || member.id,
+              status: "failed",
+              aiInsightsIncomplete: false,
+              note: "PDF generation failed — no file was added to the archive.",
+            });
+          } catch {
+            exportResults.push({
+              fileName: "",
+              displayName: member.id,
+              username: member.id,
+              status: "failed",
+              aiInsightsIncomplete: false,
+              note: "PDF generation failed — no file was added to the archive.",
+            });
+          }
         } finally {
           // Always close the page to prevent memory leaks
           if (page) {
@@ -1201,9 +1259,31 @@ export function registerAdminRoutes(app: Express) {
       await browser.close();
       browser = null;
 
+      // Append the export summary JSON so admins know which PDFs may have incomplete AI content
+      const incompleteCount = exportResults.filter(r => r.aiInsightsIncomplete).length;
+      const failedCount = exportResults.filter(r => r.status === "failed").length;
+      // Both "ok" and "aiInsightsIncomplete" records produced a PDF file
+      const generatedPdfCount = exportResults.filter(r => r.status !== "failed").length;
+      const summary = {
+        generatedAt: new Date().toISOString(),
+        organization: organization.name,
+        totalStudents: exportResults.length,
+        generatedPdfCount,
+        fullAiPdfs: exportResults.filter(r => r.status === "ok").length,
+        partialAiPdfs: incompleteCount,
+        failedPdfs: failedCount,
+        note: incompleteCount > 0
+          ? `${incompleteCount} PDF(s) were captured before all AI insights finished loading. ` +
+            "The career recommendations are complete, but personalized narrative sections may be missing or partial. " +
+            "See the 'students' list below to identify affected reports."
+          : "All PDFs were generated with full AI insights.",
+        students: exportResults,
+      };
+      archive.append(Buffer.from(JSON.stringify(summary, null, 2), 'utf-8'), { name: '_export_summary.json' });
+
       // Finalize archive
       await archive.finalize();
-      console.log(`ZIP archive completed with ${completedMembers.length} reports`);
+      console.log(`ZIP archive completed with ${exportResults.length} reports (${incompleteCount} with incomplete AI insights, ${failedCount} failed)`);
     } catch (error) {
       console.error("Error generating bulk PDF reports:", error);
       if (browser) {

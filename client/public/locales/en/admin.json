@@ -313,6 +313,8 @@
     "downloadStartedDesc": "Download started",
     "downloadFailedDesc": "Failed to download file",
     "downloadedTitle": "Downloaded",
+    "exportReportsSummaryHintTitle": "Check the export summary",
+    "exportReportsSummaryHintDesc": "Open _export_summary.json inside the ZIP to see which student PDFs may have incomplete AI insights.",
     "credentialsFileDownloaded": "Credentials file downloaded",
     "schoolCreatedAndAdminSuccess": "School and admin created successfully",
     "schoolCreatedError": "Failed to create school",
