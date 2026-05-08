@@ -138,6 +138,12 @@
   "weightSuffix": "weight",
   "generatingInsights": "Generating AI insights...",
 
+  "countryFallback": "your country",
+  "genderMale": "Male",
+  "genderFemale": "Female",
+  "genderOther": "Other",
+  "genderPreferNotToSay": "Prefer not to say",
+
   "pageDocTitle": "Your Career Results | Future Pathways",
   "printDocTitle": "Career Report | Future Pathways",
   "migrateSuccessTitle": "Success!",

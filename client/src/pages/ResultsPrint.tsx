@@ -54,9 +54,15 @@ interface EnrichedRecommendation extends Recommendation {
   i18n.changeLanguage(_lang); // begins fetching locale JSON early
 }
 
-// Helper to get display name
-function getCountryDisplayName(country: any): string {
-  return country?.name || "your country";
+// Helper to get display name — returns Arabic name when lang==='ar' and available.
+// tFn is used only for the "your country" fallback string.
+function getCountryDisplayName(
+  country: any,
+  lang: string,
+  tFn: (key: string) => string
+): string {
+  if (!country) return tFn('countryFallback');
+  return (lang === 'ar' && country.nameAr) ? country.nameAr : (country.name || tFn('countryFallback'));
 }
 
 // Map DB growth outlook prefix words to their results.json i18n keys
@@ -102,7 +108,8 @@ function localizeCategory(raw: string, tFn: (key: string, opts?: any) => string)
 function mapSubjectsToVisionSectors(
   subjectScores: Record<string, { percentage: number }>,
   country: any,
-  tFn: (key: string, opts?: any) => string
+  tFn: (key: string, opts?: any) => string,
+  lang: string = 'en'
 ): string | null {
   if (!subjectScores || !country?.targets || typeof country.targets !== 'object') return null;
 
@@ -150,7 +157,7 @@ function mapSubjectsToVisionSectors(
 
   return tFn('visionLinkageText', {
     subjects: subjectsText,
-    country: getCountryDisplayName(country),
+    country: getCountryDisplayName(country, lang, tFn),
     categories: categoriesText,
   });
 }
@@ -467,13 +474,17 @@ export default function ResultsPrint() {
                   {displayGender && (
                     <div className="p-2 bg-primary/20 rounded-lg text-center">
                       <p className="text-xs text-muted-foreground font-body mb-0.5">{t('profileGender')}</p>
-                      <p className="font-semibold text-sm capitalize">{displayGender}</p>
+                      <p className="font-semibold text-sm capitalize">
+                        {t(`gender${displayGender.charAt(0).toUpperCase()}${displayGender.slice(1)}`, { defaultValue: displayGender })}
+                      </p>
                     </div>
                   )}
                   {country && (
                     <div className="p-2 bg-primary/20 rounded-lg text-center">
                       <p className="text-xs text-muted-foreground font-body mb-0.5">{t('profileCountry')}</p>
-                      <p className="font-semibold text-sm leading-tight">{country.name}</p>
+                      <p className="font-semibold text-sm leading-tight">
+                        {getCountryDisplayName(country, langParam, t)}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -552,7 +563,7 @@ export default function ResultsPrint() {
                   <p className="font-body">{t('insightValidation')}</p>
                 </div>
                 {country && (() => {
-                  const visionLinkage = mapSubjectsToVisionSectors(quizData.subjectScores, country, t);
+                  const visionLinkage = mapSubjectsToVisionSectors(quizData.subjectScores, country, t, langParam);
                   return visionLinkage ? (
                     <div className="flex items-start gap-2">
                       <TrendingUp className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />

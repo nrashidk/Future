@@ -138,6 +138,12 @@
   "weightSuffix": "وزن",
   "generatingInsights": "جارٍ توليد الرؤى بالذكاء الاصطناعي...",
 
+  "countryFallback": "بلدك",
+  "genderMale": "ذكر",
+  "genderFemale": "أنثى",
+  "genderOther": "آخر",
+  "genderPreferNotToSay": "أفضل عدم الإفصاح",
+
   "pageDocTitle": "نتائج مسارك المهني | مسارات المستقبل",
   "printDocTitle": "تقرير المسار المهني | مسارات المستقبل",
   "migrateSuccessTitle": "تم بنجاح!",
