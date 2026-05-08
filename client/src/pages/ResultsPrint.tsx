@@ -475,7 +475,14 @@ export default function ResultsPrint() {
                     <div className="p-2 bg-primary/20 rounded-lg text-center">
                       <p className="text-xs text-muted-foreground font-body mb-0.5">{t('profileGender')}</p>
                       <p className="font-semibold text-sm capitalize">
-                        {t(`gender${displayGender.charAt(0).toUpperCase()}${displayGender.slice(1)}`, { defaultValue: displayGender })}
+                        {(() => {
+                          // Normalize "prefer_not_to_say" → "genderPreferNotToSay" etc.
+                          const key = 'gender' + displayGender
+                            .split(/[_\s]+/)
+                            .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+                            .join('');
+                          return t(key, { defaultValue: displayGender });
+                        })()}
                       </p>
                     </div>
                   )}
