@@ -22,7 +22,7 @@ import {
   TrendingUp, AlertCircle, CheckCircle, Clock, Home, User, LogOut,
   ChevronUp, ChevronDown, History, Infinity, BarChart, Copy, FileQuestion,
   Settings, Globe, Gift, FileText, Megaphone, Briefcase, Eye, RefreshCw,
-  UserCog, Info, AlertTriangle, XCircle, Languages
+  UserCog, Info, AlertTriangle, XCircle, Languages, Database
 } from "lucide-react";
 import ScoringConfigEditor from "@/components/admin/ScoringConfigEditor";
 import CountryManagement from "@/components/admin/CountryManagement";
@@ -42,6 +42,11 @@ interface Metrics {
   unlimitedSchools: number;
   utilizationRate: number;
   completionRate: number;
+}
+
+interface LlmCacheStats {
+  totalCached: number;
+  promptBreakdown: Array<{ promptKey: string; count: number }>;
 }
 
 interface PrimaryAdmin {
@@ -237,6 +242,10 @@ export default function SuperadminDashboard() {
 
   const { data: metrics, isLoading: metricsLoading } = useQuery<Metrics>({
     queryKey: ['/api/superadmin/metrics'],
+  });
+
+  const { data: llmCacheStats, isLoading: llmCacheStatsLoading } = useQuery<LlmCacheStats>({
+    queryKey: ['/api/superadmin/llm-cache/stats'],
   });
 
   const { data: organizations = [], isLoading: orgsLoading } = useQuery<OrganizationWithDetails[]>({
@@ -1691,6 +1700,54 @@ export default function SuperadminDashboard() {
           </TabsContent>
 
           <TabsContent value="scoring" className="space-y-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-4 pb-2 flex-wrap">
+                <div>
+                  <CardTitle className="text-base">{t('scoring.llmCacheStats')}</CardTitle>
+                  <CardDescription>{t('scoring.llmCacheStatsDesc')}</CardDescription>
+                </div>
+                <Database className="h-5 w-5 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                {llmCacheStatsLoading ? (
+                  <p className="text-sm text-muted-foreground">{t('scoring.loading')}</p>
+                ) : llmCacheStats && llmCacheStats.totalCached > 0 ? (
+                  <div className="space-y-3">
+                    <div>
+                      <span className="text-2xl font-bold" data-testid="text-llm-cache-total">
+                        {llmCacheStats.totalCached}
+                      </span>
+                      <span className="text-sm text-muted-foreground ms-2">
+                        {t('scoring.llmCacheTotalCached')}
+                      </span>
+                    </div>
+                    {llmCacheStats.promptBreakdown.length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground mb-1.5">
+                          {t('scoring.llmCachePromptBreakdown')}
+                        </p>
+                        <div className="space-y-1">
+                          {llmCacheStats.promptBreakdown.map((row) => (
+                            <div
+                              key={row.promptKey}
+                              className="flex items-center justify-between gap-2 text-sm"
+                              data-testid={`row-cache-prompt-${row.promptKey}`}
+                            >
+                              <span className="text-muted-foreground truncate">{row.promptKey}</span>
+                              <Badge variant="secondary">{row.count}</Badge>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground" data-testid="text-llm-cache-empty">
+                    {t('scoring.llmCacheNoData')}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
             <ScoringConfigEditor />
           </TabsContent>
 

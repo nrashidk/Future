@@ -455,6 +455,10 @@ export interface IStorage {
   setLlmNarrativeCache(assessmentId: string, careerId: string, promptKey: string, language: string, narrative: string): Promise<void>;
   invalidateLlmNarrativeCacheForAssessment(assessmentId: string): Promise<void>;
   invalidateLlmNarrativeCacheForPromptKey(promptKey: string): Promise<void>;
+  getLlmNarrativeCacheStats(): Promise<{
+    totalCached: number;
+    promptBreakdown: Array<{ promptKey: string; count: number }>;
+  }>;
 
   // Global user search (for superadmin)
   searchAllUsers(query: string, limit?: number): Promise<User[]>;
@@ -3472,6 +3476,29 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(llmNarrativeCache)
       .where(eq(llmNarrativeCache.promptKey, promptKey));
+  }
+
+  async getLlmNarrativeCacheStats(): Promise<{
+    totalCached: number;
+    promptBreakdown: Array<{ promptKey: string; count: number }>;
+  }> {
+    const [totalRow] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(llmNarrativeCache);
+
+    const breakdown = await db
+      .select({
+        promptKey: llmNarrativeCache.promptKey,
+        count: sql<number>`count(*)::int`,
+      })
+      .from(llmNarrativeCache)
+      .groupBy(llmNarrativeCache.promptKey)
+      .orderBy(sql`count(*) desc`);
+
+    return {
+      totalCached: totalRow?.count ?? 0,
+      promptBreakdown: breakdown,
+    };
   }
 }
 

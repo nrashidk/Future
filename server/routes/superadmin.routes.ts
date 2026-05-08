@@ -1017,6 +1017,17 @@ export function registerSuperadminRoutes(app: Express) {
     }
   });
 
+  // LLM narrative cache stats
+  app.get("/api/superadmin/llm-cache/stats", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const stats = await storage.getLlmNarrativeCacheStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching LLM cache stats:", error);
+      res.status(500).json({ message: "Failed to fetch LLM cache stats" });
+    }
+  });
+
   // Get all LLM prompt templates
   app.get("/api/superadmin/llm-prompts", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
     try {
