@@ -998,7 +998,7 @@ export default function ResultsPrint() {
                             {t('educationPath')}
                           </h4>
                           <p className="text-xs font-body">
-                            {language === 'ar' && rec.career?.educationLevelAr
+                            {langParam === 'ar' && rec.career?.educationLevelAr
                               ? rec.career.educationLevelAr
                               : rec.requiredEducation}
                           </p>
