@@ -54,6 +54,19 @@ interface EnrichedRecommendation extends Recommendation {
   i18n.changeLanguage(_lang); // begins fetching locale JSON early
 }
 
+/**
+ * Return the Arabic skill array when the report is in Arabic mode and the array
+ * is non-empty, otherwise fall back to the English array.
+ */
+function localizeSkills(
+  lang: string,
+  arSkills: string[] | null | undefined,
+  enSkills: string[] | null | undefined
+): string[] {
+  if (lang === 'ar' && arSkills && arSkills.length > 0) return arSkills;
+  return enSkills || [];
+}
+
 // Helper to get display name — returns Arabic name when lang==='ar' and available.
 // tFn is used only for the "your country" fallback string.
 function getCountryDisplayName(
@@ -963,6 +976,23 @@ export default function ResultsPrint() {
                         ))}
                       </div>
                     )}
+
+                    {/* Required Skills — requiredSkillsAr used when langParam is 'ar' */}
+                    {(() => {
+                      const skills = localizeSkills(langParam, rec.career?.requiredSkillsAr, rec.career?.requiredSkills);
+                      return skills.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {skills.map((skill: string) => (
+                            <span
+                              key={skill}
+                              className="bg-primary/10 px-2 py-0.5 rounded-full text-[10px] font-medium"
+                            >
+                              {skill}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null;
+                    })()}
 
                     {/* Two-column content: Why+WorkStyle | Education+Strengths */}
                     <div className="grid grid-cols-2 gap-2 flex-1">
