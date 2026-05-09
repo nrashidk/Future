@@ -485,7 +485,7 @@ export default function Assessment() {
           }
         } catch (saveError) {
           console.error("Error saving assessment:", saveError);
-          const msg = t("errors.saveFailedDesc", { message: saveError instanceof Error ? saveError.message : t("errors.unknownError") });
+          const msg = t("errors.saveFailedDesc");
           toast({ title: t("errors.saveFailed"), description: msg, variant: "destructive" });
           if (isAspirationsStepPremium) setAspirationsError(msg);
           return; // stop here; finally will clear isGenerating

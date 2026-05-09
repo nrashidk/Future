@@ -96,7 +96,7 @@ export function QuizStep({ assessmentId, onComplete }: QuizStepProps) {
       } else {
         toast({
           title: t('quiz.errorTitle'),
-          description: errorMessage,
+          description: t('quiz.submitFailed'),
           variant: "destructive"
         });
       }

@@ -147,6 +147,7 @@
   "pageDocTitle": "نتائج مسارك المهني | مسارات المستقبل",
   "printDocTitle": "تقرير المسار المهني | مسارات المستقبل",
   "migrateSuccessTitle": "تم بنجاح!",
+  "migrateSuccessDesc": "تم حفظ تقييماتك كضيف في حسابك.",
   "recommendationsHeading": "التوصيات المهنية",
   "traits": {
     "teamwork_1": "مستقل",

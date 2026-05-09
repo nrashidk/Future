@@ -24,7 +24,7 @@
     "notFoundDesc": "يرجى الرجوع وإكمال الخطوات السابقة.",
     "goBack": "رجوع",
     "saveFailed": "خطأ",
-    "saveFailedDesc": "فشل حفظ التقييم: {{message}}",
+    "saveFailedDesc": "فشل حفظ تقييمك. يرجى المحاولة مرة أخرى.",
     "generateFailed": "خطأ",
     "generateFailedDesc": "فشل إنشاء التوصيات. يرجى المحاولة مجدداً.",
     "unknownError": "خطأ غير معروف"

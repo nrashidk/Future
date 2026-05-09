@@ -24,7 +24,7 @@
     "notFoundDesc": "Please go back and complete the previous steps.",
     "goBack": "Go Back",
     "saveFailed": "Error",
-    "saveFailedDesc": "Failed to save assessment: {{message}}",
+    "saveFailedDesc": "Failed to save your assessment. Please try again.",
     "generateFailed": "Error",
     "generateFailedDesc": "Failed to generate recommendations. Please try again.",
     "unknownError": "Unknown error"

@@ -289,7 +289,7 @@ export default function Results() {
     onSuccess: (data: any) => {
       toast({
         title: t('migrateSuccessTitle'),
-        description: data.message,
+        description: t('migrateSuccessDesc'),
       });
       localStorage.removeItem("guestAssessments");
     },
