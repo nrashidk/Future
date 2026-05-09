@@ -387,7 +387,7 @@ export function registerQuizRoutes(app: Express) {
       }
       
       if (quiz.completedAt) {
-        return res.status(400).json({ message: "This quiz has already been submitted. Please continue to the next step." });
+        return res.status(400).json({ code: "QUIZ_ALREADY_SUBMITTED", message: "This quiz has already been submitted. Please continue to the next step." });
       }
       
       const existingResponses = await storage.getQuizResponsesByQuizId(quiz.id);

@@ -63,10 +63,20 @@ export function QuizStep({ assessmentId, onComplete }: QuizStepProps) {
   // Submit quiz mutation (guest token is sent via httpOnly cookie automatically)
   const submitMutation = useMutation({
     mutationFn: async (quizResponses: QuizResponse[]) => {
-      const response = await apiRequest("POST", `/api/assessments/${assessmentId}/quiz/submit`, {
-        responses: quizResponses
+      const res = await fetch(`/api/assessments/${assessmentId}/quiz/submit`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ responses: quizResponses }),
+        credentials: "include",
       });
-      return await response.json();
+      const data = await res.json();
+      if (!res.ok) {
+        const err: any = new Error(data.message ?? "Request failed");
+        err.code = data.code;
+        err.status = res.status;
+        throw err;
+      }
+      return data;
     },
     onSuccess: (data) => {
       setScore(data);
@@ -81,10 +91,7 @@ export function QuizStep({ assessmentId, onComplete }: QuizStepProps) {
       }, 3000);
     },
     onError: (error: any) => {
-      const errorMessage = error?.message || t('quiz.submitFailed');
-      
-      // If quiz already submitted, auto-advance to next step
-      if (errorMessage.includes("already been submitted")) {
+      if (error?.code === "QUIZ_ALREADY_SUBMITTED") {
         toast({
           title: t('quiz.alreadySubmitted'),
           description: t('quiz.alreadySubmittedDesc'),
