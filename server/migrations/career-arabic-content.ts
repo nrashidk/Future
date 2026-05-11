@@ -268,6 +268,27 @@ const CAREER_ARABIC_CONTENT: CareerArContent[] = [
     requiredSkillsAr: ["تخطيط المساحات", "نظرية الألوان", "النمذجة ثلاثية الأبعاد", "التواصل مع العملاء"],
     educationLevelAr: "بكالوريوس تصميم داخلي",
   },
+  {
+    title: "Environmental Scientist11",
+    titleAr: "عالم بيئي",
+    descriptionAr: "احمِ كوكبنا من خلال دراسة التلوث وتغير المناخ والنظم البيئية. طوّر حلولاً للتحديات البيئية وساعد المجتمعات على العيش في انسجام مع الطبيعة.",
+    requiredSkillsAr: ["البحث", "تحليل البيانات", "السياسة البيئية", "العمل الميداني"],
+    educationLevelAr: "بكالوريوس علوم بيئية أو مجال ذي صلة",
+  },
+  {
+    title: "Teacher (Secondary Education)11",
+    titleAr: "معلم (التعليم الثانوي)",
+    descriptionAr: "شكّل العقول الشابة وألهم الجيل القادم من العلماء والفنانين والقادة. اجعل المواضيع المعقدة مثيرة للاهتمام وساعد الطلاب على اكتشاف مواهبهم.",
+    requiredSkillsAr: ["الخبرة في المادة", "التواصل", "الصبر", "تطوير المناهج"],
+    educationLevelAr: "بكالوريوس تربية أو تخصص في المادة + شهادة تدريس",
+  },
+  {
+    title: "web developer",
+    titleAr: "مطور ويب",
+    descriptionAr: "أنشئ مواقع وتطبيقات ويب جذابة وعالية الأداء. حوّل تصاميم الواجهات إلى تجارب تفاعلية سلسة باستخدام أحدث تقنيات تطوير الويب.",
+    requiredSkillsAr: ["HTML/CSS", "JavaScript", "أطر العمل الأمامية", "واجهات برمجة التطبيقات"],
+    educationLevelAr: "بكالوريوس علوم الحاسب أو مجال ذي صلة",
+  },
 ];
 
 export async function applyCareerArabicContent(): Promise<void> {
