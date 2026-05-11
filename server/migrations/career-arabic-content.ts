@@ -271,6 +271,13 @@ const CAREER_ARABIC_CONTENT: CareerArContent[] = [
     requiredSkillsAr: ["تخطيط المساحات", "نظرية الألوان", "النمذجة ثلاثية الأبعاد", "التواصل مع العملاء"],
     educationLevelAr: "بكالوريوس تصميم داخلي",
   },
+  {
+    title: "web developer",
+    titleAr: "مطور ويب",
+    descriptionAr: "أنشئ مواقع وتطبيقات ويب جذابة وعالية الأداء. حوّل تصاميم الواجهات إلى تجارب تفاعلية سلسة باستخدام أحدث تقنيات تطوير الويب، وتعاون مع فرق التصميم لإطلاق مشاريع رقمية مميزة.",
+    requiredSkillsAr: ["HTML/CSS", "JavaScript", "أطر العمل الأمامية", "واجهات برمجة التطبيقات"],
+    educationLevelAr: "بكالوريوس علوم الحاسب أو مجال ذي صلة",
+  },
 ];
 
 export const CANONICAL_CAREER_TITLES: Set<string> = new Set(
