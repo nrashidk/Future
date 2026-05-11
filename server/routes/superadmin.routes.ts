@@ -1871,6 +1871,19 @@ export function registerSuperadminRoutes(app: Express) {
     }
   });
 
+  app.post("/api/superadmin/careers/apply-arabic-translations", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const { applyCareerArabicContent } = await import("../migrations/career-arabic-content");
+      await applyCareerArabicContent();
+      const allCareers = await storage.getAllCareers();
+      const missing = allCareers.filter(c => !c.titleAr || !c.descriptionAr || !c.requiredSkillsAr?.length);
+      res.json({ success: true, message: "Arabic translations applied to all 36 seeded careers", missingCount: missing.length, missingTitles: missing.map(c => c.title) });
+    } catch (error) {
+      console.error("Error applying Arabic translations:", error);
+      res.status(500).json({ message: "Failed to apply Arabic translations" });
+    }
+  });
+
   // ===============================
   // GLOBAL USER SEARCH
   // ===============================

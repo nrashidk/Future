@@ -673,6 +673,24 @@ export default function SuperadminDashboard() {
     },
   });
 
+  const applyArabicTranslationsMutation = useMutation<{ success: boolean; missingCount: number; missingTitles: string[] }, Error>({
+    mutationFn: async () => {
+      const res = await apiRequest('POST', '/api/superadmin/careers/apply-arabic-translations');
+      return res.json();
+    },
+    onSuccess: (data) => {
+      if (data.missingCount > 0) {
+        toast({ title: t('superadmin.arabicApplied'), description: t('superadmin.arabicAppliedPartial', { count: data.missingCount }) });
+      } else {
+        toast({ title: t('superadmin.arabicApplied'), description: t('superadmin.arabicAppliedAll') });
+      }
+      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/careers'] });
+    },
+    onError: (error: any) => {
+      toast({ title: t('superadmin.error'), description: error.message || t('superadmin.failedToApplyArabic'), variant: "destructive" });
+    },
+  });
+
   const resetAnnouncementForm = () => {
     setAnnouncementForm({ title: "", titleAr: "", content: "", contentAr: "", type: "info", targetAudience: "all", isPinned: false, backgroundColor: "#ffffff", publishAt: "", expiresAt: "" });
   };
@@ -1638,10 +1656,16 @@ export default function SuperadminDashboard() {
                     <CardTitle>{t('superadmin.careersTitle')}</CardTitle>
                     <CardDescription>{t('superadmin.careersDesc')}</CardDescription>
                   </div>
-                  <Button onClick={() => { resetCareerForm(); setEditingCareer(null); setIsCareerModalOpen(true); }} data-testid="button-new-career">
-                    <Plus className="w-4 h-4 me-2" />
-                    {t('superadmin.addCareer')}
-                  </Button>
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" onClick={() => applyArabicTranslationsMutation.mutate()} disabled={applyArabicTranslationsMutation.isPending} data-testid="button-apply-arabic-translations">
+                      <Languages className="w-4 h-4 me-2" />
+                      {applyArabicTranslationsMutation.isPending ? t('superadmin.applyingArabic') : t('superadmin.applyArabicTranslations')}
+                    </Button>
+                    <Button onClick={() => { resetCareerForm(); setEditingCareer(null); setIsCareerModalOpen(true); }} data-testid="button-new-career">
+                      <Plus className="w-4 h-4 me-2" />
+                      {t('superadmin.addCareer')}
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
