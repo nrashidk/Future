@@ -149,7 +149,7 @@ export function AspirationsStep({ data, onUpdate, onNext, onBack, isGenerating =
               size="sm"
               variant="outline"
               onClick={onNext}
-              disabled={!canProceed}
+              disabled={!canProceed || isGenerating}
               className="self-end"
               data-testid="button-try-again"
             >
