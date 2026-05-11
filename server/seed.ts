@@ -598,6 +598,18 @@ export async function seedDatabase() {
       growthOutlook: "Good (4% growth)",
       icon: "🛋️",
     },
+    {
+      title: "web developer",
+      description: "Build attractive, high-performance websites and web applications. Turn interface designs into smooth, interactive experiences using modern web technologies and collaborate with design teams to launch standout digital products.",
+      requiredSkills: ["HTML/CSS", "JavaScript", "Frontend Frameworks", "APIs"],
+      requiredSkillsAr: ["HTML/CSS", "JavaScript", "أطر العمل الأمامية", "واجهات برمجة التطبيقات"],
+      relatedSubjects: ["Computer Science", "Mathematics", "Design"],
+      category: "Technology",
+      educationLevel: "Bachelor's degree in Computer Science or related field",
+      averageSalary: "$60,000 - $120,000",
+      growthOutlook: "Excellent (23% growth)",
+      icon: "🌐",
+    },
   ];
 
   const existingCareers = await storage.getAllCareers();
