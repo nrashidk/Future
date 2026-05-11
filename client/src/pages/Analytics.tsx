@@ -40,7 +40,9 @@ import {
   FileDown,
   Shield,
   FileQuestion,
-  ClipboardCheck
+  ClipboardCheck,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 
 interface AnalyticsOverview {
@@ -84,6 +86,16 @@ export default function Analytics() {
   const { toast } = useToast();
   useEffect(() => { document.title = t('pageTitles.analytics'); }, [t]);
   const [activeCountryId, setActiveCountryId] = useState<string | null>(null);
+  const [expandedSectors, setExpandedSectors] = useState<Set<string>>(new Set());
+
+  const toggleSectorSkills = (sectorName: string) => {
+    setExpandedSectors((prev) => {
+      const next = new Set(prev);
+      if (next.has(sectorName)) next.delete(sectorName);
+      else next.add(sectorName);
+      return next;
+    });
+  };
   const isOrgAdmin = user?.accountType === 'org_admin';
   const isSuperadmin = user?.accountType === 'superadmin';
 
@@ -560,12 +572,17 @@ export default function Analytics() {
                 const colors: Array<"yellow" | "pink" | "blue" | "green" | "purple"> = ["blue", "green", "pink", "yellow", "purple"];
                 const rotations: Array<"-1" | "1" | "-2" | "2"> = ["1", "-1", "2", "-2"];
                 
+                const isExpanded = expandedSectors.has(sector.sector);
+                const allSkills = sector.prioritySkills ?? [];
+                const visibleSkills = isExpanded ? allSkills : allSkills.slice(0, 3);
+                const hiddenCount = allSkills.length - 3;
+
                 return (
                   <StickyNote 
                     key={sector.sector}
                     color={colors[index % 5]}
                     rotation={rotations[index % 4]}
-                    className="aspect-[3/4]"
+                    className={isExpanded ? undefined : "aspect-[3/4]"}
                   >
                     <div className="flex flex-col h-full p-1">
                       <div className="flex items-center justify-between mb-2">
@@ -577,11 +594,11 @@ export default function Analytics() {
                       <h4 className="font-bold text-sm mb-2 line-clamp-3" data-testid={`sector-${index}`}>
                         {language === 'ar' && sector.sectorAr ? sector.sectorAr : sector.sector}
                       </h4>
-                      {sector.prioritySkills && sector.prioritySkills.length > 0 && (
+                      {allSkills.length > 0 && (
                         <div className="mb-2">
-                          <p className="text-xs text-muted-foreground mb-1">{t('analytics.prioritySkills', 'Priority Skills')}</p>
+                          <p className="text-xs text-muted-foreground mb-1">{t('analytics.prioritySkills')}</p>
                           <div className="flex flex-wrap gap-1">
-                            {sector.prioritySkills.slice(0, 3).map((skill) => (
+                            {visibleSkills.map((skill) => (
                               <Badge
                                 key={skill.name}
                                 variant="secondary"
@@ -592,6 +609,26 @@ export default function Analytics() {
                               </Badge>
                             ))}
                           </div>
+                          {allSkills.length > 3 && (
+                            <button
+                              type="button"
+                              onClick={() => toggleSectorSkills(sector.sector)}
+                              className="mt-1.5 flex items-center gap-0.5 text-xs text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
+                              data-testid={`button-sector-skills-toggle-${index}`}
+                            >
+                              {isExpanded ? (
+                                <>
+                                  <ChevronUp className="w-3 h-3" aria-hidden="true" />
+                                  {t('analytics.skillsShowLess')}
+                                </>
+                              ) : (
+                                <>
+                                  <ChevronDown className="w-3 h-3" aria-hidden="true" />
+                                  {t('analytics.skillsShowMore', { n: hiddenCount })}
+                                </>
+                              )}
+                            </button>
+                          )}
                         </div>
                       )}
                       <div className="mt-auto space-y-2">

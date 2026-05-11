@@ -97,6 +97,8 @@
     "students": "طالب",
     "visionAlignment": "التوافق مع الرؤية",
     "prioritySkills": "المهارات ذات الأولوية",
+    "skillsShowMore": "+{{n}} أخرى",
+    "skillsShowLess": "عرض أقل",
     "na": "غير متاح",
     "gradeDistributionTitle": "توزيع الصفوف الدراسية",
     "gradeDistributionLoading": "جاري تحميل توزيع الصفوف...",

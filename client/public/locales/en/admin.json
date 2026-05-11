@@ -97,6 +97,8 @@
     "students": "students",
     "visionAlignment": "Vision Alignment",
     "prioritySkills": "Priority Skills",
+    "skillsShowMore": "+{{n}} more",
+    "skillsShowLess": "Show less",
     "na": "N/A",
     "gradeDistributionTitle": "Grade Distribution",
     "gradeDistributionLoading": "Loading grade distribution...",
