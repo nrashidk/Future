@@ -1675,7 +1675,7 @@ export async function seedDatabase() {
     const allCareers = await storage.getAllCareers();
     const missingAr = allCareers.filter(
       c => CANONICAL_CAREER_TITLES.has(c.title) &&
-           (!c.titleAr || !c.descriptionAr || !c.requiredSkillsAr?.length)
+           (!c.titleAr || !c.descriptionAr || !c.requiredSkillsAr?.length || !c.educationLevelAr)
     );
     if (missingAr.length > 0) {
       console.warn(`⚠️  ${missingAr.length} career(s) missing Arabic translations: ${missingAr.map(c => c.title).join(', ')}`);
