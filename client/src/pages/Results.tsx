@@ -156,6 +156,27 @@ function localizeCategory(raw: string, tFn: (key: string, opts?: any) => string)
   return i18nKey ? tFn(i18nKey) : raw;
 }
 
+/**
+ * Translate a vision priority string (a country priority-sector name stored in
+ * English) to its Arabic equivalent by looking it up in the country's
+ * prioritySectors / prioritySectorsAr parallel arrays.  Falls back to the
+ * original English string when a match cannot be found.
+ */
+function localizePriorityString(
+  priority: string,
+  country: any,
+  language: string
+): string {
+  if (language !== 'ar') return priority;
+  const sectorsEn = country?.prioritySectors as string[] | undefined;
+  const sectorsAr = country?.prioritySectorsAr as string[] | undefined;
+  if (!sectorsEn || !sectorsAr) return priority;
+  const idx = sectorsEn.findIndex(
+    (s) => s.toLowerCase() === priority.toLowerCase()
+  );
+  return idx >= 0 && sectorsAr[idx] ? sectorsAr[idx] : priority;
+}
+
 // Helper to map subjects to vision sectors using actual country vision data
 function mapSubjectsToVisionSectors(
   subjectScores: Record<string, { percentage: number }>,
@@ -907,7 +928,7 @@ export default function Results() {
                                   data-testid={`badge-vision-${idx}`}
                                 >
                                   <Target className="w-3 h-3" />
-                                  {priority}
+                                  {localizePriorityString(priority, country, language)}
                                 </span>
                               ))}
                             </div>
