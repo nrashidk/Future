@@ -576,8 +576,11 @@ export default function Assessment() {
         } catch (saveError) {
           console.error("Error saving assessment:", saveError);
           const msg = t("errors.saveFailedDesc");
-          toast({ title: t("errors.saveFailed"), description: msg, variant: "destructive" });
-          if (isAspirationsStepPremium) setAspirationsError(msg);
+          if (isAspirationsStepPremium) {
+            setAspirationsError(msg);
+          } else {
+            toast({ title: t("errors.saveFailed"), description: msg, variant: "destructive" });
+          }
           return; // stop here; finally will clear isGenerating
         }
         
@@ -592,9 +595,7 @@ export default function Assessment() {
             setLocation("/results?assessmentId=" + assessment.id);
           } catch (genError) {
             console.error("Error generating recommendations:", genError);
-            const msg = t("errors.generateFailedDesc");
-            toast({ title: t("errors.generateFailed"), description: msg, variant: "destructive" });
-            setAspirationsError(msg);
+            setAspirationsError(t("errors.generateFailedDesc"));
           }
         } else {
           // Advance to quiz step - React batches state updates so assessmentId will be available

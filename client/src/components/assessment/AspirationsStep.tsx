@@ -137,12 +137,24 @@ export function AspirationsStep({ data, onUpdate, onNext, onBack, isGenerating =
         </div>
         {submitError && (
           <div
-            className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive max-w-md w-full"
+            className="flex flex-col gap-3 rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive max-w-md w-full"
             data-testid="text-aspirations-submit-error"
             role="alert"
           >
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
-            <span>{submitError}</span>
+            <div className="flex items-start gap-2">
+              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+              <span>{submitError}</span>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={onNext}
+              disabled={!canProceed}
+              className="self-end"
+              data-testid="button-try-again"
+            >
+              {t('errors.tryAgain')}
+            </Button>
           </div>
         )}
       </div>

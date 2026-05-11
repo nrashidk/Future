@@ -27,6 +27,7 @@
     "saveFailedDesc": "Failed to save your assessment. Please try again.",
     "generateFailed": "Error",
     "generateFailedDesc": "Failed to generate recommendations. Please try again.",
+    "tryAgain": "Try Again",
     "unknownError": "Unknown error"
   },
   "nav": {

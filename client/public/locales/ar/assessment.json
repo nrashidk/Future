@@ -27,6 +27,7 @@
     "saveFailedDesc": "فشل حفظ تقييمك. يرجى المحاولة مرة أخرى.",
     "generateFailed": "خطأ",
     "generateFailedDesc": "فشل إنشاء التوصيات. يرجى المحاولة مجدداً.",
+    "tryAgain": "حاول مرة أخرى",
     "unknownError": "خطأ غير معروف"
   },
   "nav": {
