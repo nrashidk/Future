@@ -287,5 +287,10 @@
     "careerPersonality": "Career Personality",
     "personalValues": "Personal Values",
     "stepOf": "Step {{current}} of {{total}}"
+  },
+  "polling": {
+    "title": "Generating Your Results...",
+    "subtitle": "Please wait while we prepare your personalized career recommendations.",
+    "hint": "This may take a moment. You can safely wait on this page."
   }
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { ProgressTracker } from "@/components/ProgressTracker";
@@ -12,12 +12,19 @@ import CVQStep from "@/components/CVQStep";
 import { CountryStep } from "@/components/assessment/CountryStep";
 import { AspirationsStep } from "@/components/assessment/AspirationsStep";
 import { QuizStep } from "@/components/assessment/QuizStep";
-import { GraduationCap, LogIn, LogOut, User, ClipboardCheck, Building2, BarChart, Shield, FileQuestion, RotateCcw, PlayCircle } from "lucide-react";
+import { GraduationCap, LogIn, LogOut, User, ClipboardCheck, Building2, BarChart, Shield, FileQuestion, RotateCcw, PlayCircle, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 import type { Assessment as AssessmentRecord } from "@shared/schema";
 
 const DRAFT_KEY = "fp_assessment_draft";
+
+// Both free and premium users reach step 7 as their final step before results
+// generation fires.  If the page reloads while the POST is in-flight we poll
+// instead of showing the resume prompt.
+const FINAL_GENERATION_STEP = 7;
+const POLL_INTERVAL_MS = 2000;
+const MAX_POLL_ATTEMPTS = 15; // ~30 s
 
 // Maps each PersonalityStep question ID + numeric answer to a locale trait key.
 // e.g. { teamwork: "2" } → "teamwork_2" → t('traits.teamwork_2') → "Flexible" / "مرن"
@@ -74,6 +81,13 @@ export default function Assessment() {
     assessmentData: AssessmentData;
   } | null>(null);
   const [apiResumeChecked, setApiResumeChecked] = useState(false);
+  // Polling state: true while we're waiting for an in-flight generation to complete
+  const [isPollingForResults, setIsPollingForResults] = useState(false);
+  const pollingAssessmentIdRef = useRef<string | null>(null);
+  const pollingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollingAttemptsRef = useRef(0);
+  // Keep a copy of the draft so we can restore the resume prompt on poll timeout
+  const pollingDraftRef = useRef<{ assessmentId: string; currentStep: number; assessmentData: AssessmentData } | null>(null);
 
   const isPremiumUser = user?.isPremium || false;
 
@@ -161,20 +175,96 @@ export default function Assessment() {
     }
   }, []);
 
-  // On mount (after auth resolves): check sessionStorage for a saved draft and offer resume
+  // On mount (after auth resolves): check sessionStorage for a saved draft.
+  // If the draft is at the final generation step (step 7) we first silently check
+  // whether recommendations already exist.  If they do we redirect immediately;
+  // if they don't we show a polling "Generating…" screen rather than the resume
+  // prompt, because the POST /api/recommendations/generate call was likely still
+  // in-flight when the page was reloaded.
   useEffect(() => {
     if (isLoading) return;
     try {
       const raw = sessionStorage.getItem(DRAFT_KEY);
       if (!raw) return;
       const draft = JSON.parse(raw) as { assessmentId: string; currentStep: number; assessmentData: AssessmentData };
-      if (draft.assessmentId && typeof draft.currentStep === "number" && draft.currentStep > 1) {
+      if (!draft.assessmentId || typeof draft.currentStep !== "number" || draft.currentStep <= 1) return;
+
+      if (draft.currentStep >= FINAL_GENERATION_STEP) {
+        // Async path: check if recommendations are already there
+        const checkAndRoute = async () => {
+          try {
+            const { apiRequest } = await import("@/lib/queryClient");
+            const res = await apiRequest("GET", `/api/recommendations?assessmentId=${draft.assessmentId}`);
+            const recs = await res.json();
+            if (Array.isArray(recs) && recs.length > 0) {
+              // Generation already completed — redirect straight to results
+              try { sessionStorage.removeItem(DRAFT_KEY); } catch {}
+              setLocation("/results?assessmentId=" + draft.assessmentId);
+            } else {
+              // No results yet — start polling (generation may still be running)
+              pollingAssessmentIdRef.current = draft.assessmentId;
+              pollingDraftRef.current = draft;
+              pollingAttemptsRef.current = 0;
+              setIsPollingForResults(true);
+            }
+          } catch {
+            // Network error — fall back to resume prompt so student isn't stuck
+            setResumePrompt(draft);
+          }
+        };
+        checkAndRoute();
+      } else {
+        // Normal resume path — generation hasn't started yet
         setResumePrompt(draft);
       }
     } catch {
       try { sessionStorage.removeItem(DRAFT_KEY); } catch {}
     }
-  }, [isLoading]);
+  }, [isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Polling effect: fires every POLL_INTERVAL_MS while isPollingForResults is true.
+  // Clears itself and redirects when recommendations appear, or falls back to the
+  // resume prompt after MAX_POLL_ATTEMPTS attempts (~30 s).
+  useEffect(() => {
+    if (!isPollingForResults) return;
+    const aid = pollingAssessmentIdRef.current;
+    if (!aid) return;
+
+    const poll = async () => {
+      pollingAttemptsRef.current += 1;
+      try {
+        const { apiRequest } = await import("@/lib/queryClient");
+        const res = await apiRequest("GET", `/api/recommendations?assessmentId=${aid}`);
+        const recs = await res.json();
+        if (Array.isArray(recs) && recs.length > 0) {
+          if (pollingTimerRef.current) clearInterval(pollingTimerRef.current);
+          try { sessionStorage.removeItem(DRAFT_KEY); } catch {}
+          setIsPollingForResults(false);
+          setLocation("/results?assessmentId=" + aid);
+          return;
+        }
+      } catch {
+        // ignore transient errors, keep polling
+      }
+
+      if (pollingAttemptsRef.current >= MAX_POLL_ATTEMPTS) {
+        if (pollingTimerRef.current) clearInterval(pollingTimerRef.current);
+        setIsPollingForResults(false);
+        // Restore resume prompt so the student can continue from where they were
+        if (pollingDraftRef.current) {
+          setResumePrompt(pollingDraftRef.current);
+        }
+      }
+    };
+
+    // Run immediately then repeat
+    poll();
+    pollingTimerRef.current = setInterval(poll, POLL_INTERVAL_MS);
+
+    return () => {
+      if (pollingTimerRef.current) clearInterval(pollingTimerRef.current);
+    };
+  }, [isPollingForResults]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cross-device resume: check the backend for an in-progress assessment.
   // Only runs for authenticated users when sessionStorage has no draft
@@ -595,6 +685,25 @@ export default function Assessment() {
         <div className="text-center">
           <GraduationCap className="w-16 h-16 text-primary mx-auto mb-4 animate-pulse" />
           <p className="text-lg text-muted-foreground">{t("loading")}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Shown when the page is reloaded mid-generation: poll until results arrive.
+  if (isPollingForResults) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5">
+        <div className="text-center space-y-6 px-4 max-w-md mx-auto">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-primary/10 mb-2">
+            <GraduationCap className="w-10 h-10 text-primary animate-pulse" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold">{t("polling.title")}</h2>
+            <p className="text-muted-foreground font-body">{t("polling.subtitle")}</p>
+          </div>
+          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" />
+          <p className="text-sm text-muted-foreground font-body">{t("polling.hint")}</p>
         </div>
       </div>
     );
