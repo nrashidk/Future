@@ -1667,11 +1667,15 @@ export async function seedDatabase() {
     console.error("  Career Arabic content error (non-fatal, continuing):", error.message);
   }
 
-  // Validate Arabic completeness — warn about careers missing AR translations
+  // Validate Arabic completeness — warn about canonical careers missing AR translations
+  // Only checks careers whose titles match the canonical seed list; rogue/test DB
+  // entries with non-standard titles (e.g. suffixed with digits) are excluded.
   try {
+    const { CANONICAL_CAREER_TITLES } = await import("./migrations/career-arabic-content");
     const allCareers = await storage.getAllCareers();
     const missingAr = allCareers.filter(
-      c => !c.titleAr || !c.descriptionAr || !c.requiredSkillsAr?.length
+      c => CANONICAL_CAREER_TITLES.has(c.title) &&
+           (!c.titleAr || !c.descriptionAr || !c.requiredSkillsAr?.length)
     );
     if (missingAr.length > 0) {
       console.warn(`⚠️  ${missingAr.length} career(s) missing Arabic translations: ${missingAr.map(c => c.title).join(', ')}`);
