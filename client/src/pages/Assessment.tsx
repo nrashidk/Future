@@ -24,7 +24,7 @@ const DRAFT_KEY = "fp_assessment_draft";
 // instead of showing the resume prompt.
 const FINAL_GENERATION_STEP = 7;
 const POLL_INTERVAL_MS = 2000;
-const MAX_POLL_ATTEMPTS = 15; // ~30 s
+const MAX_POLL_ATTEMPTS = 45; // ~90 s — generous ceiling for slow generation under load
 
 // Maps each PersonalityStep question ID + numeric answer to a locale trait key.
 // e.g. { teamwork: "2" } → "teamwork_2" → t('traits.teamwork_2') → "Flexible" / "مرن"
