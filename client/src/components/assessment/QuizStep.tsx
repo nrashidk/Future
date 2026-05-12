@@ -60,27 +60,13 @@ export function QuizStep({ assessmentId, onComplete }: QuizStepProps) {
     }
   }, [quizData, showResults, onComplete]);
 
-  // Submit quiz mutation (CSRF token + guest cookie sent automatically)
+  // Submit quiz mutation — uses apiRequest so CSRF token is always included
   const submitMutation = useMutation({
     mutationFn: async (quizResponses: QuizResponse[]) => {
-      const csrfToken = document.cookie.match(/csrf_token=([^;]+)/)?.[1] ?? "";
-      const res = await fetch(`/api/assessments/${assessmentId}/quiz/submit`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-csrf-token": csrfToken,
-        },
-        body: JSON.stringify({ responses: quizResponses }),
-        credentials: "include",
+      const res = await apiRequest("POST", `/api/assessments/${assessmentId}/quiz/submit`, {
+        responses: quizResponses,
       });
-      const data = await res.json();
-      if (!res.ok) {
-        const err: any = new Error(data.message ?? "Request failed");
-        err.code = data.code;
-        err.status = res.status;
-        throw err;
-      }
-      return data;
+      return await res.json();
     },
     onSuccess: (data) => {
       setScore(data);
@@ -95,7 +81,14 @@ export function QuizStep({ assessmentId, onComplete }: QuizStepProps) {
       }, 3000);
     },
     onError: (error: any) => {
-      if (error?.code === "QUIZ_ALREADY_SUBMITTED") {
+      // apiRequest throws `"${status}: ${bodyText}"` — parse the JSON body to get the code
+      let code: string | undefined;
+      try {
+        const match = String(error?.message ?? "").match(/^\d+: (.+)$/s);
+        if (match) code = JSON.parse(match[1])?.code;
+      } catch {}
+
+      if (code === "QUIZ_ALREADY_SUBMITTED") {
         toast({
           title: t('quiz.alreadySubmitted'),
           description: t('quiz.alreadySubmittedDesc'),
