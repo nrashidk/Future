@@ -60,12 +60,16 @@ export function QuizStep({ assessmentId, onComplete }: QuizStepProps) {
     }
   }, [quizData, showResults, onComplete]);
 
-  // Submit quiz mutation (guest token is sent via httpOnly cookie automatically)
+  // Submit quiz mutation (CSRF token + guest cookie sent automatically)
   const submitMutation = useMutation({
     mutationFn: async (quizResponses: QuizResponse[]) => {
+      const csrfToken = document.cookie.match(/csrf_token=([^;]+)/)?.[1] ?? "";
       const res = await fetch(`/api/assessments/${assessmentId}/quiz/submit`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-csrf-token": csrfToken,
+        },
         body: JSON.stringify({ responses: quizResponses }),
         credentials: "include",
       });
