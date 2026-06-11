@@ -6,8 +6,9 @@ import { storage } from "../storage";
 import { isAuthenticated } from "../auth";
 import { isAdmin, getSuperadminEmails } from "../middleware/auth.middleware";
 
-// Create uploads directory if it doesn't exist
-const UPLOADS_DIR = path.join(process.cwd(), "uploads");
+// Private uploads directory — these files are served ONLY through the
+// authenticated handlers below, never statically (C1).
+const UPLOADS_DIR = path.join(process.cwd(), "uploads", "private");
 fs.mkdir(UPLOADS_DIR, { recursive: true }).catch(console.error);
 
 // Configure multer for file uploads

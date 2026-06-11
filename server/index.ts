@@ -149,23 +149,13 @@ app.use((req, res, next) => {
 });
 app.use(cookieParser());
 
-// Serve ONLY public image assets (e.g. organization logos) from uploads.
-// Every other artifact in this directory — CSV/JSON/Excel exports, generated
-// PDFs, and credential files containing minors' login passwords — must be
-// fetched through the authenticated /api/files routes, never statically.
-// Without this allowlist the whole directory was world-readable, defeating the
-// ownership checks and share-token logic in files.routes.ts.
-const PUBLIC_UPLOAD_EXTS = new Set(['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg']);
-app.use(
-  '/uploads',
-  (req, res, next) => {
-    if (!PUBLIC_UPLOAD_EXTS.has(path.extname(req.path).toLowerCase())) {
-      return res.status(404).json({ message: "Not found" });
-    }
-    next();
-  },
-  express.static(path.join(process.cwd(), 'uploads')),
-);
+// Serve ONLY public asset uploads (e.g. organization logos), which are written
+// to uploads/public. Private uploads (CSV/JSON/Excel data and any file
+// containing minors' personal data) live in uploads/private and are reachable
+// only through the authenticated /api/files routes — never statically. This
+// directory-level split is what enforces the ownership/share-token controls in
+// files.routes.ts (C1).
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads', 'public')));
 
 // CSRF cookie is set early (just sets a cookie, doesn't validate)
 app.use(csrfProtection);

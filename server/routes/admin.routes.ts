@@ -9,12 +9,16 @@ import { insertQuizQuestionSchema } from "@shared/schema";
 import { z } from "zod";
 import { isPremiumAssessment } from "../utils/assessmentTier";
 
-const diskStorage = multer.diskStorage({
+// Public assets (org logos) and private data uploads are stored in separate
+// subdirectories of uploads/ so that only the public one is ever served
+// statically. Private uploads are reachable only via authenticated /api/files
+// routes (C1).
+const makeDiskStorage = (subdir: string) => multer.diskStorage({
   destination: (req, file, cb) => {
     const fs = require('fs');
-    const uploadsDir = path.join(process.cwd(), 'uploads');
-    fs.mkdirSync(uploadsDir, { recursive: true });
-    cb(null, uploadsDir);
+    const dir = path.join(process.cwd(), 'uploads', subdir);
+    fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
@@ -24,9 +28,12 @@ const diskStorage = multer.diskStorage({
   },
 });
 
-// Configure multer for CSV/JSON data file uploads
+const privateDiskStorage = makeDiskStorage('private');
+const publicDiskStorage = makeDiskStorage('public');
+
+// Configure multer for CSV/JSON data file uploads (private)
 const upload = multer({
-  storage: diskStorage,
+  storage: privateDiskStorage,
   limits: {
     fileSize: 50 * 1024 * 1024, // 50MB limit
   },
@@ -48,9 +55,9 @@ const upload = multer({
   },
 });
 
-// Configure multer for image uploads (logos, etc.)
+// Configure multer for image uploads (logos, etc.) — public
 const imageUpload = multer({
-  storage: diskStorage,
+  storage: publicDiskStorage,
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit for images
   },
