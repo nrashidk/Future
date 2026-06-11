@@ -1486,11 +1486,6 @@ export function registerAdminRoutes(app: Express) {
       }
 
       const members = await storage.getOrganizationMembersByOrganizationId(req.params.id);
-      
-      const fs = await import('fs/promises');
-      const path = await import('path');
-      const uploadsDir = path.default.join(process.cwd(), 'uploads');
-      await fs.default.mkdir(uploadsDir, { recursive: true });
 
       let fileContent: string;
       let mimeType: string;
@@ -1564,30 +1559,11 @@ export function registerAdminRoutes(app: Express) {
         filename = `${organization.name.replace(/[^a-zA-Z0-9]/g, '_')}_Students_${Date.now()}.csv`;
       }
 
-      // Save file to disk
-      const filePath = path.default.join(uploadsDir, filename);
-      await fs.default.writeFile(filePath, fileContent, 'utf-8');
-
-      // Save file metadata to database
-      const file = await storage.createFile({
-        filename,
-        originalFilename: filename,
-        mimeType,
-        fileSize: Buffer.byteLength(fileContent, 'utf-8'),
-        filePath,
-        fileType: 'export_data',
-        category: 'student_export',
-        description: `Student export for ${organization.name}`,
-        uploadedBy: userId,
-        organizationId: organization.id,
-        isPublic: false,
-      });
-
-      res.json({
-        success: true,
-        file,
-        message: 'Student data exported successfully',
-      });
+      // SECURITY (C1): stream the export directly to the caller; never persist
+      // exports of minors' data to the filesystem.
+      res.setHeader("Content-Type", `${mimeType}; charset=utf-8`);
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      res.send(fileContent);
     } catch (error) {
       console.error("Error exporting student data:", error);
       res.status(500).json({ message: "Failed to export student data" });
@@ -1616,11 +1592,6 @@ export function registerAdminRoutes(app: Express) {
       }
 
       const members = await storage.getOrganizationMembersByOrganizationId(req.params.id);
-      
-      const fs = await import('fs/promises');
-      const path = await import('path');
-      const uploadsDir = path.default.join(process.cwd(), 'uploads');
-      await fs.default.mkdir(uploadsDir, { recursive: true });
 
       const assessmentsData = [];
 
@@ -1699,28 +1670,11 @@ export function registerAdminRoutes(app: Express) {
         filename = `${organization.name.replace(/[^a-zA-Z0-9]/g, '_')}_Assessments_${Date.now()}.csv`;
       }
 
-      const filePath = path.default.join(uploadsDir, filename);
-      await fs.default.writeFile(filePath, fileContent, 'utf-8');
-
-      const file = await storage.createFile({
-        filename,
-        originalFilename: filename,
-        mimeType,
-        fileSize: Buffer.byteLength(fileContent, 'utf-8'),
-        filePath,
-        fileType: 'export_data',
-        category: 'assessment_export',
-        description: `Assessment export for ${organization.name}`,
-        uploadedBy: userId,
-        organizationId: organization.id,
-        isPublic: false,
-      });
-
-      res.json({
-        success: true,
-        file,
-        message: 'Assessment data exported successfully',
-      });
+      // SECURITY (C1): stream the export directly to the caller; never persist
+      // exports of minors' data to the filesystem.
+      res.setHeader("Content-Type", `${mimeType}; charset=utf-8`);
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      res.send(fileContent);
     } catch (error) {
       console.error("Error exporting assessment data:", error);
       res.status(500).json({ message: "Failed to export assessment data" });
@@ -1902,8 +1856,10 @@ export function registerAdminRoutes(app: Express) {
         results.failed
       );
 
-      // Save credentials to a secure CSV file with formula injection protection
-      let credentialsFile = null;
+      // SECURITY (C1): build the credentials CSV (minors' plaintext passwords)
+      // in memory and return it inline in this response ONLY. It is never
+      // written to disk \u2014 the caller builds the downloadable file client-side.
+      let credentialsCsv: string | null = null;
       if (results.credentials.length > 0) {
         const sanitizeCSV = (value: string): string => {
           const val = String(value || '').replace(/"/g, '""');
@@ -1913,34 +1869,12 @@ export function registerAdminRoutes(app: Express) {
           return `"${val}"`;
         };
 
-        const credentialsCsv = [
+        credentialsCsv = '\uFEFF' + [
           'Username,Password,Full Name,Grade',
-          ...results.credentials.map(c => 
+          ...results.credentials.map(c =>
             `${sanitizeCSV(c.username)},${sanitizeCSV(c.password)},${sanitizeCSV(c.fullName)},${sanitizeCSV(c.grade)}`
           )
         ].join('\n');
-
-        const path = await import('path');
-        const uploadsDir = path.default.join(process.cwd(), 'uploads');
-        await fs.default.mkdir(uploadsDir, { recursive: true });
-        
-        const credentialsFilename = `${organization.name.replace(/[^a-zA-Z0-9]/g, '_')}_Credentials_${Date.now()}.csv`;
-        const credentialsFilePath = path.default.join(uploadsDir, credentialsFilename);
-        await fs.default.writeFile(credentialsFilePath, '\uFEFF' + credentialsCsv, 'utf-8');
-
-        credentialsFile = await storage.createFile({
-          filename: credentialsFilename,
-          originalFilename: credentialsFilename,
-          mimeType: 'text/csv',
-          fileSize: Buffer.byteLength(credentialsCsv, 'utf-8'),
-          filePath: credentialsFilePath,
-          fileType: 'export_data',
-          category: 'credentials',
-          description: `Student credentials for bulk import into ${organization.name}`,
-          uploadedBy: userId,
-          organizationId: organization.id,
-          isPublic: false,
-        });
       }
 
       res.json({
@@ -1952,7 +1886,9 @@ export function registerAdminRoutes(app: Express) {
           errors: results.errors,
         },
         importFile: fileRecord,
-        credentialsFile, // Download this file to get usernames/passwords
+        // Inline credentials for client-side download; never persisted server-side.
+        credentials: results.credentials,
+        credentialsCsv,
       });
     } catch (error: any) {
       console.error("Error importing students:", error);
