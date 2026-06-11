@@ -1,0 +1,7 @@
+[allowlist]
+description = "Known placeholder values in planning docs"
+regexes = [
+  '''test-api-key-12345''',
+  '''sk-test-1234567890abcdef''',
+  '''0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef''',
+]
