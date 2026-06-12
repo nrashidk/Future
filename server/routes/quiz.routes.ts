@@ -304,9 +304,10 @@ export function registerQuizRoutes(app: Express) {
         return res.status(404).json({ message: "Assessment not found" });
       }
       
+      const guestToken = req.query.guestToken || req.cookies?.guest_token;
       const userId = req.isAuthenticated() ? (req.user.userId) : null;
       const isOwner = req.isAuthenticated() && assessment.userId === userId;
-      const isGuestOwner = assessment.isGuest;
+      const isGuestOwner = assessment.isGuest && guestToken && assessment.guestSessionId === guestToken;
       if (!isOwner && !isGuestOwner) {
         return res.status(403).json({ message: "Unauthorized to view this quiz" });
       }
