@@ -227,27 +227,36 @@ export function registerAssessmentRoutes(app: Express) {
       // Sanitize user input to prevent XSS
       const sanitizedBody = sanitizeRequestBody(req.body);
       
-      // Define allowed fields for assessment updates
+      // Define allowed fields for assessment updates.
+      // SECURITY (M1): server-derived fields are intentionally NOT client-writable.
+      // assessmentType (the free/premium flag), quizScore, isCompleted, riasecScores
+      // and cvqScores are computed server-side — letting the client PATCH them allowed
+      // a free user to self-upgrade to premium (assessmentType: 'premium') and to forge
+      // scores/completion. assessmentType and riasecScores are still derived below from
+      // the client-supplied *Responses, so the legitimate premium upgrade path is intact.
       const allowedFields = [
-        'name', 'age', 'grade', 'gender', 'countryId', 'favoriteSubjects', 
-        'prioritySubjects', 'interests', 'personalityTraits', 'careerAspirations', 
+        'name', 'age', 'grade', 'gender', 'countryId', 'favoriteSubjects',
+        'prioritySubjects', 'interests', 'personalityTraits', 'careerAspirations',
         'strengths', 'workPreferences', 'riasecResponses', 'cvqResponses',
-        'riasecScores', 'cvqScores', 'quizScore', 'subjectCompetencies',
-        'currentStep', 'currentStepMetadata', 'isCompleted', 'completedAt', 
-        'assessmentType', 'educationLevel'
+        'subjectCompetencies',
+        'currentStep', 'currentStepMetadata', 'completedAt',
+        'educationLevel'
       ];
       
-      // Validation: Check for disallowed fields
-      const providedFields = Object.keys(sanitizedBody);
-      const disallowedFields = providedFields.filter(field => !allowedFields.includes(field));
-      if (disallowedFields.length > 0) {
-        return res.status(400).json({ 
-          message: `Disallowed fields: ${disallowedFields.join(', ')}. Only allowed fields: ${allowedFields.join(', ')}` 
-        });
+      // Mass-assignment defense (M1): silently drop any field not on the allowlist
+      // (e.g. the server-derived assessmentType/scores) and process only the allowed
+      // ones, instead of rejecting the whole request. This keeps legit clients that
+      // still send a now-disallowed field working, while preventing premium/score
+      // escalation via unexpected fields.
+      const filteredBody: Record<string, any> = {};
+      for (const field of allowedFields) {
+        if (sanitizedBody[field] !== undefined) {
+          filteredBody[field] = sanitizedBody[field];
+        }
       }
-      
+
       // Normalize payload before processing
-      const normalizationResult = normalizeAssessmentPayload(sanitizedBody);
+      const normalizationResult = normalizeAssessmentPayload(filteredBody);
       if (normalizationResult.error) {
         return res.status(400).json({ message: normalizationResult.error });
       }
