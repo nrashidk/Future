@@ -114,7 +114,17 @@ export function registerCvqRoutes(app: Express) {
         lowVariance,
         rushedCompletion: rushedCompletion || false,
       });
-      
+
+      // Persist the server-computed CVQ scores onto the assessment (M1).
+      // assessment.cvqScores is no longer client-writable via PATCH /api/assessments,
+      // so this is now its authoritative writer. The value is derived ONLY from the
+      // scores computed above (never from client input) and is shaped to match what
+      // the values dimension of career matching expects (matching.ts:707): per-domain
+      // 0-100 scores plus a top3 array.
+      await storage.updateAssessment(assessmentId, {
+        cvqScores: { ...normalizedScores, top3: topValues },
+      });
+
       res.status(201).json(result);
     } catch (error) {
       console.error("Error submitting CVQ:", error);
