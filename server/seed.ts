@@ -1703,14 +1703,21 @@ export async function seedDatabase() {
     const { hashPassword } = await import("./utils/passwordHash");
     const { db } = await import("./db");
     const { users, organizations, organizationMembers } = await import("@shared/schema");
-    const { eq } = await import("drizzle-orm");
-    
-    const adminPassword = "FuturePath2025!";
-    const adminPasswordHash = await hashPassword(adminPassword);
-    
+
+    const adminPassword = process.env.SEED_SCHOOLADMIN_PASSWORD;
     const existingAdmin = await storage.getUserByUsername("schooladmin");
-    if (!existingAdmin) {
-      // Create admin user
+
+    if (existingAdmin) {
+      // Account already exists — do NOT reset its password, so live
+      // credential changes are never clobbered on deploy.
+      console.log("  Test admin account already exists (schooladmin) - password left unchanged");
+    } else if (!adminPassword) {
+      // No account yet, and no password to set. Never fall back to a
+      // hardcoded password — skip seeding and warn instead.
+      console.warn("  ⚠️  SEED_SCHOOLADMIN_PASSWORD is not set — skipping schooladmin account creation (no hardcoded fallback).");
+    } else {
+      // Create admin user — password is only set here, at creation time
+      const adminPasswordHash = await hashPassword(adminPassword);
       const [adminUser] = await db
         .insert(users)
         .values({
@@ -1749,10 +1756,6 @@ export async function seedDatabase() {
       console.log(`  📧 Username: schooladmin`);
       console.log(`  🏫 Organization: ${testOrg.name}`);
       console.log(`  📊 Total Licenses: ${testOrg.totalLicenses}`);
-    } else {
-      // Update password hash to ensure it's correct
-      await db.update(users).set({ passwordHash: adminPasswordHash }).where(eq(users.id, existingAdmin.id));
-      console.log("  Test admin account already exists (schooladmin) - password reset to default");
     }
   } catch (error: any) {
     console.error("  Error creating test admin:", error.message);
@@ -1766,8 +1769,7 @@ export async function seedDatabase() {
     const { users: usersTable } = await import("@shared/schema");
     const { eq: eqOp } = await import("drizzle-orm");
 
-    const superadminPassword = "SuperAdmin2026!";
-    const superadminHash = await hashPw(superadminPassword);
+    const superadminPassword = process.env.SEED_SUPERADMIN_PASSWORD;
 
     // Use the first email from SUPERADMIN_EMAILS env var if set, otherwise fall back to local dev placeholder
     const superadminEmailFromEnv = (process.env.SUPERADMIN_EMAILS || "")
@@ -1787,21 +1789,29 @@ export async function seedDatabase() {
       .limit(1);
 
     if (existingByUsername) {
-      // Username account exists — just reset the password and role
+      // Account already exists — do NOT reset its password, so live
+      // credential changes are never clobbered on deploy. Only ensure the
+      // role is correct (idempotent, not a credential reset).
       await dbConn
         .update(usersTable)
-        .set({ passwordHash: superadminHash, role: "superadmin" })
+        .set({ role: "superadmin" })
         .where(eqOp(usersTable.id, existingByUsername.id));
-      console.log("  Superadmin account already exists (username: superadmin) - password reset to default");
+      console.log("  Superadmin account already exists (username: superadmin) - password left unchanged");
+    } else if (!superadminPassword) {
+      // No username account yet, and no password to set. Never fall back to a
+      // hardcoded password — skip seeding and warn instead.
+      console.warn("  ⚠️  SEED_SUPERADMIN_PASSWORD is not set — skipping superadmin account creation (no hardcoded fallback).");
     } else if (existingByEmail) {
       // OAuth-created account with this email exists but no username/password — patch it
+      const superadminHash = await hashPw(superadminPassword);
       await dbConn
         .update(usersTable)
         .set({ username: "superadmin", passwordHash: superadminHash, role: "superadmin" })
         .where(eqOp(usersTable.id, existingByEmail.id));
       console.log(`  ✓ Patched OAuth account (${superadminEmail}) with username & password for superadmin login`);
     } else {
-      // No account at all — create fresh
+      // No account at all — create fresh (password is only set here, at creation time)
+      const superadminHash = await hashPw(superadminPassword);
       await dbConn
         .insert(usersTable)
         .values({

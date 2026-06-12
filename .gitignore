@@ -7,5 +7,6 @@ vite.config.ts.*
 .replit
 .env
 .env.*
+!.env.example
 gitleaks-report.json
 gitleaks-raw.json
