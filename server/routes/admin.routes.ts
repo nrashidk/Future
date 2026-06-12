@@ -944,7 +944,7 @@ export function registerAdminRoutes(app: Express) {
       // Check if user is superadmin
       const superadminEmails = getSuperadminEmails();
       const isSuperadmin = 
-        (currentUser.email && superadminEmails.includes(currentUser.email)) ||
+        (currentUser.email && superadminEmails.includes(currentUser.email.toLowerCase())) ||
         currentUser.role === "superadmin";
       
       // Check if user is org admin for THIS specific organization
@@ -966,6 +966,11 @@ export function registerAdminRoutes(app: Express) {
       const member = await storage.getOrganizationMemberById(memberId);
       if (!member) {
         return res.status(404).json({ message: "Member not found" });
+      }
+
+      // CRITICAL SECURITY: Verify member belongs to the organization in the URL
+      if (member.organizationId !== req.params.id) {
+        return res.status(403).json({ message: "Forbidden: Member does not belong to this organization" });
       }
 
       const user = await storage.getUser(member.userId);
