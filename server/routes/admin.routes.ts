@@ -1742,6 +1742,12 @@ export function registerAdminRoutes(app: Express) {
         if (!fileRecord) {
           return res.status(404).json({ message: "File not found" });
         }
+        // CRITICAL SECURITY: Verify the file belongs to the organization in the URL.
+        // The admin is already confined to req.params.id above, so this prevents an
+        // org_admin from importing (and thereby reading) another org's uploaded file.
+        if (fileRecord.organizationId !== req.params.id) {
+          return res.status(403).json({ message: "Forbidden: File does not belong to this organization" });
+        }
         filePath = fileRecord.filePath;
         
         // Update processing status
