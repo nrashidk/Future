@@ -44,7 +44,20 @@ export function registerCvqRoutes(app: Express) {
       
       // Get userId from authenticated request
       const userId = req.user.userId;
-      
+
+      // IDOR protection (C7): assessmentId is caller-supplied in the body. Without
+      // an ownership check an authenticated user could attribute a CVQ result to
+      // ANOTHER student's assessment — and because cvq_results.assessment_id is
+      // UNIQUE, this also lets one user squat/hijack the single canonical result
+      // slot for a victim's assessment. Verify the assessment exists and belongs
+      // to this user BEFORE creating any result. CVQ is registered-user-only, so
+      // the owner is assessment.userId; fail closed with 403 for everyone else
+      // (mirrors the C4 write gate).
+      const assessment = await storage.getAssessmentById(assessmentId);
+      if (!assessment || assessment.userId !== userId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
       // Get CVQ items to map responses to domains
       const cvqItems = await storage.getCvqItems();
       
