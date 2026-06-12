@@ -125,14 +125,24 @@ export function registerCvqRoutes(app: Express) {
     }
   });
 
-  app.get("/api/cvq/result/:assessmentId", async (req, res) => {
+  app.get("/api/cvq/result/:assessmentId", isAuthenticated, async (req: any, res) => {
     try {
       const result = await storage.getCvqResultByAssessmentId(req.params.assessmentId);
-      
-      if (!result) {
+
+      // IDOR protection (C3): assessmentId is caller-supplied via the path, so we
+      // must verify ownership BEFORE returning the CVQ work-values profile.
+      // Previously this route was UNAUTHENTICATED and ownership-free, letting
+      // anyone read any student's values profile by replaying/guessing an
+      // assessment ID. CVQ results are always tied to a registered user
+      // (cvqResults.userId is NOT NULL and /submit requires auth), so the owner
+      // is simply that user. Return an identical 404 for both the not-found and
+      // not-owned cases so the two are indistinguishable — a 404-vs-200/403
+      // difference would itself be an enumeration oracle confirming which
+      // assessment IDs map to real students (mirrors the C2 gate).
+      if (!result || result.userId !== req.user.userId) {
         return res.status(404).json({ message: "No CVQ result found for this assessment" });
       }
-      
+
       res.json(result);
     } catch (error) {
       console.error("Error fetching CVQ result:", error);
