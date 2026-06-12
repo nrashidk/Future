@@ -44,8 +44,25 @@ export function registerRecommendationsRoutes(app: Express) {
         return res.status(404).json({ message: "Assessment not found" });
       }
 
-      // IDOR protection: ensure the caller owns this assessment
-      if (assessment.userId && req.isAuthenticated() && (req.user as any)?.userId !== assessment.userId) {
+      // IDOR protection (C4): fail closed. The previous guard returned 403 only
+      // when req.isAuthenticated() was true, so an UNAUTHENTICATED caller sailed
+      // straight through and could trigger paid LLM recommendation generation on
+      // any student's assessment just by guessing/replaying its ID — an
+      // unauthenticated data-exposure + cost-abuse hole.
+      //
+      // Require positive proof of ownership: a registered-user assessment may be
+      // accessed only by that authenticated user; a guest assessment only by the
+      // caller presenting the matching guest token. Anyone else — unauthenticated,
+      // authenticated non-owner, or guest without the token — is denied. Mirrors
+      // the C2 ownership gate on GET /api/recommendations.
+      const guestToken = (req.query.guestToken as string | undefined) || (req as any).cookies?.guest_token;
+      let owns = false;
+      if (assessment.userId) {
+        owns = req.isAuthenticated() && (req.user as any)?.userId === assessment.userId;
+      } else {
+        owns = !!guestToken && guestToken === assessment.guestSessionId;
+      }
+      if (!owns) {
         return res.status(403).json({ message: "Forbidden" });
       }
 
