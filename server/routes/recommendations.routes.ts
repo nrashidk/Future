@@ -41,7 +41,9 @@ export function registerRecommendationsRoutes(app: Express) {
     try {
       const assessment = await storage.getAssessmentById(req.params.assessmentId);
       if (!assessment) {
-        return res.status(404).json({ message: "Assessment not found" });
+        // Anti-enumeration: same 403 as the not-owned case below so a missing
+        // assessment is indistinguishable from one the caller doesn't own.
+        return res.status(403).json({ message: "Forbidden" });
       }
 
       // IDOR protection (C4): fail closed. The previous guard returned 403 only
@@ -440,7 +442,9 @@ export function registerRecommendationsRoutes(app: Express) {
     try {
       const assessment = await storage.getAssessmentById(req.params.assessmentId);
       if (!assessment) {
-        return res.status(404).json({ message: "Assessment not found" });
+        // Anti-enumeration: same 403 as the not-owned case below so a missing
+        // assessment is indistinguishable from one the caller doesn't own.
+        return res.status(403).json({ message: "Unauthorized to access this report" });
       }
 
       // Authorization check (H1): verify ownership, including the guest case.

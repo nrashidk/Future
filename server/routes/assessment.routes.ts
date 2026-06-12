@@ -158,7 +158,9 @@ export function registerAssessmentRoutes(app: Express) {
     try {
       const assessment = await storage.getAssessmentById(req.params.id);
       if (!assessment) {
-        return res.status(404).json({ message: "Assessment not found" });
+        // Anti-enumeration: return the same 403 as the not-owned case below so a
+        // missing ID is indistinguishable from one the caller doesn't own.
+        return res.status(403).json({ message: "Unauthorized to access this assessment" });
       }
 
       // Ownership check: authenticated user must own it, or guest token must match
