@@ -209,10 +209,37 @@ export function registerRecommendationsRoutes(app: Express) {
         return res.json([]);
       }
 
+      // IDOR protection (C2): assessmentId is caller-supplied via query param, so we
+      // must verify ownership BEFORE returning any of this assessment's data —
+      // otherwise any user (or an unauthenticated client) could read another
+      // student's recommendations, scores and narratives by replaying/guessing an
+      // assessment ID.
+      //
+      // We return an empty list (NOT 403) for both the not-found and not-owned
+      // cases so the two are indistinguishable. On a minors' platform, a 403-vs-[]
+      // difference would let an attacker confirm which assessment IDs map to real
+      // students — an enumeration oracle that is itself a leak. So we close it here
+      // rather than mirroring GET /api/assessments/:id, which still returns 404/403
+      // (logged as a follow-up finding to fix later).
+      const assessment = await storage.getAssessmentById(assessmentId);
+      let owns = false;
+      if (assessment) {
+        if (assessment.userId) {
+          // Registered-user assessment — caller must be that authenticated user
+          owns = req.isAuthenticated() && req.user?.userId === assessment.userId;
+        } else {
+          // Guest assessment — caller must present the matching guest token
+          owns = !!guestToken && guestToken === assessment.guestSessionId;
+        }
+      }
+      if (!assessment || !owns) {
+        return res.json([]);
+      }
+
       const recommendations = await storage.getRecommendationsByAssessment(assessmentId);
 
-      // Fetch assessment to check tier and generate premium narratives
-      const assessment = await storage.getAssessmentById(assessmentId);
+      // Tier check / premium narratives (assessment already fetched above for the
+      // ownership gate, so we reuse it rather than querying again).
       const isPremium = isPremiumAssessment(assessment?.assessmentType);
 
       // Fetch CVQ result for premium users (needed for enhanced narratives)
