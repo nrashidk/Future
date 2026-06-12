@@ -443,9 +443,20 @@ export function registerRecommendationsRoutes(app: Express) {
         return res.status(404).json({ message: "Assessment not found" });
       }
 
-      // Authorization check: verify ownership
-      const userId = req.isAuthenticated() ? (req.user.userId) : null;
-      if (assessment.userId && (!req.isAuthenticated() || userId !== assessment.userId)) {
+      // Authorization check (H1): verify ownership, including the guest case.
+      // The previous guard was `assessment.userId && (...)`, so for a GUEST
+      // assessment (assessment.userId null) it short-circuited to false and ran
+      // no check at all — serving the student's PDF report (name, school,
+      // scores) to anyone who knew or guessed the assessment ID. Add the guest
+      // branch and fail closed, mirroring the C2/C4 ownership gate.
+      const guestToken = req.query.guestToken || req.cookies?.guest_token;
+      let owns = false;
+      if (assessment.userId) {
+        owns = req.isAuthenticated() && req.user.userId === assessment.userId;
+      } else {
+        owns = !!guestToken && guestToken === assessment.guestSessionId;
+      }
+      if (!owns) {
         return res.status(403).json({ message: "Unauthorized to access this report" });
       }
 
