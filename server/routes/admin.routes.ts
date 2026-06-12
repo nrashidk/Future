@@ -9,12 +9,16 @@ import { insertQuizQuestionSchema } from "@shared/schema";
 import { z } from "zod";
 import { isPremiumAssessment } from "../utils/assessmentTier";
 
-const diskStorage = multer.diskStorage({
+// Public assets (org logos) and private data uploads are stored in separate
+// subdirectories of uploads/ so that only the public one is ever served
+// statically. Private uploads are reachable only via authenticated /api/files
+// routes (C1).
+const makeDiskStorage = (subdir: string) => multer.diskStorage({
   destination: (req, file, cb) => {
     const fs = require('fs');
-    const uploadsDir = path.join(process.cwd(), 'uploads');
-    fs.mkdirSync(uploadsDir, { recursive: true });
-    cb(null, uploadsDir);
+    const dir = path.join(process.cwd(), 'uploads', subdir);
+    fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
@@ -24,9 +28,12 @@ const diskStorage = multer.diskStorage({
   },
 });
 
-// Configure multer for CSV/JSON data file uploads
+const privateDiskStorage = makeDiskStorage('private');
+const publicDiskStorage = makeDiskStorage('public');
+
+// Configure multer for CSV/JSON data file uploads (private)
 const upload = multer({
-  storage: diskStorage,
+  storage: privateDiskStorage,
   limits: {
     fileSize: 50 * 1024 * 1024, // 50MB limit
   },
@@ -48,9 +55,9 @@ const upload = multer({
   },
 });
 
-// Configure multer for image uploads (logos, etc.)
+// Configure multer for image uploads (logos, etc.) — public
 const imageUpload = multer({
-  storage: diskStorage,
+  storage: publicDiskStorage,
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit for images
   },
@@ -669,9 +676,19 @@ export function registerAdminRoutes(app: Express) {
         return res.status(403).json({ message: "Forbidden: Admin access required" });
       }
 
+      const existingMember = await storage.getOrganizationMemberById(req.params.memberId);
+      if (!existingMember) {
+        return res.status(404).json({ message: "Member not found" });
+      }
+
+      // CRITICAL SECURITY: Verify member belongs to the organization in the URL
+      if (existingMember.organizationId !== req.params.id) {
+        return res.status(403).json({ message: "Forbidden: Member does not belong to this organization" });
+      }
+
       const { fullName, grade } = req.body;
       const updates: any = {};
-      
+
       if (fullName !== undefined) updates.fullName = fullName;
       if (grade !== undefined) updates.grade = parseInt(grade);
 
@@ -927,7 +944,7 @@ export function registerAdminRoutes(app: Express) {
       // Check if user is superadmin
       const superadminEmails = getSuperadminEmails();
       const isSuperadmin = 
-        (currentUser.email && superadminEmails.includes(currentUser.email)) ||
+        (currentUser.email && superadminEmails.includes(currentUser.email.toLowerCase())) ||
         currentUser.role === "superadmin";
       
       // Check if user is org admin for THIS specific organization
@@ -949,6 +966,11 @@ export function registerAdminRoutes(app: Express) {
       const member = await storage.getOrganizationMemberById(memberId);
       if (!member) {
         return res.status(404).json({ message: "Member not found" });
+      }
+
+      // CRITICAL SECURITY: Verify member belongs to the organization in the URL
+      if (member.organizationId !== req.params.id) {
+        return res.status(403).json({ message: "Forbidden: Member does not belong to this organization" });
       }
 
       const user = await storage.getUser(member.userId);
@@ -1486,11 +1508,6 @@ export function registerAdminRoutes(app: Express) {
       }
 
       const members = await storage.getOrganizationMembersByOrganizationId(req.params.id);
-      
-      const fs = await import('fs/promises');
-      const path = await import('path');
-      const uploadsDir = path.default.join(process.cwd(), 'uploads');
-      await fs.default.mkdir(uploadsDir, { recursive: true });
 
       let fileContent: string;
       let mimeType: string;
@@ -1564,30 +1581,11 @@ export function registerAdminRoutes(app: Express) {
         filename = `${organization.name.replace(/[^a-zA-Z0-9]/g, '_')}_Students_${Date.now()}.csv`;
       }
 
-      // Save file to disk
-      const filePath = path.default.join(uploadsDir, filename);
-      await fs.default.writeFile(filePath, fileContent, 'utf-8');
-
-      // Save file metadata to database
-      const file = await storage.createFile({
-        filename,
-        originalFilename: filename,
-        mimeType,
-        fileSize: Buffer.byteLength(fileContent, 'utf-8'),
-        filePath,
-        fileType: 'export_data',
-        category: 'student_export',
-        description: `Student export for ${organization.name}`,
-        uploadedBy: userId,
-        organizationId: organization.id,
-        isPublic: false,
-      });
-
-      res.json({
-        success: true,
-        file,
-        message: 'Student data exported successfully',
-      });
+      // SECURITY (C1): stream the export directly to the caller; never persist
+      // exports of minors' data to the filesystem.
+      res.setHeader("Content-Type", `${mimeType}; charset=utf-8`);
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      res.send(fileContent);
     } catch (error) {
       console.error("Error exporting student data:", error);
       res.status(500).json({ message: "Failed to export student data" });
@@ -1616,11 +1614,6 @@ export function registerAdminRoutes(app: Express) {
       }
 
       const members = await storage.getOrganizationMembersByOrganizationId(req.params.id);
-      
-      const fs = await import('fs/promises');
-      const path = await import('path');
-      const uploadsDir = path.default.join(process.cwd(), 'uploads');
-      await fs.default.mkdir(uploadsDir, { recursive: true });
 
       const assessmentsData = [];
 
@@ -1699,28 +1692,11 @@ export function registerAdminRoutes(app: Express) {
         filename = `${organization.name.replace(/[^a-zA-Z0-9]/g, '_')}_Assessments_${Date.now()}.csv`;
       }
 
-      const filePath = path.default.join(uploadsDir, filename);
-      await fs.default.writeFile(filePath, fileContent, 'utf-8');
-
-      const file = await storage.createFile({
-        filename,
-        originalFilename: filename,
-        mimeType,
-        fileSize: Buffer.byteLength(fileContent, 'utf-8'),
-        filePath,
-        fileType: 'export_data',
-        category: 'assessment_export',
-        description: `Assessment export for ${organization.name}`,
-        uploadedBy: userId,
-        organizationId: organization.id,
-        isPublic: false,
-      });
-
-      res.json({
-        success: true,
-        file,
-        message: 'Assessment data exported successfully',
-      });
+      // SECURITY (C1): stream the export directly to the caller; never persist
+      // exports of minors' data to the filesystem.
+      res.setHeader("Content-Type", `${mimeType}; charset=utf-8`);
+      res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      res.send(fileContent);
     } catch (error) {
       console.error("Error exporting assessment data:", error);
       res.status(500).json({ message: "Failed to export assessment data" });
@@ -1765,6 +1741,12 @@ export function registerAdminRoutes(app: Express) {
         fileRecord = await storage.getFileById(fileId);
         if (!fileRecord) {
           return res.status(404).json({ message: "File not found" });
+        }
+        // CRITICAL SECURITY: Verify the file belongs to the organization in the URL.
+        // The admin is already confined to req.params.id above, so this prevents an
+        // org_admin from importing (and thereby reading) another org's uploaded file.
+        if (fileRecord.organizationId !== req.params.id) {
+          return res.status(403).json({ message: "Forbidden: File does not belong to this organization" });
         }
         filePath = fileRecord.filePath;
         
@@ -1902,8 +1884,10 @@ export function registerAdminRoutes(app: Express) {
         results.failed
       );
 
-      // Save credentials to a secure CSV file with formula injection protection
-      let credentialsFile = null;
+      // SECURITY (C1): build the credentials CSV (minors' plaintext passwords)
+      // in memory and return it inline in this response ONLY. It is never
+      // written to disk \u2014 the caller builds the downloadable file client-side.
+      let credentialsCsv: string | null = null;
       if (results.credentials.length > 0) {
         const sanitizeCSV = (value: string): string => {
           const val = String(value || '').replace(/"/g, '""');
@@ -1913,34 +1897,12 @@ export function registerAdminRoutes(app: Express) {
           return `"${val}"`;
         };
 
-        const credentialsCsv = [
+        credentialsCsv = '\uFEFF' + [
           'Username,Password,Full Name,Grade',
-          ...results.credentials.map(c => 
+          ...results.credentials.map(c =>
             `${sanitizeCSV(c.username)},${sanitizeCSV(c.password)},${sanitizeCSV(c.fullName)},${sanitizeCSV(c.grade)}`
           )
         ].join('\n');
-
-        const path = await import('path');
-        const uploadsDir = path.default.join(process.cwd(), 'uploads');
-        await fs.default.mkdir(uploadsDir, { recursive: true });
-        
-        const credentialsFilename = `${organization.name.replace(/[^a-zA-Z0-9]/g, '_')}_Credentials_${Date.now()}.csv`;
-        const credentialsFilePath = path.default.join(uploadsDir, credentialsFilename);
-        await fs.default.writeFile(credentialsFilePath, '\uFEFF' + credentialsCsv, 'utf-8');
-
-        credentialsFile = await storage.createFile({
-          filename: credentialsFilename,
-          originalFilename: credentialsFilename,
-          mimeType: 'text/csv',
-          fileSize: Buffer.byteLength(credentialsCsv, 'utf-8'),
-          filePath: credentialsFilePath,
-          fileType: 'export_data',
-          category: 'credentials',
-          description: `Student credentials for bulk import into ${organization.name}`,
-          uploadedBy: userId,
-          organizationId: organization.id,
-          isPublic: false,
-        });
       }
 
       res.json({
@@ -1952,7 +1914,9 @@ export function registerAdminRoutes(app: Express) {
           errors: results.errors,
         },
         importFile: fileRecord,
-        credentialsFile, // Download this file to get usernames/passwords
+        // Inline credentials for client-side download; never persisted server-side.
+        credentials: results.credentials,
+        credentialsCsv,
       });
     } catch (error: any) {
       console.error("Error importing students:", error);

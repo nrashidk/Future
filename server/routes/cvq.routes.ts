@@ -44,7 +44,20 @@ export function registerCvqRoutes(app: Express) {
       
       // Get userId from authenticated request
       const userId = req.user.userId;
-      
+
+      // IDOR protection (C7): assessmentId is caller-supplied in the body. Without
+      // an ownership check an authenticated user could attribute a CVQ result to
+      // ANOTHER student's assessment — and because cvq_results.assessment_id is
+      // UNIQUE, this also lets one user squat/hijack the single canonical result
+      // slot for a victim's assessment. Verify the assessment exists and belongs
+      // to this user BEFORE creating any result. CVQ is registered-user-only, so
+      // the owner is assessment.userId; fail closed with 403 for everyone else
+      // (mirrors the C4 write gate).
+      const assessment = await storage.getAssessmentById(assessmentId);
+      if (!assessment || assessment.userId !== userId) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+
       // Get CVQ items to map responses to domains
       const cvqItems = await storage.getCvqItems();
       
@@ -101,7 +114,17 @@ export function registerCvqRoutes(app: Express) {
         lowVariance,
         rushedCompletion: rushedCompletion || false,
       });
-      
+
+      // Persist the server-computed CVQ scores onto the assessment (M1).
+      // assessment.cvqScores is no longer client-writable via PATCH /api/assessments,
+      // so this is now its authoritative writer. The value is derived ONLY from the
+      // scores computed above (never from client input) and is shaped to match what
+      // the values dimension of career matching expects (matching.ts:707): per-domain
+      // 0-100 scores plus a top3 array.
+      await storage.updateAssessment(assessmentId, {
+        cvqScores: { ...normalizedScores, top3: topValues },
+      });
+
       res.status(201).json(result);
     } catch (error) {
       console.error("Error submitting CVQ:", error);
@@ -125,14 +148,24 @@ export function registerCvqRoutes(app: Express) {
     }
   });
 
-  app.get("/api/cvq/result/:assessmentId", async (req, res) => {
+  app.get("/api/cvq/result/:assessmentId", isAuthenticated, async (req: any, res) => {
     try {
       const result = await storage.getCvqResultByAssessmentId(req.params.assessmentId);
-      
-      if (!result) {
+
+      // IDOR protection (C3): assessmentId is caller-supplied via the path, so we
+      // must verify ownership BEFORE returning the CVQ work-values profile.
+      // Previously this route was UNAUTHENTICATED and ownership-free, letting
+      // anyone read any student's values profile by replaying/guessing an
+      // assessment ID. CVQ results are always tied to a registered user
+      // (cvqResults.userId is NOT NULL and /submit requires auth), so the owner
+      // is simply that user. Return an identical 404 for both the not-found and
+      // not-owned cases so the two are indistinguishable — a 404-vs-200/403
+      // difference would itself be an enumeration oracle confirming which
+      // assessment IDs map to real students (mirrors the C2 gate).
+      if (!result || result.userId !== req.user.userId) {
         return res.status(404).json({ message: "No CVQ result found for this assessment" });
       }
-      
+
       res.json(result);
     } catch (error) {
       console.error("Error fetching CVQ result:", error);

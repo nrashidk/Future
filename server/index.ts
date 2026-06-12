@@ -149,8 +149,13 @@ app.use((req, res, next) => {
 });
 app.use(cookieParser());
 
-// Serve uploaded organization logos as static files
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+// Serve ONLY public asset uploads (e.g. organization logos), which are written
+// to uploads/public. Private uploads (CSV/JSON/Excel data and any file
+// containing minors' personal data) live in uploads/private and are reachable
+// only through the authenticated /api/files routes — never statically. This
+// directory-level split is what enforces the ownership/share-token controls in
+// files.routes.ts (C1).
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads', 'public')));
 
 // CSRF cookie is set early (just sets a cookie, doesn't validate)
 app.use(csrfProtection);

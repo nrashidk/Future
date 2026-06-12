@@ -41,11 +41,30 @@ export function registerRecommendationsRoutes(app: Express) {
     try {
       const assessment = await storage.getAssessmentById(req.params.assessmentId);
       if (!assessment) {
-        return res.status(404).json({ message: "Assessment not found" });
+        // Anti-enumeration: same 403 as the not-owned case below so a missing
+        // assessment is indistinguishable from one the caller doesn't own.
+        return res.status(403).json({ message: "Forbidden" });
       }
 
-      // IDOR protection: ensure the caller owns this assessment
-      if (assessment.userId && req.isAuthenticated() && (req.user as any)?.userId !== assessment.userId) {
+      // IDOR protection (C4): fail closed. The previous guard returned 403 only
+      // when req.isAuthenticated() was true, so an UNAUTHENTICATED caller sailed
+      // straight through and could trigger paid LLM recommendation generation on
+      // any student's assessment just by guessing/replaying its ID — an
+      // unauthenticated data-exposure + cost-abuse hole.
+      //
+      // Require positive proof of ownership: a registered-user assessment may be
+      // accessed only by that authenticated user; a guest assessment only by the
+      // caller presenting the matching guest token. Anyone else — unauthenticated,
+      // authenticated non-owner, or guest without the token — is denied. Mirrors
+      // the C2 ownership gate on GET /api/recommendations.
+      const guestToken = (req.query.guestToken as string | undefined) || (req as any).cookies?.guest_token;
+      let owns = false;
+      if (assessment.userId) {
+        owns = req.isAuthenticated() && (req.user as any)?.userId === assessment.userId;
+      } else {
+        owns = !!guestToken && guestToken === assessment.guestSessionId;
+      }
+      if (!owns) {
         return res.status(403).json({ message: "Forbidden" });
       }
 
@@ -209,10 +228,37 @@ export function registerRecommendationsRoutes(app: Express) {
         return res.json([]);
       }
 
+      // IDOR protection (C2): assessmentId is caller-supplied via query param, so we
+      // must verify ownership BEFORE returning any of this assessment's data —
+      // otherwise any user (or an unauthenticated client) could read another
+      // student's recommendations, scores and narratives by replaying/guessing an
+      // assessment ID.
+      //
+      // We return an empty list (NOT 403) for both the not-found and not-owned
+      // cases so the two are indistinguishable. On a minors' platform, a 403-vs-[]
+      // difference would let an attacker confirm which assessment IDs map to real
+      // students — an enumeration oracle that is itself a leak. So we close it here
+      // rather than mirroring GET /api/assessments/:id, which still returns 404/403
+      // (logged as a follow-up finding to fix later).
+      const assessment = await storage.getAssessmentById(assessmentId);
+      let owns = false;
+      if (assessment) {
+        if (assessment.userId) {
+          // Registered-user assessment — caller must be that authenticated user
+          owns = req.isAuthenticated() && req.user?.userId === assessment.userId;
+        } else {
+          // Guest assessment — caller must present the matching guest token
+          owns = !!guestToken && guestToken === assessment.guestSessionId;
+        }
+      }
+      if (!assessment || !owns) {
+        return res.json([]);
+      }
+
       const recommendations = await storage.getRecommendationsByAssessment(assessmentId);
 
-      // Fetch assessment to check tier and generate premium narratives
-      const assessment = await storage.getAssessmentById(assessmentId);
+      // Tier check / premium narratives (assessment already fetched above for the
+      // ownership gate, so we reuse it rather than querying again).
       const isPremium = isPremiumAssessment(assessment?.assessmentType);
 
       // Fetch CVQ result for premium users (needed for enhanced narratives)
@@ -396,12 +442,25 @@ export function registerRecommendationsRoutes(app: Express) {
     try {
       const assessment = await storage.getAssessmentById(req.params.assessmentId);
       if (!assessment) {
-        return res.status(404).json({ message: "Assessment not found" });
+        // Anti-enumeration: same 403 as the not-owned case below so a missing
+        // assessment is indistinguishable from one the caller doesn't own.
+        return res.status(403).json({ message: "Unauthorized to access this report" });
       }
 
-      // Authorization check: verify ownership
-      const userId = req.isAuthenticated() ? (req.user.userId) : null;
-      if (assessment.userId && (!req.isAuthenticated() || userId !== assessment.userId)) {
+      // Authorization check (H1): verify ownership, including the guest case.
+      // The previous guard was `assessment.userId && (...)`, so for a GUEST
+      // assessment (assessment.userId null) it short-circuited to false and ran
+      // no check at all — serving the student's PDF report (name, school,
+      // scores) to anyone who knew or guessed the assessment ID. Add the guest
+      // branch and fail closed, mirroring the C2/C4 ownership gate.
+      const guestToken = req.query.guestToken || req.cookies?.guest_token;
+      let owns = false;
+      if (assessment.userId) {
+        owns = req.isAuthenticated() && req.user.userId === assessment.userId;
+      } else {
+        owns = !!guestToken && guestToken === assessment.guestSessionId;
+      }
+      if (!owns) {
         return res.status(403).json({ message: "Unauthorized to access this report" });
       }
 
