@@ -676,9 +676,19 @@ export function registerAdminRoutes(app: Express) {
         return res.status(403).json({ message: "Forbidden: Admin access required" });
       }
 
+      const existingMember = await storage.getOrganizationMemberById(req.params.memberId);
+      if (!existingMember) {
+        return res.status(404).json({ message: "Member not found" });
+      }
+
+      // CRITICAL SECURITY: Verify member belongs to the organization in the URL
+      if (existingMember.organizationId !== req.params.id) {
+        return res.status(403).json({ message: "Forbidden: Member does not belong to this organization" });
+      }
+
       const { fullName, grade } = req.body;
       const updates: any = {};
-      
+
       if (fullName !== undefined) updates.fullName = fullName;
       if (grade !== undefined) updates.grade = parseInt(grade);
 
