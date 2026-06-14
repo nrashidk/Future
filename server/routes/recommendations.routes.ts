@@ -532,30 +532,42 @@ export function registerRecommendationsRoutes(app: Express) {
         // Enforce port restriction to prevent port scanning
         const allowedPort = process.env.PORT || '5000';
         const urlPort = parsedUrl.port || (parsedUrl.protocol === 'https:' ? '443' : '80');
-        // Allow our app port or standard https (443) for production Replit deployments
+        // Allow our app port or standard https (443) for production deployments
         const allowedPorts = [allowedPort, '443', '80', ''];
         if (!allowedPorts.includes(parsedUrl.port)) {
           throw new Error(`Port ${urlPort} is not allowed`);
         }
         
-        // Build allowed hosts list
+        // Build allowed hosts list (production runs on Render at futurepath.ae)
         const allowedHosts = ['localhost', '127.0.0.1'];
-        const isReplitHost = parsedUrl.hostname.endsWith('.replit.app') || 
-                             parsedUrl.hostname.endsWith('.repl.co') ||
-                             parsedUrl.hostname.endsWith('.replit.dev');
-        
-        // In production, also allow the current host (for Replit deployments)
-        const reqHost = req.get('host')?.split(':')[0];
-        if (reqHost && (isReplitHost || reqHost === 'localhost' || reqHost === '127.0.0.1')) {
+        const targetHost = parsedUrl.hostname.toLowerCase();
+
+        // Our production host(s): the custom domain and Render's default *.onrender.com
+        const isProductionHost = targetHost === 'futurepath.ae' ||
+                                 targetHost === 'www.futurepath.ae' ||
+                                 targetHost.endsWith('.onrender.com');
+
+        // Allow the current request host when it is one of our own production hosts
+        // or a local dev host. baseUrl is derived from req.get('host'), so this is
+        // what legitimately drives printUrl in production on Render.
+        const reqHost = req.get('host')?.split(':')[0]?.toLowerCase();
+        const isReqHostAllowed = !!reqHost && (
+          reqHost === 'futurepath.ae' ||
+          reqHost === 'www.futurepath.ae' ||
+          reqHost.endsWith('.onrender.com') ||
+          reqHost === 'localhost' ||
+          reqHost === '127.0.0.1'
+        );
+        if (isReqHostAllowed && reqHost && targetHost === reqHost) {
           allowedHosts.push(reqHost);
         }
-        
-        if (!allowedHosts.includes(parsedUrl.hostname) && !isReplitHost) {
+
+        if (!allowedHosts.includes(targetHost) && !isProductionHost) {
           throw new Error('Host not in allowed list');
         }
-        
+
         // Block attempts to use IP representation tricks
-        const host = parsedUrl.hostname.toLowerCase();
+        const host = targetHost;
         if (host.includes('0x') || host.includes('%') || host.includes('::')) {
           throw new Error('IP representation tricks are not allowed');
         }
