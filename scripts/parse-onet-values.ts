@@ -36,9 +36,9 @@ const ONET_TO_CVQ_MAPPING: Record<string, { primary: string; secondary?: string;
   'Working Conditions': { primary: 'security', weight: 0.8 },
 };
 
-// Career → O*NET-SOC Code Crosswalk (36 careers)
+// Career → O*NET-SOC Code Crosswalk (37 careers)
 // Based on O*NET 30.0 taxonomy matching career titles
-const CAREER_ONET_CROSSWALK: Record<string, string> = {
+export const CAREER_ONET_CROSSWALK: Record<string, string> = {
   'Software Engineer': '15-1252.00', // Software Developers
   'Data Scientist': '15-2051.01', // Data Scientists
   'Renewable Energy Engineer': '17-2199.03', // Energy Engineers, Except Wind and Solar
@@ -301,4 +301,8 @@ function main() {
   console.log('\n✅ Done! Run the SQL file to update career value profiles.');
 }
 
-main();
+// Only run the parser when this file is executed directly (e.g. `tsx parse-onet-values.ts`),
+// not when another module imports CAREER_ONET_CROSSWALK from it.
+if (process.argv[1] && process.argv[1].endsWith('parse-onet-values.ts')) {
+  main();
+}
