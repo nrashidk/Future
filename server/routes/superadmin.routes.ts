@@ -1890,7 +1890,15 @@ export function registerSuperadminRoutes(app: Express) {
   
   app.get("/api/superadmin/users/search", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
     try {
-      const query = req.query.q as string;
+      // req.query.q may be parsed as a string, an array, or an object by Express.
+      // Coerce to a real string (take the first element if it's an array) so that
+      // .length and downstream search operate on a genuine string.
+      const rawQuery = req.query.q;
+      const query = typeof rawQuery === 'string'
+        ? rawQuery
+        : Array.isArray(rawQuery) && typeof rawQuery[0] === 'string'
+          ? rawQuery[0]
+          : '';
       if (!query || query.length < 2) {
         return res.status(400).json({ message: "Search query must be at least 2 characters" });
       }
