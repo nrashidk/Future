@@ -599,7 +599,7 @@ export async function seedDatabase() {
       icon: "🛋️",
     },
     {
-      title: "web developer",
+      title: "Web Developer",
       description: "Build attractive, high-performance websites and web applications. Turn interface designs into smooth, interactive experiences using modern web technologies and collaborate with design teams to launch standout digital products.",
       requiredSkills: ["HTML/CSS", "JavaScript", "Frontend Frameworks", "APIs"],
       requiredSkillsAr: ["HTML/CSS", "JavaScript", "أطر العمل الأمامية", "واجهات برمجة التطبيقات"],
