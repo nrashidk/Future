@@ -79,6 +79,35 @@ for later action; **nothing fixed here.** Each item carries file:line evidence.
    (always 0) should be removed once the report template (#2) no longer references
    it.
 
+## PARKED / FUTURE WORK
+
+### Scoring-framework representation for the white paper (documentation artifact)
+
+**TASK:** Create a scoring-framework representation for the white paper, in TWO forms:
+- **(a)** a **pie chart per tier** showing each scoring dimension and its weight %.
+- **(b)** a **complete table**: each dimension | its weight per tier | what it
+  captures (the construct) | how it's measured (student side) | source/grounding
+  (e.g. Holland/RIASEC, Schwartz PVQ-40, O*NET, UAE priority sectors, WEF 16).
+
+**DIMENSIONS to represent** (per the verified model):
+- **Subject Competency** (UAE curriculum quiz) — free **35%** / premium **20%**
+- **Interest Match** (8 domains) — free **35%** / premium **0** (replaced by RIASEC)
+- **Country Vision Alignment** (UAE priority sectors) — free **30%** / premium **20%**
+- **RIASEC / Holland Code** — premium **35%** — Holland model, optionally O*NET-grounded
+- **Personal Values (CVQ)** — premium **25%** — Schwartz PVQ-40, **ADAPTED 7-DOMAIN
+  SUBSET (not full 10)**
+- **WEF 16 Skills** — **STATUS PENDING DECISION** (see dependency below)
+
+**DEPENDENCY — do not finalize until resolved:** whether WEF 16 becomes a *scored*
+dimension (and at what weight, in which tiers) is an **OPEN product decision**. The
+framework table/chart content depends on that decision. If WEF stays informational,
+it appears as a tracked-but-unweighted layer; if scored, weights for all dimensions
+must be re-balanced to sum to 100% per tier and the chart updated accordingly.
+
+**Bundle with documentation pass:** this framework artifact and the white-paper
+rewrite (7-of-10 Schwartz disclosure, RIASEC sourcing language, repositioning around
+longitudinal skills development) should be done together as one documentation pass.
+
 ### Confirmed CORRECT (do not re-investigate)
 - **Scoring-engine weights match the white paper exactly.** Free 35/35/30;
   premium RIASEC 35 / Subject 20 / Vision 20 / CVQ 25
