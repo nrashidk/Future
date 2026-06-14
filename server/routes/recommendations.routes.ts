@@ -588,12 +588,18 @@ export function registerRecommendationsRoutes(app: Express) {
         return res.status(400).json({ message: "Invalid PDF URL" });
       }
       
+      // Wait only for the HTML document, not network idle: the print page keeps
+      // fetching i18n locale JSON (and may poll LLM narratives) well past 30s, so
+      // 'networkidle0' is never satisfied and goto times out. The real readiness
+      // signal is window.__REPORT_READY__, which the print page sets only after
+      // translations and report data have loaded (see waitForFunction below).
       await page.goto(printUrl, {
-        waitUntil: 'networkidle0',
+        waitUntil: 'domcontentloaded',
         timeout: 30000,
       });
 
-      // Wait for report data to be fully loaded
+      // Wait for report data to be fully loaded (set by the client once i18n
+      // locale JSON is loaded and narratives have settled). 30s safety net.
       await page.waitForFunction(() => (window as any).__REPORT_READY__ === true, {
         timeout: 30000,
       });
