@@ -272,7 +272,7 @@ const CAREER_ARABIC_CONTENT: CareerArContent[] = [
     educationLevelAr: "بكالوريوس تصميم داخلي",
   },
   {
-    title: "web developer",
+    title: "Web Developer",
     titleAr: "مطور ويب",
     descriptionAr: "أنشئ مواقع وتطبيقات ويب جذابة وعالية الأداء. حوّل تصاميم الواجهات إلى تجارب تفاعلية سلسة باستخدام أحدث تقنيات تطوير الويب، وتعاون مع فرق التصميم لإطلاق مشاريع رقمية مميزة.",
     requiredSkillsAr: ["HTML/CSS", "JavaScript", "أطر العمل الأمامية", "واجهات برمجة التطبيقات"],

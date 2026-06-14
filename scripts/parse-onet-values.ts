@@ -39,14 +39,14 @@ const ONET_TO_CVQ_MAPPING: Record<string, { primary: string; secondary?: string;
 // Career → O*NET-SOC Code Crosswalk (36 careers)
 // Based on O*NET 30.0 taxonomy matching career titles
 const CAREER_ONET_CROSSWALK: Record<string, string> = {
-  'Software Engineer': '15-1251.00', // Computer Programmers
+  'Software Engineer': '15-1252.00', // Software Developers
   'Data Scientist': '15-2051.01', // Data Scientists
   'Renewable Energy Engineer': '17-2199.03', // Energy Engineers, Except Wind and Solar
   'Healthcare Professional (Nurse)': '29-1141.00', // Registered Nurses
   'Digital Marketing Specialist': '13-1161.00', // Market Research Analysts
   'Graphic Designer': '27-1024.00', // Graphic Designers
   'Mechanical Engineer': '17-2141.00', // Mechanical Engineers
-  'Financial Analyst': '13-2052.00', // Personal Financial Advisors
+  'Financial Analyst': '13-2051.00', // Financial and Investment Analysts
   'Teacher (Secondary Education)': '25-2031.00', // Secondary School Teachers
   'Environmental Scientist': '19-2041.00', // Environmental Scientists
   'Civil Engineer': '17-2051.00', // Civil Engineers
@@ -54,10 +54,10 @@ const CAREER_ONET_CROSSWALK: Record<string, string> = {
   'Electrical Engineer': '17-2071.00', // Electrical Engineers
   'Biomedical Engineer': '17-2031.00', // Biomedical Engineers
   'Pharmacist': '29-1051.00', // Pharmacists
-  'Doctor (General Practitioner)': '29-1216.00', // General Internal Medicine Physicians
+  'Doctor (General Practitioner)': '29-1215.00', // Family Medicine Physicians
   'Dentist': '29-1021.00', // Dentists, General
   'Physical Therapist': '29-1123.00', // Physical Therapists
-  'Psychologist': '19-3032.00', // Industrial-Organizational Psychologists
+  'Psychologist': '19-3033.00', // Clinical and Counseling Psychologists
   'Social Worker': '21-1022.00', // Healthcare Social Workers
   'Lawyer': '23-1011.00', // Lawyers
   'Accountant': '13-2011.00', // Accountants and Auditors
@@ -66,7 +66,7 @@ const CAREER_ONET_CROSSWALK: Record<string, string> = {
   'Entrepreneur': '11-1021.00', // General and Operations Managers
   'Sales Manager': '11-2022.00', // Sales Managers
   'Marketing Manager': '11-2021.00', // Marketing Managers
-  'Product Manager': '11-2021.00', // Marketing Managers (closest match)
+  'Product Manager': '13-1082.00', // Project Management Specialists
   'UX/UI Designer': '15-1255.01', // Web and Digital Interface Designers
   'Video Game Designer': '27-1014.00', // Special Effects Artists and Animators
   'Journalist': '27-3023.00', // News Analysts, Reporters, and Journalists
@@ -75,6 +75,7 @@ const CAREER_ONET_CROSSWALK: Record<string, string> = {
   'Chef': '35-1011.00', // Chefs and Head Cooks
   'Fashion Designer': '27-1022.00', // Fashion Designers
   'Interior Designer': '27-1025.00', // Interior Designers
+  'Web Developer': '15-1254.00', // Web Developers
 };
 
 interface ONetWorkValue {
