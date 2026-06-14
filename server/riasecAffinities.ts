@@ -204,6 +204,11 @@ export const RIASEC_CAREER_AFFINITIES: RiasecAffinityMapping[] = [
     affinities: { R: 55, I: 60, A: 90, S: 60, E: 65, C: 55 },
     rationale: "Extremely artistic (space design, aesthetics) and moderate investigative (spatial planning, materials). Moderate realistic (construction knowledge), enterprising (client projects), social (client collaboration), conventional (building codes)."
   },
+  {
+    careerTitle: "Web Developer",
+    affinities: { R: 40, I: 80, A: 65, S: 30, E: 45, C: 70 },
+    rationale: "High investigative (debugging, evaluating code, problem-solving) and conventional (web standards, structured code, browser/device compatibility). Notable artistic component (interface design, front-end creativity) — higher than backend-focused Software Engineer. Moderate enterprising (freelance/project work), some realistic (dev tooling). Grounded in O*NET 15-1254.00 Web Developers (Investigative-Conventional-Artistic)."
+  },
 ];
 
 /**
