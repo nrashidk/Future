@@ -2309,8 +2309,13 @@ export function registerSuperadminRoutes(app: Express) {
     return result;
   };
 
+  const FORBIDDEN_KEY_SEGMENTS = new Set(["__proto__", "constructor", "prototype"]);
+
   const setNestedKey = (obj: Record<string, any>, key: string, value: string): Record<string, any> => {
     const parts = key.split(".");
+    if (parts.some(part => FORBIDDEN_KEY_SEGMENTS.has(part))) {
+      throw new Error("Invalid translation key");
+    }
     const result = { ...obj };
     let current: Record<string, any> = result;
     for (let i = 0; i < parts.length - 1; i++) {
@@ -2509,6 +2514,9 @@ export function registerSuperadminRoutes(app: Express) {
       }
       if (!SUPPORTED_LANGS.includes(lang)) {
         return res.status(400).json({ message: "Invalid language" });
+      }
+      if (key.split(".").some((part: string) => FORBIDDEN_KEY_SEGMENTS.has(part))) {
+        return res.status(400).json({ message: "Invalid translation key" });
       }
       const existing = await readLocaleFile(lang, namespace);
       const updated = setNestedKey(existing, key, value);
