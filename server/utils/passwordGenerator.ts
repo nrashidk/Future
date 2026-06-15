@@ -49,8 +49,14 @@ function getCharacterSet(config: PasswordConfig): string {
 }
 
 function secureRandomInt(max: number): number {
-  const randomBuffer = crypto.randomBytes(4);
-  const randomInt = randomBuffer.readUInt32BE(0);
+  // Rejection sampling to avoid modulo bias: reject values in the biased tail
+  // (those >= the largest multiple of `max` that fits in 2^32) and re-draw.
+  const range = 2 ** 32;
+  const limit = range - (range % max);
+  let randomInt: number;
+  do {
+    randomInt = crypto.randomBytes(4).readUInt32BE(0);
+  } while (randomInt >= limit);
   return randomInt % max;
 }
 
