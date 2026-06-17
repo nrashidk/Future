@@ -108,6 +108,36 @@ must be re-balanced to sum to 100% per tier and the chart updated accordingly.
 rewrite (7-of-10 Schwartz disclosure, RIASEC sourcing language, repositioning around
 longitudinal skills development) should be done together as one documentation pass.
 
+### CVQ instrument reduction to 5 domains (15 items) — GATED on empirical validation
+
+**STATUS: PARKED / GATED — do not execute now.** This documents a future,
+coordinated change that is **BLOCKED** on a prerequisite. Documentation only.
+
+**GATE (do not execute until this is met):** the values_profile derivation
+methodology (`docs/VALUES_PROFILE_DERIVATION_METHODOLOGY.md`) must first pass
+empirical validation per its **§6.1** — i.e. the 5-domain O*NET derivation must be
+run against **≥5 known-signature careers** and confirmed to produce sensible
+profiles. Only after the 5-domain model is empirically confirmed should the
+student-side CVQ instrument be reduced. **Reason:** changing the student
+questionnaire before validating that 5 domains work risks editing the instrument
+around a number that may still move.
+
+**SCOPE (when unblocked, the coordinated change is):**
+1. **Seed (`cvq-seed.ts`):** remove the 6 items CVQ-U1/U2/U3 (universalism) and
+   CVQ-H1/H2/H3 (hedonism). 21 items → 15 (5 domains × 3).
+2. **Scoring (`server/services/matching.ts` and CVQ aggregation):** ensure
+   `cvqScores` aggregates over 5 domains, not 7. Check nothing hardcodes 7 domains
+   or expects universalism/hedonism keys.
+3. **Results display (`ResultsPrint.tsx` / `Results.tsx` CVQ section):** drop
+   universalism/hedonism from any student-facing values profile view.
+4. **Existing student data:** students who already completed the 7-domain CVQ have
+   stored universalism/hedonism scores — confirm the reduced scoring path does not
+   break on their presence (those scores simply stop being read).
+
+**DEPENDENCY NOTE:** this is part of the same "clean-5" decision as the
+values_profile derivation. The career-side (values_profile population) and
+student-side (this CVQ reduction) must end up on the same 5 domains.
+
 ### Confirmed CORRECT (do not re-investigate)
 - **Scoring-engine weights match the white paper exactly.** Free 35/35/30;
   premium RIASEC 35 / Subject 20 / Vision 20 / CVQ 25
