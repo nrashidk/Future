@@ -138,6 +138,39 @@ around a number that may still move.
 values_profile derivation. The career-side (values_profile population) and
 student-side (this CVQ reduction) must end up on the same 5 domains.
 
+### Pre-launch test-data cleanup — GATED until just before real students onboard
+
+**STATUS: PARKED / GATED — do not execute now.** Documentation only. Execute ONLY
+just before launch, when it is certain no real student data is mixed in.
+
+**CONTEXT / DATA MODEL (mapped this session):** "Students" are **not** a separate
+table. Each row in the `assessments` table **IS** a student record — it holds
+`name`, `age`, `grade`, `gender`, `is_guest`, `guest_session_id` directly, plus
+their answers/scores. The `/api/public/student-count` endpoint counts these rows.
+As of this session, prod holds **~6 test assessments, 28 recommendations, 66
+quiz_responses** — all test data generated during development.
+
+**TASK (when unblocked):** Delete all test assessments and their FK-linked children,
+in foreign-key order (children first):
+1. `quiz_responses` (FK → assessment)
+2. `recommendations` (FK → assessment)
+3. `cvq_results` / `wef_competency_results` (if any reference the assessment)
+4. then the `assessments` rows themselves
+
+**Before deleting:** verify the exact FK relationships and `ON DELETE` behavior
+(cascade vs restrict) and construct the delete sequence accordingly — a cascade may
+make some explicit child deletes redundant; a restrict makes child-first ordering
+mandatory. Also check `organization_members` (1 test row) and whether any test users
+exist (currently: **1 superadmin, 1 org_admin**).
+
+**CRITICAL — never delete the superadmin or org_admin user rows.** They are the real
+admin accounts. Scope every delete to assessment/test data only.
+
+**WHY GATED, not done now:** cleanup is cosmetic (clean analytics/count), zero
+urgency pre-launch, and strictly better done at launch. Doing it during ongoing
+development just means re-cleaning, since more test data is generated with each test.
+Doing it right before launch guarantees nothing real is caught in the delete.
+
 ### Confirmed CORRECT (do not re-investigate)
 - **Scoring-engine weights match the white paper exactly.** Free 35/35/30;
   premium RIASEC 35 / Subject 20 / Vision 20 / CVQ 25
