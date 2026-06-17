@@ -1,5 +1,25 @@
 > **STATUS: DRAFT — pending empirical validation.** This document specifies the *intended* rules for deriving each career's `values_profile` from O*NET occupational data. The conceptual logic has been reviewed; the rules have **not** yet been validated against real O*NET data, and have **not** been reviewed by a credentialed psychometrician. Treat the derived values as research-informed estimates, not validated psychometric measurements, until both validations are complete (see §6).
 
+## ⚠️ BLOCKING FINDING (v2.0 API) — derivation rules in §4 must be rebuilt
+
+**EMPIRICAL FINDING** (tested against `api-v2.onetcenter.org`, O*NET 30.3, with a working API key):
+
+- The **Work Values endpoint DOES NOT EXIST in API v2.0.** Both `online/occupations/{SOC}/details/work_values` and `.../summary/work_values` return **HTTP 404 "Cannot GET"**. O*NET has removed Work Values from the v2 API (consistent with the docs note that Work Values is "no longer updated or displayed").
+- **Work Activities** (`details/work_activities`) and **Interests** (`details/interests`) DO return full data with 0–100 scores (**HTTP 200**). Work Styles and Work Context were not yet tested but are documented as available.
+
+**IMPACT:** The §4 derivation rules are **NOT EXECUTABLE as written** — they depend on O*NET Work Values (`WV[Achievement]`, `WV[Independence]`, `WV[Recognition]`, `WV[Relationships]`, `WV[Support]`, `WV[WorkingConditions]`) as the PRIMARY source for 4 of 5 domains. None of these are available in v2.0. The rules in §4 are hereby marked **SUPERSEDED pending redesign.**
+
+**REDESIGN DIRECTION (next session):** rebuild the 5-domain derivation using the data that IS available — Work Activities, Interests, and (to be tested) Work Styles and Work Context. Empirical evidence the signal is present and the APPROACH is sound, from a validation probe of **Social Worker (SOC 21-1022.00):**
+
+- **Benevolence signal:** "Assisting and Caring for Others" (`4.A.4.a.5`) importance=93 — strongest activity; "Establishing/Maintaining Interpersonal Relationships" (`4.A.4.a.4`)=88. Likely a STRONGER benevolence signal than the old `WV[Relationships]` would have been.
+- **Power signal** (correctly low for Social Worker): "Coordinating Work of Others" (`4.A.4.b.1`)=63, "Guiding/Directing/Motivating Subordinates" (`4.A.4.b.4`)=49, "Selling or Influencing Others" (`4.A.4.a.6`)=36; Enterprising interest=26.
+- **Self-Direction:** derive from Interests (Investigative, Artistic) + relevant activities.
+- **Achievement:** Work Styles includes an "Achievement Orientation" element (`1.D.1.b`) — test as the source.
+- **Security:** HARDEST — old source was `WV[WorkingConditions]`+`WV[Support]`, both gone. Candidate substitute: Work Context (structural/physical/security-related context items). May become the weakest-confidence domain or require rethinking.
+- **Social Worker RIASEC** (validates approach): Social=99 (dominant), Investigative=54, Conventional=35, Enterprising=26, Artistic=22, Realistic=16 — textbook.
+
+**PROCESS NOTE:** This finding came from empirical validation BEFORE any `values_profile` was written to production — i.e. the validation gate worked as intended. No bad data was written.
+
 # Values Profile Derivation Methodology (O*NET → Schwartz, 5-domain)
 
 ## 1. Purpose and scope
