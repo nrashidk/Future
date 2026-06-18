@@ -81,6 +81,53 @@ for later action; **nothing fixed here.** Each item carries file:line evidence.
 
 ## PARKED / FUTURE WORK
 
+### Persist componentScores array on recommendations (data-driven persistence) — READY TO BUILD
+
+**STATUS: PARKED / READY TO EXECUTE — documentation only, do not implement now.**
+Foundational plumbing that unblocks the data-driven report breakdown (the #2 /
+"Per-career scoring breakdown is hardcoded" item above). Additive, low-risk.
+
+**WHY:** The scoring engine (`server/services/matching.ts`) is fully data-driven —
+`calculateCareerMatch` builds a `componentScores` array
+`[{key, displayName, score, weight, reasoning}]` for whatever components are active,
+plus an `appliedConfigVersion` hash. But persistence collapses this to flat columns:
+`server/routes/recommendations.routes.ts:167-172` pulls only subjects/interests/vision
+into flat fields and hardcodes `futureMarketDemand: 0 // Deprecated, always 0`. RIASEC,
+CVQ, and `wef_skills` scores are **COMPUTED but DROPPED at insert.** This blocks the
+data-driven report breakdown (#2 above), which needs the per-career component scores.
+
+**THE CHANGE (additive only — do NOT remove existing flat columns; the live report
+still reads them):**
+1. **Schema** (`shared/schema.ts`, `recommendations` table ~line 540): add two
+   **NULLABLE** columns:
+   - `componentScores: jsonb("component_scores")` — the full
+     `[{key,displayName,score,weight,reasoning}]` array.
+   - `appliedConfigVersion: text("applied_config_version")` — config hash for
+     auditability.
+2. **Migration** (`server/migrations/`): new numbered file, `ADD COLUMN` both nullable.
+   Additive, no backfill, no downtime. **REVIEW the SQL before running against prod.**
+3. **Insert** (`server/routes/recommendations.routes.ts` ~line 167, the
+   `createRecommendation` mapping): add `componentScores: match.componentScores` and
+   `appliedConfigVersion: match.appliedConfigVersion` to the insert object. **KEEP all
+   existing flat fields** (`subjectMatchScore` etc.) unchanged.
+4. **Verify:** run a fresh assessment, confirm a new recommendation row has
+   `component_scores` populated with the full array (including the `riasec` entry), and
+   that flat fields still populate as before.
+
+**DISCIPLINE:** additive only; review migration before prod; verify in DB not just
+script output; identity-check the Codespace/DB first (`git remote -v`) per established
+practice.
+
+**NOTE:** Foundational plumbing — **no user-visible change** until the data-driven
+report rebuild (#2 above) consumes `componentScores`. It unblocks the **RIASEC row
+immediately** (RIASEC score is computed today); the **CVQ row additionally needs
+`careers.values_profile` populated** (O*NET-gated — see #1 and the CVQ items above).
+
+**ALSO captured:** `futureMarketDemand` is confirmed deprecated (hardcoded 0 at
+`recommendations.routes.ts:172`). In the eventual report rebuild / cleanup (tracked as
+#5 above), that column should be made nullable or removed, and the "Market Demand" row
+dropped from templates.
+
 ### Scoring-framework representation for the white paper (documentation artifact)
 
 **TASK:** Create a scoring-framework representation for the white paper, in TWO forms:
