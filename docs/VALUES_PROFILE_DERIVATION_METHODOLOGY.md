@@ -1,121 +1,129 @@
-> **STATUS: DRAFT — pending empirical validation.** This document specifies the *intended* rules for deriving each career's `values_profile` from O*NET occupational data. The conceptual logic has been reviewed; the rules have **not** yet been validated against real O*NET data, and have **not** been reviewed by a credentialed psychometrician. Treat the derived values as research-informed estimates, not validated psychometric measurements, until both validations are complete (see §6).
+> **STATUS: DRAFT — partially validated.** This document specifies the rules for deriving each career's `values_profile` from O*NET v2.0 occupational data, and it is written to match the implementation in `scripts/onet_fetch_cache.py` and `scripts/compute_profiles.py` exactly. Discriminant validity has been confirmed on 5 known-signature careers (see §6); the rules have **not** been validated against ground-truth Schwartz scores and have **not** been reviewed by a credentialed psychometrician. Treat the derived values as research-informed estimates, not validated psychometric measurements, until the §6 gaps are closed.
 
-## ⚠️ BLOCKING FINDING (v2.0 API) — derivation rules in §4 must be rebuilt
+# Values Profile Derivation Methodology v2 (O*NET v2.0 → Schwartz, clean-5)
 
-**EMPIRICAL FINDING** (tested against `api-v2.onetcenter.org`, O*NET 30.3, with a working API key):
+## 0. What changed in v2, and why (the Work Values removal)
 
-- The **Work Values endpoint DOES NOT EXIST in API v2.0.** Both `online/occupations/{SOC}/details/work_values` and `.../summary/work_values` return **HTTP 404 "Cannot GET"**. O*NET has removed Work Values from the v2 API (consistent with the docs note that Work Values is "no longer updated or displayed").
-- **Work Activities** (`details/work_activities`) and **Interests** (`details/interests`) DO return full data with 0–100 scores (**HTTP 200**). Work Styles and Work Context were not yet tested but are documented as available.
+v1 of this methodology derived 4 of 5 domains from the O*NET **Work Values** descriptor (`WV[Achievement]`, `WV[Independence]`, `WV[Relationships]`, `WV[WorkingConditions]`+`WV[Support]`, `WV[Recognition]`). That approach is **dead on O*NET API v2.0**:
 
-**IMPACT:** The §4 derivation rules are **NOT EXECUTABLE as written** — they depend on O*NET Work Values (`WV[Achievement]`, `WV[Independence]`, `WV[Recognition]`, `WV[Relationships]`, `WV[Support]`, `WV[WorkingConditions]`) as the PRIMARY source for 4 of 5 domains. None of these are available in v2.0. The rules in §4 are hereby marked **SUPERSEDED pending redesign.**
+- **The Work Values endpoint no longer exists in API v2.0.** Both `…/details/work_values` and `…/summary/work_values` return **HTTP 404** against `api-v2.onetcenter.org` (O*NET 30.x). This is consistent with O*NET's own note that Work Values is no longer updated or displayed.
+- **Work Styles, Work Activities, and Interests endpoints all return HTTP 200** with full 0–100 data.
 
-**REDESIGN DIRECTION (next session):** rebuild the 5-domain derivation using the data that IS available — Work Activities, Interests, and (to be tested) Work Styles and Work Context. Empirical evidence the signal is present and the APPROACH is sound, from a validation probe of **Social Worker (SOC 21-1022.00):**
-
-- **Benevolence signal:** "Assisting and Caring for Others" (`4.A.4.a.5`) importance=93 — strongest activity; "Establishing/Maintaining Interpersonal Relationships" (`4.A.4.a.4`)=88. Likely a STRONGER benevolence signal than the old `WV[Relationships]` would have been.
-- **Power signal** (correctly low for Social Worker): "Coordinating Work of Others" (`4.A.4.b.1`)=63, "Guiding/Directing/Motivating Subordinates" (`4.A.4.b.4`)=49, "Selling or Influencing Others" (`4.A.4.a.6`)=36; Enterprising interest=26.
-- **Self-Direction:** derive from Interests (Investigative, Artistic) + relevant activities.
-- **Achievement:** Work Styles includes an "Achievement Orientation" element (`1.D.1.b`) — test as the source.
-- **Security:** HARDEST — old source was `WV[WorkingConditions]`+`WV[Support]`, both gone. Candidate substitute: Work Context (structural/physical/security-related context items). May become the weakest-confidence domain or require rethinking.
-- **Social Worker RIASEC** (validates approach): Social=99 (dominant), Investigative=54, Conventional=35, Enterprising=26, Artistic=22, Realistic=16 — textbook.
-
-**PROCESS NOTE:** This finding came from empirical validation BEFORE any `values_profile` was written to production — i.e. the validation gate worked as intended. No bad data was written.
-
-# Values Profile Derivation Methodology (O*NET → Schwartz, 5-domain)
+So v2 is **rebuilt on Work Styles** as the primary signal, with Work Activities and Interests as secondary signals. This was not a stylistic rewrite — the v1 rules were literally not executable against the live API. The finding was caught by an empirical probe **before** any `values_profile` was written to production, so no bad data was persisted.
 
 ## 1. Purpose and scope
 
-The premium tier matches a student's personal values (measured by the CVQ) against each career's `values_profile`. For that match to function, every career needs a values profile on the same domains the CVQ measures. This document defines how each of the **37 careers** gets a values profile derived from **O*NET Web Services** occupational data, on a **5-domain** subset of the Schwartz values model.
+The premium tier matches a student's personal values (measured by the CVQ) against each career's `values_profile`. For that match to work, every career needs a values profile on the same domains the CVQ measures. This document defines how each of the **37 careers** gets a values profile derived from **O*NET Web Services v2.0** data, on a **5-domain** ("clean-5") subset of the Schwartz values model.
 
-This methodology does **not** invent values data. It derives each domain from published O*NET occupational descriptors (Work Values, Work Activities, Interests) for the occupation mapped to each career via its `onet_code` (see the career→O*NET crosswalk, separately maintained and source-verified).
+This methodology does **not** invent values data. Every domain is computed from published O*NET occupational descriptors for the occupation mapped to each career via its `onet_code` (see the career→O*NET crosswalk, separately maintained and source-verified). The computation is fully reproducible by running the two scripts (§5).
 
-## 2. The 5-domain model and why it is 5, not 7 (or 10)
+## 2. The clean-5 domain model (no Universalism, no Hedonism)
 
-The Schwartz Theory of Basic Human Values defines **10** values (1992) / 19 (refined, 2012). The CVQ instrument adapted a **7-domain** subset for ages 13–18 (omitting Conformity, Tradition, Stimulation). This methodology scores **5** of those 7:
+The Schwartz Theory of Basic Human Values defines 10 values (1992) / 19 (refined, 2012). The CVQ instrument adapted a 7-domain subset for ages 13–18 (omitting Conformity, Tradition, Stimulation). This methodology scores **5** of those 7:
 
 | Domain (CVQ key) | Scored? | Reason |
 |---|---|---|
-| `achievement` | **Yes** | Groundable in O*NET |
-| `self_direction` | **Yes** | Groundable in O*NET |
-| `benevolence` | **Yes** | Groundable in O*NET |
-| `security` | **Yes** | Groundable in O*NET |
-| `power` | **Yes** | Groundable in O*NET (weakest mapping — see §4) |
+| `achievement` | **Yes** | Groundable in O*NET Work Styles |
+| `self_direction` | **Yes** | Groundable in O*NET Work Styles + Interests |
+| `benevolence` | **Yes** | Groundable in O*NET Work Styles + Activities + Interests |
+| `security` | **Yes** | Groundable in O*NET Work Styles |
+| `power` | **Yes** | Groundable in O*NET Work Styles + Activities |
 | `universalism` | **No — excluded** | No defensible O*NET career-side source |
 | `hedonism` | **No — excluded** | No defensible O*NET career-side source |
 
-**Rationale for excluding Universalism and Hedonism (the defensible argument):** O*NET's occupational value taxonomy (Achievement, Independence, Recognition, Relationships, Support, Working Conditions) has no descriptor that validly maps to Schwartz Universalism (concern for the welfare of *all* people and nature, beyond one's in-group) or Hedonism (pleasure, sensuous gratification). Rather than assign these domains values by unsupported inference — which would present fabricated precision as if it were sourced — they are excluded from the scored model.
+**Why Universalism and Hedonism are excluded:** O*NET's occupational descriptors have no element that validly maps to Schwartz Universalism (concern for the welfare of *all* people and nature, beyond one's in-group) or Hedonism (pleasure, sensuous gratification). Rather than assign these domains values by unsupported inference — fabricated precision presented as if sourced — they are excluded from the scored model. This is a **coverage limitation, not a validity flaw**: the model scores only what it can ground, and discloses what it cannot detect (e.g. Universalism, relevant to environmental/humanitarian work).
 
-**This is a coverage limitation, not a validity flaw.** The model scores only what it can ground in validated occupational data. Every scored domain corresponds to a defensible O*NET source; nothing measured is left inert, and nothing reported exceeds what was computed. The cost is that the instrument cannot detect Universalism (a meaningful career-relevant value, e.g. for environmental or humanitarian work). This is disclosed, not hidden.
+**Consequence for the instrument:** the CVQ is reduced from 21 items (7 domains × 3) to **15 items (5 domains × 3)** — the Universalism and Hedonism items are removed. Student CVQ scoring aggregates over the same 5 domains. (Instrument change tracked separately; this doc covers the career-side derivation.)
 
-**Consequence for the instrument:** the CVQ is reduced from 21 items (7 domains × 3) to **15 items (5 domains × 3)** — the Universalism (`CVQ-U*`) and Hedonism (`CVQ-H*`) items are removed. Student CVQ scoring aggregates over 5 domains. (Instrument change tracked separately; this doc covers the career-side derivation.)
+## 3. O*NET v2.0 data sources used
 
-## 3. O*NET data sources used
+- **Base URL:** `https://api-v2.onetcenter.org/online/occupations`
+- **Auth:** `X-API-Key: <key>` request header (plus `Accept: application/json`).
+- **Endpoints** (per `onet_code`, queried `?start=1&end=50`):
+  - `…/details/work_styles` — **primary** source for all five domains.
+  - `…/details/work_activities` — secondary signal for benevolence and power.
+  - `…/details/interests` — RIASEC, secondary signal for self-direction and benevolence.
+- Each element's numeric score is read from the response's `importance` field (0–100). Derived `values_profile` scores are also 0–100, matching the scale of `calculateCvqScore` in `server/services/matching.ts`.
 
-Per occupation (by `onet_code`), three O*NET Web Services endpoints supply the inputs:
+> The Work Values endpoint (`…/details/work_values`) is intentionally **not** used — it returns 404 on v2.0 (see §0).
 
-- **Work Values** (`/details/work_values`) — 6 values, each on a 0–100 "Extent" scale: Achievement, Independence, Recognition, Relationships, Support, Working Conditions.
-- **Work Activities** (`/details/work_activities`) — activities on a 0–100 "Importance" scale. Specific activities are used as secondary signals for Power and Benevolence (see §4).
-- **Interests** (`/details/interests`) — RIASEC scores, used as a secondary signal for Self-Direction.
+## 4. Per-domain derivation rules (exact, as implemented)
 
-All O*NET scores are 0–100. Derived `values_profile` scores are also 0–100, matching the scale of `calculateCvqScore` in `server/services/matching.ts`.
-
-## 4. Per-domain derivation rules
-
-Each rule produces a 0–100 score. Where a rule blends a primary source with a secondary signal, the blend is **weighted, capped at 100**, and the weights are stated so the derivation is reproducible and auditable.
-
-Notation: `WV[x]` = O*NET Work Value Extent score for value x; `WA[id]` = Work Activity Importance score; `INT[x]` = RIASEC interest score.
+Each rule produces an integer 0–100 (final `round()`). Notation: `WS[x]` = Work Styles importance for element x; `WA[x]` = Work Activities importance for activity x; `INT[x]` = RIASEC interest score. `mean(...)` is the arithmetic mean. A descriptor absent from the API response is read as **0** (see §5 for the missing-data semantics this implies).
 
 ### 4.1 Achievement — CONFIDENCE: HIGH
-**Source:** O*NET Work Value `Achievement` (direct).
-**Rule:** `achievement = WV[Achievement]`
-**Rationale:** Schwartz Achievement ("personal success through demonstrating competence per social standards") and O*NET Achievement ("using your best abilities, getting a feeling of accomplishment") are near-direct conceptual matches. No blending needed.
+**Rule:** `achievement = WS[Achievement Orientation]`
+**Source:** the Work Style "Achievement Orientation" (`1.D.1.b`), direct.
+**Rationale:** Schwartz Achievement ("personal success through demonstrating competence per social standards") maps near-directly to the Achievement Orientation work style ("establishing and maintaining personally challenging goals and exerting effort toward mastery"). No blending needed.
 
 ### 4.2 Self-Direction — CONFIDENCE: HIGH
-**Primary:** O*NET Work Value `Independence`.
-**Secondary:** RIASEC `Investigative` and `Artistic` interests (both correlate with autonomous, creative orientation).
-**Rule:** `self_direction = min(100, 0.7 * WV[Independence] + 0.3 * (max(INT[Investigative], INT[Artistic])))`
-**Rationale:** Schwartz Self-Direction ("independent thought and action — choosing, creating, exploring") maps strongly to O*NET Independence ("work on their own and make decisions"). The Investigative/Artistic boost reflects that self-directed values manifest in exploratory/creative work. *The secondary weighting (0.3) is an authored design choice, not an established psychometric constant — flagged for validation.*
+**Rule:**
+```
+sd_style    = mean(WS[Initiative], WS[Intellectual Curiosity],
+                   WS[Innovation], WS[Tolerance for Ambiguity])
+sd_interest = max(INT[Investigative], INT[Artistic])
+self_direction = round(0.55 * sd_style + 0.45 * sd_interest)
+```
+**Rationale:** Schwartz Self-Direction ("independent thought and action — choosing, creating, exploring") maps to the autonomy/curiosity/innovation cluster of work styles, reinforced by the Investigative/Artistic RIASEC interests that characterise exploratory and creative work.
 
 ### 4.3 Benevolence — CONFIDENCE: MEDIUM
-**Primary:** O*NET Work Value `Relationships`.
-**Secondary:** Work Activity `Assisting and Caring for Others` (id 4.A.4.a.5).
-**Rule:** `benevolence = min(100, 0.6 * WV[Relationships] + 0.4 * WA[AssistingCaring])`
-**Rationale:** Schwartz Benevolence ("preserving and enhancing the welfare of people with whom one is in frequent contact") maps to O*NET Relationships ("provide service to others; friendly, non-competitive environment") plus the explicit caring activity. **Caveat:** O*NET Relationships partly measures *workplace social climate* rather than caring per se, so this is an approximation; the caring-activity component is added to anchor it toward genuine other-welfare. Validate that caring professions (Social Worker, Nurse, Teacher) score high.
+**Rule:**
+```
+ben_style   = mean(WS[Empathy], WS[Cooperation], WS[Social Orientation])
+benevolence = round(0.7 * ben_style
+                  + 0.2 * WA[Assisting and Caring for Others]
+                  + 0.1 * INT[Social])
+```
+**Rationale:** Schwartz Benevolence ("preserving and enhancing the welfare of people with whom one is in frequent contact") is carried primarily by the empathy/cooperation/social work styles, anchored toward genuine other-welfare by the explicit "Assisting and Caring for Others" activity, with a small Social-interest contribution. Validate that caring professions (Social Worker, Pharmacist, Teacher) score high.
 
 ### 4.4 Security — CONFIDENCE: MEDIUM
-**Sources:** O*NET Work Values `Working Conditions` and `Support`.
-**Rule:** `security = min(100, 0.6 * WV[WorkingConditions] + 0.4 * WV[Support])`
-**Rationale:** Schwartz Security ("safety, harmony, and stability of society, relationships, and self") maps to O*NET Working Conditions (which O*NET defines as including job security and stable conditions) and Support (supportive management/stable backing). **Caveat:** O*NET "Support" leans toward *good supervision* more than *safety*; weighted lower than Working Conditions for that reason.
+**Rule:** `security = round(mean(WS[Dependability], WS[Self-Control], WS[Cautiousness]))`
+**Rationale:** With the old `WV[WorkingConditions]`+`WV[Support]` source gone (§0), Security is reconstructed from the stability/control cluster of work styles — dependability, self-control, and cautiousness as the dispositional proxies for valuing safety, harmony, and stability. **Caveat:** this is a disposition-side proxy rather than a direct measure of job-security/stability, so it is the most reconstructed of the five and the weakest-grounded domain.
 
 ### 4.5 Power — CONFIDENCE: MEDIUM-LOW (weakest mapping)
-**Primary:** O*NET Work Value `Recognition`.
-**Secondary:** Work Activities `Coordinating the Work and Activities of Others` (4.A.4.b.4) and `Guiding, Directing, and Motivating Subordinates` (4.A.4.b.5), averaged.
-**Rule:** `power = min(100, 0.5 * WV[Recognition] + 0.5 * avg(WA[Coordinating], WA[Guiding]))`
-**Rationale:** Schwartz Power ("social status and prestige, control or dominance over people and resources") only partially maps to O*NET Recognition ("advancement, potential for leadership, prestige"). Recognition captures the *prestige/status* facet but not the *dominance/control* facet, so leadership/directing activities are blended in to represent control over people. **This is the most constructed of the five mappings — explicitly flag in any external documentation, and validate that managerial roles (Sales Manager, Entrepreneur) score high while service/individual-contributor roles score low.**
+**Rule:**
+```
+pow_act = mean( non-zero of [ WA[Coordinating the Work and Activities of Others],
+                              WA[Guiding, Directing, and Motivating Subordinates],
+                              WA[Developing and Building Teams] ] )   # 0 if none present
+power   = round(0.6 * WS[Leadership Orientation] + 0.4 * pow_act)
+```
+**Rationale:** Schwartz Power ("social status and prestige, control or dominance over people and resources") maps to the Leadership Orientation work style (the disposition to lead/take charge) blended with the directing/coordinating activities (the control-over-people facet). The activity list drops zero-valued items before averaging so occupations missing one activity aren't penalised. **This is the most constructed mapping** — validate that managerial roles (Sales Manager, Entrepreneur) score high while individual-contributor/service roles score low.
 
-## 5. Scaling, missing data, and edge cases
+## 5. Scaling, missing data, and edge cases (as implemented)
 
-- **Missing O*NET descriptor:** if a required Work Value/Activity is absent for an occupation, the rule uses the available components re-weighted to sum to 1.0; if the *primary* source is missing, the domain is left **null** for that career (not zero — null so matching can renormalize, rather than asserting a false zero).
-- **Rounding:** scores rounded to integers 0–100.
-- **Approximation-flagged occupations:** careers whose `onet_code` is a documented approximation (Entrepreneur, Digital Marketing Specialist, Video Game Designer — see crosswalk) inherit that approximation; their values profiles carry the same caveat.
-- **Output shape:** `values_profile` = `{ achievement, self_direction, benevolence, security, power }` (5 keys; no universalism/hedonism keys).
+- **Pipeline:** `onet_fetch_cache.py` caches raw JSON to `./onet_cache/<soc>_<report>.json` (one API request at a time, 2s delay, exponential backoff on 403/429, resumable — cached files are never re-fetched). `compute_profiles.py` then computes profiles **offline** from the cache (zero API calls), so blend weights can be tuned and re-run with no rate-limit risk.
+- **Missing descriptor → dropped, never 0.** An O*NET element that is *absent* from the response is **not** the same as an element scored low. Absence is treated as "no signal" and dropped, so a domain is never deflated just because O*NET omitted an element:
+  - **Mean over several signals** (e.g. the self-direction work-style cluster, the benevolence cluster, the security cluster, the power activities) is taken over the **present** elements only — absent elements are dropped from *both* numerator and denominator. A present score of `0` is a real signal and is kept; only true absence is dropped.
+  - **Weighted blends** (self_direction, benevolence, power) drop any absent component and **renormalize the surviving weights to sum to 1.0**. E.g. if `Assisting and Caring for Others` is absent, benevolence is computed from the work-style cluster (0.7) and Social interest (0.1) renormalized to 0.875/0.125.
+  - **Primary signal absent → domain is `null`.** Each domain has a primary source (achievement: Achievement Orientation; self_direction & benevolence: their work-style cluster; security: the dependability/self-control/cautiousness cluster; power: Leadership Orientation). If the primary is entirely absent, the domain is emitted as **`null`** (JSON `null` / jsonb `null`), so DB matching renormalizes over the present domains rather than reading a misleadingly low number.
+- **Occupation with no Work Styles cache → skipped:** if the `work_styles` cache file is missing for a SOC, that career produces **no profile** at all (it is omitted from output, not written as zeros or nulls).
+- **Rounding:** every domain is rounded to an integer 0–100.
+- **Output shape:** `values_profile = { achievement, self_direction, benevolence, security, power }` — 5 keys, no `universalism`/`hedonism`.
+- **Emit modes:** `compute_profiles.py` prints a review table with sanity flags by default; `--json` emits `{soc: profile}`; `--sql` emits `UPDATE careers SET values_profile = '…'::jsonb WHERE onet_code = '…';` statements.
+- **Approximation-flagged occupations:** careers whose `onet_code` is a documented approximation (Entrepreneur, Digital Marketing Specialist, Video Game Designer — see crosswalk) inherit that approximation; their profiles carry the same caveat.
 
 ## 6. Validation status and requirements
 
-This methodology is **NOT yet validated.** Two validations are required before the derived profiles should be treated as defensible:
+**What IS validated — discriminant validity (5 known-signature careers).** The rules were run against five careers with well-understood value signatures and the outputs discriminate in the expected directions:
 
-1. **Empirical sanity-check (pending O*NET API access):** run the rules against ≥5 known-signature careers and confirm outputs match expectation:
-   - Social Worker → high `benevolence`, low `power`
-   - Sales Manager / Entrepreneur → high `power`, high `achievement`
-   - Accountant → high `security`, moderate `achievement`
-   - Software Engineer / Data Scientist → high `self_direction`, moderate `achievement`
-   - Pharmacist / Nurse → high `benevolence`, high `security`
-   If any career scores against intuition, the relevant rule is revised before applying to all 37.
+- **Social Worker** → high benevolence, low power
+- **Sales Manager** → high power, high achievement
+- **Accountant** → high security, moderate achievement
+- **Software Engineer** → high self-direction, moderate achievement
+- **Pharmacist** → high benevolence, high security
 
-2. **Expert review (recommended before launch):** the conceptual mappings and blend weights in §4 are authored (AI-assisted) constructions, not established psychometric constants. Review by someone with psychometric or careers-guidance credentials would materially strengthen the defensibility of values-based matching to schools. This is a gap, honestly noted, not a blocker for internal testing.
+This establishes that the model **discriminates** between careers in line with intuition — a necessary check, and the reason these five were chosen as spread-out signatures.
+
+**What is NOT validated (open gaps — do not overstate the model):**
+
+1. **No ground-truth comparison.** Discriminant validity ≠ criterion validity. The derived scores have **not** been validated against actual Schwartz value measurements of job incumbents. "Software Engineer scores higher on self-direction than Accountant" is confirmed; "Software Engineer's self-direction is *73*" is not anchored to any external truth.
+2. **Authored weights, not psychometric constants.** Every blend weight in §4 (0.55/0.45, 0.7/0.2/0.1, 0.6/0.4) and every element-to-domain assignment is an **authored (AI-assisted) design choice**, not an established psychometric constant. They are reproducible and auditable, not empirically derived.
+3. **Expert review recommended before launch.** Review by someone with psychometric or careers-guidance credentials would materially strengthen the defensibility of values-based matching to schools. This is an honestly-noted gap, not a blocker for internal testing.
 
 ## 7. White-paper disclosure (required language)
 
 The product white paper must disclose:
-- The values model uses a **5-domain** subset of the Schwartz framework (Achievement, Self-Direction, Benevolence, Security, Power). Universalism and Hedonism are not measured — the CVQ instrument is reduced to 15 items (5 domains × 3) accordingly.
-- Career-side values are **derived from O*NET occupational data** via the documented rules in §4, not from primary measurement of incumbents — i.e. "research-informed," not "empirically validated against job-holder value surveys."
-- The 5-domain subset is justified by data-groundability: only domains with a defensible O*NET source are scored.
+- The values model uses a **5-domain (clean-5)** subset of the Schwartz framework (Achievement, Self-Direction, Benevolence, Security, Power). Universalism and Hedonism are not measured; the CVQ is reduced to 15 items (5 domains × 3) accordingly.
+- Career-side values are **derived from O*NET v2.0 occupational data** (Work Styles, Work Activities, Interests) via the documented rules in §4 — not from primary measurement of incumbents. They are "research-informed," not "empirically validated against job-holder value surveys."
+- The model has **confirmed discriminant validity** across known-signature careers but has **not** been validated against ground-truth Schwartz scores; blend weights are authored, and expert psychometric review is recommended before launch.
