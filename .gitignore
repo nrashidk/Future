@@ -10,3 +10,9 @@ vite.config.ts.*
 !.env.example
 gitleaks-report.json
 gitleaks-raw.json
+
+# Claude Code chat-relay scratch file (not project content)
+cc-out.md
+# Python bytecode cache (from local script runs)
+__pycache__/
+*.pyc
