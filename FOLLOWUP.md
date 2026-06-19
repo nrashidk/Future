@@ -40,13 +40,34 @@ for later action; **nothing fixed here.** Each item carries file:line evidence.
    denominator, so the score is renormalized over the remaining 75% with **no
    error** (`server/services/matching.ts:719-721`, `341-360`). Students complete
    the full CVQ but their values never influence recommendations.
-   **Fix is DATA, not code:** populate `values_profile` (Schwartz 7-domain mapping:
-   `achievement, benevolence, universalism, self_direction, security, power,
-   hedonism`) for all 37 careers. **Mapping quality = feature quality** — this
-   needs a deliberate, validated mapping approach, not an unreviewed
-   auto-generation. There is no seed writer for `values_profile`; the only writer
-   is the manual superadmin career editor
-   (`server/routes/superadmin.routes.ts:1814,1849`).
+   **Fix is DATA, not code:** populate `values_profile` for all 37 careers on the
+   **clean-5** Schwartz subset — `achievement, self_direction, benevolence,
+   security, power`. (Universalism and Hedonism were dropped — no defensible O*NET
+   grounding; see methodology §2.)
+
+   **Methodology is now BUILT and committed** (this item previously read "needs a
+   deliberate, validated mapping approach, not an unreviewed auto-generation" — it
+   now exists):
+   - `docs/VALUES_PROFILE_DERIVATION_METHODOLOGY.md` (v2) — O*NET v2.0 **Work
+     Styles**-based derivation, rebuilt because the O*NET **Work Values endpoint
+     was removed** (`…/details/work_values` → HTTP 404 on `api-v2.onetcenter.org`).
+   - **Validated** for discriminant validity across 5 known-signature careers
+     (Social Worker, Sales Manager, Accountant, Software Engineer, Pharmacist).
+   - Tooling committed: `scripts/onet_fetch_cache.py` (rate-limit-safe cache fetch)
+     + `scripts/compute_profiles.py` (offline compute; emits SQL `UPDATE`s).
+
+   **Remaining work is now just EXECUTION:** when the O*NET API rate-limit cooldown
+   clears, run fetch-cache → compute → review the table → run the emitted `UPDATE`s
+   to populate `values_profile` for all 37 careers. Identity-check the DB first
+   (`git remote -v`) per established practice.
+
+   **Honest caveats remain:** not validated against ground-truth Schwartz scores
+   (none exist per-occupation); blend weights are authored, not psychometric
+   constants; expert psychometric review recommended pre-launch.
+
+   There is no seed writer for `values_profile`; the only pre-existing writer is the
+   manual superadmin career editor (`server/routes/superadmin.routes.ts:1814,1849`)
+   — the compute script's SQL `UPDATE`s populate it directly instead.
 
 2. **[HIGH — report misrepresents methodology] Per-career scoring breakdown is
    hardcoded, tier-agnostic, and wrong.** The report and Results breakdown render
