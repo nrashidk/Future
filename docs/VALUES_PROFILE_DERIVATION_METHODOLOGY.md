@@ -49,7 +49,7 @@ The Schwartz Theory of Basic Human Values defines 10 values (1992) / 19 (refined
 
 ## 4. Per-domain derivation rules (exact, as implemented)
 
-Each rule produces an integer 0–100 (final `round()`). Notation: `WS[x]` = Work Styles importance for element x; `WA[x]` = Work Activities importance for activity x; `INT[x]` = RIASEC interest score. `mean(...)` is the arithmetic mean. A descriptor absent from the API response is read as **0** (see §5 for the missing-data semantics this implies).
+Each rule produces an integer 0–100 (final `round()`). Notation: `WS[x]` = Work Styles importance for element x; `WA[x]` = Work Activities importance for activity x; `INT[x]` = RIASEC interest score. `mean(...)` is the arithmetic mean. A descriptor that is *absent* from the API response is **dropped, not read as 0**: means are taken over present values only, weighted blends renormalize their surviving weights to sum to 1.0, a present score of `0` is kept as a real signal, and a domain is emitted as **null** when its primary signal is absent (see §5 for the full missing-data semantics).
 
 ### 4.1 Achievement — CONFIDENCE: HIGH
 **Rule:** `achievement = WS[Achievement Orientation]`
