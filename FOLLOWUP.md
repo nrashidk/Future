@@ -11,6 +11,16 @@ Do not block deploy on these, but address before/around release.
    auth gate — not regressions. Confirm the production host installs these or
    the PDF report feature breaks at runtime.
 
+4. **Dependency vulnerabilities (npm audit / Dependabot) need a pre-launch
+   review.** The production build reports "3 vulnerabilities (1 moderate, 2 high)"
+   (`npm audit`, seen in the Render deploy log 2026-06-22), and GitHub Dependabot
+   flags 5 (2 high, 3 moderate) on `main` — Dependabot also scans transitive/dev
+   paths that `npm audit` may not surface. **Pre-launch:** run `npm audit`,
+   identify the 2 highs, determine whether they sit in reachable/exploitable
+   runtime paths (vs dev-only/transitive), then patch (`npm audit fix` or a
+   targeted bump) or dismiss-with-documented-reason. **Separate from the earlier
+   "npm-audit-clean" note — that note has drifted.** Pre-launch, not blocking dev.
+
 ## Required production env vars
 2. **`SEED_SCHOOLADMIN_PASSWORD` and `SEED_SUPERADMIN_PASSWORD`** must be set in
    the production environment. The seed (server/seed.ts) no longer hardcodes
@@ -19,6 +29,15 @@ Do not block deploy on these, but address before/around release.
    the account is first created — existing accounts are never reset on deploy, so
    live credential changes are preserved. Set these before the first deploy if
    the schooladmin / superadmin accounts need to be provisioned.
+
+5. **`RESEND_API_KEY` not set in production.** The Render deploy log shows
+   "Optional environment variables not set: RESEND_API_KEY — Some features may be
+   unavailable." Resend powers email (password resets, notifications).
+   **Pre-launch:** confirm whether email is needed at launch; if yes, set
+   `RESEND_API_KEY` in the Render env (and verify password-reset and any
+   notification flows actually send). If email is intentionally deferred, document
+   that and confirm no launch-critical flow silently depends on it — **especially
+   password reset.**
 
 ## Functional QA (not security)
 3. **Matching service produced 0 recommendations for synthetic profiles.** The
