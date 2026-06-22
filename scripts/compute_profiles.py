@@ -13,12 +13,40 @@ import sys, os, json
 
 CACHE = "onet_cache"
 
-CAREERS = {  # soc -> label (subset shown; full list mirrors fetcher)
-    "21-1022.00": "Social Worker", "11-2022.00": "Sales Manager",
-    "13-2011.00": "Accountant", "15-1252.00": "Software Engineer",
-    "29-1051.00": "Pharmacist",
-    # ... (full 37 resolved from cached filenames at runtime)
+CAREERS = {  # soc -> label (full 37, mirrors scripts/parse-onet-values.ts crosswalk)
+    "15-1252.00": "Software Engineer", "15-2051.01": "Data Scientist",
+    "17-2199.03": "Renewable Energy Engineer", "29-1141.00": "Healthcare Professional (Nurse)",
+    "13-1161.00": "Digital Marketing Specialist", "27-1024.00": "Graphic Designer",
+    "17-2141.00": "Mechanical Engineer", "13-2051.00": "Financial Analyst",
+    "25-2031.00": "Teacher (Secondary Education)", "19-2041.00": "Environmental Scientist",
+    "17-2051.00": "Civil Engineer", "17-1011.00": "Architect",
+    "17-2071.00": "Electrical Engineer", "17-2031.00": "Biomedical Engineer",
+    "29-1051.00": "Pharmacist", "29-1215.00": "Doctor (General Practitioner)",
+    "29-1021.00": "Dentist", "29-1123.00": "Physical Therapist",
+    "19-3033.00": "Psychologist", "21-1022.00": "Social Worker",
+    "23-1011.00": "Lawyer", "13-2011.00": "Accountant",
+    "11-3121.00": "Human Resources Manager", "13-1111.00": "Management Consultant",
+    "11-1021.00": "Entrepreneur", "11-2022.00": "Sales Manager",
+    "11-2021.00": "Marketing Manager", "13-1082.00": "Product Manager",
+    "15-1255.01": "UX/UI Designer", "27-1014.00": "Video Game Designer",
+    "27-3023.00": "Journalist", "27-3043.00": "Content Creator",
+    "27-4021.00": "Photographer", "35-1011.00": "Chef",
+    "27-1022.00": "Fashion Designer", "27-1025.00": "Interior Designer",
+    "15-1254.00": "Web Developer",
 }
+
+def by_name(data):
+    """Map element name -> score. work_styles/work_activities carry the score in
+    'importance'; the interests endpoint carries it in 'occupational_interest'.
+    Read 'importance' first, fall back to 'occupational_interest' (FIX 1: interest
+    signals were silently None before, dropping them from self_direction/benevolence)."""
+    out = {}
+    for e in data.get("element", []):
+        v = e.get("importance")
+        if v is None:
+            v = e.get("occupational_interest")
+        out[e["name"]] = v
+    return out
 
 def load(soc, report):
     path = os.path.join(CACHE, f"{soc}_{report}.json")
@@ -26,7 +54,7 @@ def load(soc, report):
         return None
     with open(path) as f:
         data = json.load(f)
-    return {e["name"]: e.get("importance") for e in data.get("element", [])}
+    return by_name(data)
 
 # --- missing-data semantics --------------------------------------------------
 # An O*NET element ABSENT from the response is NOT the same as a low score.
@@ -69,8 +97,13 @@ def profile(soc):
     if styles is None:
         return None  # not cached yet
 
-    # achievement — primary: Achievement Orientation work style. Absent -> null.
-    achievement = _round(gp(styles, "Achievement Orientation"))
+    # achievement — primary: Achievement Orientation work style; secondary:
+    # Enterprising interest (FIX 3: WS alone sat in a narrow 40-82 band; the
+    # Enterprising blend widens discrimination). blend() renormalizes if
+    # Enterprising is absent. Null only if Achievement Orientation (primary) is absent.
+    ach_primary = gp(styles, "Achievement Orientation")
+    achievement = None if ach_primary is None else _round(
+        blend((ach_primary, 0.65), (gp(ints, "Enterprising"), 0.35)))
 
     # self_direction — primary: work-style cluster; secondary: I/A interest.
     sd_style = mean_present(gp(styles,"Initiative"), gp(styles,"Intellectual Curiosity"),
@@ -92,12 +125,17 @@ def profile(soc):
                                    gp(styles,"Self-Control"),
                                    gp(styles,"Cautiousness")))
 
-    # power — primary: Leadership Orientation work style. Absent -> null.
+    # power — primary: Leadership Orientation work style; secondary: directing
+    # activities. FIX 2: when Leadership is absent but any directing activity is
+    # present, compute power from the activities alone (blend() renormalizes the
+    # surviving weights). Null only if BOTH Leadership AND all three activities
+    # are absent (pow_act is None only when all three activities are absent, and
+    # blend() returns None only when both pairs are dropped).
     pow_act = mean_present(gp(acts,"Coordinating the Work and Activities of Others"),
                            gp(acts,"Guiding, Directing, and Motivating Subordinates"),
                            gp(acts,"Developing and Building Teams"))
     lead = gp(styles, "Leadership Orientation")
-    power = None if lead is None else _round(blend((lead, 0.6), (pow_act, 0.4)))
+    power = _round(blend((lead, 0.6), (pow_act, 0.4)))
 
     return {"achievement": achievement, "self_direction": self_direction,
             "benevolence": benevolence, "security": security, "power": power}
