@@ -239,6 +239,26 @@ urgency pre-launch, and strictly better done at launch. Doing it during ongoing
 development just means re-cleaning, since more test data is generated with each test.
 Doing it right before launch guarantees nothing real is caught in the delete.
 
+### Arabic / RTL audit — PRE-LAUNCH, not yet done
+
+**STATUS: PARKED / PRE-LAUNCH — documentation only, do not implement now.** Gated
+to pre-launch, but should be done before any Arabic-speaking users see the product.
+**Not started.**
+
+The product supports Arabic (`titleAr`/`descriptionAr`/`nameAr` fields,
+`langParam==='ar'` paths in `ResultsPrint.tsx` / `Results.tsx`) but RTL rendering has
+**never been audited**. For a UAE-market product this is a real pre-launch risk.
+
+**Audit must cover:**
+- **UI layout mirroring** (nav, progress bars, score breakdowns, forms) flips
+  correctly in RTL.
+- **PDF reports specifically** (Puppeteer + Arabic + RTL is a known pain point) —
+  verify Arabic PDFs render correctly, including text direction and glyph shaping.
+- **Mixed LTR/RTL content:** numbers, English career titles, and codes embedded in
+  Arabic text render in correct order.
+- **Arabic font/glyph rendering** (correct font loaded, no tofu/boxes).
+- **Form inputs and text alignment** in RTL.
+
 ### Confirmed CORRECT (do not re-investigate)
 - **Scoring-engine weights match the white paper exactly.** Free 35/35/30;
   premium RIASEC 35 / Subject 20 / Vision 20 / CVQ 25
