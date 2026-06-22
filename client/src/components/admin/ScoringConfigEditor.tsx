@@ -384,7 +384,13 @@ export default function ScoringConfigEditor() {
                           const currentEnabled = isEditing
                             ? tierWeights[tier.key]?.[component.key]?.isEnabled ?? component.isEnabled
                             : component.isEnabled;
-                          
+
+                          // In display mode, hide disabled or zero-weight components so the
+                          // breakdown only shows what actually contributes to the score.
+                          if (!isEditing && (!currentEnabled || currentWeight === 0)) {
+                            return null;
+                          }
+
                           return (
                             <TableRow key={component.key} className={!currentEnabled ? 'opacity-50' : ''}>
                               <TableCell className="font-medium">{component.name}</TableCell>
