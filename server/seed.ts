@@ -1846,14 +1846,14 @@ export async function seedDatabase() {
     {
       key: "premium",
       name: "Premium Assessment",
-      description: "Comprehensive career assessment including personality and values assessments",
+      description: "Comprehensive assessment for self-paying individual students",
       isActive: true,
       displayOrder: 1,
     },
     {
       key: "group",
       name: "School Assessment",
-      description: "Premium assessment for school/organization students",
+      description: "Comprehensive assessment for students enrolled through their school or organization",
       isActive: true,
       displayOrder: 2,
     },
