@@ -1,4 +1,5 @@
 import { useAuth } from "@/hooks/useAuth";
+import { PageLayout } from "@/components/layout/PageLayout";
 import { StickyNote } from "@/components/StickyNote";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -381,7 +382,8 @@ export default function Results() {
   }
 
   return (
-    <main id="main-content" className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 pb-12">
+    <PageLayout>
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 pb-12">
       {/* Header */}
       <div className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground py-12 px-4">
         <div className="max-w-6xl mx-auto text-center">
@@ -1135,6 +1137,7 @@ export default function Results() {
           </div>
         )}
       </div>
-    </main>
+    </div>
+    </PageLayout>
   );
 }
