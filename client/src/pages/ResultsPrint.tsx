@@ -181,6 +181,11 @@ export default function ResultsPrint() {
   const urlParams = new URLSearchParams(window.location.search);
   const assessmentId = urlParams.get("assessmentId");
   const guestToken = urlParams.get("guestToken");
+  // Short-lived token minted by the PDF route, scoped to this one assessment, so
+  // the headless browser (no session cookie) can authorize the data fetches
+  // below. Additive to the guest path — guest PDFs still use guestToken.
+  const printToken = urlParams.get("printToken");
+  const printTokenParam = printToken ? `&printToken=${encodeURIComponent(printToken)}` : "";
   const langParam = urlParams.get("lang") || "en";
 
   // Keep html[lang/dir] in sync if langParam changes at runtime (browser nav).
@@ -192,23 +197,23 @@ export default function ResultsPrint() {
   }, [langParam]);
 
   const { data: recommendations = [], isLoading } = useQuery<any[]>({
-    queryKey: assessmentId 
-      ? [`/api/recommendations?assessmentId=${assessmentId}${guestToken ? `&guestToken=${guestToken}` : ''}&lang=${langParam}`] 
-      : guestToken 
+    queryKey: assessmentId
+      ? [`/api/recommendations?assessmentId=${assessmentId}${guestToken ? `&guestToken=${guestToken}` : ''}&lang=${langParam}${printTokenParam}`]
+      : guestToken
         ? [`/api/recommendations?guestToken=${guestToken}&lang=${langParam}`]
         : [`/api/recommendations?lang=${langParam}`],
     enabled: true,
   });
 
   const { data: quizData } = useQuery<any>({
-    queryKey: [`/api/assessments/${assessmentId}/quiz`],
+    queryKey: [`/api/assessments/${assessmentId}/quiz${printToken ? `?printToken=${encodeURIComponent(printToken)}` : ''}`],
     enabled: !!assessmentId,
   });
 
   const { data: assessment } = useQuery<any>({
-    queryKey: guestToken 
-      ? [`/api/assessments/${assessmentId}?guestToken=${guestToken}`]
-      : [`/api/assessments/${assessmentId}`],
+    queryKey: guestToken
+      ? [`/api/assessments/${assessmentId}?guestToken=${guestToken}${printTokenParam}`]
+      : [`/api/assessments/${assessmentId}${printToken ? `?printToken=${encodeURIComponent(printToken)}` : ''}`],
     enabled: !!assessmentId,
   });
 
@@ -218,7 +223,7 @@ export default function ResultsPrint() {
   });
 
   const { data: cvqResult } = useQuery<any>({
-    queryKey: [`/api/cvq/result/${assessmentId}`],
+    queryKey: [`/api/cvq/result/${assessmentId}${printToken ? `?printToken=${encodeURIComponent(printToken)}` : ''}`],
     enabled: !!assessmentId && isPremiumAssessment(assessment?.assessmentType),
   });
 
@@ -253,6 +258,7 @@ export default function ResultsPrint() {
           // matches the explicit download language chosen by the user.
           params.set('lang', langParam === 'ar' ? 'ar' : 'en');
           if (guestToken) params.set('guestToken', encodeURIComponent(guestToken));
+          if (printToken) params.set('printToken', printToken);
           return {
             queryKey: [`/api/recommendations/${assessmentId}/career-reasoning/${rec.careerId}?${params.toString()}`],
             retry: false,

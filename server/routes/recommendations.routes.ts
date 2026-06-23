@@ -13,6 +13,7 @@ import {
   generateEnhancedActionSteps,
 } from "../services/premiumNarratives";
 import { isPremiumAssessment } from "../utils/assessmentTier";
+import { mintPrintToken } from "../utils/printToken";
 import type { Career } from "@shared/schema";
 
 /** Escape regex metacharacters so user-supplied strings are treated as literals. */
@@ -503,6 +504,12 @@ export function registerRecommendationsRoutes(app: Express) {
       
       // Include guest token if this is a guest assessment
       const guestTokenParam = assessment.guestSessionId ? `&guestToken=${assessment.guestSessionId}` : '';
+      // Mint a short-lived token scoped to THIS assessment so the headless
+      // browser (which carries no session cookie) can authorize the print
+      // page's data fetches. Ownership has already been verified above, so it
+      // is safe to mint here. Additive to the guest path — both coexist.
+      const printToken = mintPrintToken(assessment.id);
+      const printTokenParam = `&printToken=${encodeURIComponent(printToken)}`;
       // Resolve language for PDF rendering:
       // 1. Honour explicit ?lang= from the download request (allowlisted)
       // 2. Fall back to stored user preference
@@ -518,7 +525,7 @@ export function registerRecommendationsRoutes(app: Express) {
         const storedLang = pdfUser?.preferredLanguage ?? "";
         pdfLang = (ALLOWED_LANGS as readonly string[]).includes(storedLang) ? (storedLang as AllowedLang) : "en";
       }
-      const printUrl = `${baseUrl}/print/results?assessmentId=${assessment.id}${guestTokenParam}&lang=${pdfLang}`;
+      const printUrl = `${baseUrl}/print/results?assessmentId=${assessment.id}${guestTokenParam}${printTokenParam}&lang=${pdfLang}`;
       
       // SECURITY: Comprehensive URL validation to prevent SSRF attacks
       try {
