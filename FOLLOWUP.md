@@ -278,6 +278,47 @@ The product supports Arabic (`titleAr`/`descriptionAr`/`nameAr` fields,
 - **Arabic font/glyph rendering** (correct font loaded, no tofu/boxes).
 - **Form inputs and text alignment** in RTL.
 
+### Individual-tier assessment lock — PARKED, needs product decisions before build
+
+**STATUS: PARKED / PRE-LAUNCH — documentation only, do not implement now.**
+Pre-launch IF individual self-pay is a launch channel. The org_student lock
+shipped; this is the individual-tier counterpart and is intentionally NOT built.
+
+**Goal:** lock an individual from starting a new assessment once they've used all
+the assessments they purchased (one purchase = one assessment; someone who bought
+3 can take 3, then is locked).
+
+**Why the naive rule is unsafe.** `completed >= purchasedLicenses` looks right but
+has three concrete problems found during the org_student-lock work:
+1. **Free-tier individuals would be locked before their first assessment.** A
+   free / never-paid individual has `users.purchasedLicenses = 0`, so
+   `completed(0) >= purchased(0)` ⇒ locked immediately. Breaks the free tier.
+2. **Mismatched currencies.** `purchasedLicenses` counts only PAID seats, but a
+   completed-assessment count includes FREE completions too. `assessmentType`
+   ('free'/'premium') lives on the assessment row and is derived from content
+   (e.g. `server/routes/assessment.routes.ts:82,89`), not from a purchase link.
+3. **No server-side guard for individuals.** The POST `/api/assessments` license
+   guard (`server/routes/assessment.routes.ts:97-122`) gates org_students only
+   (via `orgMember.hasCompletedAssessment`). An individual client-only lock is
+   cosmetic / trivially bypassable.
+
+**Correct (narrower) rule:**
+`accountType === 'individual' && purchasedLicenses > 0 && completedPremiumCount >= purchasedLicenses`
+where `completedPremiumCount` = completed assessments with `assessmentType === 'premium'`.
+
+**OPEN DECISIONS before building:**
+- (i) Should free-tier individuals be capped at all, or stay unlimited? The rule
+  above leaves them unlimited (matches current behavior).
+- (ii) Add a server-side POST guard for individuals (RECOMMENDED — parallels the
+  org_student guard; without it the lock is cosmetic).
+
+**Data that exists:** `users.purchasedLicenses` (`shared/schema.ts:51`),
+incremented per payment (`server/storage.ts:589-597`,
+`server/routes/payment.routes.ts:189/206/227`), exposed to the client via
+`/api/auth/user`. The `useAssessmentAvailability` hook currently returns
+`Infinity` for non-org_students by design — DO NOT wire individuals into it until
+(i)/(ii) are decided.
+
 ### Confirmed CORRECT (do not re-investigate)
 - **Scoring-engine weights match the white paper exactly.** Free 35/35/30;
   premium RIASEC 35 / Subject 20 / Vision 20 / CVQ 25

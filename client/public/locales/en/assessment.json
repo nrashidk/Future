@@ -3,6 +3,11 @@
   "pageTitle": "Career Assessment",
   "leaveConfirm": "Your assessment is in progress. Are you sure you want to leave? Your answers are saved and you can resume later.",
   "loading": "Loading...",
+  "lock": {
+    "title": "You've completed your assessment",
+    "orgStudentBody": "You've used your assessment license. To take another, please contact your school administrator to request an additional license.",
+    "viewReport": "View your report"
+  },
   "resume": {
     "title": "Welcome back!",
     "subtitle": "You have an assessment in progress at step {{step}} of {{total}}.",

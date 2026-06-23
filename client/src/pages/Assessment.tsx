@@ -16,6 +16,7 @@ import { GraduationCap, LogIn, LogOut, User, ClipboardCheck, Building2, BarChart
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 import type { Assessment as AssessmentRecord } from "@shared/schema";
+import { useAssessmentAvailability } from "@/hooks/useAssessmentAvailability";
 
 const DRAFT_KEY = "fp_assessment_draft";
 
@@ -69,6 +70,13 @@ export default function Assessment() {
 
   const [, setLocation] = useLocation();
   const { user, isAuthenticated, isLoading } = useAuth();
+  const {
+    isOrgStudent,
+    isLoading: availLoading,
+    hasAvailable,
+    hasInProgress,
+    completedReportId,
+  } = useAssessmentAvailability();
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [isGuest, setIsGuest] = useState(false);
@@ -716,6 +724,43 @@ export default function Assessment() {
           <p className="text-sm text-muted-foreground font-body">{t("polling.hint")}</p>
         </div>
       </div>
+    );
+  }
+
+  // Org_student availability still loading: show the spinner rather than briefly
+  // flashing the form (or the lock) before we know which to render.
+  if (isOrgStudent && availLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <GraduationCap className="w-16 h-16 text-primary mx-auto mb-4 animate-pulse" />
+          <p className="text-lg text-muted-foreground">{t("loading")}</p>
+        </div>
+      </div>
+    );
+  }
+
+  // LOCKED: org_student who has used their one allocation and has nothing in
+  // progress. Individuals/guests (isOrgStudent === false) and mid-assessment or
+  // fresh students never reach this branch.
+  if (isOrgStudent && !hasAvailable && !hasInProgress) {
+    return (
+      <main id="main-content" className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 px-4">
+        <div className="max-w-md w-full text-center space-y-6 bg-card border rounded-xl p-8 shadow-sm">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10">
+            <ClipboardCheck className="w-8 h-8 text-primary" />
+          </div>
+          <div className="space-y-2">
+            <h1 className="text-2xl font-bold">{t("lock.title")}</h1>
+            <p className="text-muted-foreground">{t("lock.orgStudentBody")}</p>
+          </div>
+          {completedReportId && (
+            <Button asChild className="w-full">
+              <a href={`/results?assessmentId=${completedReportId}`}>{t("lock.viewReport")}</a>
+            </Button>
+          )}
+        </div>
+      </main>
     );
   }
 
