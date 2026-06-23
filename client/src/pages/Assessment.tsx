@@ -286,19 +286,9 @@ export default function Assessment() {
 
         // Most recent in-progress assessment (array is already ordered by createdAt desc)
         const inProgress = allAssessments.find(a => !a.isCompleted && a.currentStep > 1);
-        if (!inProgress) {
-          // Org_student with a consumed allocation (a completed assessment, nothing
-          // in progress): their one license is used. Send them to their existing
-          // report rather than a fresh form. The server POST guard is authoritative;
-          // this is a UX redirect so they never reach a flow that would 403 on submit.
-          if (user?.accountType === "org_student") {
-            const completed = allAssessments.find(a => a.isCompleted);
-            if (completed) {
-              setLocation("/results?assessmentId=" + completed.id);
-            }
-          }
-          return;
-        }
+        // No in-progress assessment to resume. The locked-state UI (rendered below)
+        // explains a consumed allocation — we no longer redirect to the report on mount.
+        if (!inProgress) return;
 
         // Resolve personalityTraits: the DB stores this as JSONB (unknown at the type level).
         // Free-tier: stored as string[] (trait keys like "teamwork_2" after Task #59, or
