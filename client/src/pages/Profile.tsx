@@ -673,7 +673,7 @@ export default function Profile() {
                         </p>
                         {/* Completed assessment: link to its report by assessmentId (kept ID-parameterized for future per-year history) */}
                         {latestAssessment.isCompleted && (
-                          <Button asChild variant="outline" size="sm" className="w-full mt-3" data-testid={`button-view-report-${latestAssessment.id}`}>
+                          <Button asChild size="sm" className="w-full mt-3 bg-green-600 hover:bg-green-700 text-white" data-testid={`button-view-report-${latestAssessment.id}`}>
                             <Link href={`/results?assessmentId=${latestAssessment.id}`}>
                               <FileText className="w-4 h-4 me-2" />
                               {t("assessment.viewReport")}
