@@ -1,6 +1,21 @@
-import type { Express } from "express";
+import type { Express, RequestHandler } from "express";
 import { storage } from "../storage";
 import { isAuthenticated } from "../auth";
+import { printTokenAuthorizes } from "../utils/printToken";
+
+/**
+ * Auth gate for the read-only CVQ result route. Passes when the caller is a
+ * logged-in user OR presents a print token scoped to EXACTLY :assessmentId
+ * (the server-side PDF render carries no session cookie). This does NOT weaken
+ * auth: the token branch is still scoped — a token minted for assessment A can
+ * never unlock B — and the handler re-checks ownership before returning data.
+ */
+const isAuthenticatedOrPrintToken: RequestHandler = (req: any, res, next) => {
+  if (req.isAuthenticated() || printTokenAuthorizes(req.query.printToken, req.params.assessmentId)) {
+    return next();
+  }
+  return res.status(401).json({ message: "Unauthorized" });
+};
 
 /** Detect preferred language from Accept-Language or X-Language header */
 function getRequestLanguage(req: any): string {
@@ -148,7 +163,7 @@ export function registerCvqRoutes(app: Express) {
     }
   });
 
-  app.get("/api/cvq/result/:assessmentId", isAuthenticated, async (req: any, res) => {
+  app.get("/api/cvq/result/:assessmentId", isAuthenticatedOrPrintToken, async (req: any, res) => {
     try {
       const result = await storage.getCvqResultByAssessmentId(req.params.assessmentId);
 
@@ -158,11 +173,16 @@ export function registerCvqRoutes(app: Express) {
       // anyone read any student's values profile by replaying/guessing an
       // assessment ID. CVQ results are always tied to a registered user
       // (cvqResults.userId is NOT NULL and /submit requires auth), so the owner
-      // is simply that user. Return an identical 404 for both the not-found and
+      // is simply that user. The server-side PDF render carries no session
+      // cookie, so a print token scoped to EXACTLY this assessmentId also
+      // authorizes the read (req.user is undefined on that path — guard before
+      // dereferencing it). Return an identical 404 for both the not-found and
       // not-owned cases so the two are indistinguishable — a 404-vs-200/403
       // difference would itself be an enumeration oracle confirming which
       // assessment IDs map to real students (mirrors the C2 gate).
-      if (!result || result.userId !== req.user.userId) {
+      const isOwner = req.isAuthenticated() && !!result && result.userId === req.user.userId;
+      const isPrintTokenOwner = printTokenAuthorizes(req.query.printToken, req.params.assessmentId);
+      if (!result || (!isOwner && !isPrintTokenOwner)) {
         return res.status(404).json({ message: "No CVQ result found for this assessment" });
       }
 

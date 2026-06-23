@@ -7,6 +7,7 @@ import { z } from "zod";
 import { calculateRiasecScores } from "../questionBanks/riasec";
 import { normalizeSubjects } from "../utils/subjects";
 import { sanitizeRequestBody } from "../utils/sanitize";
+import { printTokenAuthorizes } from "../utils/printToken";
 
 /**
  * Normalize assessment payload before validation
@@ -188,15 +189,22 @@ export function registerAssessmentRoutes(app: Express) {
         return res.status(403).json({ message: "Unauthorized to access this assessment" });
       }
 
+      // Server-side PDF render: a print token scoped to THIS assessment
+      // authorizes the read (the headless browser carries no session cookie or
+      // guest token). Scoped to req.params.id exactly — a token minted for
+      // assessment A can never read B (see printTokenAuthorizes). This route
+      // supplies the basic-info fields the report needs, so it must accept it.
+      const isPrintTokenOwner = printTokenAuthorizes(req.query.printToken, req.params.id);
+
       // Ownership check: authenticated user must own it, or guest token must match
       if (assessment.userId) {
-        if (!req.isAuthenticated() || req.user.userId !== assessment.userId) {
+        if (!isPrintTokenOwner && (!req.isAuthenticated() || req.user.userId !== assessment.userId)) {
           return res.status(403).json({ message: "Unauthorized to access this assessment" });
         }
       } else {
         // Guest assessment: verify via cookie or query param
         const guestToken = req.cookies?.guest_token || req.query.guestToken;
-        if (!guestToken || guestToken !== assessment.guestSessionId) {
+        if (!isPrintTokenOwner && (!guestToken || guestToken !== assessment.guestSessionId)) {
           return res.status(403).json({ message: "Unauthorized to access this assessment" });
         }
       }

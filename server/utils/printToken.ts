@@ -80,3 +80,17 @@ export function verifyPrintToken(token: unknown): { aid: string } | null {
 
   return { aid: payload.aid };
 }
+
+/**
+ * The scoping primitive the data routes use: true iff `token` is a valid,
+ * unexpired print token scoped to EXACTLY `assessmentId`. A token minted for
+ * assessment A authorizes ONLY A — passing A's token while requesting B returns
+ * false, so the PDF render can never read across assessments.
+ */
+export function printTokenAuthorizes(token: unknown, assessmentId: string | undefined): boolean {
+  if (!assessmentId) {
+    return false;
+  }
+  const result = verifyPrintToken(token);
+  return result !== null && result.aid === assessmentId;
+}

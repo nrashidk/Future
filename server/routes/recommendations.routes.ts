@@ -13,7 +13,7 @@ import {
   generateEnhancedActionSteps,
 } from "../services/premiumNarratives";
 import { isPremiumAssessment } from "../utils/assessmentTier";
-import { mintPrintToken } from "../utils/printToken";
+import { mintPrintToken, printTokenAuthorizes } from "../utils/printToken";
 import type { Career } from "@shared/schema";
 
 /** Escape regex metacharacters so user-supplied strings are treated as literals. */
@@ -250,6 +250,13 @@ export function registerRecommendationsRoutes(app: Express) {
         } else {
           // Guest assessment — caller must present the matching guest token
           owns = !!guestToken && guestToken === assessment.guestSessionId;
+        }
+        // Server-side PDF render: a print token scoped to THIS assessment
+        // authorizes the read. The headless browser carries no session cookie;
+        // the token (minted only after an ownership check in the PDF route)
+        // stands in as proof of ownership for this one assessmentId only.
+        if (!owns && printTokenAuthorizes(req.query.printToken, assessmentId)) {
+          owns = true;
         }
       }
       if (!assessment || !owns) {
@@ -673,6 +680,12 @@ export function registerRecommendationsRoutes(app: Express) {
         if (guestAssessment && guestAssessment.id === assessmentId) {
           isAuthorized = true;
         }
+      }
+
+      // Server-side PDF render: a print token scoped to THIS assessment
+      // authorizes the premium narrative read (headless browser has no cookie).
+      if (!isAuthorized && printTokenAuthorizes(req.query.printToken, assessmentId)) {
+        isAuthorized = true;
       }
 
       if (!isAuthorized) {

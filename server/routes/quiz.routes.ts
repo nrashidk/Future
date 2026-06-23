@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { storage } from "../storage";
 import { transformQuizQuestionForFrontend, shuffleQuestions, shuffleOptions } from "../utils/quiz";
 import { normalizeSubjectsAsync } from "../utils/subjects";
+import { printTokenAuthorizes } from "../utils/printToken";
 
 /** Detect preferred language from standard Accept-Language or custom X-Language header */
 function getRequestLanguage(req: any): string {
@@ -308,7 +309,10 @@ export function registerQuizRoutes(app: Express) {
       const userId = req.isAuthenticated() ? (req.user.userId) : null;
       const isOwner = req.isAuthenticated() && assessment.userId === userId;
       const isGuestOwner = assessment.isGuest && guestToken && assessment.guestSessionId === guestToken;
-      if (!isOwner && !isGuestOwner) {
+      // Server-side PDF render: a print token scoped to THIS assessment
+      // authorizes the read (headless browser carries no session cookie).
+      const isPrintTokenOwner = printTokenAuthorizes(req.query.printToken, assessmentId);
+      if (!isOwner && !isGuestOwner && !isPrintTokenOwner) {
         return res.status(403).json({ message: "Unauthorized to view this quiz" });
       }
       
