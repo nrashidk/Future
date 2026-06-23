@@ -747,14 +747,14 @@ export default function Assessment() {
   if (isOrgStudent && !hasAvailable && !hasInProgress) {
     return (
       <PageLayout variant="gradient">
-        <div className="flex items-center justify-center px-4 py-12">
-          <div className="max-w-md w-full text-center space-y-6 bg-card border rounded-xl p-8 shadow-sm">
+        <div className="flex items-center justify-center px-4 py-12 min-h-[calc(100vh-12rem)]">
+          <div className="max-w-md w-full text-center space-y-6 rounded-xl p-8">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10">
               <ClipboardCheck className="w-8 h-8 text-primary" />
             </div>
             <div className="space-y-2">
               <h1 className="text-4xl md:text-5xl font-bold">{t("lock.title")}</h1>
-              <p className="text-muted-foreground">{t("lock.orgStudentBody")}</p>
+              <p className="text-lg text-muted-foreground">{t("lock.orgStudentBody")}</p>
             </div>
             {completedReportId && (
               <Button asChild size="lg" className="w-full text-lg px-8 py-6 rounded-full shadow-xl">
