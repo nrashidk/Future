@@ -753,11 +753,11 @@ export default function Assessment() {
               <ClipboardCheck className="w-8 h-8 text-primary" />
             </div>
             <div className="space-y-2">
-              <h1 className="text-2xl font-bold">{t("lock.title")}</h1>
+              <h1 className="text-4xl md:text-5xl font-bold">{t("lock.title")}</h1>
               <p className="text-muted-foreground">{t("lock.orgStudentBody")}</p>
             </div>
             {completedReportId && (
-              <Button asChild className="w-full">
+              <Button asChild size="lg" className="w-full text-lg px-8 py-6 rounded-full shadow-xl">
                 <a href={`/results?assessmentId=${completedReportId}`}>{t("lock.viewReport")}</a>
               </Button>
             )}
