@@ -22,7 +22,8 @@ import {
   Crown,
   Smile,
   DollarSign,
-  Loader2
+  Loader2,
+  User
 } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -396,6 +397,69 @@ export default function Results() {
           </p>
         </div>
       </div>
+
+      {/* Student Info Section */}
+      {(() => {
+        const displayName = assessment?.name || (user as any)?.predefinedName;
+        const displayAge = assessment?.age || (user as any)?.predefinedAge;
+        const displayGrade = assessment?.grade || (user as any)?.predefinedGrade;
+        const displayGender = assessment?.gender || (user as any)?.predefinedGender;
+        const hasAnyField = displayName || displayAge || displayGrade || displayGender || country;
+        if (!hasAnyField) return null;
+        return (
+          <div className="max-w-4xl mx-auto px-4 -mt-8 mb-6">
+            <StickyNote color={assessment?.assessmentType === 'school' ? 'blue' : 'purple'} rotation="0" className="p-4">
+              <div className="flex items-center gap-3 mb-3">
+                <User className="w-7 h-7 text-primary flex-shrink-0" />
+                <h2 className="text-xl font-bold">{t('studentProfile')}</h2>
+              </div>
+              <div className="grid grid-cols-5 gap-3">
+                {displayName && (
+                  <div className="p-2 bg-primary/20 rounded-lg text-center">
+                    <p className="text-xs text-muted-foreground font-body mb-0.5">{t('profileName')}</p>
+                    <p className="font-semibold text-sm leading-tight">{displayName}</p>
+                  </div>
+                )}
+                {displayAge && (
+                  <div className="p-2 bg-primary/20 rounded-lg text-center">
+                    <p className="text-xs text-muted-foreground font-body mb-0.5">{t('profileAge')}</p>
+                    <p className="font-semibold text-sm">{displayAge} {t('yearsOld')}</p>
+                  </div>
+                )}
+                {displayGrade && (
+                  <div className="p-2 bg-primary/20 rounded-lg text-center">
+                    <p className="text-xs text-muted-foreground font-body mb-0.5">{t('profileGrade')}</p>
+                    <p className="font-semibold text-sm">{t('gradeLabel')} {String(displayGrade).replace('grade', '')}</p>
+                  </div>
+                )}
+                {displayGender && (
+                  <div className="p-2 bg-primary/20 rounded-lg text-center">
+                    <p className="text-xs text-muted-foreground font-body mb-0.5">{t('profileGender')}</p>
+                    <p className="font-semibold text-sm capitalize">
+                      {(() => {
+                        // Normalize "prefer_not_to_say" → "genderPreferNotToSay" etc.
+                        const key = 'gender' + String(displayGender)
+                          .split(/[_\s]+/)
+                          .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
+                          .join('');
+                        return t(key, { defaultValue: displayGender });
+                      })()}
+                    </p>
+                  </div>
+                )}
+                {country && (
+                  <div className="p-2 bg-primary/20 rounded-lg text-center">
+                    <p className="text-xs text-muted-foreground font-body mb-0.5">{t('profileCountry')}</p>
+                    <p className="font-semibold text-sm leading-tight">
+                      {getCountryDisplayName(country, language, t)}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </StickyNote>
+          </div>
+        );
+      })()}
 
       {/* Subject Competency Spotlight */}
       {quizData?.completed && quizData?.subjectScores && Object.keys(quizData.subjectScores).length > 0 && (
