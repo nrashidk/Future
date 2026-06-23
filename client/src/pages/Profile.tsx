@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
-import { GraduationCap, Crown, Users, ClipboardCheck, Home, User, LogOut, BarChart, Shield, Building2, FileQuestion, TrendingUp, ClipboardList, Cake, Users2 } from "lucide-react";
+import { GraduationCap, Crown, Users, ClipboardCheck, Home, User, LogOut, BarChart, Shield, Building2, FileQuestion, TrendingUp, ClipboardList, Cake, Users2, FileText } from "lucide-react";
 import { StickyNote } from "@/components/StickyNote";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -19,7 +19,6 @@ interface Assessment {
   gender: string | null;
   createdAt: string;
   tier: string;
-  status: string;
   isCompleted: boolean;
 }
 
@@ -551,7 +550,7 @@ export default function Profile() {
                   <div className="flex items-center justify-between mt-3">
                     <p className="text-sm text-muted-foreground">{t("premium.availableAssessments")}</p>
                     <p className="font-bold text-2xl text-primary" data-testid="text-student-available-assessments">
-                      {Math.max(0, 1 - assessments.filter(a => a.status === 'completed').length)}
+                      {Math.max(0, 1 - assessments.filter(a => a.isCompleted).length)}
                     </p>
                   </div>
                 </div>
@@ -649,7 +648,7 @@ export default function Profile() {
               ) : (
                 <div>
                   {/* Show Continue button if there's an in-progress assessment */}
-                  {assessments.some(a => a.status !== 'completed') && (
+                  {assessments.some(a => !a.isCompleted) && (
                     <div className="mb-4">
                       <Button asChild className="w-full" data-testid="button-continue-assessment">
                         <Link href="/assessment">
@@ -669,15 +668,24 @@ export default function Profile() {
                       <div className="p-3 border rounded-lg" data-testid={`assessment-item-${latestAssessment.id}`}>
                         <p className="font-medium">{latestAssessment.name || t("assessment.assessment")}</p>
                         <p className="text-sm text-muted-foreground">
-                          {new Date(latestAssessment.createdAt).toLocaleDateString(language === 'ar' ? 'ar-AE' : 'en-US')} 
+                          {new Date(latestAssessment.createdAt).toLocaleDateString(language === 'ar' ? 'ar-AE' : 'en-US')}
                           {latestAssessment.tier && ` • ${latestAssessment.tier === 'premium' || latestAssessment.tier === 'school' ? t("premium.premium") : t("premium.free")}`}
                         </p>
+                        {/* Completed assessment: link to its report by assessmentId (kept ID-parameterized for future per-year history) */}
+                        {latestAssessment.isCompleted && (
+                          <Button asChild variant="outline" size="sm" className="w-full mt-3" data-testid={`button-view-report-${latestAssessment.id}`}>
+                            <Link href={`/results?assessmentId=${latestAssessment.id}`}>
+                              <FileText className="w-4 h-4 me-2" />
+                              {t("assessment.viewReport")}
+                            </Link>
+                          </Button>
+                        )}
                       </div>
                     );
                   })()}
                   
                   {/* View Progress Journey button - shows career evolution across grades */}
-                  {assessments.filter(a => a.status === 'completed').length > 0 && (
+                  {assessments.filter(a => a.isCompleted).length > 0 && (
                     <div className="mt-4 pt-4 border-t">
                       <Button asChild variant="outline" className="w-full" data-testid="button-view-progress">
                         <Link href="/progress">
