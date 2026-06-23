@@ -3,6 +3,41 @@
 Non-blocking items surfaced during Phase 2 security work. **Not security findings.**
 Do not block deploy on these, but address before/around release.
 
+## BUG — PDF report is empty for authenticated users (org_students); needs auth-aware print rendering
+
+**Status:** investigated 2026-06-23, not yet fixed. Do this as one coupled piece of work (PDF auth fix + student basic-info block). Distinct from the "PDF needs ~12 system libs" pre-deploy item below — that is environmental; this is an auth/data bug.
+
+### Bug
+The PDF download produces an **empty report** — only the i18n title ("Your Career Pathways!") and subtitle render; all dynamic content (subject strengths, values, career matches) is missing. Affects **authenticated users — including org_students, the primary user base**. **Guest PDFs work** (their token is passed in the print URL). On-screen `/results` renders fine for everyone.
+
+### Root cause
+Server-side Puppeteer generates the PDF:
+
+1. `GET /api/recommendations/pdf/:assessmentId` — `server/routes/recommendations.routes.ts:440` — launches headless Chromium and loads `/print/results?assessmentId=…[&guestToken=…]&lang=…` (line 521) in a **fresh browser with no session cookie**.
+2. For an **authenticated** assessment, `assessment.guestSessionId` is `null`, so **no token is appended** to the print URL:
+   `recommendations.routes.ts:505` → `const guestTokenParam = assessment.guestSessionId ? \`&guestToken=…\` : '';`
+3. `ResultsPrint.tsx` then calls the data APIs (`/api/recommendations`, `/quiz`, `/cvq/result`, the assessment fetch) with **neither a session cookie nor a guest token**.
+4. The ownership check returns an **empty array, not an error** — `recommendations.routes.ts:246-255`:
+   ```ts
+   if (assessment.userId) {
+     owns = req.isAuthenticated() && req.user?.userId === assessment.userId; // false in headless browser
+   } ...
+   if (!assessment || !owns) return res.json([]);   // empty array
+   ```
+5. In `ResultsPrint`, the title/subtitle come purely from i18n so they render; **every data-gated section renders empty**. The "normal" ready signal requires `recommendations.length > 0` so it never fires — the **20-second safety-net timer** (`ResultsPrint.tsx:291-308`) flips `window.__REPORT_READY__ = true` and Puppeteer **captures the blank page** (also explains the ~20s generation time).
+
+### Fix (recommended)
+Mint a **short-lived, single-assessment signed token** server-side in the PDF route, append it to the print URL, and verify it on the data routes the print page calls. **Scope the token to ONE `assessmentId`** so it cannot read any other assessment. Works for both authenticated and guest assessments and does **not** widen the existing guest-token surface.
+
+### Also do together (coupled): student basic info on report page 1
+Add the student's basic info — **name, age, grade, gender** — to the first page of the report. It must render in **BOTH** the on-screen `/results` page **and** the PDF. Depends on the PDF auth fix landing first; otherwise the basic info also comes out empty in the PDF (same unauthenticated-fetch root cause).
+
+### Test plan (when built)
+- Authenticated org_student PDF contains full content (subject strengths, values, career matches, and the new basic-info block).
+- Guest PDF still works.
+- A token scoped to assessment A **cannot** fetch assessment B's data.
+- PDF generation **no longer takes ~20s** — i.e. the real ready signal fires, not the safety-net timer.
+
 ## Pre-deploy (operational)
 1. **PDF generation needs ~12 system libraries at runtime.** Puppeteer/Chrome
    requires a set of shared libs (libnss3, libatk, libgbm, etc.) on the host.
