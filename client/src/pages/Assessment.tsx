@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 import type { Assessment as AssessmentRecord } from "@shared/schema";
 import { useAssessmentAvailability } from "@/hooks/useAssessmentAvailability";
+import { PageLayout } from "@/components/layout/PageLayout";
 
 const DRAFT_KEY = "fp_assessment_draft";
 
@@ -745,22 +746,24 @@ export default function Assessment() {
   // fresh students never reach this branch.
   if (isOrgStudent && !hasAvailable && !hasInProgress) {
     return (
-      <main id="main-content" className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 px-4">
-        <div className="max-w-md w-full text-center space-y-6 bg-card border rounded-xl p-8 shadow-sm">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10">
-            <ClipboardCheck className="w-8 h-8 text-primary" />
+      <PageLayout variant="gradient">
+        <div className="flex items-center justify-center px-4 py-12">
+          <div className="max-w-md w-full text-center space-y-6 bg-card border rounded-xl p-8 shadow-sm">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10">
+              <ClipboardCheck className="w-8 h-8 text-primary" />
+            </div>
+            <div className="space-y-2">
+              <h1 className="text-2xl font-bold">{t("lock.title")}</h1>
+              <p className="text-muted-foreground">{t("lock.orgStudentBody")}</p>
+            </div>
+            {completedReportId && (
+              <Button asChild className="w-full">
+                <a href={`/results?assessmentId=${completedReportId}`}>{t("lock.viewReport")}</a>
+              </Button>
+            )}
           </div>
-          <div className="space-y-2">
-            <h1 className="text-2xl font-bold">{t("lock.title")}</h1>
-            <p className="text-muted-foreground">{t("lock.orgStudentBody")}</p>
-          </div>
-          {completedReportId && (
-            <Button asChild className="w-full">
-              <a href={`/results?assessmentId=${completedReportId}`}>{t("lock.viewReport")}</a>
-            </Button>
-          )}
         </div>
-      </main>
+      </PageLayout>
     );
   }
 
