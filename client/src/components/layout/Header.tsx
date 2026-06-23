@@ -1,17 +1,21 @@
 import { Link, useRoute } from "wouter";
-import { GraduationCap, User, LogOut, ClipboardCheck, Building2, BarChart, Shield, FileQuestion, Menu } from "lucide-react";
+import { GraduationCap, User, LogOut, ClipboardCheck, Building2, BarChart, Shield, FileQuestion, Menu, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTranslation } from "react-i18next";
+import { useAssessmentAvailability } from "@/hooks/useAssessmentAvailability";
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const { user } = useAuth();
   const { t } = useTranslation("common");
   const isSuperadmin = user?.accountType === 'superadmin';
   const isOrgAdmin = user?.accountType === 'org_admin';
+  const { isOrgStudent, hasAvailable, hasInProgress, completedReportId } = useAssessmentAvailability();
+  // Org_student who has used their one allocation (nothing in progress) → no new assessment.
+  const orgStudentUsedUp = isOrgStudent && !hasAvailable && !hasInProgress;
 
   const [onSuperadmin] = useRoute("/superadmin");
   const [onOrgs] = useRoute("/admin/organizations");
@@ -76,12 +80,24 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
         </>
       )}
       {user && !isSuperadmin && !isOrgAdmin && (
-        <Button variant="outline" size="sm" asChild className={navBtnClass} data-testid="button-nav-assessment">
-          <Link href="/assessment" aria-current={onAssessment ? "page" : undefined} onClick={onNavigate} className={linkClass}>
-            <ClipboardCheck className="w-4 h-4" aria-hidden="true" />
-            {t("nav.assessment")}
-          </Link>
-        </Button>
+        orgStudentUsedUp ? (
+          // Allocation consumed: route to their existing report instead of a dead "Assessment" link.
+          completedReportId && (
+            <Button variant="outline" size="sm" asChild className={navBtnClass} data-testid="button-nav-view-report">
+              <Link href={`/results?assessmentId=${completedReportId}`} onClick={onNavigate} className={linkClass}>
+                <FileText className="w-4 h-4" aria-hidden="true" />
+                {t("nav.viewReport")}
+              </Link>
+            </Button>
+          )
+        ) : (
+          <Button variant="outline" size="sm" asChild className={navBtnClass} data-testid="button-nav-assessment">
+            <Link href="/assessment" aria-current={onAssessment ? "page" : undefined} onClick={onNavigate} className={linkClass}>
+              <ClipboardCheck className="w-4 h-4" aria-hidden="true" />
+              {t("nav.assessment")}
+            </Link>
+          </Button>
+        )
       )}
       {user && (
         <>

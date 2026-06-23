@@ -31,6 +31,7 @@ import { useState, useEffect } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useAssessmentAvailability } from "@/hooks/useAssessmentAvailability";
 import type { Recommendation, Career } from "@shared/schema";
 
 interface WefSkillTag {
@@ -243,6 +244,7 @@ export default function Results() {
   useEffect(() => { document.title = t('pageDocTitle'); }, [t]);
 
   const { isAuthenticated, user } = useAuth();
+  const { isOrgStudent, hasAvailable } = useAssessmentAvailability();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   
@@ -1118,13 +1120,16 @@ export default function Results() {
                 >
                   {t('viewProfile')}
                 </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => window.location.href = "/assessment"}
-                  data-testid="button-start-new-assessment"
-                >
-                  {t('newAssessment')}
-                </Button>
+                {/* Org_students with no remaining allocation can't start another (server 403s) */}
+                {!(isOrgStudent && !hasAvailable) && (
+                  <Button
+                    variant="outline"
+                    onClick={() => window.location.href = "/assessment"}
+                    data-testid="button-start-new-assessment"
+                  >
+                    {t('newAssessment')}
+                  </Button>
+                )}
               </div>
             </StickyNote>
           </div>

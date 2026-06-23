@@ -286,7 +286,19 @@ export default function Assessment() {
 
         // Most recent in-progress assessment (array is already ordered by createdAt desc)
         const inProgress = allAssessments.find(a => !a.isCompleted && a.currentStep > 1);
-        if (!inProgress) return;
+        if (!inProgress) {
+          // Org_student with a consumed allocation (a completed assessment, nothing
+          // in progress): their one license is used. Send them to their existing
+          // report rather than a fresh form. The server POST guard is authoritative;
+          // this is a UX redirect so they never reach a flow that would 403 on submit.
+          if (user?.accountType === "org_student") {
+            const completed = allAssessments.find(a => a.isCompleted);
+            if (completed) {
+              setLocation("/results?assessmentId=" + completed.id);
+            }
+          }
+          return;
+        }
 
         // Resolve personalityTraits: the DB stores this as JSONB (unknown at the type level).
         // Free-tier: stored as string[] (trait keys like "teamwork_2" after Task #59, or
@@ -525,7 +537,7 @@ export default function Assessment() {
       if (isAspirationsStepPremium) setIsGenerating(true);
 
       try {
-        const { apiRequest } = await import("@/lib/queryClient");
+        const { apiRequest, queryClient } = await import("@/lib/queryClient");
         
         // Map frontend fields to backend schema
         const backendData: any = {
@@ -592,6 +604,10 @@ export default function Assessment() {
           try {
             await apiRequest("POST", `/api/recommendations/generate/${assessment.id}`, {});
             try { sessionStorage.removeItem(DRAFT_KEY); } catch {}
+            // Completion consumes the org_student's allocation — refresh the cached
+            // assessments list so availability (header link, "Start New Assessment")
+            // reflects 0 immediately rather than after the 5-min staleTime.
+            queryClient.invalidateQueries({ queryKey: ["/api/assessments/my"] });
             setLocation("/results?assessmentId=" + assessment.id);
           } catch (genError) {
             console.error("Error generating recommendations:", genError);
@@ -621,13 +637,16 @@ export default function Assessment() {
     // Premium users complete quiz at step 4 and continue to RIASEC → CVQ → Aspirations
     // Premium recommendation generation is handled by handleNext at the Aspirations step (step 7)
     try {
-      const { apiRequest } = await import("@/lib/queryClient");
-      
+      const { apiRequest, queryClient } = await import("@/lib/queryClient");
+
       // Generate recommendations based on assessment + quiz
       await apiRequest("POST", `/api/recommendations/generate/${assessmentId}`, {});
-      
+
       // Navigate to results (clear draft so resume prompt doesn't appear on next visit)
       try { sessionStorage.removeItem(DRAFT_KEY); } catch {}
+      // Completion consumes the org_student's allocation — refresh the cached
+      // assessments list so availability reflects 0 immediately (not after staleTime).
+      queryClient.invalidateQueries({ queryKey: ["/api/assessments/my"] });
       setLocation("/results?assessmentId=" + assessmentId);
     } catch (error) {
       console.error("Error generating recommendations:", error);
