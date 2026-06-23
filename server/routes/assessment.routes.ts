@@ -96,6 +96,31 @@ export function registerAssessmentRoutes(app: Express) {
         const user = await storage.getUser(userId);
         if (user?.accountType === "org_student") {
           const orgMember = await storage.getOrganizationMemberByUserId(userId);
+
+          // LICENSE GUARD (org_student only): a school license grants a student a
+          // limited number of assessment allocations. Block creation when the
+          // student has no unused allocation left.
+          //
+          // Framed as "does the student have an available (unused) allocation?"
+          // rather than "have they ever completed one." Today the license grants a
+          // single lifetime allocation, so a consumed allocation == one completed
+          // assessment (hasCompletedAssessment === true). Keeping the check
+          // allocation-shaped lets PD2 relax it without rewriting the guard.
+          //
+          // PD2: when per-period re-assessment is added, an allocated new period
+          // grants a fresh allocation here — compute unused allocations for the
+          // active period instead of reading the single hasCompletedAssessment flag.
+          //
+          // Fail-open on a missing orgMember row: a properly-enrolled org_student
+          // always has one, so this near-impossible case biases toward not blocking
+          // a legitimate student rather than fail-closed.
+          const hasUnusedAllocation = !(orgMember?.hasCompletedAssessment ?? false);
+          if (!hasUnusedAllocation) {
+            return res.status(403).json({
+              message: "Assessment already completed for this allocation",
+            });
+          }
+
           if (orgMember) {
             const organization = await storage.getOrganizationById(orgMember.organizationId);
             if (organization?.curriculum) {
