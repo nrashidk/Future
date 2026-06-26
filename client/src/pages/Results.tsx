@@ -1173,37 +1173,6 @@ export default function Results() {
             </StickyNote>
           </div>
         )}
-
-        {isAuthenticated && (
-          <div className="mt-8">
-            <StickyNote color="green" rotation="-1" className="max-w-2xl mx-auto text-center p-6">
-              <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-primary" />
-              <h4 className="font-bold text-lg mb-2">{t('resultsSavedTitle')}</h4>
-              <p className="text-sm font-body text-muted-foreground mb-4">
-                {t('resultsSavedDesc')}
-              </p>
-              <div className="flex flex-wrap gap-3 justify-center">
-                <Button
-                  variant="default"
-                  onClick={() => window.location.href = "/profile"}
-                  data-testid="button-go-to-profile"
-                >
-                  {t('viewProfile')}
-                </Button>
-                {/* Org_students with no remaining allocation can't start another (server 403s) */}
-                {!(isOrgStudent && !hasAvailable) && (
-                  <Button
-                    variant="outline"
-                    onClick={() => window.location.href = "/assessment"}
-                    data-testid="button-start-new-assessment"
-                  >
-                    {t('newAssessment')}
-                  </Button>
-                )}
-              </div>
-            </StickyNote>
-          </div>
-        )}
       </div>
     </div>
     </PageLayout>
