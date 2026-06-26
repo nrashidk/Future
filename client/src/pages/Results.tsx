@@ -395,6 +395,21 @@ export default function Results() {
           <p className="text-xl text-primary-foreground/90 font-body">
             {t('pageSubtitle')}
           </p>
+          {/* Download moved up here so it's reachable without scrolling to the
+              bottom. Secondary variant contrasts against the primary gradient. */}
+          <div className="mt-6 flex justify-center">
+            <Button
+              size="lg"
+              variant="secondary"
+              className="rounded-full shadow-lg px-8"
+              data-testid="button-download-report"
+              onClick={handleDownloadPDF}
+              disabled={!assessmentId}
+            >
+              <Download className="w-5 h-5 me-2" />
+              {t('downloadPdf')}
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -1138,19 +1153,7 @@ export default function Results() {
           ))}
         </MasonryGrid>
 
-        {/* Actions */}
-        <div className="mt-12 flex flex-col sm:flex-row gap-4 justify-center items-center">
-          <Button 
-            size="lg" 
-            className="rounded-full shadow-lg px-8" 
-            data-testid="button-download-report"
-            onClick={handleDownloadPDF}
-            disabled={!assessmentId}
-          >
-            <Download className="w-5 h-5 me-2" />
-            {t('downloadPdf')}
-          </Button>
-        </div>
+        {/* Download button relocated to the page header (see hero above). */}
 
         {!isAuthenticated && (
           <div className="mt-8">
