@@ -408,7 +408,7 @@ export default function Results() {
         if (!hasAnyField) return null;
         return (
           <div className="max-w-4xl mx-auto px-4 -mt-8 mb-6">
-            <StickyNote color={assessment?.assessmentType === 'school' ? 'blue' : 'purple'} rotation="0" className="p-4">
+            <StickyNote color={assessment?.assessmentType === 'school' ? 'blue' : 'yellow'} rotation="0" className="p-4">
               <div className="flex items-center gap-3 mb-3">
                 <User className="w-7 h-7 text-primary flex-shrink-0" />
                 <h2 className="text-xl font-bold">{t('studentProfile')}</h2>
@@ -461,9 +461,10 @@ export default function Results() {
         );
       })()}
 
-      {/* Subject Competency Spotlight */}
+      {/* Subject Competency Spotlight — no negative top margin so it clears the
+          Student Profile block above it instead of overlapping it. */}
       {quizData?.completed && quizData?.subjectScores && Object.keys(quizData.subjectScores).length > 0 && (
-        <div className="max-w-4xl mx-auto px-4 -mt-8 mb-8">
+        <div className="max-w-4xl mx-auto px-4 mb-8">
           <StickyNote color="purple" rotation="1" className="p-8">
             <div className="text-center mb-6">
               <CheckCircle2 className="w-12 h-12 text-primary mx-auto mb-3" />
