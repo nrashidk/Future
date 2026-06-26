@@ -260,6 +260,63 @@ around a number that may still move.
 values_profile derivation. The career-side (values_profile population) and
 student-side (this CVQ reduction) must end up on the same 5 domains.
 
+### Report shows OLD 7-domain values model — scoped 2026-06-26 (data/persist fix, NOT display-only)
+
+**STATUS: PARKED / READY TO SCOPE — documentation only, do not implement now.**
+The PDF "Your Complete Values Profile" still shows the OLD 7-domain Schwartz model
+(Achievement, Benevolence, Universalism, Self-Direction, Security, Power, Hedonism),
+and "Top 3 Core Values" surfaced Power 75% / Hedonism 75% / Security 75% — including
+Hedonism, which should not exist in clean-5. This is the **report-side manifestation**
+of the same clean-5 work tracked in the **"CVQ instrument reduction to 5 domains
+(15 items)"** section directly above; that section is the upstream instrument change,
+this entry adds the precise root cause + a report-display bug found while investigating.
+
+**ROOT CAUSE.** The CVQ seed (`server/cvq-seed.ts`) still has **21 items across 7
+domains, all `version: '1.0.0'`** (3× each: achievement, benevolence, hedonism, power,
+security, self_direction, universalism). `getCvqItems()` (`server/storage.ts:1566`)
+returns **all active items with no version pin**, and `POST /api/cvq/submit`
+(`server/routes/cvq.routes.ts:76-104`) scores against whatever domains those items
+carry. So **every scored assessment stores 7-domain `normalizedScores` incl.
+Universalism + Hedonism**. The report faithfully displays that old 7-domain data:
+- Reads `cvqResult.normalizedScores` from `GET /api/cvq/result/:assessmentId` →
+  `storage.getCvqResultByAssessmentId` → `cvq_results.normalized_scores`.
+- Top-3 / What-this-means SORT the live scores object (data-driven) — so Hedonism
+  surfaces from the data.
+- "All Values" list iterates a **hardcoded 7-row `domainNames` scaffold**
+  (`Results.tsx:627-635`, `ResultsPrint.tsx:684-692`) rendering `scores[domain] || 0`,
+  so it always draws 7 rows regardless of data.
+
+Assessment **0aba7a3b holds genuine 7-domain data (not a default)** — "tied at 75%"
+= raw 12/15 = avg 4/item, normal real scores. (Confirm with the script below.)
+
+**FIX — must be done in this ORDER (NOT a display-only swap):**
+1. **Reduce the CVQ seed 21→15** (drop the 6 Universalism + Hedonism items) so NEW
+   assessments store clean-5. *(Same change as the "CVQ instrument reduction"
+   section above — keep them in sync.)*
+2. **Migrate / re-score EXISTING completed assessments**, or they retain 7-domain
+   data (this is why 0aba7a3b still shows the old model).
+3. **Trim the hardcoded `domainNames` / `explanations` maps to 5 domains in BOTH**
+   `client/src/pages/Results.tsx` and `client/src/pages/ResultsPrint.tsx`.
+4. **FIX the Top-3 blank-card bug:** Top-3 does `.slice(0,3)` over the FULL scores
+   object **before** the `if (!info) return null` guard
+   (`Results.tsx:588-590`, `ResultsPrint.tsx:653-655`). A dropped domain landing in
+   the top 3 then renders a **blank card → fewer than 3 values shown**. Filter the
+   scores to known domains **before** slicing.
+
+**WARNING:** a **display-only trim (step 3 alone) makes it WORSE** — Top-3 reads live
+data, so it would render blank cards for the dropped (still-stored) Universalism/
+Hedonism domains. Steps 1+2 (data) and step 4 (slice-before-filter) are required.
+
+**BEFORE building, run the check script** (with `DATABASE_URL` set, from repo root)
+to confirm the data state — is 7-domain data present for 0aba7a3b? Are the 6
+Universalism/Hedonism `cvq_items` still `is_active = true`?
+```
+node <scratchpad>/check_values_0aba7a3b.cjs
+```
+(Script body recorded in this session's cc-out.md; it prints active `cvq_items` per
+domain/version, the assessment's `cvq_scores`, and `cvq_results.normalized_scores`
++ `top_values` for 0aba7a3b. Re-create it if the scratchpad is gone.)
+
 ### Pre-launch test-data cleanup — GATED until just before real students onboard
 
 **STATUS: PARKED / GATED — do not execute now.** Documentation only. Execute ONLY
