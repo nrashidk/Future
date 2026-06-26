@@ -778,12 +778,6 @@ export default function ResultsPrint() {
               </div>
             </div>
           </StickyNote>
-
-          {/* Footer */}
-          <div className="mt-2 text-xs text-center text-muted-foreground">
-            {t('generatedOn', { date: new Date().toLocaleDateString() })} | {t('footerBrandLine')}<br />
-            {t('footerVisitLine')}
-          </div>
         </div>
       )}
 
@@ -898,11 +892,6 @@ export default function ResultsPrint() {
               </div>
             </div>
           </StickyNote>
-
-          <div className="mt-4 text-xs text-center text-muted-foreground">
-            {t('generatedOn', { date: new Date().toLocaleDateString() })} | {t('footerBrandLine')}<br />
-            {t('footerVisitLine')}
-          </div>
         </div>
       )}
 
@@ -1056,14 +1045,16 @@ export default function ResultsPrint() {
                 );
               })}
             </div>
-
-            <div className="mt-4 text-xs text-center text-muted-foreground">
-              {t('generatedOn', { date: new Date().toLocaleDateString() })} | {t('footerBrandLine')}<br />
-              {t('footerVisitLine')}
-            </div>
           </div>
         ));
       })()}
+
+      {/* Single report footer — rendered once at the very end (was previously
+          duplicated as a per-page block on every career/values/personality page). */}
+      <div className="mt-4 text-xs text-center text-muted-foreground">
+        {t('generatedOn', { date: new Date().toLocaleDateString() })} | {t('footerBrandLine')}<br />
+        {t('footerVisitLine')}
+      </div>
     </div>
   );
 }
