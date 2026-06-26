@@ -6,6 +6,14 @@ import path from "path";
 import fs from "fs";
 
 export function registerPublicRoutes(app: Express) {
+  // Lightweight liveness probe for external uptime monitoring (e.g. HetrixTools).
+  // Intentionally touches NO database or downstream service, so frequent polling
+  // does not keep the serverless DB awake. Always executed, never cached.
+  app.get("/api/health", (req, res) => {
+    res.set("Cache-Control", "no-store, no-cache, must-revalidate");
+    res.type("text/plain").status(200).send("ok");
+  });
+
   // Health check endpoint for monitoring and load balancers
   // Returns minimal public response; internal details are not disclosed
   app.get("/health", async (req, res) => {
