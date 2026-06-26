@@ -419,3 +419,28 @@ incremented per payment (`server/storage.ts:589-597`,
   the assessment row is upgraded, not replaced; no orphaning.
 - The scoring **math is faithful to spec.** Only the values-data (#1) and the
   report templates (#2) diverge.
+
+## REDESIGN — Career report redesign for teen audience (13–15)
+
+**Status:** parked 2026-06-26. Documentation only — do NOT build yet. **Decide scope first (see "Decide first" below) before any code.**
+
+### Problem
+The current report is a 9-page PDF aimed at a Grade 8–10 student. Two separable problems:
+
+1. **Too long.** 9 pages for a 13–15-year-old. Five careers each get a near-full-page treatment. Far too much to hold attention.
+
+2. **Repetitive narratives (an LLM-generation problem, not just layout).** The generated prose is copy-paste across careers — a teen will notice immediately and lose trust:
+   - Every career's **"Why This Career?"** opens with the IDENTICAL sentence ("You have an Investigative personality—you enjoy analyzing data and solving complex problems").
+   - Every **"Personal Strengths & Growth Areas"** lists the SAME two items ("1. Analytical thinking… 2. Interpersonal skills…").
+   - The generation (prompt templates "Why This Career?" / "Education Pathways") isn't producing career-specific or differentiated content.
+
+3. **Pagination.** Career blocks break mid-section across pages (e.g. "Why This Career?" and "Your Work Style Fit" spill from one page to the next), making the report hard to follow.
+
+### Two distinct workstreams
+- **(a) LAYOUT** — shorten and control page breaks so sections don't split mid-content; tighten toward ~3–4 pages.
+- **(b) CONTENT / LLM** — fix narrative generation so each career reads distinctly (per-career personality/strengths, not a shared template), and shorten the per-career prose for the age group.
+
+### Decide first (next session, before writing code)
+- Target length (pages).
+- What each career block must minimally contain.
+- Whether to reduce the number of careers shown, or the depth per career (or both).
