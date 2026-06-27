@@ -20,7 +20,6 @@ import {
   Sparkles,
   Shield,
   Crown,
-  Smile,
   DollarSign,
   Loader2,
   User
@@ -35,6 +34,7 @@ import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAssessmentAvailability } from "@/hooks/useAssessmentAvailability";
 import type { Recommendation, Career } from "@shared/schema";
+import { CVQ_DOMAINS } from "@shared/schema";
 
 interface WefSkillTag {
   name: string;
@@ -589,14 +589,15 @@ export default function Results() {
                   const domainNames: Record<string, { name: string; icon: any; description: string }> = {
                     achievement: { name: t('domainAchievement'), icon: Target, description: t('domainAchievementDesc') },
                     benevolence: { name: t('domainBenevolence'), icon: Heart, description: t('domainBenevolenceDesc') },
-                    universalism: { name: t('domainUniversalism'), icon: Globe, description: t('domainUniversalismDesc') },
                     self_direction: { name: t('domainSelfDirection'), icon: Sparkles, description: t('domainSelfDirectionDesc') },
                     security: { name: t('domainSecurity'), icon: Shield, description: t('domainSecurityDesc') },
                     power: { name: t('domainPower'), icon: Crown, description: t('domainPowerDesc') },
-                    hedonism: { name: t('domainHedonism'), icon: Smile, description: t('domainHedonismDesc') },
                   };
 
-                  const scores = cvqResult.normalizedScores as Record<string, number>;
+                  const allScores = cvqResult.normalizedScores as Record<string, number>;
+                  const scores = Object.fromEntries(
+                    Object.entries(allScores).filter(([d]) => (CVQ_DOMAINS as readonly string[]).includes(d))
+                  ) as Record<string, number>;
                   const sorted = Object.entries(scores)
                     .sort(([, a], [, b]) => b - a)
                     .slice(0, 3);
@@ -643,16 +644,20 @@ export default function Results() {
                   const domainNames: Record<string, { name: string; icon: any }> = {
                     achievement: { name: t('domainAchievement'), icon: Target },
                     benevolence: { name: t('domainBenevolence'), icon: Heart },
-                    universalism: { name: t('domainUniversalism'), icon: Globe },
                     self_direction: { name: t('domainSelfDirection'), icon: Sparkles },
                     security: { name: t('domainSecurity'), icon: Shield },
                     power: { name: t('domainPower'), icon: Crown },
-                    hedonism: { name: t('domainHedonism'), icon: Smile },
                   };
 
-                  const scores = cvqResult.normalizedScores as Record<string, number>;
-                  return Object.entries(domainNames).map(([domain, info]) => {
-                    const score = scores[domain] || 0;
+                  const allScores = cvqResult.normalizedScores as Record<string, number>;
+                  const scores = Object.fromEntries(
+                    Object.entries(allScores).filter(([d]) => (CVQ_DOMAINS as readonly string[]).includes(d))
+                  ) as Record<string, number>;
+                  return Object.entries(scores)
+                    .sort(([, a], [, b]) => b - a)
+                    .map(([domain, score]) => {
+                    const info = domainNames[domain];
+                    if (!info) return null;
                     const Icon = info.icon;
 
                     return (
@@ -680,7 +685,10 @@ export default function Results() {
               </h4>
               <div className="space-y-3 text-sm font-body">
                 {(() => {
-                  const scores = cvqResult.normalizedScores as Record<string, number>;
+                  const allScores = cvqResult.normalizedScores as Record<string, number>;
+                  const scores = Object.fromEntries(
+                    Object.entries(allScores).filter(([d]) => (CVQ_DOMAINS as readonly string[]).includes(d))
+                  ) as Record<string, number>;
                   const top3 = Object.entries(scores)
                     .sort(([, a], [, b]) => b - a)
                     .slice(0, 3)
@@ -689,11 +697,9 @@ export default function Results() {
                   const explanations: Record<string, string> = {
                     achievement: t('explanationAchievement'),
                     benevolence: t('explanationBenevolence'),
-                    universalism: t('explanationUniversalism'),
                     self_direction: t('explanationSelfDirection'),
                     security: t('explanationSecurity'),
                     power: t('explanationPower'),
-                    hedonism: t('explanationHedonism'),
                   };
 
                   return top3.map(domain => (

@@ -668,6 +668,12 @@ export const quizResponsesRelations = relations(quizResponses, ({ one }) => ({
   }),
 }));
 
+// CVQ (Children's Values Questionnaire) - Active value domains.
+// Single source of truth for the report display. Must stay in sync with the
+// domains seeded in server/cvq-seed.ts (CVQ_SEED_DATA).
+export const CVQ_DOMAINS = ['achievement', 'benevolence', 'self_direction', 'security', 'power'] as const;
+export type CvqDomain = (typeof CVQ_DOMAINS)[number];
+
 // CVQ (Children's Values Questionnaire) - Question Items
 export const cvqItems = pgTable("cvq_items", {
   id: varchar("id").primaryKey(), // CVQ-A1, CVQ-H1, etc.
