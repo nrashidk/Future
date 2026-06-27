@@ -3,12 +3,12 @@
  * Based on Schwartz's Portrait Values Questionnaire (PVQ-40)
  * Adapted for ages 13-18 school students
  * 
- * 21 questions total: 3 per domain across 7 value domains
+ * 15 questions total: 3 per domain across 5 value domains
  * Response scale: 1-5 Likert (Not like me → Very much like me)
- * 
+ *
  * ID format: CVQ-<DomainCode><Position>
- *   A  = Achievement, B = Benevolence, U = Universalism
- *   SD = Self-Direction, SE = Security, P = Power, H = Hedonism
+ *   A  = Achievement, B = Benevolence
+ *   SD = Self-Direction, SE = Security, P = Power
  */
 
 import { db } from './db';
@@ -66,32 +66,6 @@ export const CVQ_SEED_DATA: Array<typeof cvqItems.$inferInsert> = [
     position: 3,
     text: "It is important to me to respond to the needs of others. I try to support those I know.",
     textAr: "من المهم بالنسبة لي أن أستجيب لاحتياجات الآخرين. أحاول دعم من أعرفهم.",
-    version: '1.0.0',
-  },
-
-  // UNIVERSALISM - Understanding, appreciation, tolerance, and protection for all people and nature (3 items)
-  {
-    id: 'CVQ-U1',
-    domain: 'universalism',
-    position: 1,
-    text: "I think it's important that every person in the world be treated equally. Everyone should have equal opportunities in life.",
-    textAr: "أعتقد أن المعاملة المتساوية لكل شخص في العالم أمر مهم. يجب أن تتاح للجميع فرص متساوية في الحياة.",
-    version: '1.0.0',
-  },
-  {
-    id: 'CVQ-U2',
-    domain: 'universalism',
-    position: 2,
-    text: "I strongly believe that people should care for nature. Looking after the environment is important to me.",
-    textAr: "أؤمن بشدة بأن على الناس الاهتمام بالطبيعة. إن الحفاظ على البيئة أمر مهم بالنسبة لي.",
-    version: '1.0.0',
-  },
-  {
-    id: 'CVQ-U3',
-    domain: 'universalism',
-    position: 3,
-    text: "I believe all the world's people should live in harmony. Promoting peace among all groups in the world is important to me.",
-    textAr: "أعتقد أن جميع شعوب العالم يجب أن تعيش في وئام. تعزيز السلام بين جميع الفئات في العالم أمر مهم بالنسبة لي.",
     version: '1.0.0',
   },
 
@@ -172,32 +146,6 @@ export const CVQ_SEED_DATA: Array<typeof cvqItems.$inferInsert> = [
     textAr: "أريد دائماً أن أكون من يتخذ القرارات. أحب أن أكون قائداً.",
     version: '1.0.0',
   },
-
-  // HEDONISM - Pleasure and sensuous gratification for oneself (3 items)
-  {
-    id: 'CVQ-H1',
-    domain: 'hedonism',
-    position: 1,
-    text: "I seek every chance I can to have fun. It is important to me to do things that give me pleasure.",
-    textAr: "أتحرى كل فرصة للاستمتاع. من المهم بالنسبة لي القيام بالأشياء التي تجلب لي السعادة.",
-    version: '1.0.0',
-  },
-  {
-    id: 'CVQ-H2',
-    domain: 'hedonism',
-    position: 2,
-    text: "Enjoying life's pleasures is important to me. I like to spoil myself.",
-    textAr: "الاستمتاع بملذات الحياة أمر مهم بالنسبة لي. أحب أن أُدلّل نفسي.",
-    version: '1.0.0',
-  },
-  {
-    id: 'CVQ-H3',
-    domain: 'hedonism',
-    position: 3,
-    text: "I really want to enjoy life. Having a good time is very important to me.",
-    textAr: "أريد حقاً أن أستمتع بالحياة. قضاء وقت ممتع أمر بالغ الأهمية بالنسبة لي.",
-    version: '1.0.0',
-  },
 ];
 
 /**
@@ -228,8 +176,8 @@ export async function seedCVQItems() {
 
     // First-time seed — insert all items
     await db.insert(cvqItems).values(CVQ_SEED_DATA);
-    console.log(`✓ Created ${CVQ_SEED_DATA.length} CVQ items (7 domains × 3 questions) with Arabic translations`);
-    console.log('  Domains: Achievement, Benevolence, Universalism, Self-Direction, Security, Power, Hedonism');
+    console.log(`✓ Created ${CVQ_SEED_DATA.length} CVQ items (5 domains × 3 questions) with Arabic translations`);
+    console.log('  Domains: Achievement, Benevolence, Self-Direction, Security, Power');
   } catch (error) {
     console.error('Error seeding CVQ items:', error);
     throw error;
