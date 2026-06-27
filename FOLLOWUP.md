@@ -3,6 +3,24 @@
 Non-blocking items surfaced during Phase 2 security work. **Not security findings.**
 Do not block deploy on these, but address before/around release.
 
+## Session log
+
+### CVQ 5-domain reset — DONE (this session)
+Shipped and verified-in-code; ONE manual verification step remains (see below).
+- Seed cut 21→15: dropped universalism + hedonism. Commit 94cef84.
+- Report display refactor: shared CVQ_DOMAINS constant in shared/schema.ts, imported into Results.tsx + ResultsPrint.tsx; all 6 value-display call-sites now filter to the 5 valid domains; Top-3 slice-before-filter bug now structurally impossible. Commit 58c988a.
+- Prod data reset (transactional, committed): deleted 1 cvq_results row, nulled 1 assessments.cvq_scores, removed 6 retired cvq_items (21→15). Confirmed all test data only — no real users (4 users all test, 7 guest assessments, only 1 had CVQ data).
+
+#### PENDING — resume here next session
+1. END-TO-END VERIFICATION (not yet done): log in as org_student test account, take CVQ fresh. MUST present 15 questions / 5 domains (no U/H). Check on-screen report (Top-3 = 3 real cards, All-Values = 5 sorted desc, no U/H) AND downloaded PDF (ResultsPrint has independent copies). Confirm Render deployed 58c988a before testing or you'll see stale 7-domain output.
+2. Throwaway .cjs scripts in working tree need deleting (check_*.cjs, cvq_reset_*.cjs, del_joud*.cjs). Untracked — safe to rm.
+
+#### SECURITY — done, but verify
+- Prod DB password (neondb_owner) was rotated this session after being exposed. Endpoint is now the -pooler variant: ep-floral-rice-astfwiew-pooler. Updated in: Neon, Render env, local .env. CONFIRM .env is gitignored and was never committed.
+
+#### Still parked (unchanged from before)
+- Individual-tier lock; PDF length/narrative redesign (decide-first session); nav bugs (Quiz Back, Career Personality Back); admin-flow QA; dependency vulns (10: 4 high/4 mod/2 low — npm reports 0, Dependabot tracking); RESEND_API_KEY not set in prod; Arabic RTL audit; branch protection unfinished.
+
 ## BUG — PDF report is empty for authenticated users (org_students); needs auth-aware print rendering
 
 **Status:** investigated 2026-06-23, not yet fixed. Do this as one coupled piece of work (PDF auth fix + student basic-info block). Distinct from the "PDF needs ~12 system libs" pre-deploy item below — that is environmental; this is an auth/data bug.
