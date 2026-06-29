@@ -25,6 +25,7 @@ import { isPremiumAssessment } from "@shared/assessmentTier";
 import i18n from "@/i18n/config";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { COMPONENT_BREAKDOWN_META, type ComponentBreakdownEntry } from "@/lib/componentBreakdown";
 import type { Recommendation, Career } from "@shared/schema";
 import { CVQ_DOMAINS } from "@shared/schema";
 
@@ -929,27 +930,33 @@ export default function ResultsPrint() {
                         </div>
                       </div>
 
-                      {/* 2×2 Score Breakdown */}
-                      <div className="grid grid-cols-2 gap-1.5">
-                        {[
-                          { label: t('subjectMatch'), Icon: BookOpen, value: rec.subjectMatchScore, weight: "30%" },
-                          { label: t('interestMatch'), Icon: Star, value: rec.interestMatchScore, weight: "30%" },
-                          { label: t('visionAlignment'), Icon: Target, value: rec.countryVisionAlignment, weight: "20%" },
-                          { label: t('marketDemand'), Icon: TrendingUp, value: rec.futureMarketDemand, weight: "20%" },
-                        ].map(({ label, Icon, value, weight }) => (
-                          <div key={label} className="p-1.5 bg-background/30 rounded-lg">
-                            <div className="flex items-center justify-between mb-0.5">
-                              <span className="text-[11px] font-medium flex items-center gap-0.5">
-                                <Icon className="w-2.5 h-2.5" />
-                                {label}
-                              </span>
-                              <span className="text-[11px] font-bold">{Math.round(value)}%</span>
-                            </div>
-                            <Progress value={value} className="h-1" />
-                            <span className="text-[10px] text-muted-foreground">{weight} {t('weightSuffix')}</span>
+                      {/* 2×2 Score Breakdown (tier-aware, from stored componentBreakdown) */}
+                      {(() => {
+                        const breakdown = (rec.componentBreakdown ?? []) as ComponentBreakdownEntry[];
+                        if (!breakdown.length) return null;
+                        return (
+                          <div className="grid grid-cols-2 gap-1.5">
+                            {breakdown.map((entry) => {
+                              const meta = COMPONENT_BREAKDOWN_META[entry.key];
+                              const Icon = meta?.Icon ?? TrendingUp;
+                              const label = meta ? t(meta.labelKey) : entry.displayName;
+                              return (
+                                <div key={entry.key} className="p-1.5 bg-background/30 rounded-lg">
+                                  <div className="flex items-center justify-between mb-0.5">
+                                    <span className="text-[11px] font-medium flex items-center gap-0.5">
+                                      <Icon className="w-2.5 h-2.5" />
+                                      {label}
+                                    </span>
+                                    <span className="text-[11px] font-bold">{Math.round(entry.score)}%</span>
+                                  </div>
+                                  <Progress value={entry.score} className="h-1" />
+                                  <span className="text-[10px] text-muted-foreground">{entry.weight}% {t('weightSuffix')}</span>
+                                </div>
+                              );
+                            })}
                           </div>
-                        ))}
-                      </div>
+                        );
+                      })()}
 
                       {/* Growth Outlook row */}
                       {rec.career?.growthOutlook && (

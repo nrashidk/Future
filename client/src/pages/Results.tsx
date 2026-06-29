@@ -27,6 +27,7 @@ import {
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
+import { COMPONENT_BREAKDOWN_META, type ComponentBreakdownEntry } from "@/lib/componentBreakdown";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -920,56 +921,33 @@ export default function Results() {
                   </div>
                 </div>
 
-                {/* Match Breakdown - Vertical Stack */}
-                <div className="space-y-2 mb-4">
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium flex items-center gap-1.5">
-                        <BookOpen className="w-4 h-4" />
-                        {t('subjectMatch')}
-                      </span>
-                      <span className="text-sm font-bold">{Math.round(rec.subjectMatchScore)}%</span>
+                {/* Match Breakdown - Vertical Stack (tier-aware, from stored componentBreakdown) */}
+                {(() => {
+                  const breakdown = (rec.componentBreakdown ?? []) as ComponentBreakdownEntry[];
+                  if (!breakdown.length) return null;
+                  return (
+                    <div className="space-y-2 mb-4">
+                      {breakdown.map((entry) => {
+                        const meta = COMPONENT_BREAKDOWN_META[entry.key];
+                        const Icon = meta?.Icon ?? TrendingUp;
+                        const label = meta ? t(meta.labelKey) : entry.displayName;
+                        return (
+                          <div key={entry.key}>
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-sm font-medium flex items-center gap-1.5">
+                                <Icon className="w-4 h-4" />
+                                {label}
+                              </span>
+                              <span className="text-sm font-bold">{Math.round(entry.score)}%</span>
+                            </div>
+                            <Progress value={entry.score} className="h-2" />
+                            <p className="text-xs text-muted-foreground mt-1">{t('weightLabel', { pct: entry.weight })}</p>
+                          </div>
+                        );
+                      })}
                     </div>
-                    <Progress value={rec.subjectMatchScore} className="h-2" />
-                    <p className="text-xs text-muted-foreground mt-1">{t('weightLabel', { pct: 30 })}</p>
-                  </div>
-                  
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium flex items-center gap-1.5">
-                        <Star className="w-4 h-4" />
-                        {t('interestMatch')}
-                      </span>
-                      <span className="text-sm font-bold">{Math.round(rec.interestMatchScore)}%</span>
-                    </div>
-                    <Progress value={rec.interestMatchScore} className="h-2" />
-                    <p className="text-xs text-muted-foreground mt-1">{t('weightLabel', { pct: 30 })}</p>
-                  </div>
-                  
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium flex items-center gap-1.5">
-                        <Target className="w-4 h-4" />
-                        {t('visionAlignment')}
-                      </span>
-                      <span className="text-sm font-bold">{Math.round(rec.countryVisionAlignment)}%</span>
-                    </div>
-                    <Progress value={rec.countryVisionAlignment} className="h-2" />
-                    <p className="text-xs text-muted-foreground mt-1">{t('weightLabel', { pct: 20 })}</p>
-                  </div>
-                  
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium flex items-center gap-1.5">
-                        <TrendingUp className="w-4 h-4" />
-                        {t('marketDemand')}
-                      </span>
-                      <span className="text-sm font-bold">{Math.round(rec.futureMarketDemand)}%</span>
-                    </div>
-                    <Progress value={rec.futureMarketDemand} className="h-2" />
-                    <p className="text-xs text-muted-foreground mt-1">{t('weightLabel', { pct: 20 })}</p>
-                  </div>
-                </div>
+                  );
+                })()}
 
                 {/* Salary & Growth Info */}
                 <div className="grid grid-cols-2 gap-3 mb-4">
