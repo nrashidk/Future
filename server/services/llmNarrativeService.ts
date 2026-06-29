@@ -270,18 +270,15 @@ function buildStudentContext(assessment: Assessment, overallScore: number): Stud
   }
 
   let cvqTop3: string[] = [];
-  if (cvqData?.ranking) {
+  if (cvqData?.top3) {
+    cvqTop3 = cvqData.top3.slice(0, 3);
+  } else if (cvqData?.ranking) {
     cvqTop3 = cvqData.ranking.slice(0, 3).map((r: any) => r.value || r.name);
   }
 
-  let favoriteSubjects: string[] = [];
-  const subjectScores = assessmentData.subjectScores || assessmentData.subjectInterests;
-  if (subjectScores && typeof subjectScores === "object") {
-    favoriteSubjects = Object.entries(subjectScores)
-      .filter(([_, score]: [string, any]) => (typeof score === "number" ? score >= 70 : true))
-      .map(([subject]: [string, any]) => subject)
-      .slice(0, 3);
-  }
+  const favoriteSubjects: string[] = Array.isArray(assessment.favoriteSubjects)
+    ? assessment.favoriteSubjects.slice(0, 3)
+    : [];
 
   return {
     gradeLevel: assessmentData.gradeLevel || assessmentData.grade || "Unknown",
