@@ -171,6 +171,16 @@ export function registerRecommendationsRoutes(app: Express) {
             interestMatchScore: componentMap.get('interests') || 0,
             countryVisionAlignment: componentMap.get('vision') || 0,
             futureMarketDemand: 0, // Deprecated, always 0
+            // Structured per-career breakdown: faithfully stores ALL components the
+            // scorer produced for this tier (subjects/interests/vision/riasec/cvq/wef_skills),
+            // so the render can show the true tier-aware component set. reasoning omitted
+            // (already lives in the reasoning text blob below).
+            componentBreakdown: match.componentScores.map(c => ({
+              key: c.key,
+              displayName: c.displayName,
+              score: c.score,
+              weight: c.weight,
+            })),
             // Store component reasoning for audit trail (premium narratives generated dynamically)
             reasoning: componentReasoning,
             actionSteps: basicActionSteps,
