@@ -24,8 +24,24 @@ Shipped and verified-in-code; ONE manual verification step remains (see below).
 
 ## CRITICAL — found during CVQ verification (2026-06-29)
 
-### Interest Match + Market Demand scoring 0% on ALL careers (CRITICAL — corrupts core output)
-PDF 23f6008e shows every one of 6 careers with "Interest Match 0% (30% weight)" and "Market Demand 0% (20% weight)". Two of four weighted scoring components contributing nothing, so all career match scores (62/60/58%) are computed on half the inputs. NOT YET INVESTIGATED. Need to trace: are interest signals + market-demand data collected, passed to the scorer, and joined to career rows? Highest priority before launch.
+### Career-card component breakdown is stale + not tier-aware (ROOT-CAUSED 2026-06-29)
+Root cause confirmed via full read-only trace. NOT a scorer/lexicon/data bug.
+- The card (Results.tsx:931-970) and PDF (ResultsPrint.tsx:932-952) each render a hardcoded 4-component list — Subject/Interest/Vision/Market at 30/30/20/20 — that predates the RIASEC/CVQ premium model. Not tier-aware.
+- recommendations table stores only 4 legacy score columns (subjectMatchScore, interestMatchScore, countryVisionAlignment, futureMarketDemand=hardcoded 0). No columns for per-career riasec/cvq/wef.
+- Per-career RIASEC + CVQ scores ARE computed and vary per career (matching.ts:610-739, pushed to componentScores[] at 345-351) but are persisted only baked into the free-text `reasoning` blob — no structured field.
+- Result for premium (e.g. Khalid 23f6008e): card shows Interest 0% (never collected — free-tier component) and Market 0% (deprecated), and OMITS RIASEC (35%) + CVQ (25%) = 60% of the actual score. Displayed bars cannot reconstruct overallMatchScore. Confirmed arithmetically impossible: Lawyer overall 62.2 with subject 71.7/interest 0/vision 40/market 0.
+- overallMatchScore math itself is CORRECT (matching.ts:353-360, tier weights, null components excluded from denominator). Market Demand does NOT deflate scores. The bug is display + persistence, not scoring.
+
+### PLANNED FIX — Phase 1 (bounded, next build)
+1. Add structured per-career breakdown to recommendations (Decision: JSONB column, mirrors riasec_scores/cvq_scores pattern; store componentScores[] = {key, displayName, score, weight}).
+2. Persist it in the write path (recommendations.routes.ts, alongside the existing 4 columns — do not remove legacy columns yet).
+3. Both render paths read the JSONB breakdown as a single tier-aware source instead of two hardcoded 30/30/20/20 lists. Premium shows subjects/vision/riasec/cvq; free shows its set; drop dead Interest/Market rows per tier.
+4. Backfill: recompute-only (re-derive componentScores[] from stored assessment data, write JSONB field). Do NOT regenerate narratives — leave reasoning text alone. Pre-launch data is tiny (1 premium + guests) so backfill is near-free.
+NOTE: Phase 1 fixes the score BARS only. The "Why This Career?" narrative prose (duplicated across careers) is untouched and will still be repetitive after Phase 1 — that's Phase 2.
+
+### PLANNED — Phase 2 (parked, two scoped investigations, each starts read-only)
+A. Claude API narrative prompt rewrite: diagnose why "Why This Career?" strengths/work-style are word-for-word identical across careers (likely insufficient per-career context or generic prompt). Find prompt, audit per-career context passed, fix duplication. Also fix markdown rendering literally in PDF (**bold** showing asterisks).
+B. Country-vision data model for expansion beyond UAE: determine whether countries table holds structured, prompt-ready per-country vision/mission usable by BOTH the Vision Alignment scorer AND the narrative prompt, or whether UAE is hardcoded/thin. If thin, expansion = content-modeling project, not a prompt tweak. Size unknown — scope before committing.
 
 ### Demographics save bug — UNCONFIRMED, reconcile first
 User reported name/grade/gender not saving from basic-info form. But PDF 23f6008e shows all populated (Khalid / Grade 12 / Male / Age 15). Possible the bug was on a different student, already fixed, or form-vs-PDF read from different sources. Confirm whether reproducible before fixing.
