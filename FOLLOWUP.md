@@ -32,16 +32,18 @@ Root cause confirmed via full read-only trace. NOT a scorer/lexicon/data bug.
 - Result for premium (e.g. Khalid 23f6008e): card shows Interest 0% (never collected — free-tier component) and Market 0% (deprecated), and OMITS RIASEC (35%) + CVQ (25%) = 60% of the actual score. Displayed bars cannot reconstruct overallMatchScore. Confirmed arithmetically impossible: Lawyer overall 62.2 with subject 71.7/interest 0/vision 40/market 0.
 - overallMatchScore math itself is CORRECT (matching.ts:353-360, tier weights, null components excluded from denominator). Market Demand does NOT deflate scores. The bug is display + persistence, not scoring.
 
-### PLANNED FIX — Phase 1 (bounded, next build)
-1. Add structured per-career breakdown to recommendations (Decision: JSONB column, mirrors riasec_scores/cvq_scores pattern; store componentScores[] = {key, displayName, score, weight}).
-2. Persist it in the write path (recommendations.routes.ts, alongside the existing 4 columns — do not remove legacy columns yet).
-3. Both render paths read the JSONB breakdown as a single tier-aware source instead of two hardcoded 30/30/20/20 lists. Premium shows subjects/vision/riasec/cvq; free shows its set; drop dead Interest/Market rows per tier.
-4. Backfill: recompute-only (re-derive componentScores[] from stored assessment data, write JSONB field). Do NOT regenerate narratives — leave reasoning text alone. Pre-launch data is tiny (1 premium + guests) so backfill is near-free.
-NOTE: Phase 1 fixes the score BARS only. The "Why This Career?" narrative prose (duplicated across careers) is untouched and will still be repetitive after Phase 1 — that's Phase 2.
+### Phase 1 — DONE + VERIFIED (2026-06-29)
+Career-card breakdown bug closed end-to-end: storage → write path → backfill → render.
+- Schema: component_breakdown jsonb column added to recommendations + applied to prod (fe8b327).
+- Write path: persists componentScores[] {key,displayName,score,weight} on insert (bc910e3).
+- Backfill: all 40 existing rows backfilled from parsed reasoning blob, dual-verified (derived-overall vs stored overall within 0.5; parsed legacy components vs legacy columns within 0.15), single transaction. 30 basic = 3 components, 10 premium = 4.
+- Render: both Results.tsx + ResultsPrint.tsx read component_breakdown via shared client/src/lib/componentBreakdown.ts (key->{labelKey,Icon} map); tier-aware, stored order, no hardcoded weights (d80b177). New i18n keys: riasecMatch, valuesMatch, futureSkillsShort (en+ar).
+- VERIFIED via fresh PDF (Khalid 23f6008e, post-deploy): premium card shows Subject 20% / Vision 20% / Personality 35% / Values 25%, summing to 100% and reconstructing the 62% overall. No dead Interest/Market rows. Per-career RIASEC/CVQ values vary correctly across careers. Basic tier shows its 3-component set.
 
 ### PLANNED — Phase 2 (parked, two scoped investigations, each starts read-only)
 A. Claude API narrative prompt rewrite: diagnose why "Why This Career?" strengths/work-style are word-for-word identical across careers (likely insufficient per-career context or generic prompt). Find prompt, audit per-career context passed, fix duplication. Also fix markdown rendering literally in PDF (**bold** showing asterisks).
 B. Country-vision data model for expansion beyond UAE: determine whether countries table holds structured, prompt-ready per-country vision/mission usable by BOTH the Vision Alignment scorer AND the narrative prompt, or whether UAE is hardcoded/thin. If thin, expansion = content-modeling project, not a prompt tweak. Size unknown — scope before committing.
+NOTE (confirmed in same PDF): the two Phase-2 report-quality issues are visible and unfixed by Phase 1, as expected — (1) "**Team Collaboration:**" / "**Your Core Strengths:**" markdown renders literally (asterisks shown), (2) "Why This Career?" Work Style Fit + Personal Strengths blocks are word-for-word identical across all 5 careers. Both are Phase 2 (narrative prompt + markdown rendering).
 
 ### Demographics save bug — UNCONFIRMED, reconcile first
 User reported name/grade/gender not saving from basic-info form. But PDF 23f6008e shows all populated (Khalid / Grade 12 / Male / Age 15). Possible the bug was on a different student, already fixed, or form-vs-PDF read from different sources. Confirm whether reproducible before fixing.
