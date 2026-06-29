@@ -12,7 +12,8 @@ Shipped and verified-in-code; ONE manual verification step remains (see below).
 - Prod data reset (transactional, committed): deleted 1 cvq_results row, nulled 1 assessments.cvq_scores, removed 6 retired cvq_items (21→15). Confirmed all test data only — no real users (4 users all test, 7 guest assessments, only 1 had CVQ data).
 
 #### PENDING — resume here next session
-1. END-TO-END VERIFICATION (not yet done): log in as org_student test account, take CVQ fresh. MUST present 15 questions / 5 domains (no U/H). Check on-screen report (Top-3 = 3 real cards, All-Values = 5 sorted desc, no U/H) AND downloaded PDF (ResultsPrint has independent copies). Confirm Render deployed 58c988a before testing or you'll see stale 7-domain output.
+1. END-TO-END VERIFICATION — DONE: log in as org_student test account, take CVQ fresh. MUST present 15 questions / 5 domains (no U/H). Check on-screen report (Top-3 = 3 real cards, All-Values = 5 sorted desc, no U/H) AND downloaded PDF (ResultsPrint has independent copies). Confirm Render deployed 58c988a before testing or you'll see stale 7-domain output.
+   - VERIFIED via PDF (career-report 23f6008e, student Khalid): page 2 shows exactly 5 domains (Security 92, Achievement 83, Benevolence 83, Power 75, Self-Direction 75), Top-3 = 3 real cards no blanks, no universalism/hedonism. CVQ 5-domain work COMPLETE. Throwaway .cjs scripts still pending deletion.
 2. Throwaway .cjs scripts in working tree need deleting (check_*.cjs, cvq_reset_*.cjs, del_joud*.cjs). Untracked — safe to rm.
 
 #### SECURITY — done, but verify
@@ -20,6 +21,17 @@ Shipped and verified-in-code; ONE manual verification step remains (see below).
 
 #### Still parked (unchanged from before)
 - Individual-tier lock; PDF length/narrative redesign (decide-first session); nav bugs (Quiz Back, Career Personality Back); admin-flow QA; dependency vulns (10: 4 high/4 mod/2 low — npm reports 0, Dependabot tracking); RESEND_API_KEY not set in prod; Arabic RTL audit; branch protection unfinished.
+
+## CRITICAL — found during CVQ verification (2026-06-29)
+
+### Interest Match + Market Demand scoring 0% on ALL careers (CRITICAL — corrupts core output)
+PDF 23f6008e shows every one of 6 careers with "Interest Match 0% (30% weight)" and "Market Demand 0% (20% weight)". Two of four weighted scoring components contributing nothing, so all career match scores (62/60/58%) are computed on half the inputs. NOT YET INVESTIGATED. Need to trace: are interest signals + market-demand data collected, passed to the scorer, and joined to career rows? Highest priority before launch.
+
+### Demographics save bug — UNCONFIRMED, reconcile first
+User reported name/grade/gender not saving from basic-info form. But PDF 23f6008e shows all populated (Khalid / Grade 12 / Male / Age 15). Possible the bug was on a different student, already fixed, or form-vs-PDF read from different sources. Confirm whether reproducible before fixing.
+
+### Add-student form missing age field
+User reports the org add-student form doesn't capture age. assessments.age column exists. Decide whether age belongs at student registration or assessment time before adding.
 
 ## BUG — PDF report is empty for authenticated users (org_students); needs auth-aware print rendering
 
@@ -462,3 +474,9 @@ The current report is a 9-page PDF aimed at a Grade 8–10 student. Two separabl
 - Target length (pages).
 - What each career block must minimally contain.
 - Whether to reduce the number of careers shown, or the depth per career (or both).
+
+### Confirmed-by-PDF sub-findings (23f6008e, 2026-06-29)
+- Narrative duplication CONFIRMED: "Why This Career?" Personal Strengths + Work Style Fit blocks are word-for-word identical across all 6 careers.
+- Markdown rendering literally in PDF: "**Your Core Strengths:**" shows asterisks instead of bold.
+- Career blocks break mid-section across pages (Work Style Fit orphaned onto following page) — confirmed pages 4/6/8.
+- Career Personality (RIASEC) Next button: new page opens scrolled to bottom instead of top (scroll-reset missing on transition).
