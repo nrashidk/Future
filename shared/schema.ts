@@ -543,7 +543,8 @@ export const recommendations = pgTable("recommendations", {
   interestMatchScore: real("interest_match_score").notNull(),
   countryVisionAlignment: real("country_vision_alignment").notNull(),
   futureMarketDemand: real("future_market_demand").notNull(),
-  
+  componentBreakdown: jsonb("component_breakdown"), // [{key, displayName, score, weight}] per-career, tier-aware. Nullable: legacy rows have none.
+
   // Recommendation details
   reasoning: text("reasoning").notNull(),
   actionSteps: text("action_steps").array().notNull(),
