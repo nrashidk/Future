@@ -40,10 +40,27 @@ Career-card breakdown bug closed end-to-end: storage → write path → backfill
 - Render: both Results.tsx + ResultsPrint.tsx read component_breakdown via shared client/src/lib/componentBreakdown.ts (key->{labelKey,Icon} map); tier-aware, stored order, no hardcoded weights (d80b177). New i18n keys: riasecMatch, valuesMatch, futureSkillsShort (en+ar).
 - VERIFIED via fresh PDF (Khalid 23f6008e, post-deploy): premium card shows Subject 20% / Vision 20% / Personality 35% / Values 25%, summing to 100% and reconstructing the 62% overall. No dead Interest/Market rows. Per-career RIASEC/CVQ values vary correctly across careers. Basic tier shows its 3-component set.
 
+### PDF DOWNLOAD FAILING (NEW 2026-06-29, root-caused, NOT fixed) — HIGH PRIORITY
+Symptom: clicking "Download PDF Report" (server Puppeteer route, NOT browser print) repeatedly yields multiple downloads all reading "site wasn't available". Server route: GET /api/recommendations/pdf/:assessmentId (recommendations.routes.ts:456-662).
+FIRST STEP NEXT SESSION (no code): open a failed career-report-*.pdf in a TEXT editor, read first bytes — HTML "site wasn't available" = platform OOM/crash (cause #1); JSON {"message":"Failed to generate PDF report"} = route 500 (Chrome missing / waitForFunction timeout / SESSION_SECRET unset).
+Ranked causes (cc diagnosis): (1) Unbounded concurrent Puppeteer — no rate-limit on route :456, no client debounce (Results.tsx:408), each click = a full Chrome process; rapid clicks OOM the Render instance → platform error page saved as .pdf. STRONGEST FIT for "repeated clicks + site unavailable." (2) Public-host self-loopback https://${req.get('host')} :516 fragile vs admin's localhost path; goto lands on error page → 30s waitForFunction timeout. (3) Chrome absent at runtime — no PUPPETEER_CACHE_DIR/install-relocate, Render cache may not persist build→runtime → launch throws. (4) Empty LLM cache makes headless render do live per-career LLM calls → exceeds 30s waitForFunction. (5) SESSION_SECRET possibly unset post-rotation → mintPrintToken throws.
+IMMEDIATE MITIGATION TO TEST FIRST: click download ONCE and wait (don't spam). If single click works, confirms cause #1 → fix = client in-flight guard + server concurrency lock/rate-limit.
+
 ### PLANNED — Phase 2 (parked, two scoped investigations, each starts read-only)
 A. Claude API narrative prompt rewrite: diagnose why "Why This Career?" strengths/work-style are word-for-word identical across careers (likely insufficient per-career context or generic prompt). Find prompt, audit per-career context passed, fix duplication. Also fix markdown rendering literally in PDF (**bold** showing asterisks).
 B. Country-vision data model for expansion beyond UAE: determine whether countries table holds structured, prompt-ready per-country vision/mission usable by BOTH the Vision Alignment scorer AND the narrative prompt, or whether UAE is hardcoded/thin. If thin, expansion = content-modeling project, not a prompt tweak. Size unknown — scope before committing.
 NOTE (confirmed in same PDF): the two Phase-2 report-quality issues are visible and unfixed by Phase 1, as expected — (1) "**Team Collaboration:**" / "**Your Core Strengths:**" markdown renders literally (asterisks shown), (2) "Why This Career?" Work Style Fit + Personal Strengths blocks are word-for-word identical across all 5 careers. Both are Phase 2 (narrative prompt + markdown rendering).
+
+### Phase 2 progress (2026-06-29)
+- DONE: Bilingual leak (a) — ?lang now honored across all 3 narrative resolution sites (enrich, career-reasoning, education_pathways) so authenticated users get fully-language-consistent reports (b046d91). VERIFIED via Arabic PDF (Khalid 23f6008e): Work Style Fit / Strengths / Action Steps / Education Path all render in Arabic.
+- DONE: buildStudentContext field bugs fixed — LLM "Why This Career?" now receives real favoriteSubjects + cvqTop3 instead of empty (c49d25b). VERIFIED: Arabic narrative correctly names English/Social Studies + security/achievement/benevolence.
+- NOTE: Accept-Language fallback for header-only-no-?lang guests now resolves to "en" (intentional — consistency across 3 sites; client always sends ?lang so unreachable in-app). Recorded so it's not rediscovered as a bug.
+
+Still-open Phase 2 items:
+- Markdown ** strip/restructure on template labels (premiumNarratives.ts, both en+ar branches) — NOT done. Decided approach: keep bold via <strong> restructure (label as separate field), not a parser, not a plain strip.
+- Narrative DUPLICATION (the big one): Work Style Fit / Personal Strengths / Action Steps are student-level templates, word-for-word identical across all careers — CONFIRMED still duplicated in latest PDF (the buildStudentContext fix only improved the LLM "Why This Career?" section, NOT these static templates). Design decision pending: make templates career-aware vs LLM-generate (cost/latency tradeoff — LLM adds 1-2 calls/career/language).
+- Leak (b): subject names render raw English in Arabic reports (Results.tsx:515) — needs AR subject labels. Confirmed in PDF (English/Social Studies/Legal Research show in English within Arabic text).
+- Phase 2 item B: country-vision data model for expansion.
 
 ### Demographics save bug — UNCONFIRMED, reconcile first
 User reported name/grade/gender not saving from basic-info form. But PDF 23f6008e shows all populated (Khalid / Grade 12 / Male / Age 15). Possible the bug was on a different student, already fixed, or form-vs-PDF read from different sources. Confirm whether reproducible before fixing.
