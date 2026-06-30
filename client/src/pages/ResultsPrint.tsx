@@ -290,33 +290,11 @@ export default function ResultsPrint() {
   // path can cancel the timeout when it fires first.
   const reportReadyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const nsReadyRef = useRef(false);
-
-  // Load + apply the i18n 'results' namespace independently of narrative/recommendation
-  // loading. Label language has nothing to do with LLM narrative completion; coupling
-  // them was the bug. This runs on mount and applies the Arabic bundle within ~1-2s,
-  // so labels are correct regardless of how long narratives take.
-  useEffect(() => {
-    const safeLang = langParam === "ar" ? "ar" : "en";
-    (async () => {
-      try {
-        await i18n.changeLanguage(safeLang);
-        await i18n.loadNamespaces(["results"]);
-      } catch (err) {
-        console.error("[ResultsPrint] namespace load failed:", err);
-      } finally {
-        // Mark ready whether or not the bundle applied — never block forever.
-        nsReadyRef.current = true;
-      }
-    })();
-  }, [langParam]);
-
   // 28-second safety net: if LLM insights (or any other async work) take too
   // long, set __REPORT_READY__ unconditionally so Puppeteer never hangs.
-  // Raised from 20s to 28s so it sits BELOW the server's 30s waitForFunction
-  // (recommendations.routes.ts) — it stays a true backstop, not the primary
-  // path. By 28s the CHANGE 1 namespace-load has applied the bundle in
-  // virtually all cases, so even this last-resort capture has correct labels.
+  // 28s sits just BELOW the server's 30s waitForFunction (recommendations.routes.ts)
+  // so this client backstop never fires before the server gives up — it gives slow
+  // narratives the maximum runway while still guaranteeing Puppeteer gets a signal.
   // The timer is cleared by the normal-path effect below when data arrives
   // within the deadline, and by the cleanup function on unmount.
   useEffect(() => {
@@ -342,23 +320,14 @@ export default function ResultsPrint() {
     };
   }, []); // intentionally runs once on mount
 
-  // Signal Puppeteer only after translations are loaded, React has re-rendered,
-  // AND all LLM narrative fetches have settled (hit or miss).
-  //
-  // Bug A fix: changeLanguage()'s promise resolving is NOT sufficient — in
-  // headless the initial lng is "en" (no localStorage), so the ar/results
-  // bundle is fetched async on changeLanguage("ar"). We must also await
-  // loadNamespaces(['results']) and confirm the bundle is present before
-  // signalling, or Puppeteer captures while labels still show the English
-  // fallback. The double rAF then gives React two frames to flush the
-  // translation state into the DOM.
+  // Signal Puppeteer once recommendations + narratives have settled. Language is
+  // handled at init by LanguageProvider (see LanguageContext getInitialLanguage);
+  // this just applies the lang and signals readiness. The double rAF gives React
+  // two frames to flush the translation state update into the DOM.
   useEffect(() => {
     if (!isLoading && recommendations.length > 0 && allNarrativesSettled) {
       const safeLang = langParam === "ar" ? "ar" : "en";
-
-      // The useEffect callback itself must stay sync (returning a promise makes
-      // React mis-treat it as a cleanup fn), so the async work lives in an IIFE.
-      const signalReady = () => {
+      i18n.changeLanguage(safeLang).then(() => {
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
             // Cancel the safety-net timer — we beat the deadline.
@@ -369,35 +338,7 @@ export default function ResultsPrint() {
             (window as any).__REPORT_READY__ = true;
           });
         });
-      };
-
-      (async () => {
-        try {
-          await i18n.changeLanguage(safeLang);
-          // Array shape is defensive per the investigation — only 'results' is
-          // needed today, but the gate covers any namespace listed here.
-          await i18n.loadNamespaces(["results"]);
-          if (!i18n.hasResourceBundle(safeLang, "results")) {
-            // Shouldn't happen once loadNamespaces resolves, but if the bundle
-            // is still absent, render the (English-fallback) report rather than
-            // hang — a degraded report beats an infinite wait.
-            console.warn(
-              `[ResultsPrint] '${safeLang}/results' bundle missing after ` +
-              `loadNamespaces — proceeding with fallback labels.`
-            );
-          }
-        } catch (err) {
-          // A network blip fetching the bundle must NOT leave __REPORT_READY__
-          // unset forever. Fall through to signal anyway so the report renders
-          // with English fallback instead of relying on the 20s safety net.
-          console.error(
-            "[ResultsPrint] Failed to load translations before capture — " +
-            "proceeding with fallback labels.",
-            err
-          );
-        }
-        signalReady();
-      })();
+      });
     }
   }, [isLoading, recommendations, langParam, allNarrativesSettled]);
 
