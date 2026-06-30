@@ -413,15 +413,21 @@ export default function ResultsPrint() {
           
           .print-page-career {
             page-break-before: always;
-            min-height: 100vh;
+            min-height: auto;
             display: flex;
             flex-direction: column;
             justify-content: flex-start;
             padding: 2rem;
           }
-          
+
           .print-page-career:not(:last-of-type) {
             page-break-after: always;
+          }
+
+          /* A single career card must never split across a page break. */
+          .career-card-print {
+            break-inside: avoid;
+            page-break-inside: avoid;
           }
           
           .no-print {
@@ -920,11 +926,11 @@ export default function ResultsPrint() {
         }
         return pages.map((pair, pageIdx) => (
           <div key={pageIdx} className="print-page-career">
-            <div className="grid grid-cols-2 gap-4 h-full">
+            <div className="grid grid-cols-2 gap-4 h-auto">
               {pair.map((rec: EnrichedRecommendation, colIdx: number) => {
                 const color = pairColors[pageIdx % pairColors.length][colIdx] as any;
                 return (
-                  <StickyNote key={rec.id} color={color} rotation="0" className="p-4 flex flex-col gap-3">
+                  <StickyNote key={rec.id} color={color} rotation="0" className="career-card-print p-4 flex flex-col gap-3">
                     {/* Career Header */}
                     <div>
                       <div className="flex items-start justify-between mb-2 gap-2">
