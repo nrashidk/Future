@@ -5,6 +5,24 @@ Do not block deploy on these, but address before/around release.
 
 ## Session log
 
+### Arabic PDF report — session 2026-06-30
+
+DONE + VERIFIED:
+- PDF download concurrency fix (d562a65 + i18n f74c530): fetch-and-blob download with in-flight guard; button disables + spinner during generation; accurate success/error toasts (replaced the old always-"started" toast that lied on failure). Fixes repeated-click → "site wasn't available" (each click had spawned a concurrent Puppeteer/Chrome → Render OOM). Verified: single click works, double-click blocked, valid PDF lands.
+- Arabic PDF LABELS now render Arabic (real fix: 3b6720d). ROOT CAUSE: /print/results is wrapped in LanguageProvider, which in the headless context (no session → user=null, no localStorage) initialized to "en" and STOMPED the print page's changeLanguage("ar") back to en (React runs child effects before parent). Data was Arabic (driven by ?lang param directly) but t() labels followed i18n's active language = en. FIX: LanguageContext.getInitialLanguage() now honors ?lang from the URL as top priority, SCOPED to pathname.startsWith("/print") so it can't affect normal app routes. Verified in production via incognito (no localStorage/session = same blank context as Puppeteer): all labels render Arabic, country line clean.
+- IMPORTANT history note: TWO earlier fixes (7cdf258 readiness-gate, d761b45 decouple-namespace-from-narratives) were aimed at a WRONG hypothesis (i18n bundle load-timing race). Both passed tsc, both FAILED in production, because the bundle was never the problem — the provider was resetting the active language. The misleading timing scaffolding was reverted in dd46af6 (kept only the 28s safety-net value as an independent good fix: client backstop now sits below server's 30s waitForFunction). Lesson logged: verify the ACTIVE state at capture (the PDF showed complete correct English, not key-fallbacks = en bundle ACTIVE, not missing) before assuming a timing/loading cause.
+
+STILL OPEN (Arabic report quality):
+- Bug B — RTL pagination/layout corruption on dense career pages (PDF pages 4/6/8): Work Style Fit / Daily Tasks panels garbled, overlapping, character runs scrambled. Diagnosed (ResultsPrint.tsx): .print-page-career min-height:100vh (floor not ceiling) + forced page-breaks + 2-careers-per-page packing → long Arabic text overflows the break onto next page; aggravated by blanket [dir=rtl] div{direction:rtl} scrambling mixed LTR runs. NOT yet fixed. This is the last piece making the Arabic PDF look broken.
+- Literal ** markdown still renders on labels ("**أسلوب التعاون الجماعي:**" etc.) — parked, decided approach is <strong> restructure not a parser.
+- Leak (b): subject names + skill terms render English in Arabic reports (English/Social Studies/Project Management/Research) — no AR localizer exists for these. Content/data task, parked.
+
+NEW (report content quality — raised by product owner 2026-06-30, NOT yet scoped):
+- Action steps are NOT age/grade-aware: same plan ("this month watch day-in-the-life videos, in 3 months do an informational interview, in 6 months excel in [subject]") regardless of whether student is Grade 8 or Grade 12. Inappropriate for younger students (audience is 13-18). Same root cause class as the narrative duplication: static templates ignoring student data (here, grade). Tracked as a real content bug, not polish.
+- Narrative duplication (Work Style Fit / Personal Strengths identical across all 5 careers) — still open, the big Phase 2 design call (career-aware templates vs LLM-generate).
+- Report length: 9 pages, too long/dense for a teenager — report-redesign workstream, parked.
+- Open design question: should the 6 Holland personality types show percentages? (vs keeping description-only to avoid adding density to an already-long report) — product decision, undecided.
+
 ### CVQ 5-domain reset — DONE (this session)
 Shipped and verified-in-code; ONE manual verification step remains (see below).
 - Seed cut 21→15: dropped universalism + hedonism. Commit 94cef84.
