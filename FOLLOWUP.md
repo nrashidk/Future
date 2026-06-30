@@ -259,6 +259,22 @@ for later action; **nothing fixed here.** Each item carries file:line evidence.
 ### Admin/superadmin panel has no language switcher — product decision needed
 - The admin/superadmin panel header has NO EN/AR language switcher (student-facing pages do). The panel renders in Arabic but offers no toggle. UNDECIDED whether this is intentional (admin tool = single-language by design) or an oversight (should be bilingual). Needs a product decision before any action. Low priority — internal tool, not student-facing. If bilingual is wanted, check whether LanguageProvider/the switcher component is simply absent from the admin layout vs. deliberately excluded.
 
+### Free→Premium additive upgrade flow — scoped, not started
+
+PROBLEM (conversion gap, confirmed by audit 2026-06-30): Account tier (users.isPremium) and assessment tier (assessments.assessmentType) are DECOUPLED and never auto-sync. After a free user PAYS: account flips premium, but their assessment stays 'basic', so they STILL see their free report. Post-payment they're dropped on home (Checkout.tsx:134-143) with NO prompt/CTA/route to complete premium. The current premium assessment flow is a fixed 7-step from-scratch ladder (Assessment.tsx:963-1112) that re-collects demographics/subjects/country/quiz and POSTs a NEW record — ignoring their existing free assessment (resume logic skips completed assessments). Data isn't lost (free assessment survives as orphaned history) but nothing carries forward.
+
+WHY a free assessment can't just "become" premium: premium scoring is 60% RIASEC+CVQ (tierWeights: subjects20/vision20/riasec35/cvq25), data a free assessment never collected. So upgrade NECESSARILY requires collecting RIASEC+CVQ — it's missing data, not a flag flip.
+
+CHOSEN APPROACH: additive "complete your premium profile" flow — after payment, guide user to complete ONLY RIASEC+CVQ, PATCHed onto their EXISTING free assessment (preserving subjects/interests/vision), then re-score to premium. Framed as "finish your profile," not "retake."
+
+SCOPE (audit verdict):
+- SERVER ~80% ready, NO new scoring logic: storage.updateAssessment is partial-merge (preserves free fields, storage.ts:931-938); PATCH with riasecResponses recomputes riasecScores + sets type premium (assessment.routes.ts:299-303); cvqResponses flips type (309-310); re-score endpoint exists (POST /api/recommendations/generate/:id reads riasecScores + cvq_results).
+- CLIENT = the build. Three pieces: (1) post-payment CTA/route "Complete your premium profile" (none exists); (2) a SECTION-SCOPED flow running ONLY RIASEC+CVQ (today's flow is all-or-nothing from step 1; requires a seeded assessmentId before Quiz/CVQ steps); (3) adopt the existing free assessmentId so PATCH + CVQ-submit + generate all target it (resume logic currently ignores completed assessments so the id is never seeded).
+- CRITICAL NUANCE: CVQ is a DUAL-WRITE — it persists via POST /api/cvq/submit keyed to assessmentId (CVQStep.tsx:137-155, cvq.routes.ts:48,120), NOT through the assessment PATCH (PATCH's cvqResponses only flips type). The additive flow must point /api/cvq/submit AND /api/recommendations/generate at the existing assessment id, not just the PATCH. Missing the CVQ-submit → premium assessment with no values data → lands in the premium-missing-data fall-through branch.
+- RELATED latent bug (flag): a CVQ-only submission can set type 'premium' WITHOUT riasecScores (assessment.routes.ts:309-310), reaching the premium-missing-RIASEC fall-through (the branch we gave heuristic prose to in 772ebaa). Real path, low frequency.
+
+PAYMENT-ADJACENT: half-built states (paid account, no completion path) are worse than current. Build as its own focused session with verification, NOT tacked onto other work.
+
 ### Persist componentScores array on recommendations (data-driven persistence) — READY TO BUILD
 
 **STATUS: PARKED / READY TO EXECUTE — documentation only, do not implement now.**
