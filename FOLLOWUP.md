@@ -25,6 +25,21 @@ NEW (report content quality — raised by product owner 2026-06-30, NOT yet scop
 - Report length: 9 pages, too long/dense for a teenager — report-redesign workstream, parked.
 - Open design question: should the 6 Holland personality types show percentages? (vs keeping description-only to avoid adding density to an already-long report) — product decision, undecided.
 
+### Report redesign — started 2026-06-30 (workstream, multi-part)
+
+Content audit done (premium + free). Key findings:
+- PREMIUM problem = REDUNDANCY: Work Style Fit + Strengths/Growth are student-level content (generateWorkStyleFit/generateStrengthsGrowth in premiumNarratives.ts) printed identically ×5 careers — the main length driver. Only "Why This Career" is genuinely career-specific.
+- FREE problem = THIN/RAW (opposite of premium): no duplication; instead "Why This Career" was a raw debug blob ("Subject Match (35%): 72.3% - ...") + 2 boilerplate action steps. No values/personality narrative.
+- Per-tier WEIGHTS (authoritative, tierWeights.ts:13-40, validated sum=100): free/basic = subjects 35 / interests 35 / vision 30 (no riasec/cvq). premium = subjects 20 / vision 20 / riasec 35 / cvq 25 (interests 0). "Meaningful per weights" = free should foreground subjects+interests+vision; premium should foreground riasec(35)+cvq(25).
+- Neither tier explains weights in prose; neither branches content on grade (LLM has {{gradeLevel}} var, DB-prompt usage unconfirmed).
+
+REDESIGN PLAN (do as separate verified commits):
+1. [DONE-CODE, UNVERIFIED] Free "Why This Career": replace debug blob with real heuristic prose — commit 772ebaa. Reuses generateEnhancedReasoning at GET time (self-trims to 3 paragraphs without riasec/cvq), zero LLM cost, language-aware (Arabic on ?lang=ar), populates premiumReasoning field (both renderers read it, no render changes), stored reasoning blob untouched (audit trail). Also covers premium-missing-RIASEC fall-through. NOT covered: the premium catch path (:408-412) still returns raw blob — deliberate (adding generation to a just-failed error path is riskier; rare case). MUST VERIFY: needs a FREE assessment (Khalid is premium) — check prose renders in EN and AR. Not yet seen.
+2. [PENDING — approved] Premium: relocate Work Style Fit + Strengths/Growth OUT of per-career cards INTO the student profile section, shown ONCE. Kills duplication, cuts length, likely resolves Bug B overflow. The big structural win.
+3. [PENDING] Premium: trim "Why This Career" from 5 paragraphs to ~2.
+4. [PENDING] Both: grade-branch the action steps (Grade 8 ≠ Grade 12 guidance). Free's 2 boilerplate steps also need rebuilding.
+5. [PENDING] Both: tie narrative to weights in prose.
+
 ### CVQ 5-domain reset — DONE (this session)
 Shipped and verified-in-code; ONE manual verification step remains (see below).
 - Seed cut 21→15: dropped universalism + hedonism. Commit 94cef84.
@@ -240,6 +255,9 @@ for later action; **nothing fixed here.** Each item carries file:line evidence.
    it.
 
 ## PARKED / FUTURE WORK
+
+### Admin/superadmin panel has no language switcher — product decision needed
+- The admin/superadmin panel header has NO EN/AR language switcher (student-facing pages do). The panel renders in Arabic but offers no toggle. UNDECIDED whether this is intentional (admin tool = single-language by design) or an oversight (should be bilingual). Needs a product decision before any action. Low priority — internal tool, not student-facing. If bilingual is wanted, check whether LanguageProvider/the switcher component is simply absent from the admin layout vs. deliberately excluded.
 
 ### Persist componentScores array on recommendations (data-driven persistence) — READY TO BUILD
 
