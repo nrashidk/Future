@@ -16,3 +16,5 @@ cc-out.md
 # Python bytecode cache (from local script runs)
 __pycache__/
 *.pyc
+# O*NET API response cache (regenerable; not project content)
+onet_cache/
