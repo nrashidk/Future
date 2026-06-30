@@ -255,6 +255,7 @@ export default function Results() {
   const urlParams = new URLSearchParams(window.location.search);
   const urlAssessmentId = urlParams.get("assessmentId");
   const [assessmentId, setAssessmentId] = useState<string | null>(urlAssessmentId);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   // Guest token is now sent via httpOnly cookie automatically
   const { data: recommendations = [], isLoading, isError: isRecommendationsError } = useQuery<any[]>({
@@ -321,27 +322,49 @@ export default function Results() {
     },
   });
 
-  const handleDownloadPDF = () => {
-    if (assessmentId) {
-      try {
-        // Use anchor tag approach to prevent navigation and state update issues
-        const link = document.createElement('a');
-        link.href = `/api/recommendations/pdf/${assessmentId}?lang=${language}`;
-        link.download = `career-report-${assessmentId}.pdf`;
-        link.style.display = 'none';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        toast({
-          title: t('downloadStarted'),
-          description: t('downloadDesc'),
-        });
-      } catch (error) {
-        console.error("PDF download error:", error);
-        // Fallback to window.location
-        window.location.href = `/api/recommendations/pdf/${assessmentId}?lang=${language}`;
-      }
+  const handleDownloadPDF = async () => {
+    // In-flight guard: a second click while a generation is running would spawn
+    // a concurrent Puppeteer render server-side, so bail until this one finishes.
+    if (!assessmentId || isDownloading) return;
+    setIsDownloading(true);
+    try {
+      // Fetch the PDF as a blob (instead of a plain <a download> click) so we
+      // have a real completion signal — this lets us re-enable the button and
+      // toast only on true success/failure, not the moment the click fires.
+      // credentials:'include' is required: the route does a session ownership
+      // check (recommendations.routes.ts:474) and 403s without the cookie.
+      const res = await fetch(
+        `/api/recommendations/pdf/${assessmentId}?lang=${language}`,
+        { credentials: 'include' }
+      );
+      if (!res.ok) throw new Error(`PDF generation failed: ${res.status}`);
+
+      // A real report is application/pdf; an error page would be html/json. The
+      // !res.ok check above already filters those, so the blob is the PDF.
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `career-report-${assessmentId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      // Fires only on a real, completed download now.
+      toast({
+        title: t('downloadStarted'),
+        description: t('downloadDesc'),
+      });
+    } catch (error) {
+      console.error("PDF download error:", error);
+      toast({
+        title: t('downloadFailedTitle', 'Download failed'),
+        description: t('downloadFailedDesc', "We couldn't generate your report. Please try again."),
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -405,10 +428,19 @@ export default function Results() {
               className="rounded-full shadow-lg px-8"
               data-testid="button-download-report"
               onClick={handleDownloadPDF}
-              disabled={!assessmentId}
+              disabled={!assessmentId || isDownloading}
             >
-              <Download className="w-5 h-5 me-2" />
-              {t('downloadPdf')}
+              {isDownloading ? (
+                <>
+                  <Loader2 className="w-5 h-5 me-2 animate-spin" />
+                  {t('downloadGenerating', 'Generating PDF…')}
+                </>
+              ) : (
+                <>
+                  <Download className="w-5 h-5 me-2" />
+                  {t('downloadPdf')}
+                </>
+              )}
             </Button>
           </div>
         </div>
