@@ -413,8 +413,40 @@ export function registerRecommendationsRoutes(app: Express) {
             }
           }
 
-          // Free tier or missing premium data: return basic recommendation
-          return { ...rec, career: localizeCareer(career, isArabic), wefSkillTags };
+          // Free tier or missing premium data: return basic recommendation.
+          // Generate heuristic "Why This Career?" prose at serve-time (no LLM,
+          // no cost) so the UI shows real sentences instead of the raw audit
+          // blob. generateEnhancedReasoning self-trims to 3 paragraphs when
+          // RIASEC/CVQ are absent (free) and is language-aware via
+          // narrativeLanguage. Pass the RAW career (it localizes the title
+          // internally via `language`), exactly as the premium branch does at
+          // its generateEnhancedReasoning call — the response object is
+          // localized separately below. The stored rec.reasoning blob is left
+          // untouched as the audit trail + absolute-last render fallback.
+          let fallbackReasoning: string | undefined;
+          if (assessment && career) {
+            try {
+              fallbackReasoning = generateEnhancedReasoning({
+                assessment,
+                career,
+                overallScore: rec.overallMatchScore,
+                language: narrativeLanguage,
+              });
+            } catch (error) {
+              // Never let prose generation break the recommendations response;
+              // fall back to the stored blob via the renderers' existing chain.
+              console.error('[Free Narrative] Error generating reasoning for career:', career.id, error);
+            }
+          }
+          return {
+            ...rec,
+            career: localizeCareer(career, isArabic),
+            wefSkillTags,
+            // Heuristic (non-LLM) prose for free + degraded-premium fallback;
+            // read by the renderers' existing `premiumReasoning || rec.reasoning`
+            // chain, so no render changes are needed.
+            premiumReasoning: fallbackReasoning,
+          };
         })
       );
 
