@@ -290,20 +290,49 @@ export default function ResultsPrint() {
   // path can cancel the timeout when it fires first.
   const reportReadyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // 20-second safety net: if LLM insights (or any other async work) take too
+  const nsReadyRef = useRef(false);
+
+  // Load + apply the i18n 'results' namespace independently of narrative/recommendation
+  // loading. Label language has nothing to do with LLM narrative completion; coupling
+  // them was the bug. This runs on mount and applies the Arabic bundle within ~1-2s,
+  // so labels are correct regardless of how long narratives take.
+  useEffect(() => {
+    const safeLang = langParam === "ar" ? "ar" : "en";
+    (async () => {
+      try {
+        await i18n.changeLanguage(safeLang);
+        await i18n.loadNamespaces(["results"]);
+      } catch (err) {
+        console.error("[ResultsPrint] namespace load failed:", err);
+      } finally {
+        // Mark ready whether or not the bundle applied — never block forever.
+        nsReadyRef.current = true;
+      }
+    })();
+  }, [langParam]);
+
+  // 28-second safety net: if LLM insights (or any other async work) take too
   // long, set __REPORT_READY__ unconditionally so Puppeteer never hangs.
+  // Raised from 20s to 28s so it sits BELOW the server's 30s waitForFunction
+  // (recommendations.routes.ts) — it stays a true backstop, not the primary
+  // path. By 28s the CHANGE 1 namespace-load has applied the bundle in
+  // virtually all cases, so even this last-resort capture has correct labels.
   // The timer is cleared by the normal-path effect below when data arrives
   // within the deadline, and by the cleanup function on unmount.
   useEffect(() => {
+    const safeLang = langParam === "ar" ? "ar" : "en";
     reportReadyTimerRef.current = setTimeout(() => {
       if (!(window as any).__REPORT_READY__) {
+        // Best-effort observability only — never await/hang here; 28s is the
+        // last resort. nsApplied tells us whether labels are Arabic at capture.
+        const nsApplied = i18n.hasResourceBundle(safeLang, "results");
         console.warn(
-          "[ResultsPrint] Safety-net timeout fired — setting __REPORT_READY__ " +
-          "without waiting for all AI insights (LLM may be slow or unavailable)."
+          `[ResultsPrint] Safety-net fired at 28s — nsApplied=${nsApplied}, ` +
+          `narratives may be incomplete.`
         );
         (window as any).__REPORT_READY__ = true;
       }
-    }, 20000);
+    }, 28000);
 
     return () => {
       if (reportReadyTimerRef.current !== null) {
