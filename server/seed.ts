@@ -1949,6 +1949,8 @@ Career Information:
 - Category: {{careerCategory}}
 - Required Skills: {{requiredSkills}}
 
+{{dreamGuidance}}
+
 Write 4-5 paragraphs explaining:
 1. Why this career matches their personality and interests
 2. How their interests and strengths fit the work environment

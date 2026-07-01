@@ -14,6 +14,7 @@ interface StudentContext {
   riasecTop3: string[];
   cvqTop3: string[];
   overallScore: number;
+  dreamGuidance: string;
 }
 
 interface CareerContext {
@@ -55,6 +56,7 @@ function replaceTemplateVariables(
     .replace(/\{\{riasecTop3\}\}/g, studentContext.riasecTop3.join(", "))
     .replace(/\{\{cvqTop3\}\}/g, studentContext.cvqTop3.join(", "))
     .replace(/\{\{overallScore\}\}/g, studentContext.overallScore.toString())
+    .replace(/\{\{dreamGuidance\}\}/g, studentContext.dreamGuidance)
     .replace(/\{\{careerTitle\}\}/g, careerContext.title)
     .replace(/\{\{careerCategory\}\}/g, careerContext.category)
     .replace(/\{\{careerDescription\}\}/g, careerContext.description)
@@ -280,12 +282,32 @@ function buildStudentContext(assessment: Assessment, overallScore: number): Stud
     ? assessment.favoriteSubjects.slice(0, 3)
     : [];
 
+  // Optional "career dreams" personalization for the premium narrative.
+  // Sourced from the stored careerAspirations text array; empty string when absent
+  // so the {{dreamGuidance}} slot collapses to nothing in the prompt.
+  const dreams: string[] = Array.isArray(assessment.careerAspirations)
+    ? assessment.careerAspirations.filter(Boolean)
+    : [];
+  const dreamGuidance = dreams.length > 0
+    ? `---
+Student's stated career dream: ${dreams.join("; ")}
+
+Weave this dream into your explanation for THIS specific career:
+- If the dream aligns with this career, name the connection specifically.
+- If the dream differs from this career, acknowledge the dream as genuine and valid, then explain what this recommended career offers in relation to it (transferable skills, adjacent paths, shared interests).
+- Never tell the student their dream is wrong, unrealistic, or that they should reconsider it.
+- Never claim this career is the same as their dream, and never overstate the match.
+- Keep this to 1–2 sentences, additive and encouraging, woven into the narrative — not a separate labelled section.
+---`
+    : "";
+
   return {
     gradeLevel: assessmentData.gradeLevel || assessmentData.grade || "Unknown",
     favoriteSubjects,
     riasecTop3,
     cvqTop3,
     overallScore: Math.round(overallScore),
+    dreamGuidance,
   };
 }
 
