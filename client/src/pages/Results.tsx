@@ -1,6 +1,7 @@
 import { useAuth } from "@/hooks/useAuth";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { StickyNote } from "@/components/StickyNote";
+import ReportMarkdown from "@/components/ReportMarkdown";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { MasonryGrid, MasonryItem } from "@/components/MasonryGrid";
@@ -104,10 +105,10 @@ function CareerReasoningText({
   }
 
   if (isError || !data?.careerReasoning) {
-    return <span className="whitespace-pre-line">{fallback}</span>;
+    return <ReportMarkdown>{fallback}</ReportMarkdown>;
   }
 
-  return <span className="whitespace-pre-line">{data.careerReasoning}</span>;
+  return <ReportMarkdown>{data.careerReasoning}</ReportMarkdown>;
 }
 
 // Helper to get display name — returns Arabic name when lang==='ar' and available.
@@ -1103,7 +1104,7 @@ export default function Results() {
                         fallback={rec.premiumReasoning || rec.reasoning}
                       />
                     ) : (
-                      <span className="whitespace-pre-line">{rec.premiumReasoning || rec.reasoning}</span>
+                      <ReportMarkdown>{rec.premiumReasoning || rec.reasoning}</ReportMarkdown>
                     )}
                   </div>
                 </div>
@@ -1115,9 +1116,9 @@ export default function Results() {
                       <CheckCircle2 className="w-4 h-4" />
                       {t('workStyleFit')}
                     </h4>
-                    <div className="text-sm font-body text-foreground/90 whitespace-pre-line">
+                    <ReportMarkdown className="text-sm font-body text-foreground/90">
                       {rec.workStyleFit}
-                    </div>
+                    </ReportMarkdown>
                   </div>
                 )}
 
@@ -1128,9 +1129,9 @@ export default function Results() {
                       <CheckCircle2 className="w-4 h-4" />
                       {t('strengthsGrowth')}
                     </h4>
-                    <div className="text-sm font-body text-foreground/90 whitespace-pre-line">
+                    <ReportMarkdown className="text-sm font-body text-foreground/90">
                       {rec.strengthsGrowth}
-                    </div>
+                    </ReportMarkdown>
                   </div>
                 )}
 

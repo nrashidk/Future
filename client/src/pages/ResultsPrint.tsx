@@ -1,4 +1,5 @@
 import { StickyNote } from "@/components/StickyNote";
+import ReportMarkdown from "@/components/ReportMarkdown";
 import { Progress } from "@/components/ui/progress";
 import { 
   GraduationCap, 
@@ -1022,9 +1023,9 @@ export default function ResultsPrint() {
                             <CheckCircle2 className="w-3 h-3 text-primary flex-shrink-0" />
                             {t('whyThisCareer')}
                           </h4>
-                          <div className="text-xs font-body text-foreground/90 whitespace-pre-line">
+                          <ReportMarkdown className="text-xs font-body text-foreground/90">
                             {narrativeMap[rec.careerId] || rec.premiumReasoning || rec.reasoning}
-                          </div>
+                          </ReportMarkdown>
                         </div>
                         {rec.workStyleFit && (
                           <div className="p-2 bg-background/30 rounded-lg">
@@ -1032,9 +1033,9 @@ export default function ResultsPrint() {
                               <CheckCircle2 className="w-3 h-3 text-primary flex-shrink-0" />
                               {t('workStyleFit')}
                             </h4>
-                            <div className="text-xs font-body text-foreground/90 whitespace-pre-line">
+                            <ReportMarkdown className="text-xs font-body text-foreground/90">
                               {rec.workStyleFit}
-                            </div>
+                            </ReportMarkdown>
                           </div>
                         )}
                       </div>
@@ -1058,9 +1059,9 @@ export default function ResultsPrint() {
                               <CheckCircle2 className="w-3 h-3 text-primary flex-shrink-0" />
                               {t('strengthsGrowth')}
                             </h4>
-                            <div className="text-xs font-body text-foreground/90 whitespace-pre-line">
+                            <ReportMarkdown className="text-xs font-body text-foreground/90">
                               {rec.strengthsGrowth}
-                            </div>
+                            </ReportMarkdown>
                           </div>
                         )}
                       </div>
