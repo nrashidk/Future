@@ -51,7 +51,7 @@ interface Career {
 }
 
 interface CvqItem {
-  id: number;
+  id: string;
   domain: string;
   text: string;
   textAr?: string | null;
@@ -104,7 +104,7 @@ export default function TranslationManager() {
   const [careerArValues, setCareerArValues] = useState<{ titleAr: string; descriptionAr: string; requiredSkillsAr: string; educationLevelAr: string }>({ titleAr: "", descriptionAr: "", requiredSkillsAr: "", educationLevelAr: "" });
 
   // CVQ state
-  const [editingCvqId, setEditingCvqId] = useState<number | null>(null);
+  const [editingCvqId, setEditingCvqId] = useState<string | null>(null);
   const [cvqArValue, setCvqArValue] = useState("");
 
   // Country nameAr state
@@ -137,6 +137,9 @@ export default function TranslationManager() {
 
   const { data: cvqItems = [], isLoading: cvqLoading } = useQuery<CvqItem[]>({
     queryKey: ['/api/cvq/items'],
+    // The endpoint returns { items: [...] }; tolerate both a bare array and the
+    // wrapped shape so an endpoint change can't reintroduce the render crash.
+    select: (data: any): CvqItem[] => Array.isArray(data) ? data : (data?.items ?? []),
   });
 
   const { data: quizQuestionsData, isLoading: quizQuestionsLoading } = useQuery<QuizQuestionsData>({
@@ -205,7 +208,7 @@ export default function TranslationManager() {
   });
 
   const updateCvqArMutation = useMutation({
-    mutationFn: async ({ id, textAr }: { id: number; textAr: string }) => {
+    mutationFn: async ({ id, textAr }: { id: string; textAr: string }) => {
       return apiRequest('PATCH', `/api/superadmin/cvq-items/${id}`, { textAr });
     },
     onSuccess: () => {
@@ -283,7 +286,7 @@ export default function TranslationManager() {
   };
 
   const filteredTranslations = useMemo(() => {
-    if (!translations?.translations) return [];
+    if (!Array.isArray(translations?.translations)) return [];
     return translations.translations.filter(entry => {
       if (showMissingOnly && !entry.isMissing) return false;
       if (!searchQuery) return true;
@@ -296,10 +299,12 @@ export default function TranslationManager() {
   const currentCoverage = coverage?.namespaces.find(n => n.namespace === selectedNs);
 
   const careersWithMissingAr = useMemo(() => {
+    if (!Array.isArray(careers)) return [];
     return careers.filter(c => !c.titleAr || !c.descriptionAr || !c.requiredSkillsAr?.length);
   }, [careers]);
 
   const cvqWithMissingAr = useMemo(() => {
+    if (!Array.isArray(cvqItems)) return [];
     return cvqItems.filter(c => !c.textAr);
   }, [cvqItems]);
 
