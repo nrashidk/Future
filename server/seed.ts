@@ -1971,12 +1971,12 @@ Career Information:
 
 {{dreamGuidance}}
 
-Write 4-5 paragraphs explaining:
-1. Why this career matches their personality and interests
-2. How their interests and strengths fit the work environment
-3. How their values align with this career path
-4. Their subject strengths and skill development opportunities
-5. Growth potential and future outlook in the UAE
+Write 3 short paragraphs (max ~60 words each) explaining:
+1. Why this career fits their personality (RIASEC) and values — be specific to their actual top themes and values, not generic.
+2. What the day-to-day work is like and how their favorite subjects connect to it — one paragraph, concrete not filler.
+3. Growth outlook in the UAE — two sentences maximum, specific to this career.
+
+Keep the total under 200 words. Be concrete and personal; avoid generic phrases like "increasingly valuable as industries modernize" or "form the foundation." Do not use headings.
 
 IMPORTANT: Write your entire response in {{language}}. If the language is Arabic, use right-to-left Arabic script throughout.`,
       model: "claude-sonnet-4-6",
