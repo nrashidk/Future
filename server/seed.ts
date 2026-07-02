@@ -11,6 +11,13 @@ import { WEF_16_SKILLS, CAREER_WEF_SKILL_AFFINITIES } from "./wefSkillsData";
 export async function seedDatabase() {
   console.log("🌱 Seeding database...");
 
+  // When false, seed skips OVERWRITING existing admin-editable config rows
+  // (tier component weights, assessment component weights, LLM prompt templates);
+  // new rows are still created on first boot. Set FORCE_RESEED=true to re-apply
+  // seed defaults over existing rows. Reference data (WEF skills, sectors,
+  // sector→skill maps, career affinities) is unaffected by this flag.
+  const forceReseed = process.env.FORCE_RESEED === 'true';
+
   // Seed Countries (UAE only - all quiz questions are UAE curriculum-based)
   const countries = [
     {
@@ -1396,14 +1403,19 @@ export async function seedDatabase() {
         const components = await storage.getAllAssessmentComponents?.() || [];
         const existing = components.find((c: any) => c.key === componentData.key);
         if (existing) {
-          // Update weight and isActive status
-          const updated = await storage.updateAssessmentComponent(existing.id, {
-            weight: componentData.weight,
-            isActive: componentData.isActive,
-            description: componentData.description,
-          });
-          seededComponents[componentData.key] = updated;
-          console.log(`  ${componentData.name} already exists (updated weight to ${componentData.weight}%)`);
+          if (forceReseed) {
+            // Update weight and isActive status
+            const updated = await storage.updateAssessmentComponent(existing.id, {
+              weight: componentData.weight,
+              isActive: componentData.isActive,
+              description: componentData.description,
+            });
+            seededComponents[componentData.key] = updated;
+            console.log(`  ${componentData.name} already exists (updated weight to ${componentData.weight}%)`);
+          } else {
+            seededComponents[componentData.key] = existing;
+            console.log(`  skipped (exists, FORCE_RESEED not set): assessment component ${componentData.key}`);
+          }
         }
       } else {
         console.error(`  Error creating component ${componentData.name}:`, error);
@@ -1908,11 +1920,19 @@ export async function seedDatabase() {
   for (const [tierKey, componentWeights] of Object.entries(tierWeightConfigs)) {
     const tier = seededTiers[tierKey];
     if (!tier) continue;
-    
+
+    const existingTierWeights = await storage.getTierComponentWeights(tier.id);
+
     for (const [componentKey, config] of Object.entries(componentWeights)) {
       const component = seededComponents[componentKey];
       if (!component) continue;
-      
+
+      const weightExists = existingTierWeights.some(w => w.componentId === component.id);
+      if (weightExists && !forceReseed) {
+        console.log(`  skipped (exists, FORCE_RESEED not set): tier weight ${tierKey}/${componentKey}`);
+        continue;
+      }
+
       try {
         await storage.upsertTierComponentWeight({
           tierId: tier.id,
@@ -2008,11 +2028,15 @@ IMPORTANT: Write your entire response in {{language}}. If the language is Arabic
         try {
           const existing = await storage.getLlmPromptTemplateByKey(template.key);
           if (existing) {
-            await storage.updateLlmPromptTemplate(existing.id, {
-              model: template.model,
-              userPromptTemplate: template.userPromptTemplate,
-            });
-            console.log(`  Prompt template ${template.name} already exists (model + userPromptTemplate updated)`);
+            if (forceReseed) {
+              await storage.updateLlmPromptTemplate(existing.id, {
+                model: template.model,
+                userPromptTemplate: template.userPromptTemplate,
+              });
+              console.log(`  Prompt template ${template.name} already exists (model + userPromptTemplate updated)`);
+            } else {
+              console.log(`  skipped (exists, FORCE_RESEED not set): prompt template ${template.key}`);
+            }
           } else {
             console.log(`  Prompt template ${template.name} already exists`);
           }
