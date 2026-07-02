@@ -804,7 +804,10 @@ export default function Results() {
                       return (
                         <div key={theme} data-testid={`riasec-bar-${theme.toLowerCase()}`}>
                           <div className="flex items-center justify-between mb-1">
-                            <span className="text-sm font-medium">{t(meta.nameKey)}</span>
+                            <span className="text-sm font-medium">
+                              {t(meta.nameKey)}
+                              <span className="ml-2 font-bold text-primary tabular-nums">{score}</span>
+                            </span>
                             <span className="text-xs text-muted-foreground">{t(meta.descKey)}</span>
                           </div>
                           <Progress value={pct} className="h-2" />

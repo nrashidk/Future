@@ -136,6 +136,30 @@ function getValueCareerAlignment(value: string, title: string, lang: string): st
 
 // ===== Collaboration styles =====
 
+// Readable RIASEC theme name (no standalone lookup existed before this).
+// MUST stay in sync with the riasec* labels in client/public/locales/{en,ar}/results.json
+// so the Work Style Fit sentence names each theme identically to the RIASEC bars on the
+// same screen. AR values are the masculine adjective forms used by those labels.
+function getRiasecThemeName(theme: string, lang: string): string {
+  const en: Record<string, string> = {
+    R: "Realistic",
+    I: "Investigative",
+    A: "Artistic",
+    S: "Social",
+    E: "Enterprising",
+    C: "Conventional",
+  };
+  const ar: Record<string, string> = {
+    R: "واقعي",
+    I: "تحليلي",
+    A: "فني",
+    S: "اجتماعي",
+    E: "مبادر",
+    C: "تقليدي",
+  };
+  return (lang === "ar" ? ar : en)[theme] ?? (lang === "ar" ? "متوازن" : "balanced");
+}
+
 function getRiasecCollaborationStyle(theme: string, lang: string): string {
   const en: Record<string, string> = {
     R: "You work well independently or in small technical teams where roles are clearly defined and communication is direct and practical.",
@@ -333,9 +357,17 @@ export function generateWorkStyleFit(context: NarrativeContext): string {
   const sections: string[] = [];
 
   if (riasecScores) {
+    // getTopRiasecThemes()[0] returns one of a tie arbitrarily, so frame the theme
+    // as "one of your strongest types" rather than asserting a singular dominant type.
     const topTheme = getTopRiasecThemes(riasecScores)[0];
+    const themeName = getRiasecThemeName(topTheme, lang);
+    const style = getRiasecCollaborationStyle(topTheme, lang);
     const collaborationLabel = lang === "ar" ? "**أسلوب التعاون الجماعي:**" : "**Team Collaboration:**";
-    sections.push(`${collaborationLabel} ${getRiasecCollaborationStyle(topTheme, lang)}`);
+    const tiedSentence =
+      lang === "ar"
+        ? `لأن أحد أقوى أنماطك هو ${themeName}، ${style}`
+        : `Because one of your strongest types is ${themeName}, ${style.charAt(0).toLowerCase() + style.slice(1)}`;
+    sections.push(`${collaborationLabel} ${tiedSentence}`);
 
     const tasksLabel = lang === "ar" ? "**المهام اليومية:**" : "**Daily Tasks:**";
     sections.push(`${tasksLabel} ${getRiasecTaskPreferences(topTheme, title, lang)}`);
