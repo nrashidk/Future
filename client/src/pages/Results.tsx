@@ -806,7 +806,7 @@ export default function Results() {
                           <div className="flex items-center justify-between mb-1">
                             <span className="text-sm font-medium">
                               {t(meta.nameKey)}
-                              <span className="ml-2 font-bold text-primary tabular-nums">{score}</span>
+                              <span className="ms-3 font-bold text-primary tabular-nums">{score}</span>
                             </span>
                             <span className="text-xs text-muted-foreground">{t(meta.descKey)}</span>
                           </div>

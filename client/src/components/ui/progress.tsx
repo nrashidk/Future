@@ -10,7 +10,9 @@ const Progress = React.forwardRef<
   <ProgressPrimitive.Root
     ref={ref}
     className={cn(
-      "relative h-2 w-full overflow-hidden rounded-full bg-primary/20",
+      // In RTL, mirror the track so the value fills from the right (label side).
+      // rtl: only applies under <html dir="rtl">, so LTR rendering is unchanged.
+      "relative h-2 w-full overflow-hidden rounded-full bg-primary/20 rtl:-scale-x-100",
       className
     )}
     {...props}
