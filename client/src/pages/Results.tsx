@@ -837,6 +837,38 @@ export default function Results() {
               </>
             )}
 
+            {/* Work Style Fit & Personal Strengths (Premium only) — hoisted from per-career cards.
+                Both are student-level (premiumNarratives.ts:329,350): strengthsGrowth reads only
+                riasec/cvq; workStyleFit's Team Collaboration line is theme-based/career-neutral while
+                its Daily Tasks line interpolates the career title for R/E top-themes. We keep only the
+                first (career-neutral) paragraph of workStyleFit so this profile block never names a career. */}
+            {isPremiumAssessment(assessment?.assessmentType) && (() => {
+              const strengthsGrowth = recommendations.find((r: EnrichedRecommendation) => r.strengthsGrowth)?.strengthsGrowth;
+              const workStyleRaw = recommendations.find((r: EnrichedRecommendation) => r.workStyleFit)?.workStyleFit;
+              const workStyleFit = workStyleRaw ? workStyleRaw.split('\n\n')[0] : undefined;
+              if (!workStyleFit && !strengthsGrowth) return null;
+              return (
+                <>
+                  {workStyleFit && (
+                    <>
+                      <h3 className="font-semibold mb-3">{t('workStyleFit')}</h3>
+                      <ReportMarkdown className="text-sm font-body text-foreground/90 mb-4">
+                        {workStyleFit}
+                      </ReportMarkdown>
+                    </>
+                  )}
+                  {strengthsGrowth && (
+                    <>
+                      <h3 className="font-semibold mb-3">{t('strengthsGrowth')}</h3>
+                      <ReportMarkdown className="text-sm font-body text-foreground/90 mb-4">
+                        {strengthsGrowth}
+                      </ReportMarkdown>
+                    </>
+                  )}
+                </>
+              );
+            })()}
+
             <p className="text-sm text-muted-foreground font-body">{t('personalityMatchDesc')}</p>
           </StickyNote>
         </div>
@@ -1109,31 +1141,8 @@ export default function Results() {
                   </div>
                 </div>
 
-                {/* Work Style Fit - Premium Only */}
-                {rec.workStyleFit && (
-                  <div className="p-3 bg-primary/10 rounded-lg border-2 border-primary/20 mb-3">
-                    <h4 className="font-semibold mb-2 text-sm flex items-center gap-2 text-primary">
-                      <CheckCircle2 className="w-4 h-4" />
-                      {t('workStyleFit')}
-                    </h4>
-                    <ReportMarkdown className="text-sm font-body text-foreground/90">
-                      {rec.workStyleFit}
-                    </ReportMarkdown>
-                  </div>
-                )}
-
-                {/* Personal Strengths & Growth Areas - Premium Only */}
-                {rec.strengthsGrowth && (
-                  <div className="p-3 bg-primary/10 rounded-lg border-2 border-primary/20 mb-3">
-                    <h4 className="font-semibold mb-2 text-sm flex items-center gap-2 text-primary">
-                      <CheckCircle2 className="w-4 h-4" />
-                      {t('strengthsGrowth')}
-                    </h4>
-                    <ReportMarkdown className="text-sm font-body text-foreground/90">
-                      {rec.strengthsGrowth}
-                    </ReportMarkdown>
-                  </div>
-                )}
+                {/* Work Style Fit & Personal Strengths hoisted to the Personality Profile block
+                    (student-level, rendered once) — see profile StickyNote above. */}
 
                 {/* Education Required */}
                 <div className="p-3 bg-background/30 rounded-lg mb-3">
