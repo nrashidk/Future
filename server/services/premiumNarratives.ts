@@ -416,17 +416,94 @@ export function generateEnhancedActionSteps(context: NarrativeContext): string[]
   const lang = language === "ar" ? "ar" : "en";
   const title = localTitle(career, lang);
   const skills01 = career.requiredSkills.slice(0, 2).join(lang === "ar" ? " و" : " and ");
+  const topSubject =
+    assessment.favoriteSubjects && (assessment.favoriteSubjects as string[]).length > 0
+      ? (assessment.favoriteSubjects as string[])[0]
+      : null;
+
+  // Parse a numeric grade from strings like "grade11" or "11" (precedent: quiz.routes.ts:128-136).
+  // "graduated" — or any value with no digits — yields null and falls through to the generic timeline.
+  let gradeNum: number | null = null;
+  if (assessment.grade) {
+    const m = String(assessment.grade).match(/(\d+)/);
+    if (m) gradeNum = parseInt(m[1], 10);
+  }
+
   const steps: string[] = [];
 
-  if (lang === "ar") {
+  // Band 1 — grades 8-9: early / explore. Discovery, no deadlines, "you have time".
+  if (gradeNum !== null && gradeNum <= 9) {
+    if (lang === "ar") {
+      steps.push(`**هذا الشهر:** اكتشف كيف يبدو العمل في مجال ${title} فعليًا من خلال مشاهدة مقاطع "يوم في الحياة" وقراءة الملفات الشخصية للمحترفين. لديك متسع من الوقت، فحافظ على فضولك وانفتاحك`);
+      steps.push(`**هذا الفصل الدراسي:** جرّب موادّ وأنشطة مرتبطة بمجال ${career.category} — لست مضطرًا للالتزام بعد، فالهدف هو اكتشاف ما يثير اهتمامك حقًا`);
+      if (topSubject) {
+        steps.push(`**واصل البناء:** استمتع بمادة ${topSubject} وابحث عن مشاريع أو تحديات عملية فيها — فالأساس القوي الآن يسهّل كل مسار لاحق`);
+      }
+      steps.push(`**هذا العام:** ابدأ ببناء مهارات واسعة وقابلة للنقل مثل ${skills01} من خلال الأنشطة المدرسية أو الدروس الإلكترونية أو المشاريع الشخصية للمتعة`);
+      steps.push(`**نظرة للمستقبل:** تحدّث مع معلميك أو عائلتك أو محترفين في مجال ${title} عن مسارات مهنية مختلفة — فكلما استكشفت خيارات أكثر الآن، كانت قراراتك أفضل لاحقًا`);
+      steps.push(`**دون ضغط:** لا توجد طلبات التحاق أو مواعيد نهائية بعد — استغلّ هذه السنوات للتجربة على نطاق واسع وملاحظة ما يمنحك الحماس`);
+    } else {
+      steps.push(`**This Month:** Explore what ${title} work actually looks like — watch day-in-the-life videos and read professional profiles. You have plenty of time, so stay curious and open`);
+      steps.push(`**This Term:** Try subjects and clubs connected to ${career.category} — you don't need to commit yet; the goal is to discover what genuinely interests you`);
+      if (topSubject) {
+        steps.push(`**Keep Building:** Keep enjoying ${topSubject} and look for hands-on projects or challenges in it — a strong foundation now makes every later path easier`);
+      }
+      steps.push(`**This Year:** Start building broad, transferable skills like ${skills01} through school activities, online tutorials, or personal projects for fun`);
+      steps.push(`**Looking Ahead:** Talk to teachers, family, or ${title} professionals about different careers — the more options you explore now, the better your choices later`);
+      steps.push(`**No Pressure:** There are no applications or deadlines yet — use these years to experiment widely and notice what energizes you`);
+    }
+  }
+  // Band 2 — grades 10-11: mid / narrow. Start focusing; build skills, strengthen subjects, research programs.
+  else if (gradeNum !== null && gradeNum <= 11) {
+    if (lang === "ar") {
+      steps.push(`**هذا الشهر:** ابحث في مجال ${title} بعمق أكبر — حدّد المهارات والمواد والمؤهلات المحددة التي تتطلبها هذه المهنة فعليًا`);
+      steps.push(`**هذا الفصل الدراسي:** عزّز المواد التي تحتاجها هذه المهنة، خصوصًا المرتبطة بمجال ${career.category}، واسعَ لتحقيق درجات قوية تبقي مسارات ${title} مفتوحة أمامك`);
+      if (topSubject) {
+        steps.push(`**ابنِ على نقطة قوتك:** طوّر مادة ${topSubject} أكثر عبر مشاريع متقدمة أو مسابقات — ابدأ بتحويل الاهتمام إلى قدرة ملموسة`);
+      }
+      steps.push(`**خلال 6 أشهر:** ابدأ ببناء مهارة أو ملف أعمال ذي صلة في ${skills01} من خلال الدورات أو الأنشطة أو المشاريع التي يمكنك عرضها لاحقًا على الجامعات`);
+      steps.push(`**هذا العام:** ابدأ بالبحث في الجامعات والبرامج الخاصة بمجال ${career.category} — ودوّن شروط القبول والمواد المطلوبة مسبقًا والمواعيد النهائية حتى لا تُفاجأ لاحقًا`);
+      steps.push(`**نظرة للمستقبل:** اسعَ لاكتساب خبرة مبكرة — تدريب ميداني أو عمل تطوعي أو مرافقة محترف في مجال ${title} — لتأكيد هذا المسار وبناء ملفك`);
+    } else {
+      steps.push(`**This Month:** Research ${title} more deeply — identify the specific skills, subjects, and qualifications this career actually requires`);
+      steps.push(`**This Term:** Strengthen the subjects this career needs, especially ${career.category}-related ones, and aim for strong grades that keep ${title} pathways open`);
+      if (topSubject) {
+        steps.push(`**Build On Your Strength:** Take ${topSubject} further with advanced projects or competitions — start turning interest into demonstrable ability`);
+      }
+      steps.push(`**Next 6 Months:** Begin building a relevant skill or portfolio in ${skills01} through courses, clubs, or projects you can later show to universities`);
+      steps.push(`**This Year:** Start researching universities and programs for ${career.category} — note their entry requirements, subject prerequisites, and deadlines so nothing surprises you later`);
+      steps.push(`**Looking Ahead:** Seek early experience — internships, volunteering, or job-shadowing a ${title} professional — to confirm this path and build your profile`);
+    }
+  }
+  // Band 3 — grade 12: final / apply. Concrete near-term admission actions and deadlines.
+  else if (gradeNum === 12) {
+    if (lang === "ar") {
+      steps.push(`**هذا الشهر:** تأكّد من شروط القبول الدقيقة لبرامج ${title} — المواد المطلوبة والحد الأدنى للدرجات واختبارات القبول وأي ملف أعمال أو مقابلة`);
+      steps.push(`**خلال 3 أشهر:** أعدّ قائمة مختصرة بالجامعات التي تقدّم برامج قوية في مجال ${career.category}، وحدّد لكل منها الموعد النهائي للتقديم والمستندات المطلوبة`);
+      steps.push(`**هذا الفصل الدراسي:** جهّز وقدّم طلباتك في الوقت المحدد — خطاب التعريف الشخصي والتوصيات وأي اختبارات قبول يتطلبها مسار هذه المهنة`);
+      if (topSubject) {
+        steps.push(`**أنهِ بقوة:** حافظ على درجات ${topSubject} وبقية المواد المطلوبة مرتفعة — فالنتائج النهائية غالبًا ما تحسم عروض القبول`);
+      }
+      steps.push(`**قبل التخرج:** جهّز أي مؤهلات أو متطلبات مسبقة مطلوبة الآن — دورات تأسيسية أو شهادات أو مستندات لـ ${career.educationLevel}`);
+      steps.push(`**الخطوة التالية:** ضع خطة بديلة — برنامج ثانٍ أو مسار آخر للدخول إلى مجال ${career.category} — لتكون مستعدًا مهما كانت العروض`);
+    } else {
+      steps.push(`**This Month:** Confirm the exact admission requirements for ${title} programs — required subjects, minimum grades, entrance exams, and any portfolio or interview`);
+      steps.push(`**Next 3 Months:** Shortlist universities offering strong ${career.category} programs and map each one's application deadline and the documents it needs`);
+      steps.push(`**This Term:** Prepare and submit your applications on time — personal statement, references, and any entrance tests this career's path requires`);
+      if (topSubject) {
+        steps.push(`**Finish Strong:** Keep your ${topSubject} and other required grades high — final results often decide admission offers`);
+      }
+      steps.push(`**Before You Graduate:** Line up any credentials or prerequisites needed now — foundation courses, certifications, or documents for ${career.educationLevel}`);
+      steps.push(`**Next Steps:** Have a backup plan — a second-choice program or another route into ${career.category} — so you're covered whatever the offers`);
+    }
+  }
+  // Fallback — graduated or unparseable grade: the original generic timeline (safe default).
+  else if (lang === "ar") {
     steps.push(`**هذا الشهر:** ابحث في مجال ${title} من خلال مشاهدة مقاطع فيديو عن يوم في حياة المهنيين وقراءة ملفاتهم الشخصية لفهم المسؤوليات اليومية`);
     steps.push(`**خلال 3 أشهر:** تواصل مع محترف في مجال ${title} لإجراء مقابلة معلوماتية مدتها 20 دقيقة للتعرف على مسيرته المهنية ونصائحه`);
-
-    if (assessment.favoriteSubjects && (assessment.favoriteSubjects as string[]).length > 0) {
-      const topSubject = (assessment.favoriteSubjects as string[])[0];
+    if (topSubject) {
       steps.push(`**خلال 6 أشهر:** تفوق في مادة ${topSubject} من خلال السعي للقيام بمشاريع متقدمة أو مسابقات لبناء المعرفة الأساسية لهذه المهنة`);
     }
-
     steps.push(`**خلال سنة:** ابدأ بتطوير مهارات أساسية مثل ${skills01} من خلال الدورات الإلكترونية أو الأنشطة المدرسية أو المشاريع الشخصية`);
     steps.push(`**السنتان 2-3:** اكتسب خبرة عملية من خلال التدريب الميداني أو العمل التطوعي أو الفرص بدوام جزئي في مجال ${career.category} لبناء سيرتك الذاتية وشبكة علاقاتك`);
     steps.push(`**السنة 3-4:** ابحث في الجامعات التي تُقدم برامج قوية في مجال ${career.category} وقدّم طلباتك، مع التركيز على المؤسسات ذات الروابط الصناعية والتدريب العملي`);
@@ -434,12 +511,9 @@ export function generateEnhancedActionSteps(context: NarrativeContext): string[]
   } else {
     steps.push(`**This Month:** Research ${title} careers by watching day-in-the-life videos and reading professional profiles to understand daily responsibilities`);
     steps.push(`**Next 3 Months:** Connect with a ${title} professional for a 20-minute informational interview to learn about their career journey and advice`);
-
-    if (assessment.favoriteSubjects && (assessment.favoriteSubjects as string[]).length > 0) {
-      const topSubject = (assessment.favoriteSubjects as string[])[0];
+    if (topSubject) {
       steps.push(`**Next 6 Months:** Excel in ${topSubject} by seeking advanced projects or competitions to build foundational knowledge for this career`);
     }
-
     steps.push(`**Next Year:** Start building key skills like ${skills01} through online courses, school clubs, or personal projects`);
     steps.push(`**Years 2-3:** Gain hands-on experience through internships, volunteer work, or part-time opportunities in ${career.category} to build your resume and network`);
     steps.push(`**Year 3-4:** Research and apply to universities offering strong programs in ${career.category}, focusing on institutions with industry connections and practical training`);
