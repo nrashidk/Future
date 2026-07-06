@@ -351,6 +351,48 @@ export default function ResultsPrint() {
     );
   }
 
+  // Work Style Fit + Personal Strengths & Growth — hoisted OUT of the per-career
+  // cards into the student profile page (mirrors Results.tsx:848-869). Both are
+  // student-level (premiumNarratives.ts generateWorkStyleFit/generateStrengthsGrowth
+  // read only riasec/cvq, no career input), so they rendered byte-identical on every
+  // card. Shown once here: removes the duplication AND shrinks each career card, which
+  // is what orphaned the block across PDF page breaks. workStyleFit is trimmed to its
+  // first (career-neutral) paragraph; strengthsGrowth is rendered whole. Referenced by
+  // BOTH mutually-exclusive premium profile pages (CVQ vs Personality); a premium
+  // student sees exactly one, so it renders once.
+  const hoistedWorkStyleStrengths = (() => {
+    const strengthsGrowth = recommendations.find((r: EnrichedRecommendation) => r.strengthsGrowth)?.strengthsGrowth;
+    const workStyleRaw = recommendations.find((r: EnrichedRecommendation) => r.workStyleFit)?.workStyleFit;
+    const workStyleFit = workStyleRaw ? workStyleRaw.split('\n\n')[0] : undefined;
+    if (!workStyleFit && !strengthsGrowth) return null;
+    return (
+      <>
+        {workStyleFit && (
+          <div className="p-4 bg-background/30 rounded-lg">
+            <h3 className="font-semibold mb-3 flex items-center gap-2 text-sm">
+              <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" />
+              {t('workStyleFit')}
+            </h3>
+            <ReportMarkdown className="text-sm font-body text-foreground/90">
+              {workStyleFit}
+            </ReportMarkdown>
+          </div>
+        )}
+        {strengthsGrowth && (
+          <div className="p-4 bg-background/30 rounded-lg">
+            <h3 className="font-semibold mb-3 flex items-center gap-2 text-sm">
+              <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0" />
+              {t('strengthsGrowth')}
+            </h3>
+            <ReportMarkdown className="text-sm font-body text-foreground/90">
+              {strengthsGrowth}
+            </ReportMarkdown>
+          </div>
+        )}
+      </>
+    );
+  })();
+
   return (
     <div className="print-container">
       <style>{`
@@ -795,6 +837,9 @@ export default function ResultsPrint() {
                   </div>
                 </div>
               </div>
+
+              {/* Work Style Fit + Personal Strengths & Growth — hoisted from the career cards, shown once */}
+              {hoistedWorkStyleStrengths}
             </div>
           </StickyNote>
         </div>
@@ -909,6 +954,9 @@ export default function ResultsPrint() {
                   <span>{t('personalityMatchDesc')}</span>
                 </p>
               </div>
+
+              {/* Work Style Fit + Personal Strengths & Growth — hoisted from the career cards, shown once */}
+              {hoistedWorkStyleStrengths}
             </div>
           </StickyNote>
         </div>
@@ -1027,17 +1075,6 @@ export default function ResultsPrint() {
                             {narrativeMap[rec.careerId] || rec.premiumReasoning || rec.reasoning}
                           </ReportMarkdown>
                         </div>
-                        {rec.workStyleFit && (
-                          <div className="p-2 bg-background/30 rounded-lg">
-                            <h4 className="text-xs font-semibold mb-1.5 flex items-center gap-1">
-                              <CheckCircle2 className="w-3 h-3 text-primary flex-shrink-0" />
-                              {t('workStyleFit')}
-                            </h4>
-                            <ReportMarkdown className="text-xs font-body text-foreground/90">
-                              {rec.workStyleFit}
-                            </ReportMarkdown>
-                          </div>
-                        )}
                       </div>
 
                       {/* Right: Education Path + Personal Strengths & Growth */}
@@ -1053,17 +1090,6 @@ export default function ResultsPrint() {
                               : rec.requiredEducation}
                           </p>
                         </div>
-                        {rec.strengthsGrowth && (
-                          <div className="p-2 bg-background/30 rounded-lg flex-1">
-                            <h4 className="text-xs font-semibold mb-1.5 flex items-center gap-1">
-                              <CheckCircle2 className="w-3 h-3 text-primary flex-shrink-0" />
-                              {t('strengthsGrowth')}
-                            </h4>
-                            <ReportMarkdown className="text-xs font-body text-foreground/90">
-                              {rec.strengthsGrowth}
-                            </ReportMarkdown>
-                          </div>
-                        )}
                       </div>
                     </div>
                   </StickyNote>
