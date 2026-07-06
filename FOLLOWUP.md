@@ -3,6 +3,20 @@
 Non-blocking items surfaced during Phase 2 security work. **Not security findings.**
 Do not block deploy on these, but address before/around release.
 
+## Deferred / triage
+
+### PDF omits grade-branch action steps  (severity: medium — product decision)
+The grade-branched "Next Steps" (explore/narrow/apply bands from generateEnhancedActionSteps) render ONLY on the on-screen report (Results.tsx). ResultsPrint.tsx (the Puppeteer PDF) fetches premiumActionSteps in its payload but never renders them — grep-confirmed no action-step reference in the file. Since the PDF is the parent-shareable artifact and grade-tailored steps are the feature's payoff, this may be an unintended gap. DECISION NEEDED: is the PDF meant to include action steps? If yes, adding the block is a scoped change requiring its own Chrome 150 PDF verification. Verified on-screen for grades 12 (Band 3) and 10 (Band 2) on 2026-07-06.
+
+### getRecommendationsByAssessment has no ORDER BY  (severity: low — latent)
+storage.ts (~965–969): bare select().from().where(eq(assessmentId)) with no ORDER BY. Insertion is best-match-first, but Postgres doesn't guarantee row order without ORDER BY, and the PATCH re-run does delete→re-insert (recommendations.routes.ts:147), so heap reuse can reorder. Harmless TODAY because the only consumers relying on order (the hoisted Work Style / Strengths panels via .find()) read career-NEUTRAL fields, so which row wins doesn't matter. Becomes a real bug the moment anything relies on recommendations[0] being the top match, or .find() on a career-SPECIFIC field. Fix: add explicit ORDER BY (e.g. overallScore desc) to the query. Would need verification against a PATCH re-run.
+
+### Local dev blocked — missing env secrets  (severity: low — dev ergonomics)
+npm run dev fails: .env in Codespaces has only DATABASE_URL. Server validation also requires SESSION_SECRET, SUPERADMIN_EMAILS, DB_ENCRYPTION_KEY. SESSION_SECRET and SUPERADMIN_EMAILS can be dev-appropriate values; DB_ENCRYPTION_KEY MUST match the Render literal exactly or the app cannot decrypt api_credentials (do NOT generate a fresh one). Until populated, local render testing isn't possible — verification has to go through deploy-to-Render. Non-blocking but costs a deploy cycle per UI check.
+
+### CSP blocks an inline event handler on report page  (severity: medium — needs investigation)
+On the results page (results?assessmentId=…), console shows: inline event handler violates CSP directive script-src-attr 'none' — "The action has been blocked." Something on the report is using an inline handler (onclick=… in markup, or an inline javascript: nav) that the policy blocks, so that action silently does nothing. Pre-existing, unrelated to the masonry fix. Find the inline handler on Results.tsx (or a child) and convert it to a proper React handler / addEventListener, OR adjust CSP if the handler is legitimate and safe. Identify what interaction is broken before deciding. First observed 2026-07-06.
+
 ## Session log
 
 ### Arabic PDF report — session 2026-06-30
@@ -569,3 +583,74 @@ The current report is a 9-page PDF aimed at a Grade 8–10 student. Two separabl
 - Markdown rendering literally in PDF: "**Your Core Strengths:**" shows asterisks instead of bold.
 - Career blocks break mid-section across pages (Work Style Fit orphaned onto following page) — confirmed pages 4/6/8.
 - Career Personality (RIASEC) Next button: new page opens scrolled to bottom instead of top (scroll-reset missing on transition).
+
+## Session — Dream Personalization (C) + Premium LLM Outage — 2026-07-01
+
+### DONE — C: optional dream personalization in premium narrative
+- Commit ad76508. Optional careerAspirations → premium "Why This Career" LLM narrative via {{dreamGuidance}}. Bridge+redirect guardrail (name dream, connect via shared value, never invalidate/overclaim). Empty dream → no trace.
+- Code: llmNarrativeService.ts (buildStudentContext computes dreamGuidance; replaceTemplateVariables registers {{dreamGuidance}}). Template: seed.ts:1952.
+- VERIFIED: EN + AR, native-premium, conflict case (surgeon dream vs unrelated matches). Names dream, bridges via Benevolence value, holds distinction ("digital rather than surgical"). Full pass both languages.
+- Cache key excludes careerAspirations — editing a dream does NOT invalidate cache. To re-test: POST /api/recommendations/generate/:assessmentId (or delete llm_narrative_cache rows), then read.
+
+### OPEN — C converted-user path (free→premium upgrade)
+- Works for native premium; upgrade flow unbuilt.
+- CONTRACT when built: upgrade PATCH must OMIT carried fields (careerAspirations, strengths, interests, workPreferences, personalityTraits). Merge preserves on OMISSION only; explicit []/null OVERWRITES (assessment.routes.ts:286, !== undefined filter). interests is .array().notNull() — [] blanks it (35% free-tier score input).
+
+### P1 — Anthropic key had vanished from api_credentials
+- Premium narratives silently fell back to heuristic (generateEnhancedReasoning); no LLM ran, undetected. Sold as "personalized narrative insights."
+- Re-added via superadmin panel 2026-07-01 10:34 (audit logged: api_credential).
+- UNRESOLVED: WHY it disappeared. Confirm re-added key survives next deploy. Silent recurrence drops premium to heuristic with no alert. See Task 2 findings below.
+
+#### Task 2 findings (read-only investigation, 2026-07-01) — root cause: DB_ENCRYPTION_KEY mismatch, NOT deletion
+**Q1 — Does seed/migrations DELETE/TRUNCATE/overwrite api_credentials? NO.**
+- api_credentials is NOT referenced in server/seed.ts and NOT in any server/migrations/*.sql (grep clean; migrations only touch assessments, career_component_affinities, assessment_components, WEF/careers/countries).
+- Only write sites for the table (storage.ts):
+  - upsertApiCredential — storage.ts:2773 (insert…onConflictDoUpdate on provider; UI add path).
+  - updateApiCredentialTestResult — storage.ts:2790 (test button only).
+  - deleteApiCredential — storage.ts:2799 → `db.delete(...)`, sole caller superadmin.routes.ts:1204 (explicit superadmin DELETE route, isSuperadminMiddleware-gated).
+- The delete route WRITES AN AUDIT ROW: changeType "api_key_deleted" (superadmin.routes.ts:1210-1218). So a deliberate UI/API delete would leave a scoring_config_change_log row. ACTION: query scoring_config_change_log for changeType='api_key_deleted' entityType='api_credential' before 10:34 today — if none, it was NEVER explicitly deleted → points to Q2/Q3 (decrypt failure), not a delete.
+
+**Q2 — Silent "absent" on decrypt failure: CONFIRMED — this is the vanish mechanism.**
+- getApiCredential — storage.ts:2736. Row IS still in the DB. But at 2741-2748: if apiKey isEncryptedFormat, it tries deserializeAndDecrypt in a try/catch; on ANY throw it logs `console.error` and `return undefined` (2746-2748). Caller cannot distinguish "row missing" from "row present but undecryptable" → the credential appears GONE.
+- getAllApiCredentials (2755, the superadmin LIST view) does the same but returns `apiKey:''` on failure (2766) — so in the UI the anthropic row may still LIST but with a blank key, reinforcing "it vanished."
+- Consumer: llmNarrativeService.generateNarrative — llmNarrativeService.ts:124-132: `if (!credential || !credential.apiKey || !credential.isActive)` → returns success:false. isAnthropicConfigured (334-336) same.
+- Silent fallback (no alert, no user-visible error): recommendations.routes.ts:384-386 `premiumReasoning = llmResult.success && llmResult.narrative ? llmResult.narrative : generateEnhancedReasoning(...)`. Premium silently degrades to heuristic. EXACTLY the observed symptom.
+
+**Q3 — DB_ENCRYPTION_KEY read from env at DECRYPT time: CONFIRMED — most likely root cause.**
+- encryption.ts:7-16 getEncryptionKey() reads `process.env.DB_ENCRYPTION_KEY` fresh on every encrypt AND decrypt call (no caching, no boot-time capture). decryptApiKey (40-53) uses AES-256-GCM with setAuthTag; a wrong key fails auth-tag verification at `decipher.final()` (51) → throws → caught in getApiCredential → undefined.
+- Therefore: if DB_ENCRYPTION_KEY at runtime differs from the value that encrypted the stored row (env reset on redeploy, rotated secret, new deploy target, Neon branch swap carrying old ciphertext, .env not restored), the ROW IS INTACT but undecryptable and reads as "gone." No error surfaces beyond a console.error.
+- Corroborating: re-adding via UI (upsertApiCredential re-encrypts with the CURRENT env key, 2775) makes it work again — consistent with the key having been re-encrypted under a now-different DB_ENCRYPTION_KEY. Does NOT prove the old key was wrong, but it's the exact behavior a key mismatch produces.
+
+**Q4 — Neon restore/branch reset?** No code-level evidence either way (infra not in repo). BUT: `npm run db:push` = `drizzle-kit push` (package.json:11) can drop/recreate columns/tables on schema drift — plausible data-loss vector if run against prod. A Neon branch swap/restore to a point where the row didn't exist, or was encrypted under a different key, reproduces the symptom. Flag for infra review — check Neon branch history + deploy logs around the outage window.
+
+**CONCLUSION / most likely:** Not a delete (no seed/migration touches the table; explicit deletes are audit-logged). Most probable = DB_ENCRYPTION_KEY drift between the encrypting environment and the runtime environment (Q3), surfaced silently via getApiCredential's catch→undefined (Q2) and the no-alert heuristic fallback.
+**Recommendations (do NOT implement without approval):**
+1. Startup env guard for DB_ENCRYPTION_KEY (like DATABASE_URL in db.ts) AND log a key fingerprint (SHA-256, first 8 hex) at boot so a key change is visible in logs.
+2. getApiCredential must distinguish "row absent" from "decrypt failed" — surface decrypt failure as ERROR/alert, not undefined, so premium doesn't silently degrade.
+3. Operational alert when premium narrative falls back to heuristic (recommendations.routes.ts:386) — currently invisible.
+4. Verify DB_ENCRYPTION_KEY is a persistent deploy secret (not regenerated per deploy); confirm the re-added key survives the next redeploy before trusting premium.
+5. Query scoring_config_change_log for a prior 'api_key_deleted' row to definitively rule the delete path in/out.
+
+ROOT CAUSE CONFIRMED (2026-07-01, code + audit trail): DB_ENCRYPTION_KEY drift, NOT deletion. scoring_config_change_log shows only api_key_updated (10:34), zero api_key_deleted — delete path ruled out. Key became undecryptable when DB_ENCRYPTION_KEY changed; getApiCredential returns undefined on decrypt-failure (storage.ts:2741-2748), indistinguishable from absent; premium silently fell to heuristic (recommendations.routes.ts:384-386). encryption.ts reads DB_ENCRYPTION_KEY fresh per decrypt — any env reset/rotation/branch-swap reproduces it. FIX PRIORITY: (1) pin DB_ENCRYPTION_KEY as stable persistent Render secret — the ACTUAL fix, config not code; (2) alert on premium→heuristic fallback; (3) getApiCredential distinguish absent vs decrypt-failed; (4) boot-time key fingerprint log. Re-adding the key WITHOUT (1) re-arms the trap.
+
+### P1 — seed.ts reverts config on every boot
+- Runs every startup (index.ts:219), no env guard. UPSERTS (revert to file values): tier component weights (storage.ts:2659), assessment component weights (seed.ts:1400), LLM model+userPromptTemplate (seed.ts:2011), WEF skills, UAE sectors.
+- Consequence: superadmin-UI edits to weights/templates revert on next restart/deploy. "Configurable without code changes" is false across reboots.
+- Decide file-vs-DB source of truth; add prod guard or make these insert-only.
+- NOTE: api_credentials is NOT in the seed list — key add via UI survives boot.
+
+### P2 — Markdown leak, now universal
+- LLM narratives emit # headings, **bold**, emojis; renderer prints them literally (all premium cards in report.pdf). Was occasional (heuristic), now every premium card since LLM is live. Renderer must parse markdown.
+- Related: dreamGuidance --- fences echo into output — drop literal --- from the template string.
+
+### Report quality (Khalid premium PDF, 2026-07-01)
+- TOO LONG: LLM writes 5-6 dense paragraphs/career × 5. Template says "4-5 paragraphs." Tighten to "2-3 short paragraphs, ~150 words" — must be in the FILE (seed reverts UI edits). Fix ORDER: renderer(P2) → dedup(#2) → length. Length last.
+- DUPLICATION: identical "Core Strengths" + "Work Style Fit" blocks on every card (RIASEC-derived, student-level). Redesign #2 relocates to profile, shown once.
+
+### Parked (pre-existing)
+- Arabic bidi scramble + English-term leak in reports.
+- Free-tier report bars hardcoded 30/30/20/20 (premium correctly 20/20/35/25).
+- PDF filename shorten/fix (career-report-<uuid>.pdf).
+
+### Test-data note
+- Khalid (23f6008e…) restored to empty dream + cache cleared. No test data left.
