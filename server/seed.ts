@@ -1964,19 +1964,22 @@ Student Assessment Data:
 - Top Personal Values: {{cvqTop3}}
 - Favorite Subjects: {{favoriteSubjects}}
 
+How this career scored for this student (highest first):
+{{scoreBreakdown}}
+
 Career Information:
 - Title: {{careerTitle}}
 - Category: {{careerCategory}}
 - Required Skills: {{requiredSkills}}
 
+Write 3 short paragraphs (max ~60 words each), under 200 words total. Be concrete and personal; avoid generic phrases. Do not use headings.
+
+Ground the explanation in the score breakdown above:
+- Lead with the dimension(s) that scored HIGHEST — those are the real reasons this career fits. Name the specific evidence (their actual RIASEC themes, values, or subjects) behind the strong scores.
+- Do NOT praise or overclaim on dimensions that scored low. If a dimension scored weakly, either leave it out or frame it as an area to grow into — never describe a low-scoring dimension as a strength.
+- Keep the tone warm and encouraging for a student aged 13-18. The goal is honest guidance, not flattery.
+
 {{dreamGuidance}}
-
-Write 3 short paragraphs (max ~60 words each) explaining:
-1. Why this career fits their personality (RIASEC) and values — be specific to their actual top themes and values, not generic.
-2. What the day-to-day work is like and how their favorite subjects connect to it — one paragraph, concrete not filler.
-3. Growth outlook in the UAE — two sentences maximum, specific to this career.
-
-Keep the total under 200 words. Be concrete and personal; avoid generic phrases like "increasingly valuable as industries modernize" or "form the foundation." Do not use headings.
 
 IMPORTANT: Write your entire response in {{language}}. If the language is Arabic, use right-to-left Arabic script throughout.`,
       model: "claude-sonnet-4-6",
