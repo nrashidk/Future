@@ -1099,7 +1099,7 @@ export default function Results() {
                   <div className="mb-4">
                     <h4 className="font-semibold mb-2 text-sm flex items-center gap-1.5">
                       <Globe className="w-4 h-4" />
-                      {t('wefSkillsTitle', 'Future Skills (WEF)')}
+                      {t('wefSkillsTitle', 'Future Skills')}
                     </h4>
                     <div className="flex flex-wrap gap-1.5">
                       {rec.wefSkillTags.map((tag) => {
