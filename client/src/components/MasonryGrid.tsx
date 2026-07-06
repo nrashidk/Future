@@ -12,8 +12,21 @@ export function MasonryGrid({ children, className = "" }: MasonryGridProps) {
     if (!gridRef.current) return;
 
     const grid = gridRef.current;
+
+    // Coalesce bursts of observer callbacks (many content nodes resizing in one
+    // tick) into a single recompute, and defer the writes out of the observer
+    // callback so they don't trigger a synchronous observe→write→observe loop.
+    let rafId: number | null = null;
+    const scheduleResize = () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        resizeGridItems();
+      });
+    };
+
     const resizeObserver = new ResizeObserver(() => {
-      resizeGridItems();
+      scheduleResize();
     });
 
     function resizeGridItems() {
@@ -27,19 +40,29 @@ export function MasonryGrid({ children, className = "" }: MasonryGridProps) {
 
         const contentHeight = content.getBoundingClientRect().height;
         const rowSpan = Math.ceil((contentHeight + rowGap) / (rowHeight + rowGap));
-        item.style.gridRowEnd = `span ${rowSpan}`;
+        const nextValue = `span ${rowSpan}`;
+        // Diff-guard: only write when the span actually changes. This is what
+        // breaks the observe→write→observe feedback once spans stabilize.
+        if (item.style.gridRowEnd !== nextValue) {
+          item.style.gridRowEnd = nextValue;
+        }
       });
     }
 
-    // Observe all items
-    const items = grid.querySelectorAll(".masonry-item");
-    items.forEach((item) => resizeObserver.observe(item));
+    // Observe the CONTENT nodes, not the items: an item's box height is pinned
+    // by its inline gridRowEnd span, so it never resizes when the inner content
+    // grows (e.g. the async "Why This Career?" narrative). The content node is
+    // the element that actually changes height after mount.
+    grid
+      .querySelectorAll<HTMLElement>(".masonry-content")
+      .forEach((node) => resizeObserver.observe(node));
 
     // Initial resize
     resizeGridItems();
 
     // Cleanup
     return () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
       resizeObserver.disconnect();
     };
   }, [children]);
