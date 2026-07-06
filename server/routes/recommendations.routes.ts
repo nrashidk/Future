@@ -379,7 +379,8 @@ export function registerRecommendationsRoutes(app: Express) {
                     assessment,
                     career,
                     rec.overallMatchScore,
-                    narrativeLanguage
+                    narrativeLanguage,
+                    rec.componentBreakdown as any
                   );
                   premiumReasoning = llmResult.success && llmResult.narrative
                     ? llmResult.narrative
@@ -802,7 +803,8 @@ export function registerRecommendationsRoutes(app: Express) {
         assessment,
         career,
         recommendation.overallMatchScore,
-        narrativeLanguage
+        narrativeLanguage,
+        recommendation.componentBreakdown as any
       );
 
       if (!result.success) {

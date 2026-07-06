@@ -15,6 +15,20 @@ interface StudentContext {
   cvqTop3: string[];
   overallScore: number;
   dreamGuidance: string;
+  scoreBreakdown: string;
+}
+
+/**
+ * Per-dimension scored breakdown for a career recommendation — the same
+ * {displayName, score, weight} objects the results card renders (stored on
+ * recommendation.componentBreakdown). Passed in so the narrative can reference
+ * how each dimension contributed to the overall match.
+ */
+interface ComponentBreakdownEntry {
+  key: string;
+  displayName: string;
+  score: number;
+  weight: number;
 }
 
 interface CareerContext {
@@ -56,6 +70,7 @@ function replaceTemplateVariables(
     .replace(/\{\{riasecTop3\}\}/g, studentContext.riasecTop3.join(", "))
     .replace(/\{\{cvqTop3\}\}/g, studentContext.cvqTop3.join(", "))
     .replace(/\{\{overallScore\}\}/g, studentContext.overallScore.toString())
+    .replace(/\{\{scoreBreakdown\}\}/g, studentContext.scoreBreakdown)
     .replace(/\{\{dreamGuidance\}\}/g, studentContext.dreamGuidance)
     .replace(/\{\{careerTitle\}\}/g, careerContext.title)
     .replace(/\{\{careerCategory\}\}/g, careerContext.category)
@@ -186,7 +201,8 @@ export async function generateCareerReasoningNarrative(
   assessment: Assessment,
   career: Career,
   overallScore: number,
-  language: string = "en"
+  language: string = "en",
+  componentBreakdown?: ComponentBreakdownEntry[] | null
 ): Promise<NarrativeResult> {
   const promptKey = "career_reasoning";
 
@@ -200,7 +216,7 @@ export async function generateCareerReasoningNarrative(
     console.warn("[LLM Cache] Read error (career_reasoning), proceeding without cache:", cacheErr);
   }
 
-  const studentContext = buildStudentContext(assessment, overallScore);
+  const studentContext = buildStudentContext(assessment, overallScore, componentBreakdown);
   const careerContext = buildCareerContext(career);
   const result = await generateNarrative(storage, promptKey, studentContext, careerContext, language);
 
@@ -259,7 +275,11 @@ export async function generateEducationPathwaysNarrative(
 /**
  * Build student context from assessment data
  */
-function buildStudentContext(assessment: Assessment, overallScore: number): StudentContext {
+function buildStudentContext(
+  assessment: Assessment,
+  overallScore: number,
+  componentBreakdown?: ComponentBreakdownEntry[] | null
+): StudentContext {
   const riasecData = assessment.riasecScores as any;
   const cvqData = assessment.cvqScores as any;
   const assessmentData = assessment as any;
@@ -301,6 +321,20 @@ Weave this dream into your explanation for THIS specific career:
 ---`
     : "";
 
+  // Per-dimension scored breakdown for the prompt: one line per component,
+  // highest-score-first so the strongest drivers lead. Uses the same
+  // {displayName, score, weight} entries the results card renders. Empty
+  // string when no breakdown is available (e.g. legacy recommendations) so
+  // the {{scoreBreakdown}} slot collapses to nothing in the prompt.
+  const scoreBreakdown = Array.isArray(componentBreakdown)
+    ? componentBreakdown
+        .filter((c) => c && typeof c.score === "number" && typeof c.weight === "number")
+        .slice()
+        .sort((a, b) => b.score - a.score)
+        .map((c) => `${c.displayName}: ${Math.round(c.score)}% (${Math.round(c.weight)}% weight)`)
+        .join("\n")
+    : "";
+
   return {
     gradeLevel: assessmentData.gradeLevel || assessmentData.grade || "Unknown",
     favoriteSubjects,
@@ -308,6 +342,7 @@ Weave this dream into your explanation for THIS specific career:
     cvqTop3,
     overallScore: Math.round(overallScore),
     dreamGuidance,
+    scoreBreakdown,
   };
 }
 
