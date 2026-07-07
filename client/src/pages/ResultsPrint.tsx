@@ -1,11 +1,12 @@
 import { StickyNote } from "@/components/StickyNote";
 import ReportMarkdown from "@/components/ReportMarkdown";
 import { Progress } from "@/components/ui/progress";
-import { 
-  GraduationCap, 
-  Target, 
-  TrendingUp, 
-  BookOpen, 
+import {
+  GraduationCap,
+  Target,
+  TrendingUp,
+  ArrowRight,
+  BookOpen,
   Star,
   CheckCircle2,
   Brain,
@@ -43,6 +44,10 @@ interface EnrichedRecommendation extends Recommendation {
   premiumReasoning?: string;
   workStyleFit?: string;
   strengthsGrowth?: string;
+  // Grade-branched next-steps, generated on-demand server-side (not DB-stored,
+  // so not on the base Recommendation type). Absent for free-tier assessments,
+  // which fall back to the base `actionSteps` column.
+  premiumActionSteps?: string[];
 }
 
 // Synchronous RTL bootstrap — runs before React mounts so Puppeteer captures
@@ -469,6 +474,13 @@ export default function ResultsPrint() {
 
           /* A single career card must never split across a page break. */
           .career-card-print {
+            break-inside: avoid;
+            page-break-inside: avoid;
+          }
+
+          /* Grade-branched action-steps block stays intact on its page. Honorable
+             because at full width (~254px) it is well under the usable page height. */
+          .action-steps-print {
             break-inside: avoid;
             page-break-inside: avoid;
           }
@@ -962,142 +974,164 @@ export default function ResultsPrint() {
         </div>
       )}
 
-      {/* Career Pages: Two careers side by side per page */}
+      {/* Career Pages: one career per full-width page, with grade-branch action steps below.
+          Was 2-up (grid-cols-2); moved to 1-up so the full-width action-steps block has
+          room without re-orphaning. Colors cycle through the same palette the paired layout
+          used, flattened to one sequence. */}
       {(() => {
-        const pairColors: Array<[string, string]> = [
-          ["yellow", "pink"],
-          ["blue", "green"],
-          ["purple", "orange"],
-        ];
-        const pages: any[][] = [];
-        for (let i = 0; i < recommendations.length; i += 2) {
-          pages.push(recommendations.slice(i, i + 2));
-        }
-        return pages.map((pair, pageIdx) => (
-          <div key={pageIdx} className="print-page-career">
-            <div className="grid grid-cols-2 gap-4 h-auto">
-              {pair.map((rec: EnrichedRecommendation, colIdx: number) => {
-                const color = pairColors[pageIdx % pairColors.length][colIdx] as any;
-                return (
-                  <StickyNote key={rec.id} color={color} rotation="0" className="career-card-print p-4 flex flex-col gap-3">
-                    {/* Career Header */}
-                    <div>
-                      <div className="flex items-start justify-between mb-2 gap-2">
-                        <div className="flex-1 min-w-0">
-                          <h3 className="text-lg font-bold leading-tight mb-1">{langParam === 'ar' && rec.career?.titleAr ? rec.career.titleAr : rec.career?.title}</h3>
-                          <p className="text-xs text-muted-foreground font-body line-clamp-2">{langParam === 'ar' && rec.career?.descriptionAr ? rec.career.descriptionAr : rec.career?.description}</p>
-                        </div>
-                        <div className="bg-primary text-primary-foreground px-3 py-1.5 rounded-full font-bold text-base flex-shrink-0">
-                          {Math.round(rec.overallMatchScore)}%
-                        </div>
-                      </div>
-
-                      {/* 2×2 Score Breakdown (tier-aware, from stored componentBreakdown) */}
-                      {(() => {
-                        const breakdown = (rec.componentBreakdown ?? []) as ComponentBreakdownEntry[];
-                        if (!breakdown.length) return null;
-                        return (
-                          <div className="grid grid-cols-2 gap-1.5">
-                            {breakdown.map((entry) => {
-                              const meta = COMPONENT_BREAKDOWN_META[entry.key];
-                              const Icon = meta?.Icon ?? TrendingUp;
-                              const label = meta ? t(meta.labelKey) : entry.displayName;
-                              return (
-                                <div key={entry.key} className="p-1.5 bg-background/30 rounded-lg">
-                                  <div className="flex items-center justify-between mb-0.5">
-                                    <span className="text-[11px] font-medium flex items-center gap-0.5">
-                                      <Icon className="w-2.5 h-2.5" />
-                                      {label}
-                                    </span>
-                                    <span className="text-[11px] font-bold">{Math.round(entry.score)}%</span>
-                                  </div>
-                                  <Progress value={entry.score} className="h-1" />
-                                  <span className="text-[10px] text-muted-foreground">{entry.weight}% {t('weightSuffix')}</span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        );
-                      })()}
-
-                      {/* Growth Outlook row */}
-                      {rec.career?.growthOutlook && (
-                        <div className="flex items-center gap-1.5 mt-1.5 p-1.5 bg-background/20 rounded-lg">
-                          <TrendingUp className="w-3 h-3 text-primary flex-shrink-0" />
-                          <span className="text-[10px] text-muted-foreground">{t('growthOutlook')}:</span>
-                          <span className="text-[10px] font-semibold">{localizeGrowthOutlook(rec.career.growthOutlook, t)}</span>
-                        </div>
-                      )}
+        const cardColors = ["yellow", "pink", "blue", "green", "purple", "orange"];
+        return recommendations.map((rec: EnrichedRecommendation, idx: number) => {
+          const color = cardColors[idx % cardColors.length] as any;
+          return (
+            <div key={rec.id} className="print-page-career">
+              <StickyNote color={color} rotation="0" className="career-card-print p-4 flex flex-col gap-3">
+                {/* Career Header */}
+                <div>
+                  <div className="flex items-start justify-between mb-2 gap-2">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-lg font-bold leading-tight mb-1">{langParam === 'ar' && rec.career?.titleAr ? rec.career.titleAr : rec.career?.title}</h3>
+                      <p className="text-xs text-muted-foreground font-body line-clamp-2">{langParam === 'ar' && rec.career?.descriptionAr ? rec.career.descriptionAr : rec.career?.description}</p>
                     </div>
+                    <div className="bg-primary text-primary-foreground px-3 py-1.5 rounded-full font-bold text-base flex-shrink-0">
+                      {Math.round(rec.overallMatchScore)}%
+                    </div>
+                  </div>
 
-                    {/* WEF Framework Skill Tags — nameAr used when langParam is 'ar' */}
-                    {rec.wefSkillTags && rec.wefSkillTags.length > 0 && (
-                      <div className="flex flex-wrap gap-1">
-                        {rec.wefSkillTags.map((tag) => (
-                          <span
-                            key={tag.name}
-                            className="bg-accent/20 px-2 py-0.5 rounded-full text-[10px] font-medium"
-                            title={langParam === 'ar' ? (tag.descriptionAr ?? tag.description) : tag.description}
-                          >
-                            {langParam === 'ar' ? (tag.nameAr ?? tag.name) : tag.name}
-                          </span>
+                  {/* 2×2 Score Breakdown (tier-aware, from stored componentBreakdown) */}
+                  {(() => {
+                    const breakdown = (rec.componentBreakdown ?? []) as ComponentBreakdownEntry[];
+                    if (!breakdown.length) return null;
+                    return (
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {breakdown.map((entry) => {
+                          const meta = COMPONENT_BREAKDOWN_META[entry.key];
+                          const Icon = meta?.Icon ?? TrendingUp;
+                          const label = meta ? t(meta.labelKey) : entry.displayName;
+                          return (
+                            <div key={entry.key} className="p-1.5 bg-background/30 rounded-lg">
+                              <div className="flex items-center justify-between mb-0.5">
+                                <span className="text-[11px] font-medium flex items-center gap-0.5">
+                                  <Icon className="w-2.5 h-2.5" />
+                                  {label}
+                                </span>
+                                <span className="text-[11px] font-bold">{Math.round(entry.score)}%</span>
+                              </div>
+                              <Progress value={entry.score} className="h-1" />
+                              <span className="text-[10px] text-muted-foreground">{entry.weight}% {t('weightSuffix')}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+
+                  {/* Growth Outlook row */}
+                  {rec.career?.growthOutlook && (
+                    <div className="flex items-center gap-1.5 mt-1.5 p-1.5 bg-background/20 rounded-lg">
+                      <TrendingUp className="w-3 h-3 text-primary flex-shrink-0" />
+                      <span className="text-[10px] text-muted-foreground">{t('growthOutlook')}:</span>
+                      <span className="text-[10px] font-semibold">{localizeGrowthOutlook(rec.career.growthOutlook, t)}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* WEF Framework Skill Tags — nameAr used when langParam is 'ar' */}
+                {rec.wefSkillTags && rec.wefSkillTags.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {rec.wefSkillTags.map((tag) => (
+                      <span
+                        key={tag.name}
+                        className="bg-accent/20 px-2 py-0.5 rounded-full text-[10px] font-medium"
+                        title={langParam === 'ar' ? (tag.descriptionAr ?? tag.description) : tag.description}
+                      >
+                        {langParam === 'ar' ? (tag.nameAr ?? tag.name) : tag.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                {/* Required Skills — requiredSkillsAr used when langParam is 'ar' */}
+                {(() => {
+                  const skills = localizeSkills(langParam, rec.career?.requiredSkillsAr, rec.career?.requiredSkills);
+                  return skills.length > 0 ? (
+                    <div className="flex flex-wrap gap-1">
+                      {skills.map((skill: string) => (
+                        <span
+                          key={skill}
+                          className="bg-primary/10 px-2 py-0.5 rounded-full text-[10px] font-medium"
+                        >
+                          {skill}
+                        </span>
+                      ))}
+                    </div>
+                  ) : null;
+                })()}
+
+                {/* Two-column content: Why this Career? | Education Path.
+                    (flex-1 dropped with the 2-up layout — no sibling card to height-match.) */}
+                <div className="grid grid-cols-2 gap-2">
+                  {/* Left: Why this Career? */}
+                  <div className="flex flex-col gap-2">
+                    <div className="p-2 bg-background/30 rounded-lg flex-1">
+                      <h4 className="text-xs font-semibold mb-1.5 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3 text-primary flex-shrink-0" />
+                        {t('whyThisCareer')}
+                      </h4>
+                      <ReportMarkdown className="text-xs font-body text-foreground/90">
+                        {narrativeMap[rec.careerId] || rec.premiumReasoning || rec.reasoning}
+                      </ReportMarkdown>
+                    </div>
+                  </div>
+
+                  {/* Right: Education Path */}
+                  <div className="flex flex-col gap-2">
+                    <div className="p-2 bg-background/30 rounded-lg">
+                      <h4 className="text-xs font-semibold mb-1.5 flex items-center gap-1">
+                        <BookOpen className="w-3 h-3 flex-shrink-0" />
+                        {t('educationPath')}
+                      </h4>
+                      <p className="text-xs font-body">
+                        {langParam === 'ar' && rec.career?.educationLevelAr
+                          ? rec.career.educationLevelAr
+                          : rec.requiredEducation}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Steps — grade-branched premium steps (generated server-side per
+                    grade band in generateEnhancedActionSteps), falling back to the basic
+                    stored `actionSteps` for free tier. Mirrors the on-screen Results.tsx gate
+                    and fallback. Rendered full-width beneath the Why/Education row and kept
+                    intact on the page via .action-steps-print. */}
+                {(() => {
+                  const steps = (rec.premiumActionSteps && rec.premiumActionSteps.length > 0)
+                    ? rec.premiumActionSteps
+                    : (rec.actionSteps && rec.actionSteps.length > 0 ? rec.actionSteps : null);
+                  if (!steps) return null;
+                  return (
+                    <div className="action-steps-print p-2 bg-background/30 rounded-lg">
+                      <h4 className="text-xs font-semibold mb-1.5 flex items-center gap-1">
+                        <ArrowRight className="w-3 h-3 text-primary flex-shrink-0" />
+                        {t('nextSteps')}
+                      </h4>
+                      <ol className="flex flex-col gap-1">
+                        {steps.map((step: string, i: number) => (
+                          <li key={i} className="flex items-start gap-1.5">
+                            <span className="text-primary font-bold text-xs flex-shrink-0">{i + 1}.</span>
+                            <ReportMarkdown className="text-xs font-body text-foreground/90 flex-1 min-w-0">
+                              {step}
+                            </ReportMarkdown>
+                          </li>
                         ))}
-                      </div>
-                    )}
-
-                    {/* Required Skills — requiredSkillsAr used when langParam is 'ar' */}
-                    {(() => {
-                      const skills = localizeSkills(langParam, rec.career?.requiredSkillsAr, rec.career?.requiredSkills);
-                      return skills.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {skills.map((skill: string) => (
-                            <span
-                              key={skill}
-                              className="bg-primary/10 px-2 py-0.5 rounded-full text-[10px] font-medium"
-                            >
-                              {skill}
-                            </span>
-                          ))}
-                        </div>
-                      ) : null;
-                    })()}
-
-                    {/* Two-column content: Why+WorkStyle | Education+Strengths */}
-                    <div className="grid grid-cols-2 gap-2 flex-1">
-                      {/* Left: Why this Career? + Work Style Fit */}
-                      <div className="flex flex-col gap-2">
-                        <div className="p-2 bg-background/30 rounded-lg flex-1">
-                          <h4 className="text-xs font-semibold mb-1.5 flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3 text-primary flex-shrink-0" />
-                            {t('whyThisCareer')}
-                          </h4>
-                          <ReportMarkdown className="text-xs font-body text-foreground/90">
-                            {narrativeMap[rec.careerId] || rec.premiumReasoning || rec.reasoning}
-                          </ReportMarkdown>
-                        </div>
-                      </div>
-
-                      {/* Right: Education Path + Personal Strengths & Growth */}
-                      <div className="flex flex-col gap-2">
-                        <div className="p-2 bg-background/30 rounded-lg">
-                          <h4 className="text-xs font-semibold mb-1.5 flex items-center gap-1">
-                            <BookOpen className="w-3 h-3 flex-shrink-0" />
-                            {t('educationPath')}
-                          </h4>
-                          <p className="text-xs font-body">
-                            {langParam === 'ar' && rec.career?.educationLevelAr
-                              ? rec.career.educationLevelAr
-                              : rec.requiredEducation}
-                          </p>
-                        </div>
-                      </div>
+                      </ol>
                     </div>
-                  </StickyNote>
-                );
-              })}
+                  );
+                })()}
+              </StickyNote>
             </div>
-          </div>
-        ));
+          );
+        });
       })()}
 
       {/* Single report footer — rendered once at the very end (was previously
