@@ -206,6 +206,45 @@ export function getCanonicalSubjects(): readonly string[] {
 }
 
 /**
+ * Build the set of subject values considered VALID at the write boundary,
+ * used to whitelist favoriteSubjects before it reaches the LLM prompt.
+ *
+ * Derived from the SAME sources normalizeSubjects() uses, so the whitelist can
+ * never drift out of sync with the normalizer and false-reject a legitimate
+ * pick:
+ *   - DEFAULT_CANONICAL_SUBJECTS   (the 6 canonical quiz subjects)
+ *   - Object.values(DEFAULT_SUBJECT_MAP)  (normalized outputs, incl. the
+ *     self-mapped Art / Music / Business)
+ *   - the cached DB alias map keys + values (subject names, codes, aliases and
+ *     their canonical targets) — so DB-only curriculum subjects that the static
+ *     map does not rewrite still pass.
+ *
+ * All entries are lowercased; callers compare `value.toLowerCase()`. The check
+ * is meant to run AFTER normalizeSubjects(): a raw UI value like "Physics"
+ * normalizes to "Science" (present here), while an injection/garbage string
+ * passes through normalization unchanged and is absent → rejected.
+ *
+ * On a DB error getSubjectAliasMap() returns {}, leaving the static union,
+ * which still covers every one of the 12 fixed picker tiles.
+ */
+export async function getAllowedSubjectSet(
+  countryId?: string | null,
+  curriculum?: string | null
+): Promise<Set<string>> {
+  const allowed = new Set<string>();
+
+  for (const s of DEFAULT_CANONICAL_SUBJECTS) allowed.add(s.toLowerCase());
+  for (const v of Object.values(DEFAULT_SUBJECT_MAP)) allowed.add(v.toLowerCase());
+
+  // Reuses the cached alias map (keys are already lowercased names/codes/aliases)
+  const aliasMap = await getSubjectAliasMap(countryId, curriculum);
+  for (const key of Object.keys(aliasMap)) allowed.add(key);
+  for (const val of Object.values(aliasMap)) allowed.add(val.toLowerCase());
+
+  return allowed;
+}
+
+/**
  * Get available subjects for a curriculum from database
  */
 export async function getAvailableSubjects(countryId: string, curriculum: string): Promise<string[]> {

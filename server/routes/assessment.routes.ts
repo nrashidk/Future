@@ -6,6 +6,7 @@ import { insertAssessmentSchema } from "@shared/schema";
 import { z } from "zod";
 import { calculateRiasecScores } from "../questionBanks/riasec";
 import { normalizeSubjects } from "../utils/subjects";
+import { validatePromptInputFields } from "../utils/assessmentValidation";
 import { sanitizeRequestBody } from "../utils/sanitize";
 import { printTokenAuthorizes } from "../utils/printToken";
 
@@ -56,7 +57,14 @@ export function registerAssessmentRoutes(app: Express) {
     try {
       // Sanitize user input to prevent XSS
       const sanitizedBody = sanitizeRequestBody(req.body);
-      
+
+      // Bound/whitelist the free-text fields that reach the LLM prompt
+      // (favoriteSubjects, careerAspirations) before anything is persisted.
+      const promptFieldError = await validatePromptInputFields(sanitizedBody);
+      if (promptFieldError) {
+        return res.status(400).json({ message: promptFieldError });
+      }
+
       // Normalize payload before validation
       const normalizationResult = normalizeAssessmentPayload(sanitizedBody);
       if (normalizationResult.error) {
@@ -286,6 +294,15 @@ export function registerAssessmentRoutes(app: Express) {
         if (sanitizedBody[field] !== undefined) {
           filteredBody[field] = sanitizedBody[field];
         }
+      }
+
+      // Same prompt-field bounds/whitelist as POST. PATCH runs no zod, so this
+      // is the only guard here. Partial-update safe: fields absent from the
+      // payload are skipped, so a PATCH that doesn't touch subjects/aspirations
+      // is never rejected for them.
+      const promptFieldError = await validatePromptInputFields(filteredBody);
+      if (promptFieldError) {
+        return res.status(400).json({ message: promptFieldError });
       }
 
       // Normalize payload before processing
