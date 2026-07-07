@@ -23,6 +23,7 @@ import {
   Crown,
   DollarSign,
   Loader2,
+  Lock,
   User
 } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -35,7 +36,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAssessmentAvailability } from "@/hooks/useAssessmentAvailability";
-import type { Recommendation, Career } from "@shared/schema";
+import type { RecommendationResponse, Career } from "@shared/schema";
 import { CVQ_DOMAINS } from "@shared/schema";
 
 interface WefSkillTag {
@@ -45,7 +46,7 @@ interface WefSkillTag {
   descriptionAr: string | null;
 }
 
-interface EnrichedRecommendation extends Recommendation {
+interface EnrichedRecommendation extends RecommendationResponse {
   career?: Career;
   wefSkillTags?: WefSkillTag[];
   premiumReasoning?: string;
@@ -55,6 +56,11 @@ interface EnrichedRecommendation extends Recommendation {
   matchedSubjects?: Array<{ subject: string; competency: number }>;
   supportingVisionPriorities?: string[];
 }
+
+// CSS-only fog applied to locked-tier career facts (salary/growth, skills,
+// education, next steps). Blur + dimmed + non-interactive; layout size is
+// unchanged (filter/opacity don't reflow), so masonry heights stay stable.
+const LOCKED_FOG = "blur-sm opacity-40 pointer-events-none select-none";
 
 /**
  * Return the Arabic variant when the UI is in Arabic mode and the field is
@@ -269,6 +275,11 @@ export default function Results() {
   // Determine active assessment ID (URL param or extracted from recommendations)
   const activeAssessmentId = urlAssessmentId || assessmentId;
 
+  // Page-level locked signal derived from the SERVER flag (rec.locked), not a
+  // re-derived tier check. Free-tier assessments come back with locked:true on
+  // every recommendation; used to swap the PDF download CTA for an upgrade CTA.
+  const reportLocked = recommendations.some((r: EnrichedRecommendation) => r.locked === true);
+
   // Fetch quiz data to get subject competency scores
   const { data: quizData } = useQuery<any>({
     queryKey: [`/api/assessments/${activeAssessmentId}/quiz`],
@@ -423,26 +434,41 @@ export default function Results() {
           {/* Download moved up here so it's reachable without scrolling to the
               bottom. Secondary variant contrasts against the primary gradient. */}
           <div className="mt-6 flex justify-center">
-            <Button
-              size="lg"
-              variant="secondary"
-              className="rounded-full shadow-lg px-8"
-              data-testid="button-download-report"
-              onClick={handleDownloadPDF}
-              disabled={!assessmentId || isDownloading}
-            >
-              {isDownloading ? (
-                <>
-                  <Loader2 className="w-5 h-5 me-2 animate-spin" />
-                  {t('downloadGenerating', 'Generating PDF…')}
-                </>
-              ) : (
-                <>
-                  <Download className="w-5 h-5 me-2" />
-                  {t('downloadPdf')}
-                </>
-              )}
-            </Button>
+            {reportLocked ? (
+              // Free tier: the PDF route now 403s, so route to the upgrade flow
+              // instead of calling handleDownloadPDF. Premium keeps the download.
+              <Button
+                size="lg"
+                variant="secondary"
+                className="rounded-full shadow-lg px-8"
+                data-testid="button-unlock-report"
+                onClick={() => setLocation('/tier-selection')}
+              >
+                <Sparkles className="w-5 h-5 me-2" />
+                {t('unlockFullReport', 'Unlock full report')}
+              </Button>
+            ) : (
+              <Button
+                size="lg"
+                variant="secondary"
+                className="rounded-full shadow-lg px-8"
+                data-testid="button-download-report"
+                onClick={handleDownloadPDF}
+                disabled={!assessmentId || isDownloading}
+              >
+                {isDownloading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 me-2 animate-spin" />
+                    {t('downloadGenerating', 'Generating PDF…')}
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-5 h-5 me-2" />
+                    {t('downloadPdf')}
+                  </>
+                )}
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -1018,7 +1044,7 @@ export default function Results() {
                 })()}
 
                 {/* Salary & Growth Info */}
-                <div className="grid grid-cols-2 gap-3 mb-4">
+                <div className={`grid grid-cols-2 gap-3 mb-4 ${rec.locked ? LOCKED_FOG : ''}`}>
                   <div className="p-3 bg-background/30 rounded-lg text-center">
                     <TrendingUp className="w-5 h-5 mx-auto mb-1 text-primary" />
                     <p className="text-xs text-muted-foreground mb-1">{t('growthOutlook')}</p>
@@ -1079,7 +1105,7 @@ export default function Results() {
                   return skills.length > 0 ? (
                   <div className="mb-4">
                     <h4 className="font-semibold mb-2 text-sm">{t('requiredSkills')}</h4>
-                    <div className="flex flex-wrap gap-2">
+                    <div className={`flex flex-wrap gap-2 ${rec.locked ? LOCKED_FOG : ''}`}>
                       {skills.map((skill: string) => (
                           <span
                             key={skill}
@@ -1101,7 +1127,7 @@ export default function Results() {
                       <Globe className="w-4 h-4" />
                       {t('wefSkillsTitle', 'Future Skills')}
                     </h4>
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className={`flex flex-wrap gap-1.5 ${rec.locked ? LOCKED_FOG : ''}`}>
                       {rec.wefSkillTags.map((tag) => {
                         const label = language === 'ar' ? (tag.nameAr ?? tag.name) : tag.name;
                         const desc = language === 'ar' ? (tag.descriptionAr ?? tag.description) : tag.description;
@@ -1132,7 +1158,37 @@ export default function Results() {
                     {t('whyThisCareer')}
                   </h4>
                   <div className="text-sm font-body text-foreground/90">
-                    {isPremiumAssessment(assessment?.assessmentType) && activeAssessmentId && rec.careerId ? (
+                    {rec.locked ? (
+                      // Locked (free tier): the server withholds the narrative
+                      // (reasoning/premiumReasoning are null). Render a fixed-height
+                      // fog skeleton + an absolutely-positioned unlock overlay.
+                      // Pure CSS (blur + opacity); the skeleton is a fixed height so
+                      // the masonry card height stays stable — no JS measures or
+                      // writes back to .masonry-content, so no observe→write loop.
+                      <div className="relative">
+                        <div className="space-y-2 blur-sm opacity-40 select-none pointer-events-none" aria-hidden="true">
+                          <div className="h-3 rounded bg-foreground/20 w-full" />
+                          <div className="h-3 rounded bg-foreground/20 w-11/12" />
+                          <div className="h-3 rounded bg-foreground/20 w-full" />
+                          <div className="h-3 rounded bg-foreground/20 w-4/5" />
+                        </div>
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center px-2">
+                          <div className="flex items-center gap-1.5 text-primary">
+                            <Lock className="w-4 h-4" />
+                            <span className="text-xs font-semibold">{t('premiumInsight', 'Premium insight')}</span>
+                          </div>
+                          <Button
+                            size="sm"
+                            className="rounded-full"
+                            data-testid={`button-unlock-${rec.careerId}`}
+                            onClick={() => setLocation('/tier-selection')}
+                          >
+                            <Sparkles className="w-3.5 h-3.5 me-1.5" />
+                            {t('unlockFullReport', 'Unlock full report')}
+                          </Button>
+                        </div>
+                      </div>
+                    ) : isPremiumAssessment(assessment?.assessmentType) && activeAssessmentId && rec.careerId ? (
                       <CareerReasoningText
                         assessmentId={activeAssessmentId}
                         careerId={rec.careerId}
@@ -1153,7 +1209,7 @@ export default function Results() {
                     <BookOpen className="w-4 h-4" />
                     {t('educationPath')}
                   </h4>
-                  <p className="text-sm font-body">
+                  <p className={`text-sm font-body ${rec.locked ? LOCKED_FOG : ''}`}>
                     {language === 'ar' && rec.career?.educationLevelAr
                       ? rec.career.educationLevelAr
                       : rec.requiredEducation}
@@ -1167,7 +1223,7 @@ export default function Results() {
                       <ArrowRight className="w-4 h-4" />
                       {t('nextSteps')}
                     </h4>
-                    <ul className="space-y-2">
+                    <ul className={`space-y-2 ${rec.locked ? LOCKED_FOG : ''}`}>
                       {(rec.premiumActionSteps || rec.actionSteps).map((step: string, i: number) => (
                         <li key={i} className="flex items-start gap-2 text-sm font-body">
                           <span className="text-primary font-bold flex-shrink-0">{i + 1}.</span>

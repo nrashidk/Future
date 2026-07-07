@@ -414,16 +414,30 @@ export function registerRecommendationsRoutes(app: Express) {
             }
           }
 
-          // Free tier or missing premium data: return basic recommendation.
-          // Generate heuristic "Why This Career?" prose at serve-time (no LLM,
-          // no cost) so the UI shows real sentences instead of the raw audit
-          // blob. generateEnhancedReasoning self-trims to 3 paragraphs when
-          // RIASEC/CVQ are absent (free) and is language-aware via
-          // narrativeLanguage. Pass the RAW career (it localizes the title
-          // internally via `language`), exactly as the premium branch does at
-          // its generateEnhancedReasoning call — the response object is
-          // localized separately below. The stored rec.reasoning blob is left
-          // untouched as the audit trail + absolute-last render fallback.
+          // FREE tier: withhold the per-student "Why This Career?" narrative.
+          // BOTH narrative fields are blanked in the RESPONSE only — the stored
+          // rec.reasoning DB blob is untouched as the audit trail — and
+          // `locked: true` signals the client to show an upgrade affordance
+          // instead of narrative text. Scores, career details and WEF skill tags
+          // are still returned in full. Gated on `!isPremium` so a premium
+          // assessment that merely lacked RIASEC data (and fell through the
+          // branch above) is never locked — premium behaviour is unchanged.
+          if (!isPremium) {
+            return {
+              ...rec,
+              // Override the spread DB blob: free tier gets no narrative text.
+              reasoning: null,
+              career: localizeCareer(career, isArabic),
+              wefSkillTags,
+              premiumReasoning: null,
+              locked: true,
+            };
+          }
+
+          // Premium assessment missing RIASEC data (did not enter the LLM branch
+          // above): keep the prior heuristic "Why This Career?" fallback so the
+          // premium report still renders prose. Unchanged from before this
+          // free-tier change.
           let fallbackReasoning: string | undefined;
           if (assessment && career) {
             try {
@@ -434,18 +448,14 @@ export function registerRecommendationsRoutes(app: Express) {
                 language: narrativeLanguage,
               });
             } catch (error) {
-              // Never let prose generation break the recommendations response;
-              // fall back to the stored blob via the renderers' existing chain.
-              console.error('[Free Narrative] Error generating reasoning for career:', career.id, error);
+              // Never let prose generation break the recommendations response.
+              console.error('[Premium Fallback] Error generating reasoning for career:', career.id, error);
             }
           }
           return {
             ...rec,
             career: localizeCareer(career, isArabic),
             wefSkillTags,
-            // Heuristic (non-LLM) prose for free + degraded-premium fallback;
-            // read by the renderers' existing `premiumReasoning || rec.reasoning`
-            // chain, so no render changes are needed.
             premiumReasoning: fallbackReasoning,
           };
         })
@@ -511,6 +521,18 @@ export function registerRecommendationsRoutes(app: Express) {
       }
       if (!owns) {
         return res.status(403).json({ message: "Unauthorized to access this report" });
+      }
+
+      // Tier gate: the downloadable PDF report is a premium feature. Free-tier
+      // assessments have their per-student narrative withheld from
+      // GET /api/recommendations, so a rendered PDF would carry blank narrative
+      // sections — block it here instead. Mirrors the premium-feature 403
+      // returned by the career-reasoning / education-pathways endpoints below.
+      if (!isPremiumAssessment(assessment.assessmentType)) {
+        return res.status(403).json({
+          message: "PDF report is a premium feature",
+          isPremium: false,
+        });
       }
 
       // Import Puppeteer

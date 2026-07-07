@@ -807,6 +807,17 @@ export type InsertAssessment = z.infer<typeof insertAssessmentSchema>;
 export type Recommendation = typeof recommendations.$inferSelect;
 export type InsertRecommendation = typeof recommendations.$inferInsert;
 
+/**
+ * Shape of a recommendation as returned by GET /api/recommendations (enriched
+ * beyond the stored DB row). `locked` is true for free-tier assessments, whose
+ * per-student narrative fields (reasoning / premiumReasoning) are withheld from
+ * the response payload server-side. The client can read `locked` to render an
+ * upgrade affordance instead of narrative text.
+ */
+export interface RecommendationResponse extends Recommendation {
+  locked?: boolean;
+}
+
 export type QuizQuestion = typeof quizQuestions.$inferSelect;
 export const insertQuizQuestionSchema = createInsertSchema(quizQuestions).omit({
   id: true,
