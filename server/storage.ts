@@ -966,7 +966,8 @@ export class DatabaseStorage implements IStorage {
     return await db
       .select()
       .from(recommendations)
-      .where(eq(recommendations.assessmentId, assessmentId));
+      .where(eq(recommendations.assessmentId, assessmentId))
+      .orderBy(desc(recommendations.overallMatchScore), recommendations.careerId);
   }
 
   async deleteRecommendationsByAssessment(assessmentId: string): Promise<number> {
