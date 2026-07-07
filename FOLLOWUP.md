@@ -20,6 +20,24 @@ On the results page (results?assessmentId=…), console shows: inline event hand
 ### favoriteSubjects & dreamGuidance free-text reaches LLM prompt unsanitized  (severity: low — pre-existing injection vector)
 {{favoriteSubjects}} is student-controlled free-text interpolated verbatim into the career_reasoning (and education_pathways) prompts via replaceTemplateVariables. A crafted value could inject instructions into the student's OWN narrative. Blast radius is limited: confirmed the API key is NOT in the model's context and each call carries only that one student's data, so no key exfiltration and no cross-student access — worst case is a student manipulating their own report text. {{dreamGuidance}} is the same class of vector: it renders the student's free-text careerAspirations into the career_reasoning prompt (guardrailed into an instruction block, but still student-controlled free-text), with the same blast radius (student's own report, API key not in model context). Pre-existing, independent of the Step 5 template change. Fix: constrain both fields at the WRITE boundary (validate/whitelist favoriteSubjects against the known subject catalog on save; sanitize/bound careerAspirations), and audit existing stored values. First flagged 2026-07-06.
 
+### Dependency vulnerabilities flagged by Dependabot  (severity: TBD — needs review)
+Investigation only, no fix applied. **The counts reconcile exactly** — Dependabot and npm audit see the SAME 3 packages, just counted differently.
+
+**Counts.** Dependabot (default branch): 10 alerts — 4 high, 4 moderate, 2 low. Render build-time `npm audit`: 3 vulnerabilities — 1 moderate, 2 high. Local `npm audit` (2026-07-07): identical to Render — 3 (1 moderate, 2 high). The gap is NOT devDependencies or extra GitHub advisories: it's **per-advisory vs per-package counting**. npm audit rolls each package up to its single highest severity (3 packages → 2 high + 1 moderate); Dependabot lists every advisory separately. The 3 packages carry 10 advisories between them: undici 7 (3 high, 2 moderate, 2 low), multer 2 (1 high, 1 moderate), dompurify 1 (1 moderate) = **4 high / 4 moderate / 2 low — an exact match to Dependabot's 10.** Mystery resolved; nothing hidden in the dev graph.
+
+**The 3 packages** (all in `dependencies`, none in devDependencies):
+| package | severity (max) | direct/transitive | path | runtime? | current→fix |
+|---|---|---|---|---|---|
+| multer | high | **direct** (`multer@^2.1.1`) | 2 DoS CVEs (deep nested field names; incomplete cleanup of aborted uploads) | **YES — request path.** File-upload middleware in files.routes.ts + admin.routes.ts (CSV/JSON bulk student import, image/logo uploads) | 2.1.1 → 2.2.0 |
+| dompurify | moderate | transitive (via `isomorphic-dompurify` → dompurify) | ALLOWED_ATTR pollution via setConfig() | **YES — request path.** Used by server/utils/sanitize.ts + contribution.routes.ts to sanitize user input at runtime | 3.4.9 → 3.4.11 |
+| undici | high | transitive (via `isomorphic-dompurify` → jsdom → undici) | 7 CVEs (SOCKS5 TLS-bypass, Set-Cookie header injection, WebSocket DoS, proxy pool reuse, keep-alive queue poisoning, SameSite downgrade, cache disclosure) | **Effectively NO.** jsdom bundles undici as its HTTP client, but isomorphic-dompurify uses jsdom only to build a DOM for sanitization — it makes no outbound HTTP with undici, and every undici CVE requires actually issuing requests through it. Present in the graph, not exercised on any request path. (Node 22 also ships its own separate built-in undici; this is jsdom's copy.) Lower real urgency despite the "high" label | 7.27.2 → 7.28.0 |
+
+**Fixability — all three resolve with plain `npm audit fix`; NONE need `--force`.** Confirmed via `npm audit fix --dry-run` (non-mutating): multer 2.1.1→2.2.0 (minor, same major), undici 7.27.2→7.28.0 (minor, same major), dompurify 3.4.9→3.4.11 (patch). No major-version bump, no SEMVER-breaking warning, no `--force` prompt. The dry-run also lists ~68 "added" packages — those are just platform-specific optional binaries (lightningcss / rollup / tailwind oxide) enumerated on this Linux box, unrelated to the security changes; the only real diff is the 3 `change` lines above.
+
+**Priority read:** multer is the one that matters — direct dep, high severity, squarely in the request path (student file uploads). dompurify moderate but also on the request path. undici is high-labeled but not reachable through our usage. Even so, all three go away with a single non-breaking `npm audit fix`.
+
+**Caveat before applying (per instructions — not done here):** verify the bumps don't disturb the build, especially anything touching vite/esbuild/puppeteer/drizzle. These three don't obviously touch that chain (multer is Express upload; dompurify/undici come in via isomorphic-dompurify/jsdom), but run a build + the upload paths after fixing. First flagged 2026-07-07.
+
 ## Session log
 
 ### Arabic PDF report — session 2026-06-30
