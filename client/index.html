@@ -56,10 +56,13 @@
          via @font-face rules in index.css, so no CDN request is needed for it. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- Loaded with media="print" so it doesn't block first paint; main.tsx flips
+         media to 'all' once loaded. The flip lives in bundled JS (not an inline
+         onload attribute) because CSP's script-src-attr 'none' blocks inline handlers. -->
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Inter:wght@400;500&display=swap"
           rel="stylesheet"
           media="print"
-          onload="this.media='all'" />
+          class="async-font" />
     <noscript>
       <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
     </noscript>
