@@ -1,0 +1,16 @@
+import { defineConfig } from "vitest/config";
+import path from "path";
+
+// Dedicated config for server-side unit tests (node environment). Kept separate
+// from vite.config.ts, which is client-focused (react plugin, client root).
+export default defineConfig({
+  test: {
+    environment: "node",
+    include: ["server/**/*.test.ts", "shared/**/*.test.ts"],
+  },
+  resolve: {
+    alias: {
+      "@shared": path.resolve(import.meta.dirname, "shared"),
+    },
+  },
+});
