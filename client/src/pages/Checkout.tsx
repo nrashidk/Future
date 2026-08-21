@@ -29,7 +29,7 @@ const getStripe = () => {
   return stripePromise;
 };
 
-function CheckoutForm({ amount, studentCount }: { amount: number | null; studentCount: number }) {
+function CheckoutForm({ amount, studentCount, clientSecret }: { amount: number | null; studentCount: number; clientSecret: string }) {
   const { t } = useTranslation("pricing");
   const stripe = useStripe();
   const elements = useElements();
@@ -96,6 +96,23 @@ function CheckoutForm({ amount, studentCount }: { amount: number | null; student
     setIsProcessing(true);
 
     try {
+      // Stamp buyer identity onto the PaymentIntent before confirming, so a
+      // backstop can complete the grant from metadata alone if
+      // /api/checkout/complete never runs. Best-effort: never block payment.
+      try {
+        const paymentIntentId = clientSecret.split("_secret_")[0];
+        if (paymentIntentId) {
+          await apiRequest("POST", "/api/checkout/stamp-buyer", {
+            paymentIntentId,
+            buyerEmail: email,
+            buyerName: `${firstName} ${lastName}`.trim(),
+            buyerPhone: phone,
+          });
+        }
+      } catch (stampErr) {
+        console.error("Failed to stamp buyer identity on payment intent:", stampErr);
+      }
+
       const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
         confirmParams: {
@@ -387,7 +404,7 @@ export default function Checkout() {
                     locale: language === "ar" ? "ar" : "en",
                   }}
                 >
-                  <CheckoutForm amount={serverAmount} studentCount={studentCount} />
+                  <CheckoutForm amount={serverAmount} studentCount={studentCount} clientSecret={clientSecret} />
                 </Elements>
               ) : (
                 <div className="text-center py-8 text-red-600">

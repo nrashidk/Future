@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { storage } from "../storage";
 import { isAuthenticated } from "../auth";
-import { paymentLimiter } from "../middleware/rateLimiter.middleware";
+import { paymentLimiter, stampBuyerLimiter } from "../middleware/rateLimiter.middleware";
 import Stripe from "stripe";
 
 // Initialize Stripe only if keys are configured
@@ -78,6 +78,77 @@ export function registerPaymentRoutes(app: Express) {
     } catch (error: any) {
       console.error("Error creating payment intent:", error);
       res.status(500).json({ message: "Payment processing failed. Please try again." });
+    }
+  });
+
+  // Stamp buyer identity into the PaymentIntent metadata before confirmation.
+  // If /api/checkout/complete never runs (tab closed, network drop), a later
+  // backstop can still complete the grant from metadata alone.
+  // Deliberately NOT under paymentLimiter: this is a metadata update on an
+  // already-created intent, not a money operation. Sharing the payment budget
+  // would let repeated card declines exhaust it and reject a real
+  // /api/checkout/complete after the card was already charged.
+  // stampBuyerLimiter is a light abuse guard only - it keeps this unauthenticated
+  // endpoint from being used to burn Stripe API quota.
+  app.post("/api/checkout/stamp-buyer", stampBuyerLimiter, async (req: any, res) => {
+    if (!stripe) {
+      return res.status(503).json({
+        message: "Payment system not configured. Please add STRIPE_SECRET_KEY to your environment."
+      });
+    }
+
+    try {
+      const { paymentIntentId, buyerEmail, buyerName, buyerPhone } = req.body || {};
+
+      if (typeof paymentIntentId !== "string" || !paymentIntentId) {
+        return res.status(400).json({ message: "Invalid request" });
+      }
+
+      // Reuse the existing intent - never create a new one here
+      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+      // Buyer identity is immutable once the payment landed or the grant ran
+      if (paymentIntent.status === "succeeded" || paymentIntent.metadata?.processed === "true") {
+        return res.status(409).json({ message: "Payment already completed" });
+      }
+
+      // Guest-safe: no auth required. But a logged-in user may only stamp their
+      // own intent, or one created while they were browsing as a guest.
+      if (req.isAuthenticated && req.isAuthenticated() && req.user) {
+        const userId = (req.user as any).userId;
+        const intentUserId = paymentIntent.metadata?.userId;
+        if (intentUserId !== userId && intentUserId !== "guest") {
+          return res.status(403).json({ message: "Payment does not belong to this user" });
+        }
+      }
+
+      // Drop empty values, cap each at 500 chars (Stripe metadata value limit)
+      const clean = (value: unknown) =>
+        typeof value === "string" && value.trim() ? value.trim().slice(0, 500) : undefined;
+
+      const stamped: Record<string, string> = {};
+      const email = clean(buyerEmail);
+      const name = clean(buyerName);
+      const phone = clean(buyerPhone);
+      if (email) stamped.buyerEmail = email;
+      if (name) stamped.buyerName = name;
+      if (phone) stamped.buyerPhone = phone;
+
+      if (Object.keys(stamped).length === 0) {
+        return res.status(400).json({ message: "No buyer details provided" });
+      }
+
+      // MERGE, do not clobber: existing metadata first so userId, assessmentType,
+      // studentCount, expectedAmount and processed all survive the update.
+      await stripe.paymentIntents.update(paymentIntentId, {
+        metadata: { ...paymentIntent.metadata, ...stamped }
+      });
+
+      // This endpoint records identity only - it grants nothing.
+      res.json({ success: true, stamped: Object.keys(stamped) });
+    } catch (error: any) {
+      console.error("Error stamping buyer identity:", error);
+      res.status(500).json({ message: "Failed to record buyer details" });
     }
   });
 

@@ -9,6 +9,11 @@ export const RATE_LIMITS = {
     MAX_REQUESTS: 10,
     MESSAGE: "Too many payment attempts. Please try again later.",
   },
+  STAMP_BUYER: {
+    WINDOW_MS: 15 * 60 * 1000, // 15 minutes
+    MAX_REQUESTS: 60,
+    MESSAGE: "Too many requests. Please try again later.",
+  },
   RECOMMENDATIONS: {
     WINDOW_MS: 60 * 60 * 1000, // 1 hour
     MAX_REQUESTS: 20,

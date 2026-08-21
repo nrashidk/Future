@@ -14,6 +14,19 @@ export const paymentLimiter = rateLimit({
 });
 
 /**
+ * Light abuse guard for buyer-identity stamping
+ * Not the payment budget - this only updates metadata on an existing intent,
+ * but it still costs a Stripe API round-trip, so it must not be unthrottled
+ */
+export const stampBuyerLimiter = rateLimit({
+  windowMs: RATE_LIMITS.STAMP_BUYER.WINDOW_MS,
+  max: RATE_LIMITS.STAMP_BUYER.MAX_REQUESTS,
+  message: RATE_LIMITS.STAMP_BUYER.MESSAGE,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/**
  * Rate limiting for expensive recommendation generation
  * Prevents DoS attacks on compute-intensive endpoints
  */
