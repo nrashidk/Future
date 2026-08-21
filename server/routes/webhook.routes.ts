@@ -1,6 +1,7 @@
 import type { Express, Request, Response } from "express";
 import Stripe from "stripe";
 import { storage } from "../storage";
+import { grantIndividualPremium } from "../services/premiumGrant";
 
 // Initialize Stripe only if keys are configured
 let stripe: Stripe | null = null;
@@ -110,7 +111,7 @@ export function registerWebhookRoutes(app: Express) {
  * This is the primary handler for individual premium upgrades
  */
 async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent) {
-  const { userId, studentCount, expectedAmount, assessmentType } = paymentIntent.metadata;
+  const { userId, studentCount, expectedAmount, assessmentType, buyerEmail, buyerName, buyerPhone } = paymentIntent.metadata;
   
   console.log(`[Webhook] Payment succeeded: ${paymentIntent.id}, User: ${userId}, Amount: ${paymentIntent.amount}`);
 
@@ -126,9 +127,23 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
     return;
   }
 
-  // Skip guest payments - they're handled via checkout flow
+  // Guest payments: /api/checkout/complete normally does the grant, but if the
+  // buyer's browser never got there (tab closed, network drop) they are charged
+  // and never granted. Fall back to the buyer identity stamped onto the intent
+  // before confirmation by /api/checkout/stamp-buyer.
   if (userId === "guest") {
-    console.log(`[Webhook] Skipping guest payment ${paymentIntent.id} - handled via checkout`);
+    if (!buyerEmail) {
+      // Truly identity-less - nothing to resolve a grant against
+      console.log(`[Webhook] Skipping guest payment ${paymentIntent.id} - no buyerEmail stamped`);
+      return;
+    }
+
+    await grantGuestPremiumFromMetadata(paymentIntent, {
+      buyerEmail,
+      buyerName,
+      buyerPhone,
+      studentCount
+    });
     return;
   }
 
@@ -156,6 +171,66 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
   } catch (error) {
     console.error(`[Webhook] Failed to upgrade user ${userId}:`, error);
     throw error; // Re-throw to trigger retry
+  }
+}
+
+/**
+ * Backstop grant for a guest checkout that never reached /api/checkout/complete.
+ *
+ * Resolves the buyer from the metadata stamped before confirmation and grants
+ * via the shared premium-grant path. Marks the intent processed on success so
+ * a later /api/checkout/complete (or webhook retry) will not grant twice.
+ */
+async function grantGuestPremiumFromMetadata(
+  paymentIntent: Stripe.PaymentIntent,
+  stamped: { buyerEmail: string; buyerName?: string; buyerPhone?: string; studentCount?: string }
+) {
+  // IDEMPOTENCY: the interactive path already completed this purchase
+  if (paymentIntent.metadata.processed === "true") {
+    console.log(`[Webhook] Guest payment ${paymentIntent.id} already processed, skipping`);
+    return;
+  }
+
+  // buyerName is stamped as a single display name - split into first/last
+  const nameParts = (stamped.buyerName || "").trim().split(/\s+/).filter(Boolean);
+  const firstName = nameParts[0] || "Premium";
+  const lastName = nameParts.slice(1).join(" ") || "Member";
+
+  const parsedCount = parseInt(stamped.studentCount || "1", 10);
+  const licenseCount = Number.isInteger(parsedCount) && parsedCount > 0 ? parsedCount : 1;
+
+  try {
+    const result = await grantIndividualPremium({
+      email: stamped.buyerEmail,
+      firstName,
+      lastName,
+      ...(stamped.buyerPhone ? { phone: stamped.buyerPhone } : {}),
+      studentCount: licenseCount,
+      stripeCustomerId: paymentIntent.customer as string || null
+    });
+
+    if (result.status === "skipped_oauth") {
+      // OAuth account - cannot grant on email alone. Left for the authenticated
+      // path; log loudly because this buyer paid and is not yet granted.
+      console.error(`[Webhook] Guest payment ${paymentIntent.id} matched an OAuth account - manual grant required`);
+      return;
+    }
+
+    if (result.status === "already_premium") {
+      console.log(`[Webhook] Guest payment ${paymentIntent.id}: buyer already premium, no grant needed`);
+    } else {
+      console.log(`[Webhook] Guest payment ${paymentIntent.id}: granted premium to user ${result.user.id}`);
+    }
+
+    // Mark processed so the interactive path does not grant a second time
+    if (stripe) {
+      await stripe.paymentIntents.update(paymentIntent.id, {
+        metadata: { ...paymentIntent.metadata, processed: "true" }
+      });
+    }
+  } catch (error) {
+    console.error(`[Webhook] Failed guest premium grant for ${paymentIntent.id}:`, error);
+    throw error; // Re-throw to trigger Stripe retry
   }
 }
 
