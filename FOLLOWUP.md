@@ -675,3 +675,91 @@ ROOT CAUSE CONFIRMED (2026-07-01, code + audit trail): DB_ENCRYPTION_KEY drift, 
 
 ### Test-data note
 - Khalid (23f6008e…) restored to empty dream + cache cleared. No test data left.
+
+## PAYMENT GRANT RELIABILITY — rebuild status (2026-08-21)
+Prior commits were lost (made in an ephemeral Codespace, never pushed to origin).
+Rebuilt from verified specs and PUSHED. Root-cause fix: every commit now pushed immediately.
+
+RECOVERED + PUSHED (code-reviewed; RUNTIME-TEST PENDING — batch 1/2/5 together):
+- Fix 1 (5d073c0): POST /api/checkout/stamp-buyer — merge buyerEmail/Name/Phone into PI metadata
+  pre-confirm (merge-not-clobber, 409 guard, guest-safe, sanitized). NOT under paymentLimiter;
+  own light stampBuyerLimiter (60/15min/IP).
+- Fix 2 (eb3117f): webhook self-service grant. New server/services/premiumGrant.ts
+  grantIndividualPremium() -> granted | already_premium | skipped_oauth (OAuth checked BEFORE
+  already_premium). Guest+buyerEmail -> grant + processed=true.
+- Fix 5 (d32e959): converge new-buyer branch onto grantIndividualPremium(). existing-local +
+  logged-in stay INLINE (already_premium divergence; session-userId vs email lookup).
+
+RUNTIME TEST OWED (all three, one session): env recipe below, then test-mode checkout
+(card 4242 4242 4242 4242) — confirm stamp merge + 409; webhook-alone grant from metadata (the B3
+dropped-completion sim); new-buyer auto-login (Set-Cookie -> /api/auth/user 200) + credentials in
+response; idempotency (re-fire = no double-grant).
+
+## Fix 4 (b′) — DESIGNED + re-anchored to current code (2026-08-21). NOT built. Touches auth.ts.
+Behavior: OAuth-existing buyer who pays is NOT rejected/double-charged. After charge they re-auth
+(Google/MS) the email they paid with; premium grants to that VERIFIED account. NEVER on unverified
+email match. ⚠️ HIGHEST BLAST RADIUS — new middleware runs on EVERY OAuth login; regression-test
+NORMAL Google AND Microsoft login.
+
+Current line-refs (re-anchored this session, post-rebuild these will shift again — re-verify):
+- payment.routes.ts OAuth-existing reject: `if (!existingUser.passwordHash) return 400 login-first`
+  (was ~:216-221). Replace with soft 200 {requiresOAuth, provider, paymentIntentId, email}; NO grant,
+  do NOT set processed. Charge already succeeded before this point (PI-succeeded + amount guards above).
+- payment.routes.ts /checkout/complete: set req.session.pendingPaymentIntentId before the soft return.
+  Session middleware IS active here (setupAuth before route reg).
+- auth.ts Google strategy done() (~:125) + Microsoft (~:148): thread email (normalized) +
+  emailVerified (Google: profile._json?.email_verified === true; MICROSOFT HAS NO EQUIVALENT — decide:
+  treat unverified or verify out-of-band). serialize/deserialize are pass-through, so payload reaches session.
+- auth.ts Google callback (~:224-229) + Microsoft (~:237-242): insert ONE shared
+  grantPendingPaymentOnReturn middleware BETWEEN passport.authenticate and res.redirect("/auth/callback").
+  req.user populated there.
+
+Security boundary — grant ONLY if ALL: paidEmail===whoReturned (PI.metadata.buyerEmail vs freshUser.email
+from getUser NOT session; BOTH trim+lowercase) AND emailVerified===true AND pi.status==="succeeded"
+(re-fetched live) AND metadata.processed!=="true". Attacker replaying victim PI into own session ->
+their verified email != victim buyerEmail -> no grant. Idempotency: check processed BEFORE grant
+(license increment); stamp after; already-premium -> stamp+skip; delete session key unconditionally.
+
+⚠️ BLOCKER found this session (cc re-anchor): session cookie is sameSite:'strict' in production. The OAuth
+callback is a cross-site top-level nav from the provider — under Strict the browser withholds the session
+cookie, so req.session.pendingPaymentIntentId would be EMPTY in the callback. Carrying state via req.session
+is BLOCKED. Options: signed OAuth state param (but start routes pass NO state today — adding it changes the
+regression surface for ALL logins), or relax sameSite for the callback path. RESOLVE before building Fix 4.
+
+RESIDUAL (not solved by Fix 4): pay-but-never-complete-OAuth -> charged, ungranted, session PI expires.
+Fix 3 sweep CANNOT auto-grant OAuth (no verified-login proof) — can only email a "claim your purchase"
+re-auth link. Also skipped_oauth from Fix 2 lands here.
+
+## Fix 3 — reconciliation sweep (NOT started)
+Admin-triggered + optional scheduled: list succeeded PIs with processed!=="true" & assessmentType premium,
+grant idempotently (real userId -> grant; guest+buyerEmail -> grantIndividualPremium). OAuth-existing
+CANNOT auto-grant -> surface + "claim your purchase" email. Backstops Fix 4's residual + Fix 2 skipped_oauth.
+
+## Other known items surfaced (not started)
+- Credential delivery on webhook/backstop-created accounts: createStandaloneUser returns a one-time
+  password nobody displays (no browser). Buyer granted but locked out pending reset. Email creds via
+  existing server/services/email.ts.
+- Already-premium INDIVIDUAL repurchase: existing-local branch increments licenses; helper no-ops.
+  Neither clearly right — likely block an already-premium individual from a 2nd checkout up front.
+- 'group' tier gap: isPremiumAssessment accepts ['premium','school'] NOT 'group'. Inert (nothing writes
+  'group'), but a group-tagged cohort would be silently locked + PDF-403'd. Add 'group' or assert at write.
+- Group backstop: grantIndividualPremium is individual-only; a guest group purchase whose complete drops
+  gets licenses but no org created. createGroupPurchaseTransaction only reachable interactively.
+- HARD GATE: all payment fixes done + runtime-verified before enabling LIVE Stripe.
+
+## Env recipe for THIS codespace (test-mode runtime verification)
+App reads process.env directly (NO dotenv). .env is gitignored — fresh Codespace has none; create it with
+the Neon dev DATABASE_URL (pooled host ep-floral-rice-astfwiew-pooler...eu-central-1...neon.tech).
+In ONE terminal, same shell as `npm run dev`:
+  export $(grep -v '^#' .env | xargs)          # DATABASE_URL (source .env alone may not load it)
+  export STRIPE_SECRET_KEY='sk_test_...'        # NOT in .env
+  export VITE_STRIPE_PUBLIC_KEY='pk_test_...'    # NOT in .env, build-time (Vite inlines)
+  export SESSION_SECRET=$(openssl rand -hex 32)
+  export DB_ENCRYPTION_KEY=$(openssl rand -hex 32)   # 64 hex
+  export SUPERADMIN_EMAILS='dev@example.com'
+Verify all six non-empty (STRIPE must be sk_test_, never live_) BEFORE npm run dev. Confirm boot log's
+"optional not set" list does NOT contain STRIPE_SECRET_KEY/VITE_STRIPE_PUBLIC_KEY.
+cc runs in a SEPARATE context from the terminal — cc's curl can't reach a server the terminal started
+(got connection-refused). For runtime tests cc must start the server IN ITS OWN shell, or you drive the
+browser checkout yourself. STRIPE_WEBHOOK_SECRET unset = webhook disabled locally (fine for /checkout
+paths; NOT for testing Fix 2's webhook — that needs the secret or a manual event replay).
