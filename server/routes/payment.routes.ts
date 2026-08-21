@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { storage } from "../storage";
 import { isAuthenticated } from "../auth";
 import { paymentLimiter, stampBuyerLimiter } from "../middleware/rateLimiter.middleware";
+import { grantIndividualPremium } from "../services/premiumGrant";
 import Stripe from "stripe";
 
 // Initialize Stripe only if keys are configured
@@ -267,20 +268,27 @@ export function registerPaymentRoutes(app: Express) {
         const existingUser = await storage.getUserByEmail(email);
         
         if (!existingUser) {
-          // Create new standalone user with auto-generated credentials
-          const result = await storage.createStandaloneUser({
+          // New buyer - grant via the shared helper so this path and the webhook
+          // backstop create accounts identically
+          const grant = await grantIndividualPremium({
+            email,
             firstName,
             lastName,
-            email,
             phone,
-            isPremium: true,
-            purchasedLicenses: studentCount,
+            studentCount,
             stripeCustomerId: paymentIntent.customer as string || null
           });
-          
-          user = result.user;
-          username = result.username;
-          password = result.password; // Only set for new users
+
+          // A brand-new email must come back as "granted" with credentials.
+          // Anything else means our view of the account changed underneath us -
+          // fail loudly rather than continue with undefined credentials.
+          if (grant.status !== "granted" || !grant.credentials) {
+            throw new Error(`Unexpected grant result for new buyer: ${grant.status}`);
+          }
+
+          user = grant.user;
+          username = grant.credentials.username;
+          password = grant.credentials.password; // Only set for new users
           isNewUser = true;
         } else {
           // Existing user - check if they're OAuth or local
