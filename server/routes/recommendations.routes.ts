@@ -537,28 +537,21 @@ export function registerRecommendationsRoutes(app: Express) {
 
       // Import Puppeteer
       const puppeteer = await import("puppeteer");
-      const { execSync } = await import("child_process");
 
-      // Respect PUPPETEER_EXECUTABLE_PATH first (set this in the deploy env to
-      // pin the chrome@stable binary regardless of version). If it is unset, fall
-      // back to the system Chrome/Chromium on PATH. If nothing is found we omit
-      // executablePath entirely so Puppeteer uses its own bundled browser.
-      let chromiumPath: string | undefined = process.env.PUPPETEER_EXECUTABLE_PATH;
-      if (!chromiumPath) {
-        try {
-          const found = execSync('which chromium || which google-chrome-stable || which google-chrome').toString().trim();
-          if (found) chromiumPath = found;
-        } catch {
-          chromiumPath = undefined;
-        }
-      }
+      // Respect PUPPETEER_EXECUTABLE_PATH if the deploy env pins a specific
+      // binary. Otherwise omit executablePath entirely and let Puppeteer use the
+      // browser it manages itself (installed by `puppeteer browsers install`).
+      // Deliberately NOT falling back to a `which chromium` lookup: that would
+      // silently render with an unknown system Chrome version, and a base-image
+      // change could flip which binary is used with no signal.
+      const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
 
       // Launch headless browser
       // Note: --no-sandbox is required in containerized environments like Replit
       // Security is maintained through strict URL validation below
       browser = await puppeteer.default.launch({
         headless: true,
-        ...(chromiumPath ? { executablePath: chromiumPath } : {}),
+        ...(executablePath ? { executablePath } : {}),
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
