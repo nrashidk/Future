@@ -6,6 +6,16 @@ import { clearSubjectCache } from "../utils/subjects";
 import { dataExportLimiter, orgCreationLimiter } from "../middleware/rateLimiter.middleware";
 import { getSuperadminEmails } from "../middleware/auth.middleware";
 import { toPublicUser } from "@shared/userPublic";
+import type { User } from "@shared/schema";
+import Stripe from "stripe";
+
+// Initialize Stripe only if keys are configured
+let stripe: Stripe | null = null;
+if (process.env.STRIPE_SECRET_KEY) {
+  stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: "2025-10-29.clover",
+  });
+}
 
 const isSuperadminMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -32,6 +42,143 @@ const isSuperadminMiddleware = async (req: Request, res: Response, next: NextFun
     res.status(500).json({ message: "Server error" });
   }
 };
+
+// ===============================
+// PAYMENT RECONCILIATION - classification (READ-ONLY)
+// ===============================
+
+// A succeeded PaymentIntent whose metadata.processed is not "true". Every
+// residual path in the payment code returns BEFORE its
+// paymentIntents.update(processed) call, so this filter has no false negatives -
+// but it has plenty of false positives (a grant that landed and then failed to
+// stamp still looks unreconciled). That is why classification reconciles against
+// live DB account state instead of trusting the flag.
+type ReconciliationClass =
+  | "amount_mismatch"    // amount != metadata.expectedAmount - suspicious, NEVER grant
+  | "unidentifiable"     // no userId and no buyerEmail - nothing to resolve against
+  | "group_incomplete"   // studentCount > 1 - org cannot be rebuilt from an individual grant
+  | "already_granted"    // account resolves and is premium - stamp was lost, NOT a money hole
+  | "oauth_blocked"      // resolves to a passwordHash-less account - needs verified login
+  | "grantable_user"     // real server-derived userId, account exists, not premium
+  | "grantable_guest";   // guest + buyerEmail, single seat, resolves-or-free
+
+interface ReconciliationRow {
+  id: string;
+  created: string;
+  amount: number;
+  currency: string;
+  class: ReconciliationClass;
+  studentCount: number;
+  metadataUserId: string | null;
+  buyerEmail: string | null;
+  resolvedUserId: string | null;
+  resolvedEmail: string | null;
+  resolvedVia: "userId" | "buyerEmail" | null;
+}
+
+/**
+ * Classify one unreconciled PaymentIntent. READ-ONLY: reads Stripe metadata that
+ * was already fetched, plus at most two DB lookups. Writes nothing.
+ *
+ * Precedence is deliberate and order-dependent - several classes can match one
+ * intent, and the first match wins:
+ *   1. amount_mismatch  - a tampering signal outranks every recovery path.
+ *   2. unidentifiable   - without an identity the remaining checks cannot run.
+ *   3. group_incomplete - for studentCount > 1, "buyer is premium" is NOT proof
+ *      the purchase completed: the organisation is the deliverable, and
+ *      organizationName is only present on intents stamped after that fix
+ *      shipped. Ranked above already_granted so a buyer who paid for 50 seats
+ *      and holds 1 personal licence is never reported as fully reconciled.
+ *   4. already_granted  - the false-positive filter for a lost stamp.
+ *   5. oauth_blocked    - resolves, not premium, no password to grant against.
+ *   6/7. grantable_*    - what a later, opt-in grant pass could safely act on.
+ */
+async function classifyUnreconciledIntent(pi: Stripe.PaymentIntent): Promise<ReconciliationRow> {
+  const md = pi.metadata ?? {};
+  const metadataUserId = md.userId || null;
+  const buyerEmail = typeof md.buyerEmail === "string" && md.buyerEmail.trim() ? md.buyerEmail.trim() : null;
+
+  const parsedCount = parseInt(md.studentCount || "1", 10);
+  const studentCount = Number.isInteger(parsedCount) && parsedCount > 0 ? parsedCount : 1;
+
+  const isRealUserId = Boolean(metadataUserId && metadataUserId !== "guest");
+
+  const base = {
+    id: pi.id,
+    created: new Date(pi.created * 1000).toISOString(),
+    amount: pi.amount / 100,
+    currency: pi.currency,
+    studentCount,
+    metadataUserId,
+    buyerEmail,
+  };
+
+  // 1. Amount tampering - report, never grant. Mirrors the webhook guard at
+  //    webhook.routes.ts:125-128.
+  const expectedAmount = md.expectedAmount ? parseInt(md.expectedAmount, 10) : NaN;
+  if (!Number.isInteger(expectedAmount) || pi.amount !== expectedAmount) {
+    return { ...base, class: "amount_mismatch", resolvedUserId: null, resolvedEmail: null, resolvedVia: null };
+  }
+
+  // 2. No identity at all: stamp-buyer never landed and this was a guest. The
+  //    charge object may still carry a billing email, but nothing in this
+  //    codebase reads it - manual review only.
+  if (!isRealUserId && !buyerEmail) {
+    return { ...base, class: "unidentifiable", resolvedUserId: null, resolvedEmail: null, resolvedVia: null };
+  }
+
+  // Resolve the buyer. userId is server-derived at intent creation
+  // (payment.routes.ts:56-58) so it is the stronger signal; buyerEmail is
+  // client-supplied and only used as a fallback.
+  let account: User | undefined;
+  let resolvedVia: "userId" | "buyerEmail" | null = null;
+
+  if (isRealUserId) {
+    account = await storage.getUser(metadataUserId!);
+    if (account) resolvedVia = "userId";
+  }
+  if (!account && buyerEmail) {
+    account = await storage.getUserByEmail(buyerEmail);
+    if (account) resolvedVia = "buyerEmail";
+  }
+
+  const resolved = {
+    resolvedUserId: account?.id ?? null,
+    resolvedEmail: account?.email ?? null,
+    resolvedVia,
+  };
+
+  // 3. Group purchase - see precedence note above.
+  if (studentCount > 1) {
+    return { ...base, ...resolved, class: "group_incomplete" };
+  }
+
+  if (account) {
+    // 4. Granted already; only the metadata stamp is missing.
+    if (account.isPremium) {
+      return { ...base, ...resolved, class: "already_granted" };
+    }
+    // 5. OAuth-only account - cannot be granted on an email match alone.
+    if (!account.passwordHash) {
+      return { ...base, ...resolved, class: "oauth_blocked" };
+    }
+  }
+
+  // 6. Strong identity, account present, not premium.
+  if (isRealUserId) {
+    if (account) {
+      return { ...base, ...resolved, class: "grantable_user" };
+    }
+    // A server-derived userId that no longer resolves (account deleted) and no
+    // email fallback - there is no target to grant to.
+    return { ...base, ...resolved, class: "unidentifiable" };
+  }
+
+  // 7. Guest with a stamped email, single seat: either free (would create) or a
+  //    local non-premium account (would upgrade). Same shape the Fix 2 webhook
+  //    backstop already handles.
+  return { ...base, ...resolved, class: "grantable_guest" };
+}
 
 export function registerSuperadminRoutes(app: Express) {
   // ===============================
@@ -2526,6 +2673,136 @@ export function registerSuperadminRoutes(app: Express) {
     } catch (error) {
       console.error("Error updating translation:", error);
       res.status(500).json({ message: "Failed to update translation" });
+    }
+  });
+
+  // ===============================
+  // PAYMENT RECONCILIATION (READ-ONLY)
+  // ===============================
+
+  /**
+   * GET /api/superadmin/payments/unreconciled?days=90
+   *
+   * Visibility for succeeded-but-ungranted payments. Answers the question
+   * nobody can answer today: how much money has been taken without the buyer
+   * receiving what they paid for, and which of those cases are recoverable.
+   *
+   * STRICTLY READ-ONLY BY DESIGN. It calls paymentIntents.list and two storage
+   * getters - nothing else. No grant, no paymentIntents.update, no DB write.
+   * Deciding what to do with the results is a separate, opt-in pass; shipping
+   * the report first means the auto-grant policy is chosen from real data
+   * rather than guesswork.
+   */
+  app.get("/api/superadmin/payments/unreconciled", isAuthenticated, isSuperadminMiddleware, dataExportLimiter, async (req, res) => {
+    if (!stripe) {
+      return res.status(503).json({
+        message: "Payment system not configured. STRIPE_SECRET_KEY must be set to run reconciliation."
+      });
+    }
+
+    const DEFAULT_DAYS = 90;
+    const MAX_DAYS = 365;
+    const PAGE_SIZE = 100;
+    // Backstop against an unbounded walk: 50 pages = 5,000 intents. If it trips,
+    // `truncated` says so in the response - a silent cap would read as "nothing
+    // else to find".
+    const MAX_PAGES = 50;
+
+    try {
+      const requestedDays = parseInt(String(req.query.days ?? ""), 10);
+      const days = Number.isInteger(requestedDays) && requestedDays > 0
+        ? Math.min(requestedDays, MAX_DAYS)
+        : DEFAULT_DAYS;
+      const createdGte = Math.floor(Date.now() / 1000) - days * 86400;
+
+      const rows: ReconciliationRow[] = [];
+      const errors: { paymentIntentId: string; error: string }[] = [];
+      const tally: Record<ReconciliationClass, { count: number; amount: number }> = {
+        amount_mismatch: { count: 0, amount: 0 },
+        unidentifiable: { count: 0, amount: 0 },
+        group_incomplete: { count: 0, amount: 0 },
+        already_granted: { count: 0, amount: 0 },
+        oauth_blocked: { count: 0, amount: 0 },
+        grantable_user: { count: 0, amount: 0 },
+        grantable_guest: { count: 0, amount: 0 },
+      };
+
+      let totalSucceeded = 0;
+      // Sum in integer cents and divide once at the end - never accumulate money
+      // in floats.
+      let unreconciledCents = 0;
+      const tallyCents: Record<ReconciliationClass, number> = {
+        amount_mismatch: 0, unidentifiable: 0, group_incomplete: 0,
+        already_granted: 0, oauth_blocked: 0, grantable_user: 0, grantable_guest: 0,
+      };
+
+      let startingAfter: string | undefined;
+      let hasMore = true;
+      let pagesFetched = 0;
+
+      // Deliberately list + filter in-process rather than paymentIntents.search:
+      // the search index lags writes by up to ~a minute, so a checkout that just
+      // completed would surface as unreconciled. list() reads live state.
+      while (hasMore && pagesFetched < MAX_PAGES) {
+        const page = await stripe.paymentIntents.list({
+          created: { gte: createdGte },
+          limit: PAGE_SIZE,
+          ...(startingAfter ? { starting_after: startingAfter } : {}),
+        });
+        pagesFetched++;
+
+        for (const pi of page.data) {
+          if (pi.status !== "succeeded") continue;
+          totalSucceeded++;
+
+          // Discovery filter. Sound (no false negatives), noisy (false positives
+          // are separated by classification below).
+          if (pi.metadata?.processed === "true") continue;
+
+          try {
+            const row = await classifyUnreconciledIntent(pi);
+            rows.push(row);
+            tally[row.class].count++;
+            tallyCents[row.class] += pi.amount;
+            unreconciledCents += pi.amount;
+          } catch (error) {
+            // One bad intent must never abort the batch - same contract as the
+            // bulk maintenance routes above.
+            errors.push({
+              paymentIntentId: pi.id,
+              error: error instanceof Error ? error.message : "Unknown error",
+            });
+          }
+        }
+
+        hasMore = page.has_more;
+        if (hasMore) {
+          startingAfter = page.data[page.data.length - 1]?.id;
+          if (!startingAfter) hasMore = false;
+        }
+      }
+
+      for (const key of Object.keys(tally) as ReconciliationClass[]) {
+        tally[key].amount = tallyCents[key] / 100;
+      }
+
+      res.json({
+        windowDays: days,
+        since: new Date(createdGte * 1000).toISOString(),
+        totalSucceeded,
+        totalUnreconciled: rows.length,
+        totalAmountUnreconciled: unreconciledCents / 100,
+        tally,
+        rows,
+        errors,
+        // True when the page budget ran out with more intents still available -
+        // widen the window or raise MAX_PAGES to see the rest.
+        truncated: hasMore,
+        pagesFetched,
+      });
+    } catch (error) {
+      console.error("Error running payment reconciliation sweep:", error);
+      res.status(500).json({ message: "Failed to run reconciliation sweep" });
     }
   });
 }
