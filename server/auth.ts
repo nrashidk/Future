@@ -114,15 +114,30 @@ export async function setupAuth(app: Express) {
       callbackURL: `${baseUrl}/api/auth/google/callback`,
     }, async (accessToken, refreshToken, profile, done) => {
       try {
+        const googleEmail = profile.emails?.[0]?.value || '';
         const user = await upsertOAuthUser(
           'google',
           profile.id,
-          profile.emails?.[0]?.value || '',
+          googleEmail,
           profile.name?.givenName,
           profile.name?.familyName,
           profile.photos?.[0]?.value
         );
-        return done(null, { userId: user?.id, provider: 'google' });
+        // Additive only - existing fields and flow are unchanged.
+        // emailVerified is strictly Google's own boolean: anything missing,
+        // false, or non-true reads as false. This is the ONLY signal that the
+        // returning user actually controls the address - never infer it from a
+        // successful login alone.
+        // Deliberately NOT carrying the email here: serializeUser is
+        // pass-through, so every field lands in the Postgres `sessions` table at
+        // rest, and these are minors' addresses. It would also be redundant -
+        // any check must compare against the DB-fresh address from
+        // storage.getUser(userId), never a session copy that could be stale.
+        return done(null, {
+          userId: user?.id,
+          provider: 'google',
+          emailVerified: (profile._json as any)?.email_verified === true,
+        });
       } catch (error) {
         return done(error as Error);
       }
