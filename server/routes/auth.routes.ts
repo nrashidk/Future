@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { isAuthenticated } from "../auth";
 import { storage } from "../storage";
 import { getSuperadminEmails } from "../middleware/auth.middleware";
+import { toPublicUser } from "@shared/userPublic";
 
 export function registerAuthRoutes(app: Express) {
   app.get("/api/auth/user", isAuthenticated, async (req: any, res) => {
@@ -47,7 +48,10 @@ export function registerAuthRoutes(app: Express) {
         }
       }
       
-      res.json(user);
+      // Strips passwordHash and other private columns; the decorations added
+      // above (predefinedGrade, organizationName, …) are not `users` columns
+      // and are preserved, as are the accountType/isPremium adjustments.
+      res.json(toPublicUser(user));
     } catch (error) {
       console.error("Error fetching user:", error);
       res.status(500).json({ message: "Failed to fetch user" });

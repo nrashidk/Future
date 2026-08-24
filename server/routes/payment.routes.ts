@@ -3,6 +3,7 @@ import { storage } from "../storage";
 import { isAuthenticated } from "../auth";
 import { paymentLimiter, stampBuyerLimiter } from "../middleware/rateLimiter.middleware";
 import { grantIndividualPremium } from "../services/premiumGrant";
+import { toPublicUser } from "@shared/userPublic";
 import Stripe from "stripe";
 
 // Initialize Stripe only if keys are configured
@@ -188,7 +189,7 @@ export function registerPaymentRoutes(app: Express) {
       // Prevent duplicate premium upgrades
       const existingUser = await storage.getUser(userId);
       if (existingUser && existingUser.isPremium) {
-        return res.json({ success: true, user: existingUser, message: "Already premium" });
+        return res.json({ success: true, user: toPublicUser(existingUser), message: "Already premium" });
       }
 
       // Update user to premium
@@ -197,7 +198,7 @@ export function registerPaymentRoutes(app: Express) {
         paymentIntent.customer as string || null
       );
 
-      res.json({ success: true, user: updatedUser });
+      res.json({ success: true, user: toPublicUser(updatedUser) });
     } catch (error: any) {
       console.error("Error upgrading user:", error);
       res.status(500).json({ message: "Failed to upgrade account" });

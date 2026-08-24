@@ -6,6 +6,7 @@ import { isAuthenticated } from "../auth";
 import { isAdmin, isOrgAdmin, getSuperadminEmails } from "../middleware/auth.middleware";
 import { dataExportLimiter } from "../middleware/rateLimiter.middleware";
 import { insertQuizQuestionSchema } from "@shared/schema";
+import { toPublicUser } from "@shared/userPublic";
 import { z } from "zod";
 import { isPremiumAssessment } from "../utils/assessmentTier";
 
@@ -501,6 +502,7 @@ export function registerAdminRoutes(app: Express) {
 
       res.status(201).json({
         ...result,
+        user: toPublicUser(result.user), // result.password stays: admin must hand it to the student
         licenseType: type, // 'reward' or 'paid'
       });
     } catch (error: any) {

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { clearSubjectCache } from "../utils/subjects";
 import { dataExportLimiter, orgCreationLimiter } from "../middleware/rateLimiter.middleware";
 import { getSuperadminEmails } from "../middleware/auth.middleware";
+import { toPublicUser } from "@shared/userPublic";
 
 const isSuperadminMiddleware = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -1458,7 +1459,7 @@ export function registerSuperadminRoutes(app: Express) {
   app.get("/api/superadmin/students", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
     try {
       const students = await storage.getAllStudentsWithAssessments();
-      res.json(students);
+      res.json(students.map(s => ({ ...s, user: toPublicUser(s.user) })));
     } catch (error) {
       console.error("Error fetching students:", error);
       res.status(500).json({ message: "Failed to fetch students" });
