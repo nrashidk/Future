@@ -807,3 +807,37 @@ Consistency win without widening. Touches cross-user minor-facing endpoints -> d
 
 Still open (from the 1/2/5 verification findings): endpoint-level passwordHash test (needs supertest or
 ephemeral-port listener); shared dev/prod DB (#2); event-ID idempotency table (#3).
+
+## Finding #2 (shared dev/prod DB) — STRUCTURALLY CLOSED (2026-08-24)
+Root cause fixed: dev and prod shared one Neon DB; a stale/ambient prod DATABASE_URL in the dev shell
+silently won and let local work write to production (a real premium account was created in prod this session).
+
+Done:
+- Neon STAGING branch created (ep-soft-recipe-asoeuh0j, schema-only, auto-delete Never). Dev .env points at it.
+  Prod stays on main branch (ep-floral-rice-astfwiew).
+- APP_ENV=production set in Render (explicit positive prod signal — NODE_ENV unreliable: Render starts via
+  `node dist/index.js`; NODE_ENV=production IS set as a dashboard var, confirmed, so the 8 cookie/enum
+  downgrades are NOT live).
+- Boot guard in server/db.ts (f174c61): prod DSN + APP_ENV!=production + no ALLOW_PRODUCTION_DB -> REFUSE.
+  Deployed; prod boot log confirmed "APP_ENV: production" (armed, no shell needed to verify).
+- Parallel guard in drizzle.config.ts (6f087ac): same for db:push (can DROP columns).
+- PROVEN: pointed dev shell at prod DSN with APP_ENV unset -> npm run dev REFUSED with the diagnostic.
+  The incident condition is now blocked.
+
+Escape hatch for sanctioned prod ops (the 3 scripts, intentional db:push): ALLOW_PRODUCTION_DB=true.
+Override the endpoint id via PRODUCTION_DB_ENDPOINT_ID if the branch is ever recreated.
+
+Remaining small follow-ups (not blocking):
+- ROTATE Neon credentials: the full connection string (with password) surfaced in terminal output several
+  times this session — it's in the transcript. Do when convenient.
+- Scrub the prod Neon hostname from FOLLOWUP.md:752 when rotating (not a credential, but publishes the instance).
+- .env.example documents only 2 seed passwords — expand to name DATABASE_URL/STRIPE_*/SESSION_SECRET/
+  DB_ENCRYPTION_KEY/APP_ENV so a dev has a guardrail (its absence contributed to #2).
+- drizzle-kit swallows exit code: a guard trip PRINTS but exits 0 — if db:push is ever wired into CI, the
+  step wouldn't fail. Fine for interactive use.
+- No render.yaml: all deploy config (DATABASE_URL, STRIPE_*, APP_ENV, NODE_ENV) is manual in Render dashboard,
+  no version-controlled record / drift check. Consider committing a render.yaml.
+- Delete .env.prod-backup from the working tree when done (it holds the prod DSN locally; gitignored, but tidy up).
+- STAGING is schema-only (empty). For runtime tests needing data, run seed / db:push-to-staging first.
+- Stripe event path still shared: a CONFIRMED test PI fires to prod's webhook (same Stripe test account).
+  DB guard doesn't cover this — never confirm PIs locally, or use a separate Stripe test account / dev webhook.
