@@ -2,8 +2,6 @@ import type { Express } from "express";
 import { storage } from "../storage";
 import { db } from "../db";
 import { sql } from "drizzle-orm";
-import path from "path";
-import fs from "fs";
 
 export function registerPublicRoutes(app: Express) {
   // Lightweight liveness probe for external uptime monitoring (e.g. HetrixTools).
@@ -46,14 +44,5 @@ export function registerPublicRoutes(app: Express) {
       console.error("Error fetching organizations:", error);
       res.status(500).json({ message: "Failed to fetch organizations" });
     }
-  });
-
-  // Public download for the Future Pathways white paper (no authentication required)
-  app.get("/api/public/whitepaper/download", (req, res) => {
-    const filePath = path.resolve(process.cwd(), "docs", "future-pathways-white-paper-2026.docx");
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ message: "White paper not found" });
-    }
-    res.download(filePath, "Future-Pathways-White-Paper-2026.docx");
   });
 }
