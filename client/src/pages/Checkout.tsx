@@ -107,6 +107,10 @@ function CheckoutForm({ amount, studentCount, clientSecret }: { amount: number |
             buyerEmail: email,
             buyerName: `${firstName} ${lastName}`.trim(),
             buyerPhone: phone,
+            // Same condition /api/checkout/complete uses below, so the stamped
+            // value and the one the grant runs on can never disagree. Omitted
+            // entirely for individual purchases.
+            ...(studentCount > 1 && organizationName ? { organizationName } : {}),
           });
         }
       } catch (stampErr) {

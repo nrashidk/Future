@@ -100,7 +100,7 @@ export function registerPaymentRoutes(app: Express) {
     }
 
     try {
-      const { paymentIntentId, buyerEmail, buyerName, buyerPhone } = req.body || {};
+      const { paymentIntentId, buyerEmail, buyerName, buyerPhone, organizationName } = req.body || {};
 
       if (typeof paymentIntentId !== "string" || !paymentIntentId) {
         return res.status(400).json({ message: "Invalid request" });
@@ -132,9 +132,19 @@ export function registerPaymentRoutes(app: Express) {
       const email = clean(buyerEmail);
       const name = clean(buyerName);
       const phone = clean(buyerPhone);
+      // Group purchases only. This CANNOT be stamped at intent creation: the
+      // intent is created on page mount from the ?students=N URL param alone,
+      // before the form renders, so the buyer has not typed an organisation
+      // name yet. It reaches the server for the first time at
+      // /api/checkout/complete - too late to help if that call never lands.
+      // Stamping it here (after the field is filled, before confirmation) is
+      // what makes a dropped group checkout reconcilable at all: without it,
+      // metadata carries studentCount > 1 with no way to rebuild the org.
+      const orgName = clean(organizationName);
       if (email) stamped.buyerEmail = email;
       if (name) stamped.buyerName = name;
       if (phone) stamped.buyerPhone = phone;
+      if (orgName) stamped.organizationName = orgName;
 
       if (Object.keys(stamped).length === 0) {
         return res.status(400).json({ message: "No buyer details provided" });
