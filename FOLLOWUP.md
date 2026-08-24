@@ -788,3 +788,22 @@ paths; NOT for testing Fix 2's webhook — that needs the secret or a manual eve
    idempotency record (processed-event-ID table), not account-state reliance. Harden before live.
    (Same shape as a live retry loop observed: prod granted but paymentIntents.update failed — likely a
    different Stripe key on prod, 404 -> processed never stamped -> Stripe retried indefinitely.)
+
+## passwordHash leak — RESOLVED (2026-08-24)
+- Commit 1 (98eaa6b): toPublicUser() allowlist applied at the 4 leaking sites. FIXED.
+- Commit 3 (1c8347a): sanitizer unit test, 11 cases, self-defending (new column fails the test). CI-locked.
+- Commit 2 (convert ~15/19 inline whitelists to the helper): CANCELLED — not deferred. Recon (2026-08-24)
+  found 0 of 19 sites are identical-set drop-ins; ALL would WIDEN exposure, 14 cross-user, 6 expose minors.
+  toPublicUser is a CEILING (nothing secret escapes), not a floor (must send everything public). The 19
+  sites already apply per-endpoint data-minimisation ON TOP of that ceiling — a security property to keep,
+  not duplication to collapse. #19 is a Drizzle column-level select() (hash never leaves Postgres);
+  converting would pull the bcrypt hash into app memory — strictly worse. auth.ts login/register are on
+  the DO-NOT-TOUCH list. GDPR export (#3) is a versioned artifact — field changes = format change + bump.
+  9 of 19 aren't user-object projections at all (credential hand-offs / CSV column contracts).
+
+Salvageable intent (OPTIONAL, separate scoping — NOT this thread): cc option (b) — named sub-allowlists
+in shared/userPublic.ts (e.g. USER_IDENTITY_FIELDS) so narrow projections also derive from one file.
+Consistency win without widening. Touches cross-user minor-facing endpoints -> deliberate scoping if pursued.
+
+Still open (from the 1/2/5 verification findings): endpoint-level passwordHash test (needs supertest or
+ephemeral-port listener); shared dev/prod DB (#2); event-ID idempotency table (#3).
