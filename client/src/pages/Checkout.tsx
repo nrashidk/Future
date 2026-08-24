@@ -94,6 +94,11 @@ function CheckoutForm({ amount, studentCount, clientSecret }: { amount: number |
     }
 
     setIsProcessing(true);
+    // Set when we hand the browser off to the OAuth provider below. The page is
+    // about to unload, so the `finally` must NOT re-enable the button: it would
+    // flip back to "Pay $X" for the instant before navigation and invite a
+    // second click on an already-charged card.
+    let redirectingToOAuth = false;
 
     try {
       // Stamp buyer identity onto the PaymentIntent before confirming, so a
@@ -144,6 +149,33 @@ function CheckoutForm({ amount, studentCount, clientSecret }: { amount: number |
 
         await queryClient.refetchQueries({ queryKey: ["/api/auth/user"] });
 
+        // Paid buyer whose account is OAuth-only. Nothing has been granted
+        // yet - the server hands back a signed, PaymentIntent-bound state and
+        // expects us to walk them through the provider so the callback can
+        // confirm the returning account really owns the email that paid.
+        //
+        // window.location.href, NOT wouter's setLocation: /api/auth/google is a
+        // server route that 302s off-origin to Google. The SPA router would
+        // swallow it and render a 404 route instead of leaving the app.
+        if (data.requiresOAuthGrant && data.state) {
+          redirectingToOAuth = true;
+          window.location.href = `/api/auth/google?state=${encodeURIComponent(data.state)}`;
+          return;
+        }
+
+        // Paid, but we cannot auto-grant on return: non-Google OAuth (no
+        // trustworthy email-verification signal), or a requiresOAuthGrant reply
+        // that arrived without a state to carry. The payment SUCCEEDED, so this
+        // is informational - never a destructive toast. The server has already
+        // logged it for the reconciliation sweep.
+        if (data.requiresManualClaim || data.requiresOAuthGrant) {
+          toast({
+            title: t("checkout.manualClaimTitle"),
+            description: t("checkout.manualClaimDesc"),
+          });
+          return;
+        }
+
         if (data.isNewUser && data.credentials) {
           setCredentials(data.credentials);
           setCreatedOrgName(data.organization?.name);
@@ -179,7 +211,9 @@ function CheckoutForm({ amount, studentCount, clientSecret }: { amount: number |
         variant: "destructive",
       });
     } finally {
-      setIsProcessing(false);
+      if (!redirectingToOAuth) {
+        setIsProcessing(false);
+      }
     }
   };
 

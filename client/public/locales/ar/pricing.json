@@ -95,6 +95,8 @@
     "missingOrgDesc": "يرجى إدخال اسم مدرستك أو مؤسستك",
     "paymentFailedTitle": "فشل الدفع",
     "paymentSuccessTitle": "تم الدفع بنجاح!",
+    "manualClaimTitle": "تم استلام الدفع",
+    "manualClaimDesc": "تم استلام دفعتك. سنرسل لك بريدًا إلكترونيًا قريبًا لإكمال إعداد حسابك.",
     "errorTitle": "خطأ",
     "errorDesc": "حدث خطأ أثناء الدفع"
   },

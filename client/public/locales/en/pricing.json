@@ -95,6 +95,8 @@
     "missingOrgDesc": "Please enter your school or organization name",
     "paymentFailedTitle": "Payment Failed",
     "paymentSuccessTitle": "Payment Successful!",
+    "manualClaimTitle": "Payment Received",
+    "manualClaimDesc": "Your payment was received. We'll email you shortly to finish setting up your account.",
     "errorTitle": "Error",
     "errorDesc": "An error occurred during payment"
   },

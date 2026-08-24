@@ -4,6 +4,7 @@ import { isAuthenticated } from "../auth";
 import { paymentLimiter, stampBuyerLimiter } from "../middleware/rateLimiter.middleware";
 import { grantIndividualPremium } from "../services/premiumGrant";
 import { toPublicUser } from "@shared/userPublic";
+import { signPaymentState } from "../utils/oauthState";
 import Stripe from "stripe";
 
 // Initialize Stripe only if keys are configured
@@ -294,9 +295,41 @@ export function registerPaymentRoutes(app: Express) {
         } else {
           // Existing user - check if they're OAuth or local
           if (!existingUser.passwordHash) {
-            // OAuth user - cannot use self-service checkout without login
-            return res.status(400).json({ 
-              message: "This email is already registered. Please login first, then purchase from your account dashboard." 
+            // OAuth account. The card has ALREADY been charged by this point
+            // (PI-succeeded + amount guards above), so the old behaviour here -
+            // a 400 telling the buyer to "login first, then purchase" - took
+            // their money and asked them to pay again. Instead, hand back a soft
+            // response telling the client to send them through OAuth re-auth.
+            //
+            // Nothing is granted here and `processed` is NOT stamped: this
+            // response is only an instruction to re-authenticate. The grant
+            // happens on the OAuth callback, and ONLY if the returning account's
+            // DB-fresh email matches the email that paid AND the provider
+            // asserted the address is verified.
+            if (existingUser.oauthProvider === "google") {
+              return res.status(200).json({
+                requiresOAuthGrant: true,
+                provider: "google",
+                // Signed, 15-min, bound to this PaymentIntent. Survives the
+                // cross-site OAuth redirect that sameSite:'strict' would block
+                // for a session cookie. Proves only "we issued this recently" -
+                // it is NOT authorization to grant.
+                state: signPaymentState(paymentIntent.id),
+                email: existingUser.email, // display only, so the UI can say which account
+              });
+            }
+
+            // Non-Google OAuth (Microsoft today) has no email-verification
+            // signal we can trust, so it cannot be auto-granted on return.
+            // Surface it for the reconciliation sweep / manual claim instead of
+            // silently failing the buyer.
+            console.error(
+              `[Checkout] Paid OAuth buyer needs manual claim: PI ${paymentIntent.id}, provider ${existingUser.oauthProvider ?? "unknown"}`
+            );
+            return res.status(200).json({
+              requiresManualClaim: true,
+              provider: existingUser.oauthProvider ?? null,
+              email: existingUser.email,
             });
           }
           
