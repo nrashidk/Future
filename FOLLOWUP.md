@@ -868,3 +868,29 @@ REMAINING — 4 highs, puppeteer cluster (puppeteer, puppeteer-core, @puppeteer/
 public.routes.ts:53 white-paper download looks for docs/future-pathways-white-paper-2026.docx but
 tracked files are ...-v1.1.docx — so GET /api/public/whitepaper/download 404s every time.
 Unauthenticated user-facing endpoint. One-line filename fix.
+
+## puppeteer 24->25 — IN PROGRESS (2026-08-24). Commit A done, rest needs staging PDF render.
+Last Dependabot vuln (4 highs, dedup'd to ~1: extract-zip/@puppeteer/browsers/puppeteer/-core).
+LOW urgency — fires at browser INSTALL, not render. Do NOT rush; broken PDFs for schools > the vuln.
+
+DONE + DEPLOYED:
+- Commit A (f418d7e): dropped the `which chromium` fallback (tier 2) from both PDF launch sites
+  (admin.routes.ts bulk export + recommendations.routes.ts single report). Removed execSync/child_process.
+  Behavior-neutral on Render (PUPPETEER_EXECUTABLE_PATH still set = tier 1 wins). Live, site works.
+
+BLOCKER for remaining steps: bundled Chrome can't exec in the Codespace (11 missing shared libs:
+libatk, libgbm, libcups, libxkbcommon, libasound, ...). So render CANNOT be verified locally — every
+remaining step needs a REAL PDF render on a STAGING DEPLOY (not just the staging DB). Likely means a
+2nd Render service on the staging branch, or a careful prod test. Set that up first.
+
+REMAINING (each changes render behavior — verify with an actual report PDF render, checking images +
+Arabic/Cairo font via lang=ar, on BOTH paths, before prod):
+1. Set PUPPETEER_CACHE_DIR explicitly in Render (e.g. project-relative) so build + runtime agree on the
+   cache location regardless of $HOME — $HOME divergence between build/runtime phases would make the
+   managed browser install land where launch can't find it ("Could not find Chrome").
+2. Unset PUPPETEER_EXECUTABLE_PATH (currently VERSION-PINNED to a Chrome build linux-150... — fragile,
+   breaks on every Chrome release independent of the bump). Still on v24. Smoke-test both PDF paths.
+3. Commit B: bump puppeteer ^24 -> 25.8.0 (also @puppeteer/browsers 2->3, extract-zip removed). Re-run
+   both smoke tests. Pin .nvmrc to 22.12+ (v25 needs node >=22.12.0; .nvmrc says just "22").
+Config note: launch config now = executablePath if PUPPETEER_EXECUTABLE_PATH set, else managed browser.
+tsc proves nothing here (both sites use `let browser: any`) — only a real render verifies.
