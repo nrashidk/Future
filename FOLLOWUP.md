@@ -841,3 +841,30 @@ Remaining small follow-ups (not blocking):
 - STAGING is schema-only (empty). For runtime tests needing data, run seed / db:push-to-staging first.
 - Stripe event path still shared: a CONFIRMED test PI fires to prod's webhook (same Stripe test account).
   DB guard doesn't cover this — never confirm PIs locally, or use a separate Stripe test account / dev webhook.
+
+## Dependabot triage — 35 -> 4 (2026-08-24)
+Headline "35 vulns / 19 high" was ~90% noise (Dependabot counts advisories-per-package;
+undici alone = 5). Real tree was 16; only 2 genuinely reachable in prod. Now 4 remain.
+
+DONE (committed + pushed):
+- c2e0cfa: reconcile lockfile (stale dev:true on esbuild optional binaries, no version change).
+- 1d3653d: npm audit fix — cleared 9 non-breaking incl. the 2 that mattered: multer (DoS on live
+  upload endpoints) + dompurify (XSS sanitizer bypass). Plus ip-address, body-parser,
+  brace-expansion, undici(5), nanoid, postcss.
+- cfed11c: removed dead deps adm-zip + html-to-docx (9-check verified unused) — cleared 3 highs,
+  dropped 58 packages, zero code change. tsc/tests/build all green.
+
+REMAINING — 4 highs, puppeteer cluster (puppeteer, puppeteer-core, @puppeteer/browsers, extract-zip):
+- LOW real risk: extract-zip symlink traversal fires at BROWSER INSTALL, not PDF render; js-yaml is
+  puppeteer-internal. Not on any request path.
+- Fix = puppeteer 24 -> 25 (major bump). HIGHEST regression risk of the batch: touches live PDF gen
+  (admin.routes.ts:1122 bulk export + recommendations.routes.ts:546 reports), v25 changed
+  browser-download/launch defaults, app pins Chromium via PUPPETEER_EXECUTABLE_PATH + Render build
+  step `npx puppeteer browsers install chrome@stable`.
+- PLAN: own focused session. Recon breaking surface, bump, then PDF-render smoke test on STAGING
+  (both PDF paths) before deploy. Watch the Render build's puppeteer install step.
+
+## Incidental bug found during dead-dep verify (separate one-line fix)
+public.routes.ts:53 white-paper download looks for docs/future-pathways-white-paper-2026.docx but
+tracked files are ...-v1.1.docx — so GET /api/public/whitepaper/download 404s every time.
+Unauthenticated user-facing endpoint. One-line filename fix.
