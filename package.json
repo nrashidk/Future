@@ -57,7 +57,7 @@
     "@types/passport-google-oauth20": "^2.0.17",
     "@types/pdfkit": "^0.17.3",
     "@types/zxcvbn": "^4.4.5",
-    "adm-zip": "^0.5.17",
+    "adm-zip": "^0.6.0",
     "archiver": "^7.0.1",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
