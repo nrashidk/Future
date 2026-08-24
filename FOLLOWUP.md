@@ -763,3 +763,28 @@ cc runs in a SEPARATE context from the terminal — cc's curl can't reach a serv
 (got connection-refused). For runtime tests cc must start the server IN ITS OWN shell, or you drive the
 browser checkout yourself. STRIPE_WEBHOOK_SECRET unset = webhook disabled locally (fine for /checkout
 paths; NOT for testing Fix 2's webhook — that needs the secret or a manual event replay).
+
+## Fixes 1/2/5 — RUNTIME-VERIFIED (2026-08-24, Stripe test mode)
+- Fix 1 ✅ stamp merge-not-clobber (4 original PI keys survived + 3 buyer keys); 409 on succeeded/processed PI.
+- Fix 5 ✅ new-buyer /checkout/complete: account+premium, auto-login (Set-Cookie -> /api/auth/user 200), credentials returned.
+- Fix 2 ✅ webhook self-service via REAL signed event (dummy whsec_): granted from metadata ALONE, idempotent re-fire, tamper->400 (signature check load-bearing). Test accounts deleted, 0 remain.
+=> Money hole (guest pays, completion drops) now runtime-verified, not just code-reviewed.
+
+## FINDINGS from the 1/2/5 verification (2026-08-24)
+1. 🔴 SECURITY: GET /api/auth/user returns passwordHash (bcrypt) in the response body. SPA calls it every
+   page load -> credential-material disclosure to the client. Strip passwordHash (and any secret fields)
+   from the user object on ALL auth/user responses. FIXING NEXT.
+2. 🟠 OPS/ISOLATION: dev .env DATABASE_URL == the DB futurepath.ae writes to, AND prod's Stripe webhook
+   (we_...@ https://futurepath.ae/api/webhook/stripe) is subscribed to the SAME Stripe TEST account.
+   Confirming a test PI locally -> Stripe fires event -> PROD webhook grants an account into the shared DB.
+   Any local test can mutate prod data. Need a SEPARATE dev database (+ ideally a separate Stripe test
+   account or dev-only webhook). Root cause of the phantom account seen during Fix 1. INFERRED from strong
+   evidence (cc can't read prod env); confirm by checking prod's DATABASE_URL.
+3. 🟡 IDEMPOTENCY (fragile, not broken): the processed-flag guard (webhook.routes.ts:189) reads
+   metadata.processed off the EVENT payload, which carries the creation-time snapshot — so on a real Stripe
+   retry `processed` is absent even after we stamp it. Retries are currently saved only by
+   grantIndividualPremium's already_premium no-op (relies on isPremium being flipped). Bypassed for
+   skipped_oauth or any future grant that doesn't set isPremium first. Proper fix: a delivery-level
+   idempotency record (processed-event-ID table), not account-state reliance. Harden before live.
+   (Same shape as a live retry loop observed: prod granted but paymentIntents.update failed — likely a
+   different Stripe key on prod, 404 -> processed never stamped -> Stripe retried indefinitely.)
