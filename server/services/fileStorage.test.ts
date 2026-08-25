@@ -519,3 +519,212 @@ describe("bucket separation guard", () => {
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// 7. keyFromPublicUrl — the destructive-delete gate
+// ---------------------------------------------------------------------------
+//
+// This function decides whether an object gets DELETED. A false positive
+// destroys someone else's file, so the contract is strict: return a key ONLY
+// for a URL in our own public bucket, and otherwise return null — never throw,
+// never guess. Every reject path below means "leave it alone".
+
+describe("keyFromPublicUrl", () => {
+  beforeEach(() => configure());
+
+  // --- accepts only what we wrote -----------------------------------------
+
+  it("round-trips a URL built by publicUrl", () => {
+    const key = "logos/abc-123.png";
+    expect(fileStorage.keyFromPublicUrl(fileStorage.publicUrl(key))).toBe(key);
+  });
+
+  it("round-trips a freshly generated key", () => {
+    const key = fileStorage.generateKey("logos", "school-crest.png");
+    expect(fileStorage.keyFromPublicUrl(fileStorage.publicUrl(key))).toBe(key);
+  });
+
+  it("decodes a percent-encoded space back to the original key", () => {
+    expect(fileStorage.keyFromPublicUrl(`https://${PUBLIC_HOST}/logos/a%20b.png`)).toBe(
+      "logos/a b.png",
+    );
+  });
+
+  it("round-trips a key containing characters the encoder escapes", () => {
+    const key = "logos/a b&c+d.png";
+    const url = fileStorage.publicUrl(key);
+    expect(url).not.toContain(" ");
+    expect(fileStorage.keyFromPublicUrl(url)).toBe(key);
+  });
+
+  it("ignores a query string appended to our URL", () => {
+    expect(
+      fileStorage.keyFromPublicUrl(`https://${PUBLIC_HOST}/logos/abc-123.png?v=2`),
+    ).toBe("logos/abc-123.png");
+  });
+
+  // --- host exactness: the security core -----------------------------------
+  //
+  // These are the cases that separate `===` from a sloppy substring match. An
+  // includes()/startsWith() host check passes the suffix lookalike; an
+  // endsWith() check passes the prefix lookalike. Both must stay rejected.
+
+  it("rejects a lookalike host that APPENDS to ours (defeats includes/startsWith)", () => {
+    expect(
+      fileStorage.keyFromPublicUrl(`https://${PUBLIC_HOST}.evil.com/logos/a.png`),
+    ).toBeNull();
+  });
+
+  it("rejects a lookalike host that PREPENDS to ours (defeats endsWith)", () => {
+    expect(
+      fileStorage.keyFromPublicUrl(`https://evil-${PUBLIC_HOST}/logos/a.png`),
+    ).toBeNull();
+  });
+
+  it("rejects our host smuggled into the userinfo of another host", () => {
+    expect(
+      fileStorage.keyFromPublicUrl(`https://${PUBLIC_HOST}@evil.com/logos/a.png`),
+    ).toBeNull();
+  });
+
+  it("rejects the PRIVATE bucket host carrying a private key", () => {
+    expect(
+      fileStorage.keyFromPublicUrl(`https://${PRIVATE_HOST}/private/students.csv`),
+    ).toBeNull();
+  });
+
+  it("rejects the PRIVATE bucket host even when the path looks like a logo", () => {
+    // Isolates the host check from the prefix check: this URL passes the
+    // logos/ prefix test, so only an exact host comparison stops it. Without
+    // one, a delete aimed at the private bucket's URL would remove the PUBLIC
+    // bucket's object of the same name.
+    expect(
+      fileStorage.keyFromPublicUrl(`https://${PRIVATE_HOST}/logos/a.png`),
+    ).toBeNull();
+  });
+
+  it("rejects a different bucket on the same Spaces endpoint", () => {
+    expect(
+      fileStorage.keyFromPublicUrl("https://someone-else.fra1.digitaloceanspaces.com/logos/a.png"),
+    ).toBeNull();
+  });
+
+  it("rejects an unrelated external host an admin may have pasted", () => {
+    expect(fileStorage.keyFromPublicUrl("https://cdn.someschool.ae/logo.png")).toBeNull();
+  });
+
+  // --- protocol ------------------------------------------------------------
+
+  it("rejects http:// on our own host", () => {
+    expect(fileStorage.keyFromPublicUrl(`http://${PUBLIC_HOST}/logos/a.png`)).toBeNull();
+  });
+
+  // --- prefix --------------------------------------------------------------
+
+  it("rejects a private key served from the public host", () => {
+    expect(
+      fileStorage.keyFromPublicUrl(`https://${PUBLIC_HOST}/private/students.csv`),
+    ).toBeNull();
+  });
+
+  it("rejects an unknown prefix", () => {
+    expect(fileStorage.keyFromPublicUrl(`https://${PUBLIC_HOST}/exports/all.csv`)).toBeNull();
+  });
+
+  it("rejects our bare host with no key", () => {
+    expect(fileStorage.keyFromPublicUrl(`https://${PUBLIC_HOST}`)).toBeNull();
+    expect(fileStorage.keyFromPublicUrl(`https://${PUBLIC_HOST}/`)).toBeNull();
+  });
+
+  // --- legacy values and garbage -------------------------------------------
+
+  it("rejects a legacy relative /uploads path from the disk era", () => {
+    expect(fileStorage.keyFromPublicUrl("/uploads/logo-123.png")).toBeNull();
+  });
+
+  it("rejects null, undefined and the empty string", () => {
+    expect(fileStorage.keyFromPublicUrl(null)).toBeNull();
+    expect(fileStorage.keyFromPublicUrl(undefined)).toBeNull();
+    expect(fileStorage.keyFromPublicUrl("")).toBeNull();
+  });
+
+  it("rejects text that is not a URL at all", () => {
+    expect(fileStorage.keyFromPublicUrl("not a url at all")).toBeNull();
+  });
+
+  it("rejects a traversing path on our host", () => {
+    expect(
+      fileStorage.keyFromPublicUrl(`https://${PUBLIC_HOST}/logos/../private/x.csv`),
+    ).toBeNull();
+  });
+
+  it("rejects a percent-encoded traversal on our host", () => {
+    expect(
+      fileStorage.keyFromPublicUrl(`https://${PUBLIC_HOST}/logos/%2e%2e/private/x.csv`),
+    ).toBeNull();
+  });
+
+  it("rejects malformed percent-encoding rather than throwing", () => {
+    expect(fileStorage.keyFromPublicUrl(`https://${PUBLIC_HOST}/logos/%E0%A4%A.png`)).toBeNull();
+  });
+
+  // The three below are the inputs that actually reach assertValidKey. Path
+  // traversal does not: WHATWG URL normalises "/logos/../x" AND its encoded
+  // form "/logos/%2e%2e/x" away before we ever see the path, so those are
+  // stopped by the prefix check instead. A null byte, an empty segment and an
+  // over-long key all survive normalisation and must still fail safe.
+
+  it("rejects a key containing a null byte", () => {
+    expect(fileStorage.keyFromPublicUrl(`https://${PUBLIC_HOST}/logos/a%00.png`)).toBeNull();
+  });
+
+  it("rejects a doubled separator in the path", () => {
+    expect(fileStorage.keyFromPublicUrl(`https://${PUBLIC_HOST}/logos//a.png`)).toBeNull();
+  });
+
+  it("rejects a key over the 1024-byte limit", () => {
+    expect(
+      fileStorage.keyFromPublicUrl(`https://${PUBLIC_HOST}/logos/${"a".repeat(1100)}.png`),
+    ).toBeNull();
+  });
+
+  // --- fail-safe behaviour --------------------------------------------------
+
+  it("returns null instead of throwing for every rejected input", () => {
+    const hostile: Array<string | null | undefined> = [
+      null,
+      undefined,
+      "",
+      "not a url at all",
+      "/uploads/logo.png",
+      "//evil.com/logos/a.png",
+      "javascript:alert(1)",
+      "data:text/html,<script>",
+      `http://${PUBLIC_HOST}/logos/a.png`,
+      `https://${PUBLIC_HOST}.evil.com/logos/a.png`,
+      `https://evil-${PUBLIC_HOST}/logos/a.png`,
+      `https://${PUBLIC_HOST}@evil.com/logos/a.png`,
+      `https://${PRIVATE_HOST}/logos/a.png`,
+      `https://${PUBLIC_HOST}/private/x.csv`,
+      `https://${PUBLIC_HOST}/logos/../private/x.csv`,
+      `https://${PUBLIC_HOST}/logos/a%00.png`,
+      `https://${PUBLIC_HOST}/logos//a.png`,
+      `https://${PUBLIC_HOST}/logos/%E0%A4%A.png`,
+      `https://${PUBLIC_HOST}/`,
+    ];
+    for (const input of hostile) {
+      expect(() => fileStorage.keyFromPublicUrl(input)).not.toThrow();
+      expect(fileStorage.keyFromPublicUrl(input)).toBeNull();
+    }
+  });
+
+  it("returns null when Spaces is not configured, rather than throwing", () => {
+    // Global beforeEach clears the environment; this block's beforeEach set it,
+    // so drop the one value the lookup needs.
+    delete process.env.SPACES_PUBLIC_BUCKET;
+    expect(() =>
+      fileStorage.keyFromPublicUrl(`https://${PUBLIC_HOST}/logos/a.png`),
+    ).not.toThrow();
+    expect(fileStorage.keyFromPublicUrl(`https://${PUBLIC_HOST}/logos/a.png`)).toBeNull();
+  });
+});
