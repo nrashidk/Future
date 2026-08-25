@@ -3,7 +3,6 @@ import helmet from "helmet";
 import morgan from "morgan";
 import compression from "compression";
 import cookieParser from "cookie-parser";
-import path from "path";
 import { validateEnvironmentVariables } from "./utils/env-validation";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
@@ -149,13 +148,12 @@ app.use((req, res, next) => {
 });
 app.use(cookieParser());
 
-// Serve ONLY public asset uploads (e.g. organization logos), which are written
-// to uploads/public. Private uploads (CSV/JSON/Excel data and any file
-// containing minors' personal data) live in uploads/private and are reachable
-// only through the authenticated /api/files routes — never statically. This
-// directory-level split is what enforces the ownership/share-token controls in
-// files.routes.ts (C1).
-app.use('/uploads', express.static(path.join(process.cwd(), 'uploads', 'public')));
+// No local upload directory is served any more. Organization logos live in the
+// public Spaces bucket and are linked by absolute URL; every file containing
+// minors' personal data lives in the private bucket and is reachable only
+// through the authenticated /api/files routes. The old directory-level split
+// that enforced this (uploads/public vs uploads/private) is now a bucket-level
+// one, enforced in server/services/fileStorage.ts (C1).
 
 // CSRF cookie is set early (just sets a cookie, doesn't validate)
 app.use(csrfProtection);

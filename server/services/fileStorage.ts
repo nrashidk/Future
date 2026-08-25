@@ -393,6 +393,57 @@ export function publicUrl(key: string): string {
 }
 
 /**
+ * Inverse of publicUrl: recover the object key from a stored URL, or null if
+ * the URL is not an object we own.
+ *
+ * organizations.logo_url is free-form and holds three different kinds of value:
+ * a Spaces URL we wrote, an arbitrary external https:// URL an admin pasted,
+ * and legacy relative "/uploads/<name>" paths from the disk era. Only the first
+ * may ever be deleted, so this returns null for everything else — a parse
+ * failure here means "leave it alone", never "guess".
+ */
+export function keyFromPublicUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return null; // relative path (legacy /uploads/...) or malformed — not ours
+  }
+
+  const publicBucket = process.env.SPACES_PUBLIC_BUCKET;
+  const endpoint = process.env.SPACES_ENDPOINT;
+  if (!publicBucket || !endpoint) return null;
+
+  const host = endpoint.replace(/^https?:\/\//, "").replace(/\/+$/, "");
+  if (parsed.protocol !== "https:") return null;
+  // Exact host match against the PUBLIC bucket only. The private bucket's host
+  // must never resolve here.
+  if (parsed.hostname !== `${publicBucket}.${host}`) return null;
+
+  let key: string;
+  try {
+    key = parsed.pathname
+      .replace(/^\//, "")
+      .split("/")
+      .map(decodeURIComponent)
+      .join("/");
+  } catch {
+    return null; // malformed percent-encoding
+  }
+
+  if (!isPublicPrefix(prefixOf(key))) return null;
+  try {
+    assertValidKey(key);
+  } catch {
+    return null;
+  }
+
+  return key;
+}
+
+/**
  * ESCAPE HATCH — not used by any route.
  *
  * A presigned URL is a detached bearer credential: it cannot be revoked before
