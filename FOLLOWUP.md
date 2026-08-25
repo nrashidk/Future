@@ -894,3 +894,61 @@ Arabic/Cairo font via lang=ar, on BOTH paths, before prod):
    both smoke tests. Pin .nvmrc to 22.12+ (v25 needs node >=22.12.0; .nvmrc says just "22").
 Config note: launch config now = executablePath if PUPPETEER_EXECUTABLE_PATH set, else managed browser.
 tsc proves nothing here (both sites use `let browser: any`) — only a real render verifies.
+
+## Session 2026-08-24 (cont.) — Fix 4 (partial, on branch), Fix 3 v1 (shipped), org-name stamp
+
+### Fix 4 (OAuth-existing double-charge) — PARTIAL. Steps 1-2 on main, 3+3b on BRANCH, 4-5 NOT built.
+Decisions locked: carrier = signed OAuth state param (survives sameSite:strict; option b was a mirage —
+can't relax sameSite per-path). Scope = GOOGLE-ONLY v1 (Microsoft has no email_verified signal; MS buyers
+-> requiresManualClaim -> Fix 3 residual). upsertOAuthUser unverified-linking (1a) deliberately NOT bundled.
+- Step 1 (f78d17f, on main): server/utils/oauthState.ts — signPaymentState/verifyPaymentState, HMAC-SHA256
+  over SESSION_SECRET (printToken.ts idiom), base64url, 15-min TTL, constant-time, never throws. 21 tests.
+  SECURITY MODEL: valid token = "we issued this PI id recently", NOT authorization to grant.
+- Step 2 (1c1cb5f, on main): auth.ts Google done() payload adds emailVerified ONLY (not email — email would
+  persist minors' addresses in the sessions table; boundary re-fetches email from DB anyway). Google session
+  now { userId, provider, emailVerified }. Behavior-neutral, nothing reads it yet.
+- Steps 3+3b (e827b69, on BRANCH fix4-oauth-grant, NOT main): server replaces OAuth-existing 400 with soft
+  200 {requiresOAuthGrant, state, email} (Google) / {requiresManualClaim} (MS/null). Client Checkout.tsx
+  two branches: OAuth -> window.location.href /api/auth/google?state=... (redirectingToOAuth flag holds the
+  spinner so Pay can't re-enable on a charged card); manualClaim -> info toast. i18n en+ar (AR NEEDS REVIEW).
+  WHY BRANCH NOT MAIN: inert without Step 4 — deploying 3+3b would strand OAuth buyers (charged, logged in,
+  no grant). DO NOT merge until Step 4 + staging OAuth test.
+- Step 4 (NOT built): auth.ts start route (:233-235) must forward req.query.state into passport.authenticate
+  (currently a static options literal — drops it). Plus grantPendingPaymentOnReturn callback middleware:
+  verifyPaymentState(req.query.state) -> re-fetch PI live -> boundary check (PI.metadata.buyerEmail ===
+  freshUser.email BOTH trim+lowercase, freshUser from getUser NOT session; emailVerified===true; live
+  pi.status succeeded; processed!==true) -> grantIndividualPremium -> stamp processed. Runs on EVERY OAuth
+  login: no-op when no state. HIGHEST BLAST RADIUS.
+- Step 5 (NOT built): regression test — normal Google login AND normal Microsoft login with NO pending
+  payment (the 99% path) must be proven unbroken, plus payment scenario + attacker cases (replayed PI,
+  mismatched email). NEEDS a staging OAuth DEPLOY (real Google creds) — cannot be verified in the Codespace.
+
+### Fix 3 v1 — SHIPPED (read-only reconciliation sweep)
+- Endpoint (7123104): GET /api/superadmin/payments/unreconciled?days=90 (superadmin-gated, dataExportLimiter,
+  STRICTLY READ-ONLY — audited: only getUser/getUserByEmail/paymentIntents.list, zero writes). Walks succeeded
+  PIs, filters processed!==true, classifies against DB state (not the flag) into 7 classes: amount_mismatch,
+  unidentifiable, group_incomplete, already_granted, oauth_blocked, grantable_user, grantable_guest. Returns
+  per-class tally+money, per-PI rows, denominator. Answers "how much money is ungranted in prod right now."
+- Classifier tests (566c379): 30 tests locking the 7-way first-match-wins precedence. Key guards:
+  amount_mismatch beats everything + does no DB lookup; group_incomplete beats already_granted at
+  studentCount>1 (do-not-flip). 77 tests total.
+- NOT built (deferred, needs data first): the reconcile/GRANT endpoint (POST, explicit paymentIntentIds[]
+  allowlist — never blind grant-all; auto-grant grantable_* + already_granted stamp-backfill only), and the
+  "claim your purchase" email (depends on Fix 4 Step 4 for OAuth accounts; email infra exists in email.ts but
+  needs a new sendClaimEmail + bilingual template).
+- Audit gap for the future grant endpoint: no system-level audit table (createOrganizationEvent needs an
+  organizationId; individual grants have none). Decide before automating grants.
+- Bulk-grant-on-typo'd-email risk: buyerEmail is unauthenticated/client-supplied; a sweep that auto-grants
+  in bulk amplifies the Fix 2 typo-upgrades-a-stranger risk. Explicit decision needed before auto-grant.
+
+### org-name stamp (82a9ad7, main)
+stamp-buyer now stamps organizationName into PI metadata (can't be done at PI creation — created on
+page-mount before the buyer types it). Narrows the group-purchase reconciliation blind spot GOING FORWARD.
+Best-effort + buyer-asserted (same trust tier as buyerEmail).
+
+### Deferred residual-case notes for Fix 3 grant phase
+- updateUserPremiumStatus (storage.ts) sets isPremium but NOT purchasedLicenses — the grant endpoint must use
+  updateUserFields with studentCount, or buyers end up premium with 0 licenses.
+- Case A (guest, stamp-buyer failed, complete dropped): NO email anywhere in metadata. Only possible identity
+  is the charge object (latest_charge.billing_details.email / receipt_email) — nothing reads it today. Verify
+  against a real PI before assuming it's recoverable.
