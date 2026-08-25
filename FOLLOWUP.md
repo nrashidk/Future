@@ -952,3 +952,63 @@ Best-effort + buyer-asserted (same trust tier as buyerEmail).
 - Case A (guest, stamp-buyer failed, complete dropped): NO email anywhere in metadata. Only possible identity
   is the charge object (latest_charge.billing_details.email / receipt_email) — nothing reads it today. Verify
   against a real PI before assuming it's recoverable.
+
+## EPHEMERAL DISK DATA-LOSS — INVESTIGATED, NOT YET FIXED (2026-08-25)
+Confirmed: app writes all uploads to LOCAL ephemeral disk (multer.diskStorage). No object storage
+anywhere (verified: no S3/DigitalOcean/Spaces/MinIO/Cloudinary in deps, env, code, or git history —
+the DigitalOcean belief traced to the user's OTHER projects (Kanz telegram bot, Masary media), which
+have DO storage — FuturePath does not). On Render's filesystem, everything below is WIPED on every
+deploy/restart unless a persistent disk is mounted.
+NOTE: whether a Render persistent disk is mounted is UNCONFIRMED (no infra files in repo, no dashboard
+visibility this session). This is the decisive fact for Option A vs B — CHECK THE RENDER DASHBOARD (Disks
+section) before choosing. Free-tier plans may not support disks at all.
+
+SEVERITY CONTEXT: prod showed 1 school / 2 students in the superadmin dashboard UI (user screenshot,
+2026-08-25) — NOT verified by DB query this session (only staging ep-soft-recipe was queried, which
+returned 0 files/0 orgs). Implication: little/no real data at risk YET, but confirm against prod before
+relying on this. This is a MUST-FIX-BEFORE-REAL-SCHOOLS-ONBOARD item, not a live emergency. But it is the
+single most important pre-launch data-integrity item found so far.
+
+FOUR persistence bugs (MUST-PERSIST, currently lost on deploy):
+1. Uploaded files (files table): file_path stores an ABSOLUTE disk path; read back by 4 later routes —
+   GET /api/files/:id/download, GET /api/files/shared/:token (share link), DELETE /api/files/:id,
+   DELETE /api/superadmin/files/:id. After deploy: DB row persists, file gone -> download 500s. Share-link
+   is worse: incrementDownloadCount + invalidateShareToken fire BEFORE the read, so a post-deploy click
+   burns the one-time token AND errors.
+2. Bulk-import student CSVs (admin.routes.ts import-students): RETAINED not discarded (unlink only on
+   error branches). Creates a files row (fileType import_data). Contains minors' PII — names, grades,
+   student IDs, ages, genders. Also accepts a fileId from an earlier upload = explicit cross-request read
+   that breaks across a deploy.
+3. Org logos (organizations.logo_url): admin uploads -> /uploads/<file> stored in DB, served by
+   express.static at index.ts:158, rendered via <img src> on the PUBLIC UNAUTHENTICATED landing page
+   (Landing.tsx) + admin views. After deploy: broken images for every visitor. Admins can ALSO paste
+   external https:// URLs (survive), so breakage looks arbitrary/flaky.
+4. Translation Manager (superadmin translations): writes to client/public/locales/<lang>/<ns>.json —
+   TWO bugs: (a) wrong directory — server serves dist/public/locales, so edits NEVER reach students even
+   before a deploy (UI echoes the saved value back so it looks successful); (b) wiped on deploy anyway.
+
+EPHEMERAL-OK (no bug, verified): all PDF generation (in-memory Buffers streamed same-response), bulk ZIP
+export, inline credentials CSV (deliberately never persisted), directory mkdir calls.
+
+FIX OPTIONS (decide next session, AFTER confirming the Render disk status — the real open question, see
+NOTE above):
+- Option A — mount a Render persistent disk at <cwd>/uploads. Smallest code change (paths already point
+  there). BUT: pins service to 1 instance, disables zero-downtime deploys, free tier may not support disks,
+  and does NOT fix bug #4 (wrong directory) or the fragility of storing absolute paths in the DB.
+- Option B — object storage (S3 / Cloudflare R2 / DigitalOcean Spaces). Correct architecture: survives
+  deploys, scales, no instance pin. DB stores a KEY not an absolute path. Bigger work: new dep, creds,
+  rewrite upload/download/delete/share paths, migrate existing rows. The user's DO Spaces account already
+  exists (used for other projects) — create a NEW FuturePath bucket there; no new vendor/billing, familiar
+  tooling. This is the pre-favored fix.
+- Bug #4 (translations) needs its own fix regardless: move translation overrides into the DATABASE rather
+  than the filesystem (a disk mount would persist them but they STILL wouldn't be served from the wrong dir).
+
+DIGITALOCEAN — RESOLVED: user has a DigitalOcean droplet + Spaces bucket, but for OTHER projects (Kanz
+telegram bot, Masary media) — NOT wired to FuturePath. So no existing FuturePath uploads are on DO.
+BUT: the DO Spaces account + tooling already exist, making Option B (object storage on DigitalOcean
+Spaces) the pre-favored fix path — create a new FuturePath bucket in the existing account, no new
+vendor/billing.
+
+## Separate minor UI bug (unrelated, low priority)
+Superadmin nav: the active-tab TITLE is wrong — clicking "Schools" shows the "Admin" title, and clicking
+the tab you're already on is a dead click (correct path, wrong title). Cosmetic nav-state bug, not data.
