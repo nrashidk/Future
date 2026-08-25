@@ -1012,3 +1012,43 @@ vendor/billing.
 ## Separate minor UI bug (unrelated, low priority)
 Superadmin nav: the active-tab TITLE is wrong — clicking "Schools" shows the "Admin" title, and clicking
 the tab you're already on is a dead click (correct path, wrong title). Cosmetic nav-state bug, not data.
+
+## PARKED — Superadmin dashboard engine/functionality audit (raised 2026-08-25, screenshots provided)
+A full audit of what each superadmin tab actually DOES — engines, functionality, bugs — NOT cosmetic-only.
+To be done as its own focused session, per-tab recon. NOTHING BELOW HAS BEEN INVESTIGATED YET; every item
+is a question to answer, not a finding.
+
+UI/LAYOUT
+- Tab row overflow: "Add School" (Schools tab) and "Add Student" (Students tab) buttons push Contributions
+  + Translations onto a second wrapped row. Move the Add buttons down (e.g. next to Export CSV) so all tabs
+  fit one row. Applies to both the Schools and Students views.
+- Related, already logged directly above: the active-tab TITLE is wrong and re-clicking the current tab is
+  a dead click. Same nav area — fold into this session rather than fixing separately.
+
+ENGINE/FUNCTIONALITY — each needs recon (is the engine broken, or is it just empty?)
+- Recent Activity tab — shows "No recent activity". WHAT should populate it (which events, from what table
+  — createOrganizationEvent? a system audit log?), and WHY is nothing showing (engine not wired, no events
+  generated, or query bug)? Earlier Fix 3 work found there is NO system-level audit table — this may be
+  related: events may only exist for org-scoped actions.
+- File Management tab ("Manage uploaded files") — what does it actually contain/do? Backed by the files
+  table (the same one in the storage migration). Confirm what it lists, and whether download/delete work.
+  They are broken pre-migration due to ephemeral disk (see bug #1 in the ephemeral-disk section above) —
+  re-verify post-migration.
+- Translation Manager -> Database Content — has 4 sub-tabs: Careers, CVQ Items, Countries, Quiz Questions.
+  User: "the four should be same". Investigate consistency — do all four have the same edit capability, the
+  same completeness display, the same behaviour? Are any broken or incomplete relative to the others?
+- NOTE the pre-existing translation BUG already found (bug #4 in the ephemeral-disk section above):
+  superadmin translation edits write to client/public/locales, but the server serves dist/public/locales —
+  so UI-string edits never reach students even before a deploy, AND are wiped on deploy. The Database
+  Content translations may use a different (DB-backed) path — investigate whether Database Content works
+  while UI Strings is broken.
+
+OTHER TABS TO AUDIT WHILE THERE (screenshots provided)
+- Scoring — weights per tier (Free/Premium/School); Narrative Cache; LLM Configuration (showing the
+  Anthropic key); Prompt Templates (using claude-sonnet-4-6); Change History audit log.
+- Contributions — review queue + reward settings.
+- Countries, Subjects, Careers, CVQ Items.
+- CONTRAST TO RESOLVE: Change History (Scoring) DOES show an audit log (prompt/api-key updates), while
+  Recent Activity is empty. Understand why one logs and the other doesn't — that likely explains both.
+
+User will provide MORE screenshots/items later — THIS LIST WILL GROW. Do not treat it as complete.
