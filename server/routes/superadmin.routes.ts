@@ -93,7 +93,8 @@ interface ReconciliationRow {
  *   5. oauth_blocked    - resolves, not premium, no password to grant against.
  *   6/7. grantable_*    - what a later, opt-in grant pass could safely act on.
  */
-async function classifyUnreconciledIntent(pi: Stripe.PaymentIntent): Promise<ReconciliationRow> {
+// Exported for unit testing (superadmin.reconciliation.test.ts); not routed directly.
+export async function classifyUnreconciledIntent(pi: Stripe.PaymentIntent): Promise<ReconciliationRow> {
   const md = pi.metadata ?? {};
   const metadataUserId = md.userId || null;
   const buyerEmail = typeof md.buyerEmail === "string" && md.buyerEmail.trim() ? md.buyerEmail.trim() : null;
