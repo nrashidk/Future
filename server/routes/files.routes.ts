@@ -1,30 +1,22 @@
 import type { Express, Request, Response } from "express";
 import multer from "multer";
 import path from "path";
-import fs from "fs/promises";
+import { pipeline } from "stream/promises";
 import { storage } from "../storage";
 import { isAuthenticated } from "../auth";
 import { isAdmin, getSuperadminEmails } from "../middleware/auth.middleware";
+import * as fileStorage from "../services/fileStorage";
 
-// Private uploads directory — these files are served ONLY through the
-// authenticated handlers below, never statically (C1).
+// LEGACY — the old local uploads directory. Upload, download and delete now use
+// DigitalOcean Spaces; this constant survives only for the share-token route
+// below, which is still on disk and is cut over in the next step.
 const UPLOADS_DIR = path.join(process.cwd(), "uploads", "private");
-fs.mkdir(UPLOADS_DIR, { recursive: true }).catch(console.error);
 
-// Configure multer for file uploads
+// Configure multer for file uploads. memoryStorage: the upload never touches
+// local disk, it goes straight from the request buffer to object storage. Files
+// are capped at 50MB below, which is also the per-upload memory ceiling.
 const upload = multer({
-  storage: multer.diskStorage({
-    destination: async (req, file, cb) => {
-      await fs.mkdir(UPLOADS_DIR, { recursive: true });
-      cb(null, UPLOADS_DIR);
-    },
-    filename: (req, file, cb) => {
-      const uniqueSuffix = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
-      const ext = path.extname(file.originalname);
-      const basename = path.basename(file.originalname, ext);
-      cb(null, `${basename}-${uniqueSuffix}${ext}`);
-    },
-  }),
+  storage: multer.memoryStorage(),
   limits: {
     fileSize: 50 * 1024 * 1024, // 50MB limit
   },
@@ -93,34 +85,52 @@ export function registerFilesRoutes(app: Express) {
       }
       
       const { fileType, category, description, organizationId } = req.body;
-      
+
       if (!fileType) {
-        await fs.unlink(req.file.path).catch(() => {});
+        // Nothing to clean up: the upload is still only an in-memory buffer and
+        // nothing has been written to object storage yet.
         return res.status(400).json({ message: "File type is required" });
       }
-      
-      // Create file record in database
-      const file = await storage.createFile({
-        filename: req.file.filename,
-        originalFilename: req.file.originalname,
-        mimeType: req.file.mimetype,
-        fileSize: req.file.size,
-        filePath: req.file.path,
-        fileType,
-        category: category || null,
-        description: description || null,
-        uploadedBy: userId,
-        organizationId: organizationId || null,
-        isPublic: false,
+
+      // Write the object BEFORE inserting the row, so a failed upload can never
+      // leave a files row pointing at an object that was never stored.
+      const key = fileStorage.generateKey("private", req.file.originalname);
+      await fileStorage.put(key, req.file.buffer, {
+        contentType: req.file.mimetype,
+        size: req.file.size,
+        public: false,
       });
-      
+
+      let file;
+      try {
+        // Create file record in database
+        file = await storage.createFile({
+          filename: path.posix.basename(key),
+          originalFilename: req.file.originalname,
+          mimeType: req.file.mimetype,
+          fileSize: req.file.size,
+          // filePath now holds the OBJECT KEY (private/<uuid><ext>), not a disk path.
+          filePath: key,
+          fileType,
+          category: category || null,
+          description: description || null,
+          uploadedBy: userId,
+          organizationId: organizationId || null,
+          isPublic: false,
+        });
+      } catch (dbError) {
+        // The object is now unreferenced — no row will ever name this key, so
+        // nothing could find or delete it again. Remove it rather than leave
+        // minors' data in the bucket with no record that it exists.
+        await fileStorage.remove(key).catch((cleanupError) => {
+          console.error("Orphaned object left in Spaces after failed insert:", key, cleanupError);
+        });
+        throw dbError;
+      }
+
       res.status(201).json(file);
     } catch (error: any) {
       console.error("Error uploading file:", error);
-      // Clean up file if database operation failed
-      if (req.file) {
-        await fs.unlink(req.file.path).catch(() => {});
-      }
       res.status(500).json({ message: "Failed to upload file" });
     }
   });
@@ -212,20 +222,49 @@ export function registerFilesRoutes(app: Express) {
         }
       }
       
-      // Increment download count
-      await storage.incrementDownloadCount(file.id);
-      
-      // Path traversal protection — ensure resolved path stays within uploads directory
-      const resolvedPath = path.resolve(file.filePath);
-      const uploadsDir = path.resolve(UPLOADS_DIR);
-      if (!resolvedPath.startsWith(uploadsDir + path.sep)) {
+      // Defense in depth. fileStorage rejects absolute paths, traversal and any
+      // unknown prefix on its own; this asserts the stronger property that an
+      // authenticated private download can only ever read a private object.
+      if (!file.filePath.startsWith("private/")) {
+        console.error(`Refusing to serve file ${file.id}: filePath is not a private object key`);
         return res.status(403).json({ message: "Access denied" });
       }
 
-      // Send file
-      res.download(resolvedPath, file.originalFilename);
+      let object;
+      try {
+        object = await fileStorage.getStream(file.filePath);
+      } catch (err: any) {
+        if (err?.name === "NoSuchKey" || err?.$metadata?.httpStatusCode === 404) {
+          // Row survives but the object is gone — report it as missing rather
+          // than as a server fault.
+          return res.status(404).json({ message: "File not found" });
+        }
+        throw err;
+      }
+
+      // Counted only once the object is known to exist, so a failed download no
+      // longer inflates the count.
+      await storage.incrementDownloadCount(file.id);
+
+      // res.attachment() builds the Content-Disposition header through Express's
+      // content-disposition encoder, which escapes quotes and encodes non-ASCII
+      // names — originalFilename is user-supplied and must never be interpolated
+      // into a header by hand.
+      res.attachment(file.originalFilename);
+      res.setHeader("Content-Type", file.mimeType);
+      if (object.contentLength !== undefined) {
+        res.setHeader("Content-Length", String(object.contentLength));
+      }
+
+      await pipeline(object.stream, res);
     } catch (error) {
       console.error("Error downloading file:", error);
+      if (res.headersSent) {
+        // Mid-stream failure: the status line is already on the wire, so the
+        // only honest signal left is to break the connection.
+        res.destroy();
+        return;
+      }
       res.status(500).json({ message: "Failed to download file" });
     }
   });
@@ -314,21 +353,30 @@ export function registerFilesRoutes(app: Express) {
         return res.status(403).json({ message: "Access denied" });
       }
       
-      // Delete from database first
+      // Object first, then the row — the two failure modes are not symmetric.
+      // A row with no object announces itself: the download 404s and an admin
+      // can retry the delete. An object with no row is invisible — nothing in
+      // the database names its key, so it can never be found or removed again,
+      // and it holds minors' data. So the row is dropped only once the object
+      // is confirmed gone. DeleteObject is idempotent, so deleting a key that
+      // is already absent still succeeds.
+      try {
+        await fileStorage.remove(file.filePath);
+      } catch (err) {
+        console.error(
+          "Failed to delete object from Spaces; keeping the database row so the delete can be retried:",
+          file.filePath,
+          err,
+        );
+        return res.status(500).json({ message: "Failed to delete file from storage" });
+      }
+
       const deleted = await storage.deleteFile(file.id);
-      
+
       if (!deleted) {
         return res.status(500).json({ message: "Failed to delete file from database" });
       }
-      
-      // Then delete file from filesystem
-      try {
-        await fs.unlink(file.filePath);
-      } catch (err) {
-        // Log error but don't fail the request - file already deleted from DB
-        console.error("Error deleting file from filesystem:", err);
-      }
-      
+
       res.json({ success: true, message: "File deleted successfully" });
     } catch (error) {
       console.error("Error deleting file:", error);
