@@ -7,6 +7,7 @@ import { dataExportLimiter, orgCreationLimiter } from "../middleware/rateLimiter
 import { getSuperadminEmails } from "../middleware/auth.middleware";
 import { toPublicUser } from "@shared/userPublic";
 import type { User } from "@shared/schema";
+import * as fileStorage from "../services/fileStorage";
 import Stripe from "stripe";
 
 // Initialize Stripe only if keys are configured
@@ -1752,13 +1753,23 @@ export function registerSuperadminRoutes(app: Express) {
         return res.status(404).json({ message: "File not found" });
       }
       
-      const fs = await import("fs/promises");
+      // Object first, then the row — same ordering as DELETE /api/files/:id.
+      // A row with no object announces itself (the download 404s and the delete
+      // can be retried); an object with no row is invisible, because nothing
+      // left in the database names its key, and it holds minors' data. The
+      // previous code swallowed the unlink failure and deleted the row anyway,
+      // which produced exactly that invisible orphan.
       try {
-        await fs.unlink(file.filePath);
-      } catch (e) {
-        console.warn("Could not delete file from disk:", e);
+        await fileStorage.remove(file.filePath);
+      } catch (err) {
+        console.error(
+          "Failed to delete object from Spaces; keeping the database row so the delete can be retried:",
+          file.filePath,
+          err,
+        );
+        return res.status(500).json({ message: "Failed to delete file from storage" });
       }
-      
+
       await storage.deleteFile(req.params.id);
       res.json({ success: true, message: "File deleted successfully" });
     } catch (error) {

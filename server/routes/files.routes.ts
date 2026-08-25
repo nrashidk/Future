@@ -7,10 +7,10 @@ import { isAuthenticated } from "../auth";
 import { isAdmin, getSuperadminEmails } from "../middleware/auth.middleware";
 import * as fileStorage from "../services/fileStorage";
 
-// LEGACY — the old local uploads directory. Upload, download and delete now use
-// DigitalOcean Spaces; this constant survives only for the share-token route
-// below, which is still on disk and is cut over in the next step.
-const UPLOADS_DIR = path.join(process.cwd(), "uploads", "private");
+// Every route in this module now reads and writes DigitalOcean Spaces. The old
+// uploads/private directory is no longer referenced here at all — object keys
+// are validated by the storage service, which replaces the previous
+// resolve()/startsWith() path-traversal guards.
 
 // Configure multer for file uploads. memoryStorage: the upload never touches
 // local disk, it goes straight from the request buffer to object storage. Files
@@ -278,24 +278,52 @@ export function registerFilesRoutes(app: Express) {
         return res.status(404).json({ message: "File not found or share link expired" });
       }
       
-      // Increment download count
-      await storage.incrementDownloadCount(file.id);
-      
-      // Invalidate share token after use (one-time download)
-      // This prevents indefinite access via leaked URLs
-      await storage.invalidateShareToken(file.id);
-      
-      // Path traversal protection — ensure resolved path stays within uploads directory
-      const resolvedPath = path.resolve(file.filePath);
-      const uploadsDir = path.resolve(UPLOADS_DIR);
-      if (!resolvedPath.startsWith(uploadsDir + path.sep)) {
+      // Defense in depth — this route is unauthenticated, so a share token must
+      // never be able to reach anything but a private object.
+      if (!file.filePath.startsWith("private/")) {
+        console.error(`Refusing to serve shared file ${file.id}: filePath is not a private object key`);
         return res.status(403).json({ message: "Access denied" });
       }
 
-      // Send file
-      res.download(resolvedPath, file.originalFilename);
+      // Fetch the object BEFORE spending the token. The previous order counted
+      // the download and invalidated the token first, so any failure to read
+      // the file burned a valid one-time link and returned an error — the user
+      // lost their single use and got nothing.
+      let object;
+      try {
+        object = await fileStorage.getStream(file.filePath);
+      } catch (err: any) {
+        if (err?.name === "NoSuchKey" || err?.$metadata?.httpStatusCode === 404) {
+          return res.status(404).json({ message: "File not found or share link expired" });
+        }
+        // Transient storage failure: leave the token intact so the recipient
+        // can retry.
+        throw err;
+      }
+
+      // The object exists and is readable, so the use is now real. Spend the
+      // token here rather than after the transfer completes: a token that stays
+      // live until the last byte could be replayed concurrently, and one-time
+      // use is a security control, not a convenience.
+      await storage.incrementDownloadCount(file.id);
+
+      // Invalidate share token after use (one-time download)
+      // This prevents indefinite access via leaked URLs
+      await storage.invalidateShareToken(file.id);
+
+      res.attachment(file.originalFilename);
+      res.setHeader("Content-Type", file.mimeType);
+      if (object.contentLength !== undefined) {
+        res.setHeader("Content-Length", String(object.contentLength));
+      }
+
+      await pipeline(object.stream, res);
     } catch (error) {
       console.error("Error downloading shared file:", error);
+      if (res.headersSent) {
+        res.destroy();
+        return;
+      }
       res.status(500).json({ message: "Failed to download file" });
     }
   });
