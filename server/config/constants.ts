@@ -71,5 +71,14 @@ export const ENV_VARS = {
     "APP_URL", // Used in email links
     "BASE_URL", // Required for OAuth callbacks (Google/Microsoft); falls back to Replit URL if absent
     "NODE_ENV",
+    // DigitalOcean Spaces object storage. OPTIONAL while the file routes still
+    // write to local disk; promote to REQUIRED once they are cut over, because
+    // from that point an unset value means uploads fail rather than degrade.
+    "SPACES_KEY",
+    "SPACES_SECRET",
+    "SPACES_ENDPOINT", // Regional endpoint, e.g. https://fra1.digitaloceanspaces.com
+    "SPACES_BUCKET", // Private bucket — student data. Never public-read.
+    "SPACES_PUBLIC_BUCKET", // Public bucket — organization logos only.
+    "SPACES_REGION", // e.g. fra1 — must match the region in SPACES_ENDPOINT
   ],
 } as const;
