@@ -200,6 +200,7 @@ export function registerFilesRoutes(app: Express) {
   
   // Download file
   app.get("/api/files/:id/download", isAuthenticated, async (req: any, res: Response) => {
+    let object: Awaited<ReturnType<typeof fileStorage.getStream>> | undefined;
     try {
       const userId = req.user.userId;
       const isSuperadminUser = await isSuperadmin(req);
@@ -230,7 +231,6 @@ export function registerFilesRoutes(app: Express) {
         return res.status(403).json({ message: "Access denied" });
       }
 
-      let object;
       try {
         object = await fileStorage.getStream(file.filePath);
       } catch (err: any) {
@@ -258,10 +258,26 @@ export function registerFilesRoutes(app: Express) {
 
       await pipeline(object.stream, res);
     } catch (error) {
+      // pipeline() rejects with ERR_STREAM_PREMATURE_CLOSE even when the entire
+      // body reached the client. Serving an S3 body, the response emits 'close'
+      // before 'finish', so end-of-stream calls it premature and then destroys
+      // both streams — which is why, by the time this runs, none of the
+      // response-side flags can tell success from failure: measured against
+      // real Spaces on a verified-correct 200, writableFinished, writableEnded
+      // were both false and destroyed was already true.
+      //
+      // The SOURCE stream is the honest signal. readableEnded is true only if
+      // the S3 body emitted 'end' — every byte read and handed to the response.
+      // A client disconnect or a mid-transfer storage failure leaves it false.
+      if (object?.stream?.readableEnded) {
+        return;
+      }
+
       console.error("Error downloading file:", error);
       if (res.headersSent) {
-        // Mid-stream failure: the status line is already on the wire, so the
-        // only honest signal left is to break the connection.
+        // Genuine mid-stream failure or client disconnect: the status line is
+        // already on the wire, so the only honest signal left is to break the
+        // connection.
         res.destroy();
         return;
       }
@@ -271,6 +287,7 @@ export function registerFilesRoutes(app: Express) {
   
   // Download file via share token (no authentication required, one-time use)
   app.get("/api/files/shared/:token", async (req: Request, res: Response) => {
+    let object: Awaited<ReturnType<typeof fileStorage.getStream>> | undefined;
     try {
       const file = await storage.getFileByShareToken(req.params.token);
       
@@ -289,7 +306,6 @@ export function registerFilesRoutes(app: Express) {
       // the download and invalidated the token first, so any failure to read
       // the file burned a valid one-time link and returned an error — the user
       // lost their single use and got nothing.
-      let object;
       try {
         object = await fileStorage.getStream(file.filePath);
       } catch (err: any) {
@@ -319,6 +335,15 @@ export function registerFilesRoutes(app: Express) {
 
       await pipeline(object.stream, res);
     } catch (error) {
+      // Same spurious ERR_STREAM_PREMATURE_CLOSE as the authenticated download
+      // above — see the comment there for why the source stream, not the
+      // response, is what tells success from failure. A body that reached the
+      // client is a success: the recipient got the file, and the one-time token
+      // spent above was spent correctly.
+      if (object?.stream?.readableEnded) {
+        return;
+      }
+
       console.error("Error downloading shared file:", error);
       if (res.headersSent) {
         res.destroy();
