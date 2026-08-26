@@ -13,10 +13,21 @@ interface SubjectsStepProps {
 }
 
 const MAX_PRIORITY_SUBJECTS = 3;
+// A student must pick at least this many subjects before continuing. It equals
+// MAX_PRIORITY_SUBJECTS on purpose: at exactly this count the selection IS the
+// priority set, above it the student must rank an explicit top three.
+const MIN_SUBJECTS = 3;
 
 export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepProps) {
   const { t } = useTranslation('assessment');
   const [phase, setPhase] = useState<"select" | "prioritize">("select");
+  // Priorities count as the student's own only when they marked them on the
+  // prioritize screen during THIS visit to the step, against THIS subject list.
+  // Anything else — a set hydrated from a resumed draft, or the three carried
+  // over from the exactly-3 rule before a 4th subject was added — is not a
+  // ranking the student made, so it is cleared and asked for again rather than
+  // shown pre-selected.
+  const [prioritiesConfirmed, setPrioritiesConfirmed] = useState(false);
 
   const subjects = [
     { id: "Mathematics", labelKey: "subjects.subjectMathematics", icon: Calculator, color: "blue" as const },
@@ -47,6 +58,9 @@ export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepPro
 
   const toggleSubject = (subjectId: string) => {
     const current = favoriteSubjects;
+    // Any change to the subject list invalidates a previously marked top three:
+    // it was ranked against a different list.
+    setPrioritiesConfirmed(false);
     if (current.includes(subjectId)) {
       onUpdate("favoriteSubjects", current.filter((s: string) => s !== subjectId));
       if (prioritySubjects.includes(subjectId)) {
@@ -58,24 +72,43 @@ export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepPro
   };
 
   const togglePriority = (subjectId: string) => {
+    let next: string[] | null = null;
     if (prioritySubjects.includes(subjectId)) {
-      onUpdate("prioritySubjects", prioritySubjects.filter((s: string) => s !== subjectId));
+      next = prioritySubjects.filter((s: string) => s !== subjectId);
     } else if (prioritySubjects.length < MAX_PRIORITY_SUBJECTS) {
-      onUpdate("prioritySubjects", [...prioritySubjects, subjectId]);
+      next = [...prioritySubjects, subjectId];
     }
+    if (!next) return; // cap reached — un-star one first
+    onUpdate("prioritySubjects", next);
+    // A complete set of exactly MAX_PRIORITY_SUBJECTS marked here is the
+    // student's own ranking, so it survives a Back/Continue loop on this step.
+    setPrioritiesConfirmed(next.length === MAX_PRIORITY_SUBJECTS);
   };
 
   const handleContinueFromSelect = () => {
-    if (favoriteSubjects.length >= 4) {
-      setPhase("prioritize");
-    } else {
-      onUpdate("prioritySubjects", favoriteSubjects.slice(0, MAX_PRIORITY_SUBJECTS));
+    // Below the minimum there is nothing to prioritise — the button is disabled,
+    // this is the guard for any other caller.
+    if (favoriteSubjects.length < MIN_SUBJECTS) return;
+
+    if (favoriteSubjects.length === MIN_SUBJECTS) {
+      // Exactly three: the three chosen subjects ARE the priorities. They are
+      // named on screen above this button before it is pressed, so this records
+      // what the student was shown — it is not a hidden slice of a longer list.
+      onUpdate("prioritySubjects", [...favoriteSubjects]);
       onNext();
+      return;
     }
+
+    // Four or more: an explicit ranking is required. Start from an empty set
+    // unless the student already marked one for this exact subject list.
+    if (!prioritiesConfirmed && prioritySubjects.length > 0) {
+      onUpdate("prioritySubjects", []);
+    }
+    setPhase("prioritize");
   };
 
-  const canProceedFromSelect = favoriteSubjects.length > 0;
-  const canProceedFromPrioritize = prioritySubjects.length > 0;
+  const canProceedFromSelect = favoriteSubjects.length >= MIN_SUBJECTS;
+  const canProceedFromPrioritize = prioritySubjects.length === MAX_PRIORITY_SUBJECTS;
 
   if (phase === "select") {
     return (
@@ -113,9 +146,41 @@ export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepPro
         </div>
 
         {favoriteSubjects.length > 0 && (
-          <div className="text-center p-4 bg-primary/10 rounded-lg">
+          <div className="text-center p-4 bg-primary/10 rounded-lg space-y-2">
             <p className="font-body text-sm">
               {t('subjects.selected', { count: favoriteSubjects.length })}
+            </p>
+            {favoriteSubjects.length < MIN_SUBJECTS && (
+              <p className="font-body text-sm text-destructive" data-testid="text-min-subjects">
+                {t('subjects.minRequired', { min: MIN_SUBJECTS })}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Exactly MIN_SUBJECTS selected: these subjects are the priority set.
+            Named here so the student sees the priorities before Continue writes
+            them, instead of having them assigned silently. */}
+        {favoriteSubjects.length === MIN_SUBJECTS && (
+          <div className="text-center p-4 bg-card border rounded-lg" data-testid="panel-auto-priority">
+            <div className="flex items-center justify-center gap-2">
+              <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
+              <p className="font-body text-sm font-semibold">
+                {t('subjects.autoPriorityNotice', { min: MIN_SUBJECTS })}
+              </p>
+            </div>
+            <div className="flex flex-wrap justify-center gap-2 mt-3">
+              {favoriteSubjects.map((subjectId: string) => {
+                const subject = subjects.find(s => s.id === subjectId);
+                return subject ? (
+                  <Badge key={subjectId} variant="secondary" className="bg-primary/20">
+                    {t(subject.labelKey)}
+                  </Badge>
+                ) : null;
+              })}
+            </div>
+            <p className="text-xs text-muted-foreground font-body mt-3">
+              {t('subjects.autoPriorityHint', { max: MAX_PRIORITY_SUBJECTS })}
             </p>
           </div>
         )}
@@ -211,6 +276,11 @@ export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepPro
               ) : null;
             })}
           </div>
+        )}
+        {!canProceedFromPrioritize && (
+          <p className="font-body text-xs text-muted-foreground mt-3" data-testid="text-priority-required">
+            {t('subjects.priorityRequired', { max: MAX_PRIORITY_SUBJECTS })}
+          </p>
         )}
       </div>
 
