@@ -1053,110 +1053,102 @@ OTHER TABS TO AUDIT WHILE THERE (screenshots provided)
 
 User will provide MORE screenshots/items later — THIS LIST WILL GROW. Do not treat it as complete.
 
-## PARKED — Superadmin + assessment-flow audit (raised 2026-08-26, UI/UX pass by owner)
-NOTHING BELOW HAS BEEN INVESTIGATED. Every item is an observation or a question to answer, not a finding.
-The DASHBOARD block at the end EXTENDS (does not replace) the 2026-08-25 parked list directly above — where
-they overlap (nav title bug, tab-row overflow, Recent Activity, translations split) treat them as one
-workstream and do the recon once.
+## CONFIRMED SPEC — Assessment & lifecycle rebuild (locked 2026-08-26)
+Owner confirmed all product decisions. This supersedes the earlier "TO CONFIRM" audit. Formatted copy exists
+as FuturePath_Spec_v2.docx (owner's local reference). No deadline; prod-direct EXCEPT schema/data changes ->
+staging DB first; PDF only testable on a deploy.
 
-WORKING CONDITIONS FOR THIS WORKSTREAM (owner-stated, 2026-08-26)
-- No users, no launch date, no deadline. Owner is the sole tester. There is no third-party blast radius.
-- Work goes to PROD directly — no staging DEPLOY is needed for ordinary code changes.
-- EXCEPTION 1 — schema/data-mutating changes: use the staging DB. Prod data has no undo.
-- EXCEPTION 2 — Puppeteer/PDF: cannot be tested in the Codespace (bundled Chrome won't launch), so it can
-  only be verified on a real deploy, currently prod. Same constraint already logged for the local-dev-env
-  and Arabic-PDF items above.
+### MODEL: Model B (free = distinct shallow taster, protects IP) with a SHARED 4-STEP SPINE.
+Steps 1-4 are IDENTICAL for free and premium: 1 Basic Info, 2 Subjects (+pick 3 priorities), 3 Country
+(+curriculum), 4 Quiz (one shared question bank for ALL users; country+curriculum are the only differentiators).
+Then they diverge:
+- FREE:    5 Interests, 6 Aspirations, 7 Results (shallow)
+- PREMIUM: 5 Career Personality (RIASEC), 6 Personal Values (CVQ), 7 Aspirations, 8 Results (full)
+Premium has NO Interests step; free has NO RIASEC/CVQ. Premium instrument order stays RIASEC-then-CVQ (no change).
+Quiz length: 9-12 Qs total, derived from the 3 priority subjects, SAME for every user (3 or 4 per subject - final TBD).
+Quiz score is NOT shown to the student (weighted into the result).
 
-### Assessment flow — two distinct tiers, CONFIRMED different (baseline for everything below)
-FREE (entered via "Explore as Guest" on the landing page):
-  Basic Info -> Subjects -> Interests -> Personality (simple, 4-Q style) -> Country -> Aspirations -> Results
-  NO RIASEC, NO CVQ, NO knowledge-quiz. Report is deliberately stripped: career cards with blurred "Premium
-  insight / Unlock full report", an "Unlock Premium Assessment" upsell, and "Create Free Account to save".
-  This MATCHES the Scoring config (free tier = Subject/Interest/Vision weights only), so the stripping looks
-  intentional, not broken.
-PREMIUM / SCHOOL:
-  Basic Info -> Subjects -> Country -> Quiz (knowledge, ~6Q) -> Career Personality (RIASEC, 30Q) ->
-  Personal Values (CVQ, 15Q) -> Aspirations -> Results
-  Full report: subject strengths, values profile, personality (RIASEC) profile, career matches with reasoning.
+### FREE (guest)
+- Free report: max 2 career matches (N=2); premium detail blurred (default hidden: "why this career" reasoning,
+  detailed skills, education path, next steps; show name+%match+teaser). Assistant to finalize exact blur set.
+- Guest report is effectively single-session unless they create an account; DROP the non-working 7-day promise.
+- On "Create Free Account": claim the just-completed free assessment into the account (fix guest->account migration).
+  Free account KEEPS the free report in history.
+- Logged-in FREE user CAN take/retake the free assessment and save reports (today they're blocked -> fix).
+- Registration needs email verification (see best-practice 8.5). Fix confusing post-register destination.
+- Free profile fields (name/age/grade/gender) should populate. Free users must appear in the users list.
+- Rename Admin "Students" tab -> "Users" (already labeled "Users Directory"; schools managed separately).
 
-### BUGS (behavioral — need fixing)
-1. PRIORITY SUBJECTS AUTO-SELECTED BY THE SYSTEM  (severity: high — corrupts the assessment itself)
-   On the "Subjects" step, the priority sub-step already reads "3 of 3 priority subjects selected" before the
-   student touches it — the system pre-filled them. The priority choice is supposed to be the STUDENT'S: it
-   drives which subjects get more knowledge-quiz questions (4 vs 2) AND it weights the recommendations. If
-   the priorities are system-picked, both the quiz and the final recommendations are built on inputs the
-   student never chose. Observed in BOTH the free and school flows. INVESTIGATE the selection logic — is it
-   defaulting to the first three selected, auto-promoting on selection, or seeding from something else?
-   Highest-impact item in this list: it silently invalidates the assessment's core input.
-2. PER-PAGE "Next" IS NOT LOCKED  (Personal Values / CVQ, step 6 of the premium flow)
-   Next is enabled on a page that still has unanswered questions; only the FINAL page's "Complete" is gated.
-   Consequence observed by owner: reached the last page with Complete disabled because of a question missed
-   on a PREVIOUS page, with no indication of which page or which question. FIX: gate Next per page — all
-   questions on the current page answered before advancing — on every page, not just the last. Check whether
-   the same per-page gating gap exists on the RIASEC step and the knowledge quiz.
-3. PDF REPORT DOWNLOAD FAILS  (premium/school report) — ALREADY BROKEN IN PROD
-   Red toast: "Download failed — We couldn't generate your report." This is Puppeteer PDF generation. Tied to
-   the deferred puppeteer 24->25 work; bundled Chrome can't launch in the Codespace, so it can only be
-   diagnosed and verified on a deploy (prod). NOTE the interaction with the PDF items already in this file:
-   the accurate success/error toast is working as designed here (it is correctly reporting a real failure,
-   not lying), and the open Arabic-PDF verification (3a1d263, career-page breaks) CANNOT be checked until
-   this generation failure is fixed — fix this first, it blocks that.
-4. QUIZ QUESTION COUNT — verify consistency (may or may not be a bug)
-   Intended behaviour: the knowledge-quiz length derives from the 3 PRIORITIZED subjects and is the SAME
-   total for every student — school or self-pay — regardless of how many subjects were selected (1 or all).
-   Confirm the actual logic; it may currently vary with the number of subjects selected. Directly entangled
-   with bug 1: if priorities are auto-selected, the quiz composition is wrong even when the count is right.
+### PREMIUM - self-paying
+- Same assessment as school; differs only in provisioning. Self-payer enters own details, picks own
+  grade+curriculum FRESH each run (not stored/locked).
+- $10 = 1 license = 1 assessment. Licenses live in profile, consumed on use, gone when used. NOT unlimited.
+- Retake / new grade / new school = another license. Already-premium repurchase SELLS more licenses (per-user,
+  consumable) - never "charge for nothing".
+- Payment history shown in self-payer profile.
 
-### DESIGN CHANGES (product decisions, not defects)
-5. SCHOOL STUDENTS — pre-fill and LOCK steps 1 and 3.  MUST BE CONDITIONAL ON TIER.
-   The school creates the student profile, so name/grade/gender are already known, and the school has a known
-   location + curriculum. For SCHOOL students: step 1 (Basic Info) name/age/grade/gender pre-filled; step 3
-   (Country + Curriculum) LOCKED to the school's values, preventing a wrong-curriculum choice that skews the
-   whole assessment. PREREQUISITE: mandatory Country + Curriculum fields must be added to the school
-   Create/Edit form first — there is nothing to lock against today. HARD CONSTRAINT: self-paying students
-   still choose their own; do NOT lock for them. (Schema/data change -> staging DB per the rules above.)
-6. REORDER the premium/school steps: Aspirations should be LAST (step 7). What is currently step 7 becomes
-   step 6 and is RENAMED "Quiz". Also rename the confusing "Self Assessment" button — it is actually the
-   final generate-report action; the free flow gets this right by labelling its last step "Results".
-7. QUIZ RESULT FEEDBACK: after the knowledge quiz the student sees a % snapshot but gets no clear "Continue"
-   and no clear view of how they scored. Consider a dedicated step for the student to see their quiz result.
-8. Step 5 (Career Personality) — placement of the "About This Assessment" block: top or bottom? Minor
-   judgment call, no correctness impact.
-9. REPORT CONTENT AUDIT: trace what EACH step contributes to the final report, PER TIER (the free report is
-   shorter — no values profile, no RIASEC profile). Confirm every step's data is actually consumed somewhere.
-   Check the Aspirations step specifically (career dreams + strengths): what does it add to the output? This
-   connects to two items already open above — the free/premium weight split in the Scoring config, and the
-   {{dreamGuidance}} / {{favoriteSubjects}} free-text-into-LLM-prompt note in the deferred section.
+### PREMIUM - school-paying
+- LICENSE CONSUMED AT COMPLETION (assessment marked complete = data saved + recommendations generated), NOT at
+  student creation. So a school can revoke an unused license (student never completed) and reassign it. LOCK this.
+- School create/edit form: Basic Info + Country + Curriculum all MANDATORY -> pre-filled + LOCKED for the student
+  (steps 1 & 3). Student can NEVER override school country/curriculum.
+- School students get the FULL premium quiz distribution (fix the hidden free-tier bug).
+- Re-do same grade: school admin re-grants an allocation WITHOUT destroying history; consumes another license;
+  old report kept (admin may soft-delete to keep only the new). Only SCHOOL ADMIN triggers re-grant.
+- New grade (next year): admin bulk/individual grade-change + license grant; student then assesses new grade.
+  Each grade re-assessment = one NEW license. Model = one license = one assessment (any grade).
 
-### UNBUILT FEATURE
-10. LICENSE RE-GRANT for repeat assessments  (needs design + build, not a fix)
-    Completing an assessment consumes a school license. There is NO mechanism for a school to grant a student
-    ANOTHER license — neither to retake within the same grade, nor to assess again in a new grade in a later
-    year. The product premise contradicts this: the grade-by-grade "Career Journey" timeline shows Grades
-    9-12, which IMPLIES multi-year re-assessment, but the licensing to enable it does not exist. Also relates
-    to the parked "already-premium repurchase behaviour undefined" note. Scope the intended model (per-grade
-    entitlement? re-grant action for the school admin? expiry?) before touching code.
+### FREE -> PREMIUM UPGRADE
+- Carry the shared 4-step answers forward WITH a reuse-or-redo choice, ALL-OR-NOTHING (reuse includes quiz score).
+- Reuse -> straight to RIASEC+CVQ then Aspirations+full report. Start fresh -> full premium from step 1.
+- Land STRAIGHT into premium after paying. Pre-fill basic info (self-payer can still edit via profile; school
+  students cannot). Free report stays as history. Fix dead redirect routes.
 
-### DASHBOARD (superadmin) — from the earlier screenshot pass
-A. NAV / ROUTING (superadmin only — the school-admin nav is fine). Three symptoms, LIKELY ONE ROOT CAUSE in
-   a single nav component: (i) tab-row overflow — 11 tabs wrap, and the Add School / Add Student buttons
-   crowd them; move those buttons down near Export CSV; (ii) wrong active-tab TITLE — the Schools tab renders
-   the "Admin" title, and the /admin URL renders "Quiz Dashboard"; (iii) clicking the already-active tab is a
-   dead click. Supersedes the two separate nav notes above — fix as one.
-B. EMPTY ENGINES — broken, or simply unbuilt? Recent Activity shows "No recent activity". Talent Pipeline by
-   Priority Sector shows "No sector data available yet" — empty in BOTH roles, but note it is marked "Coming
-   Soon" on the tier-selection page, so it may be intentionally unbuilt. CONTRAST TO RESOLVE: Scoring ->
-   Change History DOES log (prompt/api-key edits), so audit logging exists somewhere in the codebase.
-   Understanding why that one populates and Recent Activity does not likely explains both at once.
-C. TRANSLATIONS — confirm the split. "UI Strings" is the already-known bug 4 (writes to
-   client/public/locales while the server serves dist/public/locales, so edits never reach students AND are
-   wiped on deploy — needs the DB-backed fix). "Database Content" (Careers / CVQ / Countries / Quiz) IS
-   DB-backed and may work fine. Verify that one path is broken and the other is not before designing a fix.
-D. DATA / DISPLAY: Analytics "Grade Distribution" chart shows "Grade 10" TWICE (in both roles) — likely a
-   grade-bucketing or sort bug (string-vs-number comparison, or a duplicate bucket). All careers show
-   "Declining" growth — is that a real value or an unset default? Superadmin Profile shows "superadmin" in
-   the Email field — that account simply has no email, and school-admin correctly shows a real one, so
-   probably NOT a bug; confirm and dismiss.
-E. LOOKS FINE (checked, no action): all create/edit modals (School, Career, Announcement, Question,
-   Contribute), Quiz Dashboard (240 questions), analytics cards, student roster, Edit School (the Spaces
-   logo URL is confirmed working post-migration).
+### CAREER JOURNEY
+- Fills across grades for both types. Duplicate-grade confirmation prompt for self-payers
+  ("you already have a report for this grade - confirm redo?"). Fix the broken per-grade results link.
+- Retaken-same-grade: both reports kept; school admin may soft-delete the old.
+
+### CONFIRMED BEST PRACTICES
+8.1 Carry-over = all-or-nothing reuse/redo choice.
+8.2 License consumed at completion, independent of PDF success (failed PDF does NOT affect consumption).
+8.3 Self-payer grade unconstrained; the duplicate-grade warning is the guard; user's choice at the end.
+8.4 Career-Journey report deletion = SOFT-DELETE (mark deleted + audit record), not hard erase (minors' data).
+8.5 Build proper email verification on registration.
+8.6 Version-stamp assessment content (quiz set, RIASEC/CVQ items, career data) on each assessment for
+    apples-to-apples multi-year Journey comparisons.
+
+### BUG & CLEANUP LIST (15)
+HIGH: (1) priority subjects auto-selected by system not student - corrupts quiz weighting + recommendations,
+both flows; (2) PDF report download fails (Puppeteer, already broken in prod); (3) school student gets free
+quiz tier server-side (stored isPremium false) though report still generates.
+MED: (4) per-page Next not locked; (5) country/curriculum not locked for school students; (6) guest->account
+migration broken (guestSessionId never stored); (7) free-account user blocked from all assessments; (8)
+already-premium repurchase charges but grants nothing; (9) no registration email + bad post-register flow.
+LOW: (10) free profile fields empty; (11) rename Students->Users tab; (12) dead routes /payment-success
+/school-admin + per-grade results link ignores grade param; (13) 'school' assessmentType dead (read 3 places,
+written nowhere) - decide use vs remove; (14) 'Self Assessment' button mislabeled; (15) guest-mode banner
+never shows.
+
+### DASHBOARD (build now, not deferred)
+Nav/routing (superadmin): tab-row overflow (move Add buttons near Export CSV), wrong active-tab titles
+(Schools->"Admin"), dead-click on active tab - likely one root cause. Recent Activity + Talent Pipeline:
+investigate + BUILD to populate. Translations: UI-strings editor writes wrong location (DB-backed fix needed);
+confirm Database-Content tab works. Analytics: fix "Grade 10 twice" bucketing; confirm all-careers-"Declining".
+Payment/coverage views: self-payer sees own history, school admin sees student coverage.
+
+### RECOMMENDED BUILD ORDER
+Phase 1 (prod-safe, no schema, high value): priority-subjects fix; school-free-quiz-tier fix; per-page Next
+  lock; PDF failure; small renames (Self Assessment button, Students->Users, guest banner).
+Phase 2 (flow restructure): Aspirations-last reorder; make steps 1-4 a genuinely shared component path; quiz
+  count normalization (9-12).
+Phase 3 (SCHEMA -> staging DB): mandatory Country+Curriculum+BasicInfo on school form; lock steps 1&3 for
+  school students.
+Phase 4 (SCHEMA -> staging DB): license rework (consume-at-completion, revoke-unused, self-payer profile
+  licenses, repurchase sells licenses, already-premium guard); school re-grant (same + new grade / bulk);
+  content version-stamp (8.6).
+Phase 5: free->paid carry-over (reuse/redo, land-in-premium, fix dead routes); guest->account claim;
+  free-account access + profile population; email verification (8.5).
+Phase 6: Career Journey (fill across grades, per-grade link fix, duplicate-grade prompt, soft-delete); dashboard
+  (nav root-cause, Recent Activity + Talent Pipeline, translations DB-fix, analytics grade-bucket, payment views).
+
