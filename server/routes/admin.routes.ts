@@ -9,32 +9,25 @@ import { insertQuizQuestionSchema } from "@shared/schema";
 import { toPublicUser } from "@shared/userPublic";
 import { z } from "zod";
 import { isPremiumAssessment } from "../utils/assessmentTier";
+import * as fileStorage from "../services/fileStorage";
 
-// Public assets (org logos) and private data uploads are stored in separate
-// subdirectories of uploads/ so that only the public one is ever served
-// statically. Private uploads are reachable only via authenticated /api/files
-// routes (C1).
-const makeDiskStorage = (subdir: string) => multer.diskStorage({
-  destination: (req, file, cb) => {
-    const fs = require('fs');
-    const dir = path.join(process.cwd(), 'uploads', subdir);
-    fs.mkdirSync(dir, { recursive: true });
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = `${Date.now()}-${Math.random().toString(36).substring(2, 15)}`;
-    const ext = path.extname(file.originalname);
-    const basename = path.basename(file.originalname, ext);
-    cb(null, `${basename}-${uniqueSuffix}${ext}`);
-  },
-});
+// Nothing in this module touches local disk any more. Private data uploads go
+// to the private Spaces bucket; organization logos go to the public one. Both
+// use memoryStorage, so an upload exists only as a buffer until an authorized
+// handler decides where — and whether — to store it.
 
-const privateDiskStorage = makeDiskStorage('private');
-const publicDiskStorage = makeDiskStorage('public');
+/** Collect a readable stream into a single Buffer. */
+async function streamToBuffer(stream: NodeJS.ReadableStream): Promise<Buffer> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  return Buffer.concat(chunks);
+}
 
-// Configure multer for CSV/JSON data file uploads (private)
+// Configure multer for CSV/JSON data file uploads (private). memoryStorage: the
+// CSV holds minors' personal data and never touches local disk — it is parsed
+// from the request buffer and stored in the private Spaces bucket.
 const upload = multer({
-  storage: privateDiskStorage,
+  storage: multer.memoryStorage(),
   limits: {
     fileSize: 50 * 1024 * 1024, // 50MB limit
   },
@@ -56,9 +49,12 @@ const upload = multer({
   },
 });
 
-// Configure multer for image uploads (logos, etc.) — public
+// Configure multer for image uploads (logos, etc.) — public. memoryStorage
+// matters here for more than persistence: the file stays in RAM until the
+// handler has checked authorization, so an unauthorized upload can never land
+// in the world-readable public bucket, not even transiently.
 const imageUpload = multer({
-  storage: publicDiskStorage,
+  storage: multer.memoryStorage(),
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit for images
   },
@@ -368,11 +364,13 @@ export function registerAdminRoutes(app: Express) {
         }
       }
 
+      // AUTHORIZATION GATE. Everything below this point may write to the
+      // world-readable public bucket; nothing above it has stored anything,
+      // because memoryStorage keeps the upload in RAM. Previously multer wrote
+      // the file into the statically-served uploads/public directory before
+      // this check ran, and the forbidden branch deleted it afterwards — so an
+      // unauthorized upload was briefly public. It can no longer be stored at all.
       if (!isSuperadmin && !isOrgAdminForThisOrg) {
-        if (req.file) {
-          const fs = await import('fs/promises');
-          await fs.default.unlink(req.file.path).catch(() => {});
-        }
         return res.status(403).json({ message: "Forbidden: Admin access required" });
       }
 
@@ -383,24 +381,67 @@ export function registerAdminRoutes(app: Express) {
       // Validate file type
       const allowedTypes = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
       if (!allowedTypes.includes(req.file.mimetype)) {
-        const fs = await import('fs/promises');
-        await fs.default.unlink(req.file.path).catch(() => {});
         return res.status(400).json({ message: "Invalid file type. Only PNG, JPG, GIF, and WebP are allowed." });
       }
 
-      // Build the URL for the uploaded file
-      const logoUrl = `/uploads/${req.file.filename}`;
-      
+      // Read the current logo before replacing it, so the old object can be
+      // cleaned up afterwards.
+      const existing = await storage.getOrganizationById(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "School not found" });
+      }
+      const previousLogoUrl = existing.logoUrl;
+
+      // Store the logo in the PUBLIC bucket with a public-read ACL. This is the
+      // only place in the codebase that writes a public object.
+      const key = fileStorage.generateKey('logos', req.file.originalname);
+      await fileStorage.put(key, req.file.buffer, {
+        contentType: req.file.mimetype,
+        size: req.file.size,
+        public: true,
+      });
+
+      // Absolute Spaces URL. organizations.logo_url is free-form text that
+      // already holds external https:// URLs, so no schema change is needed.
+      const logoUrl = fileStorage.publicUrl(key);
+
       // Update the organization with the new logo URL
-      const organization = await storage.updateOrganization(req.params.id, { logoUrl });
-      
+      let organization;
+      try {
+        organization = await storage.updateOrganization(req.params.id, { logoUrl });
+      } catch (dbError) {
+        // Nothing references the new object — remove it rather than orphan it.
+        await fileStorage.remove(key, { public: true }).catch((cleanupError) => {
+          console.error("Orphaned logo left in Spaces after failed update:", key, cleanupError);
+        });
+        throw dbError;
+      }
+
+      // Replaced logos were previously left in place forever. Delete the old
+      // object, but ONLY if we own it: keyFromPublicUrl returns null for an
+      // external URL an admin pasted and for legacy /uploads/... paths, so we
+      // never delete something that is not ours. Guard once more against the
+      // case where another organization still points at the same URL — an admin
+      // can paste any URL into PATCH /api/admin/organizations/:id, including
+      // another school's logo.
+      const previousKey = fileStorage.keyFromPublicUrl(previousLogoUrl);
+      if (previousKey && previousKey !== key) {
+        const allOrgs = await storage.getOrganizationsWithLogos();
+        const stillReferenced = allOrgs.some(
+          (org) => org.id !== req.params.id && org.logoUrl === previousLogoUrl,
+        );
+        if (stillReferenced) {
+          console.warn(`Keeping previous logo ${previousKey}: still referenced by another organization`);
+        } else {
+          await fileStorage.remove(previousKey, { public: true }).catch((err) => {
+            console.error("Failed to remove replaced logo from Spaces:", previousKey, err);
+          });
+        }
+      }
+
       res.json({ logoUrl, organization });
     } catch (error) {
       console.error("Error uploading organization logo:", error);
-      if (req.file) {
-        const fs = await import('fs/promises');
-        await fs.default.unlink(req.file.path).catch(() => {});
-      }
       res.status(500).json({ message: "Failed to upload logo" });
     }
   });
@@ -1703,7 +1744,10 @@ export function registerAdminRoutes(app: Express) {
   // Bulk import students from CSV file
   app.post("/api/admin/organizations/:id/import-students", isAuthenticated, upload.single("file"), async (req: any, res) => {
     const fileId = req.body.fileId; // Optional: if file was already uploaded via files API
-    
+    // Hoisted so the catch block can mark the right row failed, and so the
+    // success path knows which object this request created (and may purge).
+    let createdFileRecord: any = null;
+
     try {
       const userId = req.user.userId;
       const user = await storage.getUser(userId);
@@ -1719,10 +1763,8 @@ export function registerAdminRoutes(app: Express) {
       
       const organization = await storage.getOrganizationById(req.params.id);
       if (!organization) {
-        if (req.file) {
-          const fs = await import('fs/promises');
-          await fs.default.unlink(req.file.path).catch(() => {});
-        }
+        // memoryStorage: the upload is still only a buffer and nothing has been
+        // written to object storage yet, so there is nothing to clean up.
         return res.status(404).json({ message: "School not found" });
       }
 
@@ -1730,7 +1772,7 @@ export function registerAdminRoutes(app: Express) {
         return res.status(400).json({ message: "No CSV file provided" });
       }
 
-      let filePath: string;
+      let csvContent: string;
       let fileRecord: any;
 
       // If fileId provided, use existing file from files table
@@ -1745,33 +1787,71 @@ export function registerAdminRoutes(app: Express) {
         if (fileRecord.organizationId !== req.params.id) {
           return res.status(403).json({ message: "Forbidden: File does not belong to this organization" });
         }
-        filePath = fileRecord.filePath;
-        
+        // Defense in depth: an import may only ever read a private object.
+        if (!fileRecord.filePath.startsWith('private/')) {
+          console.error(`Refusing to import file ${fileRecord.id}: filePath is not a private object key`);
+          return res.status(403).json({ message: "Forbidden: File is not readable for import" });
+        }
+
         // Update processing status
         await storage.updateFileProcessingStatus(fileId, 'processing');
+
+        // Fetch the previously uploaded CSV back out of object storage.
+        try {
+          const object = await fileStorage.getStream(fileRecord.filePath);
+          csvContent = (await streamToBuffer(object.stream)).toString('utf-8');
+        } catch (err: any) {
+          if (err?.name === 'NoSuchKey' || err?.$metadata?.httpStatusCode === 404) {
+            await storage
+              .updateFileProcessingStatus(fileId, 'failed', 'Stored file is missing from object storage')
+              .catch(() => {});
+            return res.status(404).json({ message: "File not found" });
+          }
+          throw err;
+        }
       } else {
-        // Save uploaded file to files table
-        filePath = req.file!.path;
-        fileRecord = await storage.createFile({
-          filename: req.file!.filename,
-          originalFilename: req.file!.originalname,
-          mimeType: req.file!.mimetype,
-          fileSize: req.file!.size,
-          filePath,
-          fileType: 'import_data',
-          category: 'student_import',
-          description: `Student bulk import for ${organization.name}`,
-          uploadedBy: userId,
-          organizationId: organization.id,
-          isPublic: false,
+        // Store the object BEFORE inserting the row, so a failed upload cannot
+        // leave a files row pointing at an object that was never written.
+        const key = fileStorage.generateKey('private', req.file!.originalname);
+        await fileStorage.put(key, req.file!.buffer, {
+          contentType: req.file!.mimetype,
+          size: req.file!.size,
+          public: false,
         });
-        
+
+        try {
+          // Save uploaded file to files table
+          fileRecord = await storage.createFile({
+            filename: path.posix.basename(key),
+            originalFilename: req.file!.originalname,
+            mimeType: req.file!.mimetype,
+            fileSize: req.file!.size,
+            // filePath holds the OBJECT KEY (private/<uuid><ext>), not a disk path.
+            filePath: key,
+            fileType: 'import_data',
+            category: 'student_import',
+            description: `Student bulk import for ${organization.name}`,
+            uploadedBy: userId,
+            organizationId: organization.id,
+            isPublic: false,
+          });
+        } catch (dbError) {
+          // Nothing would ever name this key again — remove it rather than
+          // leave minors' data in the bucket with no record that it exists.
+          await fileStorage.remove(key).catch((cleanupError) => {
+            console.error("Orphaned object left in Spaces after failed insert:", key, cleanupError);
+          });
+          throw dbError;
+        }
+
+        createdFileRecord = fileRecord;
         await storage.updateFileProcessingStatus(fileRecord.id, 'processing');
+
+        // Parse from the buffer already in hand — no round trip through Spaces.
+        csvContent = req.file!.buffer.toString('utf-8');
       }
 
       // Parse CSV file
-      const fs = await import('fs/promises');
-      const csvContent = await fs.default.readFile(filePath, 'utf-8');
       const lines = csvContent.split('\n').filter(line => line.trim());
       
       if (lines.length < 2) {
@@ -1881,6 +1961,24 @@ export function registerAdminRoutes(app: Express) {
         results.failed
       );
 
+      // DATA MINIMISATION: the source CSV holds minors' names, grades, student
+      // IDs, ages and genders. Once parsed, those records live in the database
+      // and the CSV is a redundant second copy of the same personal data. Purge
+      // the OBJECT but keep the files row, which carries the only persisted
+      // record that this import happened (status, processed/failed counts,
+      // errors, who ran it, when) — no organizationEvents entry is written for
+      // bulk imports. Only the object this request created is purged; a file
+      // supplied via fileId belongs to the Files API, not to this route.
+      if (createdFileRecord) {
+        await fileStorage.remove(createdFileRecord.filePath).catch((err) => {
+          console.error(
+            "Failed to purge imported CSV from Spaces after successful import; it still holds student PII:",
+            createdFileRecord.filePath,
+            err,
+          );
+        });
+      }
+
       // SECURITY (C1): build the credentials CSV (minors' plaintext passwords)
       // in memory and return it inline in this response ONLY. It is never
       // written to disk \u2014 the caller builds the downloadable file client-side.
@@ -1918,17 +2016,16 @@ export function registerAdminRoutes(app: Express) {
     } catch (error: any) {
       console.error("Error importing students:", error);
       
-      // Update file processing status if we have a file record
-      if (fileId) {
-        await storage.updateFileProcessingStatus(fileId, 'failed', error.message || 'Unknown error').catch(() => {});
+      // Update file processing status if we have a file record. Previously only
+      // the fileId branch was marked failed, so a fresh upload that blew up
+      // mid-import was left stuck on "processing" forever.
+      const failedRecordId = fileId || createdFileRecord?.id;
+      if (failedRecordId) {
+        await storage.updateFileProcessingStatus(failedRecordId, 'failed', error.message || 'Unknown error').catch(() => {});
       }
-      
-      // Clean up uploaded file
-      if (req.file) {
-        const fs = await import('fs/promises');
-        await fs.default.unlink(req.file.path).catch(() => {});
-      }
-      
+
+      // The stored object is deliberately RETAINED on failure so a failed
+      // import can be inspected and retried; it is purged only on success.
       res.status(500).json({ message: "Failed to import students" });
     }
   });
