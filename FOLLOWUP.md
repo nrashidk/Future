@@ -1052,3 +1052,111 @@ OTHER TABS TO AUDIT WHILE THERE (screenshots provided)
   Recent Activity is empty. Understand why one logs and the other doesn't — that likely explains both.
 
 User will provide MORE screenshots/items later — THIS LIST WILL GROW. Do not treat it as complete.
+
+## PARKED — Superadmin + assessment-flow audit (raised 2026-08-26, UI/UX pass by owner)
+NOTHING BELOW HAS BEEN INVESTIGATED. Every item is an observation or a question to answer, not a finding.
+The DASHBOARD block at the end EXTENDS (does not replace) the 2026-08-25 parked list directly above — where
+they overlap (nav title bug, tab-row overflow, Recent Activity, translations split) treat them as one
+workstream and do the recon once.
+
+WORKING CONDITIONS FOR THIS WORKSTREAM (owner-stated, 2026-08-26)
+- No users, no launch date, no deadline. Owner is the sole tester. There is no third-party blast radius.
+- Work goes to PROD directly — no staging DEPLOY is needed for ordinary code changes.
+- EXCEPTION 1 — schema/data-mutating changes: use the staging DB. Prod data has no undo.
+- EXCEPTION 2 — Puppeteer/PDF: cannot be tested in the Codespace (bundled Chrome won't launch), so it can
+  only be verified on a real deploy, currently prod. Same constraint already logged for the local-dev-env
+  and Arabic-PDF items above.
+
+### Assessment flow — two distinct tiers, CONFIRMED different (baseline for everything below)
+FREE (entered via "Explore as Guest" on the landing page):
+  Basic Info -> Subjects -> Interests -> Personality (simple, 4-Q style) -> Country -> Aspirations -> Results
+  NO RIASEC, NO CVQ, NO knowledge-quiz. Report is deliberately stripped: career cards with blurred "Premium
+  insight / Unlock full report", an "Unlock Premium Assessment" upsell, and "Create Free Account to save".
+  This MATCHES the Scoring config (free tier = Subject/Interest/Vision weights only), so the stripping looks
+  intentional, not broken.
+PREMIUM / SCHOOL:
+  Basic Info -> Subjects -> Country -> Quiz (knowledge, ~6Q) -> Career Personality (RIASEC, 30Q) ->
+  Personal Values (CVQ, 15Q) -> Aspirations -> Results
+  Full report: subject strengths, values profile, personality (RIASEC) profile, career matches with reasoning.
+
+### BUGS (behavioral — need fixing)
+1. PRIORITY SUBJECTS AUTO-SELECTED BY THE SYSTEM  (severity: high — corrupts the assessment itself)
+   On the "Subjects" step, the priority sub-step already reads "3 of 3 priority subjects selected" before the
+   student touches it — the system pre-filled them. The priority choice is supposed to be the STUDENT'S: it
+   drives which subjects get more knowledge-quiz questions (4 vs 2) AND it weights the recommendations. If
+   the priorities are system-picked, both the quiz and the final recommendations are built on inputs the
+   student never chose. Observed in BOTH the free and school flows. INVESTIGATE the selection logic — is it
+   defaulting to the first three selected, auto-promoting on selection, or seeding from something else?
+   Highest-impact item in this list: it silently invalidates the assessment's core input.
+2. PER-PAGE "Next" IS NOT LOCKED  (Personal Values / CVQ, step 6 of the premium flow)
+   Next is enabled on a page that still has unanswered questions; only the FINAL page's "Complete" is gated.
+   Consequence observed by owner: reached the last page with Complete disabled because of a question missed
+   on a PREVIOUS page, with no indication of which page or which question. FIX: gate Next per page — all
+   questions on the current page answered before advancing — on every page, not just the last. Check whether
+   the same per-page gating gap exists on the RIASEC step and the knowledge quiz.
+3. PDF REPORT DOWNLOAD FAILS  (premium/school report) — ALREADY BROKEN IN PROD
+   Red toast: "Download failed — We couldn't generate your report." This is Puppeteer PDF generation. Tied to
+   the deferred puppeteer 24->25 work; bundled Chrome can't launch in the Codespace, so it can only be
+   diagnosed and verified on a deploy (prod). NOTE the interaction with the PDF items already in this file:
+   the accurate success/error toast is working as designed here (it is correctly reporting a real failure,
+   not lying), and the open Arabic-PDF verification (3a1d263, career-page breaks) CANNOT be checked until
+   this generation failure is fixed — fix this first, it blocks that.
+4. QUIZ QUESTION COUNT — verify consistency (may or may not be a bug)
+   Intended behaviour: the knowledge-quiz length derives from the 3 PRIORITIZED subjects and is the SAME
+   total for every student — school or self-pay — regardless of how many subjects were selected (1 or all).
+   Confirm the actual logic; it may currently vary with the number of subjects selected. Directly entangled
+   with bug 1: if priorities are auto-selected, the quiz composition is wrong even when the count is right.
+
+### DESIGN CHANGES (product decisions, not defects)
+5. SCHOOL STUDENTS — pre-fill and LOCK steps 1 and 3.  MUST BE CONDITIONAL ON TIER.
+   The school creates the student profile, so name/grade/gender are already known, and the school has a known
+   location + curriculum. For SCHOOL students: step 1 (Basic Info) name/age/grade/gender pre-filled; step 3
+   (Country + Curriculum) LOCKED to the school's values, preventing a wrong-curriculum choice that skews the
+   whole assessment. PREREQUISITE: mandatory Country + Curriculum fields must be added to the school
+   Create/Edit form first — there is nothing to lock against today. HARD CONSTRAINT: self-paying students
+   still choose their own; do NOT lock for them. (Schema/data change -> staging DB per the rules above.)
+6. REORDER the premium/school steps: Aspirations should be LAST (step 7). What is currently step 7 becomes
+   step 6 and is RENAMED "Quiz". Also rename the confusing "Self Assessment" button — it is actually the
+   final generate-report action; the free flow gets this right by labelling its last step "Results".
+7. QUIZ RESULT FEEDBACK: after the knowledge quiz the student sees a % snapshot but gets no clear "Continue"
+   and no clear view of how they scored. Consider a dedicated step for the student to see their quiz result.
+8. Step 5 (Career Personality) — placement of the "About This Assessment" block: top or bottom? Minor
+   judgment call, no correctness impact.
+9. REPORT CONTENT AUDIT: trace what EACH step contributes to the final report, PER TIER (the free report is
+   shorter — no values profile, no RIASEC profile). Confirm every step's data is actually consumed somewhere.
+   Check the Aspirations step specifically (career dreams + strengths): what does it add to the output? This
+   connects to two items already open above — the free/premium weight split in the Scoring config, and the
+   {{dreamGuidance}} / {{favoriteSubjects}} free-text-into-LLM-prompt note in the deferred section.
+
+### UNBUILT FEATURE
+10. LICENSE RE-GRANT for repeat assessments  (needs design + build, not a fix)
+    Completing an assessment consumes a school license. There is NO mechanism for a school to grant a student
+    ANOTHER license — neither to retake within the same grade, nor to assess again in a new grade in a later
+    year. The product premise contradicts this: the grade-by-grade "Career Journey" timeline shows Grades
+    9-12, which IMPLIES multi-year re-assessment, but the licensing to enable it does not exist. Also relates
+    to the parked "already-premium repurchase behaviour undefined" note. Scope the intended model (per-grade
+    entitlement? re-grant action for the school admin? expiry?) before touching code.
+
+### DASHBOARD (superadmin) — from the earlier screenshot pass
+A. NAV / ROUTING (superadmin only — the school-admin nav is fine). Three symptoms, LIKELY ONE ROOT CAUSE in
+   a single nav component: (i) tab-row overflow — 11 tabs wrap, and the Add School / Add Student buttons
+   crowd them; move those buttons down near Export CSV; (ii) wrong active-tab TITLE — the Schools tab renders
+   the "Admin" title, and the /admin URL renders "Quiz Dashboard"; (iii) clicking the already-active tab is a
+   dead click. Supersedes the two separate nav notes above — fix as one.
+B. EMPTY ENGINES — broken, or simply unbuilt? Recent Activity shows "No recent activity". Talent Pipeline by
+   Priority Sector shows "No sector data available yet" — empty in BOTH roles, but note it is marked "Coming
+   Soon" on the tier-selection page, so it may be intentionally unbuilt. CONTRAST TO RESOLVE: Scoring ->
+   Change History DOES log (prompt/api-key edits), so audit logging exists somewhere in the codebase.
+   Understanding why that one populates and Recent Activity does not likely explains both at once.
+C. TRANSLATIONS — confirm the split. "UI Strings" is the already-known bug 4 (writes to
+   client/public/locales while the server serves dist/public/locales, so edits never reach students AND are
+   wiped on deploy — needs the DB-backed fix). "Database Content" (Careers / CVQ / Countries / Quiz) IS
+   DB-backed and may work fine. Verify that one path is broken and the other is not before designing a fix.
+D. DATA / DISPLAY: Analytics "Grade Distribution" chart shows "Grade 10" TWICE (in both roles) — likely a
+   grade-bucketing or sort bug (string-vs-number comparison, or a duplicate bucket). All careers show
+   "Declining" growth — is that a real value or an unset default? Superadmin Profile shows "superadmin" in
+   the Email field — that account simply has no email, and school-admin correctly shows a real one, so
+   probably NOT a bug; confirm and dismiss.
+E. LOOKS FINE (checked, no action): all create/edit modals (School, Career, Announcement, Question,
+   Contribute), Quiz Dashboard (240 questions), analytics cards, student roster, Edit School (the Spaces
+   logo URL is confirmed working post-migration).
