@@ -62,6 +62,15 @@ export const ENV_VARS = {
     "SESSION_SECRET",
     "SUPERADMIN_EMAILS",
     "DB_ENCRYPTION_KEY", // Required for LLM credential encryption (64 hex chars)
+    // DigitalOcean Spaces object storage. The file routes no longer write to
+    // local disk, so an unset value is an outage, not a degradation: fail at
+    // boot rather than at the first upload or download.
+    "SPACES_KEY",
+    "SPACES_SECRET",
+    "SPACES_ENDPOINT", // Regional endpoint, e.g. https://fra1.digitaloceanspaces.com
+    "SPACES_BUCKET", // Private bucket — student data. Never public-read.
+    "SPACES_PUBLIC_BUCKET", // Public bucket — organization logos only.
+    "SPACES_REGION", // e.g. fra1 — must match the region in SPACES_ENDPOINT
   ],
   OPTIONAL: [
     "STRIPE_SECRET_KEY",
@@ -71,14 +80,5 @@ export const ENV_VARS = {
     "APP_URL", // Used in email links
     "BASE_URL", // Required for OAuth callbacks (Google/Microsoft); falls back to Replit URL if absent
     "NODE_ENV",
-    // DigitalOcean Spaces object storage. OPTIONAL while the file routes still
-    // write to local disk; promote to REQUIRED once they are cut over, because
-    // from that point an unset value means uploads fail rather than degrade.
-    "SPACES_KEY",
-    "SPACES_SECRET",
-    "SPACES_ENDPOINT", // Regional endpoint, e.g. https://fra1.digitaloceanspaces.com
-    "SPACES_BUCKET", // Private bucket — student data. Never public-read.
-    "SPACES_PUBLIC_BUCKET", // Public bucket — organization logos only.
-    "SPACES_REGION", // e.g. fra1 — must match the region in SPACES_ENDPOINT
   ],
 } as const;
