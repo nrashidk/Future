@@ -2,9 +2,14 @@ import { normalizeSubjects, getAllowedSubjectSet } from "./subjects";
 
 // Write-boundary bounds for the two student free-text fields that reach the
 // LLM narrative prompt ({{favoriteSubjects}} and {{dreamGuidance}}). These cap
-// the injection surface; the fixed 12-tile picker never produces values near
+// the injection surface; the fixed 6-tile picker never produces values near
 // these limits, so a violation means a bug or direct-API abuse.
-export const MAX_FAVORITE_SUBJECTS = 12;   // picker has 12 tiles; normalization only shrinks
+//
+// MAX_FAVORITE_SUBJECTS is the server-side half of the picker's max-5 rule: the
+// quiz budget is a fixed 18 questions split across the chosen subjects, so a 6th
+// subject would break that total. The picker greys out the 6th tile; this is the
+// gate that makes the cap real against a direct API call.
+export const MAX_FAVORITE_SUBJECTS = 5;    // Rule B cap: 6 umbrella tiles, pick at most 5
 export const MAX_SUBJECT_LENGTH = 64;      // generous for any real subject name
 export const MAX_ASPIRATION_ENTRIES = 10;  // UI splits a textarea on \n (existing max: 1)
 export const MAX_ASPIRATION_LENGTH = 300;  // free-text dream; existing max element len: 61

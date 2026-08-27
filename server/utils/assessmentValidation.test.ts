@@ -75,11 +75,19 @@ describe("validatePromptInputFields", () => {
     expect(err).toMatch(/too many career aspiration/i);
   });
 
-  it("rejects more than 12 favoriteSubjects entries", async () => {
-    const err = await validatePromptInputFields({
-      favoriteSubjects: Array.from({ length: 13 }, () => "Science"),
+  // Pins the Rule B max-5 cap from both sides. The count is checked on the RAW
+  // array, before normalizeSubjects() maps+dedupes, so 6 entries are rejected
+  // even when they would collapse to fewer canonical subjects.
+  it("accepts 5 favoriteSubjects entries but rejects 6", async () => {
+    const atCap = await validatePromptInputFields({
+      favoriteSubjects: Array.from({ length: 5 }, () => "Science"),
     });
-    expect(err).toMatch(/too many favorite subjects/i);
+    expect(atCap).toBeNull();
+
+    const overCap = await validatePromptInputFields({
+      favoriteSubjects: Array.from({ length: 6 }, () => "Science"),
+    });
+    expect(overCap).toMatch(/too many favorite subjects/i);
   });
 
   it("rejects a subject name longer than the per-element cap", async () => {

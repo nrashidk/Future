@@ -1,7 +1,7 @@
 import { StickyNote } from "@/components/StickyNote";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Calculator, Atom, FlaskConical, Dna, Computer, BookOpen, Landmark, Globe2, DollarSign, Briefcase, Palette, Music, Star, CheckCircle2 } from "lucide-react";
+import { Calculator, Atom, BookOpen, Languages, Landmark, Computer, Star, CheckCircle2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -17,6 +17,10 @@ const MAX_PRIORITY_SUBJECTS = 3;
 // MAX_PRIORITY_SUBJECTS on purpose: at exactly this count the selection IS the
 // priority set, above it the student must rank an explicit top three.
 const MIN_SUBJECTS = 3;
+// Hard ceiling on the selection. The quiz budget is a fixed 18 questions split
+// across the chosen subjects, so allowing a 6th subject would thin every
+// subject's share below a usable number - the cap is what keeps the total at 18.
+const MAX_SUBJECTS = 5;
 
 export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepProps) {
   const { t } = useTranslation('assessment');
@@ -29,19 +33,17 @@ export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepPro
   // shown pre-selected.
   const [prioritiesConfirmed, setPrioritiesConfirmed] = useState(false);
 
+  // The six umbrella subjects. Each `id` must match subjects.name in the DB
+  // EXACTLY, because it is stored on the assessment and later compared against
+  // quiz_questions.subject to build the quiz pool - a drift here silently
+  // yields an empty question pool for that subject.
   const subjects = [
     { id: "Mathematics", labelKey: "subjects.subjectMathematics", icon: Calculator, color: "blue" as const },
-    { id: "Physics", labelKey: "subjects.subjectPhysics", icon: Atom, color: "purple" as const },
-    { id: "Chemistry", labelKey: "subjects.subjectChemistry", icon: FlaskConical, color: "green" as const },
-    { id: "Biology", labelKey: "subjects.subjectBiology", icon: Dna, color: "yellow" as const },
-    { id: "Computer Science", labelKey: "subjects.subjectComputerScience", icon: Computer, color: "pink" as const },
-    { id: "English", labelKey: "subjects.subjectEnglish", icon: BookOpen, color: "blue" as const },
-    { id: "History", labelKey: "subjects.subjectHistory", icon: Landmark, color: "purple" as const },
-    { id: "Geography", labelKey: "subjects.subjectGeography", icon: Globe2, color: "green" as const },
-    { id: "Economics", labelKey: "subjects.subjectEconomics", icon: DollarSign, color: "yellow" as const },
-    { id: "Business", labelKey: "subjects.subjectBusiness", icon: Briefcase, color: "pink" as const },
-    { id: "Art", labelKey: "subjects.subjectArt", icon: Palette, color: "blue" as const },
-    { id: "Music", labelKey: "subjects.subjectMusic", icon: Music, color: "purple" as const },
+    { id: "Science", labelKey: "subjects.subjectScience", icon: Atom, color: "purple" as const },
+    { id: "English", labelKey: "subjects.subjectEnglish", icon: BookOpen, color: "green" as const },
+    { id: "Arabic", labelKey: "subjects.subjectArabic", icon: Languages, color: "yellow" as const },
+    { id: "Social Studies", labelKey: "subjects.subjectSocialStudies", icon: Landmark, color: "pink" as const },
+    { id: "Computer Science", labelKey: "subjects.subjectComputerScience", icon: Computer, color: "blue" as const },
   ];
 
   const favoriteSubjects = data.favoriteSubjects || [];
@@ -58,6 +60,12 @@ export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepPro
 
   const toggleSubject = (subjectId: string) => {
     const current = favoriteSubjects;
+    // At the cap a new subject cannot be added - the tile is already
+    // non-clickable, this is the guard for any other caller. It returns before
+    // anything else so a blocked add changes no state at all, least of all a
+    // confirmed top three. De-selecting stays available below at any count, so
+    // the student is never stuck.
+    if (!current.includes(subjectId) && current.length >= MAX_SUBJECTS) return;
     // Any change to the subject list invalidates a previously marked top three:
     // it was ranked against a different list.
     setPrioritiesConfirmed(false);
@@ -107,6 +115,7 @@ export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepPro
     setPhase("prioritize");
   };
 
+  const atMaxSubjects = favoriteSubjects.length >= MAX_SUBJECTS;
   const canProceedFromSelect = favoriteSubjects.length >= MIN_SUBJECTS;
   const canProceedFromPrioritize = prioritySubjects.length === MAX_PRIORITY_SUBJECTS;
 
@@ -116,7 +125,7 @@ export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepPro
         <div className="text-center mb-8">
           <h2 className="text-4xl font-bold mb-3">{t('subjects.title')}</h2>
           <p className="text-lg text-muted-foreground font-body">
-            {t('subjects.subtitle')}
+            {t('subjects.subtitle', { min: MIN_SUBJECTS, max: MAX_SUBJECTS })}
           </p>
         </div>
 
@@ -124,6 +133,10 @@ export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepPro
           {subjects.map((subject) => {
             const Icon = subject.icon;
             const isSelected = favoriteSubjects.includes(subject.id);
+            // At the cap the remaining tiles are inert and greyed, mirroring how
+            // the prioritize screen greys non-priority tiles once three are
+            // starred. Selected tiles stay clickable so a swap is one tap away.
+            const isDisabled = !isSelected && atMaxSubjects;
 
             return (
               <StickyNote
@@ -131,8 +144,10 @@ export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepPro
                 color={subject.color}
                 rotation={Math.random() > 0.5 ? "1" : "-1"}
                 selected={isSelected}
-                onClick={() => toggleSubject(subject.id)}
-                className="cursor-pointer text-center p-4 transition-transform"
+                onClick={isDisabled ? undefined : () => toggleSubject(subject.id)}
+                className={`text-center p-4 transition-transform ${
+                  isDisabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
+                }`}
                 data-testid={`subject-${subject.id.toLowerCase().replace(/\s+/g, "-")}`}
               >
                 <Icon className="w-8 h-8 mx-auto mb-2 text-primary" />
@@ -153,6 +168,11 @@ export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepPro
             {favoriteSubjects.length < MIN_SUBJECTS && (
               <p className="font-body text-sm text-destructive" data-testid="text-min-subjects">
                 {t('subjects.minRequired', { min: MIN_SUBJECTS })}
+              </p>
+            )}
+            {atMaxSubjects && (
+              <p className="font-body text-sm text-muted-foreground" data-testid="text-max-subjects">
+                {t('subjects.maxReached', { max: MAX_SUBJECTS })}
               </p>
             )}
           </div>
