@@ -218,9 +218,6 @@ export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepPro
         <p className="text-lg text-muted-foreground font-body">
           {t('subjects.prioritySubtitle', { max: MAX_PRIORITY_SUBJECTS })}
         </p>
-        <p className="text-sm text-muted-foreground font-body mt-2">
-          {t('subjects.priorityHint')}
-        </p>
       </div>
 
       <div className="flex flex-wrap justify-center gap-2 mb-6">
@@ -276,11 +273,6 @@ export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepPro
               ) : null;
             })}
           </div>
-        )}
-        {!canProceedFromPrioritize && (
-          <p className="font-body text-xs text-muted-foreground mt-3" data-testid="text-priority-required">
-            {t('subjects.priorityRequired', { max: MAX_PRIORITY_SUBJECTS })}
-          </p>
         )}
       </div>
 
