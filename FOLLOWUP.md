@@ -1152,3 +1152,37 @@ Phase 5: free->paid carry-over (reuse/redo, land-in-premium, fix dead routes); g
 Phase 6: Career Journey (fill across grades, per-grade link fix, duplicate-grade prompt, soft-delete); dashboard
   (nav root-cause, Recent Activity + Talent Pipeline, translations DB-fix, analytics grade-bucket, payment views).
 
+## CONTENT ENGINE (contribution & verification) — recon 2026-08-26, NOT started
+The school "Contribute Questions" feature (submit -> LLM pre-check -> superadmin approve -> questions land in
+quiz_questions -> credits -> free licenses) is BUILT and the credit->license loop genuinely works (race-safe,
+storage.consumeLicenseWithRewardPriority spends reward credits before paid). But it has NEVER run (0 submissions,
+0 rewards, 0 school_contribution questions). Cross-school VERIFICATION (the "more schools verify = more confidence"
+model) is ENTIRELY ABSENT — no schema, no code. It's a content-engine build, deferred because it has a
+cold-start problem (needs multiple active schools with the same curriculum; useless at launch). Files:
+server/routes/contribution.routes.ts (784 lines), ContributeQuestions.tsx, ContributionReviewQueue.tsx. Tables:
+contribution_submissions, contribution_rewards; org credit cols reward_credits/pending_reward_credits/etc.
+
+CRITICAL bugs (will fire on first real use):
+- user.id is always undefined (session has userId, not id). Crashes at contribution.routes.ts:558 (reviewedByUserId
+  written null), :720 (awardedByUserId .notNull() -> 500, /allocate-reward cannot complete), :771 (settings audit
+  loses actor). Two sibling lines already use user.userId || user.id correctly (:172, :291).
+- Two divergent credit paths: /claim awards submission.creditsAwarded; /allocate-reward awards an arbitrary
+  superadmin number 1-50 and drifts the pending vs rewardCredits ledgers -> OVER-ISSUES free licenses (financial bug).
+
+Medium: yearly-cap not enforced at approval (counter only bumps at claim/allocate); LLM pre-check is FAIL-OPEN
+(returns score 100 on no-key/error/JSON-truncation; max_tokens 1000 truncates 50-question batches -> auto-pass);
+prompt-injection surface (school text interpolated into the Claude prompt); needs_changes is a dead-end (can't be
+re-reviewed, no school edit/resubmit); in_review never written (dead state); "claimed" status undocumented, renders
+raw; approval loop not transactional (partial-populate + re-insert on retry, dup-check only at submit); rate limit is
+rolling-24h not calendar-day and counts rejected; yearly reset triggered by a page-read (3 different reset notions).
+Dead fields: rewardAllocated (only /allocate sets it), llmVerificationFeedback (never surfaced), quizQuestions
+.contributionSubmissionId (written never read), contribution_rewards table (getContributionRewardsByOrg has no caller).
+
+VERIFICATION MODEL (to design + build): second school confirms another school's questions; confidence
+grows with N verifications; needs schema (verifiedBy/confidence/reviewCount or a verification-events table), a
+cross-school review queue, and a rule for when a question is "trusted enough" to serve. Entirely greenfield.
+
+CONTRIBUTED-QUESTION CURRICULUM CASING: contributed questions inherit the batch curriculum verbatim ("MOE National")
+while the seeded bank is "MoE National" — contributions land in a different curriculum bucket. Ties to the casing bug
+already logged for the quiz filter.
+
