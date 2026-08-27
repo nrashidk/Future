@@ -130,7 +130,7 @@ export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepPro
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {subjects.map((subject) => {
+          {subjects.map((subject, index) => {
             const Icon = subject.icon;
             const isSelected = favoriteSubjects.includes(subject.id);
             // At the cap the remaining tiles are inert and greyed, mirroring how
@@ -142,19 +142,30 @@ export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepPro
               <StickyNote
                 key={subject.id}
                 color={subject.color}
-                rotation={Math.random() > 0.5 ? "1" : "-1"}
+                // Alternating by index, not random: the tilt is a fixed property
+                // of the tile's position, so it stays put across re-renders
+                // instead of the whole grid re-tilting on every toggle.
+                rotation={index % 2 === 0 ? "1" : "-1"}
                 selected={isSelected}
                 onClick={isDisabled ? undefined : () => toggleSubject(subject.id)}
-                className={`text-center p-4 transition-transform ${
-                  isDisabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
-                }`}
+                // Every tile is the same box in all three states. The ring is
+                // always present and only changes colour, so the selected ring
+                // adds no halo the others lack; the tick below keeps its slot
+                // whether or not it is visible; and min-h floors the height so
+                // rows with no selection are not shorter than rows with one.
+                // Disabled differs by opacity and cursor ONLY - never by size.
+                className={`flex min-h-[9rem] flex-col items-center justify-center gap-2 p-4 text-center ring-2 ring-offset-2 ${
+                  isSelected ? "ring-primary" : "ring-transparent"
+                } ${isDisabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}`}
                 data-testid={`subject-${subject.id.toLowerCase().replace(/\s+/g, "-")}`}
               >
-                <Icon className="w-8 h-8 mx-auto mb-2 text-primary" />
+                <Icon className="w-8 h-8 text-primary" />
                 <p className="font-semibold text-sm">{t(subject.labelKey)}</p>
-                {isSelected && (
-                  <CheckCircle2 className="w-5 h-5 mx-auto mt-2 text-green-600" />
-                )}
+                {/* Rendered at every state and hidden when unselected, so the
+                    tick's presence never changes the tile's height. */}
+                <CheckCircle2
+                  className={`w-5 h-5 text-green-600 ${isSelected ? "" : "invisible"}`}
+                />
               </StickyNote>
             );
           })}
@@ -252,10 +263,14 @@ export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepPro
               key={subjectId}
               onClick={() => togglePriority(subjectId)}
               disabled={!isPriority && prioritySubjects.length >= MAX_PRIORITY_SUBJECTS}
+              // Same rule as the select-phase tiles: border-2 and the star slot
+              // are present in every state, so marking a priority changes only
+              // colour and shadow. No scale - it made starred chips physically
+              // larger than the greyed ones and the row read as ragged.
               className={`
-                flex items-center gap-2 px-4 py-3 rounded-xl border-2 transition-all duration-200
+                flex min-h-[3.25rem] items-center gap-2 px-4 py-3 rounded-xl border-2 transition-all duration-200
                 ${isPriority
-                  ? 'bg-primary/20 border-primary shadow-lg scale-105'
+                  ? 'bg-primary/20 border-primary shadow-lg'
                   : 'bg-card border-border hover:border-primary/50 hover:bg-primary/5'}
                 ${!isPriority && prioritySubjects.length >= MAX_PRIORITY_SUBJECTS
                   ? 'opacity-50 cursor-not-allowed'
@@ -267,9 +282,11 @@ export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepPro
               <span className={`font-medium ${isPriority ? 'text-primary' : ''}`}>
                 {t(subject.labelKey)}
               </span>
-              {isPriority && (
-                <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
-              )}
+              {/* Reserved slot: hidden rather than unmounted, so starring a
+                  chip does not widen it relative to its neighbours. */}
+              <Star
+                className={`w-5 h-5 text-yellow-500 fill-yellow-500 ${isPriority ? '' : 'invisible'}`}
+              />
             </button>
           );
         })}
