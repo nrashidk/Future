@@ -1184,5 +1184,34 @@ cross-school review queue, and a rule for when a question is "trusted enough" to
 
 CONTRIBUTED-QUESTION CURRICULUM CASING: contributed questions inherit the batch curriculum verbatim ("MOE National")
 while the seeded bank is "MoE National" — contributions land in a different curriculum bucket. Ties to the casing bug
-already logged for the quiz filter.
+already logged for the quiz filter. (FIXED 2026-08-27 — bank now MOE National, see QUIZ status below)
+
+## QUIZ (Rule B) — status 2026-08-27
+Assessment quiz-enablement progress:
+- DONE: curriculum casing fix (MoE->MOE, source + prod DB migrated + verified); umbrella-6 subject
+  list (client picker now = the 6 subjects that match the bank: Mathematics, Science, English, Arabic,
+  Social Studies, Computer Science); min-3/max-5 selection (client + server 400 gate); subject-tile
+  visual polish (uniform size). All committed + live.
+- PAUSED: Rule B distribution (always 18 Qs: 6/6/6 at 3 subjects, 5/5/5 at 4, 4/4/4 at 5, +3 per
+  non-priority). Code not written. Paused because the bank is thin at grades 10-12 (7/7/6 per subject
+  = grade-12 3-subject case needs 6/6/6 = zero slack) and topping it up with AI-generated questions was
+  rejected: neither owner nor assistant can verify answer-key correctness, and unverified content must
+  not go into the scoring engine for a career assessment. DECISION: source VERIFIED questions first
+  (UAE MOE past papers / sample questions / teachers / textbook banks / eventually the Phase 4
+  contribution system), then build Rule B on a bank with real slack. Can be incremental — even one
+  subject topped up with verified Qs proves the pipeline.
+- Bank facts for when topping up: append to server/questionBanks/uae/<subject>.ts (grade "10" array
+  ~line 290, "11" ~390, "12" ~490); ALSO add a matching Arabic entry to
+  server/migrations/quiz-arabic-content-grades9-12.ts (matched by exact English question text) or Arabic
+  students see English; English question text must be globally UNIQUE (seed dedups by exact text, and the
+  snapshot isn't updated mid-run so same-run duplicates both insert); correctAnswer must be string-identical
+  to one options element (boot hard-fails otherwise). Target ~10 per cell = +3 g10, +3 g11, +4 g12 per
+  subject (~60 total for all six). Format/topic conventions captured in the 2026-08-27 recon.
+- When Rule B IS built: drop the tier param (premium/school configs are identical; 18 flat for all),
+  delete TIER_CONFIGS + dead tierMultiplier, replace MIN_QUESTIONS=6 with the target-aware total, add
+  server-side min-3 + priorities-must-equal-3 guard right after normalization (quiz.routes.ts ~:196),
+  shortfall handling = ship-what's-available + LOUD warning (never block the student).
+- STILL OPEN (independent of the bank): Piece D — careers.relatedSubjects remap (37 careers, only 32%
+  of tags match umbrella-6, 10 careers score a flat 20 for everyone). Already broken today. Can proceed
+  without verified questions.
 
