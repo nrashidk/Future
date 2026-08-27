@@ -16,7 +16,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE History - Foundation",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "Who is known as the founding father of the UAE?",
@@ -30,7 +30,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE History - Leaders",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "How many emirates make up the United Arab Emirates?",
@@ -44,7 +44,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE Geography - Emirates",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "Which emirate is the capital of the UAE?",
@@ -58,7 +58,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE Geography - Capital",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is the traditional boat used for pearl diving in the UAE called?",
@@ -72,7 +72,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE Culture - Heritage",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is the national currency of the UAE?",
@@ -86,7 +86,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE Economy - Currency",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "Which sea borders the UAE to the north?",
@@ -100,7 +100,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE Geography - Location",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is the traditional Emirati male headwear called?",
@@ -114,7 +114,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE Culture - Traditional Dress",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "When did oil exports begin in the UAE?",
@@ -128,7 +128,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE History - Oil Discovery",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is the Federal National Council (FNC)?",
@@ -142,7 +142,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE Government - Institutions",
         difficulty: "medium",
         cognitiveLevel: "comprehension",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       }
     ],
     "9": [
@@ -158,7 +158,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE Geography - Landforms",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is the significance of National Day in the UAE?",
@@ -172,7 +172,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE Culture - National Celebrations",
         difficulty: "medium",
         cognitiveLevel: "comprehension",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "Which emirate is the only one located entirely on the Gulf of Oman coast?",
@@ -186,7 +186,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE Geography - Emirates",
         difficulty: "medium",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What was the primary purpose of the 'Trucial States' agreement in the 19th century?",
@@ -200,7 +200,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE History - Pre-Federation",
         difficulty: "medium",
         cognitiveLevel: "comprehension",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is the traditional Emirati dance performed at celebrations?",
@@ -214,7 +214,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE Culture - Traditions",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "Which organization did the UAE join in 1971, soon after its formation?",
@@ -228,7 +228,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE International Relations - Organizations",
         difficulty: "medium",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What climate type characterizes most of the UAE?",
@@ -242,7 +242,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE Geography - Climate",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "Which value is considered fundamental to Emirati culture?",
@@ -256,7 +256,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE Culture - Values",
         difficulty: "easy",
         cognitiveLevel: "comprehension",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "How has the UAE's approach to economic development changed since the 1970s?",
@@ -270,7 +270,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE Economy - Development Strategy",
         difficulty: "hard",
         cognitiveLevel: "analysis",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "Why is tolerance considered an important national value in the UAE?",
@@ -284,7 +284,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE Culture - Social Values",
         difficulty: "hard",
         cognitiveLevel: "analysis",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       }
     ],
     "10": [
@@ -300,7 +300,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE Vision - National Goals",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "Which sector is NOT a priority in UAE Vision 2071?",
@@ -314,7 +314,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE Vision - Priority Sectors",
         difficulty: "medium",
         cognitiveLevel: "comprehension",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What percentage of clean energy does the UAE aim to achieve by 2050?",
@@ -328,7 +328,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE Development - Sustainability",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "Which UAE space mission successfully reached Mars in 2021?",
@@ -342,7 +342,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE Achievements - Space",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is the primary resource that historically drove the UAE economy before oil discovery?",
@@ -356,7 +356,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE History - Economy",
         difficulty: "easy",
         cognitiveLevel: "comprehension",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is the name of the UAE's first nuclear power plant?",
@@ -370,7 +370,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE Development - Energy",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "Which initiative aims to prepare the UAE for the Fourth Industrial Revolution?",
@@ -384,7 +384,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE Vision - Technology",
         difficulty: "medium",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       }
     ],
     "11": [
@@ -400,7 +400,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE International Relations - Diplomacy",
         difficulty: "medium",
         cognitiveLevel: "comprehension",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What percentage of the UAE's population are expatriates?",
@@ -414,7 +414,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE Society - Demographics",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "Which UAE city was designated as a UNESCO World Heritage site for its cultural significance?",
@@ -428,7 +428,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE Culture - Heritage Sites",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is the 'Mars 2117 Project'?",
@@ -442,7 +442,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE Vision - Space Exploration",
         difficulty: "medium",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "Which sector contributes the most to Dubai's GDP today?",
@@ -456,7 +456,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE Economy - Diversification",
         difficulty: "medium",
         cognitiveLevel: "comprehension",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is the UAE's position in the Global Gender Gap Report?",
@@ -470,7 +470,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE Society - Gender Equality",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "Which global event did the UAE host in 2020-2021?",
@@ -484,7 +484,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE Achievements - Global Events",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       }
     ],
     "12": [
@@ -500,7 +500,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE Vision - National Strategy",
         difficulty: "medium",
         cognitiveLevel: "comprehension",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "Which factor most contributed to the rapid development of the UAE after 1971?",
@@ -514,7 +514,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE Development - Economic Strategy",
         difficulty: "medium",
         cognitiveLevel: "analysis",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "How does the UAE's federal system balance national and emirate-level governance?",
@@ -528,7 +528,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE Government - Federal System",
         difficulty: "hard",
         cognitiveLevel: "analysis",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What role does the UAE play in OPEC?",
@@ -542,7 +542,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE International Relations - Energy",
         difficulty: "medium",
         cognitiveLevel: "comprehension",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is the UAE's approach to sustainable development?",
@@ -556,7 +556,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE Development - Sustainability",
         difficulty: "medium",
         cognitiveLevel: "comprehension",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "How has the UAE positioned itself as a global hub?",
@@ -570,7 +570,7 @@ export const socialStudies: SubjectQuestionBank = {
         topic: "UAE Economy - Global Position",
         difficulty: "hard",
         cognitiveLevel: "analysis",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       }
     ]
   }

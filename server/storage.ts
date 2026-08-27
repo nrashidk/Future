@@ -1058,7 +1058,12 @@ export class DatabaseStorage implements IStorage {
     }
     
     if (filters.curriculum) {
-      conditions.push(eq(quizQuestions.curriculum, filters.curriculum));
+      conditions.push(
+        or(
+          eq(quizQuestions.curriculum, filters.curriculum),
+          sql`${quizQuestions.curriculum} IS NULL`
+        )
+      );
     }
     
     let query = db.select().from(quizQuestions);
@@ -1093,7 +1098,12 @@ export class DatabaseStorage implements IStorage {
       conditions.push(eq(quizQuestions.countryId, filters.countryId));
     }
     if (filters.curriculum) {
-      conditions.push(eq(quizQuestions.curriculum, filters.curriculum));
+      conditions.push(
+        or(
+          eq(quizQuestions.curriculum, filters.curriculum),
+          sql`${quizQuestions.curriculum} IS NULL`
+        )
+      );
     }
     if (filters.subject) {
       conditions.push(eq(quizQuestions.subject, filters.subject));

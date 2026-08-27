@@ -16,7 +16,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "Computer Basics - Hardware",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "Which of these is an example of an input device?",
@@ -30,7 +30,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "Computer Basics - Input/Output",
         difficulty: "easy",
         cognitiveLevel: "comprehension",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is the primary purpose of an operating system?",
@@ -44,7 +44,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "Software - Operating Systems",
         difficulty: "easy",
         cognitiveLevel: "comprehension",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "In programming, what is a 'variable'?",
@@ -58,7 +58,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "Programming - Basic Concepts",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What does HTML stand for?",
@@ -72,7 +72,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "Web Development - HTML",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is the correct order of problem-solving steps in computational thinking?",
@@ -86,7 +86,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "Computational Thinking - Problem Solving",
         difficulty: "medium",
         cognitiveLevel: "comprehension",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is the purpose of RAM in a computer?",
@@ -100,7 +100,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "Computer Basics - Memory",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "Which programming language is known for creating web pages?",
@@ -114,7 +114,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "Programming - Languages",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What does 'www' stand for in a website URL?",
@@ -128,7 +128,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "Internet - Basics",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is a 'bug' in programming?",
@@ -142,7 +142,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "Programming - Debugging",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       }
     ],
     "9": [
@@ -158,7 +158,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "Software - Applications",
         difficulty: "easy",
         cognitiveLevel: "comprehension",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is the binary number system based on?",
@@ -172,7 +172,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "Computer Basics - Number Systems",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is 'phishing' in cybersecurity?",
@@ -186,7 +186,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "Cybersecurity - Threats",
         difficulty: "medium",
         cognitiveLevel: "comprehension",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is an algorithm?",
@@ -200,7 +200,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "Computational Thinking - Algorithms",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "Which storage device has the largest typical capacity?",
@@ -214,7 +214,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "Computer Basics - Storage",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What does 'IF-THEN-ELSE' represent in programming?",
@@ -228,7 +228,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "Programming - Control Structures",
         difficulty: "medium",
         cognitiveLevel: "comprehension",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is cloud computing?",
@@ -242,7 +242,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "Internet - Cloud Services",
         difficulty: "medium",
         cognitiveLevel: "comprehension",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "Which practice is MOST important for creating a strong password?",
@@ -256,7 +256,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "Cybersecurity - Best Practices",
         difficulty: "easy",
         cognitiveLevel: "comprehension",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What happens when you 'debug' a program?",
@@ -270,7 +270,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "Programming - Testing",
         difficulty: "medium",
         cognitiveLevel: "application",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "Why is it important to regularly update software and operating systems?",
@@ -284,7 +284,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "Cybersecurity - Maintenance",
         difficulty: "hard",
         cognitiveLevel: "analysis",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       }
     ],
     "10": [
@@ -300,7 +300,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "Algorithms - Searching",
         difficulty: "medium",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "In object-oriented programming, what is encapsulation?",
@@ -314,7 +314,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "Programming - OOP Concepts",
         difficulty: "medium",
         cognitiveLevel: "comprehension",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What does AI stand for, and what is its primary goal in UAE Vision 2071?",
@@ -328,7 +328,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "AI - UAE National Strategy",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is the difference between a stack and a queue data structure?",
@@ -342,7 +342,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "Data Structures - Stack and Queue",
         difficulty: "medium",
         cognitiveLevel: "comprehension",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "In databases, what does SQL stand for?",
@@ -356,7 +356,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "Databases - SQL",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is machine learning?",
@@ -370,7 +370,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "AI - Machine Learning",
         difficulty: "easy",
         cognitiveLevel: "comprehension",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is the main advantage of using functions in programming?",
@@ -384,7 +384,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "Programming - Functions",
         difficulty: "easy",
         cognitiveLevel: "comprehension",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       }
     ],
     "11": [
@@ -400,7 +400,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "Networking - Protocols",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is the purpose of version control systems like Git?",
@@ -414,7 +414,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "Software Development - Version Control",
         difficulty: "medium",
         cognitiveLevel: "comprehension",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is polymorphism in object-oriented programming?",
@@ -428,7 +428,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "Programming - OOP Concepts",
         difficulty: "medium",
         cognitiveLevel: "comprehension",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "Which sorting algorithm has the best average-case time complexity?",
@@ -442,7 +442,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "Algorithms - Sorting",
         difficulty: "medium",
         cognitiveLevel: "comprehension",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is blockchain technology primarily used for?",
@@ -456,7 +456,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "Emerging Technologies - Blockchain",
         difficulty: "medium",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is the purpose of an API (Application Programming Interface)?",
@@ -470,7 +470,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "Software Development - APIs",
         difficulty: "medium",
         cognitiveLevel: "comprehension",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "In cybersecurity, what is 'encryption'?",
@@ -484,7 +484,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "Cybersecurity - Encryption",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       }
     ],
     "12": [
@@ -500,7 +500,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "Emerging Technologies - IoT",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is Big Data?",
@@ -514,7 +514,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "Data Science - Big Data",
         difficulty: "medium",
         cognitiveLevel: "comprehension",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "Which data structure is best suited for implementing a browser's back button?",
@@ -528,7 +528,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "Data Structures - Applications",
         difficulty: "medium",
         cognitiveLevel: "application",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is the difference between compilers and interpreters?",
@@ -542,7 +542,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "Programming - Language Processing",
         difficulty: "medium",
         cognitiveLevel: "comprehension",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is a neural network in AI?",
@@ -556,7 +556,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "AI - Deep Learning",
         difficulty: "medium",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is the primary purpose of ethical hacking?",
@@ -570,7 +570,7 @@ export const computerScience: SubjectQuestionBank = {
         topic: "Cybersecurity - Ethical Hacking",
         difficulty: "easy",
         cognitiveLevel: "comprehension",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       }
     ]
   }

@@ -16,7 +16,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Algebra - Linear Equations",
         difficulty: "easy",
         cognitiveLevel: "application",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is the area of a circle with radius 7 cm? (Use π ≈ 3.14)",
@@ -30,7 +30,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Geometry - Circles",
         difficulty: "medium",
         cognitiveLevel: "application",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "A shop offers a 25% discount on an item priced at AED 200. What is the final price?",
@@ -44,7 +44,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Financial Literacy - Percentages",
         difficulty: "easy",
         cognitiveLevel: "application",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "In a survey of 50 students, 30 like football and 25 like basketball. If 10 like both, how many like only football?",
@@ -58,7 +58,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Data - Set Theory",
         difficulty: "medium",
         cognitiveLevel: "analysis",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is the probability of rolling a number greater than 4 on a standard six-sided die?",
@@ -72,7 +72,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Probability - Basic Probability",
         difficulty: "easy",
         cognitiveLevel: "comprehension",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "Simplify: 2x² + 3x - 5 + 4x² - x + 2",
@@ -86,7 +86,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Algebra - Polynomials",
         difficulty: "medium",
         cognitiveLevel: "application",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "The ratio of boys to girls in a class is 3:2. If there are 15 boys, how many girls are there?",
@@ -100,7 +100,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Numbers - Ratios and Proportions",
         difficulty: "easy",
         cognitiveLevel: "application",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is the median of the data set: 5, 12, 8, 15, 3, 9?",
@@ -114,7 +114,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Data - Measures of Central Tendency",
         difficulty: "medium",
         cognitiveLevel: "analysis",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "Convert 0.75 to a fraction in simplest form",
@@ -128,7 +128,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Numbers - Fractions and Decimals",
         difficulty: "easy",
         cognitiveLevel: "application",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "If a rectangular garden is 12 m long and 8 m wide, what is its perimeter?",
@@ -142,7 +142,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Geometry - Perimeter and Area",
         difficulty: "easy",
         cognitiveLevel: "application",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       }
     ],
     "9": [
@@ -158,7 +158,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Algebra - Linear Equations",
         difficulty: "medium",
         cognitiveLevel: "application",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is 15% of 200?",
@@ -172,7 +172,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Numbers - Percentages",
         difficulty: "easy",
         cognitiveLevel: "application",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "A triangle has angles measuring 45° and 65°. What is the measure of the third angle?",
@@ -186,7 +186,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Geometry - Triangles",
         difficulty: "easy",
         cognitiveLevel: "application",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "Which number is a prime number?",
@@ -200,7 +200,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Numbers - Prime and Composite",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "Simplify: √64",
@@ -214,7 +214,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Numbers - Square Roots",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is the volume of a cube with side length 5 cm?",
@@ -228,7 +228,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Geometry - Volume",
         difficulty: "easy",
         cognitiveLevel: "application",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "If 3x = 27, what is the value of x?",
@@ -242,7 +242,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Algebra - Basic Equations",
         difficulty: "easy",
         cognitiveLevel: "application",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "A bag contains 4 red marbles, 3 blue marbles, and 5 green marbles. What is the probability of randomly selecting a blue marble?",
@@ -256,7 +256,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Probability - Basic Probability",
         difficulty: "medium",
         cognitiveLevel: "application",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "Express 2³ × 2⁴ as a single power of 2",
@@ -270,7 +270,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Numbers - Exponents",
         difficulty: "medium",
         cognitiveLevel: "application",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "The scale on a map is 1:50000. If two cities are 4 cm apart on the map, what is the actual distance between them?",
@@ -284,7 +284,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Numbers - Scale and Measurement",
         difficulty: "hard",
         cognitiveLevel: "analysis",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       }
     ],
     "10": [
@@ -300,7 +300,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Algebra - Systems of Equations",
         difficulty: "medium",
         cognitiveLevel: "application",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is the value of sin(30°)?",
@@ -314,7 +314,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Trigonometry - Special Angles",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "Find the 10th term of the arithmetic sequence: 3, 7, 11, 15, ...",
@@ -328,7 +328,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Sequences and Series - Arithmetic Sequences",
         difficulty: "medium",
         cognitiveLevel: "application",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "If f(x) = 2x² - 3x + 1, what is f(3)?",
@@ -342,7 +342,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Functions - Polynomial Functions",
         difficulty: "easy",
         cognitiveLevel: "application",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is the equation of a line with slope 2 passing through point (1, 3)?",
@@ -356,7 +356,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Coordinate Geometry - Linear Functions",
         difficulty: "medium",
         cognitiveLevel: "application",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "A box contains 5 red balls and 3 blue balls. If two balls are drawn without replacement, what is the probability both are red?",
@@ -370,7 +370,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Probability - Dependent Events",
         difficulty: "hard",
         cognitiveLevel: "analysis",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "Factor completely: x² - 9",
@@ -384,7 +384,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Algebra - Factoring Polynomials",
         difficulty: "easy",
         cognitiveLevel: "comprehension",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       }
     ],
     "11": [
@@ -400,7 +400,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Statistics - Mean and Average",
         difficulty: "medium",
         cognitiveLevel: "analysis",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "Solve the quadratic equation: x² - 5x + 6 = 0",
@@ -414,7 +414,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Algebra - Quadratic Equations",
         difficulty: "easy",
         cognitiveLevel: "application",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is the value of cos(60°)?",
@@ -428,7 +428,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Trigonometry - Special Angles",
         difficulty: "easy",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "Find the sum of the first 10 terms of the geometric sequence: 2, 6, 18, 54, ...",
@@ -442,7 +442,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Sequences and Series - Geometric Sequences",
         difficulty: "hard",
         cognitiveLevel: "application",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is the derivative of f(x) = 3x² + 2x - 5?",
@@ -456,7 +456,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Calculus - Derivatives",
         difficulty: "medium",
         cognitiveLevel: "application",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "Convert log₂(32) to its numerical value",
@@ -470,7 +470,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Algebra - Logarithms",
         difficulty: "easy",
         cognitiveLevel: "application",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "What is the distance between points A(1, 2) and B(4, 6) in the coordinate plane?",
@@ -484,7 +484,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Coordinate Geometry - Distance Formula",
         difficulty: "easy",
         cognitiveLevel: "application",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       }
     ],
     "12": [
@@ -500,7 +500,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Statistics - Normal Distribution",
         difficulty: "medium",
         cognitiveLevel: "knowledge",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "If matrix A = [2 3; 1 4], what is the determinant of A?",
@@ -514,7 +514,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Linear Algebra - Matrices",
         difficulty: "medium",
         cognitiveLevel: "application",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "Simplify: (x³)⁴",
@@ -528,7 +528,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Algebra - Exponent Laws",
         difficulty: "easy",
         cognitiveLevel: "application",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "The surface area of a sphere with radius r is given by 4πr². What is the surface area when r = 3 cm? (Use π ≈ 3.14)",
@@ -542,7 +542,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Geometry - 3D Shapes",
         difficulty: "medium",
         cognitiveLevel: "application",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "If tan(θ) = 3/4 and θ is in the first quadrant, what is sin(θ)?",
@@ -556,7 +556,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Trigonometry - Trigonometric Ratios",
         difficulty: "hard",
         cognitiveLevel: "analysis",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       },
       {
         question: "Which of the following represents an inverse variation?",
@@ -570,7 +570,7 @@ export const mathematics: SubjectQuestionBank = {
         topic: "Algebra - Variation",
         difficulty: "medium",
         cognitiveLevel: "comprehension",
-        curriculum: "MoE National"
+        curriculum: "MOE National"
       }
     ]
   }
