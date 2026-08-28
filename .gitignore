@@ -18,3 +18,5 @@ __pycache__/
 *.pyc
 # O*NET API response cache (regenerable; not project content)
 onet_cache/
+# Methodology/scalability audit report (analysis output, not project content)
+methodology-audit-recon.md

@@ -119,6 +119,9 @@ export async function generateRecommendations(
     calculateCareerMatch(context, career)
   );
 
+  // 3b. Detection only: warn if a weighted component scored nothing catalog-wide
+  warnOnInertComponents(context, matches);
+
   // 4. Filter and sort by overall score
   return matches
     .filter(match => match.overallScore >= 40) // Filter low matches
@@ -312,6 +315,67 @@ function validateComponentWeights(context: MatchingContext): void {
     throw new Error(
       `Component weights must sum to 100%. Current total: ${totalWeight}%. ` +
       `Active components: ${context.activeComponents.map(c => `${c.key}(${c.weight}%)`).join(', ')}`
+    );
+  }
+}
+
+/**
+ * Detect components that are configured with weight but contribute nothing.
+ *
+ * validateComponentWeights checks CONFIGURED weights sum to 100%. It cannot see
+ * APPLIED weight: calculateCareerMatch skips null results and normalizes by
+ * totalAppliedWeight, so a component whose calculator returns null (or 0) for the
+ * entire catalog is silently dropped and its weight redistributed across the rest.
+ * That is how a 25%-weighted component can be dead without any signal.
+ *
+ * This is detection only — it reads the computed matches and logs. It does not
+ * alter any score, weight, or ordering.
+ */
+function warnOnInertComponents(
+  context: MatchingContext,
+  matches: CareerMatch[]
+): void {
+  const careerCount = matches.length;
+  if (careerCount === 0) {
+    return; // Empty catalog: nothing to conclude.
+  }
+
+  const tier = context.assessment.assessmentType;
+
+  for (const component of context.activeComponents) {
+    if (component.weight <= 0) {
+      continue; // Not carrying weight for this tier — nothing to warn about.
+    }
+
+    let scored = 0; // calculator returned a score > 0
+    let zeroed = 0; // calculator returned a score, but it was 0
+
+    for (const match of matches) {
+      const componentScore = match.componentScores.find(s => s.key === component.key);
+      if (componentScore === undefined) {
+        continue; // Calculator returned null for this career.
+      }
+      if (componentScore.score > 0) {
+        scored++;
+      } else {
+        zeroed++;
+      }
+    }
+
+    if (scored > 0) {
+      continue; // Contributing something somewhere — not inert.
+    }
+
+    const nulled = careerCount - zeroed;
+    const breakdown = zeroed === 0
+      ? `null for all ${careerCount}`
+      : `${nulled} null, ${zeroed} zero`;
+
+    console.warn(
+      `SCORING WARNING: component '${component.key}' has weight ${component.weight} ` +
+      `for tier '${tier}' but returned null/zero for all ${careerCount} careers ` +
+      `(${breakdown}) — it is contributing nothing and its weight is being silently ` +
+      `redistributed across the remaining components.`
     );
   }
 }
