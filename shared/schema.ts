@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
+  check,
   index,
   uniqueIndex,
   integer,
@@ -380,6 +381,7 @@ export const countryPrioritySectorsRelations = relations(countryPrioritySectors,
     references: [countries.id],
   }),
   wefSkillMappings: many(countrySectorWefSkills),
+  categoryMappings: many(countrySectorCategories),
 }));
 
 // Junction: Country Sectors ↔ WEF Skills
@@ -403,6 +405,69 @@ export const countrySectorWefSkillsRelations = relations(countrySectorWefSkills,
   wefSkill: one(wefSkills, {
     fields: [countrySectorWefSkills.wefSkillId],
     references: [wefSkills.id],
+  }),
+}));
+
+// Junction: Country Sectors <-> Career categories (and per-career overrides)
+//
+// Drives the VISION-ALIGNMENT component. Replaces the old substring match of
+// career.category against countries.prioritySectors, which produced a
+// near-constant score for most of the catalog and false rationales
+// ("biotechnology".includes("technology")).
+//
+// A row is EITHER a category rule (career_category set, career_id NULL) or a
+// per-career override (career_id set, career_category NULL) - enforced by the
+// check constraint below.
+//
+// OVERRIDE-EXCLUSIVE: if a career has ANY override row, those rows are the ONLY
+// candidates considered for that career; category rules for other sectors must
+// not contribute. See calculateVisionScore in server/services/matching.ts.
+//
+// Postgres NULL trap: a single unique index on
+// (sector_id, career_category, career_id) would NOT work - Postgres treats NULLs
+// as distinct, so duplicate rows would slip through silently. Two PARTIAL unique
+// indexes are used instead, and upserts must use the matching conflict target
+// (including its WHERE predicate).
+export const countrySectorCategories = pgTable("country_sector_categories", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sectorId: varchar("sector_id").notNull().references(() => countryPrioritySectors.id),
+  careerCategory: text("career_category"), // NULL for per-career override rows
+  careerId: varchar("career_id").references(() => careers.id), // NULL for category rules
+  relevance: integer("relevance").notNull(), // 0-100: how central this sector is to the career
+  notes: text("notes"), // Provenance / rationale for the mapping
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  // Category rules: one relevance per (sector, category).
+  uniqueIndex("sector_category_rule_unique_idx")
+    .on(table.sectorId, table.careerCategory)
+    .where(sql`${table.careerId} IS NULL`),
+  // Per-career overrides: one relevance per (sector, career).
+  uniqueIndex("sector_category_override_unique_idx")
+    .on(table.sectorId, table.careerId)
+    .where(sql`${table.careerId} IS NOT NULL`),
+  index("sector_category_sector_idx").on(table.sectorId),
+  index("sector_category_category_idx").on(table.careerCategory),
+  index("sector_category_career_idx").on(table.careerId),
+  // Exactly one of career_category / career_id must be set.
+  check(
+    "sector_category_shape_check",
+    sql`(${table.careerCategory} IS NOT NULL) <> (${table.careerId} IS NOT NULL)`,
+  ),
+  check(
+    "sector_category_relevance_range_check",
+    sql`${table.relevance} >= 0 AND ${table.relevance} <= 100`,
+  ),
+]);
+
+export const countrySectorCategoriesRelations = relations(countrySectorCategories, ({ one }) => ({
+  sector: one(countryPrioritySectors, {
+    fields: [countrySectorCategories.sectorId],
+    references: [countryPrioritySectors.id],
+  }),
+  career: one(careers, {
+    fields: [countrySectorCategories.careerId],
+    references: [careers.id],
   }),
 }));
 
@@ -924,6 +989,14 @@ export const insertCountrySectorWefSkillSchema = createInsertSchema(countrySecto
   createdAt: true,
 });
 export type InsertCountrySectorWefSkill = z.infer<typeof insertCountrySectorWefSkillSchema>;
+
+export type CountrySectorCategory = typeof countrySectorCategories.$inferSelect;
+export const insertCountrySectorCategorySchema = createInsertSchema(countrySectorCategories).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertCountrySectorCategory = z.infer<typeof insertCountrySectorCategorySchema>;
 
 // Files table for data import/export and file sharing
 export const files = pgTable("files", {

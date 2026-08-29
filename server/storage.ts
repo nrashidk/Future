@@ -26,6 +26,7 @@ import {
   organizationMembers,
   countryPrioritySectors,
   countrySectorWefSkills,
+  countrySectorCategories,
   files,
   organizationEvents,
   scoringTiers,
@@ -111,6 +112,22 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, desc, count, avg, sql, inArray, isNotNull, gte, type SQL } from "drizzle-orm";
+
+/**
+ * One row of the VISION-ALIGNMENT sector <-> career-category map.
+ *
+ * Produced by getSectorCategoryMap with a LEFT JOIN, so a priority sector that
+ * has no mapping rows yet still appears (with null category/career/relevance)
+ * and therefore still contributes its display_order rank.
+ */
+export interface SectorCategoryRow {
+  sectorId: string;
+  sectorName: string;
+  displayOrder: number;
+  careerCategory: string | null;
+  careerId: string | null;
+  relevance: number | null;
+}
 
 export interface IStorage {
   // User operations
@@ -295,6 +312,7 @@ export interface IStorage {
   getCountryPrioritySectorsByCountry(countryId: string): Promise<CountryPrioritySector[]>;
   createOrUpdateCountryPrioritySector(countryId: string, name: string, displayOrder: number, description?: string): Promise<CountryPrioritySector>;
   createOrUpdateCountrySectorWefSkill(sectorId: string, wefSkillId: string, importance: number): Promise<CountrySectorWefSkill>;
+  getSectorCategoryMap(countryId: string): Promise<SectorCategoryRow[]>;
   
   // Bulk loading operations for matching service
   getAssessmentWithCompetencies(assessmentId: string): Promise<{
@@ -1918,6 +1936,33 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return mapping;
+  }
+
+  /**
+   * Load the whole VISION-ALIGNMENT map for one country in a single query.
+   *
+   * LEFT JOIN on purpose: a priority sector with zero mapping rows must still
+   * come back, because its display_order is what gives every OTHER sector its
+   * rank position (rankFactor is computed from the sector's index within the
+   * country's full ordered sector list).
+   */
+  async getSectorCategoryMap(countryId: string): Promise<SectorCategoryRow[]> {
+    return await db
+      .select({
+        sectorId: countryPrioritySectors.id,
+        sectorName: countryPrioritySectors.name,
+        displayOrder: countryPrioritySectors.displayOrder,
+        careerCategory: countrySectorCategories.careerCategory,
+        careerId: countrySectorCategories.careerId,
+        relevance: countrySectorCategories.relevance,
+      })
+      .from(countryPrioritySectors)
+      .leftJoin(
+        countrySectorCategories,
+        eq(countrySectorCategories.sectorId, countryPrioritySectors.id),
+      )
+      .where(eq(countryPrioritySectors.countryId, countryId))
+      .orderBy(countryPrioritySectors.displayOrder);
   }
 
   // Bulk loading operations for matching service

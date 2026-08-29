@@ -8,7 +8,7 @@
  * - Supports backwards compatibility with legacy assessments
  */
 
-import type { IStorage } from "../storage";
+import type { IStorage, SectorCategoryRow } from "../storage";
 import type { 
   Assessment, 
   Career, 
@@ -40,6 +40,27 @@ export interface RiasecScores {
 }
 
 /**
+ * VISION-ALIGNMENT lookup structures, built once per assessment.
+ *
+ * `sectors` carries each priority sector's display name and its precomputed
+ * rankFactor. `byCategory` and `byCareer` are the two candidate sources; see
+ * calculateVisionScore for the OVERRIDE-EXCLUSIVE rule that keeps them apart.
+ */
+export interface SectorRelevance {
+  sectorId: string;
+  relevance: number; // 0-100
+}
+
+export interface SectorCategoryMap {
+  /** sectorId -> display name (verbatim from countries.prioritySectors) + rank modifier */
+  sectors: Map<string, { name: string; rankFactor: number }>;
+  /** lowercased career.category -> candidate sectors */
+  byCategory: Map<string, SectorRelevance[]>;
+  /** careerId -> candidate sectors (per-career overrides) */
+  byCareer: Map<string, SectorRelevance[]>;
+}
+
+/**
  * Hydrated context containing all data needed for matching
  */
 export interface MatchingContext {
@@ -52,6 +73,7 @@ export interface MatchingContext {
   competencyScores?: Record<string, number>; // Subject competency scores from quiz (0-100)
   wefCompetencyScores?: Record<string, number>; // WEF skill scores (0-100)
   careerWefAffinities?: Map<string, Array<{ wefSkillId: string; affinityScore: number }>>; // careerId -> WEF affinities
+  sectorCategoryMap?: SectorCategoryMap; // For vision alignment (sector <-> career category/override)
 }
 
 /**
@@ -121,6 +143,10 @@ export async function generateRecommendations(
 
   // 3b. Detection only: warn if a weighted component scored nothing catalog-wide
   warnOnInertComponents(context, matches);
+
+  // 3c. Detection only: vision now returns the floor instead of null, so an
+  // unseeded country can no longer trip warnOnInertComponents. Check it directly.
+  warnOnEmptySectorCategoryMap(context);
 
   // 4. Filter and sort by overall score
   return matches
@@ -204,6 +230,18 @@ async function hydrateMatchingContext(
     userCountry = await storage.getCountryById(assessment.countryId);
   }
 
+  // Fetch the sector <-> career-category map for vision alignment (single query).
+  let sectorCategoryMap: SectorCategoryMap | undefined;
+  if (assessment.countryId) {
+    try {
+      const sectorRows = await storage.getSectorCategoryMap(assessment.countryId);
+      sectorCategoryMap = buildSectorCategoryMap(sectorRows, userCountry);
+    } catch (error) {
+      console.warn('[Matching] Failed to load sector-category map:', error);
+      sectorCategoryMap = undefined; // Vision falls back to the floor for every career
+    }
+  }
+
   // Fetch WEF data only if WEF component is active
   let wefCompetencyScores: Record<string, number> | undefined;
   let careerWefAffinities: Map<string, Array<{ wefSkillId: string; affinityScore: number }>> | undefined;
@@ -238,6 +276,7 @@ async function hydrateMatchingContext(
     competencyScores,
     wefCompetencyScores,
     careerWefAffinities,
+    sectorCategoryMap,
   };
 }
 
@@ -300,6 +339,79 @@ function groupWefAffinitiesByCareer(
   }
   
   return map;
+}
+
+/**
+ * Helper: build the VISION-ALIGNMENT lookup from the flat LEFT JOIN rows.
+ *
+ * Rank: sectors are ordered by display_order; a sector's index i within that
+ * ordered list yields rankFactor = 1 - 0.15 * (i / (n - 1)). Rank is therefore a
+ * +/-15% modifier on relevance, not the primary signal (single sector => 1.0).
+ *
+ * ARABIC CONSTRAINT (hard rule): sector display names are canonicalised back to
+ * the exact spelling in countries.prioritySectors. recommendations.routes.ts
+ * localises reasoning text by string-substituting each countries.prioritySectors
+ * entry for its prioritySectorsAr counterpart using a \b word-boundary regex, so
+ * a name emitted with different casing/spacing than that array would never be
+ * translated. Keep country_priority_sectors.name identical to the corresponding
+ * countries.prioritySectors entry when seeding.
+ */
+export function buildSectorCategoryMap(
+  rows: SectorCategoryRow[],
+  userCountry?: Country,
+): SectorCategoryMap {
+  const sectors = new Map<string, { name: string; rankFactor: number }>();
+  const byCategory = new Map<string, SectorRelevance[]>();
+  const byCareer = new Map<string, SectorRelevance[]>();
+
+  // Canonical spellings from countries.prioritySectors, keyed for loose lookup.
+  const canonicalNames = new Map<string, string>();
+  for (const name of (userCountry?.prioritySectors as string[] | undefined) ?? []) {
+    canonicalNames.set(name.trim().toLowerCase(), name);
+  }
+
+  // Distinct sectors in display_order (rows arrive pre-sorted by the query).
+  const orderedSectorIds: string[] = [];
+  for (const row of rows) {
+    if (!sectors.has(row.sectorId)) {
+      orderedSectorIds.push(row.sectorId);
+      const canonical = canonicalNames.get(row.sectorName.trim().toLowerCase());
+      sectors.set(row.sectorId, {
+        name: canonical ?? row.sectorName,
+        rankFactor: 1, // Replaced below once n is known.
+      });
+    }
+  }
+
+  const n = orderedSectorIds.length;
+  orderedSectorIds.forEach((sectorId, i) => {
+    const entry = sectors.get(sectorId)!;
+    entry.rankFactor = n > 1
+      ? 1 - VISION_RANK_PENALTY * (i / (n - 1))
+      : 1;
+  });
+
+  for (const row of rows) {
+    if (row.relevance === null || row.relevance <= 0) {
+      continue; // LEFT JOIN filler, or an explicit "not relevant" row.
+    }
+    const candidate: SectorRelevance = { sectorId: row.sectorId, relevance: row.relevance };
+
+    if (row.careerId !== null) {
+      // Per-career override.
+      const list = byCareer.get(row.careerId) ?? [];
+      list.push(candidate);
+      byCareer.set(row.careerId, list);
+    } else if (row.careerCategory !== null) {
+      // Category rule.
+      const key = row.careerCategory.trim().toLowerCase();
+      const list = byCategory.get(key) ?? [];
+      list.push(candidate);
+      byCategory.set(key, list);
+    }
+  }
+
+  return { sectors, byCategory, byCareer };
 }
 
 /**
@@ -378,6 +490,50 @@ function warnOnInertComponents(
       `redistributed across the remaining components.`
     );
   }
+}
+
+/**
+ * Detect a country whose VISION-ALIGNMENT map was never seeded.
+ *
+ * calculateVisionScore returns the floor (40) rather than null when a career has
+ * no mapping, which is correct per-career (a Chef really does map to nothing) but
+ * means an entirely unseeded country produces a flat 40 across the catalog -
+ * scores > 0 everywhere, so warnOnInertComponents stays silent. This makes that
+ * specific mis-onboarding visible.
+ *
+ * Detection only - it reads context and logs, changing no score or weight.
+ */
+function warnOnEmptySectorCategoryMap(context: MatchingContext): void {
+  const visionComponent = context.activeComponents.find(c => c.key === 'vision');
+  if (!visionComponent || visionComponent.weight <= 0) {
+    return; // Vision carries no weight for this tier.
+  }
+
+  const { userCountry, sectorCategoryMap } = context;
+  if (!userCountry) {
+    return; // No country: calculateVisionScore returns null and the inert check covers it.
+  }
+
+  const tier = context.assessment.assessmentType;
+  const sectorCount = sectorCategoryMap?.sectors.size ?? 0;
+  const ruleCount = sectorCategoryMap
+    ? sectorCategoryMap.byCategory.size + sectorCategoryMap.byCareer.size
+    : 0;
+
+  if (ruleCount > 0) {
+    return; // Seeded - nothing to report.
+  }
+
+  const detail = sectorCount === 0
+    ? `country '${userCountry.name}' has no rows in country_priority_sectors`
+    : `country '${userCountry.name}' has ${sectorCount} priority sector(s) but no rows in country_sector_categories`;
+
+  console.warn(
+    `SCORING WARNING: component 'vision' has weight ${visionComponent.weight} ` +
+    `for tier '${tier}' but ${detail} — every career is scoring the floor ` +
+    `(${VISION_FLOOR}), so the component cannot differentiate careers. ` +
+    `Seed the sector-category map for this country.`
+  );
 }
 
 /**
@@ -614,58 +770,110 @@ function calculateInterestsScore(
   };
 }
 
-function calculateVisionScore(
+// VISION-ALIGNMENT scoring constants.
+//
+// score = VISION_FLOOR + VISION_RANGE * (relevance / 100) * rankFactor
+//
+// The floor is what a career with no sector mapping scores: 40. That is a real
+// answer, not a gap - "Chef" legitimately maps to none of a country's priority
+// sectors and should not be penalised below the baseline for it.
+const VISION_FLOOR = 40;
+const VISION_RANGE = 60;
+// Rank is a modifier, not the signal: the last-ranked sector keeps 85% of the
+// relevance-driven headroom (see buildSectorCategoryMap).
+const VISION_RANK_PENALTY = 0.15;
+
+/**
+ * VISION ALIGNMENT: how well a career serves the country's priority sectors.
+ *
+ * Previously this substring-matched career.category against
+ * countries.prioritySectors, which gave the floor to ~84% of the catalog and
+ * produced false rationales ("biotechnology".includes("technology")). It now
+ * reads an explicit, seeded map (country_sector_categories).
+ *
+ * OVERRIDE-EXCLUSIVE: if a career has ANY per-career override row, those rows
+ * are the ONLY candidates for it. Merging per-sector ("override ?? category")
+ * inside a loop over sectors is WRONG - another sector's category rule can then
+ * out-score the deliberate override and win the max. The choice of candidate
+ * SOURCE happens once, before any sector is considered.
+ *
+ * ARABIC CONSTRAINT (hard rule): the sector name must appear in the reasoning
+ * VERBATIM as it appears in countries.prioritySectors, bare and un-possessive.
+ * recommendations.routes.ts localises this text with a \b word-boundary regex
+ * per sector name; "Technology's" or "Advanced-Technology" would not match and
+ * would leak English into the Arabic report. Keep the name a standalone trailing
+ * token after the colon.
+ */
+export function calculateVisionScore(
   context: MatchingContext,
   career: Career,
   component: AssessmentComponent
 ): ComponentScore | null {
-  const { userCountry } = context;
-  
-  if (!userCountry || !userCountry.prioritySectors || userCountry.prioritySectors.length === 0) {
-    return null;
+  const { userCountry, sectorCategoryMap } = context;
+
+  if (!userCountry) {
+    return null; // No country selected: the component genuinely does not apply.
   }
 
-  // Check if career category aligns with country's priority sectors
-  const prioritySectors = userCountry.prioritySectors as string[];
-  
-  // Find if career matches any priority sector
-  let matchIndex = -1;
-  let matchedSector = "";
-  
-  for (let i = 0; i < prioritySectors.length; i++) {
-    const sector = prioritySectors[i];
-    if (career.category.toLowerCase().includes(sector.toLowerCase()) ||
-        sector.toLowerCase().includes(career.category.toLowerCase())) {
-      matchIndex = i;
-      matchedSector = sector;
-      break;
+  const floorResult: ComponentScore = {
+    careerId: career.id,
+    score: VISION_FLOOR,
+    reasoning: `Viable career path in ${userCountry.name}`,
+    componentKey: component.key,
+  };
+
+  if (!sectorCategoryMap) {
+    return floorResult;
+  }
+
+  // OVERRIDE-EXCLUSIVE: pick the candidate source ONCE. An override list, when
+  // present, replaces the category rules outright - it never merges with them.
+  const overrides = sectorCategoryMap.byCareer.get(career.id);
+  const candidates = overrides ?? sectorCategoryMap.byCategory.get(
+    career.category.trim().toLowerCase()
+  );
+
+  if (!candidates || candidates.length === 0) {
+    return floorResult; // No mapping - the floor is the correct answer.
+  }
+
+  // Best candidate = highest relevance after the rank modifier.
+  let bestSectorName = "";
+  let bestRelevance = 0;
+  let bestWeighted = 0;
+
+  for (const candidate of candidates) {
+    const sector = sectorCategoryMap.sectors.get(candidate.sectorId);
+    if (!sector) {
+      continue; // Sector belongs to another country, or was removed.
+    }
+    const weighted = (candidate.relevance / 100) * sector.rankFactor;
+    if (weighted > bestWeighted) {
+      bestWeighted = weighted;
+      bestRelevance = candidate.relevance;
+      bestSectorName = sector.name;
     }
   }
 
-  // Calculate score based on priority ranking
-  let score: number;
+  if (bestWeighted <= 0) {
+    return floorResult;
+  }
+
+  const score = VISION_FLOOR + VISION_RANGE * bestWeighted;
+
+  // Sector name stays a bare trailing token - see ARABIC CONSTRAINT above.
   let reasoning: string;
-  
-  if (matchIndex === 0) {
-    score = 100;
-    reasoning = `Top priority sector for ${userCountry.name}: ${matchedSector}`;
-  } else if (matchIndex === 1) {
-    score = 90;
-    reasoning = `High priority sector for ${userCountry.name}: ${matchedSector}`;
-  } else if (matchIndex === 2) {
-    score = 80;
-    reasoning = `Priority sector for ${userCountry.name}: ${matchedSector}`;
-  } else if (matchIndex > 2) {
-    score = 60;
-    reasoning = `Aligns with ${userCountry.name}'s development goals`;
+  if (bestRelevance >= 75) {
+    reasoning = `Core to a national priority sector for ${userCountry.name}: ${bestSectorName}`;
+  } else if (bestRelevance >= 40) {
+    reasoning = `Supports a national priority sector for ${userCountry.name}: ${bestSectorName}`;
   } else {
-    score = 40;
-    reasoning = `Viable career path in ${userCountry.name}`;
+    reasoning = `Some relevance to a national priority sector for ${userCountry.name}: ${bestSectorName}`;
   }
 
   return {
     careerId: career.id,
-    score,
+    score: Math.min(100, Math.max(0, score)),
     reasoning,
     componentKey: component.key,
   };
