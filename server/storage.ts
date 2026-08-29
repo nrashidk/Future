@@ -91,6 +91,7 @@ import {
   type InsertSystemConfig,
   type CountrySectorWefSkill,
   type InsertCountrySectorWefSkill,
+  type CountrySectorCategory,
   type File,
   type InsertFile,
   type OrganizationEvent,
@@ -312,6 +313,8 @@ export interface IStorage {
   getCountryPrioritySectorsByCountry(countryId: string): Promise<CountryPrioritySector[]>;
   createOrUpdateCountryPrioritySector(countryId: string, name: string, displayOrder: number, description?: string): Promise<CountryPrioritySector>;
   createOrUpdateCountrySectorWefSkill(sectorId: string, wefSkillId: string, importance: number): Promise<CountrySectorWefSkill>;
+  createOrUpdateSectorCategoryRule(sectorId: string, careerCategory: string, relevance: number, notes?: string): Promise<CountrySectorCategory>;
+  createOrUpdateSectorCareerOverride(sectorId: string, careerId: string, relevance: number, notes?: string): Promise<CountrySectorCategory>;
   getSectorCategoryMap(countryId: string): Promise<SectorCategoryRow[]>;
   
   // Bulk loading operations for matching service
@@ -1936,6 +1939,59 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return mapping;
+  }
+
+  /**
+   * Upsert one VISION-ALIGNMENT category rule: (sector, career_category) -> relevance.
+   *
+   * The conflict target MUST repeat the partial index's WHERE predicate
+   * (`sector_category_rule_unique_idx` is partial on `career_id IS NULL`).
+   * Without `targetWhere` Postgres cannot match the index and the statement
+   * fails with "no unique or exclusion constraint matching the ON CONFLICT
+   * specification" - see the NULL-distinctness note in shared/schema.ts.
+   */
+  async createOrUpdateSectorCategoryRule(
+    sectorId: string,
+    careerCategory: string,
+    relevance: number,
+    notes?: string,
+  ): Promise<CountrySectorCategory> {
+    const [rule] = await db
+      .insert(countrySectorCategories)
+      .values({ sectorId, careerCategory, careerId: null, relevance, notes })
+      .onConflictDoUpdate({
+        target: [countrySectorCategories.sectorId, countrySectorCategories.careerCategory],
+        targetWhere: sql`${countrySectorCategories.careerId} IS NULL`,
+        set: { relevance, notes, updatedAt: new Date() },
+      })
+      .returning();
+    return rule;
+  }
+
+  /**
+   * Upsert one VISION-ALIGNMENT per-career override: (sector, career) -> relevance.
+   *
+   * OVERRIDE-EXCLUSIVE: writing any override row for a career makes overrides the
+   * ONLY candidates for it - every category rule stops applying to that career
+   * (calculateVisionScore in server/services/matching.ts). Conflict target carries
+   * the `sector_category_override_unique_idx` predicate for the same reason as above.
+   */
+  async createOrUpdateSectorCareerOverride(
+    sectorId: string,
+    careerId: string,
+    relevance: number,
+    notes?: string,
+  ): Promise<CountrySectorCategory> {
+    const [override] = await db
+      .insert(countrySectorCategories)
+      .values({ sectorId, careerCategory: null, careerId, relevance, notes })
+      .onConflictDoUpdate({
+        target: [countrySectorCategories.sectorId, countrySectorCategories.careerId],
+        targetWhere: sql`${countrySectorCategories.careerId} IS NOT NULL`,
+        set: { relevance, notes, updatedAt: new Date() },
+      })
+      .returning();
+    return override;
   }
 
   /**

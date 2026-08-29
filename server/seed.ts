@@ -8,6 +8,113 @@ import { applyGrades9to12ArabicContent } from "./migrations/quiz-arabic-content-
 import { applyCareerArabicContent } from "./migrations/career-arabic-content";
 import { WEF_16_SKILLS, CAREER_WEF_SKILL_AFFINITIES } from "./wefSkillsData";
 
+// ---------------------------------------------------------------------------
+// VISION ALIGNMENT — UAE priority sector ↔ career-category mapping
+// ---------------------------------------------------------------------------
+// Feeds country_sector_categories, which drives calculateVisionScore
+// (server/services/matching.ts). Without these rows the component is INERT:
+// every career floors at 40 and the 20%/30% vision weight cannot discriminate.
+//
+// Score = 40 + 60 × (relevance/100) × rankFactor, where rankFactor comes from
+// the sector's display_order (1.00 for sector #1 down to 0.85 for sector #6).
+// Only the single best-weighted candidate counts, so a second, weaker row for
+// the same category never lowers a score — it documents real-but-secondary
+// relevance and keeps the map robust if sector priorities are re-ordered.
+//
+// Relevance bands: core 90–100 · strong 70–85 · moderate 50–65 · weak <50.
+// CALIBRATION RULE: every secondary row sits far enough below its category's
+// intended headline that rankFactor cannot flip which sector the student is
+// shown. rankFactor spans 1.00–0.85, so a lower-ranked sector needs ~18% more
+// relevance to win; the smallest margin below is ~3 score points. Two rows within
+// a point of each other would make the rationale hostage to sector re-ordering.
+// `sector` MUST be byte-identical to the countries.prioritySectors entry —
+// recommendations.routes.ts localises reasoning by \b-substituting that exact
+// string for its Arabic counterpart.
+//
+// Culinary Arts is deliberately absent: no UAE priority sector is genuinely
+// about food service, so Chef floors at 40. That is a real answer, not a gap.
+// Science is absent too, for a different reason — its only member
+// (Environmental Scientist) carries an override below, and override-exclusive
+// semantics mean any Science category rule could never fire.
+export const UAE_SECTOR_CATEGORY_RULES: Array<{
+  sector: string;
+  category: string;
+  relevance: number;
+  notes: string;
+}> = [
+  // — Technology (category rule reaches Product Manager, Software Engineer, UX/UI Designer, Web Developer; Data Scientist is overridden below)
+  { sector: "Technology", category: "Technology", relevance: 95, notes: "Core: digital transformation, smart cities and the innovation ecosystem are built by this category." },
+  { sector: "Artificial Intelligence", category: "Technology", relevance: 75, notes: "AI systems are specified, built and deployed by software and data practitioners." },
+  { sector: "Space Exploration", category: "Technology", relevance: 55, notes: "MBRSC satellite/Mars programmes run on flight software, ground systems and data pipelines." },
+  { sector: "Renewable Energy", category: "Technology", relevance: 50, notes: "Smart-grid, energy-management and monitoring platforms." },
+  { sector: "Education", category: "Technology", relevance: 50, notes: "EdTech platforms behind the national digital-learning push." },
+
+  // — Engineering (category rule reaches Electrical + Mechanical only; the other three are overridden below)
+  { sector: "Space Exploration", category: "Engineering", relevance: 70, notes: "Aerospace, propulsion, avionics and satellite hardware." },
+  { sector: "Renewable Energy", category: "Engineering", relevance: 80, notes: "Solar, nuclear, grid and storage plant engineering for the 2050 clean-energy target." },
+  { sector: "Technology", category: "Engineering", relevance: 65, notes: "Advanced manufacturing, robotics and smart infrastructure." },
+  { sector: "Artificial Intelligence", category: "Engineering", relevance: 50, notes: "Automation and intelligent control systems." },
+
+  // — Healthcare (Dentist, Doctor, Nurse, Pharmacist, Physical Therapist, Psychologist)
+  { sector: "Biotechnology", category: "Healthcare", relevance: 85, notes: "The sector is defined as advanced healthcare, genomics and life sciences — clinicians are its delivery workforce." },
+  { sector: "Artificial Intelligence", category: "Healthcare", relevance: 55, notes: "AI diagnostics and clinical decision support." },
+  { sector: "Technology", category: "Healthcare", relevance: 50, notes: "National digital-health platforms (Malaffi, Riayati) and telemedicine." },
+
+  // — Education (Teacher)
+  { sector: "Education", category: "Education", relevance: 100, notes: "Core: the sector IS this category's workforce." },
+  { sector: "Technology", category: "Education", relevance: 60, notes: "Digital learning delivery and classroom technology." },
+  { sector: "Artificial Intelligence", category: "Education", relevance: 55, notes: "AI is being taught as national school curriculum content." },
+
+  // — Business & Management (Entrepreneur, HR Manager, Management Consultant)
+  { sector: "Technology", category: "Business & Management", relevance: 65, notes: "Founding and scaling ventures inside the innovation ecosystem." },
+  { sector: "Artificial Intelligence", category: "Business & Management", relevance: 50, notes: "AI-adoption programmes across government and enterprise." },
+
+  // — Business & Marketing (Digital Marketing Specialist, Marketing Manager, Sales Manager)
+  { sector: "Technology", category: "Business & Marketing", relevance: 60, notes: "Digital economy, e-commerce and platform go-to-market." },
+  { sector: "Artificial Intelligence", category: "Business & Marketing", relevance: 45, notes: "AI-driven analytics, targeting and personalisation." },
+
+  // — Creative Arts (Fashion Designer, Graphic Designer, Photographer, Video Game Designer)
+  { sector: "Technology", category: "Creative Arts", relevance: 55, notes: "Digital creative industries and the games sector." },
+  { sector: "Artificial Intelligence", category: "Creative Arts", relevance: 40, notes: "Weak band: generative tooling is entering design and content work but is not the job." },
+
+  // — Design & Architecture (Architect, Interior Designer)
+  { sector: "Technology", category: "Design & Architecture", relevance: 60, notes: "Smart-city planning and design (Dubai 2040, Masdar City)." },
+  { sector: "Renewable Energy", category: "Design & Architecture", relevance: 50, notes: "Sustainable and low-carbon building design." },
+
+  // — Finance (Accountant, Financial Analyst)
+  { sector: "Technology", category: "Finance", relevance: 55, notes: "FinTech and the digital-economy finance stack." },
+  { sector: "Artificial Intelligence", category: "Finance", relevance: 40, notes: "Weak band: algorithmic analysis and risk models apply to analysts far more than to accountants." },
+
+  // — Legal (Lawyer)
+  { sector: "Technology", category: "Legal", relevance: 45, notes: "Weak band: legal frameworks for the digital economy. No UAE priority sector is genuinely legal-led." },
+
+  // — Media & Communications (Content Creator, Journalist)
+  { sector: "Technology", category: "Media & Communications", relevance: 55, notes: "Digital media platforms and the creator economy." },
+  { sector: "Artificial Intelligence", category: "Media & Communications", relevance: 40, notes: "Weak band: AI content tooling assists but does not define the work." },
+
+  // — Social Services (Social Worker)
+  { sector: "Education", category: "Social Services", relevance: 60, notes: "School social work and student wellbeing sit inside the education system." },
+  { sector: "Biotechnology", category: "Social Services", relevance: 50, notes: "Healthcare social work inside the advanced-healthcare sector." },
+];
+
+// Per-career overrides: OVERRIDE-EXCLUSIVE — once a career has any override row,
+// category rules stop applying to it entirely. Used only where the career's
+// category is too coarse and would otherwise attribute the career to the wrong
+// sector: the Engineering rule cannot tell a biomedical engineer from a civil
+// engineer, so all five would share one rationale.
+export const UAE_SECTOR_CAREER_OVERRIDES: Array<{
+  sector: string;
+  careerTitle: string;
+  relevance: number;
+  notes: string;
+}> = [
+  { sector: "Renewable Energy", careerTitle: "Renewable Energy Engineer", relevance: 100, notes: "The career is the sector. Pins Renewable Energy and lifts 84 -> 95; the Engineering rule cannot express that this career IS the sector." },
+  { sector: "Biotechnology", careerTitle: "Biomedical Engineer", relevance: 90, notes: "Medical devices and life-sciences engineering. The Engineering rule would have credited Renewable Energy (84) - wrong sector for this career." },
+  { sector: "Renewable Energy", careerTitle: "Environmental Scientist", relevance: 85, notes: "Climate leadership and the 50%-clean-energy-by-2050 target. Its category (Science) has no rule, so without this it would floor at 40." },
+  { sector: "Technology", careerTitle: "Civil Engineer", relevance: 70, notes: "Smart-city and infrastructure delivery. The Engineering rule would have credited Renewable Energy (84), overstating a civil engineer's clean-energy role." },
+  { sector: "Artificial Intelligence", careerTitle: "Data Scientist", relevance: 90, notes: "UAE frames data science under its flagship AI priority — AI Strategy 2031's 'Data and Infrastructure' pillar names data professionals as AI-strategy talent. The Technology rule (88, headlined 'Technology') understates it; this headlines Artificial Intelligence at 94." },
+];
+
 export async function seedDatabase() {
   console.log("🌱 Seeding database...");
 
@@ -1628,6 +1735,7 @@ export async function seedDatabase() {
   } else {
     let sectorsCreated = 0;
     let skillMappingsCreated = 0;
+    const seededSectors: Record<string, string> = {}; // sector name -> id, for the vision mapping below
 
     for (const sectorData of UAE_SECTOR_WEF_SKILLS) {
       // Create or update sector
@@ -1638,6 +1746,7 @@ export async function seedDatabase() {
         sectorData.description
       );
       sectorsCreated++;
+      seededSectors[sectorData.name] = sector.id;
 
       // Map sector to WEF skills
       for (const [skillName, importance] of Object.entries(sectorData.skills)) {
@@ -1661,6 +1770,48 @@ export async function seedDatabase() {
 
     console.log(`✓ Created/updated ${sectorsCreated} UAE priority sectors`);
     console.log(`✓ Created/updated ${skillMappingsCreated} sector→WEF skill mappings`);
+
+    // --- VISION ALIGNMENT: sector ↔ career-category mapping ---
+    console.log("\n🇦🇪 Seeding UAE vision-alignment sector ↔ career-category mapping...");
+
+    const careersForVision = await storage.getAllCareers();
+    const careerIdByTitle = new Map(careersForVision.map((c: any) => [c.title, c.id as string]));
+    const knownCategories = new Set(careersForVision.map((c: any) => String(c.category).trim().toLowerCase()));
+
+    let categoryRulesSeeded = 0;
+    for (const rule of UAE_SECTOR_CATEGORY_RULES) {
+      const sectorId = seededSectors[rule.sector];
+      if (!sectorId) {
+        console.warn(`⚠️  Vision mapping: unknown sector "${rule.sector}" — skipping rule for ${rule.category}`);
+        continue;
+      }
+      // A rule for a category no career uses is dead data, not an error — warn loudly.
+      if (!knownCategories.has(rule.category.trim().toLowerCase())) {
+        console.warn(`⚠️  Vision mapping: no career uses category "${rule.category}" — rule will never fire`);
+      }
+      await storage.createOrUpdateSectorCategoryRule(sectorId, rule.category, rule.relevance, rule.notes);
+      categoryRulesSeeded++;
+    }
+
+    let overridesSeeded = 0;
+    for (const override of UAE_SECTOR_CAREER_OVERRIDES) {
+      const sectorId = seededSectors[override.sector];
+      const careerId = careerIdByTitle.get(override.careerTitle);
+      if (!sectorId) {
+        console.warn(`⚠️  Vision mapping: unknown sector "${override.sector}" — skipping override for ${override.careerTitle}`);
+        continue;
+      }
+      if (!careerId) {
+        // Silently skipping would leave the career on its (wrong) category rule.
+        console.warn(`⚠️  Vision mapping: career "${override.careerTitle}" not found — override NOT applied, career falls back to its category rule`);
+        continue;
+      }
+      await storage.createOrUpdateSectorCareerOverride(sectorId, careerId, override.relevance, override.notes);
+      overridesSeeded++;
+    }
+
+    console.log(`✓ Created/updated ${categoryRulesSeeded} sector→career-category rules`);
+    console.log(`✓ Created/updated ${overridesSeeded} per-career vision overrides`);
   }
 
   // Seed CVQ (Children's Values Questionnaire) items
