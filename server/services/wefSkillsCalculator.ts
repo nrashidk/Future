@@ -22,10 +22,30 @@ import {
  * Assessment data structure expected from database
  */
 export interface AssessmentData {
-  cvqScores?: Record<string, number>; // Domain → average score (1-5)
-  riasecScores?: Record<string, number>; // Theme → normalized score (0-1)
-  subjectScores?: Record<string, number>; // Subject → quiz percentage (0-100)
+  /** CVQ domain → normalized score, ALREADY 0-100 (cvq.routes.ts:103). */
+  cvqScores?: Record<string, number>;
+  /**
+   * RIASEC theme → normalized score, ALREADY 0-100 (questionBanks/riasec.ts:46-53).
+   * Keyed by Holland letter ("R", "I", …). The stored object also carries the
+   * non-numeric `top3` / `ranking` arrays, which are skipped at runtime.
+   */
+  riasecScores?: Record<string, number>;
+  /** Subject → quiz percentage 0-100, flattened by wefDataExtractor.ts. */
+  subjectScores?: Record<string, number>;
 }
+
+/**
+ * RIASEC scores are stored keyed by Holland letter, but RIASEC_TO_WEF_MAPPING is
+ * keyed by full theme name. Accept either so the branch cannot silently no-op.
+ */
+const RIASEC_KEY_TO_THEME: Record<string, string> = {
+  r: "realistic",     realistic: "realistic",
+  i: "investigative", investigative: "investigative",
+  a: "artistic",      artistic: "artistic",
+  s: "social",        social: "social",
+  e: "enterprising",  enterprising: "enterprising",
+  c: "conventional",  conventional: "conventional",
+};
 
 /**
  * Individual WEF skill score with contributing evidence
@@ -79,9 +99,12 @@ export function calculateWEFSkills(assessmentData: AssessmentData): WEFSkillsPro
     Object.entries(assessmentData.cvqScores).forEach(([domain, score]) => {
       const mappings = CVQ_TO_WEF_MAPPING[domain];
       if (!mappings) return;
+      if (typeof score !== "number" || !Number.isFinite(score)) return;
 
-      // CVQ scores are 1-5, normalize to 0-100
-      const normalizedScore = ((score - 1) / 4) * 100;
+      // cvq_results.normalizedScores is ALREADY 0-100 — cvq.routes.ts:103 does the
+      // 1-5 → 0-100 conversion at the source. Re-normalizing here inflated ~24.75x
+      // (a stored 80 became 1975). Identity.
+      const normalizedScore = score;
 
       mappings.forEach(({ wefSkill, weight }) => {
         initSkill(wefSkill);
@@ -102,11 +125,19 @@ export function calculateWEFSkills(assessmentData: AssessmentData): WEFSkillsPro
   // Process RIASEC scores
   if (assessmentData.riasecScores) {
     Object.entries(assessmentData.riasecScores).forEach(([theme, score]) => {
-      const mappings = RIASEC_TO_WEF_MAPPING[theme.toLowerCase()];
+      // Skips the `top3` / `ranking` arrays that share this object.
+      if (typeof score !== "number" || !Number.isFinite(score)) return;
+
+      const themeKey = RIASEC_KEY_TO_THEME[theme.toLowerCase()];
+      if (!themeKey) return;
+
+      const mappings = RIASEC_TO_WEF_MAPPING[themeKey];
       if (!mappings) return;
 
-      // RIASEC scores already normalized 0-1, scale to 0-100
-      const normalizedScore = score * 100;
+      // questionBanks/riasec.ts:46-53 already clamps to 0-100. Do not re-scale:
+      // this branch was dead (letter key vs theme-name key), so the 100x below it
+      // never fired. Both are fixed together, deliberately. Identity.
+      const normalizedScore = score;
 
       mappings.forEach(({ wefSkill, weight }) => {
         initSkill(wefSkill);
@@ -129,6 +160,9 @@ export function calculateWEFSkills(assessmentData: AssessmentData): WEFSkillsPro
     Object.entries(assessmentData.subjectScores).forEach(([subject, score]) => {
       const mappings = SUBJECT_TO_WEF_MAPPING[subject];
       if (!mappings) return;
+      // wefDataExtractor.ts flattens { correct, total, percentage } → percentage.
+      // Guard anyway: an object here produced NaN across 11 of 16 skills.
+      if (typeof score !== "number" || !Number.isFinite(score)) return;
 
       // Subject scores are already 0-100 (quiz percentages)
       const normalizedScore = score;
@@ -153,7 +187,12 @@ export function calculateWEFSkills(assessmentData: AssessmentData): WEFSkillsPro
   const scores: WEFSkillScore[] = Array.from(skillAccumulator.entries()).map(
     ([skillName, data]) => ({
       skillName: skillName as WEFSkillName,
-      score: data.totalWeight > 0 ? Math.round(data.weightedSum / data.totalWeight) : 0,
+      // Clamp so no future input-contract drift can persist an out-of-range score
+      // for a minor. Nothing downstream clamps.
+      score:
+        data.totalWeight > 0 && Number.isFinite(data.weightedSum)
+          ? Math.max(0, Math.min(100, Math.round(data.weightedSum / data.totalWeight)))
+          : 0,
       sources: data.sources,
     })
   );

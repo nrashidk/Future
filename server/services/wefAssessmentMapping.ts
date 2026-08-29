@@ -12,9 +12,18 @@
 
 /**
  * CVQ Domain → WEF Skills Mapping
- * 
- * Maps Schwartz's 7 value domains to relevant WEF skills.
+ *
+ * Maps Schwartz value domains to relevant WEF skills.
  * Higher weights indicate stronger theoretical correlation.
+ *
+ * NOTE — needs human review (CLAUDE.md rule 6): the CVQ instrument only seeds FIVE
+ * domains (achievement, benevolence, power, security, self_direction — cvq-seed.ts).
+ * `universalism` and `hedonism` below are therefore never looked up today. They are
+ * left in place deliberately rather than deleted: translated AR/EN narrative copy for
+ * both exists (premiumNarratives.ts:94-132, :240-253), which suggests a planned
+ * instrument expansion rather than an oversight. Extra keys in this lookup table are
+ * inert — unlike a domain *enumeration*, they cannot produce a phantom score. Confirm
+ * intent before removing.
  */
 export const CVQ_TO_WEF_MAPPING: Record<string, Array<{ wefSkill: string; weight: number }>> = {
   // Achievement: Success through demonstrating competence

@@ -29,7 +29,9 @@ export async function buildWEFAssessmentData(
     data.cvqScores = extractCVQDomainScores(cvqResult);
   }
 
-  // Extract RIASEC scores (already normalized 0-1 in database)
+  // Extract RIASEC scores (already normalized 0-100 by questionBanks/riasec.ts:46-53).
+  // Keyed by Holland letter, and also carries top3 / ranking arrays; the calculator
+  // maps the letters and skips the non-numeric entries.
   if (assessment.riasecScores && typeof assessment.riasecScores === 'object') {
     data.riasecScores = assessment.riasecScores as Record<string, number>;
   }
@@ -59,20 +61,41 @@ function extractCVQDomainScores(cvqResult: CvqResult): Record<string, number> {
 }
 
 /**
- * Extract per-subject quiz scores
- * Uses pre-calculated subject scores from quiz (0-100 scale)
+ * Extract per-subject quiz scores.
+ *
+ * assessment_quizzes.subjectScores is { subject: { correct, total, percentage } }
+ * (quiz.routes.ts:415-453) — NOT a bare number, despite the schema comment. Passing
+ * the objects through made the calculator compute `object * weight` = NaN across 11
+ * of 16 skills. Flatten to the percentage here so the calculator keeps its
+ * Record<string, number> contract; tolerate a bare number for compatibility with any
+ * older rows.
  */
 async function extractSubjectScores(
   storage: IStorage,
   quiz: AssessmentQuiz
 ): Promise<Record<string, number>> {
-  // subjectScores already contains per-subject percentages
-  // e.g., { "Mathematics": 85, "Science": 72, "English": 90 }
   if (!quiz.subjectScores || typeof quiz.subjectScores !== 'object') {
     return {};
   }
 
-  return quiz.subjectScores as Record<string, number>;
+  const raw = quiz.subjectScores as Record<string, unknown>;
+  const flattened: Record<string, number> = {};
+
+  for (const [subject, value] of Object.entries(raw)) {
+    let percentage: number | null = null;
+
+    if (typeof value === 'number') {
+      percentage = value;
+    } else if (value && typeof value === 'object' && typeof (value as any).percentage === 'number') {
+      percentage = (value as any).percentage;
+    }
+
+    if (percentage !== null && Number.isFinite(percentage)) {
+      flattened[subject] = percentage;
+    }
+  }
+
+  return flattened;
 }
 
 /**
