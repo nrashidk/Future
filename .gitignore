@@ -20,3 +20,5 @@ __pycache__/
 onet_cache/
 # Methodology/scalability audit report (analysis output, not project content)
 methodology-audit-recon.md
+# Vision-alignment 009 migration summary (analysis output, not project content)
+docs/step-009-migration.md
