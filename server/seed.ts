@@ -1772,46 +1772,58 @@ export async function seedDatabase() {
     console.log(`✓ Created/updated ${skillMappingsCreated} sector→WEF skill mappings`);
 
     // --- VISION ALIGNMENT: sector ↔ career-category mapping ---
-    console.log("\n🇦🇪 Seeding UAE vision-alignment sector ↔ career-category mapping...");
+    // Non-fatal by design: this block is the LAST thing in the priority-sector
+    // section, but seedDatabase() continues well past it (CVQ items, Arabic
+    // content). An uncaught throw here unwinds the whole function and is only
+    // caught by the `.catch(console.error)` at the call site in server/index.ts,
+    // which would silently skip every remaining seed step. A missing vision map
+    // degrades gracefully at runtime (matching.ts falls back to the score floor);
+    // missing CVQ items and Arabic content do not. So this failure must not be
+    // allowed to take them down with it.
+    try {
+      console.log("\n🇦🇪 Seeding UAE vision-alignment sector ↔ career-category mapping...");
 
-    const careersForVision = await storage.getAllCareers();
-    const careerIdByTitle = new Map(careersForVision.map((c: any) => [c.title, c.id as string]));
-    const knownCategories = new Set(careersForVision.map((c: any) => String(c.category).trim().toLowerCase()));
+      const careersForVision = await storage.getAllCareers();
+      const careerIdByTitle = new Map(careersForVision.map((c: any) => [c.title, c.id as string]));
+      const knownCategories = new Set(careersForVision.map((c: any) => String(c.category).trim().toLowerCase()));
 
-    let categoryRulesSeeded = 0;
-    for (const rule of UAE_SECTOR_CATEGORY_RULES) {
-      const sectorId = seededSectors[rule.sector];
-      if (!sectorId) {
-        console.warn(`⚠️  Vision mapping: unknown sector "${rule.sector}" — skipping rule for ${rule.category}`);
-        continue;
+      let categoryRulesSeeded = 0;
+      for (const rule of UAE_SECTOR_CATEGORY_RULES) {
+        const sectorId = seededSectors[rule.sector];
+        if (!sectorId) {
+          console.warn(`⚠️  Vision mapping: unknown sector "${rule.sector}" — skipping rule for ${rule.category}`);
+          continue;
+        }
+        // A rule for a category no career uses is dead data, not an error — warn loudly.
+        if (!knownCategories.has(rule.category.trim().toLowerCase())) {
+          console.warn(`⚠️  Vision mapping: no career uses category "${rule.category}" — rule will never fire`);
+        }
+        await storage.createOrUpdateSectorCategoryRule(sectorId, rule.category, rule.relevance, rule.notes);
+        categoryRulesSeeded++;
       }
-      // A rule for a category no career uses is dead data, not an error — warn loudly.
-      if (!knownCategories.has(rule.category.trim().toLowerCase())) {
-        console.warn(`⚠️  Vision mapping: no career uses category "${rule.category}" — rule will never fire`);
+
+      let overridesSeeded = 0;
+      for (const override of UAE_SECTOR_CAREER_OVERRIDES) {
+        const sectorId = seededSectors[override.sector];
+        const careerId = careerIdByTitle.get(override.careerTitle);
+        if (!sectorId) {
+          console.warn(`⚠️  Vision mapping: unknown sector "${override.sector}" — skipping override for ${override.careerTitle}`);
+          continue;
+        }
+        if (!careerId) {
+          // Silently skipping would leave the career on its (wrong) category rule.
+          console.warn(`⚠️  Vision mapping: career "${override.careerTitle}" not found — override NOT applied, career falls back to its category rule`);
+          continue;
+        }
+        await storage.createOrUpdateSectorCareerOverride(sectorId, careerId, override.relevance, override.notes);
+        overridesSeeded++;
       }
-      await storage.createOrUpdateSectorCategoryRule(sectorId, rule.category, rule.relevance, rule.notes);
-      categoryRulesSeeded++;
+
+      console.log(`✓ Created/updated ${categoryRulesSeeded} sector→career-category rules`);
+      console.log(`✓ Created/updated ${overridesSeeded} per-career vision overrides`);
+    } catch (error: any) {
+      console.error("  Vision-alignment mapping seed error (non-fatal, continuing):", error.message);
     }
-
-    let overridesSeeded = 0;
-    for (const override of UAE_SECTOR_CAREER_OVERRIDES) {
-      const sectorId = seededSectors[override.sector];
-      const careerId = careerIdByTitle.get(override.careerTitle);
-      if (!sectorId) {
-        console.warn(`⚠️  Vision mapping: unknown sector "${override.sector}" — skipping override for ${override.careerTitle}`);
-        continue;
-      }
-      if (!careerId) {
-        // Silently skipping would leave the career on its (wrong) category rule.
-        console.warn(`⚠️  Vision mapping: career "${override.careerTitle}" not found — override NOT applied, career falls back to its category rule`);
-        continue;
-      }
-      await storage.createOrUpdateSectorCareerOverride(sectorId, careerId, override.relevance, override.notes);
-      overridesSeeded++;
-    }
-
-    console.log(`✓ Created/updated ${categoryRulesSeeded} sector→career-category rules`);
-    console.log(`✓ Created/updated ${overridesSeeded} per-career vision overrides`);
   }
 
   // Seed CVQ (Children's Values Questionnaire) items
