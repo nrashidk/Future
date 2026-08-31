@@ -20,5 +20,23 @@ __pycache__/
 onet_cache/
 # Methodology/scalability audit report (analysis output, not project content)
 methodology-audit-recon.md
-# Vision-alignment 009 migration summary (analysis output, not project content)
-docs/step-009-migration.md
+# docs/ holds two kinds of markdown: real project documentation that IS committed,
+# and generated analysis output (recon reports, audits, per-step summaries) that is
+# NOT. This is an ALLOWLIST, deliberately: ignore every .md in docs/, then re-admit
+# the real docs by exact name below.
+#
+# Why this direction: the previous denylist (docs/*-recon.md, docs/*-audit.md,
+# docs/step-*.md, ...) made the NAMING CONVENTION load-bearing — a new analysis file
+# that didn't happen to match a pattern (docs/cvq-notes.md) got committed silently.
+# Failing that way is the bad one. Inverted, the worst case is a real doc staying
+# untracked until someone adds a `!` line, which `git status` makes obvious.
+#
+# ADDING A REAL PROJECT DOC? Add a matching `!docs/<name>.md` line here, or it will
+# not be tracked. Analysis output needs no entry — it is ignored by default.
+#
+# Only *.md is ignored, so the .docx/.html white papers in docs/ are unaffected.
+docs/*.md
+!docs/DATABASE_INDEXES_MIGRATION.md
+!docs/PAID_REPORT_ENHANCEMENT_SPEC.md
+!docs/REPORT_TIER_COMPARISON.md
+!docs/VALUES_PROFILE_DERIVATION_METHODOLOGY.md
