@@ -7,6 +7,7 @@ import { applyGrade8ArabicContent } from "./migrations/quiz-arabic-content";
 import { applyGrades9to12ArabicContent } from "./migrations/quiz-arabic-content-grades9-12";
 import { applyCareerArabicContent } from "./migrations/career-arabic-content";
 import { applyCareerValuesProfiles } from "./migrations/career-values-profiles";
+import { applyCareerRelatedSubjects } from "./migrations/career-related-subjects";
 import { WEF_16_SKILLS, CAREER_WEF_SKILL_AFFINITIES } from "./wefSkillsData";
 
 // ---------------------------------------------------------------------------
@@ -398,7 +399,11 @@ export async function seedDatabase() {
       description: "Shape young minds and inspire the next generation of scientists, artists, and leaders. Make complex topics exciting, help students discover their talents, and watch them grow into confident learners.",
       requiredSkills: ["Subject Expertise", "Communication", "Patience", "Curriculum Development"],
       requiredSkillsAr: ["الخبرة في المادة", "التواصل", "الصبر", "تطوير المناهج"],
-      relatedSubjects: ["Education", "Subject Specialization"],
+      // NOT ["Education", "Subject Specialization"] — those name the profession, not
+      // a school subject, so both drop in normalizeCareerSubjects() and the career
+      // is pinned to the flat-20 subjects floor. Keep in sync with
+      // server/migrations/career-related-subjects.ts, which fixes existing rows.
+      relatedSubjects: ["English", "Mathematics", "Science"],
       category: "Education",
       educationLevel: "Bachelor's degree in Education or subject area + teaching certification",
       averageSalary: "$45,000 - $75,000",
@@ -1939,6 +1944,16 @@ export async function seedDatabase() {
     await applyCareerValuesProfiles();
   } catch (error: any) {
     console.error("  Career values profiles error (non-fatal, continuing):", error.message);
+  }
+
+  // Correct relatedSubjects on careers whose seeded tags project to no
+  // student-selectable subject. Same INSERT-only reason as the block above: the
+  // seed array's relatedSubjects only ever reach a from-scratch DB. Without this,
+  // Teacher stays at the flat-20 subjects floor on every already-seeded database.
+  try {
+    await applyCareerRelatedSubjects();
+  } catch (error: any) {
+    console.error("  Career relatedSubjects error (non-fatal, continuing):", error.message);
   }
 
   // Validate Arabic completeness — warn about canonical careers missing AR translations

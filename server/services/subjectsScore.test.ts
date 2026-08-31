@@ -53,8 +53,11 @@ const PHYSIO = career("Physical Therapist", ["Biology", "Health Science", "Physi
 const CHEF = career("Chef", ["Chemistry", "Art", "Business"]);
 const ENV_SCIENTIST = career("Environmental Scientist", ["Biology", "Chemistry", "Geography", "Environmental Science"]);
 const HR_MANAGER = career("Human Resources Manager", ["Business", "Psychology", "Communication"]);
-const TEACHER = career("Teacher (Secondary Education)", ["Education", "Subject Specialization"]);
 const FASHION = career("Fashion Designer", ["Art", "Design", "Business"]);
+// Teacher was retagged by the data fix (seed array + the career-related-subjects
+// backfill); TEACHER_OLD is kept to pin WHY it needed one.
+const TEACHER = career("Teacher (Secondary Education)", ["English", "Mathematics", "Science"]);
+const TEACHER_OLD = career("Teacher (Secondary Education)", ["Education", "Subject Specialization"]);
 
 describe("normalizeCareerSubjects", () => {
   it("collapses curriculum variants onto the umbrella-6 and dedupes", () => {
@@ -127,9 +130,27 @@ describe("calculateSubjectsScore — careers that project to nothing", () => {
     expect(score(["Science", "Mathematics", "English", "Arabic", "Social Studies", "Computer Science"], FASHION)).toBe(20);
   });
 
-  it("Teacher stays at the floor: Education / Subject Specialization are professions, not school subjects", () => {
-    expect(normalizeCareerSubjects(TEACHER.relatedSubjects)).toEqual([]);
-    expect(score(["Science", "Mathematics", "English", "Arabic", "Social Studies", "Computer Science"], TEACHER)).toBe(20);
+  it("Teacher's OLD tags were the reason it needed a data fix, not a code one", () => {
+    // Education / Subject Specialization name the profession, not a school
+    // subject, so no alias could honestly reach the umbrella-6 from them.
+    expect(normalizeCareerSubjects(TEACHER_OLD.relatedSubjects)).toEqual([]);
+    expect(score(["Science", "Mathematics", "English", "Arabic", "Social Studies", "Computer Science"], TEACHER_OLD)).toBe(20);
+  });
+});
+
+describe("the Teacher data fix", () => {
+  it("retagged relatedSubjects are all umbrella-6, so none of them drop", () => {
+    expect(normalizeCareerSubjects(TEACHER.relatedSubjects)).toEqual(["English", "Mathematics", "Science"]);
+  });
+
+  it("Teacher clears the floor, and scales with how much of it the student picked", () => {
+    expect(score(["English"], TEACHER)).toBeCloseTo(100 / 3);
+    expect(score(["English", "Mathematics"], TEACHER)).toBeCloseTo(200 / 3);
+    expect(score(["English", "Mathematics", "Science"], TEACHER)).toBe(100);
+  });
+
+  it("still floors a student who picked none of the core three", () => {
+    expect(score(["Arabic", "Computer Science"], TEACHER)).toBe(20);
   });
 });
 
@@ -149,9 +170,9 @@ describe("floor census — which of the 10 previously-floored careers clear it",
   // that is exactly the condition for SOME student to score above 20.
   const ALL = [DOCTOR, DENTIST, NURSE, PHARMACIST, PHYSIO, CHEF, ENV_SCIENTIST, HR_MANAGER, TEACHER, FASHION];
 
-  it("8 of 10 clear; Teacher and Fashion Designer remain (they need a data fix)", () => {
+  it("9 of 10 clear; only Fashion Designer remains (no art axis in the umbrella-6)", () => {
     const stuck = ALL.filter(c => normalizeCareerSubjects(c.relatedSubjects).length === 0).map(c => c.title);
-    expect(stuck).toEqual(["Teacher (Secondary Education)", "Fashion Designer"]);
+    expect(stuck).toEqual(["Fashion Designer"]);
   });
 });
 
