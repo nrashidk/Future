@@ -24,6 +24,9 @@ import {
   INTEREST_MATCHING_WEIGHTS, 
   findMatchingKeywords 
 } from "./interestLexicon";
+// Pure, storage-free module by design: matching.ts must stay importable without
+// DATABASE_URL. Do NOT switch this to "../utils/subjects" (it imports storage).
+import { normalizeCareerSubjects } from "../utils/subjectMap";
 
 /**
  * Typed interfaces for JSONB fields
@@ -608,7 +611,7 @@ function generateConfigVersion(components: AssessmentComponent[]): string {
  * Component Calculators
  */
 
-function calculateSubjectsScore(
+export function calculateSubjectsScore(
   context: MatchingContext,
   career: Career,
   component: AssessmentComponent
@@ -619,11 +622,20 @@ function calculateSubjectsScore(
     return null;
   }
   
+  // Project the career's curriculum-flavoured tags ("Biology", "Health Science")
+  // onto the student's vocabulary (the umbrella-6) before comparing - the two
+  // sides can only meet there. This is BOTH the match target and, below, the
+  // denominator.
+  const careerSubjects = normalizeCareerSubjects(career.relatedSubjects);
+
   // Match user's favorite subjects with career's related subjects
   const matchingSubjects = assessment.favoriteSubjects.filter(subject => 
-    career.relatedSubjects.includes(subject)
+    careerSubjects.includes(subject)
   );
   
+  // Flat 20 for a genuine non-match, and for a career whose tags project to
+  // nothing at all (pure art/design/profession vocabulary - see
+  // docs/piece-d-recon.md §4/§6).
   if (matchingSubjects.length === 0) {
     return {
       careerId: career.id,
@@ -634,8 +646,15 @@ function calculateSubjectsScore(
   }
 
   // Calculate preference score (percentage of career's subjects that user likes)
-  const preferenceScore = career.relatedSubjects.length > 0
-    ? (matchingSubjects.length / career.relatedSubjects.length) * 100
+  //
+  // THE DENOMINATOR MUST BE THE NORMALIZED SET, not the raw tags. Using the raw
+  // length would swap a flat floor for a systematic penalty: Doctor's three tags
+  // (Biology, Chemistry, Health Science) collapse to ONE umbrella subject
+  // (Science), so a Science-loving student is a 1/1 = 100% subject match, not
+  // 1/3 = 33%. Normalizing the target but not the divisor is the subtle
+  // half-fix, and it penalises exactly the careers whose tags are most redundant.
+  const preferenceScore = careerSubjects.length > 0
+    ? (matchingSubjects.length / careerSubjects.length) * 100
     : 0;
 
   // Calculate competency score if quiz data available

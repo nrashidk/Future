@@ -7,68 +7,24 @@
  */
 
 import { storage } from "../storage";
+import {
+  DEFAULT_CANONICAL_SUBJECTS,
+  DEFAULT_SUBJECT_MAP,
+  normalizeSubject,
+  normalizeSubjects,
+  normalizeCareerSubjects,
+} from "./subjectMap";
 
-// Default canonical subjects that exist in quiz_questions database
-const DEFAULT_CANONICAL_SUBJECTS = [
-  'Mathematics',
-  'Science',
-  'English',
-  'Arabic',
-  'Social Studies',
-  'Computer Science'
-] as const;
-
-// Fallback mapping from common subject names to canonical quiz subjects
-// This is used when database subjects are not available
-const DEFAULT_SUBJECT_MAP: Record<string, string> = {
-  // Science variants
-  'Physics': 'Science',
-  'Chemistry': 'Science',
-  'Biology': 'Science',
-  'Physical Science': 'Science',
-  'Life Science': 'Science',
-  
-  // Social Studies variants
-  'Economics': 'Social Studies',
-  'History': 'Social Studies',
-  'Geography': 'Social Studies',
-  'Civics': 'Social Studies',
-  'Government': 'Social Studies',
-  'Sociology': 'Social Studies',
-  
-  // Computer Science variants
-  'Programming': 'Computer Science',
-  'Coding': 'Computer Science',
-  'IT': 'Computer Science',
-  'Technology': 'Computer Science',
-  
-  // Mathematics variants
-  'Math': 'Mathematics',
-  'Maths': 'Mathematics',
-  'Calculus': 'Mathematics',
-  'Algebra': 'Mathematics',
-  'Geometry': 'Mathematics',
-  
-  // English variants
-  'English Language': 'English',
-  'Literature': 'English',
-  'Writing': 'English',
-  
-  // Arabic variants
-  'Arabic Language': 'Arabic',
-  
-  // Art variants
-  'Art': 'Art',
-  'Art & Design': 'Art',
-  'Visual Arts': 'Art',
-  
-  // Music variants
-  'Music': 'Music',
-  'Performing Arts': 'Music',
-  
-  // Business variants
-  'Business': 'Business',
-  'Business Studies': 'Business'
+// The pure subject vocabulary and the synchronous normalizers live in
+// ./subjectMap.ts, which imports neither storage nor db so that DB-free
+// consumers (server/services/matching.ts) can use them. Re-exported here so
+// every existing importer of ./subjects keeps working unchanged.
+export {
+  DEFAULT_CANONICAL_SUBJECTS,
+  DEFAULT_SUBJECT_MAP,
+  normalizeSubject,
+  normalizeSubjects,
+  normalizeCareerSubjects,
 };
 
 // Cache for subject alias mappings
@@ -169,14 +125,6 @@ export async function normalizeSubjectAsync(
 }
 
 /**
- * Synchronous normalize - uses static fallback only
- * For backward compatibility with existing code
- */
-export function normalizeSubject(subject: string): string {
-  return DEFAULT_SUBJECT_MAP[subject] || subject;
-}
-
-/**
  * Normalize an array of subjects using database aliases
  */
 export async function normalizeSubjectsAsync(
@@ -186,15 +134,6 @@ export async function normalizeSubjectsAsync(
 ): Promise<string[]> {
   const normalizedPromises = subjects.map(s => normalizeSubjectAsync(s, countryId, curriculum));
   const normalized = await Promise.all(normalizedPromises);
-  return Array.from(new Set(normalized)); // Remove duplicates
-}
-
-/**
- * Synchronous normalize - uses static fallback only
- * For backward compatibility with existing code
- */
-export function normalizeSubjects(subjects: string[]): string[] {
-  const normalized = subjects.map(normalizeSubject);
   return Array.from(new Set(normalized)); // Remove duplicates
 }
 

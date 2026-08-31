@@ -1,5 +1,8 @@
 import type { Assessment, Career } from "@shared/schema";
 import type { RiasecScores } from "./matching";
+// Shared with matching.ts's calculateSubjectsScore so scoring and narrative can
+// never disagree about which subjects a career relates to.
+import { normalizeCareerSubjects } from "../utils/subjectMap";
 
 /**
  * Premium Narrative Generator
@@ -319,7 +322,11 @@ export function generateEnhancedReasoning(context: NarrativeContext): string {
   // Paragraph 4: Subject & skills connection
   if (assessment.favoriteSubjects) {
     const subjects = assessment.favoriteSubjects as string[];
-    const relevantSubjects = subjects.filter((s) => career.relatedSubjects.includes(s));
+    // Same projection the subjects component uses, so a Doctor match scored on
+    // "Science" also names Science here instead of falling back to the generic
+    // "will transfer well" paragraph.
+    const careerSubjects = normalizeCareerSubjects(career.relatedSubjects);
+    const relevantSubjects = subjects.filter((s) => careerSubjects.includes(s));
     if (relevantSubjects.length === 0) {
       paragraphs.push(
         lang === "ar"
