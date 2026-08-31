@@ -6,6 +6,7 @@ import { seedCVQItems } from "./cvq-seed";
 import { applyGrade8ArabicContent } from "./migrations/quiz-arabic-content";
 import { applyGrades9to12ArabicContent } from "./migrations/quiz-arabic-content-grades9-12";
 import { applyCareerArabicContent } from "./migrations/career-arabic-content";
+import { applyCareerValuesProfiles } from "./migrations/career-values-profiles";
 import { WEF_16_SKILLS, CAREER_WEF_SKILL_AFFINITIES } from "./wefSkillsData";
 
 // ---------------------------------------------------------------------------
@@ -291,6 +292,8 @@ export async function seedDatabase() {
       averageSalary: "$80,000 - $150,000",
       growthOutlook: "Excellent (25% growth)",
       icon: "💻",
+      onetCode: "15-1299.08",
+      valuesProfile: { achievement: 67, benevolence: 34, self_direction: 66, security: 68, power: 75 },
     },
     {
       title: "Data Scientist",
@@ -303,6 +306,8 @@ export async function seedDatabase() {
       averageSalary: "$90,000 - $160,000",
       growthOutlook: "Excellent (36% growth)",
       icon: "📊",
+      onetCode: "15-2051.01",
+      valuesProfile: { achievement: 67, benevolence: 0, self_direction: 0, security: 56, power: 11 },
     },
     {
       title: "Renewable Energy Engineer",
@@ -315,6 +320,8 @@ export async function seedDatabase() {
       averageSalary: "$70,000 - $120,000",
       growthOutlook: "Very Good (20% growth)",
       icon: "⚡",
+      onetCode: "17-2199.03",
+      valuesProfile: { achievement: 48, benevolence: 25, self_direction: 54, security: 80, power: 50 },
     },
     {
       title: "Healthcare Professional (Nurse)",
@@ -327,6 +334,8 @@ export async function seedDatabase() {
       averageSalary: "$60,000 - $95,000",
       growthOutlook: "Excellent (6% growth)",
       icon: "🏥",
+      onetCode: "29-1141.00",
+      valuesProfile: { achievement: 48, benevolence: 84, self_direction: 54, security: 95, power: 36 },
     },
     {
       title: "Digital Marketing Specialist",
@@ -339,6 +348,8 @@ export async function seedDatabase() {
       averageSalary: "$50,000 - $85,000",
       growthOutlook: "Very Good (10% growth)",
       icon: "📱",
+      onetCode: "13-1161.00",
+      valuesProfile: { achievement: 15, benevolence: 9, self_direction: 10, security: 51, power: 0 },
     },
     {
       title: "Graphic Designer",
@@ -351,6 +362,8 @@ export async function seedDatabase() {
       averageSalary: "$45,000 - $75,000",
       growthOutlook: "Good (3% growth)",
       icon: "🎨",
+      onetCode: "27-1024.00",
+      valuesProfile: { achievement: 67, benevolence: 25, self_direction: 54, security: 46, power: 36 },
     },
     {
       title: "Mechanical Engineer",
@@ -363,6 +376,8 @@ export async function seedDatabase() {
       averageSalary: "$70,000 - $110,000",
       growthOutlook: "Good (2% growth)",
       icon: "⚙️",
+      onetCode: "17-2141.00",
+      valuesProfile: { achievement: 48, benevolence: 42, self_direction: 54, security: 73, power: 75 },
     },
     {
       title: "Financial Analyst",
@@ -375,6 +390,8 @@ export async function seedDatabase() {
       averageSalary: "$65,000 - $105,000",
       growthOutlook: "Good (9% growth)",
       icon: "💰",
+      onetCode: "13-2099.01",
+      valuesProfile: { achievement: 33, benevolence: 34, self_direction: 54, security: 63, power: 50 },
     },
     {
       title: "Teacher (Secondary Education)",
@@ -387,6 +404,8 @@ export async function seedDatabase() {
       averageSalary: "$45,000 - $75,000",
       growthOutlook: "Good (4% growth)",
       icon: "📚",
+      onetCode: "25-2031.00",
+      valuesProfile: { achievement: 67, benevolence: 100, self_direction: 44, security: 78, power: 11 },
     },
     {
       title: "Environmental Scientist",
@@ -399,6 +418,8 @@ export async function seedDatabase() {
       averageSalary: "$55,000 - $90,000",
       growthOutlook: "Very Good (8% growth)",
       icon: "🌍",
+      onetCode: "19-2041.00",
+      valuesProfile: { achievement: 33, benevolence: 25, self_direction: 44, security: 44, power: 50 },
     },
     {
       title: "Civil Engineer",
@@ -411,6 +432,8 @@ export async function seedDatabase() {
       averageSalary: "$70,000 - $115,000",
       growthOutlook: "Good (5% growth)",
       icon: "🏗️",
+      onetCode: "17-2051.00",
+      valuesProfile: { achievement: 48, benevolence: 25, self_direction: 76, security: 80, power: 61 },
     },
     {
       title: "Architect",
@@ -423,6 +446,8 @@ export async function seedDatabase() {
       averageSalary: "$65,000 - $120,000",
       growthOutlook: "Good (3% growth)",
       icon: "🏛️",
+      onetCode: "17-1011.00",
+      valuesProfile: { achievement: 67, benevolence: 18, self_direction: 76, security: 73, power: 75 },
     },
     {
       title: "Electrical Engineer",
@@ -435,6 +460,8 @@ export async function seedDatabase() {
       averageSalary: "$75,000 - $125,000",
       growthOutlook: "Very Good (7% growth)",
       icon: "⚡",
+      onetCode: "17-2071.00",
+      valuesProfile: { achievement: 67, benevolence: 34, self_direction: 54, security: 73, power: 61 },
     },
     {
       title: "Biomedical Engineer",
@@ -447,6 +474,8 @@ export async function seedDatabase() {
       averageSalary: "$70,000 - $120,000",
       growthOutlook: "Excellent (10% growth)",
       icon: "🔬",
+      onetCode: "17-2031.00",
+      valuesProfile: { achievement: 48, benevolence: 51, self_direction: 76, security: 83, power: 50 },
     },
     {
       title: "Pharmacist",
@@ -459,6 +488,8 @@ export async function seedDatabase() {
       averageSalary: "$90,000 - $135,000",
       growthOutlook: "Good (2% growth)",
       icon: "💊",
+      onetCode: "29-1051.00",
+      valuesProfile: { achievement: 15, benevolence: 51, self_direction: 32, security: 78, power: 75 },
     },
     {
       title: "Doctor (General Practitioner)",
@@ -471,6 +502,8 @@ export async function seedDatabase() {
       averageSalary: "$150,000 - $250,000",
       growthOutlook: "Good (3% growth)",
       icon: "⚕️",
+      onetCode: "29-1215.00",
+      valuesProfile: { achievement: 100, benevolence: 93, self_direction: 88, security: 98, power: 100 },
     },
     {
       title: "Dentist",
@@ -483,6 +516,8 @@ export async function seedDatabase() {
       averageSalary: "$130,000 - $200,000",
       growthOutlook: "Good (6% growth)",
       icon: "🦷",
+      onetCode: "29-1021.00",
+      valuesProfile: { achievement: 82, benevolence: 75, self_direction: 100, security: 61, power: 75 },
     },
     {
       title: "Physical Therapist",
@@ -495,6 +530,8 @@ export async function seedDatabase() {
       averageSalary: "$70,000 - $95,000",
       growthOutlook: "Excellent (17% growth)",
       icon: "🏃",
+      onetCode: "29-1123.00",
+      valuesProfile: { achievement: 67, benevolence: 93, self_direction: 54, security: 78, power: 75 },
     },
     {
       title: "Psychologist",
@@ -507,6 +544,8 @@ export async function seedDatabase() {
       averageSalary: "$65,000 - $110,000",
       growthOutlook: "Good (6% growth)",
       icon: "🧠",
+      onetCode: "19-3033.00",
+      valuesProfile: { achievement: 76, benevolence: 96, self_direction: 76, security: 56, power: 61 },
     },
     {
       title: "Social Worker",
@@ -519,6 +558,8 @@ export async function seedDatabase() {
       averageSalary: "$45,000 - $70,000",
       growthOutlook: "Very Good (9% growth)",
       icon: "🤝",
+      onetCode: "21-1022.00",
+      valuesProfile: { achievement: 67, benevolence: 93, self_direction: 66, security: 78, power: 25 },
     },
     {
       title: "Lawyer",
@@ -531,6 +572,8 @@ export async function seedDatabase() {
       averageSalary: "$80,000 - $180,000",
       growthOutlook: "Good (4% growth)",
       icon: "⚖️",
+      onetCode: "23-1011.00",
+      valuesProfile: { achievement: 82, benevolence: 25, self_direction: 76, security: 83, power: 100 },
     },
     {
       title: "Accountant",
@@ -543,6 +586,8 @@ export async function seedDatabase() {
       averageSalary: "$55,000 - $95,000",
       growthOutlook: "Good (4% growth)",
       icon: "📊",
+      onetCode: "13-2011.00",
+      valuesProfile: { achievement: 33, benevolence: 42, self_direction: 44, security: 61, power: 36 },
     },
     {
       title: "Human Resources Manager",
@@ -555,6 +600,8 @@ export async function seedDatabase() {
       averageSalary: "$70,000 - $120,000",
       growthOutlook: "Good (7% growth)",
       icon: "👥",
+      onetCode: "11-3121.00",
+      valuesProfile: { achievement: 48, benevolence: 75, self_direction: 44, security: 71, power: 75 },
     },
     {
       title: "Management Consultant",
@@ -567,6 +614,8 @@ export async function seedDatabase() {
       averageSalary: "$85,000 - $150,000",
       growthOutlook: "Very Good (11% growth)",
       icon: "📈",
+      onetCode: "13-1111.00",
+      valuesProfile: { achievement: 48, benevolence: 75, self_direction: 54, security: 54, power: 50 },
     },
     {
       title: "Entrepreneur",
@@ -579,6 +628,8 @@ export async function seedDatabase() {
       averageSalary: "Varies widely",
       growthOutlook: "Depends on venture",
       icon: "🚀",
+      onetCode: "11-1021.00",
+      valuesProfile: { achievement: 48, benevolence: 84, self_direction: 76, security: 90, power: 75 },
     },
     {
       title: "Sales Manager",
@@ -591,6 +642,8 @@ export async function seedDatabase() {
       averageSalary: "$70,000 - $130,000",
       growthOutlook: "Good (4% growth)",
       icon: "📞",
+      onetCode: "11-2022.00",
+      valuesProfile: { achievement: 48, benevolence: 25, self_direction: 66, security: 95, power: 36 },
     },
     {
       title: "Marketing Manager",
@@ -603,6 +656,8 @@ export async function seedDatabase() {
       averageSalary: "$75,000 - $140,000",
       growthOutlook: "Very Good (8% growth)",
       icon: "📣",
+      onetCode: "11-2021.00",
+      valuesProfile: { achievement: 82, benevolence: 67, self_direction: 66, security: 100, power: 61 },
     },
     {
       title: "Product Manager",
@@ -615,6 +670,8 @@ export async function seedDatabase() {
       averageSalary: "$90,000 - $160,000",
       growthOutlook: "Excellent (20% growth)",
       icon: "📦",
+      onetCode: "15-1299.09",
+      valuesProfile: { achievement: 82, benevolence: 9, self_direction: 66, security: 46, power: 50 },
     },
     {
       title: "UX/UI Designer",
@@ -627,6 +684,8 @@ export async function seedDatabase() {
       averageSalary: "$65,000 - $120,000",
       growthOutlook: "Very Good (13% growth)",
       icon: "🎨",
+      onetCode: "27-1021.00",
+      valuesProfile: { achievement: 33, benevolence: 51, self_direction: 32, security: 56, power: 36 },
     },
     {
       title: "Video Game Designer",
@@ -639,6 +698,8 @@ export async function seedDatabase() {
       averageSalary: "$55,000 - $110,000",
       growthOutlook: "Good (5% growth)",
       icon: "🎮",
+      onetCode: "15-1255.01",
+      valuesProfile: { achievement: 82, benevolence: 0, self_direction: 76, security: 54, power: 25 },
     },
     {
       title: "Journalist",
@@ -651,6 +712,8 @@ export async function seedDatabase() {
       averageSalary: "$40,000 - $75,000",
       growthOutlook: "Declining (-6% growth)",
       icon: "📰",
+      onetCode: "27-3023.00",
+      valuesProfile: { achievement: 67, benevolence: 46, self_direction: 50, security: 46, power: 68 },
     },
     {
       title: "Content Creator",
@@ -663,6 +726,8 @@ export async function seedDatabase() {
       averageSalary: "$35,000 - $100,000+",
       growthOutlook: "Excellent (growing field)",
       icon: "🎥",
+      onetCode: "27-3043.00",
+      valuesProfile: { achievement: 33, benevolence: 25, self_direction: 0, security: 46, power: 0 },
     },
     {
       title: "Photographer",
@@ -675,6 +740,8 @@ export async function seedDatabase() {
       averageSalary: "$35,000 - $80,000",
       growthOutlook: "Good (4% growth)",
       icon: "📸",
+      onetCode: "27-4021.00",
+      valuesProfile: { achievement: 0, benevolence: 42, self_direction: 44, security: 0, power: 0 },
     },
     {
       title: "Chef",
@@ -687,6 +754,8 @@ export async function seedDatabase() {
       averageSalary: "$40,000 - $85,000",
       growthOutlook: "Good (6% growth)",
       icon: "👨‍🍳",
+      onetCode: "35-1011.00",
+      valuesProfile: { achievement: 33, benevolence: 42, self_direction: 76, security: 39, power: 61 },
     },
     {
       title: "Fashion Designer",
@@ -699,6 +768,8 @@ export async function seedDatabase() {
       averageSalary: "$45,000 - $95,000",
       growthOutlook: "Stable (0% growth)",
       icon: "👗",
+      onetCode: "27-1022.00",
+      valuesProfile: { achievement: 67, benevolence: 25, self_direction: 54, security: 22, power: 36 },
     },
     {
       title: "Interior Designer",
@@ -711,6 +782,8 @@ export async function seedDatabase() {
       averageSalary: "$45,000 - $90,000",
       growthOutlook: "Good (4% growth)",
       icon: "🛋️",
+      onetCode: "27-1025.00",
+      valuesProfile: { achievement: 67, benevolence: 51, self_direction: 66, security: 12, power: 25 },
     },
     {
       title: "Web Developer",
@@ -723,6 +796,8 @@ export async function seedDatabase() {
       averageSalary: "$60,000 - $120,000",
       growthOutlook: "Excellent (23% growth)",
       icon: "🌐",
+      onetCode: "15-1254.00",
+      valuesProfile: { achievement: 33, benevolence: 25, self_direction: 66, security: 71, power: 50 },
     },
   ];
 
@@ -1852,6 +1927,18 @@ export async function seedDatabase() {
     await applyCareerArabicContent();
   } catch (error: any) {
     console.error("  Career Arabic content error (non-fatal, continuing):", error.message);
+  }
+
+  // Backfill CVQ values profiles + O*NET codes onto the careers that already exist.
+  // The careers seed loop above is INSERT-only and skips existing titles, so the
+  // valuesProfile/onetCode fields in that array only ever reach a from-scratch DB;
+  // this is what populates the rows that are already there. Without it every career
+  // has values_profile = NULL, calculateCvqScore returns null for all of them, and
+  // the cvq component silently contributes nothing while still holding its weight.
+  try {
+    await applyCareerValuesProfiles();
+  } catch (error: any) {
+    console.error("  Career values profiles error (non-fatal, continuing):", error.message);
   }
 
   // Validate Arabic completeness — warn about canonical careers missing AR translations
