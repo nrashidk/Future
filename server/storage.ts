@@ -130,6 +130,23 @@ export interface SectorCategoryRow {
   relevance: number | null;
 }
 
+/**
+ * One row of the VISION-ALIGNMENT sector <-> WEF-skill map.
+ *
+ * LEFT JOIN, exactly like SectorCategoryRow: a priority sector with no skill
+ * rows yet still appears (null skill/importance) and therefore still contributes
+ * its display_order to the rank modifier. Dropping such a sector would renumber
+ * every sector below it and silently change every career's vision score.
+ */
+export interface SectorWefSkillRow {
+  sectorId: string;
+  sectorName: string;
+  displayOrder: number;
+  wefSkillId: string | null;
+  wefSkillName: string | null;
+  importance: number | null; // 0-100
+}
+
 export interface IStorage {
   // User operations
   getUser(id: string): Promise<User | undefined>;
@@ -316,6 +333,7 @@ export interface IStorage {
   createOrUpdateSectorCategoryRule(sectorId: string, careerCategory: string, relevance: number, notes?: string): Promise<CountrySectorCategory>;
   createOrUpdateSectorCareerOverride(sectorId: string, careerId: string, relevance: number, notes?: string): Promise<CountrySectorCategory>;
   getSectorCategoryMap(countryId: string): Promise<SectorCategoryRow[]>;
+  getSectorWefSkillMap(countryId: string): Promise<SectorWefSkillRow[]>;
   
   // Bulk loading operations for matching service
   getAssessmentWithCompetencies(assessmentId: string): Promise<{
@@ -2017,6 +2035,37 @@ export class DatabaseStorage implements IStorage {
         countrySectorCategories,
         eq(countrySectorCategories.sectorId, countryPrioritySectors.id),
       )
+      .where(eq(countryPrioritySectors.countryId, countryId))
+      .orderBy(countryPrioritySectors.displayOrder);
+  }
+
+  /**
+   * Read the VISION-ALIGNMENT sector -> WEF-skill map for one country.
+   *
+   * Companion to getSectorCategoryMap. The category map answers WHICH sector a
+   * career belongs to; this answers HOW WELL its skill profile fits that sector.
+   * calculateVisionScore (server/services/matching.ts) uses both - see the HYBRID
+   * note there.
+   *
+   * LEFT JOIN on both hops so a priority sector with no skill rows still appears
+   * - see the note on SectorWefSkillRow.
+   */
+  async getSectorWefSkillMap(countryId: string): Promise<SectorWefSkillRow[]> {
+    return await db
+      .select({
+        sectorId: countryPrioritySectors.id,
+        sectorName: countryPrioritySectors.name,
+        displayOrder: countryPrioritySectors.displayOrder,
+        wefSkillId: countrySectorWefSkills.wefSkillId,
+        wefSkillName: wefSkills.name,
+        importance: countrySectorWefSkills.importance,
+      })
+      .from(countryPrioritySectors)
+      .leftJoin(
+        countrySectorWefSkills,
+        eq(countrySectorWefSkills.sectorId, countryPrioritySectors.id),
+      )
+      .leftJoin(wefSkills, eq(wefSkills.id, countrySectorWefSkills.wefSkillId))
       .where(eq(countryPrioritySectors.countryId, countryId))
       .orderBy(countryPrioritySectors.displayOrder);
   }

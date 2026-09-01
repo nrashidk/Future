@@ -7,6 +7,7 @@ import { applyGrade8ArabicContent } from "./migrations/quiz-arabic-content";
 import { applyGrades9to12ArabicContent } from "./migrations/quiz-arabic-content-grades9-12";
 import { applyCareerArabicContent } from "./migrations/career-arabic-content";
 import { applyCareerValuesProfiles } from "./migrations/career-values-profiles";
+import { applyMissingWefAffinities } from "./migrations/wef-skill-affinities";
 import { applyCareerRelatedSubjects } from "./migrations/career-related-subjects";
 import { WEF_16_SKILLS, CAREER_WEF_SKILL_AFFINITIES } from "./wefSkillsData";
 
@@ -116,6 +117,192 @@ export const UAE_SECTOR_CAREER_OVERRIDES: Array<{
   { sector: "Technology", careerTitle: "Civil Engineer", relevance: 70, notes: "Smart-city and infrastructure delivery. The Engineering rule would have credited Renewable Energy (84), overstating a civil engineer's clean-energy role." },
   { sector: "Artificial Intelligence", careerTitle: "Data Scientist", relevance: 90, notes: "UAE frames data science under its flagship AI priority — AI Strategy 2031's 'Data and Infrastructure' pillar names data professionals as AI-strategy talent. The Technology rule (88, headlined 'Technology') understates it; this headlines Artificial Intelligence at 94." },
 ];
+
+// Define UAE sector-to-WEF skills mappings with importance scores (0-100)
+// Based on UAE Centennial 2071 priorities and WEF Future of Jobs 2025 insights.
+//
+// ---------------------------------------------------------------------------
+// THESE VECTORS DEFINE THE GEOMETRY OF THE VISION SCORE - read before editing
+// ---------------------------------------------------------------------------
+// calculateVisionScore (server/services/matching.ts) modulates each seeded
+// sector-category relevance by how well a career's WEF affinity profile fits
+// the sector's skills here. Two properties matter more than the individual
+// numbers, and both were violated by the original 4-5-skill vectors:
+//
+// 1. SECTORS MUST BE SEPARABLE. With the original vectors the six sectors
+//    spanned about three independent directions - Space Exploration and
+//    Renewable Energy correlated at r=0.99 across the career catalog, because
+//    both were {Scientific Literacy, Critical Thinking, Numeracy} plus one
+//    low-variance competency. A skill that appears in most sectors carries
+//    weight without carrying information.
+//
+// 2. THE SKILLS USED MUST DISCRIMINATE BETWEEN CAREERS. Across the 576
+//    career affinities the six foundational literacies vary widely (Scientific
+//    Literacy sd 19.0, Financial Literacy 14.7, Numeracy 13.9, Cultural and
+//    Civic Literacy 13.1) while the ten competencies are near-constant
+//    (Persistence and Grit sd 5.1, Initiative 5.5, Adaptability 5.9). The
+//    original map used NO sector for Financial Literacy, Cultural and Civic
+//    Literacy, Leadership or Persistence and Grit - discarding two of the four
+//    most discriminating columns in the whole matrix - while putting Critical
+//    Thinking (sd 6.9) in five of six sectors.
+//
+// Adding a skill to a sector is not free: the score is an importance-weighted
+// MEAN, so a low-variance skill dilutes the discriminating ones. Add a skill
+// only where the sector genuinely requires it.
+export const UAE_SECTOR_WEF_SKILLS: Array<{
+  name: string;
+  displayOrder: number;
+  description: string;
+  skills: Record<string, number>;
+}> = [
+  {
+    name: "Artificial Intelligence",
+    displayOrder: 1,
+    description: "AI-driven innovation across government services, economy, and society",
+    // Unchanged. No orphaned skill belongs here more than what is already
+    // present, and Technology - its nearest neighbour at r=0.79 - is the one
+    // being widened, which separates the pair without diluting this vector.
+    skills: {
+      "ICT Literacy": 95,
+      "Critical Thinking and Problem Solving": 90,
+      "Numeracy": 85,
+      "Creativity": 80,
+      "Adaptability": 75,
+    }
+  },
+  {
+    name: "Space Exploration",
+    displayOrder: 2,
+    description: "Leadership in space science, Mars colonization, and satellite technology",
+    // REWEIGHTED to break the Space <-> Renewable Energy collinearity (r=0.888).
+    // The old vector led on Scientific Literacy 95 / Critical Thinking 90 /
+    // Numeracy 85 - the SAME high-variance core Renewable Energy leads on - and
+    // then differentiated with Initiative (sd 5.5), Collaboration (sd 5.9) and
+    // Persistence and Grit (sd 5.1), the three LOWEST-variance skills in the
+    // catalog. Those three carry weight without carrying information, so the
+    // shared core decided the whole column: on the shared top-3 alone the two
+    // sectors correlate at r=1.000.
+    //
+    // The fix is CONTRAST, not coverage. Numeracy is promoted to the sector's
+    // signature (Renewable Energy holds it at only 75), Scientific Literacy is
+    // demoted so it is no longer the dominant shared term, and Creativity is
+    // added as a high-variance skill NEITHER Renewable Energy nor Biotechnology
+    // carries. Result: Space <-> Renewable Energy falls 0.888 -> 0.530.
+    //
+    // ICT Literacy is deliberately held at 65, well under Technology's and
+    // Artificial Intelligence's 95. Leading on ICT scores lower against
+    // Renewable Energy but simply MOVES the collinearity to Artificial
+    // Intelligence (measured r=0.953, with Software Engineer and Video Game
+    // Designer surfacing as top "space" careers). Space is science-led, not
+    // IT-led, and the vector has to say so.
+    skills: {
+      // Orbital mechanics, trajectory optimisation, delta-v and error budgets.
+      // sd 14.0, the 3rd most discriminating column, and Renewable Energy holds
+      // it at only 75 - so at 95 this separates rather than shares.
+      "Numeracy": 95,
+      // Novel engineering under extreme mass, power, thermal and radiation
+      // constraints, where no off-the-shelf part exists. sd 12.0, and neither
+      // Renewable Energy nor Biotechnology carries it at all.
+      "Creativity": 85,
+      // Astrophysics and planetary science: still essential, but DEMOTED from 95
+      // so it stops dominating the vector. Renewable Energy 90, Biotechnology 95
+      // both lead on it; matching them there is what caused the collinearity.
+      "Scientific Literacy": 80,
+      // Exploration and discovery is the sector's literal purpose. sd 7.3 - a
+      // modest signal, kept because it is genuinely sector-defining.
+      "Curiosity": 75,
+      // Flight software, telemetry, autonomy and simulation. Real, but held well
+      // below the ICT-led sectors on purpose (see note above).
+      "ICT Literacy": 65,
+      // DROPPED, deliberately:
+      //   Critical Thinking (was 90) - sd 6.9 and present in 5 of 6 sectors:
+      //     weight without information, per the geometry note at the top.
+      //   Initiative (80), Collaboration (75), Persistence and Grit (85) - sd
+      //     5.5 / 5.9 / 5.1, the three least discriminating columns in the
+      //     matrix. Space work genuinely needs all three; so does every other
+      //     career in the catalog, which is exactly why they cannot separate
+      //     this sector from any other.
+    }
+  },
+  {
+    name: "Biotechnology",
+    displayOrder: 3,
+    description: "Advanced healthcare, genomics, and life sciences innovation",
+    skills: {
+      "Scientific Literacy": 95,
+      "Critical Thinking and Problem Solving": 85,
+      "ICT Literacy": 75,
+      "Curiosity": 80,
+      "Collaboration": 70,
+      // Trial timelines and replication: the work is defined by results that
+      // do not arrive, and arrive negative when they do.
+      "Persistence and Grit": 80,
+    }
+  },
+  {
+    name: "Renewable Energy",
+    displayOrder: 4,
+    description: "50% clean energy by 2050 and climate leadership",
+    skills: {
+      "Scientific Literacy": 90,
+      "Critical Thinking and Problem Solving": 85,
+      "Numeracy": 75,
+      "Adaptability": 70,
+      // "Sustainability": 90 used to sit here and was aliased to Scientific
+      // Literacy below, colliding with the entry above on the
+      // (sector_id, wef_skill_id) unique index. The upsert overwrote rather
+      // than added, so this sector silently ran on FOUR skills, not five, and
+      // the intended sustainability signal vanished. Sustainability is not one
+      // of the WEF 16; the alias is removed and the signal is now carried by
+      // the two real skills the UAE clean-energy programme actually needs.
+      //
+      // The 50%-by-2050 target is a capital-allocation problem before it is an
+      // engineering one - LCOE, PPAs, and the cost curve are the daily work.
+      "Financial Literacy": 70,
+      // Climate leadership is a policy and treaty commitment (Net Zero 2050,
+      // COP28 host). Also what most separates this sector from Space
+      // Exploration, which it otherwise duplicated at r=0.99.
+      "Cultural and Civic Literacy": 65,
+    }
+  },
+  {
+    name: "Education",
+    displayOrder: 5,
+    description: "World-class education system and lifelong learning culture",
+    skills: {
+      "Communication": 90,
+      "Collaboration": 85,
+      "Literacy": 90,
+      "Social and Cultural Awareness": 80,
+      "Creativity": 75,
+      // National identity, Islamic studies and civics are core UAE curriculum
+      // content, not background - this is what the sector transmits.
+      "Cultural and Civic Literacy": 85,
+      // A classroom is led, not administered; school and phase leadership is
+      // the profession's own progression ladder.
+      "Leadership": 70,
+    }
+  },
+  {
+    name: "Technology",
+    displayOrder: 6,
+    description: "Digital transformation, smart cities, and innovation ecosystem",
+    skills: {
+      "ICT Literacy": 95,
+      "Critical Thinking and Problem Solving": 85,
+      "Creativity": 80,
+      "Adaptability": 75,
+      "Initiative": 70,
+      // FinTech and the digital-economy finance stack - the same claim the
+      // seeded category rule "Technology -> Finance (55)" already makes above.
+      "Financial Literacy": 70,
+      // "Founding and scaling ventures inside the innovation ecosystem" - the
+      // wording of the "Technology -> Business & Management (65)" rule above.
+      "Leadership": 65,
+    }
+  },
+];
+
 
 export async function seedDatabase() {
   console.log("🌱 Seeding database...");
@@ -1731,82 +1918,6 @@ export async function seedDatabase() {
   // Seed UAE Priority Sectors and WEF Skills Mapping
   console.log("\n🇦🇪 Seeding UAE Priority Sectors → WEF Skills mapping...");
   
-  // Define UAE sector-to-WEF skills mappings with importance scores (0-100)
-  // Based on UAE Centennial 2071 priorities and WEF Future of Jobs 2025 insights
-  const UAE_SECTOR_WEF_SKILLS = [
-    {
-      name: "Artificial Intelligence",
-      displayOrder: 1,
-      description: "AI-driven innovation across government services, economy, and society",
-      skills: {
-        "ICT Literacy": 95,
-        "Critical Thinking and Problem Solving": 90,
-        "Numeracy": 85,
-        "Creativity": 80,
-        "Adaptability": 75,
-      }
-    },
-    {
-      name: "Space Exploration",
-      displayOrder: 2,
-      description: "Leadership in space science, Mars colonization, and satellite technology",
-      skills: {
-        "Scientific Literacy": 95,
-        "Critical Thinking and Problem Solving": 90,
-        "Numeracy": 85,
-        "Initiative": 80,
-        "Collaboration": 75,
-      }
-    },
-    {
-      name: "Biotechnology",
-      displayOrder: 3,
-      description: "Advanced healthcare, genomics, and life sciences innovation",
-      skills: {
-        "Scientific Literacy": 95,
-        "Critical Thinking and Problem Solving": 85,
-        "ICT Literacy": 75,
-        "Curiosity": 80,
-        "Collaboration": 70,
-      }
-    },
-    {
-      name: "Renewable Energy",
-      displayOrder: 4,
-      description: "50% clean energy by 2050 and climate leadership",
-      skills: {
-        "Scientific Literacy": 90,
-        "Critical Thinking and Problem Solving": 85,
-        "Sustainability": 90, // Map to Scientific Literacy if Sustainability not in WEF 16
-        "Numeracy": 75,
-        "Adaptability": 70,
-      }
-    },
-    {
-      name: "Education",
-      displayOrder: 5,
-      description: "World-class education system and lifelong learning culture",
-      skills: {
-        "Communication": 90,
-        "Collaboration": 85,
-        "Literacy": 90,
-        "Social and Cultural Awareness": 80,
-        "Creativity": 75,
-      }
-    },
-    {
-      name: "Technology",
-      displayOrder: 6,
-      description: "Digital transformation, smart cities, and innovation ecosystem",
-      skills: {
-        "ICT Literacy": 95,
-        "Critical Thinking and Problem Solving": 85,
-        "Creativity": 80,
-        "Adaptability": 75,
-        "Initiative": 70,
-      }
-    },
-  ];
 
   const allCountries = await storage.getAllCountries();
   const uaeCountry = allCountries.find((c: any) => c.code === "UAE");
@@ -1830,12 +1941,15 @@ export async function seedDatabase() {
 
       // Map sector to WEF skills
       for (const [skillName, importance] of Object.entries(sectorData.skills)) {
-        // Handle "Sustainability" mapping to Scientific Literacy
-        const mappedSkillName = skillName === "Sustainability" ? "Scientific Literacy" : skillName;
-        const wefSkill = seededWefSkills[mappedSkillName];
-        
+        // No aliasing: every key above must be one of the WEF 16 verbatim. The
+        // previous "Sustainability" -> "Scientific Literacy" alias collided on
+        // the (sector_id, wef_skill_id) unique index and silently cost Renewable
+        // Energy a skill. A typo must fail loudly here, not merge into a
+        // neighbour.
+        const wefSkill = seededWefSkills[skillName];
+
         if (!wefSkill) {
-          console.warn(`⚠️  WEF skill not found: ${skillName} (mapped to ${mappedSkillName})`);
+          console.warn(`⚠️  WEF skill not found: ${skillName} — sector ${sectorData.name} will be missing it`);
           continue;
         }
 
@@ -1944,6 +2058,17 @@ export async function seedDatabase() {
     await applyCareerValuesProfiles();
   } catch (error: any) {
     console.error("  Career values profiles error (non-fatal, continuing):", error.message);
+  }
+
+  // Same INSERT-only/count-guard trap, applied to WEF affinities: the affinity
+  // block above is count-guarded, so a career added to
+  // CAREER_WEF_SKILL_AFFINITIES after the first seed is never backfilled. Without
+  // this, that career has no skill vector and calculateVisionScore scores it on
+  // its unmodified category relevance while every other career is modulated.
+  try {
+    await applyMissingWefAffinities(storage);
+  } catch (error: any) {
+    console.error("  WEF affinity backfill error (non-fatal, continuing):", error.message);
   }
 
   // Correct relatedSubjects on careers whose seeded tags project to no

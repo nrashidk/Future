@@ -8,7 +8,7 @@
  * - Supports backwards compatibility with legacy assessments
  */
 
-import type { IStorage, SectorCategoryRow } from "../storage";
+import type { IStorage, SectorCategoryRow, SectorWefSkillRow } from "../storage";
 import type { 
   Assessment, 
   Career, 
@@ -64,6 +64,23 @@ export interface SectorCategoryMap {
 }
 
 /**
+ * VISION-ALIGNMENT skill layer - the second half of the HYBRID score.
+ *
+ * SectorCategoryMap decides WHICH sector a career belongs to. This decides HOW
+ * WELL that career's WEF skill profile fits the sector it was gated into. It is
+ * never a candidate source of its own: a career is not credited to a sector it
+ * has no category rule or override for, no matter how well its skills match.
+ * See calculateVisionScore for why (mean-centred skill overlap alone puts
+ * "Doctor" in Space Exploration).
+ */
+export interface SectorWefSkillMap {
+  /** sectorId -> the WEF skills that sector requires, with 0-100 importance */
+  bySector: Map<string, Array<{ wefSkillId: string; importance: number }>>;
+  /** wefSkillId -> mean affinity across the whole career catalog. THE centering term. */
+  catalogMeans: Map<string, number>;
+}
+
+/**
  * Hydrated context containing all data needed for matching
  */
 export interface MatchingContext {
@@ -74,9 +91,9 @@ export interface MatchingContext {
   jobMarketTrends: Map<string, JobMarketTrend[]>; // careerId -> trends
   userCountry?: Country; // For vision alignment
   competencyScores?: Record<string, number>; // Subject competency scores from quiz (0-100)
-  wefCompetencyScores?: Record<string, number>; // WEF skill scores (0-100)
   careerWefAffinities?: Map<string, Array<{ wefSkillId: string; affinityScore: number }>>; // careerId -> WEF affinities
   sectorCategoryMap?: SectorCategoryMap; // For vision alignment (sector <-> career category/override)
+  sectorWefSkillMap?: SectorWefSkillMap; // For vision alignment (sector <-> WEF skill importance)
 }
 
 /**
@@ -123,7 +140,6 @@ const componentCalculators: Record<string, ComponentCalculator> = {
   vision: calculateVisionScore,
   riasec: calculateRiasecScore,
   cvq: calculateCvqScore,
-  wef_skills: calculateWefSkillsScore,
 };
 
 /**
@@ -233,8 +249,21 @@ async function hydrateMatchingContext(
     userCountry = await storage.getCountryById(assessment.countryId);
   }
 
-  // Fetch the sector <-> career-category map for vision alignment (single query).
+  // VISION-ALIGNMENT: both halves of the HYBRID score, fetched together.
+  //
+  // The category map gates WHICH sector; the WEF skill map + career affinities
+  // modulate HOW STRONGLY within it. The affinities are fetched UNCONDITIONALLY
+  // now - they are vision's input, not a student component's. They used to sit
+  // behind `activeComponents.some(c => c.key === 'wef_skills')`, a condition that
+  // could never be true because no wef_skills row exists in assessment_components.
+  //
+  // A skill-side failure must NOT take vision down with it: the category half
+  // alone still produces the score this replaced, so it degrades to that rather
+  // than flooring the catalog at 40.
   let sectorCategoryMap: SectorCategoryMap | undefined;
+  let sectorWefSkillMap: SectorWefSkillMap | undefined;
+  let careerWefAffinities: Map<string, Array<{ wefSkillId: string; affinityScore: number }>> | undefined;
+
   if (assessment.countryId) {
     try {
       const sectorRows = await storage.getSectorCategoryMap(assessment.countryId);
@@ -243,29 +272,17 @@ async function hydrateMatchingContext(
       console.warn('[Matching] Failed to load sector-category map:', error);
       sectorCategoryMap = undefined; // Vision falls back to the floor for every career
     }
-  }
 
-  // Fetch WEF data only if WEF component is active
-  let wefCompetencyScores: Record<string, number> | undefined;
-  let careerWefAffinities: Map<string, Array<{ wefSkillId: string; affinityScore: number }>> | undefined;
-  
-  const hasWefComponent = activeComponents.some(c => c.key === 'wef_skills');
-  if (hasWefComponent) {
-    // Fetch student's WEF scores for premium assessments
-    if (assessment.assessmentType !== 'basic') {
-      const wefResult = await storage.getWefCompetencyResultByAssessmentId(assessmentId);
-      if (wefResult?.normalizedScores) {
-        wefCompetencyScores = wefResult.normalizedScores as Record<string, number>;
-      }
-    }
-
-    // Bulk fetch career-WEF skill affinities
     try {
-      const wefAffinitiesArray = await storage.getCareerWefSkillAffinitiesBulk(careerIds);
-      careerWefAffinities = groupWefAffinitiesByCareer(wefAffinitiesArray || []);
+      const [skillRows, affinityRows] = await Promise.all([
+        storage.getSectorWefSkillMap(assessment.countryId),
+        storage.getCareerWefSkillAffinitiesBulk(careerIds),
+      ]);
+      careerWefAffinities = groupWefAffinitiesByCareer(affinityRows ?? []);
+      sectorWefSkillMap = buildSectorWefSkillMap(skillRows, careerWefAffinities);
     } catch (error) {
-      console.warn('[Matching] Failed to load WEF affinities:', error);
-      careerWefAffinities = new Map(); // Fallback to empty map
+      console.warn('[Matching] Failed to load sector-WEF-skill map:', error);
+      sectorWefSkillMap = undefined; // Vision degrades to the category-only score
     }
   }
 
@@ -277,9 +294,9 @@ async function hydrateMatchingContext(
     jobMarketTrends,
     userCountry,
     competencyScores,
-    wefCompetencyScores,
     careerWefAffinities,
     sectorCategoryMap,
+    sectorWefSkillMap,
   };
 }
 
@@ -418,6 +435,49 @@ export function buildSectorCategoryMap(
 }
 
 /**
+ * Build the VISION-ALIGNMENT skill layer.
+ *
+ * `careerWefAffinities` is passed in rather than re-queried so the catalog means
+ * are computed from the EXACT same rows the scorer reads. Deriving the centering
+ * term from a second query is how it silently desynchronises from the values
+ * being centered.
+ */
+export function buildSectorWefSkillMap(
+  rows: SectorWefSkillRow[],
+  careerWefAffinities: Map<string, Array<{ wefSkillId: string; affinityScore: number }>>,
+): SectorWefSkillMap {
+  const bySector = new Map<string, Array<{ wefSkillId: string; importance: number }>>();
+
+  for (const row of rows) {
+    if (row.wefSkillId === null || row.importance === null || row.importance <= 0) {
+      continue; // LEFT JOIN filler for a sector with no skill rows yet.
+    }
+    const list = bySector.get(row.sectorId) ?? [];
+    list.push({ wefSkillId: row.wefSkillId, importance: row.importance });
+    bySector.set(row.sectorId, list);
+  }
+
+  // Catalog mean per skill: one pass over every career's affinity vector.
+  const sums = new Map<string, { total: number; count: number }>();
+  for (const affinities of careerWefAffinities.values()) {
+    for (const affinity of affinities) {
+      const acc = sums.get(affinity.wefSkillId) ?? { total: 0, count: 0 };
+      acc.total += affinity.affinityScore;
+      acc.count += 1;
+      sums.set(affinity.wefSkillId, acc);
+    }
+  }
+  const catalogMeans = new Map<string, number>();
+  for (const [wefSkillId, acc] of sums) {
+    if (acc.count > 0) {
+      catalogMeans.set(wefSkillId, acc.total / acc.count);
+    }
+  }
+
+  return { bySector, catalogMeans };
+}
+
+/**
  * Validate that component weights sum to 100%
  */
 function validateComponentWeights(context: MatchingContext): void {
@@ -523,20 +583,36 @@ function warnOnEmptySectorCategoryMap(context: MatchingContext): void {
     ? sectorCategoryMap.byCategory.size + sectorCategoryMap.byCareer.size
     : 0;
 
-  if (ruleCount > 0) {
-    return; // Seeded - nothing to report.
+  if (ruleCount === 0) {
+    const detail = sectorCount === 0
+      ? `country '${userCountry.name}' has no rows in country_priority_sectors`
+      : `country '${userCountry.name}' has ${sectorCount} priority sector(s) but no rows in country_sector_categories`;
+
+    console.warn(
+      `SCORING WARNING: component 'vision' has weight ${visionComponent.weight} ` +
+      `for tier '${tier}' but ${detail} — every career is scoring the floor ` +
+      `(${VISION_FLOOR}), so the component cannot differentiate careers. ` +
+      `Seed the sector-category map for this country.`
+    );
+    return; // Nothing scores above the floor; the skill half cannot matter.
   }
 
-  const detail = sectorCount === 0
-    ? `country '${userCountry.name}' has no rows in country_priority_sectors`
-    : `country '${userCountry.name}' has ${sectorCount} priority sector(s) but no rows in country_sector_categories`;
+  // The category map is seeded, so vision differentiates. Report the skill half
+  // separately: without it the HYBRID silently degrades to the category-only
+  // score, which still looks healthy (no floor, good spread) and so trips no
+  // other check. Careers inside one category would all score identically again.
+  const skillCount = context.sectorWefSkillMap
+    ? [...context.sectorWefSkillMap.bySector.values()].reduce((n, list) => n + list.length, 0)
+    : 0;
 
-  console.warn(
-    `SCORING WARNING: component 'vision' has weight ${visionComponent.weight} ` +
-    `for tier '${tier}' but ${detail} — every career is scoring the floor ` +
-    `(${VISION_FLOOR}), so the component cannot differentiate careers. ` +
-    `Seed the sector-category map for this country.`
-  );
+  if (skillCount === 0) {
+    console.warn(
+      `SCORING WARNING: component 'vision' is scoring for tier '${tier}', but ` +
+      `country '${userCountry.name}' has no rows in country_sector_wef_skills — ` +
+      `the skill modulation is inert and careers sharing a category will score ` +
+      `identically. Seed the sector→WEF-skill map for this country.`
+    );
+  }
 }
 
 /**
@@ -802,6 +878,87 @@ const VISION_RANGE = 60;
 // relevance-driven headroom (see buildSectorCategoryMap).
 const VISION_RANK_PENALTY = 0.15;
 
+// ---------------------------------------------------------------------------
+// SKILL MODULATION - the HYBRID half. Read this before changing any of it.
+// ---------------------------------------------------------------------------
+//
+// MEAN-CENTERING IS LOAD-BEARING, NOT A REFINEMENT.
+// career_wef_skill_affinities is an IMPORTANCE matrix, not a discriminating one:
+// 71% of its 576 values are >= 80 and the catalog mean is 82.4, because every WEF
+// skill genuinely is somewhat important to every career. Measured on the live
+// catalog, an ABSOLUTE weighted overlap spans only 85.5-96.6 - an 11-point spread
+// across all 37 careers. Subtracting each skill's catalog mean before the dot
+// product removes that shared baseline and restores a 33-point spread. Removing
+// the centering does not weaken this modifier, it DELETES it: every career gets
+// the same near-1.0 alignment and the score collapses back to the category map.
+// Pinned by matching.vision.test.ts. Same class of bug as Piece D's denominator.
+//
+// THE BAND IS ABSOLUTE, NOT MIN-MAX. `raw` below is an importance-weighted mean
+// of (affinity - catalog mean), in affinity points; its live p5..p95 across the
+// catalog is -10.4..+10.2, so +/-12 clips the tails and leaves the endpoints
+// independent of catalog membership. Do NOT rescale to the observed min/max:
+// that makes every career's score a function of every other career's (see the
+// SCALE WARNING in server/migrations/career-values-profiles.ts:20-32) and it
+// FORCES a full-range spread that proves nothing about discrimination.
+const VISION_ALIGN_LO = -12;
+const VISION_ALIGN_HI = 12;
+// How far skill alignment may move a seeded relevance, in relevance points.
+// The category rule states MEMBERSHIP (does this career serve the sector);
+// skills state FIT (how well does its profile match). Membership stays dominant
+// - at +/-15 the sector a career is credited to changes for 1 of 36 careers,
+// while at +/-25 it changes for 4 and attribution starts to drift.
+const VISION_SKILL_SWING = 15;
+
+/**
+ * How well `career`'s WEF skill profile fits `sectorId`'s required skills.
+ *
+ * Returns 0..1 (0.5 == exactly catalog-average), or null when there is no skill
+ * data for this career/sector pair - the caller then uses the seeded relevance
+ * unmodified, so a missing affinity row degrades to the category-only score
+ * rather than to the floor.
+ */
+function skillAlignment(
+  careerId: string,
+  sectorId: string,
+  sectorWefSkillMap: SectorWefSkillMap | undefined,
+  careerWefAffinities: Map<string, Array<{ wefSkillId: string; affinityScore: number }>> | undefined,
+): number | null {
+  if (!sectorWefSkillMap || !careerWefAffinities) {
+    return null;
+  }
+  const sectorSkills = sectorWefSkillMap.bySector.get(sectorId);
+  const affinities = careerWefAffinities.get(careerId);
+  if (!sectorSkills?.length || !affinities?.length) {
+    return null;
+  }
+
+  const careerVector = new Map(affinities.map(a => [a.wefSkillId, a.affinityScore]));
+
+  // Importance-weighted MEAN of centered affinities. A weighted mean, not a sum:
+  // sectors carry different numbers of skills, and a sum would score the sectors
+  // with more skills higher for having more terms.
+  let numerator = 0;
+  let denominator = 0;
+  for (const { wefSkillId, importance } of sectorSkills) {
+    const affinity = careerVector.get(wefSkillId);
+    const catalogMean = sectorWefSkillMap.catalogMeans.get(wefSkillId);
+    if (affinity === undefined || catalogMean === undefined) {
+      continue;
+    }
+    const weight = importance / 100;
+    numerator += weight * (affinity - catalogMean); // <- THE CENTERING. Do not remove.
+    denominator += weight;
+  }
+  if (denominator <= 0) {
+    return null;
+  }
+
+  const raw = numerator / denominator;
+  return Math.max(0, Math.min(1,
+    (raw - VISION_ALIGN_LO) / (VISION_ALIGN_HI - VISION_ALIGN_LO),
+  ));
+}
+
 /**
  * VISION ALIGNMENT: how well a career serves the country's priority sectors.
  *
@@ -809,6 +966,26 @@ const VISION_RANK_PENALTY = 0.15;
  * countries.prioritySectors, which gave the floor to ~84% of the catalog and
  * produced false rationales ("biotechnology".includes("technology")). It now
  * reads an explicit, seeded map (country_sector_categories).
+ *
+ * HYBRID (WEF Phase 1): the category map decides WHICH sector and supplies the
+ * base relevance; the country's WEF skill vector then modulates that relevance
+ * by +/-VISION_SKILL_SWING according to how well the career's own skill profile
+ * fits. Category alone cannot separate careers inside a category - all 6
+ * Healthcare careers scored an identical 87.9 - because career.category is the
+ * only thing the lookup can see, and 37 careers share 14 categories.
+ *
+ * WHY NOT SKILLS ALONE. Scoring purely on mean-centered skill overlap was
+ * simulated on the live catalog and is a downgrade on every axis but one:
+ * spread falls 54.6 -> 33.1, Chef stops flooring (65.1, though no UAE priority
+ * sector is about food service), and - worst - sector ATTRIBUTION collapses. The
+ * six UAE sector skill-vectors correlate at r=0.99 (Space Exploration vs
+ * Renewable Energy), 0.85 and 0.79 across the catalog, spanning only about three
+ * independent directions, so the winning sector is decided by the rank modifier
+ * and rounding. That put "Doctor" and "Physical Therapist" in Space Exploration
+ * and "Chef" in Education - in the student-facing, Arabic-localised rationale
+ * below. Skills are a fine but ambiguous signal about profile similarity;
+ * the category map is a coarse but CORRECT statement about sector membership.
+ * The hybrid uses each for what it is good at. See docs/wef-phase1-plan.md.
  *
  * OVERRIDE-EXCLUSIVE: if a career has ANY per-career override row, those rows
  * are the ONLY candidates for it. Merging per-sector ("override ?? category")
@@ -828,7 +1005,7 @@ export function calculateVisionScore(
   career: Career,
   component: AssessmentComponent
 ): ComponentScore | null {
-  const { userCountry, sectorCategoryMap } = context;
+  const { userCountry, sectorCategoryMap, sectorWefSkillMap, careerWefAffinities } = context;
 
   if (!userCountry) {
     return null; // No country selected: the component genuinely does not apply.
@@ -856,7 +1033,7 @@ export function calculateVisionScore(
     return floorResult; // No mapping - the floor is the correct answer.
   }
 
-  // Best candidate = highest relevance after the rank modifier.
+  // Best candidate = highest skill-modulated relevance after the rank modifier.
   let bestSectorName = "";
   let bestRelevance = 0;
   let bestWeighted = 0;
@@ -866,10 +1043,27 @@ export function calculateVisionScore(
     if (!sector) {
       continue; // Sector belongs to another country, or was removed.
     }
-    const weighted = (candidate.relevance / 100) * sector.rankFactor;
+
+    // MEMBERSHIP (seeded, coarse) modulated by FIT (derived, fine). A null
+    // alignment - no skill rows for this sector, or no affinity row for this
+    // career - leaves the seeded relevance untouched, so the score degrades to
+    // the category-only value rather than to the floor.
+    const alignment = skillAlignment(
+      career.id,
+      candidate.sectorId,
+      sectorWefSkillMap,
+      careerWefAffinities,
+    );
+    const relevance = alignment === null
+      ? candidate.relevance
+      : Math.max(0, Math.min(100,
+          candidate.relevance + VISION_SKILL_SWING * (2 * alignment - 1),
+        ));
+
+    const weighted = (relevance / 100) * sector.rankFactor;
     if (weighted > bestWeighted) {
       bestWeighted = weighted;
-      bestRelevance = candidate.relevance;
+      bestRelevance = relevance;
       bestSectorName = sector.name;
     }
   }
@@ -1060,91 +1254,3 @@ function calculateCvqScore(
   };
 }
 
-/**
- * Calculate WEF Skills alignment score
- * Compares student's WEF competency profile with career's skill requirements
- */
-function calculateWefSkillsScore(
-  context: MatchingContext,
-  career: Career,
-  component: AssessmentComponent
-): ComponentScore | null {
-  const { wefCompetencyScores, careerWefAffinities } = context;
-  
-  // Check if WEF data is available
-  if (!careerWefAffinities) {
-    return null;
-  }
-  
-  // Check if student has WEF scores (premium assessments only)
-  if (!wefCompetencyScores || Object.keys(wefCompetencyScores).length === 0) {
-    return null;
-  }
-  
-  // Get career's WEF skill requirements
-  const careerAffinities = careerWefAffinities.get(career.id);
-  if (!careerAffinities || careerAffinities.length === 0) {
-    return null;
-  }
-  
-  // Calculate weighted alignment score
-  let totalAlignment = 0;
-  let totalWeight = 0;
-  const skillMatches: Array<{ skill: string; userScore: number; careerRequirement: number }> = [];
-  
-  for (const affinity of careerAffinities) {
-    const userScore = wefCompetencyScores[affinity.wefSkillId];
-    if (userScore !== undefined) {
-      // Weight by career's skill requirement (0-100)
-      // Higher affinity scores = more important for this career
-      const weight = affinity.affinityScore / 100; // Normalize to 0-1
-      const alignmentScore = userScore * weight;
-      
-      totalAlignment += alignmentScore;
-      totalWeight += affinity.affinityScore;
-      
-      skillMatches.push({
-        skill: affinity.wefSkillId,
-        userScore,
-        careerRequirement: affinity.affinityScore,
-      });
-    }
-  }
-  
-  if (totalWeight === 0) {
-    return null;
-  }
-  
-  // Normalize to 0-100 scale
-  const normalizedScore = (totalAlignment / totalWeight) * 100;
-  
-  // Find top matching skills for reasoning
-  const sortedMatches = skillMatches
-    .map(m => ({
-      ...m,
-      alignmentScore: m.userScore * (m.careerRequirement / 100),
-    }))
-    .sort((a, b) => b.alignmentScore - a.alignmentScore)
-    .slice(0, 2);
-  
-  // Convert snake_case to readable format
-  const formatSkillName = (skill: string) => 
-    skill.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-  
-  const topSkills = sortedMatches
-    .map(m => formatSkillName(m.skill))
-    .join(' & ');
-  
-  const reasoning = normalizedScore > 75
-    ? `Excellent future skills match (${topSkills})`
-    : normalizedScore > 60
-    ? `Strong skills alignment in ${topSkills}`
-    : `Growing ${topSkills} competencies`;
-  
-  return {
-    careerId: career.id,
-    score: Math.min(100, Math.max(0, normalizedScore)),
-    reasoning,
-    componentKey: component.key,
-  };
-}

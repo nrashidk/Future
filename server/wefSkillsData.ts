@@ -966,4 +966,36 @@ export const CAREER_WEF_SKILL_AFFINITIES: {
       "Social and Cultural Awareness": 95,
     },
   },
+  // Added WEF Phase 1. Web Developer was the one career in seed.ts with no
+  // affinity row at all (36 of 37), so calculateVisionScore had no skill vector
+  // to modulate with and fell back to its unmodified category relevance.
+  // Positioned between Software Engineer and UX/UI Designer: the same ICT
+  // ceiling, materially less Scientific Literacy and Numeracy than a software
+  // engineer, less research-facing Curiosity, and lower Leadership than a
+  // product-owning role.
+  //
+  // seed.ts count-guards the affinity block, so adding this entry alone does not
+  // reach an already-seeded database - server/migrations/wef-skill-affinities.ts
+  // is what backfills it.
+  {
+    careerTitle: "Web Developer",
+    skills: {
+      "Literacy": 75,
+      "Numeracy": 70,
+      "Scientific Literacy": 50,
+      "ICT Literacy": 100,
+      "Financial Literacy": 45,
+      "Cultural and Civic Literacy": 55,
+      "Critical Thinking and Problem Solving": 90,
+      "Creativity": 85,
+      "Communication": 80,
+      "Collaboration": 85,
+      "Curiosity": 90,
+      "Initiative": 85,
+      "Persistence and Grit": 85,
+      "Adaptability": 95,
+      "Leadership": 60,
+      "Social and Cultural Awareness": 65,
+    },
+  },
 ];
