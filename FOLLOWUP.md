@@ -1215,3 +1215,46 @@ Assessment quiz-enablement progress:
   of tags match umbrella-6, 10 careers score a flat 20 for everyone). Already broken today. Can proceed
   without verified questions.
 
+## SCORING MODEL — verified findings + direction (2026-09-01)
+
+Provenance: "VERIFIED FACTS" + "WEF SECTOR MODEL" + fixes 1-3 verified this session against staging DB + code. "DONE + LIVE IN PROD" items were verified earlier via the Neon prod SQL editor (prod not re-checked this session). The llmCountryService dead-code / llm_populated=false claim is from the prior country-gen-recon (not re-verified this session).
+
+### DONE + LIVE IN PROD (this session's model repair):
+- Zero-score guard: warns when a weighted component contributes null/zero catalog-wide (matching.ts). Live.
+- WEF unit bugs fixed (wefSkillsCalculator: CVQ 24x + RIASEC 100x + subjectScores NaN); WEF stays OUT of scoring as a student component. Live.
+- Vision: replaced broken substring-match with country_sector_categories mapping (migration 009 + seed). Floor 84% -> 2.7%. Live in prod (verified 35 rows).
+- CVQ: was silently dead (0/37 careers had values_profile). Backfilled from O*NET (rescaled per-domain). 37/37 live in prod. Meaningful values verified.
+- Piece D: normalize career.relatedSubjects at match time (subjectMap.ts, DB-free) + 6 catalog-wide aliases + Teacher retag. Flat-20 careers 10 -> 1 (only Fashion Designer, accepted art-axis gap). Live.
+
+### VERIFIED FACTS (corrected several wrong assumptions):
+- CVQ 5 domains is CORRECT and documented (VALUES_PROFILE_DERIVATION_METHODOLOGY.md): two reductions - 10->7 was youth adaptation (dropped Conformity/Tradition/Stimulation), 7->5 dropped Universalism+Hedonism because O*NET has no defensible career-side source. NOT an error. White paper (7 domains) is one revision stale. Keep 5. Vestigial 7-domain remnants in CVQStep.tsx + locale keys are harmless.
+- Interests component is FULLY WORKING (not vestigial): 8 interests, 3-channel lexicon scoring (interestLexicon.ts), 35% live free-tier weight, proven to discriminate. 13 of 21 lexicon keys are unreachable-from-UI (harmless spare capacity).
+- Career count is 37 (correct, seed==DB, no dups). The "36" is the WEF-affinity table: only 36/37 careers have skill affinities - Web Developer has ZERO (uncommitted migration wef-skill-affinities.ts targets it).
+
+### WEF SECTOR MODEL — corrected direction:
+- The all-16-skills-per-sector idea is DISPROVEN by simulation on live data: because skillAlignment is an importance-weighted mean of mean-centered affinities, filling all 16 adds SHARED variance and pulls sectors together. Full-16 makes correlation WORSE (0.894 sparse -> 0.989 at fill-50 -> 1.000 at fill-70). Sparse is the best case. DO NOT densify to 16.
+- Root cause of r=0.99 (Space Exploration vs Renewable Energy): they load on the SAME high-variance skills (Sci Literacy, Critical Thinking, Numeracy). Fix is CONTRAST not coverage - reweight sectors onto DIFFERENT high-variance skills (proven: drops 0.99 -> 0.234). De-emphasize Critical Thinking (in 5 of 6 sectors, low sd 7.0).
+- The category-gate HYBRID stays (do NOT let skills stand alone): category map = sector MEMBERSHIP (a fact), skills = bounded fit modifier (+/-15). Skills-alone was simulated and collapses attribution ("Chef -> Education", "Doctor -> Space" in student-facing Arabic rationale). Documented in matching.ts:975-987.
+
+### SMALL PROVEN FIXES (next, mostly already written in the working tree):
+1. Apply the working-tree seed.ts sector vectors to the live DB (29 -> 37 rows): takes max correlation 0.989 -> 0.894. Already written, not run.
+2. Land untracked server/migrations/wef-skill-affinities.ts (Web Developer's 16 affinities -> 37/37 coverage).
+3. Reweight Space Exploration onto distinct high-variance skills to break the last collinear pair.
+Note: the seed sector->skill upsert is ADDITIVE-ONLY (no delete) - shrinking a sector vector later needs a reconciling migration.
+
+### UNCOMMITTED WORK IN TREE (as of 2026-09-01, at risk on Codespace restart):
+- server/services/matching.ts (WEF hybrid vision scoring: category gate + skillAlignment modulator, VISION_SKILL_SWING +/-15)
+- server/seed.ts (expanded sector->WEF-skill vectors, 5-7 skills/sector, all 16 touched)
+- server/storage.ts (getSectorWefSkillMap reader)
+- server/wefSkillsData.ts
+- untracked: server/migrations/wef-skill-affinities.ts (Web Developer fix), server/services/matching.vision.test.ts
+These implement the WEF hybrid Phase 1 - NOT yet committed, pending the vector-decorrelation fixes above so it commits on good data.
+
+### OPEN PRODUCT QUESTION (separate, bigger):
+Sector LIST reconciliation. DB has 6 seeded sectors (AI, Space, Biotechnology, Renewable Energy, Education, Technology); white paper names 10 (adds Healthcare & Life Sciences, Financial Services & FinTech, Tourism & Hospitality, Advanced Manufacturing, Creative Industries & Media, Food Security & Agriculture; and none of the 6 DB names matches its white-paper name verbatim). Sector names are written verbatim into Arabic reports (load-bearing, not cosmetic). Decide whether UAE should carry the full 10 real-strategy sectors. This is product scope, independent of the r=0.99 skill-vector math.
+
+### SCALABILITY MODEL (for future LLM country generation):
+- The LLM country-generation path (llmCountryService) is DEAD CODE - UAE was hand-seeded (llm_populated=false), the path never produced a country. Greenfield when built.
+- Design requirement (owner): country generation must source ONLY official in-country government websites (live web-fetch, cited), not LLM training-data recall. Must generate vision -> sectors -> per-sector WEF-skill emphasis (distinctive subset, NOT all 16) -> vision-alignment category rules, with provenance. Constrained generation + a geometric gate (reject sector vectors correlating >0.8 with an accepted one) is what makes it safe.
+- Parked: subjects DERIVED from country vision via WEF skills (a country not targeting art-fields doesn't offer Art); flow reorder Country-before-Subjects so the subject list filters to the country's needs. High-risk, touches assessment flow + quiz budget - stays parked until the above lands.
+
