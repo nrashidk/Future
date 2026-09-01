@@ -19,7 +19,7 @@ import { WEF_16_SKILLS, CAREER_WEF_SKILL_AFFINITIES } from "./wefSkillsData";
 // every career floors at 40 and the 20%/30% vision weight cannot discriminate.
 //
 // Score = 40 + 60 × (relevance/100) × rankFactor, where rankFactor comes from
-// the sector's display_order (1.00 for sector #1 down to 0.85 for sector #6).
+// the sector's display_order (1.00 for sector #1 down to 0.85 for sector #8).
 // Only the single best-weighted candidate counts, so a second, weaker row for
 // the same category never lowers a score — it documents real-but-secondary
 // relevance and keeps the map robust if sector priorities are re-ordered.
@@ -30,9 +30,25 @@ import { WEF_16_SKILLS, CAREER_WEF_SKILL_AFFINITIES } from "./wefSkillsData";
 // shown. rankFactor spans 1.00–0.85, so a lower-ranked sector needs ~18% more
 // relevance to win; the smallest margin below is ~3 score points. Two rows within
 // a point of each other would make the rationale hostage to sector re-ordering.
+// RE-MEASURED at 8 sectors: the per-rank step narrows 0.030 -> 0.0214 (the
+// spread is fixed at 0.15 and divided by n-1), so every margin TIGHTENS as
+// sectors are added. Smallest margin is still 3.1 points (Business & Management:
+// Technology 65 over Artificial Intelligence 50) - unchanged, because Technology
+// stays last at rankFactor 0.85. The two additions below were placed so that no
+// existing category's headline flips: verified career-by-career against staging,
+// where only the ten intentionally re-pointed careers changed sector.
 // `sector` MUST be byte-identical to the countries.prioritySectors entry —
 // recommendations.routes.ts localises reasoning by \b-substituting that exact
 // string for its Arabic counterpart.
+//
+// PHASE 1 (priority-alignment plan, docs/priority-alignment-plan.md section 6):
+// Creative Industries & Media and Financial Services & FinTech are ADDED, and the
+// Creative Arts, Media & Communications, Design & Architecture and Finance
+// categories are re-pointed off the Technology catch-all onto them. Technology
+// headlined 8 of 12 mapped categories and won 20 of 37 careers; it now headlines
+// 4 and wins 10. The old Technology rows are KEPT, demoted to documented
+// secondaries - they state real but non-defining relevance, and a second, weaker
+// row for a category never lowers a score (see above).
 //
 // Culinary Arts is deliberately absent: no UAE priority sector is genuinely
 // about food service, so Chef floors at 40. That is a real answer, not a gap.
@@ -77,22 +93,31 @@ export const UAE_SECTOR_CATEGORY_RULES: Array<{
   { sector: "Artificial Intelligence", category: "Business & Marketing", relevance: 45, notes: "AI-driven analytics, targeting and personalisation." },
 
   // — Creative Arts (Fashion Designer, Graphic Designer, Photographer, Video Game Designer)
-  { sector: "Technology", category: "Creative Arts", relevance: 55, notes: "Digital creative industries and the games sector." },
+  { sector: "Creative Industries & Media", category: "Creative Arts", relevance: 90, notes: "Core: these four careers ARE the creative economy the Dubai Creative Economy Strategy and Creative UAE are built on. Previously headlined Technology at 55 — a catch-all attribution, not a statement about the sector these careers serve." },
+  { sector: "Technology", category: "Creative Arts", relevance: 55, notes: "Secondary: digital creative tooling and the games sector. Real, but no longer the headline — Creative Industries & Media is." },
   { sector: "Artificial Intelligence", category: "Creative Arts", relevance: 40, notes: "Weak band: generative tooling is entering design and content work but is not the job." },
 
   // — Design & Architecture (Architect, Interior Designer)
-  { sector: "Technology", category: "Design & Architecture", relevance: 60, notes: "Smart-city planning and design (Dubai 2040, Masdar City)." },
+  // Deliberately 70, not 90: architecture is a design discipline but it is also
+  // an engineering and planning one, and the smart-city claim below is genuine.
+  // The 10-point gap over Technology is the whole margin here — see the
+  // calibration note at the top and keep Creative Industries & Media ranked
+  // ABOVE Technology, or this category becomes a coin-flip on re-ordering.
+  { sector: "Creative Industries & Media", category: "Design & Architecture", relevance: 70, notes: "Strong: architecture and interior design are design professions before they are technical ones; the creative-economy strategy names design as one of its pillars." },
+  { sector: "Technology", category: "Design & Architecture", relevance: 60, notes: "Secondary: smart-city planning and design (Dubai 2040, Masdar City)." },
   { sector: "Renewable Energy", category: "Design & Architecture", relevance: 50, notes: "Sustainable and low-carbon building design." },
 
   // — Finance (Accountant, Financial Analyst)
-  { sector: "Technology", category: "Finance", relevance: 55, notes: "FinTech and the digital-economy finance stack." },
+  { sector: "Financial Services & FinTech", category: "Finance", relevance: 95, notes: "Core: DIFC and ADGM make financial services a first-order national pillar, and this category IS its workforce. Previously headlined Technology at 55, which described the FinTech tooling rather than the sector the careers serve." },
+  { sector: "Technology", category: "Finance", relevance: 55, notes: "Secondary: the digital-economy finance stack. The FinTech claim now sits with the sector that owns it." },
   { sector: "Artificial Intelligence", category: "Finance", relevance: 40, notes: "Weak band: algorithmic analysis and risk models apply to analysts far more than to accountants." },
 
   // — Legal (Lawyer)
   { sector: "Technology", category: "Legal", relevance: 45, notes: "Weak band: legal frameworks for the digital economy. No UAE priority sector is genuinely legal-led." },
 
   // — Media & Communications (Content Creator, Journalist)
-  { sector: "Technology", category: "Media & Communications", relevance: 55, notes: "Digital media platforms and the creator economy." },
+  { sector: "Creative Industries & Media", category: "Media & Communications", relevance: 90, notes: "Core: the sector's name is this category. UAE media is a named creative-economy pillar (Dubai Media City, twofour54, the creator economy)." },
+  { sector: "Technology", category: "Media & Communications", relevance: 55, notes: "Secondary: the distribution platforms. The medium is not the sector — Creative Industries & Media is." },
   { sector: "Artificial Intelligence", category: "Media & Communications", relevance: 40, notes: "Weak band: AI content tooling assists but does not define the work." },
 
   // — Social Services (Social Worker)
@@ -266,8 +291,42 @@ export const UAE_SECTOR_WEF_SKILLS: Array<{
     }
   },
   {
-    name: "Education",
+    name: "Financial Services & FinTech",
     displayOrder: 5,
+    description: "Global financial hub (DIFC, ADGM) and the digital-finance stack",
+    // NEW (Phase 1). Placed 5th on merit: DIFC and ADGM are first-order national
+    // economic pillars, ranked below the four science/technology moonshots and
+    // above the general Technology label that previously stood in for this sector.
+    //
+    // Contrastive by construction, per the geometry note above. Financial
+    // Literacy is the 2nd most discriminating column in the whole affinity
+    // matrix (sd 15.0) and NO sector leads on it - Renewable Energy holds it at
+    // 70 and Technology at 70, both as supporting terms. Leading on it at 95 is
+    // what makes this sector separable rather than another ICT clone.
+    skills: {
+      // Markets, instruments, risk and capital allocation. The signature skill:
+      // highest available variance, and unclaimed as a lead until now.
+      "Financial Literacy": 95,
+      // Valuation, quantitative modelling and statistics. sd 14.0. Shared with
+      // Space Exploration (95), but Space carries no Financial Literacy at all,
+      // so the pair stays separated by the leading term.
+      "Numeracy": 90,
+      // The "FinTech" half: payments rails, digital banking, trading systems.
+      // Held at 75, deliberately under the ICT-led sectors' 95 - this sector is
+      // finance-led, and the vector has to say so.
+      "ICT Literacy": 75,
+      // Client, fund and desk leadership; the profession's own progression path.
+      "Leadership": 60,
+      // Disclosure, regulation and reporting are read-and-write work.
+      "Literacy": 55,
+      // DROPPED, deliberately: Critical Thinking (sd 6.9, present in 5 of 6
+      // existing sectors - weight without information), and every competency
+      // below sd 6 for the same reason.
+    }
+  },
+  {
+    name: "Education",
+    displayOrder: 6,
     description: "World-class education system and lifelong learning culture",
     skills: {
       "Communication": 90,
@@ -284,8 +343,41 @@ export const UAE_SECTOR_WEF_SKILLS: Array<{
     }
   },
   {
+    name: "Creative Industries & Media",
+    displayOrder: 7,
+    description: "Creative economy, media, design and content production",
+    // NEW (Phase 1). Placed 7th - above the general "Technology" label, below
+    // Education. That ordering is not cosmetic: Design & Architecture is claimed
+    // here at 70 against Technology's 60, and a 10-point relevance gap only
+    // survives the rankFactor spread while this sector outranks Technology.
+    // Re-order these two and Architect/Interior Designer become a coin-flip.
+    //
+    // Creativity (sd 12.0) is the lead. Only two existing sectors carry it at
+    // all - Space Exploration 85 and Technology 80 - and neither leads on it, so
+    // at 95 it separates. The rest of the vector is the sector's own literacy /
+    // communication axis, which no technology sector carries.
+    skills: {
+      // Original authorship - design, image, narrative, play. The signature.
+      "Creativity": 95,
+      // Scripts, copy, editorial and story. sd 8.7 - a modest column, but it is
+      // Education's lead, and pairing it with Creativity (which Education lacks)
+      // is what keeps these two apart rather than collapsing them.
+      "Literacy": 75,
+      // Audience, brief and message: the work only exists once it lands.
+      "Communication": 75,
+      // Production, post, engines and platforms. Held at 65, well under the
+      // ICT-led sectors - the tools are not the discipline.
+      "ICT Literacy": 65,
+      // Bilingual, multi-cultural audiences and Emirati cultural narrative are
+      // the working context for UAE media and design.
+      "Social and Cultural Awareness": 60,
+      // DROPPED, deliberately: Critical Thinking and the sub-sd-6 competencies,
+      // for the reason in the geometry note above.
+    }
+  },
+  {
     name: "Technology",
-    displayOrder: 6,
+    displayOrder: 8,
     description: "Digital transformation, smart cities, and innovation ecosystem",
     skills: {
       "ICT Literacy": 95,
@@ -328,8 +420,11 @@ export async function seedDatabase() {
       vision: "To be the best country in the world by the UAE's 100th anniversary in 2071, leading in AI, space exploration, and sustainable development.",
       visionAr: "أن تكون الإمارات العربية المتحدة أفضل دولة في العالم بحلول الذكرى المئوية عام 2071، رائدةً في الذكاء الاصطناعي واستكشاف الفضاء والتنمية المستدامة.",
       visionPlan: "UAE Centennial 2071",
-      prioritySectors: ["Artificial Intelligence", "Space Exploration", "Biotechnology", "Renewable Energy", "Education", "Technology"],
-      prioritySectorsAr: ["الذكاء الاصطناعي", "استكشاف الفضاء", "التكنولوجيا الحيوية", "الطاقة المتجددة", "التعليم", "التكنولوجيا"],
+      // POSITIONAL AND UNKEYED: prioritySectorsAr[i] localises prioritySectors[i]
+      // (recommendations.routes.ts:307-312). Both arrays are in displayOrder and
+      // MUST stay the same length and the same order as UAE_SECTOR_WEF_SKILLS.
+      prioritySectors: ["Artificial Intelligence", "Space Exploration", "Biotechnology", "Renewable Energy", "Financial Services & FinTech", "Education", "Creative Industries & Media", "Technology"],
+      prioritySectorsAr: ["الذكاء الاصطناعي", "استكشاف الفضاء", "التكنولوجيا الحيوية", "الطاقة المتجددة", "الخدمات المالية والتقنية المالية", "التعليم", "الصناعات الإبداعية والإعلام", "التكنولوجيا"],
       nationalGoals: [
         "100% AI reliance for government services by 2031",
         "50% clean energy by 2050",
@@ -377,6 +472,15 @@ export async function seedDatabase() {
           nameAr: country.nameAr,
           missionAr: country.missionAr,
           visionAr: country.visionAr,
+          // prioritySectors (ENGLISH) must be updated here too, not just the
+          // Arabic array. createCountry only runs on a from-scratch DB, so on
+          // every existing database this update IS the only path by which the
+          // seed's sector list reaches countries.prioritySectors. Updating the
+          // Ar array alone left the two arrays at different lengths and shifted
+          // the positional pairing in recommendations.routes.ts:307-312 — after
+          // Phase 1 added two sectors that would have localised "Education" as
+          // "Financial Services & FinTech" in every Arabic report.
+          prioritySectors: country.prioritySectors,
           prioritySectorsAr: country.prioritySectorsAr,
           nationalGoalsAr: country.nationalGoalsAr,
         });
