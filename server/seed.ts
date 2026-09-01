@@ -8,6 +8,7 @@ import { applyGrades9to12ArabicContent } from "./migrations/quiz-arabic-content-
 import { applyCareerArabicContent } from "./migrations/career-arabic-content";
 import { applyCareerValuesProfiles } from "./migrations/career-values-profiles";
 import { applyMissingWefAffinities } from "./migrations/wef-skill-affinities";
+import { applySectorRenames } from "./migrations/sector-renames";
 import { applyCareerRelatedSubjects } from "./migrations/career-related-subjects";
 import { WEF_16_SKILLS, CAREER_WEF_SKILL_AFFINITIES } from "./wefSkillsData";
 
@@ -41,6 +42,20 @@ import { WEF_16_SKILLS, CAREER_WEF_SKILL_AFFINITIES } from "./wefSkillsData";
 // recommendations.routes.ts localises reasoning by \b-substituting that exact
 // string for its Arabic counterpart.
 //
+// PHASE 2 (same plan): four sectors RENAMED. Old -> new, for anyone reading a
+// doc, commit message or stored recommendation written before this change:
+//   Biotechnology       -> Healthcare & Life Sciences
+//   Space Exploration   -> Space & Future Sciences
+//   Renewable Energy    -> Renewable Energy & Sustainability
+//   Education           -> Education & Human Capital
+// Artificial Intelligence and Technology are deliberately KEPT SEPARATE (the
+// white paper carries one merged sector; the product decision is to keep both).
+// No vector, relevance or override changed — the renames are labels only, and
+// were verified on staging to leave all 37 career scores byte-identical.
+// The rename itself CANNOT be done by the seed upsert; see
+// server/migrations/sector-renames.ts for why, and note that it must run
+// BEFORE the sector upsert loop.
+//
 // PHASE 1 (priority-alignment plan, docs/priority-alignment-plan.md section 6):
 // Creative Industries & Media and Financial Services & FinTech are ADDED, and the
 // Creative Arts, Media & Communications, Design & Architecture and Finance
@@ -64,23 +79,23 @@ export const UAE_SECTOR_CATEGORY_RULES: Array<{
   // — Technology (category rule reaches Product Manager, Software Engineer, UX/UI Designer, Web Developer; Data Scientist is overridden below)
   { sector: "Technology", category: "Technology", relevance: 95, notes: "Core: digital transformation, smart cities and the innovation ecosystem are built by this category." },
   { sector: "Artificial Intelligence", category: "Technology", relevance: 75, notes: "AI systems are specified, built and deployed by software and data practitioners." },
-  { sector: "Space Exploration", category: "Technology", relevance: 55, notes: "MBRSC satellite/Mars programmes run on flight software, ground systems and data pipelines." },
-  { sector: "Renewable Energy", category: "Technology", relevance: 50, notes: "Smart-grid, energy-management and monitoring platforms." },
-  { sector: "Education", category: "Technology", relevance: 50, notes: "EdTech platforms behind the national digital-learning push." },
+  { sector: "Space & Future Sciences", category: "Technology", relevance: 55, notes: "MBRSC satellite/Mars programmes run on flight software, ground systems and data pipelines." },
+  { sector: "Renewable Energy & Sustainability", category: "Technology", relevance: 50, notes: "Smart-grid, energy-management and monitoring platforms." },
+  { sector: "Education & Human Capital", category: "Technology", relevance: 50, notes: "EdTech platforms behind the national digital-learning push." },
 
   // — Engineering (category rule reaches Electrical + Mechanical only; the other three are overridden below)
-  { sector: "Space Exploration", category: "Engineering", relevance: 70, notes: "Aerospace, propulsion, avionics and satellite hardware." },
-  { sector: "Renewable Energy", category: "Engineering", relevance: 80, notes: "Solar, nuclear, grid and storage plant engineering for the 2050 clean-energy target." },
+  { sector: "Space & Future Sciences", category: "Engineering", relevance: 70, notes: "Aerospace, propulsion, avionics and satellite hardware." },
+  { sector: "Renewable Energy & Sustainability", category: "Engineering", relevance: 80, notes: "Solar, nuclear, grid and storage plant engineering for the 2050 clean-energy target." },
   { sector: "Technology", category: "Engineering", relevance: 65, notes: "Advanced manufacturing, robotics and smart infrastructure." },
   { sector: "Artificial Intelligence", category: "Engineering", relevance: 50, notes: "Automation and intelligent control systems." },
 
   // — Healthcare (Dentist, Doctor, Nurse, Pharmacist, Physical Therapist, Psychologist)
-  { sector: "Biotechnology", category: "Healthcare", relevance: 85, notes: "The sector is defined as advanced healthcare, genomics and life sciences — clinicians are its delivery workforce." },
+  { sector: "Healthcare & Life Sciences", category: "Healthcare", relevance: 85, notes: "The sector is defined as advanced healthcare, genomics and life sciences — clinicians are its delivery workforce." },
   { sector: "Artificial Intelligence", category: "Healthcare", relevance: 55, notes: "AI diagnostics and clinical decision support." },
   { sector: "Technology", category: "Healthcare", relevance: 50, notes: "National digital-health platforms (Malaffi, Riayati) and telemedicine." },
 
   // — Education (Teacher)
-  { sector: "Education", category: "Education", relevance: 100, notes: "Core: the sector IS this category's workforce." },
+  { sector: "Education & Human Capital", category: "Education", relevance: 100, notes: "Core: the sector IS this category's workforce." },
   { sector: "Technology", category: "Education", relevance: 60, notes: "Digital learning delivery and classroom technology." },
   { sector: "Artificial Intelligence", category: "Education", relevance: 55, notes: "AI is being taught as national school curriculum content." },
 
@@ -105,7 +120,7 @@ export const UAE_SECTOR_CATEGORY_RULES: Array<{
   // ABOVE Technology, or this category becomes a coin-flip on re-ordering.
   { sector: "Creative Industries & Media", category: "Design & Architecture", relevance: 70, notes: "Strong: architecture and interior design are design professions before they are technical ones; the creative-economy strategy names design as one of its pillars." },
   { sector: "Technology", category: "Design & Architecture", relevance: 60, notes: "Secondary: smart-city planning and design (Dubai 2040, Masdar City)." },
-  { sector: "Renewable Energy", category: "Design & Architecture", relevance: 50, notes: "Sustainable and low-carbon building design." },
+  { sector: "Renewable Energy & Sustainability", category: "Design & Architecture", relevance: 50, notes: "Sustainable and low-carbon building design." },
 
   // — Finance (Accountant, Financial Analyst)
   { sector: "Financial Services & FinTech", category: "Finance", relevance: 95, notes: "Core: DIFC and ADGM make financial services a first-order national pillar, and this category IS its workforce. Previously headlined Technology at 55, which described the FinTech tooling rather than the sector the careers serve." },
@@ -121,8 +136,8 @@ export const UAE_SECTOR_CATEGORY_RULES: Array<{
   { sector: "Artificial Intelligence", category: "Media & Communications", relevance: 40, notes: "Weak band: AI content tooling assists but does not define the work." },
 
   // — Social Services (Social Worker)
-  { sector: "Education", category: "Social Services", relevance: 60, notes: "School social work and student wellbeing sit inside the education system." },
-  { sector: "Biotechnology", category: "Social Services", relevance: 50, notes: "Healthcare social work inside the advanced-healthcare sector." },
+  { sector: "Education & Human Capital", category: "Social Services", relevance: 60, notes: "School social work and student wellbeing sit inside the education system." },
+  { sector: "Healthcare & Life Sciences", category: "Social Services", relevance: 50, notes: "Healthcare social work inside the advanced-healthcare sector." },
 ];
 
 // Per-career overrides: OVERRIDE-EXCLUSIVE — once a career has any override row,
@@ -136,10 +151,10 @@ export const UAE_SECTOR_CAREER_OVERRIDES: Array<{
   relevance: number;
   notes: string;
 }> = [
-  { sector: "Renewable Energy", careerTitle: "Renewable Energy Engineer", relevance: 100, notes: "The career is the sector. Pins Renewable Energy and lifts 84 -> 95; the Engineering rule cannot express that this career IS the sector." },
-  { sector: "Biotechnology", careerTitle: "Biomedical Engineer", relevance: 90, notes: "Medical devices and life-sciences engineering. The Engineering rule would have credited Renewable Energy (84) - wrong sector for this career." },
-  { sector: "Renewable Energy", careerTitle: "Environmental Scientist", relevance: 85, notes: "Climate leadership and the 50%-clean-energy-by-2050 target. Its category (Science) has no rule, so without this it would floor at 40." },
-  { sector: "Technology", careerTitle: "Civil Engineer", relevance: 70, notes: "Smart-city and infrastructure delivery. The Engineering rule would have credited Renewable Energy (84), overstating a civil engineer's clean-energy role." },
+  { sector: "Renewable Energy & Sustainability", careerTitle: "Renewable Energy Engineer", relevance: 100, notes: "The career is the sector. Pins Renewable Energy & Sustainability and lifts 84 -> 95; the Engineering rule cannot express that this career IS the sector." },
+  { sector: "Healthcare & Life Sciences", careerTitle: "Biomedical Engineer", relevance: 90, notes: "Medical devices and life-sciences engineering. The Engineering rule would have credited Renewable Energy & Sustainability (84) - wrong sector for this career." },
+  { sector: "Renewable Energy & Sustainability", careerTitle: "Environmental Scientist", relevance: 85, notes: "Climate leadership and the 50%-clean-energy-by-2050 target. Its category (Science) has no rule, so without this it would floor at 40." },
+  { sector: "Technology", careerTitle: "Civil Engineer", relevance: 70, notes: "Smart-city and infrastructure delivery. The Engineering rule would have credited Renewable Energy & Sustainability (84), overstating a civil engineer's clean-energy role." },
   { sector: "Artificial Intelligence", careerTitle: "Data Scientist", relevance: 90, notes: "UAE frames data science under its flagship AI priority — AI Strategy 2031's 'Data and Infrastructure' pillar names data professionals as AI-strategy talent. The Technology rule (88, headlined 'Technology') understates it; this headlines Artificial Intelligence at 94." },
 ];
 
@@ -155,11 +170,11 @@ export const UAE_SECTOR_CAREER_OVERRIDES: Array<{
 // numbers, and both were violated by the original 4-5-skill vectors:
 //
 // 1. SECTORS MUST BE SEPARABLE. With the original vectors the six sectors
-//    spanned about three independent directions - Space Exploration and
-//    Renewable Energy correlated at r=0.99 across the career catalog, because
-//    both were {Scientific Literacy, Critical Thinking, Numeracy} plus one
-//    low-variance competency. A skill that appears in most sectors carries
-//    weight without carrying information.
+//    spanned about three independent directions - Space & Future Sciences and
+//    Renewable Energy & Sustainability correlated at r=0.99 across the career
+//    catalog, because both were {Scientific Literacy, Critical Thinking,
+//    Numeracy} plus one low-variance competency. A skill that appears in most
+//    sectors carries weight without carrying information.
 //
 // 2. THE SKILLS USED MUST DISCRIMINATE BETWEEN CAREERS. Across the 576
 //    career affinities the six foundational literacies vary widely (Scientific
@@ -196,42 +211,46 @@ export const UAE_SECTOR_WEF_SKILLS: Array<{
     }
   },
   {
-    name: "Space Exploration",
+    name: "Space & Future Sciences",
     displayOrder: 2,
     description: "Leadership in space science, Mars colonization, and satellite technology",
-    // REWEIGHTED to break the Space <-> Renewable Energy collinearity (r=0.888).
-    // The old vector led on Scientific Literacy 95 / Critical Thinking 90 /
-    // Numeracy 85 - the SAME high-variance core Renewable Energy leads on - and
-    // then differentiated with Initiative (sd 5.5), Collaboration (sd 5.9) and
-    // Persistence and Grit (sd 5.1), the three LOWEST-variance skills in the
-    // catalog. Those three carry weight without carrying information, so the
-    // shared core decided the whole column: on the shared top-3 alone the two
-    // sectors correlate at r=1.000.
+    // REWEIGHTED to break the Space <-> Renewable Energy & Sustainability
+    // collinearity (r=0.888). The old vector led on Scientific Literacy 95 /
+    // Critical Thinking 90 / Numeracy 85 - the SAME high-variance core
+    // Renewable Energy & Sustainability leads on - and then differentiated with
+    // Initiative (sd 5.5), Collaboration (sd 5.9) and Persistence and Grit (sd
+    // 5.1), the three LOWEST-variance skills in the catalog. Those three carry
+    // weight without carrying information, so the shared core decided the whole
+    // column: on the shared top-3 alone the two sectors correlate at r=1.000.
     //
     // The fix is CONTRAST, not coverage. Numeracy is promoted to the sector's
-    // signature (Renewable Energy holds it at only 75), Scientific Literacy is
-    // demoted so it is no longer the dominant shared term, and Creativity is
-    // added as a high-variance skill NEITHER Renewable Energy nor Biotechnology
-    // carries. Result: Space <-> Renewable Energy falls 0.888 -> 0.530.
+    // signature (Renewable Energy & Sustainability holds it at only 75),
+    // Scientific Literacy is demoted so it is no longer the dominant shared
+    // term, and Creativity is added as a high-variance skill NEITHER Renewable
+    // Energy & Sustainability nor Healthcare & Life Sciences carries. Result:
+    // Space <-> Renewable Energy & Sustainability falls 0.888 -> 0.530.
     //
     // ICT Literacy is deliberately held at 65, well under Technology's and
     // Artificial Intelligence's 95. Leading on ICT scores lower against
-    // Renewable Energy but simply MOVES the collinearity to Artificial
-    // Intelligence (measured r=0.953, with Software Engineer and Video Game
-    // Designer surfacing as top "space" careers). Space is science-led, not
-    // IT-led, and the vector has to say so.
+    // Renewable Energy & Sustainability but simply MOVES the collinearity to
+    // Artificial Intelligence (measured r=0.953, with Software Engineer and
+    // Video Game Designer surfacing as top "space" careers). Space is
+    // science-led, not IT-led, and the vector has to say so.
     skills: {
       // Orbital mechanics, trajectory optimisation, delta-v and error budgets.
-      // sd 14.0, the 3rd most discriminating column, and Renewable Energy holds
-      // it at only 75 - so at 95 this separates rather than shares.
+      // sd 14.0, the 3rd most discriminating column, and Renewable Energy &
+      // Sustainability holds it at only 75 - so at 95 this separates rather
+      // than shares.
       "Numeracy": 95,
       // Novel engineering under extreme mass, power, thermal and radiation
       // constraints, where no off-the-shelf part exists. sd 12.0, and neither
-      // Renewable Energy nor Biotechnology carries it at all.
+      // Renewable Energy & Sustainability nor Healthcare & Life Sciences
+      // carries it at all.
       "Creativity": 85,
-      // Astrophysics and planetary science: still essential, but DEMOTED from 95
-      // so it stops dominating the vector. Renewable Energy 90, Biotechnology 95
-      // both lead on it; matching them there is what caused the collinearity.
+      // Astrophysics and planetary science: still essential, but DEMOTED from
+      // 95 so it stops dominating the vector. Renewable Energy & Sustainability
+      // 90, Healthcare & Life Sciences 95 both lead on it; matching them there
+      // is what caused the collinearity.
       "Scientific Literacy": 80,
       // Exploration and discovery is the sector's literal purpose. sd 7.3 - a
       // modest signal, kept because it is genuinely sector-defining.
@@ -250,7 +269,7 @@ export const UAE_SECTOR_WEF_SKILLS: Array<{
     }
   },
   {
-    name: "Biotechnology",
+    name: "Healthcare & Life Sciences",
     displayOrder: 3,
     description: "Advanced healthcare, genomics, and life sciences innovation",
     skills: {
@@ -265,7 +284,7 @@ export const UAE_SECTOR_WEF_SKILLS: Array<{
     }
   },
   {
-    name: "Renewable Energy",
+    name: "Renewable Energy & Sustainability",
     displayOrder: 4,
     description: "50% clean energy by 2050 and climate leadership",
     skills: {
@@ -294,22 +313,24 @@ export const UAE_SECTOR_WEF_SKILLS: Array<{
     name: "Financial Services & FinTech",
     displayOrder: 5,
     description: "Global financial hub (DIFC, ADGM) and the digital-finance stack",
-    // NEW (Phase 1). Placed 5th on merit: DIFC and ADGM are first-order national
-    // economic pillars, ranked below the four science/technology moonshots and
-    // above the general Technology label that previously stood in for this sector.
+    // NEW (Phase 1). Placed 5th on merit: DIFC and ADGM are first-order
+    // national economic pillars, ranked below the four science/technology
+    // moonshots and above the general Technology label that previously stood in
+    // for this sector.
     //
     // Contrastive by construction, per the geometry note above. Financial
     // Literacy is the 2nd most discriminating column in the whole affinity
-    // matrix (sd 15.0) and NO sector leads on it - Renewable Energy holds it at
-    // 70 and Technology at 70, both as supporting terms. Leading on it at 95 is
-    // what makes this sector separable rather than another ICT clone.
+    // matrix (sd 15.0) and NO sector leads on it - Renewable Energy &
+    // Sustainability holds it at 70 and Technology at 70, both as supporting
+    // terms. Leading on it at 95 is what makes this sector separable rather
+    // than another ICT clone.
     skills: {
       // Markets, instruments, risk and capital allocation. The signature skill:
       // highest available variance, and unclaimed as a lead until now.
       "Financial Literacy": 95,
       // Valuation, quantitative modelling and statistics. sd 14.0. Shared with
-      // Space Exploration (95), but Space carries no Financial Literacy at all,
-      // so the pair stays separated by the leading term.
+      // Space & Future Sciences (95), but Space carries no Financial Literacy
+      // at all, so the pair stays separated by the leading term.
       "Numeracy": 90,
       // The "FinTech" half: payments rails, digital banking, trading systems.
       // Held at 75, deliberately under the ICT-led sectors' 95 - this sector is
@@ -325,7 +346,7 @@ export const UAE_SECTOR_WEF_SKILLS: Array<{
     }
   },
   {
-    name: "Education",
+    name: "Education & Human Capital",
     displayOrder: 6,
     description: "World-class education system and lifelong learning culture",
     skills: {
@@ -347,21 +368,23 @@ export const UAE_SECTOR_WEF_SKILLS: Array<{
     displayOrder: 7,
     description: "Creative economy, media, design and content production",
     // NEW (Phase 1). Placed 7th - above the general "Technology" label, below
-    // Education. That ordering is not cosmetic: Design & Architecture is claimed
-    // here at 70 against Technology's 60, and a 10-point relevance gap only
-    // survives the rankFactor spread while this sector outranks Technology.
-    // Re-order these two and Architect/Interior Designer become a coin-flip.
+    // Education & Human Capital. That ordering is not cosmetic: Design &
+    // Architecture is claimed here at 70 against Technology's 60, and a
+    // 10-point relevance gap only survives the rankFactor spread while this
+    // sector outranks Technology. Re-order these two and Architect/Interior
+    // Designer become a coin-flip.
     //
     // Creativity (sd 12.0) is the lead. Only two existing sectors carry it at
-    // all - Space Exploration 85 and Technology 80 - and neither leads on it, so
-    // at 95 it separates. The rest of the vector is the sector's own literacy /
-    // communication axis, which no technology sector carries.
+    // all - Space & Future Sciences 85 and Technology 80 - and neither leads
+    // on it, so at 95 it separates. The rest of the vector is the sector's own
+    // literacy / communication axis, which no technology sector carries.
     skills: {
       // Original authorship - design, image, narrative, play. The signature.
       "Creativity": 95,
       // Scripts, copy, editorial and story. sd 8.7 - a modest column, but it is
-      // Education's lead, and pairing it with Creativity (which Education lacks)
-      // is what keeps these two apart rather than collapsing them.
+      // Education & Human Capital's lead, and pairing it with Creativity (which
+      // that sector lacks) is what keeps the two apart rather than collapsing
+      // them.
       "Literacy": 75,
       // Audience, brief and message: the work only exists once it lands.
       "Communication": 75,
@@ -423,8 +446,8 @@ export async function seedDatabase() {
       // POSITIONAL AND UNKEYED: prioritySectorsAr[i] localises prioritySectors[i]
       // (recommendations.routes.ts:307-312). Both arrays are in displayOrder and
       // MUST stay the same length and the same order as UAE_SECTOR_WEF_SKILLS.
-      prioritySectors: ["Artificial Intelligence", "Space Exploration", "Biotechnology", "Renewable Energy", "Financial Services & FinTech", "Education", "Creative Industries & Media", "Technology"],
-      prioritySectorsAr: ["الذكاء الاصطناعي", "استكشاف الفضاء", "التكنولوجيا الحيوية", "الطاقة المتجددة", "الخدمات المالية والتقنية المالية", "التعليم", "الصناعات الإبداعية والإعلام", "التكنولوجيا"],
+      prioritySectors: ["Artificial Intelligence", "Space & Future Sciences", "Healthcare & Life Sciences", "Renewable Energy & Sustainability", "Financial Services & FinTech", "Education & Human Capital", "Creative Industries & Media", "Technology"],
+      prioritySectorsAr: ["الذكاء الاصطناعي", "الفضاء وعلوم المستقبل", "الرعاية الصحية وعلوم الحياة", "الطاقة المتجددة والاستدامة", "الخدمات المالية والتقنية المالية", "التعليم ورأس المال البشري", "الصناعات الإبداعية والإعلام", "التكنولوجيا"],
       nationalGoals: [
         "100% AI reliance for government services by 2031",
         "50% clean energy by 2050",
@@ -478,8 +501,8 @@ export async function seedDatabase() {
           // seed's sector list reaches countries.prioritySectors. Updating the
           // Ar array alone left the two arrays at different lengths and shifted
           // the positional pairing in recommendations.routes.ts:307-312 — after
-          // Phase 1 added two sectors that would have localised "Education" as
-          // "Financial Services & FinTech" in every Arabic report.
+          // Phase 1 added two sectors that would have localised the Education
+          // sector as "Financial Services & FinTech" in every Arabic report.
           prioritySectors: country.prioritySectors,
           prioritySectorsAr: country.prioritySectorsAr,
           nationalGoalsAr: country.nationalGoalsAr,
@@ -2028,6 +2051,19 @@ export async function seedDatabase() {
   if (!uaeCountry) {
     console.warn("⚠️  UAE country not found, skipping priority sectors seeding");
   } else {
+    // MUST run before the upsert loop below. createOrUpdateCountryPrioritySector
+    // conflicts on (country_id, name), so it cannot rename — given a renamed
+    // entry in UAE_SECTOR_WEF_SKILLS it would INSERT a second sector and leave
+    // the old one behind with its skill vector and category rules orphaned.
+    // This reconciles the existing rows first, in place, keeping their ids.
+    // Non-fatal: a failure here leaves the old names live, which still scores
+    // correctly — it must not take the rest of the seed down with it.
+    try {
+      await applySectorRenames(uaeCountry.id);
+    } catch (error: any) {
+      console.error("  Sector rename migration error (non-fatal, continuing):", error.message);
+    }
+
     let sectorsCreated = 0;
     let skillMappingsCreated = 0;
     const seededSectors: Record<string, string> = {}; // sector name -> id, for the vision mapping below

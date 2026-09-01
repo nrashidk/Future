@@ -228,15 +228,17 @@ describe("calculateVisionScore — HYBRID (category gate + WEF skill modulation)
 
   it("preserves sector attribution — skills modulate, they never re-attribute wholesale", () => {
     const ctx = makeContext();
-    // Pure skill-based put these in Space Exploration (r=0.99 with Renewable
-    // Energy across the catalog makes the winner arbitrary). The category gate
-    // is what keeps clinicians in the healthcare sector.
+    // Pure skill-based put these in the space sector (r=0.99 with the
+    // renewables sector across the catalog makes the winner arbitrary). The
+    // category gate is what keeps clinicians in the healthcare sector.
+    // Sector names are the post-Phase-2 ones (Biotechnology -> Healthcare &
+    // Life Sciences, Space Exploration -> Space & Future Sciences, etc.).
     for (const title of ["Doctor (General Practitioner)", "Physical Therapist", "Healthcare Professional (Nurse)"]) {
-      expect(scoreOf(ctx, title).reasoning).toContain("Biotechnology");
-      expect(scoreOf(ctx, title).reasoning).not.toContain("Space Exploration");
+      expect(scoreOf(ctx, title).reasoning).toContain("Healthcare & Life Sciences");
+      expect(scoreOf(ctx, title).reasoning).not.toContain("Space & Future Sciences");
     }
-    expect(scoreOf(ctx, "Teacher (Secondary Education)").reasoning).toContain("Education");
-    expect(scoreOf(ctx, "Renewable Energy Engineer").reasoning).toContain("Renewable Energy");
+    expect(scoreOf(ctx, "Teacher (Secondary Education)").reasoning).toContain("Education & Human Capital");
+    expect(scoreOf(ctx, "Renewable Energy Engineer").reasoning).toContain("Renewable Energy & Sustainability");
   });
 
   it("ARABIC CONSTRAINT: the sector name appears verbatim as a bare trailing token", () => {
