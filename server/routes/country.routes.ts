@@ -8,7 +8,13 @@ import type { Express } from "express";
 import { z } from "zod";
 import { storage } from "../storage";
 import { isAuthenticated } from "../auth";
-import { researchCountryData, generateCountryQuizQuestions, generateSectorWefMappings } from "../services/llmCountryService";
+import {
+  researchCountryData,
+  generateCountryQuizQuestions,
+  generateSectorWefMappings,
+  skillKey,
+  type GeneratedSector,
+} from "../services/llmCountryService";
 import rateLimit from "express-rate-limit";
 import { getSuperadminEmails } from "../middleware/auth.middleware";
 
@@ -67,6 +73,133 @@ const llmLimiter = rateLimit({
   max: 5,
   message: { message: "Too many LLM requests. Please try again later." },
 });
+
+/**
+ * The storage surface persistGeneratedSectors needs. Narrow on purpose: it makes
+ * the writer unit-testable without a database, and it documents that generating
+ * a country touches exactly three tables.
+ */
+export interface SectorPersistenceStore {
+  createOrUpdateCountryPrioritySector(
+    countryId: string,
+    name: string,
+    displayOrder: number,
+    description?: string,
+  ): Promise<{ id: string }>;
+  createOrUpdateCountrySectorWefSkill(
+    sectorId: string,
+    wefSkillId: string,
+    importance: number,
+  ): Promise<unknown>;
+  createOrUpdateSectorCategoryRule(
+    sectorId: string,
+    careerCategory: string,
+    relevance: number,
+    notes?: string,
+  ): Promise<unknown>;
+}
+
+export interface SectorPersistenceResult {
+  sectorsWritten: number;
+  skillRowsWritten: number;
+  categoryRowsWritten: number;
+  errors: string[];
+}
+
+/**
+ * Write a generated country's scoring configuration.
+ *
+ * THREE tables, not one. The previous version called
+ * createOrUpdateCountryPrioritySector and stopped, so an LLM country got sector
+ * NAMES and nothing else: country_sector_wef_skills was never written (the
+ * generated skill mappings were computed and discarded) and
+ * country_sector_categories was never written at all, which makes
+ * calculateVisionScore return VISION_FLOOR for every career — a uniformly inert
+ * vision component. See docs/priority-alignment-plan.md section 7.
+ *
+ * displayOrder is 1-based and follows the accepted order, because it drives
+ * rankFactor in server/services/matching.ts and therefore has to encode real
+ * national priority.
+ *
+ * A sector whose sector row fails is skipped whole rather than half-written: a
+ * sector with skills but no category rules scores nothing, and one with
+ * category rules but no skills silently degrades to category-only relevance.
+ */
+export async function persistGeneratedSectors(
+  store: SectorPersistenceStore,
+  countryId: string,
+  countryName: string,
+  mappings: GeneratedSector[],
+  wefSkillIdsByName: Map<string, string>,
+): Promise<SectorPersistenceResult> {
+  const result: SectorPersistenceResult = {
+    sectorsWritten: 0,
+    skillRowsWritten: 0,
+    categoryRowsWritten: 0,
+    errors: [],
+  };
+
+  for (let i = 0; i < mappings.length; i++) {
+    const mapping = mappings[i];
+    // Provenance lives in the category rules' notes (schema.ts calls that field
+    // out as the place for it); the sector description carries the same URLs so
+    // the sector row is auditable on its own.
+    const description = mapping.sources.length > 0
+      ? `Priority sector for ${countryName}. Sources: ${mapping.sources.join(", ")}`
+      : `Priority sector for ${countryName}'s national development`;
+
+    let sectorId: string;
+    try {
+      const sector = await store.createOrUpdateCountryPrioritySector(
+        countryId,
+        mapping.sector,
+        i + 1,
+        description,
+      );
+      sectorId = sector.id;
+      result.sectorsWritten++;
+    } catch (error) {
+      result.errors.push(
+        `${mapping.sector}: sector row failed (${error instanceof Error ? error.message : String(error)})`,
+      );
+      continue;
+    }
+
+    for (const skill of mapping.skills) {
+      const wefSkillId = wefSkillIdsByName.get(skillKey(skill.skill));
+      if (!wefSkillId) {
+        result.errors.push(`${mapping.sector}: WEF skill "${skill.skill}" is not seeded in wef_skills`);
+        continue;
+      }
+      try {
+        await store.createOrUpdateCountrySectorWefSkill(sectorId, wefSkillId, skill.importance);
+        result.skillRowsWritten++;
+      } catch (error) {
+        result.errors.push(
+          `${mapping.sector} / ${skill.skill}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+
+    for (const rule of mapping.categoryRules) {
+      try {
+        await store.createOrUpdateSectorCategoryRule(
+          sectorId,
+          rule.category,
+          rule.relevance,
+          rule.notes,
+        );
+        result.categoryRowsWritten++;
+      } catch (error) {
+        result.errors.push(
+          `${mapping.sector} / ${rule.category}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    }
+  }
+
+  return result;
+}
 
 export function registerCountryRoutes(app: Express) {
   app.get("/api/admin/countries", isAuthenticated, async (req, res) => {
@@ -161,35 +294,87 @@ export function registerCountryRoutes(app: Express) {
 
       const country = await storage.createCountry(countryData);
 
+      let sectorGeneration: Record<string, unknown> | undefined;
+
       if (autoPopulate && countryData.prioritySectors.length > 0) {
-        console.log(`[Country] Generating sector-WEF mappings for ${name}...`);
+        console.log(`[Country] Generating sector scoring configuration for ${name}...`);
+
+        // The generator needs the live catalog: category rules may only name
+        // categories that exist, and the coverage gate rejects a sector that no
+        // career serves.
+        const [careers, wefSkills] = await Promise.all([
+          storage.getAllCareers(),
+          storage.getAllWefSkills(),
+        ]);
+
         const sectorResult = await generateSectorWefMappings(
-          storage, 
-          name, 
-          countryData.prioritySectors
+          storage,
+          name,
+          countryData.prioritySectors,
+          {
+            careerCatalog: careers,
+            skillNames: wefSkills.map(s => s.name),
+          },
         );
-        if (sectorResult.success && sectorResult.mappings) {
-          for (let i = 0; i < sectorResult.mappings.length; i++) {
-            const mapping = sectorResult.mappings[i];
-            try {
-              await storage.createOrUpdateCountryPrioritySector(
-                id,
-                mapping.sector,
-                i + 1,
-                `Priority sector for ${name}'s national development`
-              );
-            } catch (e) {
-              console.log(`Sector ${mapping.sector} may already exist, skipping`);
-            }
+
+        for (const rejection of sectorResult.rejected ?? []) {
+          console.warn(`[Country] Rejected sector "${rejection.sector}" (${rejection.gate} gate): ${rejection.reason}`);
+        }
+        for (const warning of sectorResult.warnings ?? []) {
+          console.warn(`[Country] ${warning}`);
+        }
+
+        if (!sectorResult.success || !sectorResult.mappings) {
+          console.error(`[Country] Sector generation failed: ${sectorResult.error}`);
+          sectorGeneration = {
+            persisted: false,
+            error: sectorResult.error,
+            sourcedLive: sectorResult.sourcedLive ?? false,
+            rejected: sectorResult.rejected ?? [],
+            warnings: sectorResult.warnings ?? [],
+          };
+        } else {
+          const wefSkillIdsByName = new Map(wefSkills.map(s => [skillKey(s.name), s.id]));
+          const written = await persistGeneratedSectors(
+            storage,
+            id,
+            name,
+            sectorResult.mappings,
+            wefSkillIdsByName,
+          );
+
+          // Keep countries.prioritySectors aligned with what was actually
+          // seeded. A gated-out sector left in the array is an empty label:
+          // it shows in the UI, it is positionally paired with
+          // prioritySectorsAr, and no career can ever be attributed to it.
+          const acceptedNames = sectorResult.mappings.map(m => m.sector);
+          if (acceptedNames.length !== countryData.prioritySectors.length) {
+            await storage.updateCountry(id, { prioritySectors: acceptedNames });
+            countryData.prioritySectors = acceptedNames;
           }
-          console.log(`[Country] Created ${sectorResult.mappings.length} sector mappings`);
+
+          for (const failure of written.errors) {
+            console.error(`[Country] ${failure}`);
+          }
+          console.log(
+            `[Country] Seeded ${written.sectorsWritten} sectors, ${written.skillRowsWritten} skill rows, ${written.categoryRowsWritten} category rules for ${name}`,
+          );
+
+          sectorGeneration = {
+            persisted: true,
+            sourcedLive: sectorResult.sourcedLive ?? false,
+            ...written,
+            rejected: sectorResult.rejected ?? [],
+            warnings: sectorResult.warnings ?? [],
+          };
         }
       }
 
       res.status(201).json({
         success: true,
-        country,
+        country: sectorGeneration?.persisted ? await storage.getCountryById(id) : country,
         autoPopulated: autoPopulate && countryData.llmPopulated,
+        ...(sectorGeneration ? { sectorGeneration } : {}),
       });
     } catch (error) {
       console.error("Error creating country:", error);
