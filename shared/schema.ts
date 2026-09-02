@@ -510,6 +510,29 @@ export const careers = pgTable("careers", {
   onetGrowthSource: jsonb("onet_growth_source"),
   //   { onetCode, bandVerbatim, fetchedAt, projectionVintage: "2024-2034" }
 
+  /**
+   * FUTURE-READINESS GATE. Occupation-level and country-independent — the same
+   * class of property as valuesProfile and the WEF skill affinities, NOT the
+   * country-scoped class of jobMarketTrends. A new country's careers inherit it
+   * through onetCode and the WEF role mapping; there is no per-country readiness.
+   *
+   *   'growing' | 'stable' | 'watch' | 'declining'
+   *
+   * ONLY 'declining' gates (matching.ts step 3d). It requires BOTH the WEF
+   * Future of Jobs 2025 fastest-declining list AND the O*NET 'decline' band —
+   * see server/services/futureReadiness.ts. 'watch' means our two sources
+   * disagree: a human-review state, never a gate.
+   *
+   * Default 'stable': a career with no evidence either way is always KEPT.
+   */
+  futureReadiness: text("future_readiness").notNull().default("stable"),
+
+  /** Evidence behind futureReadiness, so an adult can answer "why was this
+   *  career withheld from my student?" without reading code. */
+  futureReadinessSource: jsonb("future_readiness_source"),
+  //   { rule, why, wefRole, wefRank, wefVerdict, wefEdition,
+  //     onetBand, onetBandVia, mappingConfidence, derivedAt }
+
   icon: text("icon"),
   
   // Country-specific careers (null = global/available everywhere)
@@ -523,6 +546,7 @@ export const careers = pgTable("careers", {
 }, (table) => [
   index("careers_onet_code_idx").on(table.onetCode),
   index("careers_country_id_idx").on(table.countryId),
+  index("careers_future_readiness_idx").on(table.futureReadiness),
 ]);
 
 export const careersRelations = relations(careers, ({ one, many }) => ({

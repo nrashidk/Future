@@ -448,6 +448,61 @@ describe("completeness gate", () => {
     ]);
   });
 
+  // -------------------------------------------------------------------------
+  // FUTURE-READINESS at the catalogue boundary
+  //
+  // This is where the gate earns its keep. The seeded 68 are all professional
+  // occupations so the gate excludes none of them, but a model enumerating
+  // "careers serving country X's priority sectors" will happily return the WEF
+  // fastest-declining list. See docs/future-readiness-plan.md B4.
+  // -------------------------------------------------------------------------
+
+  it.each([
+    ["Bank Teller"],
+    ["Data Entry Clerk"],
+    ["Administrative Assistant"],
+    ["Telemarketer"],
+    ["Payroll Clerk"],
+  ])("rejects a generated %s — WEF fastest-declining AND O*NET decline", (title) => {
+    const { ok, errors } = validateGeneratedCareer({ ...CAREERS[0], title });
+    expect(ok).toBe(false);
+    expect(errors.join(" ")).toMatch(/declining occupation/);
+    expect(errors.join(" ")).toMatch(/both sources agree/);
+  });
+
+  it.each([
+    ["Software Engineer"],
+    ["Renewable Energy Engineer"],
+    ["Airline Pilot"],
+    ["Accountant"],
+    ["Nuclear Engineer"],
+    ["Teacher (Secondary Education)"],
+  ])("does NOT reject %s", (title) => {
+    // Airline Pilot is not cabin crew; Accountants and Auditors is WEF rank 109,
+    // outside the top 15; Nuclear Engineer and the teachers are O*NET-only
+    // decline, which never gates.
+    const { ok, errors } = validateGeneratedCareer({ ...CAREERS[0], title });
+    expect(errors.join(" ")).not.toMatch(/declining occupation/);
+    expect(ok).toBe(true);
+  });
+
+  it("does NOT reject a generated Graphic Designer — O*NET refuses to corroborate WEF", () => {
+    // The strict AND rule makes a hand-maintained exception list unnecessary.
+    const { ok, errors } = validateGeneratedCareer({ ...CAREERS[0], title: "Graphic Designer" });
+    expect(errors.join(" ")).not.toMatch(/declining occupation/);
+    expect(ok).toBe(true);
+  });
+
+  it("uses the career's OWN band when it supplies one", () => {
+    // A WEF-declining title whose supplied band contradicts the proxy is still
+    // judged by both sources — it just fails the AND on the O*NET side.
+    const kept = validateGeneratedCareer({ ...CAREERS[0], title: "Bank Teller", onetGrowthBand: "much_faster" });
+    expect(kept.errors.join(" ")).not.toMatch(/declining occupation/);
+
+    const rejected = validateGeneratedCareer({ ...CAREERS[0], title: "Bank Teller", onetGrowthBand: "decline" });
+    expect(rejected.ok).toBe(false);
+  });
+
   it("rejects an AUTHORED valuesProfile — values are computed from O*NET, never written by the model", () => {
     const { ok, errors } = validateGeneratedCareer({
       ...CAREERS[0],

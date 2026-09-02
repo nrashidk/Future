@@ -15,6 +15,8 @@
 
 import type { IStorage } from "../storage";
 import { normalizeCareerSubjects } from "../utils/subjectMap";
+import { deriveReadiness } from "./futureReadiness";
+import { isOnetGrowthBand } from "@shared/growthBands";
 
 interface CountryResearchResult {
   success: boolean;
@@ -562,6 +564,9 @@ export interface CareerLike {
   relatedSubjects?: string[] | null;
   educationLevel?: string | null;
   growthOutlook?: string | null;
+  /** O*NET projected-growth band, when the generator supplies one. Optional:
+   *  deriveReadiness falls back to the WEF role's own pinned O*NET occupation. */
+  onetGrowthBand?: string | null;
   onetCode?: string | null;
   valuesProfile?: unknown;
 }
@@ -1025,6 +1030,32 @@ export function validateGeneratedCareer(career: CareerLike): { ok: boolean; erro
   if (!career.educationLevel?.trim()) errors.push("missing educationLevel");
   if (!career.growthOutlook?.trim()) errors.push("missing growthOutlook (notNull in schema)");
   if (!career.onetCode?.trim()) errors.push("missing onetCode (prerequisite for the O*NET values pipeline)");
+
+  // FUTURE-READINESS GATE at the catalogue boundary.
+  //
+  // THIS is where the gate earns its keep. Our seeded 68 are all professional
+  // occupations, so the gate excludes none of them — but a model asked to
+  // enumerate "careers serving country X's priority sectors" will cheerfully
+  // return Bank Teller, Data Entry Clerk and Administrative Assistant, which is
+  // exactly the WEF fastest-declining list. Rejecting them here is far better
+  // than admitting them and hiding them from students afterwards.
+  //
+  // Same STRICT AND rule as the recommendation gate, and deliberately so: WEF
+  // alone must not reject a career either. A generated career usually arrives
+  // with no growth band, so deriveReadiness falls back to the O*NET occupation
+  // pinned to the matched WEF role (WEF_DECLINING_ROLE_ONET) — both sources are
+  // still consulted. That is why a generated "Graphic Designer" is NOT rejected:
+  // O*NET bands it 'slower', i.e. still growing, so the AND never closes.
+  const readiness = deriveReadiness(
+    career.title ?? "",
+    isOnetGrowthBand(career.onetGrowthBand) ? career.onetGrowthBand : null,
+  );
+  if (readiness.readiness === "declining") {
+    errors.push(
+      `"${career.title}" is a declining occupation and is not admissible to the ` +
+        `career catalogue: ${readiness.why}`,
+    );
+  }
   if (career.valuesProfile !== undefined && career.valuesProfile !== null) {
     errors.push("valuesProfile must be derived by scripts/compute_profiles.py from O*NET, never authored by the model");
   }

@@ -11,6 +11,7 @@ import { applyMissingWefAffinities } from "./migrations/wef-skill-affinities";
 import { applySectorRenames } from "./migrations/sector-renames";
 import { applyCareerRelatedSubjects } from "./migrations/career-related-subjects";
 import { applyCareerGrowthBands } from "./migrations/career-growth-bands";
+import { applyCareerFutureReadiness } from "./migrations/career-future-readiness";
 import { WEF_16_SKILLS, CAREER_WEF_SKILL_AFFINITIES } from "./wefSkillsData";
 
 // ---------------------------------------------------------------------------
@@ -3162,6 +3163,19 @@ export async function seedDatabase() {
     await applyCareerGrowthBands();
   } catch (error: any) {
     console.error("  Career growth band error (non-fatal, continuing):", error.message);
+  }
+
+  // Derive the future-readiness verdict from the growth band just written above
+  // plus the WEF 2025 role lists. ORDER MATTERS: this must run AFTER
+  // applyCareerGrowthBands, because the O*NET half of the rule reads
+  // careers.onet_growth_band. Nothing is hand-authored here — a career can only
+  // become 'declining' (and therefore excluded from recommendations) when BOTH
+  // published sources say so. Expected result on today's 68: zero declining.
+  // Idempotent: re-running recomputes the same verdicts.
+  try {
+    await applyCareerFutureReadiness();
+  } catch (error: any) {
+    console.error("  Career future-readiness error (non-fatal, continuing):", error.message);
   }
 
   // Correct relatedSubjects on careers whose seeded tags project to no

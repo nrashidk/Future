@@ -19,6 +19,7 @@ import type {
 } from "../../shared/schema";
 import { type AssessmentTier, getEffectiveWeight } from "./tierWeights";
 import { getEffectiveWeightFromDb, getTierConfig } from "./scoringConfig";
+import { isFutureReady } from "./futureReadiness";
 import { 
   INTEREST_LEXICON, 
   INTEREST_MATCHING_WEIGHTS, 
@@ -167,8 +168,35 @@ export async function generateRecommendations(
   // unseeded country can no longer trip warnOnInertComponents. Check it directly.
   warnOnEmptySectorCategoryMap(context);
 
+  // 3d. FUTURE-READINESS GATE. A declining occupation is not scored down — it
+  // is not offered. Requires BOTH the WEF 2025 fastest-declining list AND the
+  // O*NET 'decline' band to agree; a single source yields 'watch', which does
+  // NOT gate. See server/services/futureReadiness.ts.
+  //
+  // Placed HERE, after scoring and before the score filter, deliberately:
+  //  - NOT in hydrateMatchingContext (storage.getAllCareers() below): shrinking
+  //    the catalogue would shift SectorWefSkillMap.catalogMeans, the
+  //    catalog-wide mean affinity that calculateVisionScore mean-centres
+  //    against, silently moving every OTHER career's vision score. The gate
+  //    must not perturb the model.
+  //  - NOT after .slice(0, 5): that would return fewer than five
+  //    recommendations whenever it fires. Filtering first backfills from #6.
+  //
+  // On the current 68-career catalogue this excludes nothing — every career is
+  // a professional occupation and WEF's declining list is clerical. That is the
+  // expected outcome; the gate is a guard on catalogue growth.
+  const gated = matches.filter(match => isFutureReady(match.career));
+  if (gated.length !== matches.length) {
+    const dropped = matches
+      .filter(match => !isFutureReady(match.career))
+      .map(match => match.career.title);
+    console.warn(
+      `[readiness] gated ${matches.length - gated.length} declining career(s): ${dropped.join(", ")}`
+    );
+  }
+
   // 4. Filter and sort by overall score
-  return matches
+  return gated
     .filter(match => match.overallScore >= 40) // Filter low matches
     .sort((a, b) => b.overallScore - a.overallScore)
     .slice(0, 5); // Top 5 matches
