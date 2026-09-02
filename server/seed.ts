@@ -20,7 +20,8 @@ import { WEF_16_SKILLS, CAREER_WEF_SKILL_AFFINITIES } from "./wefSkillsData";
 // every career floors at 40 and the 20%/30% vision weight cannot discriminate.
 //
 // Score = 40 + 60 × (relevance/100) × rankFactor, where rankFactor comes from
-// the sector's display_order (1.00 for sector #1 down to 0.85 for sector #8).
+// the sector's display_order (1.00 for sector #1 down to 0.85 for the LAST
+// sector — #10 since Phase 3 stage 2, #8 before it).
 // Only the single best-weighted candidate counts, so a second, weaker row for
 // the same category never lowers a score — it documents real-but-secondary
 // relevance and keeps the map robust if sector priorities are re-ordered.
@@ -31,13 +32,28 @@ import { WEF_16_SKILLS, CAREER_WEF_SKILL_AFFINITIES } from "./wefSkillsData";
 // shown. rankFactor spans 1.00–0.85, so a lower-ranked sector needs ~18% more
 // relevance to win; the smallest margin below is ~3 score points. Two rows within
 // a point of each other would make the rationale hostage to sector re-ordering.
-// RE-MEASURED at 8 sectors: the per-rank step narrows 0.030 -> 0.0214 (the
-// spread is fixed at 0.15 and divided by n-1), so every margin TIGHTENS as
-// sectors are added. Smallest margin is still 3.1 points (Business & Management:
-// Technology 65 over Artificial Intelligence 50) - unchanged, because Technology
-// stays last at rankFactor 0.85. The two additions below were placed so that no
-// existing category's headline flips: verified career-by-career against staging,
-// where only the ten intentionally re-pointed careers changed sector.
+// RE-MEASURED at 10 sectors (Phase 3 stage 2). The per-rank step narrows again,
+// 0.0214 -> 0.0167 (the spread is fixed at 0.15 and divided by n-1). This time
+// margins WIDENED rather than tightened, because Technology stopped being last:
+// it is now 8th of 10 at rankFactor 0.8833, and the two new sectors take 0.8667
+// and 0.85 below it. Measured margins, worst first:
+//   4.0  Social Services        Education & Human Capital 60 over Healthcare 50
+//   4.3  Engineering            Renewable Energy 80 over Space & Future Sci 70
+//   4.5  Business & Management  Technology 65 over Artificial Intelligence 50
+//   4.8  Business & Marketing   Technology 60 over Artificial Intelligence 45
+//   5.3  Technology             Technology 95 over Artificial Intelligence 75
+//   6.0  Design & Architecture  Creative Industries 70 over Technology 60
+// (up from 3.1 as the worst at 8 sectors), and no category's headline flipped.
+//
+// ⚠️ But the skill modulation is ±9 score points, which is larger than any of
+// the top four margins, and one career DID move on it: ELECTRICAL ENGINEER
+// flipped Space & Future Sciences -> Renewable Energy & Sustainability. Both
+// candidates come from the Engineering rules above, and they were 0.4 score
+// points apart before stage 2 and are 0.2 apart after it - a coin flip either
+// way. The new answer matches this file's own stated intent for the Engineering
+// rule ("reaches Electrical + Mechanical only", i.e. Renewable Energy), so it
+// is left as measured; pinning it with a per-career override would make it
+// deterministic and is the recommended follow-up. See docs/phase3-stage2-done.md.
 // `sector` MUST be byte-identical to the countries.prioritySectors entry —
 // recommendations.routes.ts localises reasoning by \b-substituting that exact
 // string for its Arabic counterpart.
@@ -65,11 +81,19 @@ import { WEF_16_SKILLS, CAREER_WEF_SKILL_AFFINITIES } from "./wefSkillsData";
 // secondaries - they state real but non-defining relevance, and a second, weaker
 // row for a category never lowers a score (see above).
 //
-// Culinary Arts is deliberately absent: no UAE priority sector is genuinely
-// about food service, so Chef floors at 40. That is a real answer, not a gap.
-// Science is absent too, for a different reason — its only member
-// (Environmental Scientist) carries an override below, and override-exclusive
-// semantics mean any Science category rule could never fire.
+// Culinary Arts is still absent, but the REASON changed in Phase 3 stage 2.
+// It used to be "no UAE priority sector is genuinely about food service, so
+// Chef floors at 40 - a real answer, not a gap". Tourism & Hospitality now
+// exists and Chef is re-homed into it by a per-career override, so the floor
+// is gone. The category rule stays absent only because Chef is the category's
+// sole member; add one if more culinary careers land.
+// Science is absent too, for a different reason — all eight of its members
+// (Environmental Scientist, Space Scientist, Geneticist, Agricultural
+// Scientist, Food Technologist, Satellite & Remote Sensing Scientist,
+// Atmospheric & Space Scientist, Physicist) carry overrides below, and
+// override-exclusive semantics mean any Science category rule could never fire.
+// Aviation & Transport, new in stage 2, is absent for the same reason: its only
+// member is Airline Pilot, which carries an override.
 export const UAE_SECTOR_CATEGORY_RULES: Array<{
   sector: string;
   category: string;
@@ -155,7 +179,65 @@ export const UAE_SECTOR_CAREER_OVERRIDES: Array<{
   { sector: "Healthcare & Life Sciences", careerTitle: "Biomedical Engineer", relevance: 90, notes: "Medical devices and life-sciences engineering. The Engineering rule would have credited Renewable Energy & Sustainability (84) - wrong sector for this career." },
   { sector: "Renewable Energy & Sustainability", careerTitle: "Environmental Scientist", relevance: 85, notes: "Climate leadership and the 50%-clean-energy-by-2050 target. Its category (Science) has no rule, so without this it would floor at 40." },
   { sector: "Technology", careerTitle: "Civil Engineer", relevance: 70, notes: "Smart-city and infrastructure delivery. The Engineering rule would have credited Renewable Energy & Sustainability (84), overstating a civil engineer's clean-energy role." },
+  { sector: "Space & Future Sciences", careerTitle: "Aerospace Engineer", relevance: 100, notes: "The career is the sector: MBRSC satellites, launch and propulsion. The Engineering rule would have credited Renewable Energy & Sustainability (80) - wrong sector for this career." },
+  { sector: "Space & Future Sciences", careerTitle: "Space Scientist (Astrophysicist)", relevance: 95, notes: "Mars 2117 and planetary science - the research half of the sector. Its category (Science) has no rule, so without this it would floor at 40, exactly as Environmental Scientist would." },
   { sector: "Artificial Intelligence", careerTitle: "Data Scientist", relevance: 90, notes: "UAE frames data science under its flagship AI priority — AI Strategy 2031's 'Data and Infrastructure' pillar names data professionals as AI-strategy talent. The Technology rule (88, headlined 'Technology') understates it; this headlines Artificial Intelligence at 94." },
+
+  // --- PHASE 3 STAGE 2 ------------------------------------------------------
+  // 18 rows: 16 of the 29 new careers, plus the two re-homes.
+  //
+  // THE RULE APPLIED, and it is deliberately narrow: a new career gets an
+  // override if and only if the category rules would put it in the WRONG
+  // sector, would FLOOR it, or would materially UNDERSTATE a sector-defining
+  // career (plan §5 rule 3). The other 13 new careers are attributed correctly
+  // by an existing category rule and get NO row, on purpose - an override is
+  // override-EXCLUSIVE, so adding one to a career that does not need it would
+  // silently delete that career's documented secondary sectors. Cybersecurity
+  // Analyst and Cloud & Network Architect (Technology @95), Risk & Compliance
+  // Officer, Actuary and Investment & Financial Manager (Finance @95), the
+  // three Education careers (Education @100), Film & TV Producer and Video
+  // Editor (Media & Communications @90), Health Informatics Specialist
+  // (Healthcare @85) and Chemical + Environmental Engineer (Engineering @80)
+  // are all in that group. See docs/phase3-stage2-done.md §3.
+  //
+  // Two categories floor without a row, exactly as Science already did:
+  //   Science            - 6 of the 29 are Science; it has no category rule.
+  //   Aviation & Transport - a NEW category, introduced by Airline Pilot alone.
+
+  // — Artificial Intelligence: the flagship sector had ONE career (Data Scientist)
+  { sector: "Artificial Intelligence", careerTitle: "AI Research Scientist", relevance: 95, notes: "15-1221.00 is the only rated O*NET code that IS AI research (MBZUAI, TII, G42). Its category (Technology) headlines Technology @95, which is the catch-all this phase is dismantling; only an override moves the sector's defining research career into the sector." },
+  { sector: "Artificial Intelligence", careerTitle: "Robotics Engineer", relevance: 85, notes: "Re-homed from the dropped Advanced Manufacturing sector (docs/career-sourcing-map.md §3.11). The Engineering rule would have credited Renewable Energy & Sustainability (80) - wrong sector. Autonomy and intelligent control are the AI 2031 deployment story." },
+  { sector: "Artificial Intelligence", careerTitle: "Data Engineer", relevance: 85, notes: "AI 2031's 'Data & Infrastructure' pillar, same argument as Data Scientist @90 above and pitched one band below it: pipelines serve the models rather than being them. Its category (Technology) would headline Technology @95." },
+
+  // — Space & Future Sciences: all three are Science, which has no category rule
+  { sector: "Space & Future Sciences", careerTitle: "Satellite & Remote Sensing Scientist", relevance: 95, notes: "MBRSC's actual business is Earth observation (KhalifaSat, MBZ-Sat), which the sector's two existing careers do not represent. Its category (Science) has no rule, so without this it would floor at 40." },
+  { sector: "Space & Future Sciences", careerTitle: "Atmospheric & Space Scientist", relevance: 88, notes: "National Center of Meteorology and the UAEREP rain-enhancement programme - a funded national research line. Science has no category rule; without this it floors at 40." },
+  { sector: "Space & Future Sciences", careerTitle: "Physicist", relevance: 85, notes: "The 'Future Sciences' half of the sector name, currently unrepresented - TII's Quantum Research Centre. Pitched below the two mission-facing space careers because the claim is a research one. Science has no category rule; without this it floors at 40." },
+
+  // — Renewable Energy & Sustainability
+  { sector: "Renewable Energy & Sustainability", careerTitle: "Electrical Engineer", relevance: 80, notes: "PHASE 3 STAGE 3 — RESOLVES A COIN FLIP, does not change the answer. Power systems, transmission, grid integration and plant electrical are what an electrical engineer does for the 50%-clean-energy target, and the Engineering category rule above was written for exactly this career plus Mechanical Engineer ('reaches Electrical + Mechanical only'). But the rule left it 0.4 score points from Space & Future Sciences at 39 careers and 0.2 points the other way at 68 - decided by rounding, not by meaning, and re-orderable by any future sector addition. Relevance is 80, byte-identical to the Engineering rule's, so the SCORE is unchanged (87.55) and only the determinism is new. Cost, recorded: override-exclusive semantics drop this career's documented secondaries (Space 70, Technology 65, Artificial Intelligence 50) - none of which was ever going to win, but they are gone." },
+  { sector: "Renewable Energy & Sustainability", careerTitle: "Nuclear Engineer", relevance: 92, notes: "Barakah is 4 reactors, 5.6 GW and ~25% of UAE electricity, with an explicit ENEC Emiratisation pipeline - the most UAE-specific occupation in the catalog. The Engineering rule reaches the right sector but at 80, the same as a generic mechanical engineer; this says the career is closer to defining it. UPLIFT ONLY - the sector is unchanged." },
+
+  // — Healthcare & Life Sciences
+  { sector: "Healthcare & Life Sciences", careerTitle: "Geneticist", relevance: 95, notes: "The Emirati Genome Programme is the world's largest national genomic database (750k+ samples). This is the career that finally backs the '& Life Sciences' half of the sector's name. Its category (Science) has no rule, so without this it would floor at 40." },
+
+  // — Financial Services & FinTech
+  { sector: "Financial Services & FinTech", careerTitle: "Lawyer", relevance: 70, notes: "RE-HOME. Lawyer was the catalog's weakest attribution: Technology @45, a 'weak band' rule that server/seed.ts itself describes as covering 'legal frameworks for the digital economy'. DIFC Courts and ADGM are English-common-law jurisdictions with their own judiciaries and a real regulatory and corporate legal market - that is a genuine sector claim. 70, not higher: the sector is not legal-led, and inventing a 90 to avoid a low score is exactly what plan §5 rule 4 forbids." },
+
+  // — Technology
+  { sector: "Technology", careerTitle: "Industrial Engineer", relevance: 80, notes: "Re-homed from the dropped Advanced Manufacturing sector. The Engineering rule would have credited Renewable Energy & Sustainability (80) - wrong sector for a process and systems engineer. Operation 300bn / Make it in the Emirates is a smart-manufacturing programme, which is the Technology rule's own 'advanced manufacturing, robotics and smart infrastructure' wording." },
+
+  // — Tourism & Hospitality (NEW SECTOR - every one of its four careers needs a row)
+  { sector: "Tourism & Hospitality", careerTitle: "Hospitality Manager", relevance: 95, notes: "The career is the sector: ~11,300 new hotel rooms by 2027 and 15,000+ hospitality jobs. Its category (Business & Management) headlines Technology @65 - without this, a hotel manager is attributed to the technology sector." },
+  { sector: "Tourism & Hospitality", careerTitle: "Tourism & Events Manager", relevance: 90, notes: "Business tourism is the strategy's own pillar (Dubai World Trade Centre, ADNEC). Same category problem as Hospitality Manager: Business & Management would credit Technology @65." },
+  { sector: "Tourism & Hospitality", careerTitle: "Airline Pilot", relevance: 85, notes: "⚠️ LEAST-BAD HOME, flagged rather than hidden (docs/career-sourcing-map.md §3.7). Aviation is not tourism; but Technology is the catch-all this phase is dismantling and there is no Transport & Logistics sector. Its category, Aviation & Transport, is NEW and has no rule at all, so the alternative is the floor. Emirates, Etihad and flydubai run published cadet pipelines and are among the largest UAE employers. If an 11th sector is ever added, this row is the first thing to revisit." },
+  { sector: "Tourism & Hospitality", careerTitle: "Chef", relevance: 85, notes: "RE-HOME. Chef was the only career in the catalog with NO sector at all - it floored at 40, and server/seed.ts:37-38 explained that as 'no UAE priority sector is genuinely about food service'. That was true, and this sector is the answer to it. Dubai's gastronomy positioning (Michelin, 30+ starred restaurants) is a named part of the tourism strategy. An override rather than a Culinary Arts category rule because Chef is the category's only member; add the rule instead if more culinary careers land." },
+
+  // — Food Security & Agriculture (NEW SECTOR - every one of its four careers needs a row)
+  { sector: "Food Security & Agriculture", careerTitle: "Agricultural Scientist (Agronomist)", relevance: 95, notes: "National Food Security Strategy 2051 desert agronomy; ICBA in Dubai is a dedicated saline-agriculture research institute. Its category (Science) has no rule, so without this it would floor at 40." },
+  { sector: "Food Security & Agriculture", careerTitle: "Agricultural Engineer", relevance: 92, notes: "Vertical farming is the strategy's named technology - Emirates Bustanica is the world's largest vertical farm. Controlled-environment agriculture is engineering, and the Engineering category rule would have credited Renewable Energy & Sustainability (80)." },
+  { sector: "Food Security & Agriculture", careerTitle: "Food Technologist", relevance: 90, notes: "NFSS 2051 food processing and safety (Silal, Agthia). Science has no category rule; without this it floors at 40." },
+  { sector: "Food Security & Agriculture", careerTitle: "Dietitian & Nutritionist", relevance: 80, notes: "⚠️ CONTESTED, and the weakest row here. The career bridges Food Security ↔ Healthcare and its category (Healthcare) would credit Healthcare & Life Sciences @85 - a defensible answer. It is placed here because the National Nutrition Strategy 2030 is a food-system commitment and because the sector's other three careers are all upstream of the plate; 80, below the other three, records that the claim is weaker. Reviewable." },
 ];
 
 // Define UAE sector-to-WEF skills mappings with importance scores (0-100)
@@ -258,6 +340,23 @@ export const UAE_SECTOR_WEF_SKILLS: Array<{
       // Flight software, telemetry, autonomy and simulation. Real, but held well
       // below the ICT-led sectors on purpose (see note above).
       "ICT Literacy": 65,
+      // RE-HOMED here in Phase 3 stage 3, at 55 rather than the 85 this sector
+      // used to carry. Healthcare & Life Sciences was the only sector holding
+      // Persistence and Grit, and the stage 3 retune dropped it from there
+      // (sd 5.1 - the least discriminating column in the whole 68 x 16 matrix,
+      // and it was doing none of the separating work Healthcare needed). That
+      // would have left the skill referenced by NO sector, which the
+      // "every WEF skill is used by at least one sector" guard in
+      // matching.vision.test.ts forbids - and rightly: an orphaned skill is
+      // invisible to the vision score entirely.
+      //
+      // Space is where it belongs and this file already said so when it dropped
+      // it ("Space work genuinely needs all three; so does every other career
+      // in the catalog"). Multi-year missions, launch windows that slip a year,
+      // hardware that fails and is rebuilt. At 55 it is the lowest weight in
+      // any vector, which is the honest statement: real, and not discriminating.
+      // Measured: this LOWERS catalog max |r| 0.765 -> 0.763 and moves no career.
+      "Persistence and Grit": 55,
       // DROPPED, deliberately:
       //   Critical Thinking (was 90) - sd 6.9 and present in 5 of 6 sectors:
       //     weight without information, per the geometry note at the top.
@@ -272,15 +371,75 @@ export const UAE_SECTOR_WEF_SKILLS: Array<{
     name: "Healthcare & Life Sciences",
     displayOrder: 3,
     description: "Advanced healthcare, genomics, and life sciences innovation",
+    // RETUNED (Phase 3 stage 3) to break the Healthcare <-> Space collinearity.
+    // Measured over the 68-career catalog, this pair was the WORST in the
+    // matrix at r=0.903 - worse than anything Phase 1 or Phase 2 ever had, and
+    // worse than the 0.851 it sat at when the catalog was 39 careers.
+    //
+    // WHY IT BROKE. Nothing about either vector changed; the CATALOG changed.
+    // Stage 1 added six Science-category careers (Geneticist, Physicist,
+    // Atmospheric & Space Scientist, Satellite & Remote Sensing Scientist,
+    // Agricultural Scientist, Food Technologist) plus three science-led
+    // engineers, all of which load Scientific Literacy, ICT and Curiosity
+    // together - which is exactly the region where the old vector overlapped
+    // Space & Future Sciences. Three of this sector's six skills (Critical
+    // Thinking sd 6.7, Collaboration sd 5.9, Persistence and Grit sd 5.1) were
+    // the three LEAST discriminating columns in the matrix, so they could not
+    // pull it back apart: the shared Scientific Literacy / ICT / Curiosity core
+    // decided the whole column. This is the same failure the Space vector had
+    // against Renewable Energy in Phase 1, and it has the same fix.
+    //
+    // THE FIX IS CONTRAST, NOT COVERAGE, and it is a fix by SUBTRACTION plus
+    // two genuinely missing skills. Scientific Literacy stays the lead at 95 -
+    // it is honest and it is what the sector is. What changes is the second
+    // term: Social and Cultural Awareness (sd 14.1, the 5th most discriminating
+    // column) and Communication (sd 10.4) replace Critical Thinking and
+    // Persistence and Grit. Space & Future Sciences carries NEITHER, and
+    // neither did this vector - which was the real defect. Seven of this
+    // sector's nine careers are clinicians whose work IS the consultation, in a
+    // country where the patient and the clinician usually do not share a first
+    // language. A healthcare vector with no Communication term was describing a
+    // laboratory, not a health system.
+    //
+    // Measured result on the live 68-career catalog: Healthcare <-> Space
+    // 0.903 -> 0.338, Healthcare <-> Food Security 0.806 -> 0.716, Healthcare
+    // <-> Renewable Energy 0.623 -> 0.326, Healthcare <-> Artificial
+    // Intelligence 0.613 -> 0.021. Together with the Education change below,
+    // catalog max |r| 0.903 -> 0.763 and mean |r| 0.397 -> 0.354, with NO pair
+    // left above 0.80. ZERO careers changed sector and zero careers floor.
+    //
+    // docs/priority-alignment-plan.md §2 proposed Social and Cultural Awareness
+    // at 80 for this sector back when it had no measurement to justify it. It
+    // was right, for the reason it could not yet show.
     skills: {
+      // Genomics, pharmacology, physiology, diagnosis. Unchanged, and still the
+      // highest-variance column in the matrix (sd 19.5).
       "Scientific Literacy": 95,
-      "Critical Thinking and Problem Solving": 85,
-      "ICT Literacy": 75,
-      "Curiosity": 80,
-      "Collaboration": 70,
-      // Trial timelines and replication: the work is defined by results that
-      // do not arrive, and arrive negative when they do.
-      "Persistence and Grit": 80,
+      // Patient, family and care team, across languages and cultures. sd 14.1.
+      // The term that separates this sector from every science sector, and the
+      // one the old vector was missing entirely.
+      "Social and Cultural Awareness": 85,
+      // History-taking, consent, explanation, handover. sd 10.4, and again
+      // carried by no science sector.
+      "Communication": 80,
+      // Malaffi and Riayati, the Emirati Genome Programme's bioinformatics, and
+      // this sector's own Health Informatics Specialist. Held at 70, under the
+      // ICT-led sectors' 95.
+      "ICT Literacy": 70,
+      // The research half - Geneticist, and the trial and replication work.
+      // DEMOTED 80 -> 65: Space & Future Sciences holds it at 75, so at 80 it
+      // was a shared term doing the collinearity's work for it.
+      "Curiosity": 65,
+      // Multidisciplinary care teams. sd 5.9, demoted 70 -> 60 and kept only
+      // because it is genuinely how clinical work is organised.
+      "Collaboration": 60,
+      // DROPPED, deliberately:
+      //   Critical Thinking (was 85) - sd 6.7, and present in 5 of 10 sectors.
+      //     Weight without information, per the geometry note at the top.
+      //   Persistence and Grit (was 80) - sd 5.1, the single least
+      //     discriminating column in the whole 68 x 16 matrix. The trial-
+      //     timelines rationale it carried is real about the work and useless
+      //     as a signal: every career in the catalog scores 80-100 on it.
     }
   },
   {
@@ -354,13 +513,36 @@ export const UAE_SECTOR_WEF_SKILLS: Array<{
       "Collaboration": 85,
       "Literacy": 90,
       "Social and Cultural Awareness": 80,
-      "Creativity": 75,
       // National identity, Islamic studies and civics are core UAE curriculum
       // content, not background - this is what the sector transmits.
       "Cultural and Civic Literacy": 85,
       // A classroom is led, not administered; school and phase leadership is
       // the profession's own progression ladder.
       "Leadership": 70,
+      // DROPPED in Phase 3 stage 3: Creativity (was 75).
+      //
+      // Once the Healthcare retune above landed, this became the catalog's
+      // worst remaining pair: Education & Human Capital <-> Creative Industries
+      // & Media at r=0.828, and it had been quietly high all along (0.818 at 39
+      // careers). Creativity 95 is Creative Industries & Media's SIGNATURE - the
+      // one column that sector is built to own - and carrying it here at 75, as
+      // a supporting term, is the exact pattern the geometry note at the top of
+      // this file warns about: a skill that appears in most sectors carries
+      // weight without carrying information, and here it was carrying it
+      // straight into the neighbouring sector's lead.
+      //
+      // Lesson design and classroom practice are genuinely creative; that is
+      // not in dispute. What this vector says by dropping the term is that
+      // ORIGINAL AUTHORSHIP is not what distinguishes an education career from
+      // every other career in the catalog - Communication, Literacy and
+      // Cultural and Civic Literacy are. Measured: Education <-> Creative
+      // 0.828 -> 0.735, catalog max |r| 0.828 -> 0.765, and ZERO careers
+      // changed sector.
+      //
+      // Creativity is still claimed by Artificial Intelligence (80), Space &
+      // Future Sciences (85), Creative Industries & Media (95) and Technology
+      // (80), so the "every WEF skill is used by at least one sector" guard in
+      // matching.vision.test.ts still holds.
     }
   },
   {
@@ -416,6 +598,101 @@ export const UAE_SECTOR_WEF_SKILLS: Array<{
       "Leadership": 65,
     }
   },
+  {
+    name: "Tourism & Hospitality",
+    displayOrder: 9,
+    description: "UAE Tourism Strategy 2031, aviation and the visitor economy",
+    // NEW (Phase 3 stage 2). This sector could not be added before now: it had
+    // exactly ONE serving career (Chef, which floored at 40 with no sector at
+    // all) and docs/sector-list-recon.md's own coverage gate rejects a sector
+    // that claims nothing. It now claims four.
+    //
+    // Contrastive by construction. Social and Cultural Awareness is the 5th
+    // most discriminating column in the affinity matrix (sd 14.1) and NO other
+    // sector leads on it - Education & Human Capital holds it at 80 and
+    // Creative Industries & Media at 60, both as supporting terms. Leading on
+    // it at 95 is what keeps this sector off the Education vector, which is the
+    // pair docs/priority-alignment-plan.md §2 measured at r=0.947 back when
+    // Tourism had one career and no distinct column of its own.
+    skills: {
+      // Guests, delegates and crews from everywhere, served in a country where
+      // the workforce is as international as the visitors. The signature skill.
+      "Social and Cultural Awareness": 95,
+      // Occupancy, rate, event P&L and margin. This is the term that separates
+      // the sector from Education & Human Capital, which carries no Financial
+      // Literacy at all - measured over the 68-career catalog: demoting it to
+      // the draft's 60 takes Education <-> Tourism from 0.71 back up to 0.90.
+      // Held under Financial Services & FinTech's
+      // 95: hospitality is commercially run, not finance-led.
+      "Financial Literacy": 85,
+      // The product IS the interaction - front desk, brief, sponsor, cabin.
+      "Communication": 80,
+      // PMS, GDS, channel managers and revenue systems. Deliberately low-band:
+      // the tools matter and the discipline is not about them.
+      "ICT Literacy": 60,
+      // Yield, occupancy and covers are counted daily. Low-band on purpose -
+      // a weight of 55 says "present and minor", which is information too.
+      "Numeracy": 55,
+      // DROPPED, deliberately: Collaboration (sd 5.9) and Adaptability (sd
+      // 6.5), which the plan's draft vector carried. Every career in the
+      // catalog scores 75-95 on both, so they add weight without adding
+      // information - the geometry note above. Leadership was also dropped
+      // after measurement: Education & Human Capital holds it at 70, and
+      // carrying it here is part of what kept those two sectors collinear.
+    }
+  },
+  {
+    name: "Food Security & Agriculture",
+    displayOrder: 10,
+    description: "National Food Security Strategy 2051 and desert agritech",
+    // NEW (Phase 3 stage 2). Previously an EMPTY sector - docs/sector-list-recon.md
+    // §3 rejected it outright because no career in the catalog was even adjacent.
+    // Four careers were derived FROM the sector rather than the other way round
+    // (docs/career-sourcing-map.md §3.10), which is why it can ship now.
+    //
+    // ⚠️ This is the collinearity risk of the whole phase. Scientific Literacy
+    // is the single most discriminating column (sd 19.5) and THREE sectors now
+    // want it: Healthcare & Life Sciences leads on it at 95, Renewable Energy &
+    // Sustainability at 90, and this sector needs it too - agronomy and food
+    // science are laboratory disciplines. docs/priority-alignment-plan.md §2
+    // measured Space <-> Food Security at r=0.904 with zero careers here.
+    //
+    // The separation is carried by what this vector does NOT take: no Critical
+    // Thinking, no Curiosity, no Financial Literacy, and Numeracy held at 75
+    // against Space's 95. ICT at 80 is the positive differentiator -
+    // controlled-environment agriculture (Emirates Bustanica, Pure Harvest) and
+    // remote-sensed agronomy are control-systems work, which is not true of
+    // Healthcare's lab bench. Measured result: 0.806 against Healthcare & Life
+    // Sciences and 0.763 against Renewable Energy & Sustainability, both below
+    // the worst PRE-EXISTING pair (Space <-> Healthcare, 0.903).
+    skills: {
+      // Soil chemistry, crop genetics, food microbiology. The core, shared -
+      // see the note above for how the sector stays separable despite it.
+      "Scientific Literacy": 90,
+      // Vertical farms, irrigation control, precision and remote-sensed
+      // agronomy. The positive differentiator: Healthcare & Life Sciences
+      // holds ICT at 75 and Renewable Energy & Sustainability carries none.
+      "ICT Literacy": 80,
+      // Yield, water balance and nutrition modelling. Held at 75, well under
+      // Space & Future Sciences' 95 - the demotion is the point.
+      "Numeracy": 75,
+      // 50% local production by 2051 is a national self-sufficiency commitment
+      // before it is an agronomy problem. sd 14.6, and neither science sector
+      // this one must separate from carries it at all.
+      "Cultural and Civic Literacy": 70,
+      // Extension work with growers, food culture, and the nutrition half of
+      // the sector. Low-band and honest: three of its four careers are
+      // upstream of the plate, and only Dietitian & Nutritionist is not.
+      "Social and Cultural Awareness": 60,
+      // DROPPED, deliberately: Persistence and Grit (sd 5.1) and Curiosity (sd
+      // 7.3), which the plan's draft vector carried. Both are near-constant
+      // across the catalog, and Curiosity is additionally carried by BOTH
+      // science sectors this one must separate from. Financial Literacy was
+      // also dropped after measurement - Renewable Energy & Sustainability
+      // holds it at 70, and carrying it alongside Scientific Literacy 90 put
+      // that pair at r=0.911, the worst in the catalog.
+    }
+  },
 ];
 
 
@@ -446,8 +723,8 @@ export async function seedDatabase() {
       // POSITIONAL AND UNKEYED: prioritySectorsAr[i] localises prioritySectors[i]
       // (recommendations.routes.ts:307-312). Both arrays are in displayOrder and
       // MUST stay the same length and the same order as UAE_SECTOR_WEF_SKILLS.
-      prioritySectors: ["Artificial Intelligence", "Space & Future Sciences", "Healthcare & Life Sciences", "Renewable Energy & Sustainability", "Financial Services & FinTech", "Education & Human Capital", "Creative Industries & Media", "Technology"],
-      prioritySectorsAr: ["الذكاء الاصطناعي", "الفضاء وعلوم المستقبل", "الرعاية الصحية وعلوم الحياة", "الطاقة المتجددة والاستدامة", "الخدمات المالية والتقنية المالية", "التعليم ورأس المال البشري", "الصناعات الإبداعية والإعلام", "التكنولوجيا"],
+      prioritySectors: ["Artificial Intelligence", "Space & Future Sciences", "Healthcare & Life Sciences", "Renewable Energy & Sustainability", "Financial Services & FinTech", "Education & Human Capital", "Creative Industries & Media", "Technology", "Tourism & Hospitality", "Food Security & Agriculture"],
+      prioritySectorsAr: ["الذكاء الاصطناعي", "الفضاء وعلوم المستقبل", "الرعاية الصحية وعلوم الحياة", "الطاقة المتجددة والاستدامة", "الخدمات المالية والتقنية المالية", "التعليم ورأس المال البشري", "الصناعات الإبداعية والإعلام", "التكنولوجيا", "السياحة والضيافة", "الأمن الغذائي والزراعة"],
       nationalGoals: [
         "100% AI reliance for government services by 2031",
         "50% clean energy by 2050",
@@ -608,7 +885,7 @@ export async function seedDatabase() {
       growthOutlook: "Excellent (25% growth)",
       icon: "💻",
       onetCode: "15-1299.08",
-      valuesProfile: { achievement: 67, benevolence: 34, self_direction: 66, security: 68, power: 75 },
+      valuesProfile: { achievement: 72, benevolence: 44, self_direction: 66, security: 56, power: 78 },
     },
     {
       title: "Data Scientist",
@@ -622,7 +899,7 @@ export async function seedDatabase() {
       growthOutlook: "Excellent (36% growth)",
       icon: "📊",
       onetCode: "15-2051.01",
-      valuesProfile: { achievement: 67, benevolence: 0, self_direction: 0, security: 56, power: 11 },
+      valuesProfile: { achievement: 72, benevolence: 14, self_direction: 0, security: 46, power: 22 },
     },
     {
       title: "Renewable Energy Engineer",
@@ -636,7 +913,7 @@ export async function seedDatabase() {
       growthOutlook: "Very Good (20% growth)",
       icon: "⚡",
       onetCode: "17-2199.03",
-      valuesProfile: { achievement: 48, benevolence: 25, self_direction: 54, security: 80, power: 50 },
+      valuesProfile: { achievement: 56, benevolence: 36, self_direction: 54, security: 66, power: 56 },
     },
     {
       title: "Healthcare Professional (Nurse)",
@@ -650,7 +927,7 @@ export async function seedDatabase() {
       growthOutlook: "Excellent (6% growth)",
       icon: "🏥",
       onetCode: "29-1141.00",
-      valuesProfile: { achievement: 48, benevolence: 84, self_direction: 54, security: 95, power: 36 },
+      valuesProfile: { achievement: 56, benevolence: 86, self_direction: 54, security: 78, power: 44 },
     },
     {
       title: "Digital Marketing Specialist",
@@ -664,7 +941,7 @@ export async function seedDatabase() {
       growthOutlook: "Very Good (10% growth)",
       icon: "📱",
       onetCode: "13-1161.00",
-      valuesProfile: { achievement: 15, benevolence: 9, self_direction: 10, security: 51, power: 0 },
+      valuesProfile: { achievement: 28, benevolence: 22, self_direction: 10, security: 42, power: 12 },
     },
     {
       title: "Graphic Designer",
@@ -678,7 +955,7 @@ export async function seedDatabase() {
       growthOutlook: "Good (3% growth)",
       icon: "🎨",
       onetCode: "27-1024.00",
-      valuesProfile: { achievement: 67, benevolence: 25, self_direction: 54, security: 46, power: 36 },
+      valuesProfile: { achievement: 72, benevolence: 36, self_direction: 54, security: 38, power: 44 },
     },
     {
       title: "Mechanical Engineer",
@@ -692,7 +969,7 @@ export async function seedDatabase() {
       growthOutlook: "Good (2% growth)",
       icon: "⚙️",
       onetCode: "17-2141.00",
-      valuesProfile: { achievement: 48, benevolence: 42, self_direction: 54, security: 73, power: 75 },
+      valuesProfile: { achievement: 56, benevolence: 50, self_direction: 54, security: 60, power: 78 },
     },
     {
       title: "Financial Analyst",
@@ -706,7 +983,7 @@ export async function seedDatabase() {
       growthOutlook: "Good (9% growth)",
       icon: "💰",
       onetCode: "13-2099.01",
-      valuesProfile: { achievement: 33, benevolence: 34, self_direction: 54, security: 63, power: 50 },
+      valuesProfile: { achievement: 44, benevolence: 44, self_direction: 54, security: 52, power: 56 },
     },
     {
       title: "Teacher (Secondary Education)",
@@ -724,7 +1001,7 @@ export async function seedDatabase() {
       growthOutlook: "Good (4% growth)",
       icon: "📚",
       onetCode: "25-2031.00",
-      valuesProfile: { achievement: 67, benevolence: 100, self_direction: 44, security: 78, power: 11 },
+      valuesProfile: { achievement: 72, benevolence: 100, self_direction: 44, security: 64, power: 22 },
     },
     {
       title: "Environmental Scientist",
@@ -738,7 +1015,7 @@ export async function seedDatabase() {
       growthOutlook: "Very Good (8% growth)",
       icon: "🌍",
       onetCode: "19-2041.00",
-      valuesProfile: { achievement: 33, benevolence: 25, self_direction: 44, security: 44, power: 50 },
+      valuesProfile: { achievement: 44, benevolence: 36, self_direction: 44, security: 36, power: 56 },
     },
     {
       title: "Civil Engineer",
@@ -752,7 +1029,7 @@ export async function seedDatabase() {
       growthOutlook: "Good (5% growth)",
       icon: "🏗️",
       onetCode: "17-2051.00",
-      valuesProfile: { achievement: 48, benevolence: 25, self_direction: 76, security: 80, power: 61 },
+      valuesProfile: { achievement: 56, benevolence: 36, self_direction: 76, security: 66, power: 66 },
     },
     {
       title: "Architect",
@@ -766,7 +1043,7 @@ export async function seedDatabase() {
       growthOutlook: "Good (3% growth)",
       icon: "🏛️",
       onetCode: "17-1011.00",
-      valuesProfile: { achievement: 67, benevolence: 18, self_direction: 76, security: 73, power: 75 },
+      valuesProfile: { achievement: 72, benevolence: 29, self_direction: 76, security: 60, power: 78 },
     },
     {
       title: "Electrical Engineer",
@@ -780,7 +1057,7 @@ export async function seedDatabase() {
       growthOutlook: "Very Good (7% growth)",
       icon: "⚡",
       onetCode: "17-2071.00",
-      valuesProfile: { achievement: 67, benevolence: 34, self_direction: 54, security: 73, power: 61 },
+      valuesProfile: { achievement: 72, benevolence: 44, self_direction: 54, security: 60, power: 66 },
     },
     {
       title: "Biomedical Engineer",
@@ -794,7 +1071,7 @@ export async function seedDatabase() {
       growthOutlook: "Excellent (10% growth)",
       icon: "🔬",
       onetCode: "17-2031.00",
-      valuesProfile: { achievement: 48, benevolence: 51, self_direction: 76, security: 83, power: 50 },
+      valuesProfile: { achievement: 56, benevolence: 58, self_direction: 76, security: 68, power: 56 },
     },
     {
       title: "Pharmacist",
@@ -808,7 +1085,7 @@ export async function seedDatabase() {
       growthOutlook: "Good (2% growth)",
       icon: "💊",
       onetCode: "29-1051.00",
-      valuesProfile: { achievement: 15, benevolence: 51, self_direction: 32, security: 78, power: 75 },
+      valuesProfile: { achievement: 28, benevolence: 58, self_direction: 32, security: 64, power: 78 },
     },
     {
       title: "Doctor (General Practitioner)",
@@ -822,7 +1099,7 @@ export async function seedDatabase() {
       growthOutlook: "Good (3% growth)",
       icon: "⚕️",
       onetCode: "29-1215.00",
-      valuesProfile: { achievement: 100, benevolence: 93, self_direction: 88, security: 98, power: 100 },
+      valuesProfile: { achievement: 100, benevolence: 94, self_direction: 88, security: 80, power: 100 },
     },
     {
       title: "Dentist",
@@ -836,7 +1113,7 @@ export async function seedDatabase() {
       growthOutlook: "Good (6% growth)",
       icon: "🦷",
       onetCode: "29-1021.00",
-      valuesProfile: { achievement: 82, benevolence: 75, self_direction: 100, security: 61, power: 75 },
+      valuesProfile: { achievement: 85, benevolence: 78, self_direction: 100, security: 50, power: 78 },
     },
     {
       title: "Physical Therapist",
@@ -850,7 +1127,7 @@ export async function seedDatabase() {
       growthOutlook: "Excellent (17% growth)",
       icon: "🏃",
       onetCode: "29-1123.00",
-      valuesProfile: { achievement: 67, benevolence: 93, self_direction: 54, security: 78, power: 75 },
+      valuesProfile: { achievement: 72, benevolence: 94, self_direction: 54, security: 64, power: 78 },
     },
     {
       title: "Psychologist",
@@ -864,7 +1141,7 @@ export async function seedDatabase() {
       growthOutlook: "Good (6% growth)",
       icon: "🧠",
       onetCode: "19-3033.00",
-      valuesProfile: { achievement: 76, benevolence: 96, self_direction: 76, security: 56, power: 61 },
+      valuesProfile: { achievement: 79, benevolence: 96, self_direction: 76, security: 46, power: 66 },
     },
     {
       title: "Social Worker",
@@ -878,7 +1155,7 @@ export async function seedDatabase() {
       growthOutlook: "Very Good (9% growth)",
       icon: "🤝",
       onetCode: "21-1022.00",
-      valuesProfile: { achievement: 67, benevolence: 93, self_direction: 66, security: 78, power: 25 },
+      valuesProfile: { achievement: 72, benevolence: 94, self_direction: 66, security: 64, power: 34 },
     },
     {
       title: "Lawyer",
@@ -892,7 +1169,7 @@ export async function seedDatabase() {
       growthOutlook: "Good (4% growth)",
       icon: "⚖️",
       onetCode: "23-1011.00",
-      valuesProfile: { achievement: 82, benevolence: 25, self_direction: 76, security: 83, power: 100 },
+      valuesProfile: { achievement: 85, benevolence: 36, self_direction: 76, security: 68, power: 100 },
     },
     {
       title: "Accountant",
@@ -906,7 +1183,7 @@ export async function seedDatabase() {
       growthOutlook: "Good (4% growth)",
       icon: "📊",
       onetCode: "13-2011.00",
-      valuesProfile: { achievement: 33, benevolence: 42, self_direction: 44, security: 61, power: 36 },
+      valuesProfile: { achievement: 44, benevolence: 50, self_direction: 44, security: 50, power: 44 },
     },
     {
       title: "Human Resources Manager",
@@ -920,7 +1197,7 @@ export async function seedDatabase() {
       growthOutlook: "Good (7% growth)",
       icon: "👥",
       onetCode: "11-3121.00",
-      valuesProfile: { achievement: 48, benevolence: 75, self_direction: 44, security: 71, power: 75 },
+      valuesProfile: { achievement: 56, benevolence: 78, self_direction: 44, security: 58, power: 78 },
     },
     {
       title: "Management Consultant",
@@ -934,7 +1211,7 @@ export async function seedDatabase() {
       growthOutlook: "Very Good (11% growth)",
       icon: "📈",
       onetCode: "13-1111.00",
-      valuesProfile: { achievement: 48, benevolence: 75, self_direction: 54, security: 54, power: 50 },
+      valuesProfile: { achievement: 56, benevolence: 78, self_direction: 54, security: 44, power: 56 },
     },
     {
       title: "Entrepreneur",
@@ -948,7 +1225,7 @@ export async function seedDatabase() {
       growthOutlook: "Depends on venture",
       icon: "🚀",
       onetCode: "11-1021.00",
-      valuesProfile: { achievement: 48, benevolence: 84, self_direction: 76, security: 90, power: 75 },
+      valuesProfile: { achievement: 56, benevolence: 86, self_direction: 76, security: 74, power: 78 },
     },
     {
       title: "Sales Manager",
@@ -962,7 +1239,7 @@ export async function seedDatabase() {
       growthOutlook: "Good (4% growth)",
       icon: "📞",
       onetCode: "11-2022.00",
-      valuesProfile: { achievement: 48, benevolence: 25, self_direction: 66, security: 95, power: 36 },
+      valuesProfile: { achievement: 56, benevolence: 36, self_direction: 66, security: 78, power: 44 },
     },
     {
       title: "Marketing Manager",
@@ -976,7 +1253,7 @@ export async function seedDatabase() {
       growthOutlook: "Very Good (8% growth)",
       icon: "📣",
       onetCode: "11-2021.00",
-      valuesProfile: { achievement: 82, benevolence: 67, self_direction: 66, security: 100, power: 61 },
+      valuesProfile: { achievement: 85, benevolence: 72, self_direction: 66, security: 82, power: 66 },
     },
     {
       title: "Product Manager",
@@ -990,7 +1267,7 @@ export async function seedDatabase() {
       growthOutlook: "Excellent (20% growth)",
       icon: "📦",
       onetCode: "15-1299.09",
-      valuesProfile: { achievement: 82, benevolence: 9, self_direction: 66, security: 46, power: 50 },
+      valuesProfile: { achievement: 85, benevolence: 22, self_direction: 66, security: 38, power: 56 },
     },
     {
       title: "UX/UI Designer",
@@ -1004,7 +1281,7 @@ export async function seedDatabase() {
       growthOutlook: "Very Good (13% growth)",
       icon: "🎨",
       onetCode: "27-1021.00",
-      valuesProfile: { achievement: 33, benevolence: 51, self_direction: 32, security: 56, power: 36 },
+      valuesProfile: { achievement: 44, benevolence: 58, self_direction: 32, security: 46, power: 44 },
     },
     {
       title: "Video Game Designer",
@@ -1018,7 +1295,7 @@ export async function seedDatabase() {
       growthOutlook: "Good (5% growth)",
       icon: "🎮",
       onetCode: "15-1255.01",
-      valuesProfile: { achievement: 82, benevolence: 0, self_direction: 76, security: 54, power: 25 },
+      valuesProfile: { achievement: 85, benevolence: 14, self_direction: 76, security: 44, power: 34 },
     },
     {
       title: "Journalist",
@@ -1032,7 +1309,7 @@ export async function seedDatabase() {
       growthOutlook: "Declining (-6% growth)",
       icon: "📰",
       onetCode: "27-3023.00",
-      valuesProfile: { achievement: 67, benevolence: 46, self_direction: 50, security: 46, power: 68 },
+      valuesProfile: { achievement: 72, benevolence: 54, self_direction: 50, security: 38, power: 72 },
     },
     {
       title: "Content Creator",
@@ -1046,7 +1323,7 @@ export async function seedDatabase() {
       growthOutlook: "Excellent (growing field)",
       icon: "🎥",
       onetCode: "27-3043.00",
-      valuesProfile: { achievement: 33, benevolence: 25, self_direction: 0, security: 46, power: 0 },
+      valuesProfile: { achievement: 44, benevolence: 36, self_direction: 0, security: 38, power: 12 },
     },
     {
       title: "Photographer",
@@ -1060,7 +1337,7 @@ export async function seedDatabase() {
       growthOutlook: "Good (4% growth)",
       icon: "📸",
       onetCode: "27-4021.00",
-      valuesProfile: { achievement: 0, benevolence: 42, self_direction: 44, security: 0, power: 0 },
+      valuesProfile: { achievement: 15, benevolence: 50, self_direction: 44, security: 0, power: 12 },
     },
     {
       title: "Chef",
@@ -1074,7 +1351,7 @@ export async function seedDatabase() {
       growthOutlook: "Good (6% growth)",
       icon: "👨‍🍳",
       onetCode: "35-1011.00",
-      valuesProfile: { achievement: 33, benevolence: 42, self_direction: 76, security: 39, power: 61 },
+      valuesProfile: { achievement: 44, benevolence: 50, self_direction: 76, security: 32, power: 66 },
     },
     {
       title: "Fashion Designer",
@@ -1088,7 +1365,7 @@ export async function seedDatabase() {
       growthOutlook: "Stable (0% growth)",
       icon: "👗",
       onetCode: "27-1022.00",
-      valuesProfile: { achievement: 67, benevolence: 25, self_direction: 54, security: 22, power: 36 },
+      valuesProfile: { achievement: 72, benevolence: 36, self_direction: 54, security: 18, power: 44 },
     },
     {
       title: "Interior Designer",
@@ -1102,7 +1379,7 @@ export async function seedDatabase() {
       growthOutlook: "Good (4% growth)",
       icon: "🛋️",
       onetCode: "27-1025.00",
-      valuesProfile: { achievement: 67, benevolence: 51, self_direction: 66, security: 12, power: 25 },
+      valuesProfile: { achievement: 72, benevolence: 58, self_direction: 66, security: 10, power: 34 },
     },
     {
       title: "Web Developer",
@@ -1116,7 +1393,569 @@ export async function seedDatabase() {
       growthOutlook: "Excellent (23% growth)",
       icon: "🌐",
       onetCode: "15-1254.00",
-      valuesProfile: { achievement: 33, benevolence: 25, self_direction: 66, security: 71, power: 50 },
+      valuesProfile: { achievement: 44, benevolence: 36, self_direction: 66, security: 58, power: 56 },
+    },
+    // --- PHASE 3 STEP 1: Space & Future Sciences careers ---------------------
+    // Spec: docs/new-careers-spec.md §5. Both carry a per-career override to
+    // Space & Future Sciences (UAE_SECTOR_CAREER_OVERRIDES above) — Aerospace
+    // because the Engineering category rule would credit Renewable Energy &
+    // Sustainability instead, Space Scientist because its category (Science)
+    // has no rule at all and it would otherwise floor at 40.
+    //
+    // RESOLVED in Phase 3 Stage 1: both now carry a COMPUTED valuesProfile.
+    // The blocker recorded in docs/phase3-space-careers.md was that the
+    // Work-Styles pipeline (onet_fetch_cache.py -> compute_profiles.py) needs an
+    // ONET_KEY. That pipeline is superseded (docs/cvq-divergence-recon.md): the
+    // shipped profiles come from the O*NET 30.0 Work Values flat file via
+    // scripts/generate-cvq-values-profiles.ts, which needs no key. Both codes
+    // (17-2011.00, 19-2011.00) are in the 874-occupation Work Values set, so
+    // they were computed with the other 66 in one catalog-wide pass — on the
+    // SAME basis as every other career, which is what the original block
+    // required. Values are still COMPUTED, never authored
+    // (docs/VALUES_PROFILE_DERIVATION_METHODOLOGY.md:34).
+    {
+      title: "Aerospace Engineer",
+      description: "Design the satellites, rockets and aircraft that leave the ground and stay there. Work on the propulsion, structures and control systems that make a Mars mission or an Earth-observation satellite actually fly.",
+      requiredSkills: ["Aerodynamics", "Propulsion Systems", "Systems Engineering", "Simulation and Testing"],
+      requiredSkillsAr: ["الديناميكا الهوائية", "أنظمة الدفع", "هندسة الأنظمة", "المحاكاة والاختبار"],
+      // Normalizes to {Science, Mathematics, Computer Science} — verified against
+      // normalizeCareerSubjects; does NOT floor at 20.
+      relatedSubjects: ["Physics", "Mathematics", "Engineering", "Computer Science"],
+      category: "Engineering",
+      educationLevel: "Bachelor's degree in Aerospace or Mechanical Engineering",
+      averageSalary: "$75,000 - $135,000",
+      // O*NET 17-2011.00, BLS projections 2024-2034: "Faster than average
+      // (5% to 6%)", 71,600 employed, 4,500 openings. Bright Outlook: YES.
+      // Lower bound of the band, and the tier must be one of the five the client
+      // localiser knows (Results.tsx:132-138) or the Arabic report falls back to
+      // English for this field.
+      growthOutlook: "Very Good (5% growth)",
+      icon: "🛰️",
+      onetCode: "17-2011.00",
+      valuesProfile: { achievement: 44, benevolence: 44, self_direction: 54, security: 72, power: 66 },
+    },
+    {
+      title: "Space Scientist (Astrophysicist)",
+      description: "Study planets, stars and the physics of everything beyond Earth. Analyse data from telescopes and space probes to answer questions nobody has answered yet, and help plan the missions that go looking.",
+      requiredSkills: ["Astrophysics", "Data Analysis", "Scientific Modelling", "Research Writing"],
+      requiredSkillsAr: ["الفيزياء الفلكية", "تحليل البيانات", "النمذجة العلمية", "الكتابة البحثية"],
+      // Normalizes to {Science, Mathematics, Computer Science}. "Astronomy" has no
+      // umbrella-6 home and is dropped by design — it is a student-facing flavour
+      // tag, exactly as Chef carries "Art" and "Business".
+      relatedSubjects: ["Physics", "Mathematics", "Astronomy", "Computer Science"],
+      category: "Science",
+      educationLevel: "Master's or PhD in Physics, Astronomy, or Space Science",
+      averageSalary: "$70,000 - $130,000",
+      // O*NET 19-2011.00, BLS projections 2024-2034: "Slower than average
+      // (1% to 2%)", only 1,800 employed, 100 openings. Bright Outlook: NO.
+      // Reported honestly rather than dressed up - this is a small, slow-growing
+      // occupation, and a 13-18 audience is exactly who should be told that.
+      growthOutlook: "Moderate (1% growth)",
+      icon: "🔭",
+      onetCode: "19-2011.00",
+      valuesProfile: { achievement: 85, benevolence: 0, self_direction: 66, security: 28, power: 78 },
+    },
+
+    // =====================================================================
+    // PHASE 3 STAGE 1 — the 29 derived careers (docs/career-sourcing-map.md §5)
+    // =====================================================================
+    // Tier 1 (16) + Tier 2 (13). Every one is a rated O*NET-SOC occupation
+    // present in the 874-occupation Work Values set, so all 29 carry a computed
+    // valuesProfile — NO substitutions were required (unlike Software Engineer,
+    // Financial Analyst and Product Manager, see
+    // scripts/generate-cvq-values-profiles.ts §1a).
+    //
+    // ⚠️ valuesProfile on EVERY career in this array (all 68, not just these 29)
+    // was REGENERATED IN ONE PASS when these were added. The rescale is
+    // catalog-wide — see the SCALE WARNING in
+    // server/migrations/career-values-profiles.ts. Never hand-edit one row.
+    //
+    // ⚠️ STAGE 1 IS DATA ONLY. No WEF skill affinity, RIASEC affinity, sector
+    // category rule or per-career override exists for these 29 yet (Stage 2).
+    // Until Stage 2 lands: the 12 that fall in categories WITH a rule inherit
+    // that category's sector; the 6 in `Science` and the 1 in the new
+    // `Aviation & Transport` category have NO rule and FLOOR AT 40 on vision,
+    // exactly as Environmental Scientist and Space Scientist do without their
+    // overrides. That is expected at this stage, not a defect.
+    //
+    // ⚠️ `growthOutlook` tier must be one of the five the client localiser knows
+    // (client/src/pages/Results.tsx:131-137) or the Arabic report silently falls
+    // back to English. Every value below is mapped from the real O*NET/BLS
+    // 2024-2034 projection recorded in the comment above it.
+
+    {
+      title: "Cybersecurity Analyst",
+      description: "Defend banks, hospitals and government systems from hackers by hunting for weaknesses before attackers find them. Investigate real intrusions and build the defences that keep millions of people's data safe.",
+      requiredSkills: ["Network Security", "Threat Analysis", "Incident Response", "Risk Assessment"],
+      requiredSkillsAr: ["أمن الشبكات", "تحليل التهديدات", "الاستجابة للحوادث", "تقييم المخاطر"],
+      relatedSubjects: ["Computer Science", "Mathematics", "Physics"],
+      category: "Technology",
+      educationLevel: "Bachelor's degree in Cybersecurity, Computer Science, or Information Technology",
+      averageSalary: "$75,000 - $130,000",
+      // O*NET 15-1212.00, BLS 2024-2034: "Much faster than average (7% or higher)",
+      // median $129,180, 182,800 employed. Bright Outlook: YES.
+      growthOutlook: "Excellent (7% growth)",
+      icon: "🛡️",
+      onetCode: "15-1212.00", // Information Security Analysts
+      valuesProfile: { achievement: 28, benevolence: 44, self_direction: 54, security: 80, power: 34 },
+    },
+    {
+      title: "AI Research Scientist",
+      description: "Invent the algorithms that let machines see, read and reason. Design and test new AI models, then publish what works so the whole field can build on it.",
+      requiredSkills: ["Machine Learning", "Algorithm Design", "Mathematical Modelling", "Research Methods"],
+      requiredSkillsAr: ["التعلم الآلي", "تصميم الخوارزميات", "النمذجة الرياضية", "مناهج البحث"],
+      relatedSubjects: ["Mathematics", "Computer Science", "Physics", "Statistics"],
+      category: "Technology",
+      educationLevel: "Master's or PhD in Computer Science, Artificial Intelligence, or Mathematics",
+      averageSalary: "$85,000 - $140,000",
+      // O*NET 15-1221.00, BLS 2024-2034: "Much faster than average (7% or higher)",
+      // median $140,300, 40,300 employed. Bright Outlook: YES.
+      growthOutlook: "Excellent (7% growth)",
+      icon: "🧠",
+      onetCode: "15-1221.00", // Computer and Information Research Scientists
+      valuesProfile: { achievement: 72, benevolence: 29, self_direction: 54, security: 70, power: 66 },
+    },
+    {
+      title: "Robotics Engineer",
+      description: "Build robots that weld car bodies, pick crops or perform surgery, and write the control code that makes them move precisely. Turn machines into something that can sense the world and act on it.",
+      requiredSkills: ["Control Systems", "Mechanical Design", "Embedded Programming", "Sensor Integration"],
+      requiredSkillsAr: ["أنظمة التحكم", "التصميم الميكانيكي", "برمجة الأنظمة المدمجة", "تكامل المستشعرات"],
+      relatedSubjects: ["Physics", "Mathematics", "Computer Science", "Engineering"],
+      category: "Engineering",
+      educationLevel: "Bachelor's degree in Robotics, Mechatronics, or Mechanical Engineering",
+      averageSalary: "$70,000 - $125,000",
+      // O*NET 17-2199.08, BLS 2024-2034: "Slower than average (1% to 2%)",
+      // median $122,930 (parent: Engineers, All Other), 158,800 (parent) employed. Bright Outlook: YES.
+      growthOutlook: "Moderate (1% growth)",
+      icon: "🤖",
+      onetCode: "17-2199.08", // Robotics Engineers
+      valuesProfile: { achievement: 56, benevolence: 22, self_direction: 66, security: 74, power: 56 },
+    },
+    {
+      title: "Nuclear Engineer",
+      description: "Design reactor systems that generate huge amounts of electricity without burning anything. Work on the safety, fuel and shielding decisions that let a nuclear plant run for sixty years without harming anyone.",
+      requiredSkills: ["Reactor Physics", "Radiation Safety", "Thermal Analysis", "Systems Engineering"],
+      requiredSkillsAr: ["فيزياء المفاعلات", "السلامة الإشعاعية", "التحليل الحراري", "هندسة الأنظمة"],
+      relatedSubjects: ["Physics", "Mathematics", "Chemistry", "Engineering"],
+      category: "Engineering",
+      educationLevel: "Bachelor's degree in Nuclear Engineering or Mechanical Engineering",
+      averageSalary: "$80,000 - $135,000",
+      // O*NET 17-2161.00, BLS 2024-2034: "Decline (-1% or lower)",
+      // median $133,970, 15,400 employed. Bright Outlook: YES.
+      // ⚠️ O*NET projects DECLINE. The client localiser has no "Declining"
+      // tier and its pattern requires a non-negative integer
+      // (Results.tsx:140), so the honest value cannot be expressed today.
+      // Recorded as the lowest expressible tier and FLAGGED in
+      // docs/phase3-stage1-done.md — a 6th tier is needed.
+      growthOutlook: "Moderate (0% growth)",
+      icon: "⚛️",
+      onetCode: "17-2161.00", // Nuclear Engineers
+      valuesProfile: { achievement: 72, benevolence: 0, self_direction: 44, security: 72, power: 78 },
+    },
+    {
+      title: "Chemical Engineer",
+      description: "Scale a reaction that works in a test tube up to a plant that makes thousands of tonnes of it. Design the processes behind clean hydrogen, plastics, fertiliser and medicine.",
+      requiredSkills: ["Process Design", "Thermodynamics", "Reaction Engineering", "Process Safety"],
+      requiredSkillsAr: ["تصميم العمليات", "الديناميكا الحرارية", "هندسة التفاعلات", "سلامة العمليات"],
+      relatedSubjects: ["Chemistry", "Mathematics", "Physics", "Engineering"],
+      category: "Engineering",
+      educationLevel: "Bachelor's degree in Chemical Engineering",
+      averageSalary: "$75,000 - $125,000",
+      // O*NET 17-2041.00, BLS 2024-2034: "Average (3% to 4%)",
+      // median $125,040, 21,600 employed. Bright Outlook: YES.
+      growthOutlook: "Good (3% growth)",
+      icon: "⚗️",
+      onetCode: "17-2041.00", // Chemical Engineers
+      valuesProfile: { achievement: 56, benevolence: 36, self_direction: 54, security: 52, power: 78 },
+    },
+    {
+      title: "Risk & Compliance Officer",
+      description: "Make sure a bank or trading firm is actually following the rules that protect its customers. Investigate suspicious transactions and stop financial crime before the money moves.",
+      requiredSkills: ["Regulatory Analysis", "Anti-Money Laundering", "Investigation", "Report Writing"],
+      requiredSkillsAr: ["التحليل التنظيمي", "مكافحة غسل الأموال", "التحقيق", "كتابة التقارير"],
+      relatedSubjects: ["Economics", "Mathematics", "English", "Business"],
+      category: "Finance",
+      educationLevel: "Bachelor's degree in Finance, Law, Accounting, or Business",
+      averageSalary: "$50,000 - $80,000",
+      // O*NET 13-1041.00, BLS 2024-2034: "Average (3% to 4%)",
+      // median $80,730, 418,000 employed. Bright Outlook: YES.
+      growthOutlook: "Good (3% growth)",
+      icon: "⚖️",
+      onetCode: "13-1041.00", // Compliance Officers
+      valuesProfile: { achievement: 0, benevolence: 58, self_direction: 32, security: 42, power: 0 },
+    },
+    {
+      title: "Geneticist",
+      description: "Read the DNA that makes each person unique and find the tiny changes that cause disease. Turn genome data into treatments doctors can actually give a patient.",
+      requiredSkills: ["Molecular Biology", "Genome Analysis", "Laboratory Technique", "Scientific Writing"],
+      requiredSkillsAr: ["البيولوجيا الجزيئية", "تحليل الجينوم", "التقنيات المخبرية", "الكتابة العلمية"],
+      relatedSubjects: ["Biology", "Chemistry", "Mathematics", "Statistics"],
+      category: "Science",
+      educationLevel: "Master's or PhD in Genetics, Molecular Biology, or Genomics",
+      averageSalary: "$60,000 - $100,000",
+      // O*NET 19-1029.03, BLS 2024-2034: "Slower than average (1% to 2%)",
+      // median $98,920, 63,700 employed. Bright Outlook: YES.
+      growthOutlook: "Moderate (1% growth)",
+      icon: "🧬",
+      onetCode: "19-1029.03", // Geneticists
+      valuesProfile: { achievement: 72, benevolence: 29, self_direction: 66, security: 42, power: 88 },
+    },
+    {
+      title: "Health Informatics Specialist",
+      description: "Build the systems that put a patient's whole medical history in front of a doctor in one second. Turn scattered hospital records into data that spots illness earlier.",
+      requiredSkills: ["Health Data Systems", "Clinical Workflow Analysis", "Data Privacy", "Database Design"],
+      requiredSkillsAr: ["أنظمة البيانات الصحية", "تحليل سير العمل السريري", "خصوصية البيانات", "تصميم قواعد البيانات"],
+      relatedSubjects: ["Computer Science", "Biology", "Mathematics", "Health Science"],
+      category: "Healthcare",
+      educationLevel: "Bachelor's or Master's degree in Health Informatics, Computer Science, or Public Health",
+      averageSalary: "$65,000 - $105,000",
+      // O*NET 15-1211.01, BLS 2024-2034: "Much faster than average (7% or higher)",
+      // median $105,850, 521,100 employed. Bright Outlook: YES.
+      growthOutlook: "Excellent (7% growth)",
+      icon: "🩺",
+      onetCode: "15-1211.01", // Health Informatics Specialists
+      valuesProfile: { achievement: 44, benevolence: 50, self_direction: 44, security: 56, power: 44 },
+    },
+    {
+      title: "Hospitality Manager",
+      description: "Run a hotel so well that guests from thirty countries all feel looked after. Lead the front-desk, housekeeping and events teams, and fix problems before anyone notices them.",
+      requiredSkills: ["Operations Management", "Guest Relations", "Team Leadership", "Budgeting"],
+      requiredSkillsAr: ["إدارة العمليات", "علاقات الضيوف", "قيادة الفريق", "إعداد الميزانيات"],
+      relatedSubjects: ["Business", "Economics", "English", "Arabic"],
+      category: "Business & Management",
+      educationLevel: "Bachelor's degree in Hospitality Management or Business Administration",
+      averageSalary: "$45,000 - $70,000",
+      // O*NET 11-9081.00, BLS 2024-2034: "Average (3% to 4%)",
+      // median $69,250, 52,000 employed. Bright Outlook: YES.
+      growthOutlook: "Good (3% growth)",
+      icon: "🏨",
+      onetCode: "11-9081.00", // Lodging Managers
+      valuesProfile: { achievement: 44, benevolence: 100, self_direction: 76, security: 32, power: 34 },
+    },
+    {
+      title: "Tourism & Events Manager",
+      description: "Plan the conferences, festivals and world expos that bring thousands of visitors into a city. Handle the venues, budgets and schedules so that on the day everything simply works.",
+      requiredSkills: ["Event Planning", "Vendor Negotiation", "Logistics Coordination", "Budget Management"],
+      requiredSkillsAr: ["تخطيط الفعاليات", "التفاوض مع الموردين", "تنسيق اللوجستيات", "إدارة الميزانية"],
+      relatedSubjects: ["Business", "Geography", "English", "Arabic"],
+      category: "Business & Management",
+      educationLevel: "Bachelor's degree in Event Management, Tourism, Hospitality, or Business",
+      averageSalary: "$40,000 - $60,000",
+      // O*NET 13-1121.00, BLS 2024-2034: "Faster than average (5% to 6%)",
+      // median $61,160, 155,800 employed. Bright Outlook: YES.
+      growthOutlook: "Very Good (5% growth)",
+      icon: "🎪",
+      onetCode: "13-1121.00", // Meeting, Convention, and Event Planners
+      valuesProfile: { achievement: 44, benevolence: 86, self_direction: 54, security: 32, power: 56 },
+    },
+    {
+      title: "Airline Pilot",
+      description: "Fly a three-hundred-tonne aircraft full of people safely across continents. Read the weather, the systems and the fuel, and make the calls that keep everyone on board safe.",
+      requiredSkills: ["Flight Operations", "Navigation", "Situational Awareness", "Crew Coordination"],
+      requiredSkillsAr: ["عمليات الطيران", "الملاحة", "الوعي الظرفي", "تنسيق الطاقم"],
+      relatedSubjects: ["Physics", "Mathematics", "Geography", "English"],
+      category: "Aviation & Transport",
+      educationLevel: "Commercial pilot licence (ATPL) plus flight-school training; a bachelor's degree is often preferred",
+      averageSalary: "$110,000 - $230,000",
+      // O*NET 53-2011.00, BLS 2024-2034: "Average (3% to 4%)",
+      // median $232,140, 100,000 employed. Bright Outlook: YES.
+      growthOutlook: "Good (3% growth)",
+      icon: "✈️",
+      onetCode: "53-2011.00", // Airline Pilots, Copilots, and Flight Engineers
+      valuesProfile: { achievement: 72, benevolence: 58, self_direction: 88, security: 100, power: 78 },
+    },
+    {
+      title: "Agricultural Scientist (Agronomist)",
+      description: "Work out how to grow food in one of the hottest, driest places on Earth. Study soil, water and crop genetics to make desert farming produce more with less, so the country can feed itself.",
+      requiredSkills: ["Soil Science", "Crop Management", "Field Experimentation", "Data Analysis"],
+      requiredSkillsAr: ["علم التربة", "إدارة المحاصيل", "التجارب الحقلية", "تحليل البيانات"],
+      relatedSubjects: ["Biology", "Chemistry", "Environmental Science", "Geography"],
+      category: "Science",
+      educationLevel: "Bachelor's or Master's degree in Agricultural Science or Agronomy",
+      averageSalary: "$55,000 - $80,000",
+      // O*NET 19-1013.00, BLS 2024-2034: "Faster than average (5% to 6%)",
+      // median $78,850, 20,700 employed. Bright Outlook: YES.
+      growthOutlook: "Very Good (5% growth)",
+      icon: "🌾",
+      onetCode: "19-1013.00", // Soil and Plant Scientists
+      valuesProfile: { achievement: 85, benevolence: 36, self_direction: 66, security: 36, power: 66 },
+    },
+    {
+      title: "Food Technologist",
+      description: "Invent food that stays fresh longer, tastes better and is safe to eat months after it leaves the factory. Test what is really inside a product and design the process that makes it at scale.",
+      requiredSkills: ["Food Chemistry", "Quality Assurance", "Product Development", "Food Safety Standards"],
+      requiredSkillsAr: ["كيمياء الأغذية", "ضمان الجودة", "تطوير المنتجات", "معايير سلامة الغذاء"],
+      relatedSubjects: ["Chemistry", "Biology", "Mathematics"],
+      category: "Science",
+      educationLevel: "Bachelor's degree in Food Science, Food Technology, or Chemistry",
+      averageSalary: "$55,000 - $90,000",
+      // O*NET 19-1012.00, BLS 2024-2034: "Much faster than average (7% or higher)",
+      // median $88,720, 15,200 employed. Bright Outlook: YES.
+      growthOutlook: "Excellent (7% growth)",
+      icon: "🥫",
+      onetCode: "19-1012.00", // Food Scientists and Technologists
+      valuesProfile: { achievement: 44, benevolence: 44, self_direction: 22, security: 56, power: 44 },
+    },
+    {
+      title: "Agricultural Engineer",
+      description: "Engineer the indoor farms that grow lettuce in the desert using ninety percent less water. Design the irrigation, climate control and machinery that make food production possible where nothing should grow.",
+      requiredSkills: ["Irrigation Systems", "Controlled-Environment Design", "Machinery Engineering", "Resource Efficiency"],
+      requiredSkillsAr: ["أنظمة الري", "تصميم البيئات المتحكم بها", "هندسة الآلات", "كفاءة الموارد"],
+      relatedSubjects: ["Physics", "Mathematics", "Biology", "Engineering"],
+      category: "Engineering",
+      educationLevel: "Bachelor's degree in Agricultural or Biosystems Engineering",
+      averageSalary: "$60,000 - $100,000",
+      // O*NET 17-2021.00, BLS 2024-2034: "Faster than average (5% to 6%)",
+      // median $98,590, 1,700 employed. Bright Outlook: YES.
+      growthOutlook: "Very Good (5% growth)",
+      icon: "🚜",
+      onetCode: "17-2021.00", // Agricultural Engineers
+      valuesProfile: { achievement: 56, benevolence: 22, self_direction: 66, security: 52, power: 44 },
+    },
+    {
+      title: "Satellite & Remote Sensing Scientist",
+      description: "Turn pictures taken from orbit into answers about the planet below. Track shrinking water, growing cities and dust storms using satellite data nobody else has looked at yet.",
+      requiredSkills: ["Satellite Imagery Analysis", "Geospatial Systems", "Data Processing", "Scientific Modelling"],
+      requiredSkillsAr: ["تحليل صور الأقمار الصناعية", "النظم الجغرافية المكانية", "معالجة البيانات", "النمذجة العلمية"],
+      relatedSubjects: ["Physics", "Mathematics", "Geography", "Computer Science"],
+      category: "Science",
+      educationLevel: "Bachelor's or Master's degree in Remote Sensing, Geomatics, or Earth Science",
+      averageSalary: "$70,000 - $125,000",
+      // O*NET 19-2099.01, BLS 2024-2034: "Slower than average (1% to 2%)",
+      // median $122,570, 31,900 employed. Bright Outlook: YES.
+      growthOutlook: "Moderate (1% growth)",
+      icon: "🛰️",
+      onetCode: "19-2099.01", // Remote Sensing Scientists and Technologists
+      valuesProfile: { achievement: 72, benevolence: 36, self_direction: 54, security: 52, power: 66 },
+    },
+    {
+      title: "Film & TV Producer",
+      description: "Take a story from a first idea to something millions of people watch. Pick the crew, hold the budget and make the hundred daily decisions that decide how the finished film feels.",
+      requiredSkills: ["Production Planning", "Storytelling", "Team Direction", "Budget Management"],
+      requiredSkillsAr: ["تخطيط الإنتاج", "السرد القصصي", "إدارة الفريق", "إدارة الميزانية"],
+      relatedSubjects: ["English", "Arabic", "Art", "Business"],
+      category: "Media & Communications",
+      educationLevel: "Bachelor's degree in Film, Media Production, or Communications",
+      averageSalary: "$50,000 - $90,000",
+      // O*NET 27-2012.00, BLS 2024-2034: "Faster than average (5% to 6%)",
+      // median $90,360, 167,000 employed. Bright Outlook: YES.
+      growthOutlook: "Very Good (5% growth)",
+      icon: "🎬",
+      onetCode: "27-2012.00", // Producers and Directors
+      valuesProfile: { achievement: 79, benevolence: 62, self_direction: 88, security: 28, power: 88 },
+    },
+    {
+      title: "Data Engineer",
+      description: "Build the pipelines and databases that move billions of records without losing one. Design the foundations every dashboard, app and AI model quietly depends on.",
+      requiredSkills: ["Data Modelling", "SQL and Pipelines", "Cloud Data Platforms", "Performance Tuning"],
+      requiredSkillsAr: ["نمذجة البيانات", "SQL وخطوط البيانات", "منصات البيانات السحابية", "تحسين الأداء"],
+      relatedSubjects: ["Computer Science", "Mathematics", "Statistics"],
+      category: "Technology",
+      educationLevel: "Bachelor's degree in Computer Science, Information Systems, or Data Engineering",
+      averageSalary: "$85,000 - $140,000",
+      // O*NET 15-1243.00, BLS 2024-2034: "Much faster than average (7% or higher)",
+      // median $139,500, 66,900 employed. Bright Outlook: YES.
+      growthOutlook: "Excellent (7% growth)",
+      icon: "🗄️",
+      onetCode: "15-1243.00", // Database Architects
+      valuesProfile: { achievement: 85, benevolence: 8, self_direction: 54, security: 46, power: 34 },
+    },
+    {
+      title: "Atmospheric & Space Scientist",
+      description: "Forecast dust storms, study how clouds form and test whether you can make it rain over a desert. Use satellites and physics to predict an atmosphere that affects everyone's day.",
+      requiredSkills: ["Atmospheric Physics", "Numerical Modelling", "Data Analysis", "Instrumentation"],
+      requiredSkillsAr: ["فيزياء الغلاف الجوي", "النمذجة العددية", "تحليل البيانات", "الأجهزة العلمية"],
+      relatedSubjects: ["Physics", "Mathematics", "Geography", "Computer Science"],
+      category: "Science",
+      educationLevel: "Bachelor's or Master's degree in Atmospheric Science, Meteorology, or Physics",
+      averageSalary: "$60,000 - $100,000",
+      // O*NET 19-2021.00, BLS 2024-2034: "Slower than average (1% to 2%)",
+      // median $99,070, 9,400 employed. Bright Outlook: YES.
+      growthOutlook: "Moderate (1% growth)",
+      icon: "🌦️",
+      onetCode: "19-2021.00", // Atmospheric and Space Scientists
+      valuesProfile: { achievement: 56, benevolence: 58, self_direction: 44, security: 30, power: 44 },
+    },
+    {
+      title: "Physicist",
+      description: "Ask how the universe actually works and then design the experiment that answers it. Work on quantum computers, lasers and materials that did not exist five years ago.",
+      requiredSkills: ["Theoretical Physics", "Experimental Design", "Mathematical Analysis", "Scientific Computing"],
+      requiredSkillsAr: ["الفيزياء النظرية", "تصميم التجارب", "التحليل الرياضي", "الحوسبة العلمية"],
+      relatedSubjects: ["Physics", "Mathematics", "Computer Science"],
+      category: "Science",
+      educationLevel: "Master's or PhD in Physics",
+      averageSalary: "$95,000 - $170,000",
+      // O*NET 19-2012.00, BLS 2024-2034: "Average (3% to 4%)",
+      // median $172,250, 24,600 employed. Bright Outlook: YES.
+      growthOutlook: "Good (3% growth)",
+      icon: "🔬",
+      onetCode: "19-2012.00", // Physicists
+      valuesProfile: { achievement: 85, benevolence: 8, self_direction: 76, security: 60, power: 100 },
+    },
+    {
+      title: "Environmental Engineer",
+      description: "Design the systems that clean a city's water, cut its emissions and deal with its waste. Solve pollution problems with engineering instead of hoping someone else will.",
+      requiredSkills: ["Water Treatment Design", "Environmental Modelling", "Waste Management", "Regulatory Compliance"],
+      requiredSkillsAr: ["تصميم معالجة المياه", "النمذجة البيئية", "إدارة النفايات", "الامتثال التنظيمي"],
+      relatedSubjects: ["Chemistry", "Biology", "Mathematics", "Environmental Science"],
+      category: "Engineering",
+      educationLevel: "Bachelor's degree in Environmental or Civil Engineering",
+      averageSalary: "$65,000 - $105,000",
+      // O*NET 17-2081.00, BLS 2024-2034: "Average (3% to 4%)",
+      // median $107,110, 39,400 employed. Bright Outlook: YES.
+      growthOutlook: "Good (3% growth)",
+      icon: "♻️",
+      onetCode: "17-2081.00", // Environmental Engineers
+      valuesProfile: { achievement: 72, benevolence: 44, self_direction: 44, security: 64, power: 78 },
+    },
+    {
+      title: "Actuary",
+      description: "Put a price on risk: how likely a flood is, how long people live, what an insurer should charge. Use probability and huge datasets to make decisions worth billions.",
+      requiredSkills: ["Probability and Statistics", "Risk Modelling", "Financial Mathematics", "Data Analysis"],
+      requiredSkillsAr: ["الاحتمالات والإحصاء", "نمذجة المخاطر", "الرياضيات المالية", "تحليل البيانات"],
+      relatedSubjects: ["Mathematics", "Statistics", "Economics", "Computer Science"],
+      category: "Finance",
+      educationLevel: "Bachelor's degree in Actuarial Science, Mathematics, or Statistics plus professional exams",
+      averageSalary: "$75,000 - $130,000",
+      // O*NET 15-2011.00, BLS 2024-2034: "Much faster than average (7% or higher)",
+      // median $130,000, 33,600 employed. Bright Outlook: YES.
+      growthOutlook: "Excellent (7% growth)",
+      icon: "📈",
+      onetCode: "15-2011.00", // Actuaries
+      valuesProfile: { achievement: 28, benevolence: 29, self_direction: 32, security: 52, power: 34 },
+    },
+    {
+      title: "Investment & Financial Manager",
+      description: "Decide where an organisation's money goes and make it grow. Read the markets, plan the funding and answer for the numbers when the results are published.",
+      requiredSkills: ["Financial Analysis", "Investment Strategy", "Forecasting", "Stakeholder Communication"],
+      requiredSkillsAr: ["التحليل المالي", "استراتيجية الاستثمار", "التنبؤ المالي", "التواصل مع أصحاب المصلحة"],
+      relatedSubjects: ["Mathematics", "Economics", "Business", "English"],
+      category: "Finance",
+      educationLevel: "Bachelor's or Master's degree in Finance, Economics, or Business Administration",
+      averageSalary: "$95,000 - $165,000",
+      // O*NET 11-3031.00, BLS 2024-2034: "Much faster than average (7% or higher)",
+      // median $166,570, 868,600 employed. Bright Outlook: YES.
+      growthOutlook: "Excellent (7% growth)",
+      icon: "💼",
+      onetCode: "11-3031.00", // Financial Managers
+      valuesProfile: { achievement: 56, benevolence: 58, self_direction: 76, security: 80, power: 78 },
+    },
+    {
+      title: "Primary School Teacher",
+      description: "Teach a child to read, add up and ask questions in the years when it matters most. Build the confidence and curiosity that everything they learn afterwards is stacked on.",
+      requiredSkills: ["Lesson Planning", "Classroom Management", "Child Development", "Assessment"],
+      requiredSkillsAr: ["تخطيط الدروس", "إدارة الصف", "نمو الطفل", "التقييم"],
+      relatedSubjects: ["English", "Mathematics", "Science", "Arabic"],
+      category: "Education",
+      educationLevel: "Bachelor's degree in Education or Primary Teaching plus teaching licence",
+      averageSalary: "$45,000 - $65,000",
+      // O*NET 25-2021.00, BLS 2024-2034: "Decline (-1% or lower)",
+      // median $63,970, 1,422,700 employed. Bright Outlook: YES.
+      // ⚠️ O*NET projects DECLINE. The client localiser has no "Declining"
+      // tier and its pattern requires a non-negative integer
+      // (Results.tsx:140), so the honest value cannot be expressed today.
+      // Recorded as the lowest expressible tier and FLAGGED in
+      // docs/phase3-stage1-done.md — a 6th tier is needed.
+      growthOutlook: "Moderate (0% growth)",
+      icon: "🍎",
+      onetCode: "25-2021.00", // Elementary School Teachers, Except Special Education
+      valuesProfile: { achievement: 72, benevolence: 86, self_direction: 54, security: 64, power: 34 },
+    },
+    {
+      title: "School Counsellor & Career Advisor",
+      description: "Help students work out who they are and what they could do next. Sit with a teenager who has no idea what to choose, and give them a real, honest path forward.",
+      requiredSkills: ["Counselling", "Career Assessment", "Active Listening", "Student Advocacy"],
+      requiredSkillsAr: ["الإرشاد النفسي", "التقييم المهني", "الإصغاء الفعّال", "الدفاع عن الطلاب"],
+      relatedSubjects: ["Psychology", "English", "Arabic", "Social Studies"],
+      category: "Education",
+      educationLevel: "Bachelor's or Master's degree in Counselling, Psychology, or Education",
+      averageSalary: "$45,000 - $65,000",
+      // O*NET 21-1012.00, BLS 2024-2034: "Average (3% to 4%)",
+      // median $64,330, 376,300 employed. Bright Outlook: YES.
+      growthOutlook: "Good (3% growth)",
+      icon: "🧭",
+      onetCode: "21-1012.00", // Educational, Guidance, and Career Counselors and Advisors
+      valuesProfile: { achievement: 56, benevolence: 100, self_direction: 32, security: 42, power: 44 },
+    },
+    {
+      title: "Curriculum & Instructional Designer",
+      description: "Design what gets taught and how, for a whole school or a whole country. Turn a subject into lessons, materials and assessments that actually work in a real classroom.",
+      requiredSkills: ["Curriculum Design", "Learning Assessment", "Teacher Training", "Educational Technology"],
+      requiredSkillsAr: ["تصميم المناهج", "تقييم التعلم", "تدريب المعلمين", "تقنيات التعليم"],
+      relatedSubjects: ["English", "Mathematics", "Science", "Computer Science"],
+      category: "Education",
+      educationLevel: "Master's degree in Curriculum and Instruction or Education",
+      averageSalary: "$50,000 - $75,000",
+      // O*NET 25-9031.00, BLS 2024-2034: "Slower than average (1% to 2%)",
+      // median $77,440, 232,600 employed. Bright Outlook: YES.
+      growthOutlook: "Moderate (1% growth)",
+      icon: "📐",
+      onetCode: "25-9031.00", // Instructional Coordinators
+      valuesProfile: { achievement: 72, benevolence: 78, self_direction: 76, security: 28, power: 44 },
+    },
+    {
+      title: "Cloud & Network Architect",
+      description: "Design the networks and cloud systems that carry a company's entire business without falling over. Plan the capacity, the security and the backup for the day something breaks.",
+      requiredSkills: ["Network Design", "Cloud Infrastructure", "Systems Security", "Capacity Planning"],
+      requiredSkillsAr: ["تصميم الشبكات", "البنية السحابية", "أمن الأنظمة", "تخطيط السعة"],
+      relatedSubjects: ["Computer Science", "Mathematics", "Physics"],
+      category: "Technology",
+      educationLevel: "Bachelor's degree in Computer Science, Network Engineering, or Information Technology",
+      averageSalary: "$80,000 - $135,000",
+      // O*NET 15-1241.00, BLS 2024-2034: "Much faster than average (7% or higher)",
+      // median $134,050, 179,200 employed. Bright Outlook: YES.
+      growthOutlook: "Excellent (7% growth)",
+      icon: "☁️",
+      onetCode: "15-1241.00", // Computer Network Architects
+      valuesProfile: { achievement: 85, benevolence: 8, self_direction: 54, security: 58, power: 34 },
+    },
+    {
+      title: "Industrial Engineer",
+      description: "Find the wasted time, money and material inside a factory or hospital and design it out. Redesign how work flows so the same people produce far more with less effort.",
+      requiredSkills: ["Process Optimisation", "Operations Analysis", "Quality Systems", "Supply Chain Design"],
+      requiredSkillsAr: ["تحسين العمليات", "تحليل العمليات التشغيلية", "أنظمة الجودة", "تصميم سلاسل التوريد"],
+      relatedSubjects: ["Mathematics", "Physics", "Statistics", "Business"],
+      category: "Engineering",
+      educationLevel: "Bachelor's degree in Industrial, Manufacturing, or Systems Engineering",
+      averageSalary: "$65,000 - $100,000",
+      // O*NET 17-2112.00, BLS 2024-2034: "Much faster than average (7% or higher)",
+      // median $102,440, 351,100 employed. Bright Outlook: YES.
+      growthOutlook: "Excellent (7% growth)",
+      icon: "🏭",
+      onetCode: "17-2112.00", // Industrial Engineers
+      valuesProfile: { achievement: 56, benevolence: 29, self_direction: 66, security: 68, power: 78 },
+    },
+    {
+      title: "Video Editor",
+      description: "Cut hours of raw footage into something people cannot stop watching. Choose every shot, sound and pause so a story lands exactly the way it was meant to.",
+      requiredSkills: ["Video Editing", "Colour and Sound", "Visual Storytelling", "Post-Production Workflow"],
+      requiredSkillsAr: ["مونتاج الفيديو", "تصحيح الألوان والصوت", "السرد البصري", "سير عمل ما بعد الإنتاج"],
+      relatedSubjects: ["Art", "English", "Computer Science", "Arabic"],
+      category: "Media & Communications",
+      educationLevel: "Bachelor's degree in Film, Media Production, or a strong portfolio",
+      averageSalary: "$45,000 - $75,000",
+      // O*NET 27-4032.00, BLS 2024-2034: "Average (3% to 4%)",
+      // median $75,420, 43,500 employed. Bright Outlook: YES.
+      growthOutlook: "Good (3% growth)",
+      icon: "🎞️",
+      onetCode: "27-4032.00", // Film and Video Editors
+      valuesProfile: { achievement: 44, benevolence: 8, self_direction: 54, security: 16, power: 56 },
+    },
+    {
+      title: "Dietitian & Nutritionist",
+      description: "Work out exactly what someone should eat to manage diabetes, recover from surgery or perform as an athlete. Turn food science into a plan a real person can follow.",
+      requiredSkills: ["Clinical Nutrition", "Dietary Assessment", "Patient Counselling", "Food Science"],
+      requiredSkillsAr: ["التغذية السريرية", "التقييم الغذائي", "إرشاد المرضى", "علوم الأغذية"],
+      relatedSubjects: ["Biology", "Chemistry", "Health Science", "Mathematics"],
+      category: "Healthcare",
+      educationLevel: "Bachelor's degree in Dietetics or Nutrition plus supervised practice and licensure",
+      averageSalary: "$50,000 - $75,000",
+      // O*NET 29-1031.00, BLS 2024-2034: "Faster than average (5% to 6%)",
+      // median $76,400, 90,900 employed. Bright Outlook: YES.
+      growthOutlook: "Very Good (5% growth)",
+      icon: "🥗",
+      onetCode: "29-1031.00", // Dietitians and Nutritionists
+      valuesProfile: { achievement: 44, benevolence: 78, self_direction: 66, security: 42, power: 56 },
     },
   ];
 
@@ -1929,29 +2768,41 @@ export async function seedDatabase() {
   if (riasecComponent) {
     console.log("\n🎯 Seeding RIASEC career affinities...");
     const allCareers = await storage.getAllCareers();
-    
+
+    // IDEMPOTENT since Phase 3 stage 3. This loop used to be an unconditional
+    // storage.createCareerComponentAffinity() wrapped in a catch that swallowed
+    // SQLSTATE 23505 "if the affinity already exists" — but the table had NO
+    // unique constraint, so 23505 could never be raised and every boot appended
+    // one more identical row per career. Staging had reached 358 rows for 68
+    // careers before migration 010_career_component_affinities_unique.sql
+    // deduped it and added career_component_affinity_unique_idx.
+    //
+    // The upsert below is keyed on that index, so a re-run now UPDATES in place:
+    // re-running the seed adds zero rows, and editing a vector in
+    // server/riasecAffinities.ts actually reaches an existing database (it never
+    // did before — the first copy won and every later copy was dead weight).
+    let riasecCreated = 0, riasecUpdated = 0, riasecMissing = 0;
     for (const mapping of RIASEC_CAREER_AFFINITIES) {
       const career = allCareers.find(c => c.title === mapping.careerTitle);
       if (!career) {
         console.log(`⚠️  Career not found: ${mapping.careerTitle}`);
+        riasecMissing++;
         continue;
       }
-      
+
       try {
-        await storage.createCareerComponentAffinity({
+        const existing = await storage.getCareerComponentAffinity(career.id, riasecComponent.id);
+        await storage.createOrUpdateCareerComponentAffinity({
           careerId: career.id,
           componentId: riasecComponent.id,
           affinityData: mapping.affinities, // Store all 6 theme scores as jsonb
         });
-        console.log(`✓ Created RIASEC affinities for: ${career.title}`);
+        if (existing) { riasecUpdated++; } else { riasecCreated++; }
       } catch (error: any) {
-        if (error?.message?.includes('unique') || error?.code === '23505' || error?.cause?.code === '23505') {
-          // Affinity already exists - silently continue
-        } else {
-          console.error(`  Error creating affinity for ${career.title}:`, error);
-        }
+        console.error(`  Error upserting RIASEC affinity for ${career.title}:`, error);
       }
     }
+    console.log(`✓ RIASEC affinities: ${riasecCreated} created, ${riasecUpdated} updated, ${riasecMissing} careers not found`);
   } else {
     console.error("⚠️  Failed to create or fetch RIASEC component");
   }
@@ -2066,6 +2917,7 @@ export async function seedDatabase() {
 
     let sectorsCreated = 0;
     let skillMappingsCreated = 0;
+    let skillMappingsRemoved = 0;
     const seededSectors: Record<string, string> = {}; // sector name -> id, for the vision mapping below
 
     for (const sectorData of UAE_SECTOR_WEF_SKILLS) {
@@ -2080,6 +2932,7 @@ export async function seedDatabase() {
       seededSectors[sectorData.name] = sector.id;
 
       // Map sector to WEF skills
+      const keptSkillIds: string[] = [];
       for (const [skillName, importance] of Object.entries(sectorData.skills)) {
         // No aliasing: every key above must be one of the WEF 16 verbatim. The
         // previous "Sustainability" -> "Scientific Literacy" alias collided on
@@ -2098,12 +2951,33 @@ export async function seedDatabase() {
           wefSkill.id,
           importance
         );
+        keptSkillIds.push(wefSkill.id);
         skillMappingsCreated++;
+      }
+
+      // RECONCILE, don't just upsert. createOrUpdateCountrySectorWefSkill can add
+      // a skill and change an importance but cannot REMOVE one, so on any
+      // already-seeded database a skill deleted from the vector above would keep
+      // its old row and keep feeding skillAlignment - the vector in this file and
+      // the vector the scorer uses would silently disagree. Phase 3 stage 3 is the
+      // first change to remove skills (Healthcare & Life Sciences drops Critical
+      // Thinking and Persistence and Grit; Education & Human Capital drops
+      // Creativity), which is what surfaced this.
+      //
+      // Guarded on a non-empty vector: a sector whose skills map somehow arrived
+      // empty must not have its whole mapping deleted.
+      if (keptSkillIds.length > 0) {
+        const removed = await storage.deleteCountrySectorWefSkillsNotIn(sector.id, keptSkillIds);
+        if (removed > 0) {
+          console.log(`  ↺ ${sectorData.name}: removed ${removed} stale sector→skill row(s) no longer in the vector`);
+          skillMappingsRemoved += removed;
+        }
       }
     }
 
     console.log(`✓ Created/updated ${sectorsCreated} UAE priority sectors`);
-    console.log(`✓ Created/updated ${skillMappingsCreated} sector→WEF skill mappings`);
+    console.log(`✓ Created/updated ${skillMappingsCreated} sector→WEF skill mappings` +
+      (skillMappingsRemoved > 0 ? `, removed ${skillMappingsRemoved} stale` : ""));
 
     // --- VISION ALIGNMENT: sector ↔ career-category mapping ---
     // Non-fatal by design: this block is the LAST thing in the priority-sector

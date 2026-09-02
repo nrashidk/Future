@@ -30,6 +30,9 @@ BACKOFFS = [10, 30, 90]
 
 # The 37 careers: SOC code -> label. Keep in sync with CAREER_ONET_CROSSWALK.
 CAREERS = {
+    # Phase 3 step 1 - Space & Future Sciences careers.
+    "17-2011.00": "Aerospace Engineer",
+    "19-2011.00": "Space Scientist (Astrophysicist)",
     "15-1252.00": "Software Engineer",
     "15-2051.01": "Data Scientist",
     "17-2199.03": "Renewable Energy Engineer",

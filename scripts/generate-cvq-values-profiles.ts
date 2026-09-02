@@ -81,6 +81,61 @@ const CROSSWALK_CORRECTIONS: Record<string, { from: string; fromTitle: string; t
 };
 
 // ---------------------------------------------------------------------------
+// 1c. CATALOG ADDITIONS — careers added after the original 37-entry crosswalk
+// ---------------------------------------------------------------------------
+// CAREER_ONET_CROSSWALK (scripts/parse-onet-values.ts) is deliberately left
+// frozen as the record of the ORIGINAL 37, exactly as §1b explains for the
+// corrections. These 31 entries are ADDITIONS, not corrections, and they are
+// merged with the imported crosswalk below to give the full 68-career catalog.
+//
+// Every code here was verified present in the 874-occupation Work Values set
+// before being written (docs/career-sourcing-map.md §6a: "Recommended careers
+// failing the gate: zero"). The generator throws if that is ever untrue, so a
+// bad code fails loudly rather than silently dropping a career.
+//
+// 2 careers from Phase 3 step 1 (Space) + 29 from Phase 3 Stage 1
+// (docs/career-sourcing-map.md §5, Tier 1 + Tier 2).
+const CATALOG_ADDITIONS: Record<string, string> = {
+  'Aerospace Engineer':                   '17-2011.00', // Aerospace Engineers — Phase 3 step 1 — Space & Future Sciences.
+  'Space Scientist (Astrophysicist)':     '19-2011.00', // Astronomers — Phase 3 step 1 — Space & Future Sciences.
+  'Cybersecurity Analyst':                '15-1212.00', // Information Security Analysts — Tier 1 — Technology.
+  'AI Research Scientist':                '15-1221.00', // Computer and Information Research Scientists — Tier 1 — Artificial Intelligence.
+  'Robotics Engineer':                    '17-2199.08', // Robotics Engineers — Tier 1 — Artificial Intelligence.
+  'Nuclear Engineer':                     '17-2161.00', // Nuclear Engineers — Tier 1 — Renewable Energy & Sustainability.
+  'Chemical Engineer':                    '17-2041.00', // Chemical Engineers — Tier 1 — Renewable Energy & Sustainability.
+  'Risk & Compliance Officer':            '13-1041.00', // Compliance Officers — Tier 1 — Financial Services & FinTech.
+  'Geneticist':                           '19-1029.03', // Geneticists — Tier 1 — Healthcare & Life Sciences.
+  'Health Informatics Specialist':        '15-1211.01', // Health Informatics Specialists — Tier 1 — Healthcare & Life Sciences.
+  'Hospitality Manager':                  '11-9081.00', // Lodging Managers — Tier 1 — Tourism & Hospitality.
+  'Tourism & Events Manager':             '13-1121.00', // Meeting, Convention, and Event Planners — Tier 1 — Tourism & Hospitality.
+  'Airline Pilot':                        '53-2011.00', // Airline Pilots, Copilots, and Flight Engineers — Tier 1 — Tourism & Hospitality.
+  'Agricultural Scientist (Agronomist)':  '19-1013.00', // Soil and Plant Scientists — Tier 1 — Food Security & Agriculture.
+  'Food Technologist':                    '19-1012.00', // Food Scientists and Technologists — Tier 1 — Food Security & Agriculture.
+  'Agricultural Engineer':                '17-2021.00', // Agricultural Engineers — Tier 1 — Food Security & Agriculture.
+  'Satellite & Remote Sensing Scientist': '19-2099.01', // Remote Sensing Scientists and Technologists — Tier 1 — Space & Future Sciences.
+  'Film & TV Producer':                   '27-2012.00', // Producers and Directors — Tier 1 — Creative Industries & Media.
+  'Data Engineer':                        '15-1243.00', // Database Architects — Tier 2 — Artificial Intelligence.
+  'Atmospheric & Space Scientist':        '19-2021.00', // Atmospheric and Space Scientists — Tier 2 — Space & Future Sciences.
+  'Physicist':                            '19-2012.00', // Physicists — Tier 2 — Space & Future Sciences.
+  'Environmental Engineer':               '17-2081.00', // Environmental Engineers — Tier 2 — Renewable Energy & Sustainability.
+  'Actuary':                              '15-2011.00', // Actuaries — Tier 2 — Financial Services & FinTech.
+  'Investment & Financial Manager':       '11-3031.00', // Financial Managers — Tier 2 — Financial Services & FinTech.
+  'Primary School Teacher':               '25-2021.00', // Elementary School Teachers, Except Special Education — Tier 2 — Education & Human Capital.
+  'School Counsellor & Career Advisor':   '21-1012.00', // Educational, Guidance, and Career Counselors and Advisors — Tier 2 — Education & Human Capital.
+  'Curriculum & Instructional Designer':  '25-9031.00', // Instructional Coordinators — Tier 2 — Education & Human Capital.
+  'Cloud & Network Architect':            '15-1241.00', // Computer Network Architects — Tier 2 — Technology.
+  'Industrial Engineer':                  '17-2112.00', // Industrial Engineers — Tier 2 — Technology.
+  'Video Editor':                         '27-4032.00', // Film and Video Editors — Tier 2 — Creative Industries & Media.
+  'Dietitian & Nutritionist':             '29-1031.00', // Dietitians and Nutritionists — Tier 2 — Food Security & Agriculture.
+};
+
+/** The full catalog crosswalk: the frozen original 37 + the 31 later additions. */
+const FULL_CROSSWALK: Record<string, string> = {
+  ...CAREER_ONET_CROSSWALK,
+  ...CATALOG_ADDITIONS,
+};
+
+// ---------------------------------------------------------------------------
 // 2. O*NET Work Value → CVQ domain map (pure, no blends)
 // ---------------------------------------------------------------------------
 // Six O*NET work values → the five SEEDED CVQ domains (shared/schema.ts:740).
@@ -316,7 +371,7 @@ function main() {
   const wv = parseWorkValues(input);
   console.log(`O*NET occupations with work-values (EX) ratings: ${wv.size}`);
 
-  const careers = Object.entries(CAREER_ONET_CROSSWALK);
+  const careers = Object.entries(FULL_CROSSWALK);
   const gaps: string[] = [];
   const staged: Omit<Row, 'profile'>[] = [];
 
@@ -349,7 +404,7 @@ function main() {
   const byCode = new Map<string, string[]>();
   rows.forEach(r => byCode.set(r.code, [...(byCode.get(r.code) ?? []), r.title]));
   const dupes = [...byCode].filter(([, t]) => t.length > 1);
-  console.log(dupes.length ? `DUPLICATE CODES: ${JSON.stringify(dupes)}` : 'No duplicate O*NET codes across the 37 careers.');
+  console.log(dupes.length ? `DUPLICATE CODES: ${JSON.stringify(dupes)}` : `No duplicate O*NET codes across the ${rows.length} careers.`);
 
   // ---- per-domain spread: raw vs applied (rescaled) ----
   interface Spread { domain: Domain; min: number; max: number; range: number; mean: number; sd: number; distinct: number }
@@ -426,7 +481,7 @@ function main() {
   const entRank = primaryProbe!.rank('Entrepreneur');
   console.log(`\nKNOWN LIMITATION — Entrepreneur → ${entrepreneur.code} (${entrepreneur.onetTitle}): ` +
     `benevolence raw ${entrepreneur.rawProfile.benevolence} / applied ${entrepreneur.profile.benevolence}, ` +
-    `ranks #${entRank}/37 for the PRIMARY helper student. Mapping KEPT for now — flagged, not hidden.`);
+    `ranks #${entRank}/${rows.length} for the PRIMARY helper student. Mapping KEPT for now — flagged, not hidden.`);
 
   // ---- artifacts ----
   const outDir = path.join(process.cwd(), 'scripts');
@@ -435,7 +490,7 @@ function main() {
   const dataset = {
     generatedAt,
     source: 'O*NET 30.0 database, "Work Values.txt", EX scale (874 rated occupations)',
-    scale: 'RESCALED — raw (value-1)/(7-1)*100 per O*NET work value, then per-domain min-max rescaled to 0-100 across this country\'s 37-career catalog',
+    scale: `RESCALED — raw (value-1)/(7-1)*100 per O*NET work value, then per-domain min-max rescaled to 0-100 across this country's ${rows.length}-career catalog`,
     scaleWarning:
       'A rescaled value is a CATALOG-RELATIVE position, not an occupational fact. security=0 means "lowest security emphasis in this catalog", not "no security". Bounds are catalog-scoped: adding or removing a career changes every other career\'s profile — regenerate whole, never edit a row.',
     domains: DOMAINS,
@@ -449,7 +504,7 @@ function main() {
         issue:
           'Crosswalked to General and Operations Managers, an acknowledged proxy. That occupation\'s O*NET Relationships rating is 6.33, giving benevolence ' +
           `${entrepreneur.rawProfile.benevolence} raw / ${entrepreneur.profile.benevolence} rescaled — so a benevolence-heavy student is told entrepreneurship fits their caring values ` +
-          `(ranks #${entRank} of 37 for the PRIMARY helper probe). The rating is accurate for operations managers, who do supervise and develop staff; the PROXY is what is wrong, not the arithmetic.`,
+          `(ranks #${entRank} of ${rows.length} for the PRIMARY helper probe). The rating is accurate for operations managers, who do supervise and develop staff; the PROXY is what is wrong, not the arithmetic.`,
         decision: 'KEPT for now. Flagged, deliberately not hand-authored. Re-crosswalking is a separate decision.',
         producedProfile: entrepreneur.profile,
       },
@@ -471,7 +526,7 @@ function main() {
   // ---- human-readable summary ----
   const spreadTable = DOMAINS.map((d, i) => {
     const a = rawSpread[i], b = appliedSpread[i];
-    return `| \`${d}\` | ${a.min}–${a.max} | ${a.range} | ${a.sd.toFixed(1)} | **${b.min}–${b.max}** | **${b.range}** | **${b.sd.toFixed(1)}** | ${b.distinct}/37 |`;
+    return `| \`${d}\` | ${a.min}–${a.max} | ${a.range} | ${a.sd.toFixed(1)} | **${b.min}–${b.max}** | **${b.range}** | **${b.sd.toFixed(1)}** | ${b.distinct}/${rows.length} |`;
   }).join('\n');
 
   const subRows = Object.entries(SUBSTITUTIONS).map(([career, sub]) =>

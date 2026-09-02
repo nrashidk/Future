@@ -112,7 +112,7 @@ import {
   type InsertSystemAnnouncement,
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, or, desc, count, avg, sql, inArray, isNotNull, gte, type SQL } from "drizzle-orm";
+import { eq, and, or, desc, count, avg, sql, inArray, notInArray, isNotNull, gte, type SQL } from "drizzle-orm";
 
 /**
  * One row of the VISION-ALIGNMENT sector <-> career-category map.
@@ -291,6 +291,7 @@ export interface IStorage {
 
   // Career Component Affinity operations
   createCareerComponentAffinity(affinity: InsertCareerComponentAffinity): Promise<CareerComponentAffinity>;
+  createOrUpdateCareerComponentAffinity(affinity: InsertCareerComponentAffinity): Promise<CareerComponentAffinity>;
   getCareerComponentAffinity(careerId: string, componentId: string): Promise<CareerComponentAffinity | undefined>;
   getCareerComponentAffinitiesByComponent(componentId: string): Promise<CareerComponentAffinity[]>;
   getCareerComponentAffinitiesByCareer(careerId: string): Promise<CareerComponentAffinity[]>;
@@ -330,6 +331,7 @@ export interface IStorage {
   getCountryPrioritySectorsByCountry(countryId: string): Promise<CountryPrioritySector[]>;
   createOrUpdateCountryPrioritySector(countryId: string, name: string, displayOrder: number, description?: string): Promise<CountryPrioritySector>;
   createOrUpdateCountrySectorWefSkill(sectorId: string, wefSkillId: string, importance: number): Promise<CountrySectorWefSkill>;
+  deleteCountrySectorWefSkillsNotIn(sectorId: string, keepWefSkillIds: string[]): Promise<number>;
   createOrUpdateSectorCategoryRule(sectorId: string, careerCategory: string, relevance: number, notes?: string): Promise<CountrySectorCategory>;
   createOrUpdateSectorCareerOverride(sectorId: string, careerId: string, relevance: number, notes?: string): Promise<CountrySectorCategory>;
   getSectorCategoryMap(countryId: string): Promise<SectorCategoryRow[]>;
@@ -1551,6 +1553,31 @@ export class DatabaseStorage implements IStorage {
     return affinity;
   }
 
+  /**
+   * Idempotent write, keyed on (career_id, component_id).
+   *
+   * The seed re-runs on every boot, so a plain INSERT here appended a duplicate
+   * row per career per boot — the table had no unique constraint until
+   * migration 010, so the loop's `catch (23505)` guarded a violation that could
+   * never be raised. This is the fix, and it mirrors
+   * createOrUpdateCareerWefSkillAffinity, whose table has had its unique index
+   * from the start and never duplicated.
+   *
+   * Requires career_component_affinity_unique_idx (migration 010) as its
+   * ON CONFLICT target.
+   */
+  async createOrUpdateCareerComponentAffinity(affinityData: InsertCareerComponentAffinity): Promise<CareerComponentAffinity> {
+    const [affinity] = await db
+      .insert(careerComponentAffinities)
+      .values(affinityData)
+      .onConflictDoUpdate({
+        target: [careerComponentAffinities.careerId, careerComponentAffinities.componentId],
+        set: { affinityData: affinityData.affinityData, updatedAt: new Date() },
+      })
+      .returning();
+    return affinity;
+  }
+
   async getCareerComponentAffinity(careerId: string, componentId: string): Promise<CareerComponentAffinity | undefined> {
     const [affinity] = await db
       .select()
@@ -1957,6 +1984,31 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
     return mapping;
+  }
+
+  /**
+   * Remove sector→skill rows for skills the seed vector no longer lists.
+   *
+   * createOrUpdateCountrySectorWefSkill is an upsert, so it can ADD a skill to a
+   * sector and CHANGE an importance, but it can never REMOVE one — exactly the
+   * same shape of gap as the sector-rename problem applySectorRenames exists to
+   * close. Without this, dropping a skill from a vector in server/seed.ts is a
+   * no-op on every database that has already been seeded: the stale row keeps
+   * its importance and keeps contributing to skillAlignment, so the vector the
+   * code describes and the vector the scorer uses quietly diverge.
+   *
+   * Phase 3 stage 3 is the first change that removes skills (Healthcare drops
+   * Critical Thinking and Persistence and Grit; Education & Human Capital drops
+   * Creativity), which is what surfaced this.
+   */
+  async deleteCountrySectorWefSkillsNotIn(sectorId: string, keepWefSkillIds: string[]): Promise<number> {
+    const result = keepWefSkillIds.length
+      ? await db.delete(countrySectorWefSkills).where(and(
+          eq(countrySectorWefSkills.sectorId, sectorId),
+          notInArray(countrySectorWefSkills.wefSkillId, keepWefSkillIds),
+        ))
+      : await db.delete(countrySectorWefSkills).where(eq(countrySectorWefSkills.sectorId, sectorId));
+    return result.rowCount ?? 0;
   }
 
   /**

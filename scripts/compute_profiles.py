@@ -14,6 +14,9 @@ import sys, os, json
 CACHE = "onet_cache"
 
 CAREERS = {  # soc -> label (full 37, mirrors scripts/parse-onet-values.ts crosswalk)
+    # Phase 3 step 1 - Space & Future Sciences careers.
+    "17-2011.00": "Aerospace Engineer",
+    "19-2011.00": "Space Scientist (Astrophysicist)",
     "15-1252.00": "Software Engineer", "15-2051.01": "Data Scientist",
     "17-2199.03": "Renewable Energy Engineer", "29-1141.00": "Healthcare Professional (Nurse)",
     "13-1161.00": "Digital Marketing Specialist", "27-1024.00": "Graphic Designer",

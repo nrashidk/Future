@@ -1,7 +1,7 @@
 {
-  "generatedAt": "2026-08-29",
+  "generatedAt": "2026-09-02",
   "source": "O*NET 30.0 database, \"Work Values.txt\", EX scale (874 rated occupations)",
-  "scale": "RESCALED — raw (value-1)/(7-1)*100 per O*NET work value, then per-domain min-max rescaled to 0-100 across this country's 37-career catalog",
+  "scale": "RESCALED — raw (value-1)/(7-1)*100 per O*NET work value, then per-domain min-max rescaled to 0-100 across this country's 68-career catalog",
   "scaleWarning": "A rescaled value is a CATALOG-RELATIVE position, not an occupational fact. security=0 means \"lowest security emphasis in this catalog\", not \"no security\". Bounds are catalog-scoped: adding or removing a career changes every other career's profile — regenerate whole, never edit a row.",
   "domains": [
     "achievement",
@@ -12,11 +12,11 @@
   ],
   "rescaleBounds": {
     "achievement": {
-      "min": 56,
+      "min": 50,
       "max": 89
     },
     "benevolence": {
-      "min": 33,
+      "min": 22,
       "max": 100
     },
     "self_direction": {
@@ -25,10 +25,10 @@
     },
     "security": {
       "min": 35,
-      "max": 76
+      "max": 85
     },
     "power": {
-      "min": 45,
+      "min": 39,
       "max": 89
     }
   },
@@ -38,14 +38,14 @@
       "career": "Entrepreneur",
       "onetCode": "11-1021.00",
       "onetTitle": "General and Operations Managers",
-      "issue": "Crosswalked to General and Operations Managers, an acknowledged proxy. That occupation's O*NET Relationships rating is 6.33, giving benevolence 89 raw / 84 rescaled — so a benevolence-heavy student is told entrepreneurship fits their caring values (ranks #8 of 37 for the PRIMARY helper probe). The rating is accurate for operations managers, who do supervise and develop staff; the PROXY is what is wrong, not the arithmetic.",
+      "issue": "Crosswalked to General and Operations Managers, an acknowledged proxy. That occupation's O*NET Relationships rating is 6.33, giving benevolence 89 raw / 86 rescaled — so a benevolence-heavy student is told entrepreneurship fits their caring values (ranks #11 of 68 for the PRIMARY helper probe). The rating is accurate for operations managers, who do supervise and develop staff; the PROXY is what is wrong, not the arithmetic.",
       "decision": "KEPT for now. Flagged, deliberately not hand-authored. Re-crosswalking is a separate decision.",
       "producedProfile": {
-        "achievement": 48,
-        "benevolence": 84,
+        "achievement": 56,
+        "benevolence": 86,
         "self_direction": 76,
-        "security": 90,
-        "power": 75
+        "security": 74,
+        "power": 78
       }
     }
   ],
@@ -57,11 +57,11 @@
       "crosswalkCode": "15-1252.00",
       "substituted": true,
       "valuesProfile": {
-        "achievement": 67,
-        "benevolence": 34,
+        "achievement": 72,
+        "benevolence": 44,
         "self_direction": 66,
-        "security": 68,
-        "power": 75
+        "security": 56,
+        "power": 78
       },
       "rawProfile": {
         "achievement": 78,
@@ -76,11 +76,11 @@
       "onetCode": "15-2051.01",
       "onetTitle": "Business Intelligence Analysts",
       "valuesProfile": {
-        "achievement": 67,
-        "benevolence": 0,
+        "achievement": 72,
+        "benevolence": 14,
         "self_direction": 0,
-        "security": 56,
-        "power": 11
+        "security": 46,
+        "power": 22
       },
       "rawProfile": {
         "achievement": 78,
@@ -95,11 +95,11 @@
       "onetCode": "17-2199.03",
       "onetTitle": "Energy Engineers, Except Wind and Solar",
       "valuesProfile": {
-        "achievement": 48,
-        "benevolence": 25,
+        "achievement": 56,
+        "benevolence": 36,
         "self_direction": 54,
-        "security": 80,
-        "power": 50
+        "security": 66,
+        "power": 56
       },
       "rawProfile": {
         "achievement": 72,
@@ -114,11 +114,11 @@
       "onetCode": "29-1141.00",
       "onetTitle": "Registered Nurses",
       "valuesProfile": {
-        "achievement": 48,
-        "benevolence": 84,
+        "achievement": 56,
+        "benevolence": 86,
         "self_direction": 54,
-        "security": 95,
-        "power": 36
+        "security": 78,
+        "power": 44
       },
       "rawProfile": {
         "achievement": 72,
@@ -133,11 +133,11 @@
       "onetCode": "13-1161.00",
       "onetTitle": "Market Research Analysts and Marketing Specialists",
       "valuesProfile": {
-        "achievement": 15,
-        "benevolence": 9,
+        "achievement": 28,
+        "benevolence": 22,
         "self_direction": 10,
-        "security": 51,
-        "power": 0
+        "security": 42,
+        "power": 12
       },
       "rawProfile": {
         "achievement": 61,
@@ -152,11 +152,11 @@
       "onetCode": "27-1024.00",
       "onetTitle": "Graphic Designers",
       "valuesProfile": {
-        "achievement": 67,
-        "benevolence": 25,
+        "achievement": 72,
+        "benevolence": 36,
         "self_direction": 54,
-        "security": 46,
-        "power": 36
+        "security": 38,
+        "power": 44
       },
       "rawProfile": {
         "achievement": 78,
@@ -171,11 +171,11 @@
       "onetCode": "17-2141.00",
       "onetTitle": "Mechanical Engineers",
       "valuesProfile": {
-        "achievement": 48,
-        "benevolence": 42,
+        "achievement": 56,
+        "benevolence": 50,
         "self_direction": 54,
-        "security": 73,
-        "power": 75
+        "security": 60,
+        "power": 78
       },
       "rawProfile": {
         "achievement": 72,
@@ -192,11 +192,11 @@
       "crosswalkCode": "13-2051.00",
       "substituted": true,
       "valuesProfile": {
-        "achievement": 33,
-        "benevolence": 34,
+        "achievement": 44,
+        "benevolence": 44,
         "self_direction": 54,
-        "security": 63,
-        "power": 50
+        "security": 52,
+        "power": 56
       },
       "rawProfile": {
         "achievement": 67,
@@ -211,11 +211,11 @@
       "onetCode": "25-2031.00",
       "onetTitle": "Secondary School Teachers, Except Special and Career/Technical Education",
       "valuesProfile": {
-        "achievement": 67,
+        "achievement": 72,
         "benevolence": 100,
         "self_direction": 44,
-        "security": 78,
-        "power": 11
+        "security": 64,
+        "power": 22
       },
       "rawProfile": {
         "achievement": 78,
@@ -230,11 +230,11 @@
       "onetCode": "19-2041.00",
       "onetTitle": "Environmental Scientists and Specialists, Including Health",
       "valuesProfile": {
-        "achievement": 33,
-        "benevolence": 25,
+        "achievement": 44,
+        "benevolence": 36,
         "self_direction": 44,
-        "security": 44,
-        "power": 50
+        "security": 36,
+        "power": 56
       },
       "rawProfile": {
         "achievement": 67,
@@ -249,11 +249,11 @@
       "onetCode": "17-2051.00",
       "onetTitle": "Civil Engineers",
       "valuesProfile": {
-        "achievement": 48,
-        "benevolence": 25,
+        "achievement": 56,
+        "benevolence": 36,
         "self_direction": 76,
-        "security": 80,
-        "power": 61
+        "security": 66,
+        "power": 66
       },
       "rawProfile": {
         "achievement": 72,
@@ -268,11 +268,11 @@
       "onetCode": "17-1011.00",
       "onetTitle": "Architects, Except Landscape and Naval",
       "valuesProfile": {
-        "achievement": 67,
-        "benevolence": 18,
+        "achievement": 72,
+        "benevolence": 29,
         "self_direction": 76,
-        "security": 73,
-        "power": 75
+        "security": 60,
+        "power": 78
       },
       "rawProfile": {
         "achievement": 78,
@@ -287,11 +287,11 @@
       "onetCode": "17-2071.00",
       "onetTitle": "Electrical Engineers",
       "valuesProfile": {
-        "achievement": 67,
-        "benevolence": 34,
+        "achievement": 72,
+        "benevolence": 44,
         "self_direction": 54,
-        "security": 73,
-        "power": 61
+        "security": 60,
+        "power": 66
       },
       "rawProfile": {
         "achievement": 78,
@@ -306,11 +306,11 @@
       "onetCode": "17-2031.00",
       "onetTitle": "Bioengineers and Biomedical Engineers",
       "valuesProfile": {
-        "achievement": 48,
-        "benevolence": 51,
+        "achievement": 56,
+        "benevolence": 58,
         "self_direction": 76,
-        "security": 83,
-        "power": 50
+        "security": 68,
+        "power": 56
       },
       "rawProfile": {
         "achievement": 72,
@@ -325,11 +325,11 @@
       "onetCode": "29-1051.00",
       "onetTitle": "Pharmacists",
       "valuesProfile": {
-        "achievement": 15,
-        "benevolence": 51,
+        "achievement": 28,
+        "benevolence": 58,
         "self_direction": 32,
-        "security": 78,
-        "power": 75
+        "security": 64,
+        "power": 78
       },
       "rawProfile": {
         "achievement": 61,
@@ -345,9 +345,9 @@
       "onetTitle": "Family Medicine Physicians",
       "valuesProfile": {
         "achievement": 100,
-        "benevolence": 93,
+        "benevolence": 94,
         "self_direction": 88,
-        "security": 98,
+        "security": 80,
         "power": 100
       },
       "rawProfile": {
@@ -363,11 +363,11 @@
       "onetCode": "29-1021.00",
       "onetTitle": "Dentists, General",
       "valuesProfile": {
-        "achievement": 82,
-        "benevolence": 75,
+        "achievement": 85,
+        "benevolence": 78,
         "self_direction": 100,
-        "security": 61,
-        "power": 75
+        "security": 50,
+        "power": 78
       },
       "rawProfile": {
         "achievement": 83,
@@ -382,11 +382,11 @@
       "onetCode": "29-1123.00",
       "onetTitle": "Physical Therapists",
       "valuesProfile": {
-        "achievement": 67,
-        "benevolence": 93,
+        "achievement": 72,
+        "benevolence": 94,
         "self_direction": 54,
-        "security": 78,
-        "power": 75
+        "security": 64,
+        "power": 78
       },
       "rawProfile": {
         "achievement": 78,
@@ -401,11 +401,11 @@
       "onetCode": "19-3033.00",
       "onetTitle": "Clinical and Counseling Psychologists",
       "valuesProfile": {
-        "achievement": 76,
+        "achievement": 79,
         "benevolence": 96,
         "self_direction": 76,
-        "security": 56,
-        "power": 61
+        "security": 46,
+        "power": 66
       },
       "rawProfile": {
         "achievement": 81,
@@ -420,11 +420,11 @@
       "onetCode": "21-1022.00",
       "onetTitle": "Healthcare Social Workers",
       "valuesProfile": {
-        "achievement": 67,
-        "benevolence": 93,
+        "achievement": 72,
+        "benevolence": 94,
         "self_direction": 66,
-        "security": 78,
-        "power": 25
+        "security": 64,
+        "power": 34
       },
       "rawProfile": {
         "achievement": 78,
@@ -439,10 +439,10 @@
       "onetCode": "23-1011.00",
       "onetTitle": "Lawyers",
       "valuesProfile": {
-        "achievement": 82,
-        "benevolence": 25,
+        "achievement": 85,
+        "benevolence": 36,
         "self_direction": 76,
-        "security": 83,
+        "security": 68,
         "power": 100
       },
       "rawProfile": {
@@ -458,11 +458,11 @@
       "onetCode": "13-2011.00",
       "onetTitle": "Accountants and Auditors",
       "valuesProfile": {
-        "achievement": 33,
-        "benevolence": 42,
+        "achievement": 44,
+        "benevolence": 50,
         "self_direction": 44,
-        "security": 61,
-        "power": 36
+        "security": 50,
+        "power": 44
       },
       "rawProfile": {
         "achievement": 67,
@@ -477,11 +477,11 @@
       "onetCode": "11-3121.00",
       "onetTitle": "Human Resources Managers",
       "valuesProfile": {
-        "achievement": 48,
-        "benevolence": 75,
+        "achievement": 56,
+        "benevolence": 78,
         "self_direction": 44,
-        "security": 71,
-        "power": 75
+        "security": 58,
+        "power": 78
       },
       "rawProfile": {
         "achievement": 72,
@@ -496,11 +496,11 @@
       "onetCode": "13-1111.00",
       "onetTitle": "Management Analysts",
       "valuesProfile": {
-        "achievement": 48,
-        "benevolence": 75,
+        "achievement": 56,
+        "benevolence": 78,
         "self_direction": 54,
-        "security": 54,
-        "power": 50
+        "security": 44,
+        "power": 56
       },
       "rawProfile": {
         "achievement": 72,
@@ -516,11 +516,11 @@
       "onetTitle": "General and Operations Managers",
       "knownLimitation": true,
       "valuesProfile": {
-        "achievement": 48,
-        "benevolence": 84,
+        "achievement": 56,
+        "benevolence": 86,
         "self_direction": 76,
-        "security": 90,
-        "power": 75
+        "security": 74,
+        "power": 78
       },
       "rawProfile": {
         "achievement": 72,
@@ -535,11 +535,11 @@
       "onetCode": "11-2022.00",
       "onetTitle": "Sales Managers",
       "valuesProfile": {
-        "achievement": 48,
-        "benevolence": 25,
+        "achievement": 56,
+        "benevolence": 36,
         "self_direction": 66,
-        "security": 95,
-        "power": 36
+        "security": 78,
+        "power": 44
       },
       "rawProfile": {
         "achievement": 72,
@@ -554,11 +554,11 @@
       "onetCode": "11-2021.00",
       "onetTitle": "Marketing Managers",
       "valuesProfile": {
-        "achievement": 82,
-        "benevolence": 67,
+        "achievement": 85,
+        "benevolence": 72,
         "self_direction": 66,
-        "security": 100,
-        "power": 61
+        "security": 82,
+        "power": 66
       },
       "rawProfile": {
         "achievement": 83,
@@ -575,11 +575,11 @@
       "crosswalkCode": "13-1082.00",
       "substituted": true,
       "valuesProfile": {
-        "achievement": 82,
-        "benevolence": 9,
+        "achievement": 85,
+        "benevolence": 22,
         "self_direction": 66,
-        "security": 46,
-        "power": 50
+        "security": 38,
+        "power": 56
       },
       "rawProfile": {
         "achievement": 83,
@@ -596,11 +596,11 @@
       "crosswalkCode": "15-1255.01",
       "corrected": true,
       "valuesProfile": {
-        "achievement": 33,
-        "benevolence": 51,
+        "achievement": 44,
+        "benevolence": 58,
         "self_direction": 32,
-        "security": 56,
-        "power": 36
+        "security": 46,
+        "power": 44
       },
       "rawProfile": {
         "achievement": 67,
@@ -617,11 +617,11 @@
       "crosswalkCode": "27-1014.00",
       "corrected": true,
       "valuesProfile": {
-        "achievement": 82,
-        "benevolence": 0,
+        "achievement": 85,
+        "benevolence": 14,
         "self_direction": 76,
-        "security": 54,
-        "power": 25
+        "security": 44,
+        "power": 34
       },
       "rawProfile": {
         "achievement": 83,
@@ -636,11 +636,11 @@
       "onetCode": "27-3023.00",
       "onetTitle": "News Analysts, Reporters, and Journalists",
       "valuesProfile": {
-        "achievement": 67,
-        "benevolence": 46,
+        "achievement": 72,
+        "benevolence": 54,
         "self_direction": 50,
-        "security": 46,
-        "power": 68
+        "security": 38,
+        "power": 72
       },
       "rawProfile": {
         "achievement": 78,
@@ -655,11 +655,11 @@
       "onetCode": "27-3043.00",
       "onetTitle": "Writers and Authors",
       "valuesProfile": {
-        "achievement": 33,
-        "benevolence": 25,
+        "achievement": 44,
+        "benevolence": 36,
         "self_direction": 0,
-        "security": 46,
-        "power": 0
+        "security": 38,
+        "power": 12
       },
       "rawProfile": {
         "achievement": 67,
@@ -674,11 +674,11 @@
       "onetCode": "27-4021.00",
       "onetTitle": "Photographers",
       "valuesProfile": {
-        "achievement": 0,
-        "benevolence": 42,
+        "achievement": 15,
+        "benevolence": 50,
         "self_direction": 44,
         "security": 0,
-        "power": 0
+        "power": 12
       },
       "rawProfile": {
         "achievement": 56,
@@ -693,11 +693,11 @@
       "onetCode": "35-1011.00",
       "onetTitle": "Chefs and Head Cooks",
       "valuesProfile": {
-        "achievement": 33,
-        "benevolence": 42,
+        "achievement": 44,
+        "benevolence": 50,
         "self_direction": 76,
-        "security": 39,
-        "power": 61
+        "security": 32,
+        "power": 66
       },
       "rawProfile": {
         "achievement": 67,
@@ -712,11 +712,11 @@
       "onetCode": "27-1022.00",
       "onetTitle": "Fashion Designers",
       "valuesProfile": {
-        "achievement": 67,
-        "benevolence": 25,
+        "achievement": 72,
+        "benevolence": 36,
         "self_direction": 54,
-        "security": 22,
-        "power": 36
+        "security": 18,
+        "power": 44
       },
       "rawProfile": {
         "achievement": 78,
@@ -731,11 +731,11 @@
       "onetCode": "27-1025.00",
       "onetTitle": "Interior Designers",
       "valuesProfile": {
-        "achievement": 67,
-        "benevolence": 51,
+        "achievement": 72,
+        "benevolence": 58,
         "self_direction": 66,
-        "security": 12,
-        "power": 25
+        "security": 10,
+        "power": 34
       },
       "rawProfile": {
         "achievement": 78,
@@ -750,17 +750,606 @@
       "onetCode": "15-1254.00",
       "onetTitle": "Web Developers",
       "valuesProfile": {
-        "achievement": 33,
-        "benevolence": 25,
+        "achievement": 44,
+        "benevolence": 36,
         "self_direction": 66,
-        "security": 71,
-        "power": 50
+        "security": 58,
+        "power": 56
       },
       "rawProfile": {
         "achievement": 67,
         "benevolence": 50,
         "self_direction": 78,
         "security": 64,
+        "power": 67
+      }
+    },
+    {
+      "title": "Aerospace Engineer",
+      "onetCode": "17-2011.00",
+      "onetTitle": "Aerospace Engineers",
+      "valuesProfile": {
+        "achievement": 44,
+        "benevolence": 44,
+        "self_direction": 54,
+        "security": 72,
+        "power": 66
+      },
+      "rawProfile": {
+        "achievement": 67,
+        "benevolence": 56,
+        "self_direction": 72,
+        "security": 71,
+        "power": 72
+      }
+    },
+    {
+      "title": "Space Scientist (Astrophysicist)",
+      "onetCode": "19-2011.00",
+      "onetTitle": "Astronomers",
+      "valuesProfile": {
+        "achievement": 85,
+        "benevolence": 0,
+        "self_direction": 66,
+        "security": 28,
+        "power": 78
+      },
+      "rawProfile": {
+        "achievement": 83,
+        "benevolence": 22,
+        "self_direction": 78,
+        "security": 49,
+        "power": 78
+      }
+    },
+    {
+      "title": "Cybersecurity Analyst",
+      "onetCode": "15-1212.00",
+      "onetTitle": "Information Security Analysts",
+      "valuesProfile": {
+        "achievement": 28,
+        "benevolence": 44,
+        "self_direction": 54,
+        "security": 80,
+        "power": 34
+      },
+      "rawProfile": {
+        "achievement": 61,
+        "benevolence": 56,
+        "self_direction": 72,
+        "security": 75,
+        "power": 56
+      }
+    },
+    {
+      "title": "AI Research Scientist",
+      "onetCode": "15-1221.00",
+      "onetTitle": "Computer and Information Research Scientists",
+      "valuesProfile": {
+        "achievement": 72,
+        "benevolence": 29,
+        "self_direction": 54,
+        "security": 70,
+        "power": 66
+      },
+      "rawProfile": {
+        "achievement": 78,
+        "benevolence": 45,
+        "self_direction": 72,
+        "security": 70,
+        "power": 72
+      }
+    },
+    {
+      "title": "Robotics Engineer",
+      "onetCode": "17-2199.08",
+      "onetTitle": "Robotics Engineers",
+      "valuesProfile": {
+        "achievement": 56,
+        "benevolence": 22,
+        "self_direction": 66,
+        "security": 74,
+        "power": 56
+      },
+      "rawProfile": {
+        "achievement": 72,
+        "benevolence": 39,
+        "self_direction": 78,
+        "security": 72,
+        "power": 67
+      }
+    },
+    {
+      "title": "Nuclear Engineer",
+      "onetCode": "17-2161.00",
+      "onetTitle": "Nuclear Engineers",
+      "valuesProfile": {
+        "achievement": 72,
+        "benevolence": 0,
+        "self_direction": 44,
+        "security": 72,
+        "power": 78
+      },
+      "rawProfile": {
+        "achievement": 78,
+        "benevolence": 22,
+        "self_direction": 67,
+        "security": 71,
+        "power": 78
+      }
+    },
+    {
+      "title": "Chemical Engineer",
+      "onetCode": "17-2041.00",
+      "onetTitle": "Chemical Engineers",
+      "valuesProfile": {
+        "achievement": 56,
+        "benevolence": 36,
+        "self_direction": 54,
+        "security": 52,
+        "power": 78
+      },
+      "rawProfile": {
+        "achievement": 72,
+        "benevolence": 50,
+        "self_direction": 72,
+        "security": 61,
+        "power": 78
+      }
+    },
+    {
+      "title": "Risk & Compliance Officer",
+      "onetCode": "13-1041.00",
+      "onetTitle": "Compliance Officers",
+      "valuesProfile": {
+        "achievement": 0,
+        "benevolence": 58,
+        "self_direction": 32,
+        "security": 42,
+        "power": 0
+      },
+      "rawProfile": {
+        "achievement": 50,
+        "benevolence": 67,
+        "self_direction": 61,
+        "security": 56,
+        "power": 39
+      }
+    },
+    {
+      "title": "Geneticist",
+      "onetCode": "19-1029.03",
+      "onetTitle": "Geneticists",
+      "valuesProfile": {
+        "achievement": 72,
+        "benevolence": 29,
+        "self_direction": 66,
+        "security": 42,
+        "power": 88
+      },
+      "rawProfile": {
+        "achievement": 78,
+        "benevolence": 45,
+        "self_direction": 78,
+        "security": 56,
+        "power": 83
+      }
+    },
+    {
+      "title": "Health Informatics Specialist",
+      "onetCode": "15-1211.01",
+      "onetTitle": "Health Informatics Specialists",
+      "valuesProfile": {
+        "achievement": 44,
+        "benevolence": 50,
+        "self_direction": 44,
+        "security": 56,
+        "power": 44
+      },
+      "rawProfile": {
+        "achievement": 67,
+        "benevolence": 61,
+        "self_direction": 67,
+        "security": 63,
+        "power": 61
+      }
+    },
+    {
+      "title": "Hospitality Manager",
+      "onetCode": "11-9081.00",
+      "onetTitle": "Lodging Managers",
+      "valuesProfile": {
+        "achievement": 44,
+        "benevolence": 100,
+        "self_direction": 76,
+        "security": 32,
+        "power": 34
+      },
+      "rawProfile": {
+        "achievement": 67,
+        "benevolence": 100,
+        "self_direction": 83,
+        "security": 51,
+        "power": 56
+      }
+    },
+    {
+      "title": "Tourism & Events Manager",
+      "onetCode": "13-1121.00",
+      "onetTitle": "Meeting, Convention, and Event Planners",
+      "valuesProfile": {
+        "achievement": 44,
+        "benevolence": 86,
+        "self_direction": 54,
+        "security": 32,
+        "power": 56
+      },
+      "rawProfile": {
+        "achievement": 67,
+        "benevolence": 89,
+        "self_direction": 72,
+        "security": 51,
+        "power": 67
+      }
+    },
+    {
+      "title": "Airline Pilot",
+      "onetCode": "53-2011.00",
+      "onetTitle": "Airline Pilots, Copilots, and Flight Engineers",
+      "valuesProfile": {
+        "achievement": 72,
+        "benevolence": 58,
+        "self_direction": 88,
+        "security": 100,
+        "power": 78
+      },
+      "rawProfile": {
+        "achievement": 78,
+        "benevolence": 67,
+        "self_direction": 89,
+        "security": 85,
+        "power": 78
+      }
+    },
+    {
+      "title": "Agricultural Scientist (Agronomist)",
+      "onetCode": "19-1013.00",
+      "onetTitle": "Soil and Plant Scientists",
+      "valuesProfile": {
+        "achievement": 85,
+        "benevolence": 36,
+        "self_direction": 66,
+        "security": 36,
+        "power": 66
+      },
+      "rawProfile": {
+        "achievement": 83,
+        "benevolence": 50,
+        "self_direction": 78,
+        "security": 53,
+        "power": 72
+      }
+    },
+    {
+      "title": "Food Technologist",
+      "onetCode": "19-1012.00",
+      "onetTitle": "Food Scientists and Technologists",
+      "valuesProfile": {
+        "achievement": 44,
+        "benevolence": 44,
+        "self_direction": 22,
+        "security": 56,
+        "power": 44
+      },
+      "rawProfile": {
+        "achievement": 67,
+        "benevolence": 56,
+        "self_direction": 56,
+        "security": 63,
+        "power": 61
+      }
+    },
+    {
+      "title": "Agricultural Engineer",
+      "onetCode": "17-2021.00",
+      "onetTitle": "Agricultural Engineers",
+      "valuesProfile": {
+        "achievement": 56,
+        "benevolence": 22,
+        "self_direction": 66,
+        "security": 52,
+        "power": 44
+      },
+      "rawProfile": {
+        "achievement": 72,
+        "benevolence": 39,
+        "self_direction": 78,
+        "security": 61,
+        "power": 61
+      }
+    },
+    {
+      "title": "Satellite & Remote Sensing Scientist",
+      "onetCode": "19-2099.01",
+      "onetTitle": "Remote Sensing Scientists and Technologists",
+      "valuesProfile": {
+        "achievement": 72,
+        "benevolence": 36,
+        "self_direction": 54,
+        "security": 52,
+        "power": 66
+      },
+      "rawProfile": {
+        "achievement": 78,
+        "benevolence": 50,
+        "self_direction": 72,
+        "security": 61,
+        "power": 72
+      }
+    },
+    {
+      "title": "Film & TV Producer",
+      "onetCode": "27-2012.00",
+      "onetTitle": "Producers and Directors",
+      "valuesProfile": {
+        "achievement": 79,
+        "benevolence": 62,
+        "self_direction": 88,
+        "security": 28,
+        "power": 88
+      },
+      "rawProfile": {
+        "achievement": 81,
+        "benevolence": 70,
+        "self_direction": 89,
+        "security": 49,
+        "power": 83
+      }
+    },
+    {
+      "title": "Data Engineer",
+      "onetCode": "15-1243.00",
+      "onetTitle": "Database Architects",
+      "valuesProfile": {
+        "achievement": 85,
+        "benevolence": 8,
+        "self_direction": 54,
+        "security": 46,
+        "power": 34
+      },
+      "rawProfile": {
+        "achievement": 83,
+        "benevolence": 28,
+        "self_direction": 72,
+        "security": 58,
+        "power": 56
+      }
+    },
+    {
+      "title": "Atmospheric & Space Scientist",
+      "onetCode": "19-2021.00",
+      "onetTitle": "Atmospheric and Space Scientists",
+      "valuesProfile": {
+        "achievement": 56,
+        "benevolence": 58,
+        "self_direction": 44,
+        "security": 30,
+        "power": 44
+      },
+      "rawProfile": {
+        "achievement": 72,
+        "benevolence": 67,
+        "self_direction": 67,
+        "security": 50,
+        "power": 61
+      }
+    },
+    {
+      "title": "Physicist",
+      "onetCode": "19-2012.00",
+      "onetTitle": "Physicists",
+      "valuesProfile": {
+        "achievement": 85,
+        "benevolence": 8,
+        "self_direction": 76,
+        "security": 60,
+        "power": 100
+      },
+      "rawProfile": {
+        "achievement": 83,
+        "benevolence": 28,
+        "self_direction": 83,
+        "security": 65,
+        "power": 89
+      }
+    },
+    {
+      "title": "Environmental Engineer",
+      "onetCode": "17-2081.00",
+      "onetTitle": "Environmental Engineers",
+      "valuesProfile": {
+        "achievement": 72,
+        "benevolence": 44,
+        "self_direction": 44,
+        "security": 64,
+        "power": 78
+      },
+      "rawProfile": {
+        "achievement": 78,
+        "benevolence": 56,
+        "self_direction": 67,
+        "security": 67,
+        "power": 78
+      }
+    },
+    {
+      "title": "Actuary",
+      "onetCode": "15-2011.00",
+      "onetTitle": "Actuaries",
+      "valuesProfile": {
+        "achievement": 28,
+        "benevolence": 29,
+        "self_direction": 32,
+        "security": 52,
+        "power": 34
+      },
+      "rawProfile": {
+        "achievement": 61,
+        "benevolence": 45,
+        "self_direction": 61,
+        "security": 61,
+        "power": 56
+      }
+    },
+    {
+      "title": "Investment & Financial Manager",
+      "onetCode": "11-3031.00",
+      "onetTitle": "Financial Managers",
+      "valuesProfile": {
+        "achievement": 56,
+        "benevolence": 58,
+        "self_direction": 76,
+        "security": 80,
+        "power": 78
+      },
+      "rawProfile": {
+        "achievement": 72,
+        "benevolence": 67,
+        "self_direction": 83,
+        "security": 75,
+        "power": 78
+      }
+    },
+    {
+      "title": "Primary School Teacher",
+      "onetCode": "25-2021.00",
+      "onetTitle": "Elementary School Teachers, Except Special Education",
+      "valuesProfile": {
+        "achievement": 72,
+        "benevolence": 86,
+        "self_direction": 54,
+        "security": 64,
+        "power": 34
+      },
+      "rawProfile": {
+        "achievement": 78,
+        "benevolence": 89,
+        "self_direction": 72,
+        "security": 67,
+        "power": 56
+      }
+    },
+    {
+      "title": "School Counsellor & Career Advisor",
+      "onetCode": "21-1012.00",
+      "onetTitle": "Educational, Guidance, and Career Counselors and Advisors",
+      "valuesProfile": {
+        "achievement": 56,
+        "benevolence": 100,
+        "self_direction": 32,
+        "security": 42,
+        "power": 44
+      },
+      "rawProfile": {
+        "achievement": 72,
+        "benevolence": 100,
+        "self_direction": 61,
+        "security": 56,
+        "power": 61
+      }
+    },
+    {
+      "title": "Curriculum & Instructional Designer",
+      "onetCode": "25-9031.00",
+      "onetTitle": "Instructional Coordinators",
+      "valuesProfile": {
+        "achievement": 72,
+        "benevolence": 78,
+        "self_direction": 76,
+        "security": 28,
+        "power": 44
+      },
+      "rawProfile": {
+        "achievement": 78,
+        "benevolence": 83,
+        "self_direction": 83,
+        "security": 49,
+        "power": 61
+      }
+    },
+    {
+      "title": "Cloud & Network Architect",
+      "onetCode": "15-1241.00",
+      "onetTitle": "Computer Network Architects",
+      "valuesProfile": {
+        "achievement": 85,
+        "benevolence": 8,
+        "self_direction": 54,
+        "security": 58,
+        "power": 34
+      },
+      "rawProfile": {
+        "achievement": 83,
+        "benevolence": 28,
+        "self_direction": 72,
+        "security": 64,
+        "power": 56
+      }
+    },
+    {
+      "title": "Industrial Engineer",
+      "onetCode": "17-2112.00",
+      "onetTitle": "Industrial Engineers",
+      "valuesProfile": {
+        "achievement": 56,
+        "benevolence": 29,
+        "self_direction": 66,
+        "security": 68,
+        "power": 78
+      },
+      "rawProfile": {
+        "achievement": 72,
+        "benevolence": 45,
+        "self_direction": 78,
+        "security": 69,
+        "power": 78
+      }
+    },
+    {
+      "title": "Video Editor",
+      "onetCode": "27-4032.00",
+      "onetTitle": "Film and Video Editors",
+      "valuesProfile": {
+        "achievement": 44,
+        "benevolence": 8,
+        "self_direction": 54,
+        "security": 16,
+        "power": 56
+      },
+      "rawProfile": {
+        "achievement": 67,
+        "benevolence": 28,
+        "self_direction": 72,
+        "security": 43,
+        "power": 67
+      }
+    },
+    {
+      "title": "Dietitian & Nutritionist",
+      "onetCode": "29-1031.00",
+      "onetTitle": "Dietitians and Nutritionists",
+      "valuesProfile": {
+        "achievement": 44,
+        "benevolence": 78,
+        "self_direction": 66,
+        "security": 42,
+        "power": 56
+      },
+      "rawProfile": {
+        "achievement": 67,
+        "benevolence": 83,
+        "self_direction": 78,
+        "security": 56,
         "power": 67
       }
     }

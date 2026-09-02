@@ -822,11 +822,25 @@ export const careerComponentAffinities = pgTable("career_component_affinities", 
   careerId: varchar("career_id").notNull().references(() => careers.id),
   componentId: varchar("component_id").notNull().references(() => assessmentComponents.id),
   affinityData: jsonb("affinity_data").notNull(), // Flexible structure depending on component type
-  // For RIASEC: { R: 45, I: 90, A: 40, S: 30, E: 35, C: 60 }
+  // For RIASEC: { R: 45, I: 90, A: 40, S: 30, E: 35, C: 60 } — ALL SIX themes
+  // live in this ONE row. There is no per-dimension row, so the natural key is
+  // (career_id, component_id) and nothing finer.
   // For others: can be null or custom structure
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => [
+  // ONE affinity row per career per component. Added in migration
+  // 010_career_component_affinities_unique.sql; before it this table had only a
+  // primary key on `id`, and the seed's RIASEC loop — an unconditional INSERT
+  // whose `catch` guarded a 23505 that could never fire — appended a duplicate
+  // row per career on EVERY boot. Staging had grown to 358 rows for 68 careers.
+  //
+  // This is also the ON CONFLICT target for
+  // storage.createOrUpdateCareerComponentAffinity(). Removing it silently
+  // re-opens the duplication AND breaks that upsert at runtime.
+  uniqueIndex("career_component_affinity_unique_idx").on(table.careerId, table.componentId),
+  index("career_component_affinity_component_idx").on(table.componentId),
+]);
 
 export const careerComponentAffinitiesRelations = relations(careerComponentAffinities, ({ one }) => ({
   career: one(careers, {

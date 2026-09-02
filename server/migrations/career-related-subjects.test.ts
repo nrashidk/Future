@@ -44,7 +44,7 @@ describe("CAREER_RELATED_SUBJECTS vs the seed.ts careers array", () => {
   const seeded = seededRelatedSubjects();
 
   it("parses the seed array (sanity check on the regex above)", () => {
-    expect(seeded.size).toBe(37);
+    expect(seeded.size).toBe(68); // 37 + Phase 3 step 1 (2 Space) + Phase 3 Stage 1 (29 derived)
   });
 
   it.each(CAREER_RELATED_SUBJECTS.map(c => [c.title, c] as const))(

@@ -1,5 +1,5 @@
 /**
- * Migration: Populate CVQ values profiles and O*NET codes for all 37 careers.
+ * Migration: Populate CVQ values profiles and O*NET codes for all 68 careers.
  * Uses career English title as the match key.
  *
  * GENERATED FILE - DO NOT HAND-EDIT.
@@ -19,32 +19,38 @@
  * SCALE WARNING - read before touching anything here
  * ---------------------------------------------------------------------------
  * These values are CATALOG-RELATIVE POSITIONS, NOT OCCUPATIONAL FACTS. Each domain
- * was min-max rescaled to 0-100 across THIS country's 37-career catalog, so
- * `security: 0` means "lowest security emphasis among these 37 careers", not
+ * was min-max rescaled to 0-100 across THIS country's 68-career catalog, so
+ * `security: 0` means "lowest security emphasis among these 68 careers", not
  * "this job has no security". Two careers 40 points apart are ranked, not measured.
  *
  * The bounds are catalog-scoped, which makes the whole table interdependent:
- * ADDING OR REMOVING ANY CAREER INVALIDATES ALL 37 PROFILES. When the catalog
+ * ADDING OR REMOVING ANY CAREER INVALIDATES ALL 68 PROFILES. When the catalog
  * changes, REGENERATE THE WHOLE FILE via scripts/generate-cvq-values-profiles.ts -
  * NEVER EDIT A ROW. Hand-editing one career silently desynchronises it from the
  * rescale bounds every other career was computed against.
  *
+ * PHASE 3 STAGE 1 REGENERATION (this file): the catalog went 37 -> 68 careers
+ * (docs/career-sourcing-map.md section 5; docs/phase3-stage1-done.md). Four of the
+ * ten rescale bounds moved, so ALL 37 pre-existing profiles were rewritten - mean
+ * shift 6.5 points, max 18. No raw O*NET value changed; only the catalog-relative
+ * frame did. That is the SCALE WARNING above behaving exactly as documented.
+ *
  * Rescale bounds used for this generation (raw O*NET EX-scale -> 0-100):
- *   achievement    min  56  max  89
- *   benevolence    min  33  max 100
+ *   achievement    min  50  max  89
+ *   benevolence    min  22  max 100
  *   self_direction min  45  max  95
- *   security       min  35  max  76
- *   power          min  45  max  89
+ *   security       min  35  max  85
+ *   power          min  39  max  89
  *
  * KNOWN LIMITATION (carried from the dataset, deliberately not hand-corrected):
  *   Entrepreneur is crosswalked to 11-1021.00 (General and Operations Managers), an acknowledged
  *   proxy. That occupation's O*NET Relationships rating yields benevolence
- *   84 rescaled, so a benevolence-led student sees entrepreneurship rank
+ *   86 rescaled, so a benevolence-led student sees entrepreneurship rank
  *   higher on caring values than the career warrants. The arithmetic is right; the
  *   PROXY is wrong. Re-crosswalking is a separate decision.
  *
  * Source: O*NET 30.0 database, "Work Values.txt", EX scale (874 rated occupations)
- * Generated at: 2026-08-29
+ * Generated at: 2026-09-02
  */
 
 import { db } from '../db';
@@ -69,189 +75,344 @@ export interface CareerValuesContent {
 
 export const CAREER_VALUES_PROFILES: CareerValuesContent[] = [
   {
-    title: 'Software Engineer',
+    title: "Software Engineer",
     onetCode: '15-1299.08',
-    valuesProfile: { achievement: 67, benevolence: 34, self_direction: 66, security: 68, power: 75 },
+    valuesProfile: { achievement: 72, benevolence: 44, self_direction: 66, security: 56, power: 78 },
   },
   {
-    title: 'Data Scientist',
+    title: "Data Scientist",
     onetCode: '15-2051.01',
-    valuesProfile: { achievement: 67, benevolence: 0, self_direction: 0, security: 56, power: 11 },
+    valuesProfile: { achievement: 72, benevolence: 14, self_direction: 0, security: 46, power: 22 },
   },
   {
-    title: 'Renewable Energy Engineer',
+    title: "Renewable Energy Engineer",
     onetCode: '17-2199.03',
-    valuesProfile: { achievement: 48, benevolence: 25, self_direction: 54, security: 80, power: 50 },
+    valuesProfile: { achievement: 56, benevolence: 36, self_direction: 54, security: 66, power: 56 },
   },
   {
-    title: 'Healthcare Professional (Nurse)',
+    title: "Healthcare Professional (Nurse)",
     onetCode: '29-1141.00',
-    valuesProfile: { achievement: 48, benevolence: 84, self_direction: 54, security: 95, power: 36 },
+    valuesProfile: { achievement: 56, benevolence: 86, self_direction: 54, security: 78, power: 44 },
   },
   {
-    title: 'Digital Marketing Specialist',
+    title: "Digital Marketing Specialist",
     onetCode: '13-1161.00',
-    valuesProfile: { achievement: 15, benevolence: 9, self_direction: 10, security: 51, power: 0 },
+    valuesProfile: { achievement: 28, benevolence: 22, self_direction: 10, security: 42, power: 12 },
   },
   {
-    title: 'Graphic Designer',
+    title: "Graphic Designer",
     onetCode: '27-1024.00',
-    valuesProfile: { achievement: 67, benevolence: 25, self_direction: 54, security: 46, power: 36 },
+    valuesProfile: { achievement: 72, benevolence: 36, self_direction: 54, security: 38, power: 44 },
   },
   {
-    title: 'Mechanical Engineer',
+    title: "Mechanical Engineer",
     onetCode: '17-2141.00',
-    valuesProfile: { achievement: 48, benevolence: 42, self_direction: 54, security: 73, power: 75 },
+    valuesProfile: { achievement: 56, benevolence: 50, self_direction: 54, security: 60, power: 78 },
   },
   {
-    title: 'Financial Analyst',
+    title: "Financial Analyst",
     onetCode: '13-2099.01',
-    valuesProfile: { achievement: 33, benevolence: 34, self_direction: 54, security: 63, power: 50 },
+    valuesProfile: { achievement: 44, benevolence: 44, self_direction: 54, security: 52, power: 56 },
   },
   {
-    title: 'Teacher (Secondary Education)',
+    title: "Teacher (Secondary Education)",
     onetCode: '25-2031.00',
-    valuesProfile: { achievement: 67, benevolence: 100, self_direction: 44, security: 78, power: 11 },
+    valuesProfile: { achievement: 72, benevolence: 100, self_direction: 44, security: 64, power: 22 },
   },
   {
-    title: 'Environmental Scientist',
+    title: "Environmental Scientist",
     onetCode: '19-2041.00',
-    valuesProfile: { achievement: 33, benevolence: 25, self_direction: 44, security: 44, power: 50 },
+    valuesProfile: { achievement: 44, benevolence: 36, self_direction: 44, security: 36, power: 56 },
   },
   {
-    title: 'Civil Engineer',
+    title: "Civil Engineer",
     onetCode: '17-2051.00',
-    valuesProfile: { achievement: 48, benevolence: 25, self_direction: 76, security: 80, power: 61 },
+    valuesProfile: { achievement: 56, benevolence: 36, self_direction: 76, security: 66, power: 66 },
   },
   {
-    title: 'Architect',
+    title: "Architect",
     onetCode: '17-1011.00',
-    valuesProfile: { achievement: 67, benevolence: 18, self_direction: 76, security: 73, power: 75 },
+    valuesProfile: { achievement: 72, benevolence: 29, self_direction: 76, security: 60, power: 78 },
   },
   {
-    title: 'Electrical Engineer',
+    title: "Electrical Engineer",
     onetCode: '17-2071.00',
-    valuesProfile: { achievement: 67, benevolence: 34, self_direction: 54, security: 73, power: 61 },
+    valuesProfile: { achievement: 72, benevolence: 44, self_direction: 54, security: 60, power: 66 },
   },
   {
-    title: 'Biomedical Engineer',
+    title: "Biomedical Engineer",
     onetCode: '17-2031.00',
-    valuesProfile: { achievement: 48, benevolence: 51, self_direction: 76, security: 83, power: 50 },
+    valuesProfile: { achievement: 56, benevolence: 58, self_direction: 76, security: 68, power: 56 },
   },
   {
-    title: 'Pharmacist',
+    title: "Pharmacist",
     onetCode: '29-1051.00',
-    valuesProfile: { achievement: 15, benevolence: 51, self_direction: 32, security: 78, power: 75 },
+    valuesProfile: { achievement: 28, benevolence: 58, self_direction: 32, security: 64, power: 78 },
   },
   {
-    title: 'Doctor (General Practitioner)',
+    title: "Doctor (General Practitioner)",
     onetCode: '29-1215.00',
-    valuesProfile: { achievement: 100, benevolence: 93, self_direction: 88, security: 98, power: 100 },
+    valuesProfile: { achievement: 100, benevolence: 94, self_direction: 88, security: 80, power: 100 },
   },
   {
-    title: 'Dentist',
+    title: "Dentist",
     onetCode: '29-1021.00',
-    valuesProfile: { achievement: 82, benevolence: 75, self_direction: 100, security: 61, power: 75 },
+    valuesProfile: { achievement: 85, benevolence: 78, self_direction: 100, security: 50, power: 78 },
   },
   {
-    title: 'Physical Therapist',
+    title: "Physical Therapist",
     onetCode: '29-1123.00',
-    valuesProfile: { achievement: 67, benevolence: 93, self_direction: 54, security: 78, power: 75 },
+    valuesProfile: { achievement: 72, benevolence: 94, self_direction: 54, security: 64, power: 78 },
   },
   {
-    title: 'Psychologist',
+    title: "Psychologist",
     onetCode: '19-3033.00',
-    valuesProfile: { achievement: 76, benevolence: 96, self_direction: 76, security: 56, power: 61 },
+    valuesProfile: { achievement: 79, benevolence: 96, self_direction: 76, security: 46, power: 66 },
   },
   {
-    title: 'Social Worker',
+    title: "Social Worker",
     onetCode: '21-1022.00',
-    valuesProfile: { achievement: 67, benevolence: 93, self_direction: 66, security: 78, power: 25 },
+    valuesProfile: { achievement: 72, benevolence: 94, self_direction: 66, security: 64, power: 34 },
   },
   {
-    title: 'Lawyer',
+    title: "Lawyer",
     onetCode: '23-1011.00',
-    valuesProfile: { achievement: 82, benevolence: 25, self_direction: 76, security: 83, power: 100 },
+    valuesProfile: { achievement: 85, benevolence: 36, self_direction: 76, security: 68, power: 100 },
   },
   {
-    title: 'Accountant',
+    title: "Accountant",
     onetCode: '13-2011.00',
-    valuesProfile: { achievement: 33, benevolence: 42, self_direction: 44, security: 61, power: 36 },
+    valuesProfile: { achievement: 44, benevolence: 50, self_direction: 44, security: 50, power: 44 },
   },
   {
-    title: 'Human Resources Manager',
+    title: "Human Resources Manager",
     onetCode: '11-3121.00',
-    valuesProfile: { achievement: 48, benevolence: 75, self_direction: 44, security: 71, power: 75 },
+    valuesProfile: { achievement: 56, benevolence: 78, self_direction: 44, security: 58, power: 78 },
   },
   {
-    title: 'Management Consultant',
+    title: "Management Consultant",
     onetCode: '13-1111.00',
-    valuesProfile: { achievement: 48, benevolence: 75, self_direction: 54, security: 54, power: 50 },
+    valuesProfile: { achievement: 56, benevolence: 78, self_direction: 54, security: 44, power: 56 },
   },
   {
-    title: 'Entrepreneur',
+    title: "Entrepreneur",
     onetCode: '11-1021.00',
-    valuesProfile: { achievement: 48, benevolence: 84, self_direction: 76, security: 90, power: 75 },
+    valuesProfile: { achievement: 56, benevolence: 86, self_direction: 76, security: 74, power: 78 },
   },
   {
-    title: 'Sales Manager',
+    title: "Sales Manager",
     onetCode: '11-2022.00',
-    valuesProfile: { achievement: 48, benevolence: 25, self_direction: 66, security: 95, power: 36 },
+    valuesProfile: { achievement: 56, benevolence: 36, self_direction: 66, security: 78, power: 44 },
   },
   {
-    title: 'Marketing Manager',
+    title: "Marketing Manager",
     onetCode: '11-2021.00',
-    valuesProfile: { achievement: 82, benevolence: 67, self_direction: 66, security: 100, power: 61 },
+    valuesProfile: { achievement: 85, benevolence: 72, self_direction: 66, security: 82, power: 66 },
   },
   {
-    title: 'Product Manager',
+    title: "Product Manager",
     onetCode: '15-1299.09',
-    valuesProfile: { achievement: 82, benevolence: 9, self_direction: 66, security: 46, power: 50 },
+    valuesProfile: { achievement: 85, benevolence: 22, self_direction: 66, security: 38, power: 56 },
   },
   {
-    title: 'UX/UI Designer',
+    title: "UX/UI Designer",
     onetCode: '27-1021.00',
-    valuesProfile: { achievement: 33, benevolence: 51, self_direction: 32, security: 56, power: 36 },
+    valuesProfile: { achievement: 44, benevolence: 58, self_direction: 32, security: 46, power: 44 },
   },
   {
-    title: 'Video Game Designer',
+    title: "Video Game Designer",
     onetCode: '15-1255.01',
-    valuesProfile: { achievement: 82, benevolence: 0, self_direction: 76, security: 54, power: 25 },
+    valuesProfile: { achievement: 85, benevolence: 14, self_direction: 76, security: 44, power: 34 },
   },
   {
-    title: 'Journalist',
+    title: "Journalist",
     onetCode: '27-3023.00',
-    valuesProfile: { achievement: 67, benevolence: 46, self_direction: 50, security: 46, power: 68 },
+    valuesProfile: { achievement: 72, benevolence: 54, self_direction: 50, security: 38, power: 72 },
   },
   {
-    title: 'Content Creator',
+    title: "Content Creator",
     onetCode: '27-3043.00',
-    valuesProfile: { achievement: 33, benevolence: 25, self_direction: 0, security: 46, power: 0 },
+    valuesProfile: { achievement: 44, benevolence: 36, self_direction: 0, security: 38, power: 12 },
   },
   {
-    title: 'Photographer',
+    title: "Photographer",
     onetCode: '27-4021.00',
-    valuesProfile: { achievement: 0, benevolence: 42, self_direction: 44, security: 0, power: 0 },
+    valuesProfile: { achievement: 15, benevolence: 50, self_direction: 44, security: 0, power: 12 },
   },
   {
-    title: 'Chef',
+    title: "Chef",
     onetCode: '35-1011.00',
-    valuesProfile: { achievement: 33, benevolence: 42, self_direction: 76, security: 39, power: 61 },
+    valuesProfile: { achievement: 44, benevolence: 50, self_direction: 76, security: 32, power: 66 },
   },
   {
-    title: 'Fashion Designer',
+    title: "Fashion Designer",
     onetCode: '27-1022.00',
-    valuesProfile: { achievement: 67, benevolence: 25, self_direction: 54, security: 22, power: 36 },
+    valuesProfile: { achievement: 72, benevolence: 36, self_direction: 54, security: 18, power: 44 },
   },
   {
-    title: 'Interior Designer',
+    title: "Interior Designer",
     onetCode: '27-1025.00',
-    valuesProfile: { achievement: 67, benevolence: 51, self_direction: 66, security: 12, power: 25 },
+    valuesProfile: { achievement: 72, benevolence: 58, self_direction: 66, security: 10, power: 34 },
   },
   {
-    title: 'Web Developer',
+    title: "Web Developer",
     onetCode: '15-1254.00',
-    valuesProfile: { achievement: 33, benevolence: 25, self_direction: 66, security: 71, power: 50 },
+    valuesProfile: { achievement: 44, benevolence: 36, self_direction: 66, security: 58, power: 56 },
+  },
+  {
+    title: "Aerospace Engineer",
+    onetCode: '17-2011.00',
+    valuesProfile: { achievement: 44, benevolence: 44, self_direction: 54, security: 72, power: 66 },
+  },
+  {
+    title: "Space Scientist (Astrophysicist)",
+    onetCode: '19-2011.00',
+    valuesProfile: { achievement: 85, benevolence: 0, self_direction: 66, security: 28, power: 78 },
+  },
+  {
+    title: "Cybersecurity Analyst",
+    onetCode: '15-1212.00',
+    valuesProfile: { achievement: 28, benevolence: 44, self_direction: 54, security: 80, power: 34 },
+  },
+  {
+    title: "AI Research Scientist",
+    onetCode: '15-1221.00',
+    valuesProfile: { achievement: 72, benevolence: 29, self_direction: 54, security: 70, power: 66 },
+  },
+  {
+    title: "Robotics Engineer",
+    onetCode: '17-2199.08',
+    valuesProfile: { achievement: 56, benevolence: 22, self_direction: 66, security: 74, power: 56 },
+  },
+  {
+    title: "Nuclear Engineer",
+    onetCode: '17-2161.00',
+    valuesProfile: { achievement: 72, benevolence: 0, self_direction: 44, security: 72, power: 78 },
+  },
+  {
+    title: "Chemical Engineer",
+    onetCode: '17-2041.00',
+    valuesProfile: { achievement: 56, benevolence: 36, self_direction: 54, security: 52, power: 78 },
+  },
+  {
+    title: "Risk & Compliance Officer",
+    onetCode: '13-1041.00',
+    valuesProfile: { achievement: 0, benevolence: 58, self_direction: 32, security: 42, power: 0 },
+  },
+  {
+    title: "Geneticist",
+    onetCode: '19-1029.03',
+    valuesProfile: { achievement: 72, benevolence: 29, self_direction: 66, security: 42, power: 88 },
+  },
+  {
+    title: "Health Informatics Specialist",
+    onetCode: '15-1211.01',
+    valuesProfile: { achievement: 44, benevolence: 50, self_direction: 44, security: 56, power: 44 },
+  },
+  {
+    title: "Hospitality Manager",
+    onetCode: '11-9081.00',
+    valuesProfile: { achievement: 44, benevolence: 100, self_direction: 76, security: 32, power: 34 },
+  },
+  {
+    title: "Tourism & Events Manager",
+    onetCode: '13-1121.00',
+    valuesProfile: { achievement: 44, benevolence: 86, self_direction: 54, security: 32, power: 56 },
+  },
+  {
+    title: "Airline Pilot",
+    onetCode: '53-2011.00',
+    valuesProfile: { achievement: 72, benevolence: 58, self_direction: 88, security: 100, power: 78 },
+  },
+  {
+    title: "Agricultural Scientist (Agronomist)",
+    onetCode: '19-1013.00',
+    valuesProfile: { achievement: 85, benevolence: 36, self_direction: 66, security: 36, power: 66 },
+  },
+  {
+    title: "Food Technologist",
+    onetCode: '19-1012.00',
+    valuesProfile: { achievement: 44, benevolence: 44, self_direction: 22, security: 56, power: 44 },
+  },
+  {
+    title: "Agricultural Engineer",
+    onetCode: '17-2021.00',
+    valuesProfile: { achievement: 56, benevolence: 22, self_direction: 66, security: 52, power: 44 },
+  },
+  {
+    title: "Satellite & Remote Sensing Scientist",
+    onetCode: '19-2099.01',
+    valuesProfile: { achievement: 72, benevolence: 36, self_direction: 54, security: 52, power: 66 },
+  },
+  {
+    title: "Film & TV Producer",
+    onetCode: '27-2012.00',
+    valuesProfile: { achievement: 79, benevolence: 62, self_direction: 88, security: 28, power: 88 },
+  },
+  {
+    title: "Data Engineer",
+    onetCode: '15-1243.00',
+    valuesProfile: { achievement: 85, benevolence: 8, self_direction: 54, security: 46, power: 34 },
+  },
+  {
+    title: "Atmospheric & Space Scientist",
+    onetCode: '19-2021.00',
+    valuesProfile: { achievement: 56, benevolence: 58, self_direction: 44, security: 30, power: 44 },
+  },
+  {
+    title: "Physicist",
+    onetCode: '19-2012.00',
+    valuesProfile: { achievement: 85, benevolence: 8, self_direction: 76, security: 60, power: 100 },
+  },
+  {
+    title: "Environmental Engineer",
+    onetCode: '17-2081.00',
+    valuesProfile: { achievement: 72, benevolence: 44, self_direction: 44, security: 64, power: 78 },
+  },
+  {
+    title: "Actuary",
+    onetCode: '15-2011.00',
+    valuesProfile: { achievement: 28, benevolence: 29, self_direction: 32, security: 52, power: 34 },
+  },
+  {
+    title: "Investment & Financial Manager",
+    onetCode: '11-3031.00',
+    valuesProfile: { achievement: 56, benevolence: 58, self_direction: 76, security: 80, power: 78 },
+  },
+  {
+    title: "Primary School Teacher",
+    onetCode: '25-2021.00',
+    valuesProfile: { achievement: 72, benevolence: 86, self_direction: 54, security: 64, power: 34 },
+  },
+  {
+    title: "School Counsellor & Career Advisor",
+    onetCode: '21-1012.00',
+    valuesProfile: { achievement: 56, benevolence: 100, self_direction: 32, security: 42, power: 44 },
+  },
+  {
+    title: "Curriculum & Instructional Designer",
+    onetCode: '25-9031.00',
+    valuesProfile: { achievement: 72, benevolence: 78, self_direction: 76, security: 28, power: 44 },
+  },
+  {
+    title: "Cloud & Network Architect",
+    onetCode: '15-1241.00',
+    valuesProfile: { achievement: 85, benevolence: 8, self_direction: 54, security: 58, power: 34 },
+  },
+  {
+    title: "Industrial Engineer",
+    onetCode: '17-2112.00',
+    valuesProfile: { achievement: 56, benevolence: 29, self_direction: 66, security: 68, power: 78 },
+  },
+  {
+    title: "Video Editor",
+    onetCode: '27-4032.00',
+    valuesProfile: { achievement: 44, benevolence: 8, self_direction: 54, security: 16, power: 56 },
+  },
+  {
+    title: "Dietitian & Nutritionist",
+    onetCode: '29-1031.00',
+    valuesProfile: { achievement: 44, benevolence: 78, self_direction: 66, security: 42, power: 56 },
   },
 ];
 

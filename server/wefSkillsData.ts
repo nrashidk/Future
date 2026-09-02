@@ -209,6 +209,52 @@ export const CAREER_WEF_SKILL_AFFINITIES: {
     [skillName: string]: number; // 0-100 affinity score
   };
 }[] = [
+  // --- PHASE 3 STEP 1: Space & Future Sciences ------------------------------
+  // Both are authored to load the sector's lead skills (Numeracy 95, Creativity
+  // 85, Scientific Literacy 80 - server/seed.ts). Measured alignment against the
+  // live sector vector: 1.000 for both. Spec: docs/new-careers-spec.md §6.
+  {
+    careerTitle: "Aerospace Engineer",
+    skills: {
+      "Literacy": 70,
+      "Numeracy": 100,
+      "Scientific Literacy": 95,
+      "ICT Literacy": 85,
+      "Financial Literacy": 55,
+      "Cultural and Civic Literacy": 50,
+      "Critical Thinking and Problem Solving": 95,
+      "Creativity": 90,
+      "Communication": 70,
+      "Collaboration": 85,
+      "Curiosity": 90,
+      "Initiative": 80,
+      "Persistence and Grit": 95,
+      "Adaptability": 80,
+      "Leadership": 70,
+      "Social and Cultural Awareness": 55,
+    },
+  },
+  {
+    careerTitle: "Space Scientist (Astrophysicist)",
+    skills: {
+      "Literacy": 80,
+      "Numeracy": 100,
+      "Scientific Literacy": 100,
+      "ICT Literacy": 90,
+      "Financial Literacy": 40,
+      "Cultural and Civic Literacy": 50,
+      "Critical Thinking and Problem Solving": 95,
+      "Creativity": 85,
+      "Communication": 80,
+      "Collaboration": 75,
+      "Curiosity": 100,
+      "Initiative": 80,
+      "Persistence and Grit": 95,
+      "Adaptability": 75,
+      "Leadership": 60,
+      "Social and Cultural Awareness": 55,
+    },
+  },
   {
     careerTitle: "Software Engineer",
     skills: {
@@ -996,6 +1042,787 @@ export const CAREER_WEF_SKILL_AFFINITIES: {
       "Adaptability": 95,
       "Leadership": 60,
       "Social and Cultural Awareness": 65,
+    },
+  },
+  // --- PHASE 3 STAGE 2: the 29 derived careers ------------------------------
+  // Authored, not generated. Each vector is built to LOAD ITS SECTOR'S LEAD
+  // SKILLS (server/seed.ts UAE_SECTOR_WEF_SKILLS) while staying honest to the
+  // O*NET occupation's own skill profile - the two constraints agree for 28 of
+  // the 29; Airline Pilot is the exception and is flagged in its own note.
+  //
+  // The per-career comment names the sector vector the row is built against and
+  // the skills it deliberately holds LOW. Low values matter as much as high
+  // ones: skillAlignment (server/services/matching.ts) mean-centres before
+  // weighting, so a below-average score on a high-variance column carries as
+  // much information as an above-average one. That is why Hospitality Manager
+  // and Tourism & Events Manager carry Scientific Literacy 40 and 35.
+  //
+  // Catalog column variance at 39 careers, which is what "high-variance" means
+  // here: Scientific Literacy 19.5, Financial Literacy 15.1, Cultural and Civic
+  // 14.6, Numeracy 14.4, Social and Cultural 14.1, ICT 12.3, Creativity 11.6 -
+  // against Persistence and Grit 5.1, Initiative 5.5, Collaboration 5.9.
+  // Cybersecurity Analyst (15-1212.00) -> Technology
+  // Technology (ICT 95 / Critical Thinking 85). ICT at the catalog ceiling
+  // and Critical Thinking at 100 - the work is adversarial reasoning over
+  // systems. Cultural and Civic Literacy 70 for data-protection law and the
+  // UAE Cybersecurity Council's national remit; Scientific Literacy held at
+  // 60 because this is engineering, not science.
+  {
+    careerTitle: "Cybersecurity Analyst",
+    skills: {
+      "Literacy": 80,
+      "Numeracy": 80,
+      "Scientific Literacy": 60,
+      "ICT Literacy": 100,
+      "Financial Literacy": 60,
+      "Cultural and Civic Literacy": 70,
+      "Critical Thinking and Problem Solving": 100,
+      "Creativity": 80,
+      "Communication": 85,
+      "Collaboration": 85,
+      "Curiosity": 95,
+      "Initiative": 90,
+      "Persistence and Grit": 95,
+      "Adaptability": 95,
+      "Leadership": 70,
+      "Social and Cultural Awareness": 60,
+    },
+  },
+  // AI Research Scientist (15-1221.00) -> Artificial Intelligence
+  // Artificial Intelligence (ICT 95 / Critical Thinking 90 / Numeracy 85 /
+  // Creativity 80). Loads all four leads at 95-100. O*NET 15-1221.00 is Job
+  // Zone 5, doctoral and publication-led, so Curiosity 100 and Scientific
+  // Literacy 90; Financial Literacy 45 is the lowest in the sector.
+  {
+    careerTitle: "AI Research Scientist",
+    skills: {
+      "Literacy": 85,
+      "Numeracy": 100,
+      "Scientific Literacy": 90,
+      "ICT Literacy": 100,
+      "Financial Literacy": 45,
+      "Cultural and Civic Literacy": 60,
+      "Critical Thinking and Problem Solving": 100,
+      "Creativity": 95,
+      "Communication": 85,
+      "Collaboration": 85,
+      "Curiosity": 100,
+      "Initiative": 90,
+      "Persistence and Grit": 95,
+      "Adaptability": 85,
+      "Leadership": 70,
+      "Social and Cultural Awareness": 60,
+    },
+  },
+  // Robotics Engineer (17-2199.08) -> Artificial Intelligence
+  // Artificial Intelligence (ICT 95 / Numeracy 85). Verbatim from
+  // docs/new-careers-spec.md §6, where this vector was measured at alignment
+  // 0.861. O*NET interest code RIC: hands-on build-and-test as much as
+  // control theory, hence Communication 65 and Social 50, the lowest of the
+  // AI three.
+  {
+    careerTitle: "Robotics Engineer",
+    skills: {
+      "Literacy": 65,
+      "Numeracy": 95,
+      "Scientific Literacy": 90,
+      "ICT Literacy": 100,
+      "Financial Literacy": 50,
+      "Cultural and Civic Literacy": 45,
+      "Critical Thinking and Problem Solving": 95,
+      "Creativity": 85,
+      "Communication": 65,
+      "Collaboration": 85,
+      "Curiosity": 90,
+      "Initiative": 85,
+      "Persistence and Grit": 95,
+      "Adaptability": 85,
+      "Leadership": 65,
+      "Social and Cultural Awareness": 50,
+    },
+  },
+  // Nuclear Engineer (17-2161.00) -> Renewable Energy & Sustainability
+  // Renewable Energy & Sustainability (Scientific Literacy 90 / Critical
+  // Thinking 85 / Numeracy 75). Numeracy and Scientific Literacy at 100 -
+  // reactor physics and thermal-hydraulics are the job. Cultural and Civic
+  // Literacy 75 is unusually high for an engineer and deliberate: licensing,
+  // safeguards and public safety are the regulated core of Barakah.
+  {
+    careerTitle: "Nuclear Engineer",
+    skills: {
+      "Literacy": 75,
+      "Numeracy": 100,
+      "Scientific Literacy": 100,
+      "ICT Literacy": 80,
+      "Financial Literacy": 60,
+      "Cultural and Civic Literacy": 75,
+      "Critical Thinking and Problem Solving": 100,
+      "Creativity": 70,
+      "Communication": 75,
+      "Collaboration": 85,
+      "Curiosity": 85,
+      "Initiative": 80,
+      "Persistence and Grit": 95,
+      "Adaptability": 75,
+      "Leadership": 75,
+      "Social and Cultural Awareness": 55,
+    },
+  },
+  // Chemical Engineer (17-2041.00) -> Renewable Energy & Sustainability
+  // Renewable Energy & Sustainability (Scientific Literacy 90 / Numeracy 75 /
+  // Financial Literacy 70). Scientific Literacy 100; Financial Literacy 70
+  // matches the sector's own weighting - process economics decides which
+  // plant gets built.
+  {
+    careerTitle: "Chemical Engineer",
+    skills: {
+      "Literacy": 70,
+      "Numeracy": 95,
+      "Scientific Literacy": 100,
+      "ICT Literacy": 80,
+      "Financial Literacy": 70,
+      "Cultural and Civic Literacy": 60,
+      "Critical Thinking and Problem Solving": 95,
+      "Creativity": 80,
+      "Communication": 70,
+      "Collaboration": 85,
+      "Curiosity": 90,
+      "Initiative": 80,
+      "Persistence and Grit": 90,
+      "Adaptability": 80,
+      "Leadership": 70,
+      "Social and Cultural Awareness": 55,
+    },
+  },
+  // Risk & Compliance Officer (13-1041.00) -> Financial Services & FinTech
+  // Financial Services & FinTech (Financial Literacy 95 / Numeracy 90 / ICT
+  // 75 / Literacy 55). The only career in the catalog to carry Literacy 95
+  // AND Financial Literacy 95: regulation is read-and-write work. Cultural
+  // and Civic Literacy 90 for AML/KYC and the DFSA/FSRA regimes. Creativity
+  // 60 is the lowest of the 29, on purpose.
+  {
+    careerTitle: "Risk & Compliance Officer",
+    skills: {
+      "Literacy": 95,
+      "Numeracy": 80,
+      "Scientific Literacy": 45,
+      "ICT Literacy": 75,
+      "Financial Literacy": 95,
+      "Cultural and Civic Literacy": 90,
+      "Critical Thinking and Problem Solving": 95,
+      "Creativity": 60,
+      "Communication": 90,
+      "Collaboration": 85,
+      "Curiosity": 80,
+      "Initiative": 85,
+      "Persistence and Grit": 95,
+      "Adaptability": 85,
+      "Leadership": 75,
+      "Social and Cultural Awareness": 80,
+    },
+  },
+  // Geneticist (19-1029.03) -> Healthcare & Life Sciences
+  // Healthcare & Life Sciences (Scientific Literacy 95 / Critical Thinking 85
+  // / Curiosity 80 / Persistence 80). Scientific Literacy 100 and Curiosity
+  // 100 - the sector's two leads at ceiling. ICT 85 because the Emirati
+  // Genome Programme is a bioinformatics operation before it is a wet-lab
+  // one.
+  {
+    careerTitle: "Geneticist",
+    skills: {
+      "Literacy": 85,
+      "Numeracy": 90,
+      "Scientific Literacy": 100,
+      "ICT Literacy": 85,
+      "Financial Literacy": 45,
+      "Cultural and Civic Literacy": 70,
+      "Critical Thinking and Problem Solving": 100,
+      "Creativity": 80,
+      "Communication": 80,
+      "Collaboration": 85,
+      "Curiosity": 100,
+      "Initiative": 80,
+      "Persistence and Grit": 95,
+      "Adaptability": 80,
+      "Leadership": 65,
+      "Social and Cultural Awareness": 65,
+    },
+  },
+  // Health Informatics Specialist (15-1211.01) -> Healthcare & Life Sciences
+  // Healthcare & Life Sciences (Scientific Literacy 95 / ICT 75 /
+  // Collaboration 70). ICT 100 - the highest in the healthcare group by 15
+  // points, which is what separates it from the clinicians. Cultural and
+  // Civic Literacy 80 for patient-privacy and national EHR policy (Malaffi,
+  // Riayati).
+  {
+    careerTitle: "Health Informatics Specialist",
+    skills: {
+      "Literacy": 85,
+      "Numeracy": 80,
+      "Scientific Literacy": 85,
+      "ICT Literacy": 100,
+      "Financial Literacy": 60,
+      "Cultural and Civic Literacy": 80,
+      "Critical Thinking and Problem Solving": 95,
+      "Creativity": 75,
+      "Communication": 90,
+      "Collaboration": 90,
+      "Curiosity": 85,
+      "Initiative": 85,
+      "Persistence and Grit": 90,
+      "Adaptability": 90,
+      "Leadership": 75,
+      "Social and Cultural Awareness": 80,
+    },
+  },
+  // Hospitality Manager (11-9081.00) -> Tourism & Hospitality
+  // Tourism & Hospitality (Social and Cultural Awareness 95 / Communication
+  // 80 / Leadership 70 / Financial Literacy 65). Verbatim from
+  // docs/new-careers-spec.md §6 (measured alignment 1.000). Scientific
+  // Literacy 40 is deliberate and load-bearing: because skillAlignment
+  // mean-centres, a low score on the highest-variance column is as
+  // informative as a high one, and it is what keeps hospitality careers out
+  // of the science sectors.
+  {
+    careerTitle: "Hospitality Manager",
+    skills: {
+      "Literacy": 70,
+      "Numeracy": 70,
+      "Scientific Literacy": 40,
+      "ICT Literacy": 60,
+      "Financial Literacy": 85,
+      "Cultural and Civic Literacy": 80,
+      "Critical Thinking and Problem Solving": 75,
+      "Creativity": 70,
+      "Communication": 95,
+      "Collaboration": 95,
+      "Curiosity": 70,
+      "Initiative": 85,
+      "Persistence and Grit": 85,
+      "Adaptability": 95,
+      "Leadership": 95,
+      "Social and Cultural Awareness": 100,
+    },
+  },
+  // Tourism & Events Manager (13-1121.00) -> Tourism & Hospitality
+  // Tourism & Hospitality. Verbatim from docs/new-careers-spec.md §6
+  // (measured alignment 0.959). Scientific Literacy 35 is the lowest value in
+  // the whole 68-career matrix - see the Hospitality Manager note.
+  {
+    careerTitle: "Tourism & Events Manager",
+    skills: {
+      "Literacy": 80,
+      "Numeracy": 70,
+      "Scientific Literacy": 35,
+      "ICT Literacy": 70,
+      "Financial Literacy": 80,
+      "Cultural and Civic Literacy": 90,
+      "Critical Thinking and Problem Solving": 80,
+      "Creativity": 85,
+      "Communication": 95,
+      "Collaboration": 90,
+      "Curiosity": 75,
+      "Initiative": 90,
+      "Persistence and Grit": 85,
+      "Adaptability": 95,
+      "Leadership": 85,
+      "Social and Cultural Awareness": 100,
+    },
+  },
+  // Airline Pilot (53-2011.00) -> Tourism & Hospitality
+  // Tourism & Hospitality by attribution, but NOT by skill shape - this is
+  // the one career of the 29 whose affinity vector does not serve its
+  // sector's lead. It is authored honestly to the occupation: Numeracy 90 and
+  // Scientific Literacy 80 (performance, weight-and-balance, meteorology),
+  // Collaboration 95 and Communication 90 (crew resource management, ATC),
+  // Creativity 55 - the second-lowest in the catalog, because deviation from
+  // procedure is the failure mode. The override is what secures attribution
+  // here; the vector only modulates the score. Flagged, per
+  // docs/career-sourcing-map.md §3.7.
+  {
+    careerTitle: "Airline Pilot",
+    skills: {
+      "Literacy": 75,
+      "Numeracy": 90,
+      "Scientific Literacy": 80,
+      "ICT Literacy": 80,
+      "Financial Literacy": 50,
+      "Cultural and Civic Literacy": 70,
+      "Critical Thinking and Problem Solving": 95,
+      "Creativity": 55,
+      "Communication": 90,
+      "Collaboration": 95,
+      "Curiosity": 70,
+      "Initiative": 85,
+      "Persistence and Grit": 95,
+      "Adaptability": 95,
+      "Leadership": 90,
+      "Social and Cultural Awareness": 75,
+    },
+  },
+  // Agricultural Scientist (Agronomist) (19-1013.00) -> Food Security & Agriculture
+  // Food Security & Agriculture (Scientific Literacy 90 / ICT 75 / Numeracy
+  // 70). Verbatim from docs/new-careers-spec.md §6 (measured alignment 0.793,
+  // rank 1). Scientific Literacy 100.
+  {
+    careerTitle: "Agricultural Scientist (Agronomist)",
+    skills: {
+      "Literacy": 75,
+      "Numeracy": 80,
+      "Scientific Literacy": 100,
+      "ICT Literacy": 75,
+      "Financial Literacy": 60,
+      "Cultural and Civic Literacy": 75,
+      "Critical Thinking and Problem Solving": 90,
+      "Creativity": 70,
+      "Communication": 80,
+      "Collaboration": 80,
+      "Curiosity": 90,
+      "Initiative": 80,
+      "Persistence and Grit": 90,
+      "Adaptability": 85,
+      "Leadership": 65,
+      "Social and Cultural Awareness": 75,
+    },
+  },
+  // Food Technologist (19-1012.00) -> Food Security & Agriculture
+  // Food Security & Agriculture. Verbatim from docs/new-careers-spec.md §6
+  // (measured alignment 0.714, rank 1).
+  {
+    careerTitle: "Food Technologist",
+    skills: {
+      "Literacy": 75,
+      "Numeracy": 80,
+      "Scientific Literacy": 95,
+      "ICT Literacy": 80,
+      "Financial Literacy": 65,
+      "Cultural and Civic Literacy": 65,
+      "Critical Thinking and Problem Solving": 90,
+      "Creativity": 80,
+      "Communication": 75,
+      "Collaboration": 80,
+      "Curiosity": 85,
+      "Initiative": 75,
+      "Persistence and Grit": 85,
+      "Adaptability": 80,
+      "Leadership": 60,
+      "Social and Cultural Awareness": 70,
+    },
+  },
+  // Agricultural Engineer (17-2021.00) -> Food Security & Agriculture
+  // Food Security & Agriculture (Scientific Literacy 90 / ICT 75 / Numeracy
+  // 70). ICT 85 and Numeracy 95 - controlled-environment agriculture
+  // (Emirates Bustanica, Pure Harvest) is a control-systems and
+  // irrigation-hydraulics problem, which is what separates this career from
+  // the two agri-scientists beside it.
+  {
+    careerTitle: "Agricultural Engineer",
+    skills: {
+      "Literacy": 70,
+      "Numeracy": 95,
+      "Scientific Literacy": 90,
+      "ICT Literacy": 85,
+      "Financial Literacy": 65,
+      "Cultural and Civic Literacy": 70,
+      "Critical Thinking and Problem Solving": 95,
+      "Creativity": 85,
+      "Communication": 70,
+      "Collaboration": 85,
+      "Curiosity": 85,
+      "Initiative": 80,
+      "Persistence and Grit": 90,
+      "Adaptability": 85,
+      "Leadership": 70,
+      "Social and Cultural Awareness": 60,
+    },
+  },
+  // Satellite & Remote Sensing Scientist (19-2099.01) -> Space & Future Sciences
+  // Space & Future Sciences (Numeracy 95 / Creativity 85 / Scientific
+  // Literacy 80 / Curiosity 75 / ICT 65). ICT 95 is the highest of the space
+  // group: Earth observation is an image-processing and data-pipeline
+  // discipline, which is exactly MBRSC's actual business.
+  {
+    careerTitle: "Satellite & Remote Sensing Scientist",
+    skills: {
+      "Literacy": 80,
+      "Numeracy": 95,
+      "Scientific Literacy": 95,
+      "ICT Literacy": 95,
+      "Financial Literacy": 45,
+      "Cultural and Civic Literacy": 65,
+      "Critical Thinking and Problem Solving": 95,
+      "Creativity": 85,
+      "Communication": 80,
+      "Collaboration": 80,
+      "Curiosity": 95,
+      "Initiative": 80,
+      "Persistence and Grit": 90,
+      "Adaptability": 80,
+      "Leadership": 65,
+      "Social and Cultural Awareness": 60,
+    },
+  },
+  // Film & TV Producer (27-2012.00) -> Creative Industries & Media
+  // Creative Industries & Media (Creativity 95 / Literacy 75 / Communication
+  // 75 / Social 60). Creativity and Communication at 100. Financial Literacy
+  // 85 and Leadership 95 are the highest in the creative group - a producer
+  // is the person who raises and spends the money.
+  {
+    careerTitle: "Film & TV Producer",
+    skills: {
+      "Literacy": 90,
+      "Numeracy": 65,
+      "Scientific Literacy": 40,
+      "ICT Literacy": 75,
+      "Financial Literacy": 85,
+      "Cultural and Civic Literacy": 85,
+      "Critical Thinking and Problem Solving": 85,
+      "Creativity": 100,
+      "Communication": 100,
+      "Collaboration": 95,
+      "Curiosity": 90,
+      "Initiative": 95,
+      "Persistence and Grit": 95,
+      "Adaptability": 95,
+      "Leadership": 95,
+      "Social and Cultural Awareness": 95,
+    },
+  },
+  // Data Engineer (15-1243.00) -> Artificial Intelligence
+  // Artificial Intelligence (ICT 95 / Critical Thinking 90 / Numeracy 85).
+  // ICT 100. Deliberately less Creativity (75) and less Scientific Literacy
+  // (60) than AI Research Scientist - the contrast that separates the
+  // sector's build role from its research role.
+  {
+    careerTitle: "Data Engineer",
+    skills: {
+      "Literacy": 70,
+      "Numeracy": 90,
+      "Scientific Literacy": 60,
+      "ICT Literacy": 100,
+      "Financial Literacy": 55,
+      "Cultural and Civic Literacy": 55,
+      "Critical Thinking and Problem Solving": 95,
+      "Creativity": 75,
+      "Communication": 75,
+      "Collaboration": 85,
+      "Curiosity": 85,
+      "Initiative": 85,
+      "Persistence and Grit": 90,
+      "Adaptability": 90,
+      "Leadership": 65,
+      "Social and Cultural Awareness": 55,
+    },
+  },
+  // Atmospheric & Space Scientist (19-2021.00) -> Space & Future Sciences
+  // Space & Future Sciences (Numeracy 95 / Scientific Literacy 80 / Curiosity
+  // 75). Cultural and Civic Literacy 70 and Communication 85 are higher than
+  // the rest of the space group: the National Center of Meteorology's output
+  // is a public forecast, and UAEREP rain enhancement is national policy.
+  {
+    careerTitle: "Atmospheric & Space Scientist",
+    skills: {
+      "Literacy": 80,
+      "Numeracy": 95,
+      "Scientific Literacy": 100,
+      "ICT Literacy": 90,
+      "Financial Literacy": 40,
+      "Cultural and Civic Literacy": 70,
+      "Critical Thinking and Problem Solving": 95,
+      "Creativity": 80,
+      "Communication": 85,
+      "Collaboration": 80,
+      "Curiosity": 95,
+      "Initiative": 80,
+      "Persistence and Grit": 90,
+      "Adaptability": 80,
+      "Leadership": 60,
+      "Social and Cultural Awareness": 65,
+    },
+  },
+  // Physicist (19-2012.00) -> Space & Future Sciences
+  // Space & Future Sciences (Numeracy 95 / Creativity 85 / Scientific
+  // Literacy 80 / Curiosity 75). Numeracy, Scientific Literacy, Critical
+  // Thinking and Curiosity all at 100 - the most research-led vector in the
+  // catalog alongside Space Scientist. Financial Literacy 40 is the floor.
+  {
+    careerTitle: "Physicist",
+    skills: {
+      "Literacy": 85,
+      "Numeracy": 100,
+      "Scientific Literacy": 100,
+      "ICT Literacy": 90,
+      "Financial Literacy": 40,
+      "Cultural and Civic Literacy": 55,
+      "Critical Thinking and Problem Solving": 100,
+      "Creativity": 90,
+      "Communication": 80,
+      "Collaboration": 80,
+      "Curiosity": 100,
+      "Initiative": 80,
+      "Persistence and Grit": 95,
+      "Adaptability": 75,
+      "Leadership": 60,
+      "Social and Cultural Awareness": 55,
+    },
+  },
+  // Environmental Engineer (17-2081.00) -> Renewable Energy & Sustainability
+  // Renewable Energy & Sustainability (Scientific Literacy 90 / Financial
+  // Literacy 70 / Cultural and Civic Literacy 65). Cultural and Civic
+  // Literacy 90 is the highest in the sector and carries its climate-policy
+  // half (Net Zero 2050, water and waste regulation) - the skill the vector
+  // added specifically to separate this sector from Space.
+  {
+    careerTitle: "Environmental Engineer",
+    skills: {
+      "Literacy": 80,
+      "Numeracy": 85,
+      "Scientific Literacy": 95,
+      "ICT Literacy": 75,
+      "Financial Literacy": 70,
+      "Cultural and Civic Literacy": 90,
+      "Critical Thinking and Problem Solving": 95,
+      "Creativity": 80,
+      "Communication": 85,
+      "Collaboration": 85,
+      "Curiosity": 85,
+      "Initiative": 80,
+      "Persistence and Grit": 90,
+      "Adaptability": 85,
+      "Leadership": 75,
+      "Social and Cultural Awareness": 80,
+    },
+  },
+  // Actuary (15-2011.00) -> Financial Services & FinTech
+  // Financial Services & FinTech (Financial Literacy 95 / Numeracy 90 / ICT
+  // 75). Numeracy and Financial Literacy both at 100 - the only career in the
+  // catalog to do so, and the purest expression of this sector's vector.
+  {
+    careerTitle: "Actuary",
+    skills: {
+      "Literacy": 80,
+      "Numeracy": 100,
+      "Scientific Literacy": 55,
+      "ICT Literacy": 85,
+      "Financial Literacy": 100,
+      "Cultural and Civic Literacy": 65,
+      "Critical Thinking and Problem Solving": 100,
+      "Creativity": 65,
+      "Communication": 80,
+      "Collaboration": 75,
+      "Curiosity": 80,
+      "Initiative": 80,
+      "Persistence and Grit": 95,
+      "Adaptability": 80,
+      "Leadership": 65,
+      "Social and Cultural Awareness": 60,
+    },
+  },
+  // Investment & Financial Manager (11-3031.00) -> Financial Services & FinTech
+  // Financial Services & FinTech (Financial Literacy 95 / Numeracy 90 /
+  // Leadership 60). Financial Literacy 100 with Leadership 95 - the sector's
+  // management path, contrasted with Actuary's technical one.
+  {
+    careerTitle: "Investment & Financial Manager",
+    skills: {
+      "Literacy": 85,
+      "Numeracy": 95,
+      "Scientific Literacy": 45,
+      "ICT Literacy": 80,
+      "Financial Literacy": 100,
+      "Cultural and Civic Literacy": 75,
+      "Critical Thinking and Problem Solving": 95,
+      "Creativity": 70,
+      "Communication": 95,
+      "Collaboration": 90,
+      "Curiosity": 80,
+      "Initiative": 90,
+      "Persistence and Grit": 90,
+      "Adaptability": 90,
+      "Leadership": 95,
+      "Social and Cultural Awareness": 75,
+    },
+  },
+  // Primary School Teacher (25-2021.00) -> Education & Human Capital
+  // Education & Human Capital (Communication 90 / Literacy 90 / Cultural and
+  // Civic Literacy 85 / Collaboration 85 / Social 80). Literacy,
+  // Communication and Social all at 100; Cultural and Civic Literacy 95 -
+  // national identity and Islamic studies are core primary curriculum, not
+  // background. Financial Literacy 45 is the lowest in the education group.
+  {
+    careerTitle: "Primary School Teacher",
+    skills: {
+      "Literacy": 100,
+      "Numeracy": 75,
+      "Scientific Literacy": 65,
+      "ICT Literacy": 70,
+      "Financial Literacy": 45,
+      "Cultural and Civic Literacy": 95,
+      "Critical Thinking and Problem Solving": 85,
+      "Creativity": 95,
+      "Communication": 100,
+      "Collaboration": 90,
+      "Curiosity": 90,
+      "Initiative": 90,
+      "Persistence and Grit": 95,
+      "Adaptability": 95,
+      "Leadership": 85,
+      "Social and Cultural Awareness": 100,
+    },
+  },
+  // School Counsellor & Career Advisor (21-1012.00) -> Education & Human Capital
+  // Education & Human Capital. Communication and Social at 100, Collaboration
+  // 95 - the most people-led vector of the three education careers. Numeracy
+  // 65 is the lowest of the 29.
+  {
+    careerTitle: "School Counsellor & Career Advisor",
+    skills: {
+      "Literacy": 95,
+      "Numeracy": 65,
+      "Scientific Literacy": 60,
+      "ICT Literacy": 70,
+      "Financial Literacy": 60,
+      "Cultural and Civic Literacy": 95,
+      "Critical Thinking and Problem Solving": 90,
+      "Creativity": 80,
+      "Communication": 100,
+      "Collaboration": 95,
+      "Curiosity": 90,
+      "Initiative": 90,
+      "Persistence and Grit": 95,
+      "Adaptability": 95,
+      "Leadership": 85,
+      "Social and Cultural Awareness": 100,
+    },
+  },
+  // Curriculum & Instructional Designer (25-9031.00) -> Education & Human Capital
+  // Education & Human Capital (Literacy 90 / Communication 90 / Creativity
+  // 75). Literacy 100 with Creativity 95 and ICT 85 - the design-and-build
+  // role in the sector, which is what separates it from the two
+  // classroom-facing careers.
+  {
+    careerTitle: "Curriculum & Instructional Designer",
+    skills: {
+      "Literacy": 100,
+      "Numeracy": 70,
+      "Scientific Literacy": 60,
+      "ICT Literacy": 85,
+      "Financial Literacy": 55,
+      "Cultural and Civic Literacy": 90,
+      "Critical Thinking and Problem Solving": 95,
+      "Creativity": 95,
+      "Communication": 95,
+      "Collaboration": 90,
+      "Curiosity": 90,
+      "Initiative": 90,
+      "Persistence and Grit": 90,
+      "Adaptability": 90,
+      "Leadership": 85,
+      "Social and Cultural Awareness": 95,
+    },
+  },
+  // Cloud & Network Architect (15-1241.00) -> Technology
+  // Technology (ICT 95 / Critical Thinking 85 / Adaptability 75 / Financial
+  // Literacy 70 / Leadership 65). ICT 100 and Adaptability 95. Financial
+  // Literacy 70 matches the sector's own weighting - cloud architecture is a
+  // cost-model decision as much as a topology one.
+  {
+    careerTitle: "Cloud & Network Architect",
+    skills: {
+      "Literacy": 75,
+      "Numeracy": 85,
+      "Scientific Literacy": 55,
+      "ICT Literacy": 100,
+      "Financial Literacy": 70,
+      "Cultural and Civic Literacy": 50,
+      "Critical Thinking and Problem Solving": 95,
+      "Creativity": 80,
+      "Communication": 85,
+      "Collaboration": 90,
+      "Curiosity": 85,
+      "Initiative": 85,
+      "Persistence and Grit": 90,
+      "Adaptability": 95,
+      "Leadership": 80,
+      "Social and Cultural Awareness": 55,
+    },
+  },
+  // Industrial Engineer (17-2112.00) -> Technology
+  // Technology (ICT 95 / Critical Thinking 85 / Financial Literacy 70 /
+  // Leadership 65). Verbatim from docs/new-careers-spec.md §6 (measured
+  // alignment 0.752). Deliberately less Creativity (70) and less
+  // realistic-facing than Robotics Engineer - the contrast that separates the
+  // two re-homed manufacturing careers.
+  {
+    careerTitle: "Industrial Engineer",
+    skills: {
+      "Literacy": 70,
+      "Numeracy": 95,
+      "Scientific Literacy": 80,
+      "ICT Literacy": 90,
+      "Financial Literacy": 75,
+      "Cultural and Civic Literacy": 50,
+      "Critical Thinking and Problem Solving": 95,
+      "Creativity": 70,
+      "Communication": 75,
+      "Collaboration": 90,
+      "Curiosity": 75,
+      "Initiative": 80,
+      "Persistence and Grit": 90,
+      "Adaptability": 85,
+      "Leadership": 80,
+      "Social and Cultural Awareness": 55,
+    },
+  },
+  // Video Editor (27-4032.00) -> Creative Industries & Media
+  // Creative Industries & Media (Creativity 95 / ICT 65 / Communication 75).
+  // Creativity 100 with ICT 95 - the sector's most tool-led career, and the
+  // reason ICT sits above the sector's own weighting here.
+  {
+    careerTitle: "Video Editor",
+    skills: {
+      "Literacy": 80,
+      "Numeracy": 55,
+      "Scientific Literacy": 40,
+      "ICT Literacy": 95,
+      "Financial Literacy": 55,
+      "Cultural and Civic Literacy": 75,
+      "Critical Thinking and Problem Solving": 80,
+      "Creativity": 100,
+      "Communication": 85,
+      "Collaboration": 85,
+      "Curiosity": 90,
+      "Initiative": 85,
+      "Persistence and Grit": 90,
+      "Adaptability": 90,
+      "Leadership": 60,
+      "Social and Cultural Awareness": 85,
+    },
+  },
+  // Dietitian & Nutritionist (29-1031.00) -> Food Security & Agriculture
+  // Food Security & Agriculture (Scientific Literacy 90) with a genuine
+  // second claim on Healthcare. Scientific Literacy 95 and Social 95 - the
+  // bridge career, and the only one of the four Food Security careers whose
+  // vector is people-facing. ICT 65 is the lowest of the four.
+  {
+    careerTitle: "Dietitian & Nutritionist",
+    skills: {
+      "Literacy": 85,
+      "Numeracy": 75,
+      "Scientific Literacy": 95,
+      "ICT Literacy": 65,
+      "Financial Literacy": 55,
+      "Cultural and Civic Literacy": 85,
+      "Critical Thinking and Problem Solving": 85,
+      "Creativity": 70,
+      "Communication": 95,
+      "Collaboration": 85,
+      "Curiosity": 80,
+      "Initiative": 85,
+      "Persistence and Grit": 90,
+      "Adaptability": 85,
+      "Leadership": 70,
+      "Social and Cultural Awareness": 95,
     },
   },
 ];
