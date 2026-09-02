@@ -244,7 +244,7 @@ describe("calculateVisionScore — HYBRID (category gate + WEF skill modulation)
     // was rejected. Stated as a comparison, not a fixed number: the absolute
     // spread is a property of the catalog, and it fell from ~60 to ~26 at Phase 3
     // stage 2 for a good reason - Chef was the only career sitting on the 40
-    // floor and it now has a sector (Tourism & Hospitality), so the bottom of the
+    // floor and it now has a sector (Tourism), so the bottom of the
     // range moved up 40 points. Measured here: 27.2 category-only -> 26.2 hybrid.
     expect(spread(scores)).toBeGreaterThan(0.9 * spread(categoryOnly));
     // The resolution gain is the actual point of the hybrid. Measured on the
@@ -260,7 +260,7 @@ describe("calculateVisionScore — HYBRID (category gate + WEF skill modulation)
   it("keeps the floor meaningful: a career serving no priority sector still floors at 40", () => {
     // Chef used to be this test's subject: no UAE priority sector was about food
     // service, so it had no category rule and floored. Phase 3 stage 2 added
-    // Tourism & Hospitality and re-homed it, so NO career in the catalog floors
+    // Tourism and re-homed it, so NO career in the catalog floors
     // any more. The floor behaviour itself is unchanged and still matters - an
     // unmapped category must not be rescued by skill overlap, because under pure
     // skill-based scoring Chef rose to 65.1: mean-centred overlap finds SOME
@@ -271,7 +271,7 @@ describe("calculateVisionScore — HYBRID (category gate + WEF skill modulation)
     expect(calculateVisionScore(makeContext(), unmapped, VISION_COMPONENT)!.score).toBe(40);
     // ...and the whole real catalog is now off the floor.
     expect(scoreAll(makeContext()).filter(r => r.score === 40)).toHaveLength(0);
-    expect(scoreOf(makeContext(), "Chef").reasoning).toContain("Tourism & Hospitality");
+    expect(scoreOf(makeContext(), "Chef").reasoning).toContain("Tourism");
   });
 
   it("preserves sector attribution — skills modulate, they never re-attribute wholesale", () => {
@@ -280,13 +280,13 @@ describe("calculateVisionScore — HYBRID (category gate + WEF skill modulation)
     // renewables sector across the catalog makes the winner arbitrary). The
     // category gate is what keeps clinicians in the healthcare sector.
     // Sector names are the post-Phase-2 ones (Biotechnology -> Healthcare &
-    // Life Sciences, Space Exploration -> Space & Future Sciences, etc.).
+    // Life Sciences -> Healthcare, Space Exploration -> Space & Advanced Sciences, etc.).
     for (const title of ["Doctor (General Practitioner)", "Physical Therapist", "Healthcare Professional (Nurse)"]) {
-      expect(scoreOf(ctx, title).reasoning).toContain("Healthcare & Life Sciences");
-      expect(scoreOf(ctx, title).reasoning).not.toContain("Space & Future Sciences");
+      expect(scoreOf(ctx, title).reasoning).toContain("Healthcare");
+      expect(scoreOf(ctx, title).reasoning).not.toContain("Space & Advanced Sciences");
     }
     expect(scoreOf(ctx, "Teacher (Secondary Education)").reasoning).toContain("Education & Human Capital");
-    expect(scoreOf(ctx, "Renewable Energy Engineer").reasoning).toContain("Renewable Energy & Sustainability");
+    expect(scoreOf(ctx, "Renewable Energy Engineer").reasoning).toContain("Renewable Energy");
   });
 
   it("ARABIC CONSTRAINT: the sector name appears verbatim as a bare trailing token", () => {
@@ -349,42 +349,42 @@ describe("calculateVisionScore — HYBRID (category gate + WEF skill modulation)
     expect(UAE_SECTOR_WEF_SKILLS).toHaveLength(10);
     expect(UAE_SECTOR_WEF_SKILLS.map(s => s.displayOrder)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
     expect(UAE_SECTOR_WEF_SKILLS.map(s => s.name).slice(-2))
-      .toEqual(["Tourism & Hospitality", "Food Security & Agriculture"]);
+      .toEqual(["Tourism", "Food Security"]);
   });
 
   it("PHASE 3 STAGE 2: every one of the 29 new careers headlines its intended sector", () => {
     // The whole point of the stage. Attribution is what the student is told;
     // the skill modulation only moves the score within it.
     const INTENDED: Record<string, string> = {
-      "Cybersecurity Analyst": "Technology",
+      "Cybersecurity Analyst": "Digital Economy",
       "AI Research Scientist": "Artificial Intelligence",
       "Robotics Engineer": "Artificial Intelligence",
-      "Nuclear Engineer": "Renewable Energy & Sustainability",
-      "Chemical Engineer": "Renewable Energy & Sustainability",
-      "Risk & Compliance Officer": "Financial Services & FinTech",
-      "Geneticist": "Healthcare & Life Sciences",
-      "Health Informatics Specialist": "Healthcare & Life Sciences",
-      "Hospitality Manager": "Tourism & Hospitality",
-      "Tourism & Events Manager": "Tourism & Hospitality",
-      "Airline Pilot": "Tourism & Hospitality",
-      "Agricultural Scientist (Agronomist)": "Food Security & Agriculture",
-      "Food Technologist": "Food Security & Agriculture",
-      "Agricultural Engineer": "Food Security & Agriculture",
-      "Satellite & Remote Sensing Scientist": "Space & Future Sciences",
-      "Film & TV Producer": "Creative Industries & Media",
+      "Nuclear Engineer": "Renewable Energy",
+      "Chemical Engineer": "Renewable Energy",
+      "Risk & Compliance Officer": "Financial Services",
+      "Geneticist": "Healthcare",
+      "Health Informatics Specialist": "Healthcare",
+      "Hospitality Manager": "Tourism",
+      "Tourism & Events Manager": "Tourism",
+      "Airline Pilot": "Tourism",
+      "Agricultural Scientist (Agronomist)": "Food Security",
+      "Food Technologist": "Food Security",
+      "Agricultural Engineer": "Food Security",
+      "Satellite & Remote Sensing Scientist": "Space & Advanced Sciences",
+      "Film & TV Producer": "Cultural & Creative Industries",
       "Data Engineer": "Artificial Intelligence",
-      "Atmospheric & Space Scientist": "Space & Future Sciences",
-      "Physicist": "Space & Future Sciences",
-      "Environmental Engineer": "Renewable Energy & Sustainability",
-      "Actuary": "Financial Services & FinTech",
-      "Investment & Financial Manager": "Financial Services & FinTech",
+      "Atmospheric & Space Scientist": "Space & Advanced Sciences",
+      "Physicist": "Space & Advanced Sciences",
+      "Environmental Engineer": "Renewable Energy",
+      "Actuary": "Financial Services",
+      "Investment & Financial Manager": "Financial Services",
       "Primary School Teacher": "Education & Human Capital",
       "School Counsellor & Career Advisor": "Education & Human Capital",
       "Curriculum & Instructional Designer": "Education & Human Capital",
-      "Cloud & Network Architect": "Technology",
-      "Industrial Engineer": "Technology",
-      "Video Editor": "Creative Industries & Media",
-      "Dietitian & Nutritionist": "Food Security & Agriculture",
+      "Cloud & Network Architect": "Digital Economy",
+      "Industrial Engineer": "Digital Economy",
+      "Video Editor": "Cultural & Creative Industries",
+      "Dietitian & Nutritionist": "Food Security",
     };
     expect(Object.keys(INTENDED)).toHaveLength(29);
     const ctx = makeContext();
@@ -395,12 +395,65 @@ describe("calculateVisionScore — HYBRID (category gate + WEF skill modulation)
     }
   });
 
+  it("PHASE 4: the six business careers headline their new sectors, not the catch-all", () => {
+    // docs/uae-official-sectors.md §4: no official UAE source treats business or
+    // entrepreneurship as a SECTOR, so these six are distributed across existing
+    // sectors rather than given an 11th. Before Phase 4 all six headlined the
+    // catch-all (Business & Management @65 / Business & Marketing @60, then
+    // named Technology). Attribution is what the student is told, so it is what
+    // is pinned here.
+    const INTENDED: Record<string, string> = {
+      "Human Resources Manager": "Education & Human Capital",
+      "Digital Marketing Specialist": "Digital Economy",
+      "Entrepreneur": "Digital Economy",
+      "Management Consultant": "Financial Services",
+      "Sales Manager": "Financial Services",
+      "Marketing Manager": "Cultural & Creative Industries",
+    };
+    const byCareerOverrideCount = (title: string) =>
+      UAE_SECTOR_CAREER_OVERRIDES.filter(o => o.careerTitle === title).length;
+    const ctx = makeContext();
+    for (const [title, sector] of Object.entries(INTENDED)) {
+      const result = scoreOf(ctx, title);
+      expect(result.reasoning.endsWith(`: ${sector}`), `${title}: ${result.reasoning}`).toBe(true);
+      // Exactly one override row each: override-EXCLUSIVE means a second row
+      // would re-open the choice these are here to close.
+      expect(byCareerOverrideCount(title), title).toBe(1);
+      expect(result.score, `${title} floored`).toBeGreaterThan(40);
+    }
+    // Four of the six move OFF the catch-all entirely; the two that stay on
+    // Digital Economy do so by an override that names it, not by the
+    // Business & * category rules. Assert the source, not just the answer.
+    for (const title of Object.keys(INTENDED)) {
+      expect(byCareerOverrideCount(title), `${title} not override-sourced`).toBe(1);
+    }
+  });
+
+  it("PHASE 4: Business & Management / Business & Marketing rules are unreachable but kept", () => {
+    // Every career in both categories now carries an override, so neither rule
+    // can fire. They are deliberately NOT deleted - they are the fallback for
+    // the next career added to either category, which would otherwise floor at
+    // 40. This test documents the state so a future reader does not "clean up"
+    // rules that look dead, and fails if a business career loses its override.
+    const overridden = new Set(UAE_SECTOR_CAREER_OVERRIDES.map(o => o.careerTitle));
+    const businessCareers = Object.entries(CAREER_CATEGORY)
+      .filter(([, c]) => c === "Business & Management" || c === "Business & Marketing")
+      .map(([t]) => t);
+    expect(businessCareers.length).toBeGreaterThan(0);
+    expect(businessCareers.filter(t => !overridden.has(t))).toEqual([]);
+    // The rules themselves still exist.
+    for (const category of ["Business & Management", "Business & Marketing"]) {
+      expect(UAE_SECTOR_CATEGORY_RULES.filter(r => r.category === category).length, category)
+        .toBeGreaterThan(0);
+    }
+  });
+
   it("PHASE 3 STAGE 3: no two sector vectors are collinear across the catalog", () => {
     // THE GUARD THIS STAGE EXISTS FOR. Two sectors whose alignment columns
     // correlate near 1.0 are not two signals — whichever wins a career is then
     // decided by the seeded relevance alone, and the skill modulation is
     // measuring the same thing twice. Phase 3 stage 1 pushed Space & Future
-    // Sciences <-> Healthcare & Life Sciences to r=0.903 by adding six
+    // Sciences <-> Healthcare to r=0.903 by adding six
     // Science-category careers to a catalog whose two science vectors both led
     // on Scientific Literacy. Nothing in the product surfaced that; only this
     // kind of measurement does, which is why it is pinned here.
@@ -456,11 +509,11 @@ describe("calculateVisionScore — HYBRID (category gate + WEF skill modulation)
   });
 
   it("PHASE 3 STAGE 3: Electrical Engineer is pinned, not decided by rounding", () => {
-    // It sat 0.4 score points from Space & Future Sciences at 39 careers and
+    // It sat 0.4 score points from Space & Advanced Sciences at 39 careers and
     // 0.2 points the other way at 68 — a coin flip inside the ±9-point skill
     // modulation band. An override makes Renewable Energy the only candidate.
     const result = scoreOf(makeContext(), "Electrical Engineer");
-    expect(result.reasoning.endsWith(": Renewable Energy & Sustainability")).toBe(true);
+    expect(result.reasoning.endsWith(": Renewable Energy")).toBe(true);
     expect(UAE_SECTOR_CAREER_OVERRIDES.filter(o => o.careerTitle === "Electrical Engineer"))
       .toHaveLength(1);
     // Relevance is byte-identical to the Engineering category rule it replaces,
@@ -470,11 +523,12 @@ describe("calculateVisionScore — HYBRID (category gate + WEF skill modulation)
 
   it("the two re-homed careers moved off their old attribution", () => {
     const ctx = makeContext();
-    // Was Technology @45 - the catalog's weakest attribution.
-    expect(scoreOf(ctx, "Lawyer").reasoning.endsWith(": Financial Services & FinTech")).toBe(true);
+    // Was the catch-all @45 (named Technology then, Digital Economy now) -
+    // the catalog's weakest attribution.
+    expect(scoreOf(ctx, "Lawyer").reasoning.endsWith(": Financial Services")).toBe(true);
     expect(scoreOf(ctx, "Lawyer").score).toBeGreaterThan(75);
     // Was the 40 floor, with no sector at all.
-    expect(scoreOf(ctx, "Chef").reasoning.endsWith(": Tourism & Hospitality")).toBe(true);
+    expect(scoreOf(ctx, "Chef").reasoning.endsWith(": Tourism")).toBe(true);
     expect(scoreOf(ctx, "Chef").score).toBeGreaterThan(75);
   });
 });
