@@ -10,6 +10,7 @@ import { applyCareerValuesProfiles } from "./migrations/career-values-profiles";
 import { applyMissingWefAffinities } from "./migrations/wef-skill-affinities";
 import { applySectorRenames } from "./migrations/sector-renames";
 import { applyCareerRelatedSubjects } from "./migrations/career-related-subjects";
+import { applyCareerGrowthBands } from "./migrations/career-growth-bands";
 import { WEF_16_SKILLS, CAREER_WEF_SKILL_AFFINITIES } from "./wefSkillsData";
 
 // ---------------------------------------------------------------------------
@@ -3148,6 +3149,19 @@ export async function seedDatabase() {
     await applyMissingWefAffinities(storage);
   } catch (error: any) {
     console.error("  WEF affinity backfill error (non-fatal, continuing):", error.message);
+  }
+
+  // Backfill the O*NET projected-growth band onto careers that already exist,
+  // and re-derive growth_outlook from it. Same INSERT-only reason as the block
+  // above. Without this the catalogue keeps the hand-authored growth strings,
+  // which are stale on 22 of 68 rows and cannot express decline at all — two
+  // O*NET-declining careers are stored as "Moderate (0% growth)" because the
+  // client localiser's vocabulary had no declining tier to record them in.
+  // Idempotent: re-running rewrites the same values.
+  try {
+    await applyCareerGrowthBands();
+  } catch (error: any) {
+    console.error("  Career growth band error (non-fatal, continuing):", error.message);
   }
 
   // Correct relatedSubjects on careers whose seeded tags project to no

@@ -7,6 +7,7 @@ import { dataExportLimiter, orgCreationLimiter } from "../middleware/rateLimiter
 import { getSuperadminEmails } from "../middleware/auth.middleware";
 import { toPublicUser } from "@shared/userPublic";
 import type { User } from "@shared/schema";
+import { isOnetGrowthBand, growthOutlookFor, ONET_GROWTH_BANDS } from "@shared/growthBands";
 import * as fileStorage from "../services/fileStorage";
 import Stripe from "stripe";
 
@@ -1951,10 +1952,15 @@ export function registerSuperadminRoutes(app: Express) {
 
   app.post("/api/superadmin/careers", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
     try {
-      const { title, description, titleAr, descriptionAr, requiredSkills, requiredSkillsAr, relatedSubjects, category, educationLevel, educationLevelAr, averageSalary, growthOutlook, icon, valuesProfile, onetCode, countryId } = req.body;
+      const { title, description, titleAr, descriptionAr, requiredSkills, requiredSkillsAr, relatedSubjects, category, educationLevel, educationLevelAr, averageSalary, onetGrowthBand, icon, valuesProfile, onetCode, countryId } = req.body;
       
-      if (!title || !description || !requiredSkills || !relatedSubjects || !category || !educationLevel || !growthOutlook) {
+      if (!title || !description || !requiredSkills || !relatedSubjects || !category || !educationLevel) {
         return res.status(400).json({ message: "Missing required fields" });
+      }
+      // growthOutlook is DERIVED and is no longer accepted from the client — the
+      // band is the only growth input. See docs/future-readiness-plan.md A6.
+      if (!isOnetGrowthBand(onetGrowthBand)) {
+        return res.status(400).json({ message: "onetGrowthBand must be one of: " + ONET_GROWTH_BANDS.join(", ") });
       }
       
       const career = await storage.createCareer({
@@ -1969,7 +1975,8 @@ export function registerSuperadminRoutes(app: Express) {
         educationLevel,
         educationLevelAr: educationLevelAr || null,
         averageSalary: averageSalary || null,
-        growthOutlook,
+        onetGrowthBand,
+        growthOutlook: growthOutlookFor(onetGrowthBand), // derived, never client-supplied
         icon: icon || null,
         valuesProfile: valuesProfile || null,
         onetCode: onetCode || null,
@@ -1990,7 +1997,7 @@ export function registerSuperadminRoutes(app: Express) {
         return res.status(404).json({ message: "Career not found" });
       }
       
-      const { title, description, titleAr, descriptionAr, requiredSkills, requiredSkillsAr, relatedSubjects, category, educationLevel, educationLevelAr, averageSalary, growthOutlook, icon, valuesProfile, onetCode, countryId } = req.body;
+      const { title, description, titleAr, descriptionAr, requiredSkills, requiredSkillsAr, relatedSubjects, category, educationLevel, educationLevelAr, averageSalary, onetGrowthBand, icon, valuesProfile, onetCode, countryId } = req.body;
       
       const updates: Record<string, any> = {};
       if (title !== undefined) updates.title = title;
@@ -2004,7 +2011,17 @@ export function registerSuperadminRoutes(app: Express) {
       if (educationLevel !== undefined) updates.educationLevel = educationLevel;
       if (educationLevelAr !== undefined) updates.educationLevelAr = educationLevelAr || null;
       if (averageSalary !== undefined) updates.averageSalary = averageSalary;
-      if (growthOutlook !== undefined) updates.growthOutlook = growthOutlook;
+      // The band is the input; growthOutlook is re-derived from it and is never
+      // taken from the request body. A superadmin CAN still override the band —
+      // O*NET has no code for every occupation and a human must be able to
+      // correct one — but can no longer write a display string nothing parses.
+      if (onetGrowthBand !== undefined) {
+        if (!isOnetGrowthBand(onetGrowthBand)) {
+          return res.status(400).json({ message: "onetGrowthBand must be one of: " + ONET_GROWTH_BANDS.join(", ") });
+        }
+        updates.onetGrowthBand = onetGrowthBand;
+        updates.growthOutlook = growthOutlookFor(onetGrowthBand);
+      }
       if (icon !== undefined) updates.icon = icon;
       if (valuesProfile !== undefined) updates.valuesProfile = valuesProfile;
       if (onetCode !== undefined) updates.onetCode = onetCode;

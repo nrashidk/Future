@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { MasonryGrid, MasonryItem } from "@/components/MasonryGrid";
 import { isPremiumAssessment } from "@shared/assessmentTier";
+import { GROWTH_BAND_I18N, isOnetGrowthBand } from "@shared/growthBands";
 import { 
   GraduationCap, 
   Target, 
@@ -128,28 +129,19 @@ function getCountryDisplayName(
   return (lang === 'ar' && country.nameAr) ? country.nameAr : (country.name || tFn('countryFallback'));
 }
 
-// Map DB growth outlook prefix words to their results.json i18n keys
-const GROWTH_LEVEL_I18N: Record<string, string> = {
-  "Excellent": "growthExcellent",
-  "Very Good": "growthVeryGood",
-  "Good": "growthGood",
-  "Moderate": "growthModerate",
-  "Depends on venture": "growthDepends",
-};
-
-function localizeGrowthOutlook(outlook: string, tFn: (key: string, opts?: any) => string): string {
-  // Standalone match (no percentage): "Depends on venture"
-  const standaloneKey = GROWTH_LEVEL_I18N[outlook.trim()];
-  if (standaloneKey) return tFn(standaloneKey);
-  // Pattern: "Excellent (25% growth)"
-  const match = outlook.match(/^([^(]+?)\s*\((\d+)%\s*growth\)$/i);
-  if (match) {
-    const prefix = match[1].trim();
-    const pct = match[2];
-    const levelKey = GROWTH_LEVEL_I18N[prefix];
-    if (levelKey) return tFn('growthPctPattern', { level: tFn(levelKey), pct });
-  }
-  return outlook;
+// Growth outlook is an ENUMERATED BAND on the career row, not a parsed string.
+//
+// This replaced a regex that matched only `(\d+)% growth` — an UNSIGNED
+// percentage — and fell back to returning the raw English string on anything it
+// could not parse. That fallback is what silently censored "Declining" from
+// every Arabic report. An enum indexing a lookup has no unmatched-input path.
+// See shared/growthBands.ts and docs/future-readiness-plan.md A4.
+function localizeGrowthBand(
+  band: string | null | undefined,
+  tFn: (key: string) => string,
+): string {
+  const key = isOnetGrowthBand(band) ? GROWTH_BAND_I18N[band] : GROWTH_BAND_I18N.average;
+  return tFn(key);
 }
 
 // Map raw country.targets keys to results-namespace i18n keys for localized display
@@ -1048,7 +1040,8 @@ export default function Results() {
                   <div className="p-3 bg-background/30 rounded-lg text-center">
                     <TrendingUp className="w-5 h-5 mx-auto mb-1 text-primary" />
                     <p className="text-xs text-muted-foreground mb-1">{t('growthOutlook')}</p>
-                    <p className="font-bold text-sm">{localizeGrowthOutlook(rec.career?.growthOutlook || '', t)}</p>
+                    <p className="font-bold text-sm">{localizeGrowthBand(rec.career?.onetGrowthBand, t)}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">{t('growthSource')}</p>
                   </div>
                   {rec.career?.averageSalary && (
                     <div className="p-3 bg-background/30 rounded-lg text-center">

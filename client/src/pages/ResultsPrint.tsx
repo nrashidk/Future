@@ -24,6 +24,7 @@ import {
 import { useQuery, useQueries } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef } from "react";
 import { isPremiumAssessment } from "@shared/assessmentTier";
+import { GROWTH_BAND_I18N, isOnetGrowthBand } from "@shared/growthBands";
 import i18n from "@/i18n/config";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -84,26 +85,16 @@ function getCountryDisplayName(
   return (lang === 'ar' && country.nameAr) ? country.nameAr : (country.name || tFn('countryFallback'));
 }
 
-// Map DB growth outlook prefix words to their results.json i18n keys
-const GROWTH_LEVEL_I18N: Record<string, string> = {
-  "Excellent": "growthExcellent",
-  "Very Good": "growthVeryGood",
-  "Good": "growthGood",
-  "Moderate": "growthModerate",
-  "Depends on venture": "growthDepends",
-};
-
-function localizeGrowthOutlook(outlook: string, tFn: (key: string, opts?: any) => string): string {
-  const standaloneKey = GROWTH_LEVEL_I18N[outlook.trim()];
-  if (standaloneKey) return tFn(standaloneKey);
-  const match = outlook.match(/^([^(]+?)\s*\((\d+)%\s*growth\)$/i);
-  if (match) {
-    const prefix = match[1].trim();
-    const pct = match[2];
-    const levelKey = GROWTH_LEVEL_I18N[prefix];
-    if (levelKey) return tFn('growthPctPattern', { level: tFn(levelKey), pct });
-  }
-  return outlook;
+// Growth outlook is an ENUMERATED BAND on the career row, not a parsed string.
+// Verbatim twin of localizeGrowthBand in Results.tsx; both now read the same
+// shared lookup instead of each carrying a copy of a regex that could not
+// express decline. See shared/growthBands.ts.
+function localizeGrowthBand(
+  band: string | null | undefined,
+  tFn: (key: string) => string,
+): string {
+  const key = isOnetGrowthBand(band) ? GROWTH_BAND_I18N[band] : GROWTH_BAND_I18N.average;
+  return tFn(key);
 }
 
 
@@ -1026,11 +1017,11 @@ export default function ResultsPrint() {
                   })()}
 
                   {/* Growth Outlook row */}
-                  {rec.career?.growthOutlook && (
+                  {rec.career?.onetGrowthBand && (
                     <div className="flex items-center gap-1.5 mt-1.5 p-1.5 bg-background/20 rounded-lg">
                       <TrendingUp className="w-3 h-3 text-primary flex-shrink-0" />
                       <span className="text-[10px] text-muted-foreground">{t('growthOutlook')}:</span>
-                      <span className="text-[10px] font-semibold">{localizeGrowthOutlook(rec.career.growthOutlook, t)}</span>
+                      <span className="text-[10px] font-semibold">{localizeGrowthBand(rec.career.onetGrowthBand, t)}</span>
                     </div>
                   )}
                 </div>

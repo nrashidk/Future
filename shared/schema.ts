@@ -485,7 +485,31 @@ export const careers = pgTable("careers", {
   category: text("category").notNull(),
   educationLevel: text("education_level").notNull(),
   averageSalary: text("average_salary"),
+
+  /**
+   * DEPRECATED as an authored field. Still notNull and still what older clients
+   * read, but it is now DERIVED: the only writer is
+   * growthOutlookFor(onetGrowthBand) in shared/growthBands.ts. Do not author it,
+   * do not let the superadmin UI or an LLM set it directly.
+   * Scheduled for removal — see docs/future-readiness-plan.md A7.
+   */
   growthOutlook: text("growth_outlook").notNull(),
+
+  /**
+   * O*NET "Projected growth (2024-2034)" band for this occupation, keyed on
+   * onetCode. THE source of truth for growth display.
+   *   'much_faster' | 'faster' | 'average' | 'slower' | 'decline'
+   *   | 'not_applicable'  (no meaningful O*NET projection — currently only
+   *                        Entrepreneur; requires a written rationale)
+   * See shared/growthBands.ts. Refreshed by server/migrations/career-growth-bands.ts,
+   * never hand-edited.
+   */
+  onetGrowthBand: text("onet_growth_band").notNull().default("average"),
+
+  /** Provenance for onetGrowthBand, so the value is auditable, not folklore. */
+  onetGrowthSource: jsonb("onet_growth_source"),
+  //   { onetCode, bandVerbatim, fetchedAt, projectionVintage: "2024-2034" }
+
   icon: text("icon"),
   
   // Country-specific careers (null = global/available everywhere)

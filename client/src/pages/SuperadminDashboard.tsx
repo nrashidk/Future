@@ -31,6 +31,7 @@ import SubjectManagement from "@/components/admin/SubjectManagement";
 import TranslationManager from "@/components/admin/TranslationManager";
 import { CredentialsModal } from "@/components/CredentialsModal";
 import { useTranslation } from "react-i18next";
+import { ONET_GROWTH_BANDS, GROWTH_BAND_I18N } from "@shared/growthBands";
 
 interface Metrics {
   totalSchools: number;
@@ -175,7 +176,9 @@ interface Career {
   educationLevel: string;
   educationLevelAr?: string | null;
   averageSalary: string | null;
+  /** DERIVED from onetGrowthBand — display only, never edited here. */
   growthOutlook: string;
+  onetGrowthBand: string;
   icon: string | null;
   countryId: string | null;
   createdAt: string;
@@ -495,7 +498,7 @@ export default function SuperadminDashboard() {
     educationLevel: "",
     educationLevelAr: "",
     averageSalary: "",
-    growthOutlook: "",
+    onetGrowthBand: "",
     icon: "",
     countryId: "",
   });
@@ -696,7 +699,7 @@ export default function SuperadminDashboard() {
   };
 
   const resetCareerForm = () => {
-    setCareerForm({ title: "", description: "", titleAr: "", descriptionAr: "", requiredSkills: "", requiredSkillsAr: "", relatedSubjects: "", category: "", educationLevel: "", educationLevelAr: "", averageSalary: "", growthOutlook: "", icon: "", countryId: "" });
+    setCareerForm({ title: "", description: "", titleAr: "", descriptionAr: "", requiredSkills: "", requiredSkillsAr: "", relatedSubjects: "", category: "", educationLevel: "", educationLevelAr: "", averageSalary: "", onetGrowthBand: "", icon: "", countryId: "" });
   };
 
   const openDeleteOrgModal = (orgId: string) => {
@@ -742,7 +745,7 @@ export default function SuperadminDashboard() {
       educationLevel: career.educationLevel,
       educationLevelAr: career.educationLevelAr || "",
       averageSalary: career.averageSalary || "",
-      growthOutlook: career.growthOutlook,
+      onetGrowthBand: career.onetGrowthBand || "",
       icon: career.icon || "",
       countryId: career.countryId || "",
     });
@@ -1701,8 +1704,8 @@ export default function SuperadminDashboard() {
                             <TableCell><Badge variant="outline">{career.category}</Badge></TableCell>
                             <TableCell>{career.educationLevel}</TableCell>
                             <TableCell>
-                              <Badge variant={career.growthOutlook === "high" ? "default" : career.growthOutlook === "medium" ? "secondary" : "outline"}>
-                                {career.growthOutlook === "high" ? t('superadmin.growthHigh') : career.growthOutlook === "medium" ? t('superadmin.growthMedium') : career.growthOutlook === "low" ? t('superadmin.growthLow') : t('superadmin.growthDeclining')}
+                              <Badge variant={career.onetGrowthBand === "decline" ? "outline" : career.onetGrowthBand === "much_faster" ? "default" : "secondary"}>
+                                {t(GROWTH_BAND_I18N[career.onetGrowthBand as keyof typeof GROWTH_BAND_I18N] ?? GROWTH_BAND_I18N.average, { ns: 'results' })}
                               </Badge>
                             </TableCell>
                             <TableCell>
@@ -2552,15 +2555,22 @@ export default function SuperadminDashboard() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="career-growth">{t('superadmin.careerGrowthLabel')}</Label>
-                <Select value={careerForm.growthOutlook} onValueChange={(v) => setCareerForm({ ...careerForm, growthOutlook: v })}>
+                {/* The O*NET growth BAND, not a free-text outlook string. The
+                    previous control wrote "high"/"medium"/"low"/"declining" into
+                    growthOutlook — a fourth vocabulary no reader could parse, so
+                    every superadmin-edited career fell back to raw English in the
+                    Arabic report. growthOutlook is now derived server-side from
+                    this band. See docs/future-readiness-plan.md A6. */}
+                <Select value={careerForm.onetGrowthBand} onValueChange={(v) => setCareerForm({ ...careerForm, onetGrowthBand: v })}>
                   <SelectTrigger data-testid="select-career-growth">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="high">{t('superadmin.growthHigh')}</SelectItem>
-                    <SelectItem value="medium">{t('superadmin.growthMedium')}</SelectItem>
-                    <SelectItem value="low">{t('superadmin.growthLow')}</SelectItem>
-                    <SelectItem value="declining">{t('superadmin.growthDeclining')}</SelectItem>
+                    {ONET_GROWTH_BANDS.map((band) => (
+                      <SelectItem key={band} value={band}>
+                        {t(GROWTH_BAND_I18N[band], { ns: 'results' })}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
@@ -2690,7 +2700,7 @@ export default function SuperadminDashboard() {
                   createCareerMutation.mutate(careerForm);
                 }
               }}
-              disabled={!careerForm.title || !careerForm.description || !careerForm.category || !careerForm.educationLevel || !careerForm.growthOutlook || createCareerMutation.isPending || updateCareerMutation.isPending}
+              disabled={!careerForm.title || !careerForm.description || !careerForm.category || !careerForm.educationLevel || !careerForm.onetGrowthBand || createCareerMutation.isPending || updateCareerMutation.isPending}
               data-testid="button-save-career"
             >
               {(createCareerMutation.isPending || updateCareerMutation.isPending) ? t('superadmin.saving') : (editingCareer ? t('superadmin.update') : t('superadmin.addCareer'))}
