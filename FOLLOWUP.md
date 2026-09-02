@@ -1258,3 +1258,72 @@ Sector LIST reconciliation. DB has 6 seeded sectors (AI, Space, Biotechnology, R
 - Design requirement (owner): country generation must source ONLY official in-country government websites (live web-fetch, cited), not LLM training-data recall. Must generate vision -> sectors -> per-sector WEF-skill emphasis (distinctive subset, NOT all 16) -> vision-alignment category rules, with provenance. Constrained generation + a geometric gate (reject sector vectors correlating >0.8 with an accepted one) is what makes it safe.
 - Parked: subjects DERIVED from country vision via WEF skills (a country not targeting art-fields doesn't offer Art); flow reorder Country-before-Subjects so the subject list filters to the country's needs. High-risk, touches assessment flow + quiz budget - stays parked until the above lands.
 
+---
+
+# PROJECT STATE — snapshot 2026-09-02
+
+Whole-project state capture. Recording only — nothing here is a work instruction.
+
+### THE SCORING ENGINE — DONE, live in prod (this was the deep work):
+All 5 scoring components now working (were 3 broken/dead). Committed + verified on prod:
+- Zero-score guard: warns when a weighted component contributes null/zero catalog-wide.
+- WEF unit bugs fixed; WEF is NOT a student-scoring component - it's the VISION skill-spine.
+- Vision: skill-based hybrid (category-membership gate + mean-centered WEF skill-alignment modulator).
+  Sector vectors decorrelated (max r ~0.76). Was flat-40 for 84% of careers; now discriminates.
+- CVQ: was silently dead (0/37 careers had valuesProfile). Now 68/68, O*NET Work Values, rescaled
+  per-domain (catalog-relative). Live.
+- Subjects (Piece D): career.relatedSubjects normalized at match time + 6 aliases + Teacher retag.
+  Flat-20 careers went 10 -> 1 (only Fashion Designer, accepted art-axis gap).
+- Future-readiness: honest O*NET growth bands (replaced fabricated %s on 67/68 careers; fixed the
+  Arabic decline-tier censoring) + an exclusion GATE (WEF-fastest-declining AND O*NET-decline -> excluded).
+  Gate empty for today's 68 (all professional occupations); real job is guarding LLM country-gen.
+
+### THE CATALOG — DONE, live:
+68 careers DERIVED from UAE priority sectors (was an unsystematic 39), every one a real O*NET occupation
+grounded in a named UAE strategy. 10 sectors named to match OFFICIAL UAE government vocabulary
+(Digital Economy, Cultural & Creative Industries, Healthcare, etc). Every career serves a real priority,
+zero catch-all. RIASEC derived from O*NET interest codes; WEF affinities authored per sector.
+
+### SCALABILITY SCAFFOLDING — built, never run for a real 2nd country:
+LLM country-generation (llmCountryService): grounded generation, gates (geometric/coverage/completeness),
+live official-source web-fetch, persists sectors+skills+category rules. The future-readiness gate + the
+completeness gate guard generated careers. NEVER produced a real country - UAE was hand-seeded.
+PARKED: fold official-sector-NAME-fidelity rules into the generation prompt (names must match the
+country's own government vocabulary verbatim, like the UAE reconciliation did). Also parked: subjects
+DERIVED from country vision via WEF skills; Country-before-Subjects flow reorder.
+
+### DONE EARLIER (infra + assessment):
+Storage migration (DigitalOcean Spaces - no more data loss on deploy). Subjects step (Bug #1 priority
+subjects, umbrella-6 list, min-3/max-5, tile polish). Curriculum casing fix (MoE->MOE).
+
+### STILL OPEN — the product-flow layer (mostly pre-rebuild state):
+The v2 assessment/lifecycle rebuild (the CONFIRMED SPEC in FOLLOWUP) is largely NOT built. Open:
+- License model rework (consume-at-completion, school re-grant, self-pay licenses in profile,
+  already-premium repurchase sells licenses).
+- Flow restructure (shared 4-step spine, Aspirations-last).
+- Free->premium carry-over (reuse/redo), guest->account claim, email verification.
+- School form mandatory country+curriculum + lock student steps 1&3.
+- Career Journey multi-grade; the school re-grant path.
+- Dashboard fixes (nav/routing, translations DB-fix, analytics grade-bucket, payment/coverage views).
+- Bug #2 PDF download still fails (Puppeteer) - the one visible failure in a working assessment.
+- Bug #3 school student gets free quiz tier server-side.
+
+### QUIZ — paused:
+Rule B (18 Qs, priority-weighted) NOT built - blocked on VERIFIED questions. Bank works but thin
+(6 subjects x 5 grades, 10/10/7/7/6). Umbrella-6 subjects. AI-generated questions rejected (can't
+verify answer keys). Needs real sourced questions (MOE past papers / teachers / contribution system).
+
+### GO-LIVE ITEMS (not done):
+Email verification. Live Stripe keys (prod is on TEST keys). No real users yet - owner is sole tester.
+
+### TWO SMALL MAPPING TWEAKS (noticed, not fixed):
+Civil Engineer -> Digital Economy (via category rule; arguably belongs elsewhere). Dietitian -> Food
+Security (defensible, but could be Healthcare).
+
+### HONEST HEADLINE:
+Scoring engine ~90% (the hard differentiating core - excellent). Product-flow layer ~30% (still
+largely pre-rebuild). Quiz content thin. Go-live items pending. A student CAN take an assessment and
+get a genuinely good, defensible report today - but the license/lifecycle/dashboard work and PDF bug
+remain. Next natural priorities: PDF bug (visible failure), the v2 flow/license rebuild (biggest
+remaining product work), verified quiz questions (unblocks Rule B).
+
