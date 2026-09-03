@@ -5,8 +5,9 @@ import { storage } from "../storage";
 import { isAuthenticated } from "../auth";
 import { isAdmin, isOrgAdmin, getSuperadminEmails } from "../middleware/auth.middleware";
 import { dataExportLimiter } from "../middleware/rateLimiter.middleware";
-import { insertQuizQuestionSchema } from "@shared/schema";
+import { insertQuizQuestionSchema, type InsertOrganizationMember } from "@shared/schema";
 import { toPublicUser } from "@shared/userPublic";
+import { CANONICAL_GRADES, SCHOOL_GRADES, toCanonicalGrade } from "@shared/grade";
 import { z } from "zod";
 import { isPremiumAssessment } from "../utils/assessmentTier";
 import * as fileStorage from "../services/fileStorage";
@@ -518,6 +519,17 @@ export function registerAdminRoutes(app: Express) {
         return res.status(400).json({ message: "Missing required fields: fullName, grade" });
       }
 
+      // Grade must name a supported grade. Previously this was a presence-only
+      // check and the value went to the column via `grade.toString()`, so the
+      // admin select's "10" was stored verbatim alongside the assessment step's
+      // "grade10" (docs/v2-phase2-recon.md W2).
+      const canonicalGrade = toCanonicalGrade(grade);
+      if (canonicalGrade === null) {
+        return res.status(400).json({
+          message: `Invalid grade: ${JSON.stringify(grade)}. Expected one of ${CANONICAL_GRADES.join(", ")}.`,
+        });
+      }
+
       // Check available capacity
       const capacity = await storage.getOrganizationAvailableCapacity(organizationId);
       if (!capacity.isUnlimited && capacity.totalAvailable < 1) {
@@ -529,7 +541,7 @@ export function registerAdminRoutes(app: Express) {
       const result = await storage.createUserWithCredentials({
         username,
         fullName,
-        grade: grade.toString(),
+        grade: canonicalGrade,
         studentId: studentId || undefined,
         studentName: studentName || undefined,
         studentAge: studentAge ? parseInt(studentAge.toString()) : undefined,
@@ -653,10 +665,19 @@ export function registerAdminRoutes(app: Express) {
             throw new Error("Missing required fields: fullName and grade");
           }
 
+          // Same validity gate as the single-create path. A bad grade fails THIS
+          // row into results.errors (the catch below) rather than storing junk.
+          const canonicalGrade = toCanonicalGrade(grade);
+          if (canonicalGrade === null) {
+            throw new Error(
+              `Invalid grade: ${JSON.stringify(grade)}. Expected one of ${CANONICAL_GRADES.join(", ")}.`
+            );
+          }
+
           const result = await storage.createUserWithCredentials({
             username: username || undefined,
             fullName,
-            grade: grade.toString(),
+            grade: canonicalGrade,
             studentId: studentId || undefined,
             studentName: studentName || undefined,
             studentAge: studentAge ? parseInt(studentAge.toString()) : undefined,
@@ -730,10 +751,24 @@ export function registerAdminRoutes(app: Express) {
       }
 
       const { fullName, grade } = req.body;
-      const updates: any = {};
+      const updates: Partial<InsertOrganizationMember> = {};
 
-      if (fullName !== undefined) updates.fullName = fullName;
-      if (grade !== undefined) updates.grade = parseInt(grade);
+      if (fullName !== undefined) updates.studentName = fullName;
+      if (grade !== undefined) {
+        // Was `parseInt(grade)` — a number written into a TEXT column, via an
+        // `any`-typed object so TypeScript never caught it. It stored "10" for
+        // input "10" and NaN for input "grade10", making this handler the third
+        // grade format in the system. Canonicalize instead, and reject anything
+        // that does not unambiguously name a supported grade rather than storing
+        // junk in a minor's record.
+        const canonical = toCanonicalGrade(grade);
+        if (canonical === null) {
+          return res.status(400).json({
+            message: `Invalid grade: ${JSON.stringify(grade)}. Expected one of ${CANONICAL_GRADES.join(", ")}.`,
+          });
+        }
+        updates.grade = canonical;
+      }
 
       const member = await storage.updateOrganizationMember(req.params.memberId, updates);
       res.json(member);
@@ -1921,11 +1956,25 @@ export function registerAdminRoutes(app: Express) {
             continue;
           }
 
+          // Grade came straight off the file with no validation and no
+          // normalization (`rowData.grade || ''`), so an arbitrary spreadsheet
+          // value — or an empty string — landed in the column
+          // (docs/v2-phase2-recon.md W4). Fail the row instead.
+          const canonicalGrade = toCanonicalGrade(rowData.grade);
+          if (canonicalGrade === null) {
+            results.failed++;
+            results.errors.push(
+              `Row ${i + 1}: Invalid or missing grade ${JSON.stringify(rowData.grade || '')}. ` +
+              `Expected one of ${SCHOOL_GRADES.join(", ")}.`
+            );
+            continue;
+          }
+
           // Create user with credentials
           const result = await storage.createUserWithCredentials({
             organizationId: organization.id,
             fullName: rowData.fullName,
-            grade: rowData.grade || '',
+            grade: canonicalGrade,
             studentId: rowData.studentId || '',
             studentName: rowData.studentName || '',
             studentAge: rowData.studentAge ? parseInt(rowData.studentAge) : undefined,
@@ -1941,7 +1990,7 @@ export function registerAdminRoutes(app: Express) {
             username: result.user.username || '',
             password: result.password,
             fullName: rowData.fullName,
-            grade: rowData.grade || '',
+            grade: canonicalGrade,
           });
         } catch (error: any) {
           results.failed++;

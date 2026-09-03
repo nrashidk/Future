@@ -9,6 +9,7 @@ import { GraduationCap, TrendingUp, Target, Brain, Heart, ArrowLeft, Calendar, A
 import { StickyNote } from "@/components/StickyNote";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { CANONICAL_GRADES, gradeToNumber, toCanonicalGrade } from "@shared/grade";
 
 interface CareerEvolutionData {
   grade: string;
@@ -63,11 +64,18 @@ export default function StudentProgress() {
   }
 
   const hasData = evolution?.gradeDetails && evolution.gradeDetails.length > 0;
-  const grades = ['9', '10', '11', '12'];
+  // Was ['9','10','11','12'] — grade 8 is offered by the assessment's Demographics
+  // step but was missing here, so a grade-8 assessment never appeared on the
+  // timeline at all. 'graduated' is likewise shown only when it has data, since
+  // an empty "Graduated" milestone would read oddly for a grade-9 student.
+  const grades = CANONICAL_GRADES.filter(
+    g => g !== 'graduated' || evolution?.gradeDetails?.some(d => toCanonicalGrade(d.grade) === 'graduated'),
+  );
 
   const getGradeLabel = (grade: string) => {
-    const num = grade.replace(/\D/g, '');
-    return t("progress.grade", { num });
+    if (grade === 'graduated') return t("progress.graduated");
+    const num = gradeToNumber(grade);
+    return t("progress.grade", { num: num === null ? grade : String(num) });
   };
 
   const formatDate = (dateStr: string | null) => {
@@ -79,7 +87,10 @@ export default function StudentProgress() {
   };
 
   const getGradeData = (grade: string) => {
-    return evolution?.gradeDetails?.find(d => d.grade.includes(grade));
+    // Exact canonical comparison. The old `d.grade.includes(grade)` substring
+    // match happened to work for both legacy formats, but it is only correct by
+    // accident: '1' matches 'grade10', 'grade11' and 'grade12'.
+    return evolution?.gradeDetails?.find(d => toCanonicalGrade(d.grade) === grade);
   };
 
   return (
@@ -246,7 +257,7 @@ export default function StudentProgress() {
                                   asChild
                                   data-testid={`button-view-results-${grade}`}
                                 >
-                                  <Link href={`/results?grade=${grade}`}>
+                                  <Link href={`/results?grade=${toCanonicalGrade(gradeData.grade) ?? grade}`}>
                                     {t("progress.viewResults")} <ChevronRight className="w-4 h-4 ms-1" />
                                   </Link>
                                 </Button>

@@ -215,7 +215,14 @@ export default function SuperadminDashboard() {
   const [isEventsModalOpen, setIsEventsModalOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("organizations");
   const [isAddStudentOpen, setIsAddStudentOpen] = useState(false);
-  const [newStudentForm, setNewStudentForm] = useState({ firstName: "", lastName: "", email: "", username: "", grade: "" });
+  // No `grade` here on purpose: POST /api/superadmin/students creates a STANDALONE
+  // user, and there is nowhere to put a grade — `users` has no grade column and a
+  // standalone user has no organization_members row. The dialog used to collect a
+  // grade and REQUIRE it, and the server silently discarded it
+  // (docs/v2-phase2-recon.md W7). A student's grade is recorded per assessment
+  // (assessments.grade, written by the Demographics step), which is the one place
+  // it can stay correct.
+  const [newStudentForm, setNewStudentForm] = useState({ firstName: "", lastName: "", email: "", username: "" });
   
   const [newAdminForm, setNewAdminForm] = useState({
     firstName: "",
@@ -458,7 +465,7 @@ export default function SuperadminDashboard() {
       setCreatedStudentCredentials({ username: data.credentials.username, password: data.credentials.password, email: data.user?.email || "" });
       setIsAddStudentOpen(false);
       setIsStudentCredModalOpen(true);
-      setNewStudentForm({ firstName: "", lastName: "", email: "", username: "", grade: "" });
+      setNewStudentForm({ firstName: "", lastName: "", email: "", username: "" });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/students'] });
     },
     onError: (error: any) => {
@@ -2735,25 +2742,12 @@ export default function SuperadminDashboard() {
               <Label htmlFor="student-username">{t('superadmin.studentUsername')}</Label>
               <Input id="student-username" placeholder={t('superadmin.adminUsername')} value={newStudentForm.username} onChange={(e) => setNewStudentForm({ ...newStudentForm, username: e.target.value })} data-testid="input-student-username" />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="student-grade">{t('superadmin.studentGrade')}</Label>
-              <Select value={newStudentForm.grade} onValueChange={(v) => setNewStudentForm({ ...newStudentForm, grade: v })}>
-                <SelectTrigger id="student-grade" data-testid="select-student-grade">
-                  <SelectValue placeholder={t('superadmin.selectGrade')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {["8", "9", "10", "11", "12"].map((g) => (
-                    <SelectItem key={g} value={g}>{t('superadmin.gradeN', { n: g })}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAddStudentOpen(false)}>{t('superadmin.cancel')}</Button>
             <Button
               onClick={() => createStudentMutation.mutate(newStudentForm)}
-              disabled={!newStudentForm.firstName || !newStudentForm.lastName || !newStudentForm.email || !newStudentForm.grade || createStudentMutation.isPending}
+              disabled={!newStudentForm.firstName || !newStudentForm.lastName || !newStudentForm.email || createStudentMutation.isPending}
               data-testid="button-submit-add-student"
             >
               {createStudentMutation.isPending ? t('superadmin.creating') : t('superadmin.addStudent')}

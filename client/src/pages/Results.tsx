@@ -1,4 +1,5 @@
 import { useAuth } from "@/hooks/useAuth";
+import { pickLatestForGrade, toCanonicalGrade } from "@shared/grade";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { StickyNote } from "@/components/StickyNote";
 import ReportMarkdown from "@/components/ReportMarkdown";
@@ -253,19 +254,54 @@ export default function Results() {
   // Get assessmentId from URL query params
   const urlParams = new URLSearchParams(window.location.search);
   const urlAssessmentId = urlParams.get("assessmentId");
+  // Bug #12 (docs/v2-phase2-recon.md R4): the Career Journey's per-grade
+  // "View Results" links carry ?grade=grade10. This page used to read only
+  // assessmentId, so every one of those links fell through to "no id" and the
+  // server answered with the student's LATEST assessment — all four grade links
+  // opened the same report. Canonicalized here so a link is matched the same way
+  // whatever format produced it.
+  const urlGrade = toCanonicalGrade(urlParams.get("grade"));
   const [assessmentId, setAssessmentId] = useState<string | null>(urlAssessmentId);
   const [isDownloading, setIsDownloading] = useState(false);
 
-  // Guest token is now sent via httpOnly cookie automatically
-  const { data: recommendations = [], isLoading, isError: isRecommendationsError } = useQuery<any[]>({
-    queryKey: urlAssessmentId 
-      ? [`/api/recommendations?assessmentId=${urlAssessmentId}&lang=${language}`]
-      : [`/api/recommendations?lang=${language}`],
-    enabled: true,
+  // Resolve ?grade= to one of the CALLER'S OWN assessments. /api/assessments/my
+  // scopes to req.user.userId server-side and takes no id from the client, so
+  // this cannot reach another student's report — no new endpoint, and no new
+  // authorization surface (docs/v2-phase2-recon.md K8).
+  const needsGradeLookup = !urlAssessmentId && urlGrade !== null;
+  const { data: myAssessments, isLoading: myAssessmentsLoading } = useQuery<any[]>({
+    queryKey: ['/api/assessments/my'],
+    enabled: needsGradeLookup && isAuthenticated,
   });
 
-  // Determine active assessment ID (URL param or extracted from recommendations)
-  const activeAssessmentId = urlAssessmentId || assessmentId;
+  // Only ever the newest COMPLETED assessment for that exact grade, or null.
+  const gradeAssessmentId = needsGradeLookup
+    ? pickLatestForGrade(myAssessments ?? [], urlGrade)?.id ?? null
+    : null;
+
+  // Hold the recommendations query until the lookup settles. Firing the
+  // unscoped query first would render the latest report and then swap it, which
+  // is the very confusion this fix removes.
+  const gradeLookupPending = needsGradeLookup && isAuthenticated && myAssessmentsLoading;
+
+  // If the student has no assessment for the requested grade we fall through to
+  // the unscoped query (the latest report) rather than showing nothing — the
+  // Journey only renders the link for a grade that HAS a completed assessment,
+  // so this is the hand-typed-URL path.
+  const resolvedAssessmentId = urlAssessmentId || gradeAssessmentId;
+
+  // Guest token is now sent via httpOnly cookie automatically
+  const { data: recommendations = [], isLoading: recommendationsLoading, isError: isRecommendationsError } = useQuery<any[]>({
+    queryKey: resolvedAssessmentId
+      ? [`/api/recommendations?assessmentId=${resolvedAssessmentId}&lang=${language}`]
+      : [`/api/recommendations?lang=${language}`],
+    enabled: !gradeLookupPending,
+  });
+
+  const isLoading = gradeLookupPending || recommendationsLoading;
+
+  // Determine active assessment ID (URL param, grade lookup, or extracted from recommendations)
+  const activeAssessmentId = resolvedAssessmentId || assessmentId;
 
   // Page-level locked signal derived from the SERVER flag (rec.locked), not a
   // re-derived tier check. Free-tier assessments come back with locked:true on

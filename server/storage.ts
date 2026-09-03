@@ -112,6 +112,7 @@ import {
   type InsertSystemAnnouncement,
 } from "@shared/schema";
 import { db } from "./db";
+import { gradeSortKey, mergeGradeCounts, toCanonicalGrade } from "@shared/grade";
 import { eq, and, or, desc, count, avg, sql, inArray, notInArray, isNotNull, gte, type SQL } from "drizzle-orm";
 
 /**
@@ -1288,15 +1289,36 @@ export class DatabaseStorage implements IStorage {
       .where(and(...conditions, isNotNull(assessments.countryId)))
       .groupBy(assessments.countryId, countries.name);
 
-    // Get grade distribution with aggregation
+    // Get grade distribution with aggregation.
+    //
+    // Grouped on a CANONICALIZED expression, not the raw column. This is the
+    // "Grade 10 twice" bug: rows holding '10' and rows holding 'grade10' formed
+    // two groups, and the client then stripped the 'grade' prefix off the label
+    // so both bars rendered "Grade 10". Migration 013 canonicalizes the stored
+    // values, but grouping defensively here means a single stray non-canonical
+    // row can never split a bucket again.
+    //
+    // Mirrors shared/grade.ts toCanonicalGrade for the shapes that convert:
+    // already-canonical passes through, a bare/embedded digit core of 8-12 gains
+    // the prefix, and anything else is left as-is so it stays visible rather
+    // than being silently merged into a grade it may not belong to.
+    const canonicalGradeExpr = sql<string>`
+      CASE
+        WHEN ${assessments.grade} ~ '^grade(8|9|10|11|12)$' THEN ${assessments.grade}
+        WHEN ${assessments.grade} = 'graduated' THEN 'graduated'
+        WHEN regexp_replace(${assessments.grade}, '\D', '', 'g') IN ('8','9','10','11','12')
+          THEN 'grade' || regexp_replace(${assessments.grade}, '\D', '', 'g')
+        ELSE ${assessments.grade}
+      END`;
+
     const gradesData = await db
       .select({
-        grade: assessments.grade,
+        grade: canonicalGradeExpr,
         count: sql<number>`count(*)::int`
       })
       .from(assessments)
       .where(and(...conditions, isNotNull(assessments.grade)))
-      .groupBy(assessments.grade);
+      .groupBy(canonicalGradeExpr);
 
     return {
       totalStudents,
@@ -1306,10 +1328,12 @@ export class DatabaseStorage implements IStorage {
         countryName: row.countryName || 'Unknown',
         count: row.count
       })),
-      gradeDistribution: gradesData.map(row => ({
-        grade: row.grade!,
-        count: row.count
-      }))
+      // One bucket per grade, sorted by grade rather than by count or lexically
+      // ('grade10' < 'grade8' and '10' < '8' both sort wrongly as strings).
+      // The SQL above already groups canonically; merging again here is the
+      // layer that is unit-testable without a database, and it keeps a stray
+      // non-canonical row from ever splitting a bar again (shared/grade.ts).
+      gradeDistribution: mergeGradeCounts(gradesData)
     };
   }
 
@@ -3487,7 +3511,11 @@ export class DatabaseStorage implements IStorage {
     const progression = await this.getStudentAssessmentProgression(userId);
     
     return progression.map(({ assessment, recommendations, careerNames }) => ({
-      grade: assessment.grade || 'Unknown',
+      // Canonicalized before it leaves the server: the Career Journey compares
+      // grades across years, so a student stored as '10' one year and 'grade10'
+      // the next must not read as two different grades. This is what blocks the
+      // next-grade re-assessment path (plan L12) until it emits one format.
+      grade: toCanonicalGrade(assessment.grade) ?? assessment.grade ?? 'Unknown',
       completedAt: assessment.completedAt,
       topCareers: recommendations.slice(0, 3).map((rec, i) => ({
         careerId: rec.careerId,
@@ -3545,7 +3573,10 @@ export class DatabaseStorage implements IStorage {
     const gradeMap = new Map<string, { students: Set<string>; assessments: number; totalScore: number }>();
     
     for (const assessment of memberAssessments) {
-      const grade = assessment.grade || 'Unknown';
+      // Canonical key, so a member stored as '10' and one stored as 'grade10'
+      // are one bucket — the same double-bucketing that produced "Grade 10
+      // twice" in the global analytics.
+      const grade = toCanonicalGrade(assessment.grade) ?? assessment.grade ?? 'Unknown';
       if (!gradeMap.has(grade)) {
         gradeMap.set(grade, { students: new Set(), assessments: 0, totalScore: 0 });
       }
@@ -3575,9 +3606,10 @@ export class DatabaseStorage implements IStorage {
       }
     }
 
-    // Recalculate with actual avg scores
+    // Recalculate with actual avg scores. Must derive the key exactly as the
+    // loop above does, or gradeMap.get() misses and the non-null assertion throws.
     for (const assessment of memberAssessments) {
-      const grade = assessment.grade || 'Unknown';
+      const grade = toCanonicalGrade(assessment.grade) ?? assessment.grade ?? 'Unknown';
       const stats = gradeMap.get(grade)!;
       const avgScore = recsMap.get(assessment.id) || 0;
       stats.totalScore += avgScore;
@@ -3588,7 +3620,7 @@ export class DatabaseStorage implements IStorage {
       totalStudents: stats.students.size,
       completedAssessments: stats.assessments,
       avgMatchScore: stats.assessments > 0 ? stats.totalScore / stats.assessments : 0,
-    })).sort((a, b) => a.grade.localeCompare(b.grade));
+    })).sort((a, b) => gradeSortKey(a.grade) - gradeSortKey(b.grade));
 
     // Build student progress with top career per grade
     const studentProgressMap = new Map<string, {

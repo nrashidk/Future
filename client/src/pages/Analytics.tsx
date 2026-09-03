@@ -11,6 +11,7 @@ import { Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { gradeToNumber, gradeSortKey } from "@shared/grade";
 import { useToast } from "@/hooks/use-toast";
 import {
   BarChart as RechartsBarChart,
@@ -164,14 +165,19 @@ export default function Analytics() {
 
   const topCareer = careers?.[0];
 
+  // The server now returns one bucket per grade (canonicalized + sorted), so the
+  // max here is a true max rather than a max over split buckets. Ties break
+  // toward the lower grade for stability.
   const topGradeRaw = overview?.gradeDistribution && overview.gradeDistribution.length > 0
-    ? overview.gradeDistribution.reduce((prev, current) => 
+    ? overview.gradeDistribution.reduce((prev, current) =>
         (current.count > prev.count) ? current : prev
       ).grade
     : null;
-  const topGradeFormatted = topGradeRaw 
-    ? topGradeRaw.replace(/^grade/i, '').trim()
-    : null;
+  // 'graduated' has no number: render the token rather than an empty string,
+  // which is what `.replace(/^grade/i,'')` produced for it.
+  const topGradeNumber = topGradeRaw ? gradeToNumber(topGradeRaw) : null;
+  const topGradeFormatted = topGradeNumber !== null ? String(topGradeNumber) : null;
+  const topGradeIsGraduated = topGradeRaw === 'graduated';
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10">
@@ -371,7 +377,13 @@ export default function Analytics() {
               <div>
                 <p className="text-muted-foreground text-sm mb-1">{t('analytics.topGrade')}</p>
                 <p className="text-2xl font-bold" data-testid="metric-top-grade">
-                  {overviewLoading ? "..." : topGradeFormatted ? t('analytics.gradeN', { n: topGradeFormatted }) : t('analytics.na')}
+                  {overviewLoading
+                    ? "..."
+                    : topGradeIsGraduated
+                      ? t('analytics.graduated')
+                      : topGradeFormatted
+                        ? t('analytics.gradeN', { n: topGradeFormatted })
+                        : t('analytics.na')}
                 </p>
               </div>
               <GraduationCap className="w-8 h-8 text-primary" />
@@ -405,10 +417,19 @@ export default function Analytics() {
               <CardContent className="pt-6">
                 <ResponsiveContainer width="100%" height={280}>
                   <RechartsBarChart
-                    data={overview.gradeDistribution.map(d => ({
-                      ...d,
-                      label: t('analytics.gradeN', { n: d.grade.replace(/^grade\s*/i, '') }),
-                    }))}
+                    data={[...overview.gradeDistribution]
+                      .sort((a, b) => gradeSortKey(a.grade) - gradeSortKey(b.grade))
+                      .map(d => {
+                        const n = gradeToNumber(d.grade);
+                        return {
+                          ...d,
+                          label: d.grade === 'graduated'
+                            ? t('analytics.graduated')
+                            : n !== null
+                              ? t('analytics.gradeN', { n: String(n) })
+                              : d.grade,
+                        };
+                      })}
                     margin={{ top: 8, right: 24, left: 0, bottom: 8 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" className="stroke-border" />

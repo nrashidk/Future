@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { validateEmail } from "@/lib/utils";
+import { SCHOOL_GRADES, gradeToNumber } from "@shared/grade";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
@@ -1602,8 +1603,11 @@ function CreateMemberForm({ organizationId, onSuccess }: { organizationId: strin
                 <SelectValue placeholder={t('orgs.selectGradeOpt')} />
               </SelectTrigger>
               <SelectContent>
-                {["8", "9", "10", "11", "12"].map(g => (
-                  <SelectItem key={g} value={g}>{t('orgs.gradeItemN', { n: g })}</SelectItem>
+                {/* Values are canonical ('grade8'…'grade12'); the label keeps the
+                    bare number. This select used to emit "8"…"12", which is how a
+                    second grade format entered organization_members. */}
+                {SCHOOL_GRADES.map(g => (
+                  <SelectItem key={g} value={g}>{t('orgs.gradeItemN', { n: gradeToNumber(g) })}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
