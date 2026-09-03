@@ -1327,3 +1327,48 @@ get a genuinely good, defensible report today - but the license/lifecycle/dashbo
 remain. Next natural priorities: PDF bug (visible failure), the v2 flow/license rebuild (biggest
 remaining product work), verified quiz questions (unblocks Rule B).
 
+
+---
+
+## MULTI-COUNTRY / LOCALIZATION — parked workstream (2026-09-02)
+
+Principle: universal engine + per-country CONFIG pack. Everything country-specific must be DATA/config
+per country, NOT hardcoded, so adding Jordan/KSA/etc is "add a country config," not "edit code." UAE is
+the FIRST country, not the only one - naming, defaults, and framing must not assume UAE (global presence).
+
+Universal (never changes per country): RIASEC instrument, CVQ instrument, WEF 16 skills, the scoring math,
+O*NET occupation-intrinsic data (a career's skills/values/interest profile - properties of the WORK, not
+the country; O*NET-SOC maps to international ISCO).
+
+Per-country config pack (must be parameterized): priority sectors (+ official-name-fidelity to that
+country's own government vocabulary), currency, salary bands, growth-band localization, curriculum(s),
+subjects, language, sector->skill vectors, sector->career-category rules.
+
+### PARKED ITEMS:
+
+1. O*NET US-DATA EXPOSURE - make country-flexible:
+   - GROWTH BANDS (Part A / careers.onetGrowthBand) are US BLS projections. Shown to students verbatim.
+     A UAE student sees "Nuclear Engineer: declining" which is US-true but UAE-FALSE (Barakah = UAE
+     priority). The future-readiness GATE already handles scoring correctly (never gates on O*NET alone,
+     requires WEF-AND, US-decline = WATCH not DECLINING) - but the DISPLAYED band is still US. Per country,
+     the displayed growth should be overridable / country-aware, or shown with a caveat. A sharp reviewer
+     WILL raise this - it's visible and contradicts the country-alignment claim on that one screen.
+   - SALARIES are US O*NET wage bands in USD. Shown to students. Need per-country localization (local
+     currency + local ranges) or generalization to relative bands. Catalog-wide, all 68 careers.
+
+2. CURRENCY / PAYMENT per country:
+   - Payment, pricing, and any displayed monetary values (salaries) must render in the country's currency
+     (AED UAE, JOD Jordan, SAR KSA). Currently UAE/USD-oriented. Adding a country = its currency flows
+     through payment (Stripe), pricing display, and salary display.
+
+3. DEFENSE (for when someone challenges "O*NET is US data, not UAE"):
+   The honest position: O*NET is used as a UNIVERSAL OCCUPATIONAL REFERENCE (what a job IS - its skills,
+   values, personality, definition - occupation-intrinsic, international via ISCO), NOT as a US labor-market
+   PREDICTOR for the target country. Country-specific signals (which sectors matter, demand, decline HERE)
+   come from that country's government strategy + WEF (global), layered on top. Where US and local signals
+   conflict (growth), the model requires a second non-US source before acting. This holds in scoring; the
+   two gaps above (displayed growth band, salaries) are where US data still leaks to the student's screen.
+
+4. THE BUILD must be flexible: audit for UAE-specific hardcoding (currency, salary format, growth display,
+   country name, "United Arab Emirates" literals in reports/prompts) and parameterize per country. Ties to
+   the existing parked L1-L6 leaks and the LLM-country-gen prompt fidelity work.
