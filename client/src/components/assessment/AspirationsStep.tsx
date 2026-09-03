@@ -131,7 +131,7 @@ export function AspirationsStep({ data, onUpdate, onNext, onBack, isGenerating =
                 {t('aspirations.generating')}
               </>
             ) : (
-              t('aspirations.selfAssessment')
+              t('aspirations.getMyReport')
             )}
           </Button>
         </div>
