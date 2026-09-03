@@ -3,6 +3,29 @@
 Non-blocking items surfaced during Phase 2 security work. **Not security findings.**
 Do not block deploy on these, but address before/around release.
 
+## PDF DOWNLOAD — FIXED 2026-09-03 (commit 8006a0e)
+Root cause: PUPPETEER_EXECUTABLE_PATH pinned Chrome 150 (gone); three-way drift (env 150, build
+chrome@stable 152, puppeteer wants 148); env pin suppressed puppeteer's managed download. Fix:
+.puppeteerrc.cjs sets a project-relative cacheDirectory read by both the install CLI and runtime
+launch, so they use puppeteer's pinned version in lockstep - survives Chrome stable rolls, no
+manual re-pin ever again. Render changes: deleted PUPPETEER_EXECUTABLE_PATH + PUPPETEER_CACHE_DIR,
+dropped @stable from build command. VERIFIED: real PDF downloaded + rendered fully on prod.
+LOAD-BEARING: .cache/ is gitignored (also part of 8006a0e). Without it a `git add -A` would try to
+commit ~377MB of managed Chrome - the build downloads it into the project-relative cache dir.
+
+REMAINING PDF DEFECTS (separate, not blocking - found during the recon, still open):
+1. Admin BULK EXPORT builds its print URL with NO printToken (admin.routes.ts:1242) - those PDFs
+   may render blank even now that Chrome launches. Single-report path is fine (has the token).
+2. RATE LIMITER throttles the headless browser: career-reasoning is recommendationsLimiter (20/hr),
+   keyed by IP; the headless browser hits the API from Render's single egress IP, so after ~4 PDFs/hr
+   the "Why This Career?" narratives get 429'd and SILENTLY dropped (retry:false). Real bug at scale.
+3. Print-token TTL is 60s but the render budget is also 60s (goto 30s + waitForFunction 30s) - on a
+   slow render the token can expire mid-render -> degraded/blank PDF.
+
+NARRATIVE POLISH (minor, noticed in the first full prod PDF): LLM reasoning still says the student's
+subjects are "Business"/"Art" (pre-umbrella-6 phrasing); "Next Steps" says "Take Business further"
+even for non-business careers. Cosmetic, not broken.
+
 ## Deferred / triage
 
 ### PDF omits grade-branch action steps  (severity: medium — product decision)
@@ -110,7 +133,10 @@ Career-card breakdown bug closed end-to-end: storage → write path → backfill
 - Render: both Results.tsx + ResultsPrint.tsx read component_breakdown via shared client/src/lib/componentBreakdown.ts (key->{labelKey,Icon} map); tier-aware, stored order, no hardcoded weights (d80b177). New i18n keys: riasecMatch, valuesMatch, futureSkillsShort (en+ar).
 - VERIFIED via fresh PDF (Khalid 23f6008e, post-deploy): premium card shows Subject 20% / Vision 20% / Personality 35% / Values 25%, summing to 100% and reconstructing the 62% overall. No dead Interest/Market rows. Per-career RIASEC/CVQ values vary correctly across careers. Basic tier shows its 3-component set.
 
-### PDF DOWNLOAD FAILING (NEW 2026-06-29, root-caused, NOT fixed) — HIGH PRIORITY
+### PDF DOWNLOAD FAILING (2026-06-29) — SUPERSEDED, FIXED 2026-09-03
+NOTE: the ranked causes below were the June diagnosis and are now HISTORY. The concurrency/OOM
+cause (#1) was fixed 2026-06-30 (d562a65). The 2026-09 recurrence was a DIFFERENT root cause -
+Chrome version drift - fixed 2026-09-03; see "PDF DOWNLOAD — FIXED" at the top of this file.
 Symptom: clicking "Download PDF Report" (server Puppeteer route, NOT browser print) repeatedly yields multiple downloads all reading "site wasn't available". Server route: GET /api/recommendations/pdf/:assessmentId (recommendations.routes.ts:456-662).
 FIRST STEP NEXT SESSION (no code): open a failed career-report-*.pdf in a TEXT editor, read first bytes — HTML "site wasn't available" = platform OOM/crash (cause #1); JSON {"message":"Failed to generate PDF report"} = route 500 (Chrome missing / waitForFunction timeout / SESSION_SECRET unset).
 Ranked causes (cc diagnosis): (1) Unbounded concurrent Puppeteer — no rate-limit on route :456, no client debounce (Results.tsx:408), each click = a full Chrome process; rapid clicks OOM the Render instance → platform error page saved as .pdf. STRONGEST FIT for "repeated clicks + site unavailable." (2) Public-host self-loopback https://${req.get('host')} :516 fragile vs admin's localhost path; goto lands on error page → 30s waitForFunction timeout. (3) Chrome absent at runtime — no PUPPETEER_CACHE_DIR/install-relocate, Render cache may not persist build→runtime → launch throws. (4) Empty LLM cache makes headless render do live per-career LLM calls → exceeds 30s waitForFunction. (5) SESSION_SECRET possibly unset post-rotation → mintPrintToken throws.
@@ -1120,7 +1146,7 @@ Quiz score is NOT shown to the student (weighted into the result).
 
 ### BUG & CLEANUP LIST (15)
 HIGH: (1) priority subjects auto-selected by system not student - corrupts quiz weighting + recommendations,
-both flows; (2) PDF report download fails (Puppeteer, already broken in prod); (3) school student gets free
+both flows; (2) PDF report download fails (Puppeteer) - FIXED 2026-09-03, see top of file; (3) school student gets free
 quiz tier server-side (stored isPremium false) though report still generates.
 MED: (4) per-page Next not locked; (5) country/curriculum not locked for school students; (6) guest->account
 migration broken (guestSessionId never stored); (7) free-account user blocked from all assessments; (8)
@@ -1305,7 +1331,7 @@ The v2 assessment/lifecycle rebuild (the CONFIRMED SPEC in FOLLOWUP) is largely 
 - School form mandatory country+curriculum + lock student steps 1&3.
 - Career Journey multi-grade; the school re-grant path.
 - Dashboard fixes (nav/routing, translations DB-fix, analytics grade-bucket, payment/coverage views).
-- Bug #2 PDF download still fails (Puppeteer) - the one visible failure in a working assessment.
+- Bug #2 PDF download - FIXED 2026-09-03 (Chrome version drift; .puppeteerrc.cjs managed browser).
 - Bug #3 school student gets free quiz tier server-side.
 
 ### QUIZ — paused:
