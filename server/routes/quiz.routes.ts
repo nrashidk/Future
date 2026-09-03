@@ -49,7 +49,7 @@ const TIER_CONFIGS: Record<string, QuizDistributionConfig> = {
   },
 };
 
-function calculateQuizDistribution(
+export function calculateQuizDistribution(
   favoriteSubjects: string[],
   prioritySubjects: string[],
   tier: 'free' | 'premium' | 'school'
@@ -76,6 +76,38 @@ function getTotalQuestionsFromDistribution(distribution: Map<string, number>): n
   let total = 0;
   distribution.forEach(count => total += count);
   return total;
+}
+
+export type QuizTier = 'free' | 'premium' | 'school';
+
+/**
+ * Resolve which quiz distribution a taker gets.
+ *
+ * BUG #3: this used to read `user.isPremium` as the sole gate:
+ *   isPremium ? (isSchoolUser ? 'school' : 'premium') : 'free'
+ * A school student's `users.isPremium` column is FALSE - createUserWithCredentials
+ * never sets it - and the `true` a school student sees in the client comes from a
+ * response-only decoration in auth.routes.ts (`user.isPremium = true`) that is
+ * never persisted. So every school student silently fell through to the 'free'
+ * distribution server-side (4 questions per priority subject instead of 5) while
+ * the client showed them the premium flow.
+ *
+ * Fix: school membership is entitlement enough on its own - the school already
+ * paid. `isPremium` remains the signal for a SELF-PAYING individual only.
+ *
+ * Deliberately NOT fixed by flipping users.isPremium for org_students: that flag
+ * means "this account paid for premium" and is read in ~15 server and ~10 client
+ * sites. The v2 license rework (docs/v2-rebuild-plan.md Phase 6) has to retire it
+ * as an entitlement flag entirely, so widening its meaning now would deepen the
+ * conflation it has to untangle - and flipping it would only fix students created
+ * AFTER the change, leaving every existing one needing a data backfill.
+ */
+export function resolveQuizTier(
+  isSchoolUser: boolean,
+  isPremiumUser: boolean | null | undefined,
+): QuizTier {
+  if (isSchoolUser) return 'school';
+  return isPremiumUser ? 'premium' : 'free';
 }
 
 export function registerQuizRoutes(app: Express) {
@@ -212,10 +244,8 @@ export function registerQuizRoutes(app: Express) {
           isSchoolUser = !!orgMember;
         }
       }
-      const tier: 'free' | 'premium' | 'school' = user?.isPremium 
-        ? (isSchoolUser ? 'school' : 'premium') 
-        : 'free';
-      
+      const tier: QuizTier = resolveQuizTier(isSchoolUser, user?.isPremium);
+
       const distribution = calculateQuizDistribution(favoriteSubjects, prioritySubjects, tier);
       const targetTotal = getTotalQuestionsFromDistribution(distribution);
       
