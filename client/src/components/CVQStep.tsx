@@ -107,6 +107,11 @@ export default function CVQStep({ assessmentId, responses, onUpdate, onNext, onB
 
   const progress = (Object.keys(localResponses).length / cvqItems.length) * 100;
   const allAnswered = cvqItems.length > 0 && Object.keys(localResponses).length === cvqItems.length;
+  // BUG #4: the page-advance button had no `disabled`, so a student could page
+  // past unanswered items and only discover the gap at the final submit (which
+  // IS gated on allAnswered) with no indication of which page was incomplete.
+  // Mirrors the gate RiasecStep already applies (RiasecStep.tsx:302).
+  const isPageComplete = currentItems.length > 0 && currentItems.every(item => item.id in localResponses);
 
   // Save draft to sessionStorage on change (cleared on tab close for shared/school computers)
   useEffect(() => {
@@ -282,6 +287,7 @@ export default function CVQStep({ assessmentId, responses, onUpdate, onNext, onB
         {currentPage < totalPages - 1 ? (
           <Button
             onClick={handleNext}
+            disabled={!isPageComplete}
             data-testid="button-next-page"
           >
             {t('nav.next')}
