@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { stepIdsForTier } from "@shared/assessmentFlow";
 
 interface Step {
   number: number;
@@ -21,28 +22,14 @@ export function ProgressTracker({ currentStep, totalSteps, isPremium = false }: 
   const { language } = useLanguage();
   const isRTL = language === 'ar';
 
-  const freeStepTitles = [
-    t('progress.basicInfo'),
-    t('progress.subjects'),
-    t('progress.interests'),
-    t('progress.personality'),
-    t('progress.country'),
-    t('progress.aspirations'),
-    t('progress.results'),
-  ];
+  // Labels come from the shared step order, so they can no longer drift from the
+  // steps Assessment.tsx actually renders. They had drifted: the free list used
+  // to be [basicInfo, subjects, interests, personality, country, aspirations,
+  // results] while the free flow ran [.., country, aspirations, QUIZ] — so a
+  // free student taking the quiz was told they were on "Results".
+  // The step ids double as the i18n keys under `progress.`.
+  const stepTitles = stepIdsForTier(isPremium).map(id => t(`progress.${id}`));
 
-  const premiumStepTitles = [
-    t('progress.basicInfo'),
-    t('progress.subjects'),
-    t('progress.country'),
-    t('progress.quiz'),
-    t('progress.careerPersonality'),
-    t('progress.personalValues'),
-    t('progress.aspirations'),
-  ];
-
-  const stepTitles = isPremium ? premiumStepTitles : freeStepTitles;
-  
   const steps: Step[] = Array.from({ length: totalSteps }, (_, i) => ({
     number: i + 1,
     title: stepTitles[i] || String(i + 1),

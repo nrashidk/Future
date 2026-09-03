@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { DemographicsStep } from "@/components/assessment/DemographicsStep";
 import { SubjectsStep } from "@/components/assessment/SubjectsStep";
 import { InterestsStep } from "@/components/assessment/InterestsStep";
-import { PersonalityStep } from "@/components/assessment/PersonalityStep";
 import RiasecStep, { type RiasecScores } from "@/components/RiasecStep";
 import CVQStep from "@/components/CVQStep";
 import { CountryStep } from "@/components/assessment/CountryStep";
@@ -18,34 +17,24 @@ import { useTranslation } from "react-i18next";
 import type { Assessment as AssessmentRecord } from "@shared/schema";
 import { useAssessmentAvailability } from "@/hooks/useAssessmentAvailability";
 import { PageLayout } from "@/components/layout/PageLayout";
+import { deriveFreeResumeStep, finalInputStep, totalStepsForTier } from "@shared/assessmentFlow";
 
-const DRAFT_KEY = "fp_assessment_draft";
+// v2 — Phase 3 renumbered the FREE step order (Country and Interests swapped
+// sides of the Quiz; Personality was removed). A v1 draft encodes the OLD
+// numbering, and a step number from one order cannot be translated into the
+// other: resuming v1 at its stored step drops the student into a step whose
+// prerequisites were never collected, and generation then 400s on a component
+// they were never shown. Bumping the key means a v1 draft is DISCARDED rather
+// than misinterpreted; LEGACY_DRAFT_KEYS evicts it so it cannot linger.
+//
+// This covers sessionStorage only. The same hazard in the DATABASE
+// (assessments.currentStep, read by cross-device resume) cannot be fixed by a
+// key bump — see deriveFreeResumeStep in shared/assessmentFlow.ts.
+const DRAFT_KEY = "fp_assessment_draft_v2";
+const LEGACY_DRAFT_KEYS = ["fp_assessment_draft"];
 
-// Both free and premium users reach step 7 as their final step before results
-// generation fires.  If the page reloads while the POST is in-flight we poll
-// instead of showing the resume prompt.
-const FINAL_GENERATION_STEP = 7;
 const POLL_INTERVAL_MS = 2000;
 const MAX_POLL_ATTEMPTS = 45; // ~90 s — generous ceiling for slow generation under load
-
-// Maps each PersonalityStep question ID + numeric answer to a locale trait key.
-// e.g. { teamwork: "2" } → "teamwork_2" → t('traits.teamwork_2') → "Flexible" / "مرن"
-const TRAIT_KEY_MAP: Record<string, Record<string, string>> = {
-  teamwork: { "1": "teamwork_1", "2": "teamwork_2", "3": "teamwork_3" },
-  learning:  { "1": "learning_1",  "2": "learning_2",  "3": "learning_3"  },
-  planning:  { "1": "planning_1",  "2": "planning_2",  "3": "planning_3"  },
-  problem:   { "1": "problem_1",   "2": "problem_2",   "3": "problem_3"   },
-};
-
-// Reverse of TRAIT_KEY_MAP — converts a stored trait key back to { questionId, answer }
-// so cross-device resume can restore PersonalityStep radio-button state.
-// e.g. "teamwork_2" → { questionId: "teamwork", answer: "2" }
-const TRAIT_KEY_REVERSE: Record<string, { questionId: string; answer: string }> =
-  Object.fromEntries(
-    Object.entries(TRAIT_KEY_MAP).flatMap(([questionId, answers]) =>
-      Object.entries(answers).map(([answer, traitKey]) => [traitKey, { questionId, answer }])
-    )
-  );
 
 interface AssessmentData {
   name: string;
@@ -56,7 +45,6 @@ interface AssessmentData {
   favoriteSubjects: string[];
   prioritySubjects: string[]; // Up to 3 subjects marked as priority (get more quiz questions)
   interests: string[];
-  personalityTraits: Record<string, number>;
   riasecResponses: Record<string, number>; // RIASEC responses (premium users only)
   cvqResponses: Record<string, number>; // CVQ values responses (premium users only)
   countryId: string;
@@ -157,8 +145,20 @@ export default function Assessment() {
     }
   }, [isInProgress, t]);
   
-  // Premium users have 7 steps, free users have 7 steps
-  const totalSteps = 7;
+  // 7 free (Basic, Subjects, Country, Quiz, Interests, Aspirations, Results),
+  // 8 premium (… RIASEC, CVQ, Aspirations, Results). Both counts INCLUDE
+  // Results, which this page never renders — completion redirects to /results.
+  // Before Phase 3 both tiers were hardcoded to 7 and the two 7s disagreed:
+  // premium's excluded Results while free's included it, which is how the free
+  // progress labels came to be off by one step. See shared/assessmentFlow.ts.
+  const totalSteps = totalStepsForTier(isPremiumUser);
+
+  // The last step that collects input — Aspirations for both tiers, so 6 free
+  // and 7 premium. Report generation fires here, so a reload at this step means
+  // "generation may be in flight" (poll) rather than "resume the form".
+  // This was a module-level constant of 7, correct for premium and wrong for
+  // free the moment free's last step became 6.
+  const finalGenerationStep = finalInputStep(isPremiumUser);
 
   const [assessmentData, setAssessmentData] = useState<AssessmentData>({
     name: "",
@@ -169,7 +169,6 @@ export default function Assessment() {
     favoriteSubjects: [],
     prioritySubjects: [],
     interests: [],
-    personalityTraits: {},
     riasecResponses: {},
     cvqResponses: {},
     countryId: "",
@@ -189,7 +188,7 @@ export default function Assessment() {
   }, [isLoading, isAuthenticated]);
 
   // On mount (after auth resolves): check sessionStorage for a saved draft.
-  // If the draft is at the final generation step (step 7) we first silently check
+  // If the draft is at the final generation step (6 free / 7 premium) we first silently check
   // whether recommendations already exist.  If they do we redirect immediately;
   // if they don't we show a polling "Generating…" screen rather than the resume
   // prompt, because the POST /api/recommendations/generate call was likely still
@@ -197,12 +196,18 @@ export default function Assessment() {
   useEffect(() => {
     if (isLoading) return;
     try {
+      // Evict pre-Phase-3 drafts BEFORE reading, so the first mount after deploy
+      // cannot resume one. Their step numbers refer to the old free order.
+      for (const legacyKey of LEGACY_DRAFT_KEYS) {
+        try { sessionStorage.removeItem(legacyKey); } catch {}
+      }
+
       const raw = sessionStorage.getItem(DRAFT_KEY);
       if (!raw) return;
       const draft = JSON.parse(raw) as { assessmentId: string; currentStep: number; assessmentData: AssessmentData };
       if (!draft.assessmentId || typeof draft.currentStep !== "number" || draft.currentStep <= 1) return;
 
-      if (draft.currentStep >= FINAL_GENERATION_STEP) {
+      if (draft.currentStep >= finalGenerationStep) {
         // Async path: check if recommendations are already there
         const checkAndRoute = async () => {
           try {
@@ -303,27 +308,11 @@ export default function Assessment() {
         // explains a consumed allocation — we no longer redirect to the report on mount.
         if (!inProgress) return;
 
-        // Resolve personalityTraits: the DB stores this as JSONB (unknown at the type level).
-        // Free-tier: stored as string[] (trait keys like "teamwork_2" after Task #59, or
-        // legacy question-ID keys like "teamwork"). We convert back to { questionId: answer }
-        // so PersonalityStep can pre-select the correct radio button on resume.
-        // Premium: stored as Record<string,number> (RIASEC/CVQ scores) — passed through as-is.
-        const rawPt = inProgress.personalityTraits;
-        const personalityTraits: Record<string, number> = (() => {
-          if (Array.isArray(rawPt)) {
-            const entries: Array<[string, string | number]> = (rawPt as string[]).map(item => {
-              const rev = TRAIT_KEY_REVERSE[item];
-              // New format: "teamwork_2" → restore { teamwork: "2" } for PersonalityStep
-              // Old format: "teamwork"   → store as truthy placeholder { teamwork: 1 }
-              return rev ? [rev.questionId, rev.answer] : [item, 1];
-            });
-            return Object.fromEntries(entries) as Record<string, number>;
-          }
-          if (rawPt !== null && typeof rawPt === "object") {
-            return rawPt as Record<string, number>;
-          }
-          return {};
-        })();
+        // personalityTraits is deliberately NOT hydrated. The free flow no longer
+        // has a PersonalityStep, so nothing would render it. Rows written before
+        // Phase 3 still hold the value in the DB and are still displayed on the
+        // report (Results.tsx / ResultsPrint.tsx render it when non-empty) —
+        // this page just stops carrying it through the form.
 
         // Map backend assessment fields to the AssessmentData shape.
         // Raw RIASEC/CVQ item responses are not persisted (only computed scores are
@@ -338,7 +327,6 @@ export default function Assessment() {
           favoriteSubjects: inProgress.favoriteSubjects ?? [],
           prioritySubjects: inProgress.prioritySubjects ?? [],
           interests: inProgress.interests ?? [],
-          personalityTraits,
           riasecResponses: {},
           cvqResponses: {},
           countryId: inProgress.countryId ?? "",
@@ -346,9 +334,26 @@ export default function Assessment() {
           strengths: inProgress.strengths ?? [],
         };
 
+        // WHERE TO RESUME — the server-side half of the Phase 3 renumbering.
+        //
+        // Versioning DRAFT_KEY discards stale sessionStorage drafts, but this
+        // path reads assessments.currentStep, a DATABASE column: it survives the
+        // session, the browser and the device, and every free assessment in
+        // flight at deploy time holds a number in the OLD free order (where 3
+        // was Interests and 5 was Country). Trusting it would resume a student
+        // into a step whose prerequisites were never collected.
+        //
+        // For FREE we therefore ignore the stored number entirely and derive the
+        // step from the data actually present, which is correct under either
+        // numbering. PREMIUM's order is unchanged by Phase 3, so its stored
+        // currentStep stays valid and is used as-is.
+        const resumeStep = isPremiumUser
+          ? inProgress.currentStep
+          : deriveFreeResumeStep(inProgress);
+
         setResumePrompt({
           assessmentId: inProgress.id,
-          currentStep: inProgress.currentStep,
+          currentStep: resumeStep,
           assessmentData: hydratedData,
         });
       } catch (err) {
@@ -358,7 +363,7 @@ export default function Assessment() {
     };
 
     checkServerDraft();
-  }, [isLoading, isAuthenticated, apiResumeChecked]);
+  }, [isLoading, isAuthenticated, apiResumeChecked, isPremiumUser]);
 
   // Persist draft to sessionStorage whenever assessmentId / step / data changes
   // Guards: only save once an assessment has been created (assessmentId set) and past step 1
@@ -450,12 +455,9 @@ export default function Assessment() {
           currentStep,
         };
         
-        // Only include personalityTraits for free users
-        if (!isPremiumUser) {
-          backendData.personalityTraits = Object.entries(assessmentData.personalityTraits)
-            .filter(([, v]) => v)
-            .map(([k, v]) => TRAIT_KEY_MAP[k]?.[String(v)] ?? k);
-        }
+        // No personalityTraits: the free PersonalityStep was removed in Phase 3.
+        // Leaving this in would PATCH an empty array over whatever the column
+        // held, and the generation gate used to reject exactly that value.
         
         // Include premium assessment scores if available
         if (isPremiumUser) {
@@ -527,17 +529,21 @@ export default function Assessment() {
     // Re-entry guard: prevent double-submission while generation is in progress
     if (isGenerating) return;
 
-    // Premium: Save after Country (step 3), before Quiz (step 4)
-    // Free: Save after Aspirations (step 6), before Quiz (step 7)
-    const needsSaveBeforeQuiz = 
-      (isPremiumUser && currentStep === 3) || // Premium: Save after Country, before Quiz
-      (!isPremiumUser && currentStep === 6);  // Free: Save after Aspirations, before Quiz
-    
-    const isAspirationsStepPremium = isPremiumUser && currentStep === 7;
-    
-    if (needsSaveBeforeQuiz || isAspirationsStepPremium) {
-      // Show loading state from the very start of the premium pipeline (save + generate)
-      if (isAspirationsStepPremium) setIsGenerating(true);
+    // Save after Country (step 3), before Quiz (step 4) — BOTH TIERS.
+    // The save exists only because QuizStep needs a persisted assessmentId to
+    // call /api/assessments/:id/quiz/generate. Now that the Quiz sits at step 4
+    // of the shared spine for everyone, the tier branch this condition used to
+    // carry is gone: free's quiz was step 7, so free used to save after step 6.
+    const needsSaveBeforeQuiz = currentStep === 3;
+
+    // Aspirations is the last input step for both tiers (L3) — 6 free, 7 premium.
+    // Report generation fires from here for BOTH tiers now; free used to
+    // generate from handleQuizComplete, which no longer exists.
+    const isAspirationsStep = currentStep === finalGenerationStep;
+
+    if (needsSaveBeforeQuiz || isAspirationsStep) {
+      // Show loading state from the very start of the pipeline (save + generate)
+      if (isAspirationsStep) setIsGenerating(true);
 
       try {
         const { apiRequest, queryClient } = await import("@/lib/queryClient");
@@ -556,12 +562,7 @@ export default function Assessment() {
           strengths: assessmentData.strengths || [],
         };
         
-        // Only include personalityTraits for free users (who complete PersonalityStep)
-        if (!isPremiumUser) {
-          backendData.personalityTraits = Object.entries(assessmentData.personalityTraits)
-            .filter(([, v]) => v)
-            .map(([k, v]) => TRAIT_KEY_MAP[k]?.[String(v)] ?? k);
-        }
+        // No personalityTraits — see the auto-save effect above.
         
         // Include RIASEC scores if premium user completed RIASEC assessment
         if (isPremiumUser && Object.keys(assessmentData.riasecResponses).length > 0) {
@@ -574,7 +575,7 @@ export default function Assessment() {
         }
         
         // Clear any previous inline error before retrying
-        if (isAspirationsStepPremium) setAspirationsError(null);
+        if (isAspirationsStep) setAspirationsError(null);
 
         // Save assessment — distinct error handling so the user gets the right message
         let assessment;
@@ -591,7 +592,7 @@ export default function Assessment() {
         } catch (saveError) {
           console.error("Error saving assessment:", saveError);
           const msg = t("errors.saveFailedDesc");
-          if (isAspirationsStepPremium) {
+          if (isAspirationsStep) {
             setAspirationsError(msg);
           } else {
             toast({ title: t("errors.saveFailed"), description: msg, variant: "destructive" });
@@ -602,8 +603,8 @@ export default function Assessment() {
         // Set assessmentId immediately after save
         setAssessmentId(assessment.id);
         
-        if (isAspirationsStepPremium) {
-          // Premium: Generate recommendations and redirect
+        if (isAspirationsStep) {
+          // Generate recommendations and redirect — one path for both tiers.
           try {
             await apiRequest("POST", `/api/recommendations/generate/${assessment.id}`, {});
             try { sessionStorage.removeItem(DRAFT_KEY); } catch {}
@@ -622,7 +623,7 @@ export default function Assessment() {
         }
       } finally {
         // Always clear loading state when the full pipeline finishes (success, save error, or generate error)
-        if (isAspirationsStepPremium) setIsGenerating(false);
+        if (isAspirationsStep) setIsGenerating(false);
       }
     } else {
       // For all other steps: Just advance
@@ -630,36 +631,15 @@ export default function Assessment() {
     }
   };
 
-  const handleQuizComplete = async () => {
-    if (!assessmentId) {
-      console.error("No assessmentId for quiz completion");
-      return;
-    }
-    
-    // Free users only: Generate recommendations after quiz (step 7)
-    // Premium users complete quiz at step 4 and continue to RIASEC → CVQ → Aspirations
-    // Premium recommendation generation is handled by handleNext at the Aspirations step (step 7)
-    try {
-      const { apiRequest, queryClient } = await import("@/lib/queryClient");
-
-      // Generate recommendations based on assessment + quiz
-      await apiRequest("POST", `/api/recommendations/generate/${assessmentId}`, {});
-
-      // Navigate to results (clear draft so resume prompt doesn't appear on next visit)
-      try { sessionStorage.removeItem(DRAFT_KEY); } catch {}
-      // Completion consumes the org_student's allocation — refresh the cached
-      // assessments list so availability reflects 0 immediately (not after staleTime).
-      queryClient.invalidateQueries({ queryKey: ["/api/assessments/my"] });
-      setLocation("/results?assessmentId=" + assessmentId);
-    } catch (error) {
-      console.error("Error generating recommendations:", error);
-      toast({
-        title: t("errors.generateFailed"),
-        description: t("errors.generateFailedDesc"),
-        variant: "destructive",
-      });
-    }
-  };
+  // handleQuizComplete is gone. The quiz is now step 4 of the shared spine for
+  // both tiers, i.e. mid-flow, so finishing it just advances to step 5. Free's
+  // report generation moved to the Aspirations branch of handleNext, alongside
+  // premium's — one generation call site instead of two.
+  //
+  // This also closed a double-generation surface: QuizStep calls onComplete from
+  // four paths (already-completed auto-advance, submit success, the
+  // QUIZ_ALREADY_SUBMITTED recovery, and the two skip buttons), and each of them
+  // used to be able to fire a free generation.
 
   // Save RIASEC scores immediately to the backend and advance to CVQ (step 6)
   // We cannot rely on auto-save or state settling before the final Aspirations save,
@@ -694,11 +674,12 @@ export default function Assessment() {
   };
 
   const handleSaveAndLogin = () => {
-    sessionStorage.setItem("pendingAssessment", JSON.stringify({
-      ...assessmentData,
-      currentStep,
-    }));
-    // Redirect back to assessment after login
+    // The "pendingAssessment" sessionStorage write that used to live here is
+    // gone: nothing in the codebase ever read that key, and it stored a bare
+    // currentStep — a third encoding of the step order, which Phase 3 would have
+    // silently invalidated along with the other two. Progress is preserved by
+    // DRAFT_KEY (sessionStorage) and by assessments.currentStep (the server),
+    // both of which survive this redirect.
     window.location.href = "/api/login?returnTo=/assessment";
   };
 
@@ -988,54 +969,40 @@ export default function Assessment() {
           />
         )}
         
-        {/* Step 3: Country (premium) | Interests (free) */}
+        {/* Step 3: Country — SHARED SPINE (L2). Was premium-only here; free
+            used to reach Country at step 5, after Interests and Personality.
+            The isPremiumUser ternary this branch carried is gone. */}
         {currentStep === 3 && (
-          <>
-            {isPremiumUser ? (
-              <CountryStep
-                data={assessmentData}
-                onUpdate={updateAssessmentData}
-                onNext={handleNext}
-                onBack={() => setCurrentStep(2)}
-              />
-            ) : (
-              <InterestsStep
-                data={assessmentData}
-                onUpdate={updateAssessmentData}
-                onNext={handleNext}
-                onBack={() => setCurrentStep(2)}
-              />
-            )}
-          </>
+          <CountryStep
+            data={assessmentData}
+            onUpdate={updateAssessmentData}
+            onNext={handleNext}
+            onBack={() => setCurrentStep(2)}
+          />
         )}
         
-        {/* Step 4: Quiz (premium) | Personality (free) */}
+        {/* Step 4: Quiz — SHARED SPINE (L2). Was premium-only here; free used to
+            take the quiz LAST, at step 7, where finishing it also fired report
+            generation. It is now mid-flow for both tiers and simply advances.
+            handleNext saved at step 3, so assessmentId is set by the time we
+            get here — the fallback below is for a save that silently failed. */}
         {currentStep === 4 && (
           <>
-            {isPremiumUser ? (
-              assessmentId ? (
-                <QuizStep
-                  assessmentId={assessmentId}
-                  onComplete={() => setCurrentStep(5)}
-                />
-              ) : (
-                <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-                  <p className="text-lg text-destructive font-semibold">{t("errors.loadingQuiz")}</p>
-                  <p className="text-muted-foreground">{t("errors.loadingQuizDesc")}</p>
-                </div>
-              )
-            ) : (
-              <PersonalityStep
-                data={assessmentData}
-                onUpdate={updateAssessmentData}
-                onNext={handleNext}
-                onBack={() => setCurrentStep(3)}
+            {assessmentId ? (
+              <QuizStep
+                assessmentId={assessmentId}
+                onComplete={() => setCurrentStep(5)}
               />
+            ) : (
+              <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+                <p className="text-lg text-destructive font-semibold">{t("errors.loadingQuiz")}</p>
+                <p className="text-muted-foreground">{t("errors.loadingQuizDesc")}</p>
+              </div>
             )}
           </>
         )}
         
-        {/* Step 5: RIASEC (premium) | Country (free) */}
+        {/* Step 5: RIASEC (premium) | Interests (free) — divergence begins */}
         {currentStep === 5 && (
           <>
             {isPremiumUser ? (
@@ -1044,7 +1011,7 @@ export default function Assessment() {
                 onBack={() => setCurrentStep(4)}
               />
             ) : (
-              <CountryStep
+              <InterestsStep
                 data={assessmentData}
                 onUpdate={updateAssessmentData}
                 onNext={handleNext}
@@ -1054,7 +1021,7 @@ export default function Assessment() {
           </>
         )}
         
-        {/* Step 6: CVQ (premium) | Aspirations (free) */}
+        {/* Step 6: CVQ (premium) | Aspirations (free — LAST INPUT STEP, generates) */}
         {currentStep === 6 && (
           <>
             {isPremiumUser ? (
@@ -1088,35 +1055,17 @@ export default function Assessment() {
           </>
         )}
         
-        {/* Step 7: Aspirations (premium) | Quiz (free) */}
-        {currentStep === 7 && (
-          <>
-            {isPremiumUser ? (
-              <AspirationsStep
-                data={assessmentData}
-                onUpdate={updateAssessmentData}
-                onNext={handleNext}
-                onBack={() => setCurrentStep(6)}
-                isGenerating={isGenerating}
-                submitError={aspirationsError}
-              />
-            ) : (
-              assessmentId ? (
-                <QuizStep
-                  assessmentId={assessmentId}
-                  onComplete={handleQuizComplete}
-                />
-              ) : (
-                <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
-                  <p className="text-lg text-destructive font-semibold">{t("errors.notFound")}</p>
-                  <p className="text-muted-foreground">{t("errors.notFoundDesc")}</p>
-                  <Button onClick={() => setCurrentStep(6)} data-testid="button-back-to-assessment">
-                    {t("errors.goBack")}
-                  </Button>
-                </div>
-              )
-            )}
-          </>
+        {/* Step 7: Aspirations (premium — LAST INPUT STEP, generates).
+            Free has no step 7: its step 7 is Results, which is a separate page. */}
+        {currentStep === 7 && isPremiumUser && (
+          <AspirationsStep
+            data={assessmentData}
+            onUpdate={updateAssessmentData}
+            onNext={handleNext}
+            onBack={() => setCurrentStep(6)}
+            isGenerating={isGenerating}
+            submitError={aspirationsError}
+          />
         )}
       </div>
     </main>

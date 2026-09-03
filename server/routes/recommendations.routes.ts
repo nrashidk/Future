@@ -13,6 +13,7 @@ import {
   generateEnhancedActionSteps,
 } from "../services/premiumNarratives";
 import { isPremiumAssessment } from "../utils/assessmentTier";
+import { collectMissingComponents } from "../utils/assessmentCompleteness";
 import { mintPrintToken, printTokenAuthorizes } from "../utils/printToken";
 import type { Career } from "@shared/schema";
 
@@ -73,45 +74,13 @@ export function registerRecommendationsRoutes(app: Express) {
       // Use assessmentType to determine tier (not user.isPremium, as single assessments can be premium)
       const isPremium = isPremiumAssessment(assessment.assessmentType);
 
-      const missingComponents: string[] = [];
+      // CVQ lives in its own table, so resolve it here and let the pure gate
+      // decide. Only premium requires it, so skip the query for free.
+      const hasCvqResult = isPremium
+        ? !!(await storage.getCvqResultByAssessmentId(req.params.assessmentId))
+        : false;
 
-      // Core fields required for both tiers
-      if (!assessment.name) missingComponents.push("Name");
-      if (!assessment.age) missingComponents.push("Age");
-      if (!assessment.grade) missingComponents.push("Grade");
-      if (!assessment.favoriteSubjects || (assessment.favoriteSubjects as string[]).length === 0) {
-        missingComponents.push("Favorite Subjects");
-      }
-      if (!assessment.countryId) missingComponents.push("Country Selection");
-
-      if (isPremium) {
-        // Premium tier requirements
-        if (assessment.quizScore === null || assessment.quizScore === undefined) {
-          missingComponents.push("Subject Competency Quiz");
-        }
-
-        // Check RIASEC assessment (stored as JSONB in assessments table)
-        if (!assessment.riasecScores || Object.keys(assessment.riasecScores as object).length === 0) {
-          missingComponents.push("Interest Inventory (RIASEC)");
-        }
-
-        // Check CVQ assessment (stored in separate cvq_results table)
-        const cvqResult = await storage.getCvqResultByAssessmentId(req.params.assessmentId);
-        if (!cvqResult) {
-          missingComponents.push("Work Values Assessment (CVQ)");
-        }
-      } else {
-        // Free tier requirements
-        if (!assessment.interests || (assessment.interests as string[]).length === 0) {
-          missingComponents.push("Interests");
-        }
-        if (!assessment.personalityTraits || (assessment.personalityTraits as string[]).length === 0) {
-          missingComponents.push("Personality Traits");
-        }
-        if (!assessment.careerAspirations) {
-          missingComponents.push("Career Aspirations");
-        }
-      }
+      const missingComponents = collectMissingComponents(assessment, { isPremium, hasCvqResult });
 
       if (missingComponents.length > 0) {
         return res.status(400).json({ 
