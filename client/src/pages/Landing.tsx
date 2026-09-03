@@ -43,7 +43,11 @@ export default function Landing() {
   useEffect(() => { document.title = t("pageTitle"); }, [t]);
 
   const handleLogin = () => setLocation("/login");
-  const handleGuestStart = () => setLocation("/assessment");
+  // BUG #15: the guest-mode banner on /assessment keys off `?guest=true`; without
+  // it the banner (and its "save your progress" sign-up CTA) never rendered for
+  // anyone, because this was the only way into guest mode. Both guest CTAs on this
+  // page route through here, so this covers both.
+  const handleGuestStart = () => setLocation("/assessment?guest=true");
 
   return (
     <>

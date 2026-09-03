@@ -177,12 +177,16 @@ export default function Assessment() {
     strengths: [],
   });
 
+  // Guest mode is driven by `?guest=true` (set by the Landing CTAs). Gated on
+  // !isAuthenticated so an authenticated visitor arriving with the param still
+  // follows the normal authenticated routing below: `isGuest` suppresses the
+  // non-premium redirect to /tier-selection, and lifting that block for free
+  // accounts is Phase 5 (Bug #7), not this change.
   useEffect(() => {
+    if (isLoading) return;
     const params = new URLSearchParams(window.location.search);
-    if (params.get("guest") === "true") {
-      setIsGuest(true);
-    }
-  }, []);
+    setIsGuest(params.get("guest") === "true" && !isAuthenticated);
+  }, [isLoading, isAuthenticated]);
 
   // On mount (after auth resolves): check sessionStorage for a saved draft.
   // If the draft is at the final generation step (step 7) we first silently check
