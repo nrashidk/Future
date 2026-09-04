@@ -129,7 +129,7 @@ export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepPro
           </p>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {subjects.map((subject, index) => {
             const Icon = subject.icon;
             const isSelected = favoriteSubjects.includes(subject.id);

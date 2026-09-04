@@ -42,7 +42,6 @@ export function QuizStep({ assessmentId, onComplete }: QuizStepProps) {
   const { language } = useLanguage();
   const [responses, setResponses] = useState<Record<string, string>>({});
   const [showResults, setShowResults] = useState(false);
-  const [score, setScore] = useState<any>(null);
 
   // Generate/fetch quiz (guest token is sent via httpOnly cookie automatically)
   const { data: quizData, isLoading: isGenerating, error: generationError } = useQuery({
@@ -68,17 +67,19 @@ export function QuizStep({ assessmentId, onComplete }: QuizStepProps) {
       });
       return await res.json();
     },
-    onSuccess: (data) => {
-      setScore(data);
+    onSuccess: () => {
       setShowResults(true);
       toast({
         title: t('quiz.complete'),
-        description: `${data.totalScore}%`,
       });
+      // Short confirmation beat only. Nothing here depends on the delay: the
+      // submit already persisted server-side before onSuccess ran, and the
+      // invalidate below is not awaited — it fires on the same tick as
+      // onComplete either way.
       setTimeout(() => {
         queryClient.invalidateQueries({ queryKey: ["/api/assessments", assessmentId] });
         onComplete();
-      }, 3000);
+      }, 800);
     },
     onError: (error: any) => {
       // apiRequest throws `"${status}: ${bodyText}"` — parse the JSON body to get the code
@@ -211,7 +212,7 @@ export function QuizStep({ assessmentId, onComplete }: QuizStepProps) {
     );
   }
 
-  if (showResults && score) {
+  if (showResults) {
     return (
       <div className="space-y-8 animate-in fade-in duration-500">
         <div className="text-center mb-8">
@@ -225,8 +226,7 @@ export function QuizStep({ assessmentId, onComplete }: QuizStepProps) {
         <div className="max-w-md mx-auto">
           <StickyNote color="purple" rotation="-1">
             <div className="text-center py-4">
-              <p className="text-sm text-muted-foreground mb-2">{t('quiz.overallScore')}</p>
-              <p className="text-5xl font-bold">{score.totalScore}%</p>
+              <p className="text-base font-semibold">{t('quiz.answersRecorded')}</p>
             </div>
           </StickyNote>
         </div>
