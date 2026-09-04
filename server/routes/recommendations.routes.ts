@@ -13,6 +13,7 @@ import {
   generateEnhancedActionSteps,
 } from "../services/premiumNarratives";
 import { isPremiumAssessment } from "../utils/assessmentTier";
+import { formatFreeReasoning } from "../services/freeNarrative";
 import { collectMissingComponents } from "../utils/assessmentCompleteness";
 import { mintPrintToken, printTokenAuthorizes } from "../utils/printToken";
 import type { Career } from "@shared/schema";
@@ -383,23 +384,42 @@ export function registerRecommendationsRoutes(app: Express) {
             }
           }
 
-          // FREE tier: withhold the per-student "Why This Career?" narrative.
-          // BOTH narrative fields are blanked in the RESPONSE only — the stored
-          // rec.reasoning DB blob is untouched as the audit trail — and
-          // `locked: true` signals the client to show an upgrade affordance
-          // instead of narrative text. Scores, career details and WEF skill tags
-          // are still returned in full. Gated on `!isPremium` so a premium
-          // assessment that merely lacked RIASEC data (and fell through the
-          // branch above) is never locked — premium behaviour is unchanged.
+          // FREE tier: RENDER the narrative rather than withhold it.
+          //
+          // This used to return `reasoning: null, premiumReasoning: null,
+          // locked: true`, and the client drew a blurred skeleton with an
+          // "Unlock full report" button where the explanation belonged. The data
+          // was never missing — the stored rec.reasoning blob has been written
+          // for both tiers all along — it was only unreadable, because it is an
+          // audit string of component names, weights and percentages. So format
+          // it instead of hiding it. Deterministic, no LLM, no new data: see
+          // server/services/freeNarrative.ts.
+          //
+          // The single page-wide `locked` flag is replaced by two narrow ones,
+          // because it had come to mean two unrelated things:
+          //   pdfLocked   — GET /api/recommendations/pdf/:id 403s for free.
+          //   factsLocked — the three career-fact blocks stay fogged.
+          // Everything else on the report is now readable for free.
+          //
+          // Gated on `!isPremium`, so a premium assessment that merely lacked
+          // RIASEC data (and fell through the branch above) is unaffected —
+          // premium behaviour is unchanged.
           if (!isPremium) {
             return {
               ...rec,
-              // Override the spread DB blob: free tier gets no narrative text.
-              reasoning: null,
+              // Replace the audit blob with student-readable prose built from it.
+              reasoning: formatFreeReasoning({
+                auditReasoning: rec.reasoning,
+                careerTitle: isArabic && career?.titleAr ? career.titleAr : (career?.title ?? ''),
+                overallScore: rec.overallMatchScore,
+                language: isArabic ? 'ar' : 'en',
+              }),
               career: localizeCareer(career, isArabic),
               wefSkillTags,
+              // No LLM narrative for free — that stays premium.
               premiumReasoning: null,
-              locked: true,
+              pdfLocked: true,
+              factsLocked: true,
             };
           }
 

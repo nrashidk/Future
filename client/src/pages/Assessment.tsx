@@ -48,6 +48,7 @@ interface AssessmentData {
   riasecResponses: Record<string, number>; // RIASEC responses (premium users only)
   cvqResponses: Record<string, number>; // CVQ values responses (premium users only)
   countryId: string;
+  curriculum: string; // Curriculum chosen alongside the country (persisted; the quiz filters on it)
   careerAspirations: string[];
   strengths: string[];
 }
@@ -145,7 +146,7 @@ export default function Assessment() {
     }
   }, [isInProgress, t]);
   
-  // 7 free (Basic, Subjects, Country, Quiz, Interests, Aspirations, Results),
+  // 7 free (Basic, Country, Subjects, Quiz, Interests, Aspirations, Results),
   // 8 premium (… RIASEC, CVQ, Aspirations, Results). Both counts INCLUDE
   // Results, which this page never renders — completion redirects to /results.
   // Before Phase 3 both tiers were hardcoded to 7 and the two 7s disagreed:
@@ -160,7 +161,17 @@ export default function Assessment() {
   // free the moment free's last step became 6.
   const finalGenerationStep = finalInputStep(isPremiumUser);
 
-  const [assessmentData, setAssessmentData] = useState<AssessmentData>({
+  // Lazy initialiser so an org student's country/curriculum are present in the
+  // FIRST render rather than arriving in an effect. CountryStep seeds its
+  // <Select> from `data` once, at mount (CountryStep.tsx), so a value that lands
+  // after that mount would leave the control looking empty. Country is now step
+  // 2 and the demographics smart-skip jumps straight to it, which makes that
+  // window much tighter than it was at step 3.
+  //
+  // This only wins when `user` is already resolved at mount (the common case —
+  // useAuth reads a react-query cache). CountryStep also syncs on prop change,
+  // which covers the slower path; the two together are what make it reliable.
+  const [assessmentData, setAssessmentData] = useState<AssessmentData>(() => ({
     name: "",
     age: null,
     grade: "",
@@ -171,10 +182,11 @@ export default function Assessment() {
     interests: [],
     riasecResponses: {},
     cvqResponses: {},
-    countryId: "",
+    countryId: (user as any)?.organizationCountryId || "",
+    curriculum: (user as any)?.organizationCurriculum || "",
     careerAspirations: [],
     strengths: [],
-  });
+  }));
 
   // Guest mode is driven by `?guest=true` (set by the Landing CTAs). Gated on
   // !isAuthenticated so an authenticated visitor arriving with the param still
@@ -330,6 +342,7 @@ export default function Assessment() {
           riasecResponses: {},
           cvqResponses: {},
           countryId: inProgress.countryId ?? "",
+          curriculum: (inProgress as any).curriculum ?? "",
           careerAspirations: inProgress.careerAspirations ?? [],
           strengths: inProgress.strengths ?? [],
         };
@@ -408,27 +421,47 @@ export default function Assessment() {
         consentGiven: true, // Institutional consent
       }));
 
-      // Skip to Subjects step (step 2) after state update
+      // Skip to step 2 — Country since the Country/Subjects swap — after the
+      // state update. The org's country/curriculum are already seeded into
+      // assessmentData (lazy initialiser + effect above), so CountryStep opens
+      // pre-filled rather than blank.
       setTimeout(() => setCurrentStep(2), 0);
     }
   }, [user, currentStep, assessmentData.name]);
 
-  // Country auto-populate logic: Pre-fill countryId if org has predefined country
-  // This runs when assessment data loads, not when visiting the step
+  // Country/curriculum auto-populate: pre-fill from the org when it defines them.
+  // The lazy initialiser above already covers the case where `user` is resolved
+  // at mount; this is the catch-up path for when it resolves later.
+  // Only populates when not already set, so it respects a student's own override
+  // and a resumed draft.
   useEffect(() => {
     if (!user) return;
-    
+
     const predefinedCountryId = (user as any)?.organizationCountryId;
-    
-    // Auto-populate country as soon as assessment loads if org has default country
-    // Only populate if not already set (respects user overrides and existing drafts)
-    if (predefinedCountryId && !assessmentData.countryId) {
-      setAssessmentData((prev) => ({
-        ...prev,
-        countryId: predefinedCountryId,
-      }));
-    }
-  }, [user, assessmentData.countryId]);
+    const predefinedCurriculum = (user as any)?.organizationCurriculum;
+
+    setAssessmentData((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      if (predefinedCountryId && !prev.countryId) {
+        next.countryId = predefinedCountryId;
+        changed = true;
+      }
+      // Curriculum only rides along with the org's own country: a curriculum
+      // belongs to a country, so pairing the org's curriculum with a country the
+      // student picked themselves would offer a curriculum that country has not
+      // got, and CountryStep's `canProceed` would never be satisfiable.
+      if (
+        predefinedCurriculum &&
+        !prev.curriculum &&
+        (next.countryId === predefinedCountryId)
+      ) {
+        next.curriculum = predefinedCurriculum;
+        changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, [user, assessmentData.countryId, assessmentData.curriculum]);
 
   // Auto-save: Save progress whenever assessment data changes (for authenticated users)
   useEffect(() => {
@@ -450,6 +483,11 @@ export default function Assessment() {
           prioritySubjects: assessmentData.prioritySubjects || [],
           interests: assessmentData.interests,
           countryId: assessmentData.countryId,
+          // The quiz filters its question pool on {countryId, grade, curriculum}
+          // (server/routes/quiz.routes.ts). Omitting curriculum here left the
+          // column NULL for every assessment, so the curriculum-scoped query was
+          // always skipped in favour of the grade+country fallback.
+          curriculum: assessmentData.curriculum || null,
           careerAspirations: assessmentData.careerAspirations || [],
           strengths: assessmentData.strengths || [],
           currentStep,
@@ -529,11 +567,16 @@ export default function Assessment() {
     // Re-entry guard: prevent double-submission while generation is in progress
     if (isGenerating) return;
 
-    // Save after Country (step 3), before Quiz (step 4) — BOTH TIERS.
-    // The save exists only because QuizStep needs a persisted assessmentId to
-    // call /api/assessments/:id/quiz/generate. Now that the Quiz sits at step 4
-    // of the shared spine for everyone, the tier branch this condition used to
-    // carry is gone: free's quiz was step 7, so free used to save after step 6.
+    // Save after Subjects (step 3), before Quiz (step 4) — BOTH TIERS.
+    // The save exists because QuizStep needs a persisted assessmentId to call
+    // /api/assessments/:id/quiz/generate, and because that endpoint reads
+    // countryId + curriculum + favoriteSubjects off the stored row. Step 3 is
+    // the first point at which all three are in hand, whichever order the two
+    // steps before it run in.
+    //
+    // The literal 3 means "the step before the Quiz". Quiz is step 4 of the
+    // shared spine for both tiers, so it holds across the Country/Subjects swap
+    // — this is the one step number still written out rather than derived.
     const needsSaveBeforeQuiz = currentStep === 3;
 
     // Aspirations is the last input step for both tiers (L3) — 6 free, 7 premium.
@@ -558,6 +601,10 @@ export default function Assessment() {
           prioritySubjects: assessmentData.prioritySubjects || [],
           interests: assessmentData.interests,
           countryId: assessmentData.countryId,
+          // Must be in THIS payload specifically: it is the save that fires
+          // before the quiz, so it is what quiz/generate reads the curriculum
+          // from. The debounced auto-save may not have flushed yet.
+          curriculum: assessmentData.curriculum || null,
           careerAspirations: assessmentData.careerAspirations || [],
           strengths: assessmentData.strengths || [],
         };
@@ -959,9 +1006,13 @@ export default function Assessment() {
           />
         )}
         
-        {/* Step 2: Subjects (both tiers) */}
+        {/* Step 2: Country + curriculum — SHARED SPINE (L2). Declared BEFORE
+            subjects: country and curriculum are the frame the subject list is
+            chosen inside, and the quiz filters its question pool on
+            {countryId, grade, curriculum}. (Country was step 3 until this swap,
+            and premium-only before Phase 3.) */}
         {currentStep === 2 && (
-          <SubjectsStep
+          <CountryStep
             data={assessmentData}
             onUpdate={updateAssessmentData}
             onNext={handleNext}
@@ -969,11 +1020,11 @@ export default function Assessment() {
           />
         )}
         
-        {/* Step 3: Country — SHARED SPINE (L2). Was premium-only here; free
-            used to reach Country at step 5, after Interests and Personality.
-            The isPremiumUser ternary this branch carried is gone. */}
+        {/* Step 3: Subjects (both tiers) — chosen once country/curriculum are
+            known. This is also the save point: handleNext persists here so the
+            quiz at step 4 has an assessmentId AND a stored curriculum. */}
         {currentStep === 3 && (
-          <CountryStep
+          <SubjectsStep
             data={assessmentData}
             onUpdate={updateAssessmentData}
             onNext={handleNext}

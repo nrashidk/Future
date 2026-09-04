@@ -275,8 +275,16 @@ export function registerAssessmentRoutes(app: Express) {
       // a free user to self-upgrade to premium (assessmentType: 'premium') and to forge
       // scores/completion. assessmentType and riasecScores are still derived below from
       // the client-supplied *Responses, so the legitimate premium upgrade path is intact.
+      //
+      // 'curriculum' IS client-writable, and has to be: the student picks it in
+      // CountryStep alongside the country, and the quiz filters its question
+      // pool on {countryId, grade, curriculum}. It was missing from this list,
+      // so every PATCH silently dropped it (POST already accepted it) and the
+      // column stayed NULL for any assessment saved through the update path —
+      // which is all of them after the first save. The org-student override
+      // below mirrors POST so a school's curriculum still wins.
       const allowedFields = [
-        'name', 'age', 'grade', 'gender', 'countryId', 'favoriteSubjects',
+        'name', 'age', 'grade', 'gender', 'countryId', 'curriculum', 'favoriteSubjects',
         'prioritySubjects', 'interests', 'personalityTraits', 'careerAspirations',
         'strengths', 'workPreferences', 'riasecResponses', 'cvqResponses',
         'subjectCompetencies',
@@ -325,6 +333,25 @@ export function registerAssessmentRoutes(app: Express) {
 
       if (updateData.cvqResponses) {
         updateData.assessmentType = 'premium';
+      }
+
+      // Org students inherit their school's curriculum, exactly as POST does
+      // (see the create handler above). Without this, adding 'curriculum' to the
+      // allowlist would let an org student's own pick silently override on the
+      // next PATCH the curriculum the create path had just forced. Gated on the
+      // field actually being present so a normal auto-save that doesn't touch
+      // curriculum costs no extra queries.
+      if (updateData.curriculum !== undefined && existingAssessment.userId) {
+        const owner = await storage.getUser(existingAssessment.userId);
+        if (owner?.accountType === "org_student") {
+          const orgMember = await storage.getOrganizationMemberByUserId(existingAssessment.userId);
+          if (orgMember) {
+            const organization = await storage.getOrganizationById(orgMember.organizationId);
+            if (organization?.curriculum) {
+              updateData.curriculum = organization.curriculum;
+            }
+          }
+        }
       }
 
       const assessment = await storage.updateAssessment(req.params.id, updateData);

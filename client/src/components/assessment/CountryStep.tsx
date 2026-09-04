@@ -41,6 +41,29 @@ export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps
     }
   }, [countries, countriesError]);
 
+  // Adopt a country/curriculum that arrives from the parent AFTER mount.
+  // The two useState calls above seed from `data` once, so an org student whose
+  // `user` record resolves after this step mounted would see an empty <Select>
+  // while the parent already held their school's country — and `canProceed`
+  // would block them until they re-picked it by hand. Country is now step 2,
+  // reached directly by the demographics smart-skip, so that window is small
+  // but real.
+  //
+  // Only fills a BLANK local value: a student's own selection is never
+  // overwritten, and clearing the country deliberately (handleCountryChange
+  // resets curriculum to "") is not undone, because the parent is cleared too.
+  useEffect(() => {
+    if (data.countryId && !selectedCountryId) {
+      setSelectedCountryId(data.countryId);
+    }
+  }, [data.countryId, selectedCountryId]);
+
+  useEffect(() => {
+    if (data.curriculum && !selectedCurriculum) {
+      setSelectedCurriculum(data.curriculum);
+    }
+  }, [data.curriculum, selectedCurriculum]);
+
   const { data: countryDetails } = useQuery<any>({
     queryKey: ["/api/countries", selectedCountryId],
     enabled: !!selectedCountryId,

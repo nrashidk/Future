@@ -18,6 +18,7 @@ import type {
   Country
 } from "../../shared/schema";
 import { type AssessmentTier, getEffectiveWeight } from "./tierWeights";
+import { isPremiumAssessment } from "../utils/assessmentTier";
 import { getEffectiveWeightFromDb, getTierConfig } from "./scoringConfig";
 import { isFutureReady } from "./futureReadiness";
 import { 
@@ -124,6 +125,27 @@ export interface CareerMatch {
 }
 
 /**
+ * How many career matches a report offers, by tier.
+ *
+ * FREE is deliberately narrower (L5). The free report is a real answer, not a
+ * teaser — every section it shows is now unblurred and readable — but it is
+ * built from three signals (subjects / interests / vision), and three signals
+ * do not separate the 4th-best career from the 8th with any confidence. Two
+ * well-supported matches is the honest width of that evidence. Premium adds
+ * RIASEC and CVQ, which is what earns the wider list.
+ *
+ * Applied at GENERATE time and persisted one row per match, so a change here
+ * affects newly generated reports only; existing rows keep the count they were
+ * written with.
+ */
+export const MAX_MATCHES_FREE = 2;
+export const MAX_MATCHES_PREMIUM = 5;
+
+export function maxMatchesForTier(assessmentType: string | null | undefined): number {
+  return isPremiumAssessment(assessmentType) ? MAX_MATCHES_PREMIUM : MAX_MATCHES_FREE;
+}
+
+/**
  * Component calculator function signature
  */
 export type ComponentCalculator = (
@@ -179,8 +201,8 @@ export async function generateRecommendations(
   //    catalog-wide mean affinity that calculateVisionScore mean-centres
   //    against, silently moving every OTHER career's vision score. The gate
   //    must not perturb the model.
-  //  - NOT after .slice(0, 5): that would return fewer than five
-  //    recommendations whenever it fires. Filtering first backfills from #6.
+  //  - NOT after the tier slice: that would return fewer than the tier's quota
+  //    whenever it fires. Filtering first backfills from the next-best career.
   //
   // On the current 68-career catalogue this excludes nothing — every career is
   // a professional occupation and WEF's declining list is clerical. That is the
@@ -195,11 +217,15 @@ export async function generateRecommendations(
     );
   }
 
-  // 4. Filter and sort by overall score
+  // 4. Filter and sort by overall score, then take the tier's quota.
+  // The slice MUST stay last: the future-readiness gate above deliberately runs
+  // before it so a gated career backfills from the next-best one rather than
+  // shrinking the list.
+  const limit = maxMatchesForTier(context.assessment.assessmentType);
   return gated
     .filter(match => match.overallScore >= 40) // Filter low matches
     .sort((a, b) => b.overallScore - a.overallScore)
-    .slice(0, 5); // Top 5 matches
+    .slice(0, limit); // 2 free / 5 premium — see maxMatchesForTier
 }
 
 /**

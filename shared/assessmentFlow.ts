@@ -13,8 +13,16 @@
  *   diverge, and Aspirations is always the last input step.
  */
 
-/** Steps 1-4, identical for both tiers. L2's "shared 4-step spine". */
-export const SPINE_STEP_IDS = ['basicInfo', 'subjects', 'country', 'quiz'] as const;
+/**
+ * Steps 1-4, identical for both tiers. L2's "shared 4-step spine".
+ *
+ * COUNTRY PRECEDES SUBJECTS deliberately: country + curriculum are the frame the
+ * subject list is chosen inside, so they are declared first. Today SubjectsStep
+ * still renders a fixed six-subject list, but the quiz already filters its
+ * question pool by {countryId, grade, curriculum} (server/routes/quiz.routes.ts),
+ * and this ordering is the precondition for a curriculum-scoped subject list.
+ */
+export const SPINE_STEP_IDS = ['basicInfo', 'country', 'subjects', 'quiz'] as const;
 
 /** FREE: spine → Interests → Aspirations → Results. No RIASEC, no CVQ. */
 export const FREE_STEP_IDS = [
@@ -89,14 +97,20 @@ const hasItems = (v: unknown[] | null | undefined): boolean => Array.isArray(v) 
  * Where to resume a FREE assessment — derived from the DATA PRESENT, never from
  * the stored `assessments.currentStep`.
  *
- * THE PROBLEM (docs/v2-phase3-recon.md §6b). Phase 3 renumbered the free flow.
- * Under the old order step 3 was Interests and step 5 was Country; under the new
- * one step 3 is Country and step 5 is Interests. `assessments.currentStep` is a
- * DATABASE column read by cross-device resume, so unlike the sessionStorage
+ * THE PROBLEM (docs/v2-phase3-recon.md §6b). Phase 3 renumbered the free flow,
+ * and the Country/Subjects swap renumbered it again: pre-Phase-3 step 3 was
+ * Interests and step 5 was Country; post-Phase-3 step 2 was Subjects and step 3
+ * Country; now step 2 is Country and step 3 Subjects. `assessments.currentStep`
+ * is a DATABASE column read by cross-device resume, so unlike the sessionStorage
  * draft it cannot be discarded by versioning a key — every free assessment in
- * flight at deploy time carries a number in the old numbering. Trusting it would
- * drop a student into a step whose prerequisites were never collected, and
+ * flight at deploy time carries a number in some earlier numbering. Trusting it
+ * would drop a student into a step whose prerequisites were never collected, and
  * generation would then 400 on a component they were never shown.
+ *
+ * Note the check order below MUST track SPINE_STEP_IDS. It returns the first
+ * step whose input is missing, so country is tested before subjects; testing
+ * subjects first would resume a country-less student past Country, and
+ * collectMissingComponents would then 400 on "Country Selection".
  *
  * THE FIX. The stored number is not translatable, but it is also not needed: the
  * data itself says how far the student got. This returns the first step whose
@@ -123,8 +137,8 @@ export function deriveFreeResumeStep(assessment: ResumableAssessment): number {
     !!assessment.gender;
 
   if (!basicInfoComplete) return stepNumberOf(false, 'basicInfo')!;      // 1
-  if (!hasItems(assessment.favoriteSubjects)) return stepNumberOf(false, 'subjects')!;  // 2
-  if (!assessment.countryId) return stepNumberOf(false, 'country')!;     // 3
+  if (!assessment.countryId) return stepNumberOf(false, 'country')!;     // 2
+  if (!hasItems(assessment.favoriteSubjects)) return stepNumberOf(false, 'subjects')!;  // 3
 
   // Interests missing → the student is at the Quiz or at Interests. Resume at
   // the Quiz; it self-advances if already done. See the note above.

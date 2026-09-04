@@ -21,9 +21,9 @@ import {
 } from './assessmentFlow';
 
 describe('the free step order (L3)', () => {
-  it('is Basic, Subjects, Country, Quiz, Interests, Aspirations, Results', () => {
+  it('is Basic, Country, Subjects, Quiz, Interests, Aspirations, Results', () => {
     expect([...FREE_STEP_IDS]).toEqual([
-      'basicInfo', 'subjects', 'country', 'quiz', 'interests', 'aspirations', 'results',
+      'basicInfo', 'country', 'subjects', 'quiz', 'interests', 'aspirations', 'results',
     ]);
   });
 
@@ -39,15 +39,24 @@ describe('the free step order (L3)', () => {
   });
 
   it('puts Country before the Quiz, where free used to have Interests', () => {
-    expect(stepNumberOf(false, 'country')).toBe(3);
+    expect(stepNumberOf(false, 'country')).toBe(2);
     expect(stepNumberOf(false, 'interests')).toBe(5);
+  });
+
+  it('declares Country BEFORE Subjects', () => {
+    // Country + curriculum are the frame the subject list is chosen inside, so
+    // they come first. Both tiers, since this is the shared spine.
+    for (const isPremium of [false, true]) {
+      expect(stepNumberOf(isPremium, 'country')!)
+        .toBeLessThan(stepNumberOf(isPremium, 'subjects')!);
+    }
   });
 });
 
 describe('the premium step order is unchanged', () => {
-  it('is Basic, Subjects, Country, Quiz, RIASEC, CVQ, Aspirations, Results', () => {
+  it('is Basic, Country, Subjects, Quiz, RIASEC, CVQ, Aspirations, Results', () => {
     expect([...PREMIUM_STEP_IDS]).toEqual([
-      'basicInfo', 'subjects', 'country', 'quiz',
+      'basicInfo', 'country', 'subjects', 'quiz',
       'careerPersonality', 'personalValues', 'aspirations', 'results',
     ]);
   });
@@ -61,7 +70,7 @@ describe('the premium step order is unchanged', () => {
 
 describe('the shared 4-step spine (L2)', () => {
   it('is steps 1-4 and is IDENTICAL for both tiers', () => {
-    expect([...SPINE_STEP_IDS]).toEqual(['basicInfo', 'subjects', 'country', 'quiz']);
+    expect([...SPINE_STEP_IDS]).toEqual(['basicInfo', 'country', 'subjects', 'quiz']);
     expect(stepIdsForTier(false).slice(0, 4)).toEqual([...SPINE_STEP_IDS]);
     expect(stepIdsForTier(true).slice(0, 4)).toEqual([...SPINE_STEP_IDS]);
   });
@@ -137,10 +146,19 @@ describe('deriveFreeResumeStep — free resume ignores the stored step', () => {
 
   it('walks forward one step per completed section', () => {
     expect(deriveFreeResumeStep({ ...complete, favoriteSubjects: [], countryId: '', interests: [], careerAspirations: [] })).toBe(2);
-    expect(deriveFreeResumeStep({ ...complete, countryId: '', interests: [], careerAspirations: [] })).toBe(3);
+    expect(deriveFreeResumeStep({ ...complete, favoriteSubjects: [], interests: [], careerAspirations: [] })).toBe(3);
     expect(deriveFreeResumeStep({ ...complete, interests: [], careerAspirations: [] })).toBe(4);
     expect(deriveFreeResumeStep({ ...complete, careerAspirations: [] })).toBe(6);
     expect(deriveFreeResumeStep(complete)).toBe(6);
+  });
+
+  it('checks country BEFORE subjects, matching the step order', () => {
+    // The check order must track SPINE_STEP_IDS. If subjects were tested first,
+    // a student with subjects but no country would resume at the Quiz and
+    // generation would 400 on "Country Selection".
+    const noCountry = { ...complete, countryId: '', interests: [], careerAspirations: [] };
+    expect(deriveFreeResumeStep(noCountry)).toBe(stepNumberOf(false, 'country'));
+    expect(deriveFreeResumeStep(noCountry)).toBe(2);
   });
 
   it('resumes at the QUIZ, not Interests, when interests are missing', () => {
@@ -170,7 +188,7 @@ describe('deriveFreeResumeStep — free resume ignores the stored step', () => {
       countryId: '',          // old step 5 — never reached
       careerAspirations: [],
     };
-    expect(deriveFreeResumeStep(oldOrderDraft)).toBe(3); // Country, correctly
+    expect(deriveFreeResumeStep(oldOrderDraft)).toBe(2); // Country, correctly
   });
 
   it('only ever returns a real free step', () => {

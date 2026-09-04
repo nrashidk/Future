@@ -44,6 +44,11 @@ export function registerAuthRoutes(app: Express) {
             (user as any).organizationName = organization.name;
             (user as any).organizationLogoUrl = organization.logoUrl || null;
             (user as any).organizationCountryId = organization.countryId || null;
+            // Paired with organizationCountryId: the assessment's CountryStep
+            // pre-fills both, and POST/PATCH /api/assessments force the org's
+            // curriculum for org_students anyway — sending it lets the form show
+            // the value the server is going to store.
+            (user as any).organizationCurriculum = organization.curriculum || null;
           }
         }
       }

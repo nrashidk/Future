@@ -25,7 +25,6 @@ import {
   Crown,
   DollarSign,
   Loader2,
-  Lock,
   User
 } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -59,7 +58,11 @@ interface EnrichedRecommendation extends RecommendationResponse {
   supportingVisionPriorities?: string[];
 }
 
-// CSS-only fog applied to locked-tier career facts (salary/growth, skills,
+// CSS-only fog applied to the three still-gated career-fact blocks
+// (salary/growth, required skills, WEF future skills). Driven by
+// `rec.factsLocked`. The narrative sections it used to cover — Why This Career,
+// Education Path, Next Steps — now render in full for free.
+// Original note: CSS-only fog applied to locked-tier career facts (salary/growth, skills,
 // education, next steps). Blur + dimmed + non-interactive; layout size is
 // unchanged (filter/opacity don't reflow), so masonry heights stay stable.
 const LOCKED_FOG = "blur-sm opacity-40 pointer-events-none select-none";
@@ -303,10 +306,10 @@ export default function Results() {
   // Determine active assessment ID (URL param, grade lookup, or extracted from recommendations)
   const activeAssessmentId = resolvedAssessmentId || assessmentId;
 
-  // Page-level locked signal derived from the SERVER flag (rec.locked), not a
-  // re-derived tier check. Free-tier assessments come back with locked:true on
+  // Page-level PDF signal derived from the SERVER flag (rec.pdfLocked), not a
+  // re-derived tier check. Free-tier assessments come back with pdfLocked:true on
   // every recommendation; used to swap the PDF download CTA for an upgrade CTA.
-  const reportLocked = recommendations.some((r: EnrichedRecommendation) => r.locked === true);
+  const reportLocked = recommendations.some((r: EnrichedRecommendation) => r.pdfLocked === true);
 
   // Fetch quiz data to get subject competency scores
   const { data: quizData } = useQuery<any>({
@@ -463,8 +466,10 @@ export default function Results() {
               bottom. Secondary variant contrasts against the primary gradient. */}
           <div className="mt-6 flex justify-center">
             {reportLocked ? (
-              // Free tier: the PDF route now 403s, so route to the upgrade flow
+              // Free tier: the PDF route 403s, so route to the upgrade flow
               // instead of calling handleDownloadPDF. Premium keeps the download.
+              // Copy names the PDF specifically — "Unlock full report" was
+              // misleading once the on-screen report stopped being withheld.
               <Button
                 size="lg"
                 variant="secondary"
@@ -473,7 +478,7 @@ export default function Results() {
                 onClick={() => setLocation('/tier-selection')}
               >
                 <Sparkles className="w-5 h-5 me-2" />
-                {t('unlockFullReport', 'Unlock full report')}
+                {t('btnGetPdf')}
               </Button>
             ) : (
               <Button
@@ -1072,7 +1077,7 @@ export default function Results() {
                 })()}
 
                 {/* Salary & Growth Info */}
-                <div className={`grid grid-cols-2 gap-3 mb-4 ${rec.locked ? LOCKED_FOG : ''}`}>
+                <div className={`grid grid-cols-2 gap-3 mb-4 ${rec.factsLocked ? LOCKED_FOG : ''}`}>
                   <div className="p-3 bg-background/30 rounded-lg text-center">
                     <TrendingUp className="w-5 h-5 mx-auto mb-1 text-primary" />
                     <p className="text-xs text-muted-foreground mb-1">{t('growthOutlook')}</p>
@@ -1134,7 +1139,7 @@ export default function Results() {
                   return skills.length > 0 ? (
                   <div className="mb-4">
                     <h4 className="font-semibold mb-2 text-sm">{t('requiredSkills')}</h4>
-                    <div className={`flex flex-wrap gap-2 ${rec.locked ? LOCKED_FOG : ''}`}>
+                    <div className={`flex flex-wrap gap-2 ${rec.factsLocked ? LOCKED_FOG : ''}`}>
                       {skills.map((skill: string) => (
                           <span
                             key={skill}
@@ -1156,7 +1161,7 @@ export default function Results() {
                       <Globe className="w-4 h-4" />
                       {t('wefSkillsTitle', 'Future Skills')}
                     </h4>
-                    <div className={`flex flex-wrap gap-1.5 ${rec.locked ? LOCKED_FOG : ''}`}>
+                    <div className={`flex flex-wrap gap-1.5 ${rec.factsLocked ? LOCKED_FOG : ''}`}>
                       {rec.wefSkillTags.map((tag) => {
                         const label = language === 'ar' ? (tag.nameAr ?? tag.name) : tag.name;
                         const desc = language === 'ar' ? (tag.descriptionAr ?? tag.description) : tag.description;
@@ -1187,37 +1192,16 @@ export default function Results() {
                     {t('whyThisCareer')}
                   </h4>
                   <div className="text-sm font-body text-foreground/90">
-                    {rec.locked ? (
-                      // Locked (free tier): the server withholds the narrative
-                      // (reasoning/premiumReasoning are null). Render a fixed-height
-                      // fog skeleton + an absolutely-positioned unlock overlay.
-                      // Pure CSS (blur + opacity); the skeleton is a fixed height so
-                      // the masonry card height stays stable — no JS measures or
-                      // writes back to .masonry-content, so no observe→write loop.
-                      <div className="relative">
-                        <div className="space-y-2 blur-sm opacity-40 select-none pointer-events-none" aria-hidden="true">
-                          <div className="h-3 rounded bg-foreground/20 w-full" />
-                          <div className="h-3 rounded bg-foreground/20 w-11/12" />
-                          <div className="h-3 rounded bg-foreground/20 w-full" />
-                          <div className="h-3 rounded bg-foreground/20 w-4/5" />
-                        </div>
-                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center px-2">
-                          <div className="flex items-center gap-1.5 text-primary">
-                            <Lock className="w-4 h-4" />
-                            <span className="text-xs font-semibold">{t('premiumInsight', 'Premium insight')}</span>
-                          </div>
-                          <Button
-                            size="sm"
-                            className="rounded-full"
-                            data-testid={`button-unlock-${rec.careerId}`}
-                            onClick={() => setLocation('/tier-selection')}
-                          >
-                            <Sparkles className="w-3.5 h-3.5 me-1.5" />
-                            {t('unlockFullReport', 'Unlock full report')}
-                          </Button>
-                        </div>
-                      </div>
-                    ) : isPremiumAssessment(assessment?.assessmentType) && activeAssessmentId && rec.careerId ? (
+                    {/* No free/premium branch on WHETHER there is a narrative any
+                        more — both tiers get one. Free arrives as `reasoning`,
+                        formatted server-side from the stored audit string
+                        (server/services/freeNarrative.ts); premium arrives as an
+                        LLM narrative fetched per card, with `premiumReasoning`
+                        as its fallback. The blurred skeleton and its
+                        "Premium insight / Unlock full report" overlay that used
+                        to stand here are gone: the text they hid was always
+                        being generated, just never sent. */}
+                    {isPremiumAssessment(assessment?.assessmentType) && activeAssessmentId && rec.careerId ? (
                       <CareerReasoningText
                         assessmentId={activeAssessmentId}
                         careerId={rec.careerId}
@@ -1238,7 +1222,10 @@ export default function Results() {
                     <BookOpen className="w-4 h-4" />
                     {t('educationPath')}
                   </h4>
-                  <p className={`text-sm font-body ${rec.locked ? LOCKED_FOG : ''}`}>
+                  {/* Unfogged for free: rec.requiredEducation is a NOT NULL
+                      column written at generate time for both tiers, so this was
+                      real data behind a blur. */}
+                  <p className="text-sm font-body">
                     {language === 'ar' && rec.career?.educationLevelAr
                       ? rec.career.educationLevelAr
                       : rec.requiredEducation}
@@ -1252,7 +1239,10 @@ export default function Results() {
                       <ArrowRight className="w-4 h-4" />
                       {t('nextSteps')}
                     </h4>
-                    <ul className={`space-y-2 ${rec.locked ? LOCKED_FOG : ''}`}>
+                    {/* Unfogged for free: rec.actionSteps is a NOT NULL column
+                        written at generate time for both tiers. Free gets the two
+                        basic steps, premium the 7-8 grade-branched ones. */}
+                    <ul className="space-y-2">
                       {(rec.premiumActionSteps || rec.actionSteps).map((step: string, i: number) => (
                         <li key={i} className="flex items-start gap-2 text-sm font-body">
                           <span className="text-primary font-bold flex-shrink-0">{i + 1}.</span>
