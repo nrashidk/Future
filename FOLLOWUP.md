@@ -73,6 +73,21 @@ Same PDF: Journalist ranked #3 with "Growth Outlook: Declining — projected dec
 ### Logged-out visitor gets a rendered report shell with a Download button  (severity: medium)
 Observed live 2026-09-05 on results?assessmentId=23f6008e in a logged-out session. Server-side gating is CORRECT — /api/assessments/:id returns 403 and /api/assessments/:id/quiz returns 404, no data leaks. But the client renders the full report shell anyway: hero, "Download PDF Report" button, and the upsell block, wrapped around data it never received. Should redirect to login. Clicking Download in that state 403s. Also note the inconsistent authz shape: 403 on one endpoint, 404 on the other for the same unauthorized request. Belongs with Phase 5 (guest->account claim, free-account access). First flagged 2026-09-05.
 
+### Arabic report renders canonical English values and English action steps  (severity: medium-high)
+Observed live 2026-09-05 on the Arabic report (screenshots taken from prod). Four gaps, two causes:
+
+STORED-VALUE DISPLAY (canonical English shown raw instead of translated):
+- Subject names in the Subject Strengths block: "Social Studies", "Arabic", "Mathematics", "Science", "Computer Science" render in English while the surrounding labels and "٤ من ٤ صحيح" are correctly Arabic. The subject id is canonical English by design (SubjectsStep.tsx:36-47, persisted at :73/:78 so it matches subjects.name and quiz_questions.subject). SubjectsStep itself translates for display via t(subject.labelKey) at :157 — the report does not. Fix: route stored subject ids through the same locale keys at render on both Results.tsx and ResultsPrint.tsx. Scope trap: the id->labelKey map lives only as a private array literal in SubjectsStep.tsx:40-47. Neither Results.tsx nor ResultsPrint.tsx imports it, and the print page can't reach component-local state. The real fix is extract the six-entry map to shared/ first, then consume it in three places — which also removes the hand-duplication drift the comment at SubjectsStep.tsx:36-39 warns about.
+- Country renders in English. Data already exists — countries carry nameAr/missionAr/visionAr/prioritySectorsAr and CountryStep.tsx:233/251/260 already reads them. The report simply isn't using them. Cheap render fix.
+- Curriculum renders in English, and this one is NOT the same fix. There is no Arabic anywhere: shared/schema.ts:235 stores curriculum as a bare text column, CountryStep.tsx:215-217 renders the raw string. Translating it needs new data — a locale map keyed on the four values ("MOE National", "British", "American", "IB"), or an Ar column. Data work, not a render change.
+
+GENERATED CONTENT NOT LANGUAGE-AWARE:
+- "Next Steps" / الخطوات التالية items render as English sentences inside the Arabic report ("Complete Bachelor's degree in Computer Science or related field", "Build skills in: Programming, Problem Solving, Data Structures"). Education Path is affected too. These are composed server-side, not locale keys, so the generator needs the assessment language. Worst of the four: this is the report's payoff section and is unreadable to an Arabic-first parent.
+
+Also flagged: the Arabic report offers "get your full PDF report" wording that leads to the purchase page rather than a download. Check whether the English copy is equally misleading or whether the Arabic translation overpromises. Not a translation bug — a copy/gating question.
+
+None of this is a regression from 3ba4941; all pre-existing. Belongs with the parked multi-country/localization workstream. First flagged 2026-09-05.
+
 ## Session log
 
 ### Arabic PDF report — session 2026-06-30
@@ -1455,12 +1470,20 @@ REMAINING v2 phases (reconned, ready):
 
 ## OPEN ITEMS from 2026-09-04 free-report review (small polish + product decisions)
 
-1. Subjects step layout: if 6 subjects stay, arrange as 2 rows of 3, alphabetically ordered (currently not).
+1. DONE 3ba4941 — Subjects step layout: if 6 subjects stay, arrange as 2 rows of 3, alphabetically ordered (currently not).
    Small UI.
-2. Quiz score flash: after the quiz a score shows for ~2 seconds - REMOVE it (owner decided quiz score is not
+   Alphabetical sort deliberately NOT applied — decided against 2026-09-05. Array order is curricular grouping,
+   not arbitrary. A sort would need Intl.Collator to be meaningful in Arabic, which puts tiles in different
+   positions per language, and the tilt at SubjectsStep.tsx:148 is keyed to array index so re-sorting reshuffles
+   which tiles lean which way. The original complaint was the orphan row at lg, which lg:grid-cols-4 removal
+   fixed. Not an open item.
+2. DONE 3ba4941 — Quiz score flash: after the quiz a score shows for ~2 seconds - REMOVE it (owner decided quiz score is not
    shown; this is a leftover). Small.
-3. Curriculum display on Country step: owner saw "3 more with MOE National" - needs clarification/check
+3. CLOSED 2026-09-05 — not found. Curriculum display on Country step: owner saw "3 more with MOE National" - needs clarification/check
    whether extra curricula show incorrectly. TBD - owner to clarify what's shown.
+   The string exists nowhere in source, either locale (en/ar), the built bundle, or the repo at large — the only
+   occurrence is this note. Only candidate found was the admin Subject Management page (SubjectManagement.tsx:367-395),
+   where a count line sits above rows each badged with a curriculum name; unverified. Needs a screenshot if seen again.
 4. Free PDF: currently free users CANNOT download a PDF (403, upsells to premium). DECISION PENDING - keep PDF
    premium-only (recommended - tangible premium perk) or give free users a PDF.
 5. Free account save: does "Create Free Account" actually save the free report? Unknown/untested. Ties to
