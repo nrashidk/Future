@@ -1398,3 +1398,62 @@ subjects, language, sector->skill vectors, sector->career-category rules.
 4. THE BUILD must be flexible: audit for UAE-specific hardcoding (currency, salary format, growth display,
    country name, "United Arab Emirates" literals in reports/prompts) and parameterize per country. Ties to
    the existing parked L1-L6 leaks and the LLM-country-gen prompt fidelity work.
+
+---
+
+## v2 REBUILD — progress (updated 2026-09-04)
+
+NOTE ON NUMBERING: these phase numbers are the AS-EXECUTED sequence and do NOT line up with the
+"RECOMMENDED BUILD ORDER" list in the CONFIRMED SPEC section above (there, school-locking is Phase 3 and
+license rework is Phase 4). Use the numbering below from here on.
+
+DONE + live in prod:
+- Phase 1 (2dab644..3eeebc9): 5 bug fixes - school students get premium quiz tier (Bug #3, derived from
+  membership not isPremium), guest banner shows (#15), CVQ per-page lock (#4), Students->Users tab (#11),
+  Self Assessment->Get My Report (#14).
+- Phase 2 (3ee8134): grade canonicalization - shared/grade.ts single source of truth, all writes route
+  through toCanonicalGrade, migration 013 normalized the 7 non-canonical prod rows. Fixed analytics
+  double-bucket, per-grade Journey link (#12), unblocked multi-grade (L12). Also fixed parseInt-writes-NaN
+  + fullName->studentName bugs.
+- Phase 3 (d630f82): free-flow restructure to shared 4-step spine (Basic/Subjects/Country/Quiz shared, then
+  diverge). Personality step removed from free (fed no scoring). Generation consolidated to one handler.
+  deriveFreeResumeStep derives step from data (handles cross-device resume without schema). Draft key v2.
+- Flow+report addendum (46cc463 + 92ec012): swapped Country BEFORE Subjects (enabling precondition for
+  country-derived subjects later). Fixed curriculum-never-persisted bug (client didn't send + PATCH allowlist
+  dropped it -> quiz always used fallback; now the curriculum-scoped query fires). Honest free report: free
+  reasoning was generated+stored but nulled in response - now served via freeNarrative.ts formatter
+  (deterministic, no LLM, student prose, no raw %s). Free capped at 2 matches (premium 5). Removed the 3
+  career-fact blocks (salary/growth, required skills, WEF skills) from free entirely - free vs premium differ
+  by completeness not fog. Kept Validated Competencies (student's own evidence). Deleted dead
+  factsLocked/LOCKED_FOG; kept pdfLocked (real 403 gate). Reframed upsell in plain language ("Add Two More
+  Signals"; the stale "24-question learning style" phantom removed).
+
+REMAINING v2 phases (reconned, ready):
+- Phase 4 (school locking) - RECON DONE. Recon preserved at docs/v2-phase4-recon.md (tracked).
+  Key finding: SECURITY GAP - a school student can override name/age/grade/gender/countryId via a direct
+  PATCH /api/assessments/:id (zero org-awareness). Country/curriculum live on the ORG and are OPTIONAL
+  everywhere; the student create form captures neither (nor studentName/studentAge). No edit-student form
+  exists. Needs: mandatory org country+curriculum (schema, staging-first), server-side PATCH lock enforcement
+  (prod-safe), build the missing edit form. Depends on the Country<->Subjects swap (now landed).
+- Phase 5 (guest->account claim + free access): guest->account migration is BROKEN (guest assessment not
+  claimed on registration). Free-account users blocked from assessments. Ties to the "does Create Free Account
+  save the free report?" question below.
+- Phase 6 (license rework, the big one): consume-at-completion, unified self/school licensing,
+  repurchase-sells-licenses, needs a real license table.
+
+## OPEN ITEMS from 2026-09-04 free-report review (small polish + product decisions)
+
+1. Subjects step layout: if 6 subjects stay, arrange as 2 rows of 3, alphabetically ordered (currently not).
+   Small UI.
+2. Quiz score flash: after the quiz a score shows for ~2 seconds - REMOVE it (owner decided quiz score is not
+   shown; this is a leftover). Small.
+3. Curriculum display on Country step: owner saw "3 more with MOE National" - needs clarification/check
+   whether extra curricula show incorrectly. TBD - owner to clarify what's shown.
+4. Free PDF: currently free users CANNOT download a PDF (403, upsells to premium). DECISION PENDING - keep PDF
+   premium-only (recommended - tangible premium perk) or give free users a PDF.
+5. Free account save: does "Create Free Account" actually save the free report? Unknown/untested. Ties to
+   Phase 5 guest->account claim (which the audit found BROKEN). A PDF copy is NOT saved (PDFs are generated
+   on-demand, not stored). Resolve in Phase 5.
+6. Upsell copy still says "Holland Code (RIASEC)" and "values questionnaire" - it DEFINES them in plain
+   language rather than assuming knowledge, reads OK, but owner may want "RIASEC" acronym removed entirely
+   leaving just "career personality". Minor copy call.
