@@ -61,6 +61,15 @@ Investigation only, no fix applied. **The counts reconcile exactly** — Dependa
 
 **Caveat before applying (per instructions — not done here):** verify the bumps don't disturb the build, especially anything touching vite/esbuild/puppeteer/drizzle. These three don't obviously touch that chain (multer is Express upload; dompurify/undici come in via isomorphic-dompurify/jsdom), but run a build + the upload paths after fixing. First flagged 2026-07-07.
 
+### Career-reasoning prompt contradicts quiz results  (severity: medium-high — credibility)
+Confirmed in a live prod PDF (assessment 23f6008e, 2026-09-05). The subject-strengths block shows Mathematics 0% (0 of 4 correct), while the LLM "Why This Career?" narratives praise Mathematics as a strength on three of five careers: Product Manager ("your love of Mathematics supports the analytical side"), Journalist ("Mathematics sharpens the analytical thinking needed to fact-check data"), Marketing Manager ("Mathematics connects to analytics and budgeting"). Cause: the career_reasoning prompt is fed favoriteSubjects (student-declared) with no quiz competency scores, so a failed subject is treated as an asset. Reader can falsify the claim from the same page. Fix: pass per-subject quiz scores into the prompt and instruct the model to frame low-scoring subjects as growth areas, not strengths. Needs a real PDF to verify. First flagged 2026-09-05.
+
+### PDF footer shows wrong date  (severity: low — visible on artifact)
+PDFs rendered 2026-09-05 print "Generated on 9/4/2026". The footer date is not the render date — likely the assessment completion/created date, or a timezone/derivation bug. Find the source of that value in ResultsPrint.tsx and confirm what it is meant to show. First flagged 2026-09-05.
+
+### O*NET US growth band surfaced in a top-3 match  (severity: medium — already parked, now confirmed live)
+Same PDF: Journalist ranked #3 with "Growth Outlook: Declining — projected decline". That is a US BLS-derived band shown to a UAE grade-12 student. Concrete instance of the parked O*NET-US-data-exposure item (see "MULTI-COUNTRY / LOCALIZATION — parked workstream", PARKED ITEMS #1, ~line 1375); growth bands need localization or suppression before go-live. First flagged 2026-09-05.
+
 ## Session log
 
 ### Arabic PDF report — session 2026-06-30
