@@ -19,6 +19,16 @@ export const RATE_LIMITS = {
     MAX_REQUESTS: 20,
     MESSAGE: "Too many recommendation requests. Please try again later.",
   },
+  // Budget for the Puppeteer PDF render itself. Keyed per assessment rather
+  // than per IP (see pdfLimiter), so it is independent of proxy topology and
+  // one student can never exhaust another's budget. The ceiling is generous
+  // because the bucket is cheap: re-rendering the same assessment hits the
+  // LLM narrative cache, so repeats cost a headless Chrome and no LLM spend.
+  PDF_REPORT: {
+    WINDOW_MS: 60 * 60 * 1000, // 1 hour
+    MAX_REQUESTS: 20,
+    MESSAGE: "Too many report downloads. Please try again later.",
+  },
   DATA_EXPORT: {
     WINDOW_MS: 60 * 60 * 1000, // 1 hour
     MAX_REQUESTS: 5,

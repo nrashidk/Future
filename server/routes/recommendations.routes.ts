@@ -2,7 +2,11 @@ import type { Express } from "express";
 import { storage } from "../storage";
 import { generateRecommendations } from "../services/matching";
 import { syncWEFSkillsProfile } from "../services/wefOrchestrator";
-import { recommendationsLimiter } from "../middleware/rateLimiter.middleware";
+import {
+  recommendationsLimiter,
+  printableRecommendationsLimiter,
+  pdfLimiter,
+} from "../middleware/rateLimiter.middleware";
 import { db } from "../db";
 import { recommendations, assessments, organizationMembers } from "@shared/schema";
 import { eq } from "drizzle-orm";
@@ -486,7 +490,7 @@ export function registerRecommendationsRoutes(app: Express) {
   });
 
   // PDF Report Generation using Puppeteer
-  app.get("/api/recommendations/pdf/:assessmentId", async (req: any, res) => {
+  app.get("/api/recommendations/pdf/:assessmentId", pdfLimiter, async (req: any, res) => {
     let browser: any = null;
     try {
       const assessment = await storage.getAssessmentById(req.params.assessmentId);
@@ -703,7 +707,7 @@ export function registerRecommendationsRoutes(app: Express) {
 
   // Career Reasoning - LLM-generated "Why This Career?" narrative for premium reports
   // Protected with rate limiting to prevent LLM abuse
-  app.get("/api/recommendations/:assessmentId/career-reasoning/:careerId", recommendationsLimiter, async (req: any, res) => {
+  app.get("/api/recommendations/:assessmentId/career-reasoning/:careerId", printableRecommendationsLimiter, async (req: any, res) => {
     try {
       const { assessmentId, careerId } = req.params;
 
@@ -836,7 +840,7 @@ export function registerRecommendationsRoutes(app: Express) {
 
   // Education Pathways - LLM-generated university/program recommendations
   // Protected with rate limiting to prevent LLM abuse
-  app.get("/api/recommendations/:assessmentId/education-pathways/:careerId", recommendationsLimiter, async (req: any, res) => {
+  app.get("/api/recommendations/:assessmentId/education-pathways/:careerId", printableRecommendationsLimiter, async (req: any, res) => {
     try {
       const { assessmentId, careerId } = req.params;
 
