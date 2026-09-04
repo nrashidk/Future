@@ -58,14 +58,13 @@ interface EnrichedRecommendation extends RecommendationResponse {
   supportingVisionPriorities?: string[];
 }
 
-// CSS-only fog applied to the three still-gated career-fact blocks
-// (salary/growth, required skills, WEF future skills). Driven by
-// `rec.factsLocked`. The narrative sections it used to cover — Why This Career,
-// Education Path, Next Steps — now render in full for free.
-// Original note: CSS-only fog applied to locked-tier career facts (salary/growth, skills,
-// education, next steps). Blur + dimmed + non-interactive; layout size is
-// unchanged (filter/opacity don't reflow), so masonry heights stay stable.
-const LOCKED_FOG = "blur-sm opacity-40 pointer-events-none select-none";
+// The LOCKED_FOG blur class that used to live here is gone. Nothing on the
+// report is fogged any more: the narrative sections (Why This Career, Education
+// Path, Next Steps) now render in full for free, and the three career-fact
+// blocks (salary & growth, required skills, WEF future skills) are no longer
+// blurred-but-present for free — they are simply not rendered. Free and premium
+// differ by COMPLETENESS, not by a frosted pane over content the student can see
+// the shape of but not read.
 
 /**
  * Return the Arabic variant when the UI is in Arabic mode and the field is
@@ -322,6 +321,14 @@ export default function Results() {
     queryKey: [`/api/assessments/${activeAssessmentId}`],
     enabled: !!activeAssessmentId,
   });
+
+  // Which per-career blocks this report includes at all. Free omits the three
+  // career-fact blocks (salary & growth, required skills, WEF future skills)
+  // rather than fogging them, so the free report is a shorter report rather than
+  // a redacted one. Read from assessmentType — the report's OWN tier — not from
+  // user.isPremium, so a premium report stays complete when viewed by an account
+  // that has since lapsed.
+  const isPremiumReport = isPremiumAssessment(assessment?.assessmentType);
 
   // Fetch country data for vision linkage
   const { data: country } = useQuery<any>({
@@ -1076,22 +1083,25 @@ export default function Results() {
                   );
                 })()}
 
-                {/* Salary & Growth Info */}
-                <div className={`grid grid-cols-2 gap-3 mb-4 ${rec.factsLocked ? LOCKED_FOG : ''}`}>
-                  <div className="p-3 bg-background/30 rounded-lg text-center">
-                    <TrendingUp className="w-5 h-5 mx-auto mb-1 text-primary" />
-                    <p className="text-xs text-muted-foreground mb-1">{t('growthOutlook')}</p>
-                    <p className="font-bold text-sm">{localizeGrowthBand(rec.career?.onetGrowthBand, t)}</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">{t('growthSource')}</p>
-                  </div>
-                  {rec.career?.averageSalary && (
+                {/* Salary & Growth Info — PREMIUM ONLY. Omitted from the free
+                    report, not fogged: see isPremiumReport above. */}
+                {isPremiumReport && (
+                  <div className="grid grid-cols-2 gap-3 mb-4">
                     <div className="p-3 bg-background/30 rounded-lg text-center">
-                      <DollarSign className="w-5 h-5 mx-auto mb-1 text-primary" />
-                      <p className="text-xs text-muted-foreground mb-1">{t('avgSalary')}</p>
-                      <p className="font-bold text-sm">{t('typical')} {rec.career.averageSalary}</p>
+                      <TrendingUp className="w-5 h-5 mx-auto mb-1 text-primary" />
+                      <p className="text-xs text-muted-foreground mb-1">{t('growthOutlook')}</p>
+                      <p className="font-bold text-sm">{localizeGrowthBand(rec.career?.onetGrowthBand, t)}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">{t('growthSource')}</p>
                     </div>
-                  )}
-                </div>
+                    {rec.career?.averageSalary && (
+                      <div className="p-3 bg-background/30 rounded-lg text-center">
+                        <DollarSign className="w-5 h-5 mx-auto mb-1 text-primary" />
+                        <p className="text-xs text-muted-foreground mb-1">{t('avgSalary')}</p>
+                        <p className="font-bold text-sm">{t('typical')} {rec.career.averageSalary}</p>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Validated Competencies & Vision Priorities */}
                 {((rec.matchedSubjects && rec.matchedSubjects.length > 0) || (rec.supportingVisionPriorities && rec.supportingVisionPriorities.length > 0)) && (
@@ -1133,13 +1143,15 @@ export default function Results() {
                       </div>
                     )}
 
-                {/* Required Skills — Arabic labels via requiredSkillsAr with English fallback */}
+                {/* Required Skills — PREMIUM ONLY. Arabic labels via
+                    requiredSkillsAr with English fallback. */}
                 {(() => {
+                  if (!isPremiumReport) return null;
                   const skills = localizeSkills(language, rec.career?.requiredSkillsAr, rec.career?.requiredSkills);
                   return skills.length > 0 ? (
                   <div className="mb-4">
                     <h4 className="font-semibold mb-2 text-sm">{t('requiredSkills')}</h4>
-                    <div className={`flex flex-wrap gap-2 ${rec.factsLocked ? LOCKED_FOG : ''}`}>
+                    <div className="flex flex-wrap gap-2">
                       {skills.map((skill: string) => (
                           <span
                             key={skill}
@@ -1154,14 +1166,15 @@ export default function Results() {
                   ) : null;
                 })()}
 
-                {/* WEF Framework Skills — nameAr/descriptionAr used when language is Arabic */}
-                {rec.wefSkillTags && rec.wefSkillTags.length > 0 && (
+                {/* WEF Framework Skills — PREMIUM ONLY. nameAr/descriptionAr
+                    used when language is Arabic. */}
+                {isPremiumReport && rec.wefSkillTags && rec.wefSkillTags.length > 0 && (
                   <div className="mb-4">
                     <h4 className="font-semibold mb-2 text-sm flex items-center gap-1.5">
                       <Globe className="w-4 h-4" />
                       {t('wefSkillsTitle', 'Future Skills')}
                     </h4>
-                    <div className={`flex flex-wrap gap-1.5 ${rec.factsLocked ? LOCKED_FOG : ''}`}>
+                    <div className="flex flex-wrap gap-1.5">
                       {rec.wefSkillTags.map((tag) => {
                         const label = language === 'ar' ? (tag.nameAr ?? tag.name) : tag.name;
                         const desc = language === 'ar' ? (tag.descriptionAr ?? tag.description) : tag.description;

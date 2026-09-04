@@ -1016,8 +1016,12 @@ export default function ResultsPrint() {
                     );
                   })()}
 
-                  {/* Growth Outlook row */}
-                  {rec.career?.onetGrowthBand && (
+                  {/* Growth Outlook row — PREMIUM ONLY, mirroring Results.tsx.
+                      Free never reaches this page (the PDF route 403s for free),
+                      but the two renderers are kept in step so that if the PDF is
+                      ever opened to free it ships the same block list, not a
+                      fuller report than the screen. */}
+                  {isPremium && rec.career?.onetGrowthBand && (
                     <div className="flex items-center gap-1.5 mt-1.5 p-1.5 bg-background/20 rounded-lg">
                       <TrendingUp className="w-3 h-3 text-primary flex-shrink-0" />
                       <span className="text-[10px] text-muted-foreground">{t('growthOutlook')}:</span>
@@ -1026,8 +1030,9 @@ export default function ResultsPrint() {
                   )}
                 </div>
 
-                {/* WEF Framework Skill Tags — nameAr used when langParam is 'ar' */}
-                {rec.wefSkillTags && rec.wefSkillTags.length > 0 && (
+                {/* WEF Framework Skill Tags — PREMIUM ONLY. nameAr used when
+                    langParam is 'ar'. */}
+                {isPremium && rec.wefSkillTags && rec.wefSkillTags.length > 0 && (
                   <div className="flex flex-wrap gap-1">
                     {rec.wefSkillTags.map((tag) => (
                       <span
@@ -1041,8 +1046,10 @@ export default function ResultsPrint() {
                   </div>
                 )}
 
-                {/* Required Skills — requiredSkillsAr used when langParam is 'ar' */}
+                {/* Required Skills — PREMIUM ONLY. requiredSkillsAr used when
+                    langParam is 'ar'. */}
                 {(() => {
+                  if (!isPremium) return null;
                   const skills = localizeSkills(langParam, rec.career?.requiredSkillsAr, rec.career?.requiredSkills);
                   return skills.length > 0 ? (
                     <div className="flex flex-wrap gap-1">

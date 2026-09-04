@@ -943,25 +943,16 @@ export type InsertRecommendation = typeof recommendations.$inferInsert;
  * offer an upgrade instead of a download. It says nothing about the on-screen
  * report, every section of which is now readable for free.
  *
- * It replaces a broader `locked` flag that also meant "blur the narrative
- * sections". Free reasoning is no longer withheld — the server formats the
- * stored audit string into prose (server/services/freeNarrative.ts) — so a flag
- * meaning "hide this" had nothing left to point at.
+ * It is the last survivor of a broader `locked` flag that also meant "blur the
+ * narrative sections" and, briefly, "fog the career-fact blocks". Neither of
+ * those exists any more: free reasoning is formatted rather than withheld
+ * (server/services/freeNarrative.ts), and the career-fact blocks are omitted
+ * from the free render rather than blurred. Nothing on the report is hidden in
+ * place, so no flag describes hiding — the client decides which BLOCKS to render
+ * from the report's own assessmentType.
  */
 export interface RecommendationResponse extends Recommendation {
   pdfLocked?: boolean;
-  /**
-   * True for free-tier assessments. Fogs ONLY the three career-fact blocks —
-   * salary & growth outlook, required skills, WEF future skills.
-   *
-   * Deliberately separate from pdfLocked and deliberately narrow: these blocks
-   * are the same for every student looking at the same career, so gating them
-   * is a pricing decision rather than a personalisation one, and it is the one
-   * part of the free report still held back. Kept as its own flag so the
-   * decision can be reversed by deleting this field and its three usages in
-   * Results.tsx, without touching the narrative that now renders for free.
-   */
-  factsLocked?: boolean;
 }
 
 export type QuizQuestion = typeof quizQuestions.$inferSelect;

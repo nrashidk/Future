@@ -395,11 +395,13 @@ export function registerRecommendationsRoutes(app: Express) {
           // it instead of hiding it. Deterministic, no LLM, no new data: see
           // server/services/freeNarrative.ts.
           //
-          // The single page-wide `locked` flag is replaced by two narrow ones,
-          // because it had come to mean two unrelated things:
-          //   pdfLocked   — GET /api/recommendations/pdf/:id 403s for free.
-          //   factsLocked — the three career-fact blocks stay fogged.
-          // Everything else on the report is now readable for free.
+          // The page-wide `locked` flag is gone, replaced by the single narrow
+          // `pdfLocked`: GET /api/recommendations/pdf/:id 403s for free, and
+          // that is now the only thing the response withholds. Everything the
+          // free report renders, it renders in full — the difference from
+          // premium is which BLOCKS appear (the client omits the three
+          // career-fact blocks for a free assessmentType), not whether the
+          // content behind them is legible.
           //
           // Gated on `!isPremium`, so a premium assessment that merely lacked
           // RIASEC data (and fell through the branch above) is unaffected —
@@ -419,7 +421,6 @@ export function registerRecommendationsRoutes(app: Express) {
               // No LLM narrative for free — that stays premium.
               premiumReasoning: null,
               pdfLocked: true,
-              factsLocked: true,
             };
           }
 
