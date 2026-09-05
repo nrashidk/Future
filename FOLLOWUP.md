@@ -92,6 +92,13 @@ Also unreviewed: admin.json Arabic keys added 2026-09-05 for student-create vali
 
 Extended 2026-09-05: three further admin.json keys added the same day for the school create/edit forms (countryRequired, selectCountryReq, countryNoCurricula) — same reviewer pass. Two are shape-mirrors like the batch above (countryRequired follows gradeRequired; selectCountryReq is selectCountryOptional minus its parenthetical). countryNoCurricula is different and carries more risk: it is a full sentence translated rather than derived from an existing string, so nothing constrains it to house wording. All six are admin-facing, not student-facing.
 
+### SuperadminDashboard renders raw error blobs  (severity: low)
+serverErrorMessage (client/src/lib/queryClient.ts) was added 2026-09-05 to parse the
+"STATUS: {json}" shape that throwIfResNotOk produces, and applied across
+AdminOrganizations.tsx. SuperadminDashboard.tsx still uses the raw `error.message ||`
+pattern in its own mutations, so it shows users the status code and JSON body. The helper
+is exported and ready; this is a mechanical follow-up. First flagged 2026-09-05.
+
 ## Session log
 
 ### Arabic PDF report — session 2026-06-30
