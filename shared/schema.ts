@@ -170,7 +170,26 @@ export const organizationMembers = pgTable("organization_members", {
   
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
-});
+}, (table) => [
+  // Student rows must carry name, gender and grade; admin rows are exempt.
+  //
+  // This table holds both students and school admins, and the four admin-creating
+  // write sites have no name, gender or grade to supply (superadmin.routes.ts:453
+  // and :835, storage.ts:2283, seed.ts:3258). A per-column .notNull() would break
+  // all four for a rule that only ever applied to students, so the requirement is
+  // expressed here, keyed on `role`.
+  //
+  // student_age is deliberately absent: it is unrecoverable (no form has ever
+  // collected it and there is no DOB column to derive it from) and nothing in
+  // scoring or the report reads it — `grade` is the field age-appropriate content
+  // is keyed on. See server/migrations/014_require_student_demographics.sql.
+  //
+  // Name matches that migration's constraint exactly, so db:push sees no drift.
+  check(
+    "organization_members_student_demographics_check",
+    sql`${table.role} <> 'student' OR (${table.studentName} IS NOT NULL AND ${table.studentGender} IS NOT NULL AND ${table.grade} IS NOT NULL)`,
+  ),
+]);
 
 export const organizationMembersRelations = relations(organizationMembers, ({ one }) => ({
   organization: one(organizations, {
@@ -1007,6 +1026,38 @@ export const insertOrganizationMemberSchema = createInsertSchema(organizationMem
   updatedAt: true,
 });
 export type InsertOrganizationMember = z.infer<typeof insertOrganizationMemberSchema>;
+
+/**
+ * A member row that describes a STUDENT — the three demographic fields required.
+ *
+ * WHY THIS EXISTS SEPARATELY: the table-level check() on organizationMembers is
+ * invisible to drizzle-zod, which derives optionality from per-column .notNull()
+ * alone. insertOrganizationMemberSchema therefore still types studentName,
+ * studentGender and grade as optional, and would compile a student insert that
+ * omits them — the DB would reject it at runtime with a constraint violation and
+ * no useful message. This schema is where that becomes a 400 instead.
+ *
+ * It is NOT the base schema with the fields tightened for everyone: admin rows
+ * legitimately leave all three NULL, so the base stays permissive and the student
+ * case gets its own type.
+ *
+ * `grade` is deliberately typed as a plain non-empty string here, not the
+ * canonical-grade union: the write sites run toCanonicalGrade() from
+ * shared/grade.ts, which is the single source of truth for grade format and
+ * returns a useful 400 on a bad value. Duplicating that as an enum here would be
+ * a second grade format waiting to drift from the first.
+ *
+ * studentAge is absent by design — see the check() on the table above.
+ *
+ * NOT YET WIRED INTO ANY WRITE SITE. Defined only; the enforcement point is
+ * chosen deliberately in a following step.
+ */
+export const insertStudentMemberSchema = insertOrganizationMemberSchema.extend({
+  studentName: z.string().trim().min(1, "Student name is required"),
+  studentGender: z.string().trim().min(1, "Student gender is required"),
+  grade: z.string().trim().min(1, "Grade is required"),
+});
+export type InsertStudentMember = z.infer<typeof insertStudentMemberSchema>;
 
 // CVQ type exports
 export type CvqItem = typeof cvqItems.$inferSelect;
