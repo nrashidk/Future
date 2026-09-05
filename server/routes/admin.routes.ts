@@ -1976,9 +1976,18 @@ export function registerAdminRoutes(app: Express) {
             fullName: rowData.fullName,
             grade: canonicalGrade,
             studentId: rowData.studentId || '',
-            studentName: rowData.studentName || '',
+            // undefined, not ''. An empty string SATISFIES the CHECK added in
+            // 3f04c8b — it tests IS NOT NULL, not emptiness — so `|| ''` stored
+            // a blank name/gender on a minor's record and looked like success.
+            // undefined lets the column go NULL and the row fail visibly into
+            // results.errors instead.
+            //
+            // studentName falls back to fullName at the sink (storage.ts), so in
+            // practice a CSV without the column now gets the student's real name
+            // rather than either a blank or a failure.
+            studentName: rowData.studentName || undefined,
             studentAge: rowData.studentAge ? parseInt(rowData.studentAge) : undefined,
-            studentGender: rowData.studentGender || '',
+            studentGender: rowData.studentGender || undefined,
             passwordComplexity: organization.passwordComplexity as any,
           });
 

@@ -2688,7 +2688,19 @@ export class DatabaseStorage implements IStorage {
               userId: user.id,
               grade: userData.grade,
               studentId: userData.studentId,
-              studentName: userData.studentName,
+              // Fall back to fullName. Nothing upstream has ever sent
+              // studentName: the admin form collects a single `fullName`, which
+              // the split above turns into users.firstName/lastName and then
+              // dropped — so this column was NULL on every school student, and
+              // since 3f04c8b's CHECK that means every insert fails.
+              //
+              // Safe as a fallback: fullName is a required parameter and every
+              // caller rejects a falsy one before reaching here (M1
+              // admin.routes.ts:518, M2 :662, M3 :1952), so this can yield
+              // neither NULL nor ''. An explicit studentName still wins when a
+              // CSV supplies one; `|| ` rather than `?? ` so a blank one falls
+              // through to fullName instead of storing an empty name.
+              studentName: userData.studentName?.trim() || userData.fullName.trim(),
               studentAge: userData.studentAge,
               studentGender: userData.studentGender,
               role: 'student',
