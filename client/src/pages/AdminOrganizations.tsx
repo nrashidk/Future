@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, serverErrorMessage } from "@/lib/queryClient";
 import { validateEmail } from "@/lib/utils";
 import { SCHOOL_GRADES, gradeToNumber } from "@shared/grade";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -206,7 +206,7 @@ export default function AdminOrganizations() {
     onError: (error: any) => {
       toast({ 
         title: t('superadmin.error'), 
-        description: error.message || t('orgs.bulkDeleteError'), 
+        description: serverErrorMessage(error) || t('orgs.bulkDeleteError'), 
         variant: "destructive" 
       });
     },
@@ -234,7 +234,7 @@ export default function AdminOrganizations() {
     onError: (error: any) => {
       toast({ 
         title: t('superadmin.error'), 
-        description: error.message || t('orgs.bulkPasswordResetError'), 
+        description: serverErrorMessage(error) || t('orgs.bulkPasswordResetError'), 
         variant: "destructive" 
       });
     },
@@ -973,7 +973,7 @@ function CreateOrganizationForm({ onSuccess }: { onSuccess: () => void }) {
       toast({ title: t('superadmin.success'), description: t('orgs.schoolCreatedAndAdminSuccess') });
     },
     onError: (error: Error) => {
-      toast({ title: t('superadmin.error'), description: error.message || t('orgs.schoolCreatedError'), variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: serverErrorMessage(error) || t('orgs.schoolCreatedError'), variant: "destructive" });
     },
   });
 
@@ -1272,8 +1272,10 @@ function EditOrganizationForm({ organization, onSuccess }: { organization: Organ
       queryClient.invalidateQueries({ queryKey: ['/api/admin/organizations'] });
       onSuccess();
     },
-    onError: () => {
-      toast({ title: t('superadmin.error'), description: t('orgs.schoolUpdateError'), variant: "destructive" });
+    onError: (error: unknown) => {
+      // Was arg-less, so the 400 from the PATCH endpoint (a18343b) rendered as
+      // "failed to update" with no reason.
+      toast({ title: t('superadmin.error'), description: serverErrorMessage(error) || t('orgs.schoolUpdateError'), variant: "destructive" });
     },
   });
 
@@ -1545,7 +1547,7 @@ function CreateMemberForm({ organizationId, onSuccess }: { organizationId: strin
     onError: (error: any) => {
       toast({ 
         title: t('superadmin.error'), 
-        description: error.message || t('orgs.studentCreateError'), 
+        description: serverErrorMessage(error) || t('orgs.studentCreateError'), 
         variant: "destructive" 
       });
     },
@@ -1775,7 +1777,7 @@ function BulkUploadForm({ organizationId, onSuccess }: { organizationId: string;
     onError: (error: any) => {
       toast({ 
         title: t('superadmin.error'), 
-        description: error.message || t('orgs.bulkUploadError'), 
+        description: serverErrorMessage(error) || t('orgs.bulkUploadError'), 
         variant: "destructive" 
       });
     },
@@ -1933,7 +1935,7 @@ function MemberActions({ member, organizationId }: { member: OrganizationMember;
     onError: (error: any) => {
       toast({ 
         title: t('superadmin.error'), 
-        description: error.message || t('orgs.studentDeletedError'), 
+        description: serverErrorMessage(error) || t('orgs.studentDeletedError'), 
         variant: "destructive" 
       });
     },
@@ -1952,8 +1954,8 @@ function MemberActions({ member, organizationId }: { member: OrganizationMember;
       setNewPassword(data.password);
       toast({ title: t('superadmin.success'), description: t('orgs.passwordResetSuccess') });
     },
-    onError: () => {
-      toast({ title: t('superadmin.error'), description: t('orgs.passwordResetError'), variant: "destructive" });
+    onError: (error: unknown) => {
+      toast({ title: t('superadmin.error'), description: serverErrorMessage(error) || t('orgs.passwordResetError'), variant: "destructive" });
     },
   });
 

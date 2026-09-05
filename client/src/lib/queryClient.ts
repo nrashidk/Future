@@ -7,6 +7,43 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+/**
+ * Pull the server's own `message` out of an error thrown by throwIfResNotOk.
+ *
+ * That function formats failures as `<status>: <raw body>`, and the body is
+ * normally the JSON a route returned — so `error.message` is a string like
+ *   400: {"message":"Student gender is required","errors":[...]}
+ * Rendering it directly, which every onError handler in AdminOrganizations was
+ * doing, shows the status code and the raw JSON to the admin.
+ *
+ * Lives next to throwIfResNotOk on purpose: this parses exactly what that
+ * formats, and the two have to agree.
+ *
+ * Returns null — not a fallback string — when there is nothing worth showing, so
+ * the caller supplies its own localized default. Deliberately refuses a
+ * non-JSON body that is long or looks like markup: a proxy's HTML 502 page is
+ * worse than a generic message.
+ */
+export function serverErrorMessage(error: unknown): string | null {
+  if (!(error instanceof Error) || !error.message) return null;
+
+  const withoutStatus = error.message.match(/^\d{3}: ([\s\S]*)$/);
+  const body = (withoutStatus ? withoutStatus[1] : error.message).trim();
+  if (!body) return null;
+
+  if (body.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(body);
+      const message = parsed?.message;
+      return typeof message === "string" && message.trim() ? message.trim() : null;
+    } catch {
+      return null;
+    }
+  }
+
+  return body.length <= 200 && !body.startsWith("<") ? body : null;
+}
+
 function getCsrfToken(): string | null {
   const match = document.cookie.match(/csrf_token=([^;]+)/);
   return match ? match[1] : null;
