@@ -2649,6 +2649,43 @@ export class DatabaseStorage implements IStorage {
       grade: userData.grade,
     });
 
+    // The owning school must have a country and a curriculum. Those two decide
+    // which quiz bank the student's assessment draws from, so enrolling into a
+    // school that has neither creates an account that cannot complete an
+    // assessment — a failure that would otherwise surface much later, to the
+    // student rather than the admin.
+    //
+    // Here rather than per-route for the same reason as the guard above: M1, M2
+    // and M3 all funnel through this function, and M1 has no organization row in
+    // hand (admin.routes.ts loads one inside getOrganizationAvailableCapacity
+    // and discards it), so a per-route guard would cost an extra query and three
+    // copies of this rule.
+    //
+    // Creation of a school WITH both fields is enforced at
+    // superadmin.routes.ts (81ea920). This guard is what covers the schools that
+    // predate it, plus the Stripe group-purchase path, which creates an
+    // organization inside a payment transaction with neither value available and
+    // so cannot be constrained at creation time.
+    const organization = await this.getOrganizationById(userData.organizationId);
+    if (!organization) {
+      throw new Error(`Organization ${userData.organizationId} not found`);
+    }
+
+    const missingOrgFields = [
+      !organization.countryId ? 'country' : null,
+      !organization.curriculum ? 'curriculum' : null,
+    ].filter((f): f is string => f !== null);
+
+    if (missingOrgFields.length > 0) {
+      // Prefixed so the routes can map it to a 400 rather than a 500: a school
+      // that needs configuring is a client-fixable problem, not a server fault.
+      throw new Error(
+        `School setup incomplete: ${organization.name} has no ` +
+          `${missingOrgFields.join(' and ')} set. Set ${missingOrgFields.length > 1 ? 'them' : 'it'} ` +
+          `in the school's settings before adding students.`,
+      );
+    }
+
     const { generatePassword } = await import("./utils/passwordGenerator");
     const { hashPassword } = await import("./utils/passwordHash");
 

@@ -484,15 +484,27 @@ export function registerAdminRoutes(app: Express) {
     }
   });
 
-  // storage.createUserWithCredentials validates its inputs with
-  // studentDemographicsSchema and throws a ZodError before writing anything.
-  // ZodError.message is a JSON dump of the issue array, so the bulk routes'
-  // `error.message` would put that whole blob in a per-row error string. Flatten
-  // it to the schema's own sentences instead.
-  const studentValidationMessage = (error: unknown): string | null =>
-    error instanceof z.ZodError
-      ? error.errors.map((e) => e.message).join("; ")
-      : null;
+  // storage.createUserWithCredentials rejects a student it cannot create, before
+  // writing anything, in two ways:
+  //
+  //  - studentDemographicsSchema throws a ZodError for a missing
+  //    name/gender/grade. ZodError.message is a JSON dump of the issue array, so
+  //    the bulk routes' `error.message` would put that whole blob in a per-row
+  //    error string. Flatten it to the schema's own sentences instead.
+  //  - a plain Error prefixed "School setup incomplete:" when the owning
+  //    organization has no country or curriculum.
+  //
+  // Both are the admin's to fix, so both map to a 400. Returns null for anything
+  // else, which keeps the 500 for genuine server faults.
+  const studentValidationMessage = (error: unknown): string | null => {
+    if (error instanceof z.ZodError) {
+      return error.errors.map((e) => e.message).join("; ");
+    }
+    if (error instanceof Error && error.message.startsWith("School setup incomplete:")) {
+      return error.message;
+    }
+    return null;
+  };
 
   app.post("/api/admin/organizations/:id/members", isAuthenticated, async (req, res) => {
     try {
