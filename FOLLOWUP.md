@@ -1492,3 +1492,20 @@ REMAINING v2 phases (reconned, ready):
 6. Upsell copy still says "Holland Code (RIASEC)" and "values questionnaire" - it DEFINES them in plain
    language rather than assuming knowledge, reads OK, but owner may want "RIASEC" acronym removed entirely
    leaving just "career personality". Minor copy call.
+
+## CORRECTION to 3f04c8b — migration 014 DID apply to prod (2026-09-05)
+
+3f04c8b's commit message states that migration 014 was not applied to prod. That is wrong.
+014_require_student_demographics.sql applied successfully via scripts/run-migrations.ts at
+2026-09-05T07:19:02Z against ep-floral-rice-astfwiew; constraint
+organization_members_student_demographics_check verified convalidated=true. The earlier
+failed attempts were a malformed DATABASE_URL missing its postgresql scheme, not the
+unclosed Neon pool. Both staging and prod are now on 014 (staging was additionally behind
+on 013 and picked it up in the same run).
+
+The KNOWN caveat in 3f04c8b therefore applies to BOTH environments: student creation is
+broken on staging and prod until the create path sends studentName
+(createUserWithCredentials, server/storage.ts:2671, never writes it — the add-student form
+splits fullName into users.firstName/lastName and leaves the member row's student_name
+NULL, which now violates the constraint). No real schools exist, so nothing is affected in
+practice. Fixed in the follow-up.
