@@ -24,6 +24,7 @@ import {
   wefCompetencyResults,
   organizations,
   organizationMembers,
+  studentDemographicsSchema,
   countryPrioritySectors,
   countrySectorWefSkills,
   countrySectorCategories,
@@ -2634,6 +2635,20 @@ export class DatabaseStorage implements IStorage {
     member: OrganizationMember;
     password: string;
   }> {
+    // Input guard, BEFORE any write and before the password hash. A rejection
+    // here throws a ZodError out of this function having touched nothing — the
+    // routes map it to a 400 (admin.routes.ts). Validating the member insert
+    // object instead would have to happen inside the transaction, since that
+    // object needs userId, which is the window this deliberately stays out of.
+    //
+    // studentName is derived once, here, and reused by the insert below.
+    const studentName = userData.studentName?.trim() || userData.fullName.trim();
+    studentDemographicsSchema.parse({
+      studentName,
+      studentGender: userData.studentGender,
+      grade: userData.grade,
+    });
+
     const { generatePassword } = await import("./utils/passwordGenerator");
     const { hashPassword } = await import("./utils/passwordHash");
 
@@ -2688,19 +2703,8 @@ export class DatabaseStorage implements IStorage {
               userId: user.id,
               grade: userData.grade,
               studentId: userData.studentId,
-              // Fall back to fullName. Nothing upstream has ever sent
-              // studentName: the admin form collects a single `fullName`, which
-              // the split above turns into users.firstName/lastName and then
-              // dropped — so this column was NULL on every school student, and
-              // since 3f04c8b's CHECK that means every insert fails.
-              //
-              // Safe as a fallback: fullName is a required parameter and every
-              // caller rejects a falsy one before reaching here (M1
-              // admin.routes.ts:518, M2 :662, M3 :1952), so this can yield
-              // neither NULL nor ''. An explicit studentName still wins when a
-              // CSV supplies one; `|| ` rather than `?? ` so a blank one falls
-              // through to fullName instead of storing an empty name.
-              studentName: userData.studentName?.trim() || userData.fullName.trim(),
+              // Derived and validated at the top of this function.
+              studentName,
               studentAge: userData.studentAge,
               studentGender: userData.studentGender,
               role: 'student',

@@ -1049,15 +1049,44 @@ export type InsertOrganizationMember = z.infer<typeof insertOrganizationMemberSc
  *
  * studentAge is absent by design — see the check() on the table above.
  *
- * NOT YET WIRED INTO ANY WRITE SITE. Defined only; the enforcement point is
- * chosen deliberately in a following step.
+ * ENFORCED at storage.createUserWithCredentials, via studentDemographicsSchema
+ * below, which is the sink all three student-create routes funnel through.
  */
 export const insertStudentMemberSchema = insertOrganizationMemberSchema.extend({
-  studentName: z.string().trim().min(1, "Student name is required"),
-  studentGender: z.string().trim().min(1, "Student gender is required"),
-  grade: z.string().trim().min(1, "Grade is required"),
+  // required_error as well as the min(1) message: without it zod reports its
+  // default "Required" for an ABSENT key, which is the common case here (the
+  // admin form simply omits gender when the Select is left untouched). Both
+  // paths must produce the same sentence, because it is shown to the admin.
+  studentName: z
+    .string({ required_error: "Student name is required" })
+    .trim()
+    .min(1, "Student name is required"),
+  studentGender: z
+    .string({ required_error: "Student gender is required" })
+    .trim()
+    .min(1, "Student gender is required"),
+  grade: z
+    .string({ required_error: "Grade is required" })
+    .trim()
+    .min(1, "Grade is required"),
 });
 export type InsertStudentMember = z.infer<typeof insertStudentMemberSchema>;
+
+/**
+ * The three fields a student row must carry, as an input guard.
+ *
+ * Applied at the top of storage.createUserWithCredentials, before any write, so
+ * a rejection leaves nothing behind. The full insertStudentMemberSchema cannot
+ * be used there: it requires userId, which does not exist until the users row
+ * has been inserted — i.e. only inside the transaction, which is exactly the
+ * window this guard exists to avoid entering.
+ */
+export const studentDemographicsSchema = insertStudentMemberSchema.pick({
+  studentName: true,
+  studentGender: true,
+  grade: true,
+});
+export type StudentDemographics = z.infer<typeof studentDemographicsSchema>;
 
 // CVQ type exports
 export type CvqItem = typeof cvqItems.$inferSelect;

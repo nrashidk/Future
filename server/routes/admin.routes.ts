@@ -484,6 +484,16 @@ export function registerAdminRoutes(app: Express) {
     }
   });
 
+  // storage.createUserWithCredentials validates its inputs with
+  // studentDemographicsSchema and throws a ZodError before writing anything.
+  // ZodError.message is a JSON dump of the issue array, so the bulk routes'
+  // `error.message` would put that whole blob in a per-row error string. Flatten
+  // it to the schema's own sentences instead.
+  const studentValidationMessage = (error: unknown): string | null =>
+    error instanceof z.ZodError
+      ? error.errors.map((e) => e.message).join("; ")
+      : null;
+
   app.post("/api/admin/organizations/:id/members", isAuthenticated, async (req, res) => {
     try {
       const userId = (req.user as any).userId;
@@ -560,6 +570,13 @@ export function registerAdminRoutes(app: Express) {
       });
     } catch (error: any) {
       console.error("Error creating organization member:", error);
+      // A student missing name/gender/grade is a CLIENT error. This previously
+      // fell through to the 500 below, which reported a server fault for what is
+      // a fixable form mistake.
+      const invalid = studentValidationMessage(error);
+      if (invalid) {
+        return res.status(400).json({ message: invalid, errors: error.errors });
+      }
       if (error.message?.includes('Quota exceeded') || error.message?.includes('capacity')) {
         return res.status(400).json({ message: error.message });
       }
@@ -705,7 +722,7 @@ export function registerAdminRoutes(app: Express) {
           results.failed++;
           results.errors.push({
             member: memberData,
-            error: error.message || "Unknown error",
+            error: studentValidationMessage(error) ?? error.message ?? "Unknown error",
           });
         }
       }
@@ -2003,8 +2020,11 @@ export function registerAdminRoutes(app: Express) {
           });
         } catch (error: any) {
           results.failed++;
-          const errorMsg = error.message?.includes('Quota exceeded') 
-            ? `Row ${i + 1}: Quota exceeded` 
+          const invalid = studentValidationMessage(error);
+          const errorMsg = invalid
+            ? `Row ${i + 1}: ${invalid}`
+            : error.message?.includes('Quota exceeded')
+            ? `Row ${i + 1}: Quota exceeded`
             : `Row ${i + 1}: ${error.message || 'Unknown error'}`;
           results.errors.push(errorMsg);
         }

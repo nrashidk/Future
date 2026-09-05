@@ -1493,6 +1493,11 @@ function CreateMemberForm({ organizationId, onSuccess }: { organizationId: strin
     passwordComplexity: "medium" as "easy" | "medium" | "strong",
   });
   const [createdCredentials, setCreatedCredentials] = useState<{ username: string; password: string } | null>(null);
+  // Grade and gender are required by the DB (the role-scoped CHECK on
+  // organization_members) and by studentDemographicsSchema on the server. Both
+  // controls are Radix Selects, not native inputs, so a `required` attribute
+  // does nothing — the gate has to be explicit.
+  const [fieldErrors, setFieldErrors] = useState<{ grade?: string; studentGender?: string }>({});
 
   const mutation = useMutation({
     mutationFn: async (data: typeof formData) => {
@@ -1516,6 +1521,11 @@ function CreateMemberForm({ organizationId, onSuccess }: { organizationId: strin
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const errors: { grade?: string; studentGender?: string } = {};
+    if (!formData.grade) errors.grade = t('orgs.fieldRequired');
+    if (!formData.studentGender) errors.studentGender = t('orgs.fieldRequired');
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return;
     mutation.mutate(formData);
   };
 
@@ -1597,8 +1607,11 @@ function CreateMemberForm({ organizationId, onSuccess }: { organizationId: strin
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label htmlFor="grade">{t('orgs.gradeFieldLabel')}</Label>
-            <Select value={formData.grade} onValueChange={(value) => setFormData(f => ({ ...f, grade: value }))}>
+            <Label htmlFor="grade">{t('orgs.gradeRequired')}</Label>
+            <Select value={formData.grade} onValueChange={(value) => {
+              setFormData(f => ({ ...f, grade: value }));
+              setFieldErrors(e => ({ ...e, grade: undefined }));
+            }}>
               <SelectTrigger id="grade" data-testid="select-grade">
                 <SelectValue placeholder={t('orgs.selectGradeOpt')} />
               </SelectTrigger>
@@ -1611,6 +1624,9 @@ function CreateMemberForm({ organizationId, onSuccess }: { organizationId: strin
                 ))}
               </SelectContent>
             </Select>
+            {fieldErrors.grade && (
+              <p className="text-xs text-destructive mt-1" data-testid="error-grade">{fieldErrors.grade}</p>
+            )}
           </div>
 
           <div>
@@ -1626,16 +1642,22 @@ function CreateMemberForm({ organizationId, onSuccess }: { organizationId: strin
         </div>
 
         <div>
-          <Label htmlFor="student-gender">{t('orgs.genderFieldLabel')}</Label>
-          <Select value={formData.studentGender} onValueChange={(value) => setFormData(f => ({ ...f, studentGender: value }))}>
+          <Label htmlFor="student-gender">{t('orgs.genderRequired')}</Label>
+          <Select value={formData.studentGender} onValueChange={(value) => {
+            setFormData(f => ({ ...f, studentGender: value }));
+            setFieldErrors(e => ({ ...e, studentGender: undefined }));
+          }}>
             <SelectTrigger id="student-gender" data-testid="select-student-gender">
-              <SelectValue placeholder={t('orgs.selectGenderOpt')} />
+              <SelectValue placeholder={t('orgs.selectGenderReq')} />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="male">{t('orgs.maleOption')}</SelectItem>
               <SelectItem value="female">{t('orgs.femaleOption')}</SelectItem>
             </SelectContent>
           </Select>
+          {fieldErrors.studentGender && (
+            <p className="text-xs text-destructive mt-1" data-testid="error-student-gender">{fieldErrors.studentGender}</p>
+          )}
         </div>
 
         <div>
