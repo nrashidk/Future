@@ -329,8 +329,47 @@ export function registerAdminRoutes(app: Express) {
         if (isUnlimitedLicenses !== undefined) updates.isUnlimitedLicenses = Boolean(isUnlimitedLicenses);
       }
       if (logoUrl !== undefined) updates.logoUrl = logoUrl;
-      if (countryId !== undefined) updates.countryId = countryId;
-      if (curriculum !== undefined) updates.curriculum = curriculum;
+
+      // Country and curriculum can be SET here, but not UNSET. 81ea920 requires
+      // both when a school is created and 549cd43 refuses to enrol students into
+      // a school missing either; without this, an admin could satisfy both and
+      // then clear the fields afterwards, silently breaking enrolment for a
+      // school that had been working.
+      //
+      // Deliberately asymmetric: a school that has never had them set — every
+      // school created before 81ea920, and every one created by the Stripe
+      // group-purchase path — must still be able to ADD them, which is the only
+      // way to make such a school usable.
+      const existing = await storage.getOrganizationById(req.params.id);
+      if (!existing) {
+        return res.status(404).json({ message: "School not found" });
+      }
+
+      const isCleared = (value: unknown) =>
+        value === null || (typeof value === "string" && value.trim() === "");
+
+      const clearingCountry = countryId !== undefined && isCleared(countryId);
+      const clearingCurriculum = curriculum !== undefined && isCleared(curriculum);
+
+      if ((clearingCountry && existing.countryId) || (clearingCurriculum && existing.curriculum)) {
+        const fields = [
+          clearingCountry && existing.countryId ? "country" : null,
+          clearingCurriculum && existing.curriculum ? "curriculum" : null,
+        ].filter((f): f is string => f !== null);
+        return res.status(400).json({
+          message:
+            `School setup incomplete: ${existing.name} would have no ${fields.join(" and ")} set. ` +
+            `${fields.length > 1 ? "They are" : "It is"} required to add students, so ` +
+            `${fields.length > 1 ? "they" : "it"} cannot be cleared once set.`,
+        });
+      }
+
+      // Assign only real values. A cleared field on a school that never had one
+      // is a no-op rather than an error — but it must not write "" either, which
+      // would satisfy a NOT NULL while still failing every `!org.countryId`
+      // check downstream.
+      if (countryId !== undefined && !clearingCountry) updates.countryId = countryId;
+      if (curriculum !== undefined && !clearingCurriculum) updates.curriculum = curriculum;
 
       const organization = await storage.updateOrganization(req.params.id, updates);
       res.json(organization);

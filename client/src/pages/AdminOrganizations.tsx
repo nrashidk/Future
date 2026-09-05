@@ -1238,7 +1238,10 @@ function EditOrganizationForm({ organization, onSuccess }: { organization: Organ
   const [formData, setFormData] = useState({
     name: organization.name,
     logoUrl: organization.logoUrl || "",
-    countryId: organization.countryId || "none",
+    // "" not "none": the PATCH endpoint refuses to clear either field once set
+    // (admin.routes.ts), so there is no "none" to offer. An empty value here
+    // means "this school never had one" and is simply omitted from the payload.
+    countryId: organization.countryId || "",
     curriculum: organization.curriculum || "",
   });
   const [logoInputMode, setLogoInputMode] = useState<"url" | "upload">("url");
@@ -1257,8 +1260,10 @@ function EditOrganizationForm({ organization, onSuccess }: { organization: Organ
       const payload = {
         name: data.name,
         logoUrl: data.logoUrl === "" ? null : data.logoUrl,
-        countryId: data.countryId === "none" ? null : data.countryId,
-        curriculum: data.curriculum || null,
+        // undefined, not null — null is a clear, which the endpoint rejects.
+        // Omitting leaves an as-yet-unconfigured school untouched.
+        countryId: data.countryId || undefined,
+        curriculum: data.curriculum || undefined,
       };
       return apiRequest('PATCH', `/api/admin/organizations/${organization.id}`, payload);
     },
@@ -1441,10 +1446,9 @@ function EditOrganizationForm({ organization, onSuccess }: { organization: Organ
             onValueChange={(value) => setFormData(f => ({ ...f, countryId: value, curriculum: "" }))}
           >
             <SelectTrigger id="edit-org-country" data-testid="select-edit-org-country">
-              <SelectValue placeholder={t('orgs.selectCountryOptional')} />
+              <SelectValue placeholder={t('orgs.selectCountryReq')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="none">{t('orgs.noneOption')}</SelectItem>
               {countries.map((country) => (
                 <SelectItem key={country.id} value={country.id}>
                   {country.name}
@@ -1454,7 +1458,13 @@ function EditOrganizationForm({ organization, onSuccess }: { organization: Organ
           </Select>
         </div>
 
-        {formData.countryId !== "none" && availableCurricula.length > 0 && (
+        {formData.countryId && availableCurricula.length === 0 && (
+          <p className="text-xs text-destructive" data-testid="error-edit-org-no-curricula">
+            {t('orgs.countryNoCurricula')}
+          </p>
+        )}
+
+        {formData.countryId && availableCurricula.length > 0 && (
           <div>
             <Label htmlFor="edit-org-curriculum">{t('orgs.schoolCurriculumLabel')}</Label>
             <Select 
@@ -1480,7 +1490,22 @@ function EditOrganizationForm({ organization, onSuccess }: { organization: Organ
       </div>
 
       <div className="flex justify-end gap-2 pt-4">
-        <Button type="submit" disabled={mutation.isPending || isUploading} data-testid="button-submit-edit-school">
+        {/* A country with no curriculum selected would leave the school paired
+            with whatever curriculum the PREVIOUS country had — changing country
+            resets curriculum to "", and an omitted curriculum is not written,
+            so the stale one would survive. Block that pairing rather than save
+            it. A school with no country at all is left alone: this form must
+            still be usable to edit the name or logo of an unconfigured school. */}
+        <Button
+          type="submit"
+          disabled={
+            mutation.isPending ||
+            isUploading ||
+            (!!formData.countryId && availableCurricula.length === 0) ||
+            (!!formData.countryId && availableCurricula.length > 0 && !formData.curriculum)
+          }
+          data-testid="button-submit-edit-school"
+        >
           {mutation.isPending ? t('orgs.updatingSchool') : t('orgs.updateSchoolBtn')}
         </Button>
       </div>
