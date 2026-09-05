@@ -926,7 +926,9 @@ function CreateOrganizationForm({ onSuccess }: { onSuccess: () => void }) {
     organizationName: "",
     totalLicenses: 50,
     isUnlimitedLicenses: false,
-    countryId: "none" as string,
+    // Required by POST /api/superadmin/organizations/create-with-admin. Was
+    // the "none" sentinel; a required field has no "none".
+    countryId: "" as string,
     curriculum: "" as string,
     adminFirstName: "",
     adminLastName: "",
@@ -952,8 +954,8 @@ function CreateOrganizationForm({ onSuccess }: { onSuccess: () => void }) {
         organizationName: data.organizationName,
         totalLicenses: data.totalLicenses,
         isUnlimitedLicenses: data.isUnlimitedLicenses,
-        countryId: data.countryId === "none" ? undefined : data.countryId,
-        curriculum: data.curriculum || undefined,
+        countryId: data.countryId,
+        curriculum: data.curriculum,
         adminFirstName: data.adminFirstName,
         adminLastName: data.adminLastName,
         adminEmail: data.adminEmail || undefined,
@@ -1108,16 +1110,15 @@ ${t('orgs.credFileImportant')}
         )}
 
         <div>
-          <Label htmlFor="org-country">{t('orgs.defaultCountryLabel')}</Label>
+          <Label htmlFor="org-country">{t('orgs.countryRequired')}</Label>
           <Select 
             value={formData.countryId} 
             onValueChange={(value) => setFormData(f => ({ ...f, countryId: value, curriculum: "" }))}
           >
             <SelectTrigger id="org-country" data-testid="select-org-country">
-              <SelectValue placeholder={t('orgs.selectCountryOptional')} />
+              <SelectValue placeholder={t('orgs.selectCountryReq')} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="none">{t('orgs.noneOption')}</SelectItem>
               {countries.map((country) => (
                 <SelectItem key={country.id} value={country.id}>
                   {country.name}
@@ -1130,7 +1131,13 @@ ${t('orgs.credFileImportant')}
           </p>
         </div>
 
-        {formData.countryId !== "none" && availableCurricula.length > 0 && (
+        {formData.countryId && availableCurricula.length === 0 && (
+          <p className="text-xs text-destructive" data-testid="error-org-no-curricula">
+            {t('orgs.countryNoCurricula')}
+          </p>
+        )}
+
+        {formData.countryId && availableCurricula.length > 0 && (
           <div>
             <Label htmlFor="org-curriculum">{t('orgs.schoolCurriculumLabel')}</Label>
             <Select 
@@ -1217,7 +1224,7 @@ ${t('orgs.credFileImportant')}
       </div>
 
       <div className="flex justify-end gap-2 pt-4">
-        <Button type="submit" disabled={mutation.isPending || !!validateEmail(formData.adminEmail)} data-testid="button-submit-school">
+        <Button type="submit" disabled={mutation.isPending || !formData.countryId || !formData.curriculum || !!validateEmail(formData.adminEmail)} data-testid="button-submit-school">
           {mutation.isPending ? t('orgs.creatingSchool') : t('orgs.createSchoolFormBtn')}
         </Button>
       </div>

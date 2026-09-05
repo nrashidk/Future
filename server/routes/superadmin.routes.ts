@@ -779,6 +779,26 @@ export function registerSuperadminRoutes(app: Express) {
         return res.status(400).json({ message: "Admin first name and last name are required" });
       }
 
+      // Country and curriculum are required to CREATE a school. They were
+      // accepted but never validated here, and the superadmin modal did not
+      // collect them at all, so schools were routinely created without either.
+      // Country and curriculum drive which quiz bank a student's assessment
+      // uses, so a school without them cannot run one. Accepting a school
+      // without them just defers the problem to the first student added.
+      //
+      // The COLUMNS stay nullable on purpose (see
+      // server/migrations/014_require_student_demographics.sql): the Stripe
+      // group-purchase path creates an org inside a payment transaction with
+      // neither value available, and a NOT NULL there would roll back a paid
+      // purchase. This is the enforcement point instead.
+      if (!countryId || typeof countryId !== "string" || !countryId.trim()) {
+        return res.status(400).json({ message: "Country is required" });
+      }
+
+      if (!curriculum || typeof curriculum !== "string" || !curriculum.trim()) {
+        return res.status(400).json({ message: "Curriculum is required" });
+      }
+
       if (adminEmail) {
         const existingByEmail = await storage.getUserByEmail(adminEmail);
         if (existingByEmail) {

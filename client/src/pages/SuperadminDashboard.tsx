@@ -188,6 +188,10 @@ interface Country {
   id: string;
   name: string;
   code: string;
+  // Already present in the /api/admin/countries response — that endpoint
+  // returns whole country rows (storage.getAllCountries). Only this interface
+  // was narrow, which is why the create-school modal could not offer curricula.
+  curricula?: string[] | null;
 }
 
 export default function SuperadminDashboard() {
@@ -249,6 +253,12 @@ export default function SuperadminDashboard() {
     organizationName: "",
     totalLicenses: 50,
     isUnlimitedLicenses: false,
+    // Required, and validated server-side on the same endpoint
+    // (superadmin.routes.ts). No "none" sentinel: country and curriculum decide
+    // which quiz bank a student's assessment draws from, so a school without
+    // them cannot run one.
+    countryId: "",
+    curriculum: "",
     adminFirstName: "",
     adminLastName: "",
     adminEmail: "",
@@ -430,6 +440,8 @@ export default function SuperadminDashboard() {
         organizationName: "",
         totalLicenses: 50,
         isUnlimitedLicenses: false,
+        countryId: "",
+        curriculum: "",
         adminFirstName: "",
         adminLastName: "",
         adminEmail: "",
@@ -514,6 +526,11 @@ export default function SuperadminDashboard() {
   const { data: countries = [] } = useQuery<Country[]>({
     queryKey: ['/api/admin/countries'],
   });
+
+  // Curricula offered by the country picked in the create-school modal. Comes
+  // from the query above — /api/admin/countries already returns whole country
+  // rows, so no second request is needed.
+  const newOrgCurricula = countries.find((c) => c.id === newOrgForm.countryId)?.curricula || [];
 
   // New queries for additional features
   const { data: students = [], isLoading: studentsLoading } = useQuery<StudentWithAssessment[]>({
@@ -2172,6 +2189,58 @@ export default function SuperadminDashboard() {
                 />
               </div>
             )}
+            {/* Country + curriculum. Mirrors AdminOrganizations.tsx:1110-1155,
+                including the onValueChange that clears curriculum when the
+                country changes — the curricula list is per-country, so a stale
+                selection would otherwise survive into the payload. Required
+                here, unlike that form. */}
+            <div className="space-y-2">
+              <Label htmlFor="orgCountry">{t('orgs.countryRequired')}</Label>
+              <Select
+                value={newOrgForm.countryId}
+                onValueChange={(value) => setNewOrgForm({ ...newOrgForm, countryId: value, curriculum: "" })}
+              >
+                <SelectTrigger id="orgCountry" data-testid="select-org-country">
+                  <SelectValue placeholder={t('orgs.selectCountryReq')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {countries.map((country) => (
+                    <SelectItem key={country.id} value={country.id}>
+                      {country.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">{t('orgs.defaultCountryHint')}</p>
+            </div>
+            {newOrgForm.countryId && newOrgCurricula.length > 0 && (
+              <div className="space-y-2">
+                <Label htmlFor="orgCurriculum">{t('orgs.schoolCurriculumLabel')}</Label>
+                <Select
+                  value={newOrgForm.curriculum}
+                  onValueChange={(value) => setNewOrgForm({ ...newOrgForm, curriculum: value })}
+                >
+                  <SelectTrigger id="orgCurriculum" data-testid="select-org-curriculum">
+                    <SelectValue placeholder={t('orgs.selectCurriculumOpt')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {newOrgCurricula.map((curriculum) => (
+                      <SelectItem key={curriculum} value={curriculum}>
+                        {curriculum}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">{t('orgs.curriculumHint')}</p>
+              </div>
+            )}
+            {newOrgForm.countryId && newOrgCurricula.length === 0 && (
+              // Otherwise the submit button is disabled with nothing on screen
+              // explaining why: curriculum is required but unselectable.
+              <p className="text-xs text-destructive" data-testid="error-org-no-curricula">
+                {t('orgs.countryNoCurricula')}
+              </p>
+            )}
             <div className="border-t pt-4">
               <h4 className="font-medium mb-3">{t('superadmin.primaryAdmin')}</h4>
               <div className="grid grid-cols-2 gap-4">
@@ -2228,7 +2297,7 @@ export default function SuperadminDashboard() {
             <Button variant="outline" onClick={() => setIsCreateOrgModalOpen(false)}>{t('superadmin.cancel')}</Button>
             <Button 
               onClick={() => createOrgMutation.mutate(newOrgForm)}
-              disabled={!newOrgForm.organizationName || !newOrgForm.adminFirstName || !newOrgForm.adminLastName || !!validateEmail(newOrgForm.adminEmail) || !!validatePhone(newOrgForm.adminPhone) || createOrgMutation.isPending}
+              disabled={!newOrgForm.organizationName || !newOrgForm.countryId || !newOrgForm.curriculum || !newOrgForm.adminFirstName || !newOrgForm.adminLastName || !!validateEmail(newOrgForm.adminEmail) || !!validatePhone(newOrgForm.adminPhone) || createOrgMutation.isPending}
               data-testid="button-submit-create-org"
             >
               {createOrgMutation.isPending ? t('superadmin.creating') : t('superadmin.addSchoolBtn')}
