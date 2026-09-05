@@ -2654,35 +2654,62 @@ export class DatabaseStorage implements IStorage {
     let attempts = 0;
     while (attempts < 10) {
       try {
-        const [user] = await db
-          .insert(users)
-          .values({
-            firstName,
-            lastName,
-            username,
-            passwordHash,
-            accountType: 'org_student',
-            isOrgGenerated: true,
-            role: 'user',
-          })
-          .returning();
+        // Both inserts in ONE transaction. They previously shared only a try
+        // block, so a failure on the member insert left the users row COMMITTED:
+        // a real passwordHash and accountType 'org_student' with no membership.
+        // The retry loop below only recognises 23505; a CHECK violation is 23514
+        // and rethrows, and the bulk route's per-row catch
+        // (admin.routes.ts:688-694) swallows that and continues, so one paste
+        // could mint up to 500 orphan accounts and still report partial success.
+        //
+        // The loop stays OUTSIDE the transaction on purpose: each attempt is its
+        // own begin/commit, so a rolled-back attempt leaves nothing behind and
+        // the next attempt starts clean. drizzle-orm/neon-serverless takes a
+        // dedicated connection per transaction and releases it in a finally
+        // (neon-serverless/session.js:179-193), so retrying does not leak one.
+        const { user, member } = await db.transaction(async (tx) => {
+          const [user] = await tx
+            .insert(users)
+            .values({
+              firstName,
+              lastName,
+              username,
+              passwordHash,
+              accountType: 'org_student',
+              isOrgGenerated: true,
+              role: 'user',
+            })
+            .returning();
 
-        const [member] = await db
-          .insert(organizationMembers)
-          .values({
-            organizationId: userData.organizationId,
-            userId: user.id,
-            grade: userData.grade,
-            studentId: userData.studentId,
-            studentName: userData.studentName,
-            studentAge: userData.studentAge,
-            studentGender: userData.studentGender,
-            role: 'student',
-          })
-          .returning();
+          const [member] = await tx
+            .insert(organizationMembers)
+            .values({
+              organizationId: userData.organizationId,
+              userId: user.id,
+              grade: userData.grade,
+              studentId: userData.studentId,
+              studentName: userData.studentName,
+              studentAge: userData.studentAge,
+              studentGender: userData.studentGender,
+              role: 'student',
+            })
+            .returning();
+
+          return { user, member };
+        });
 
         return { user, member, password };
       } catch (error: any) {
+        // Unchanged, deliberately. The rollback path rethrows the ORIGINAL pg
+        // error (neon-serverless/session.js:186-189), so error.code still reads
+        // 23505 here and the retry behaves exactly as before.
+        //
+        // KNOWN, NOT FIXED HERE: a 23505 raised by the MEMBER insert (the
+        // organization_members.user_id unique constraint, schema.ts:151) also
+        // lands in this branch and retries the whole block, inserting another
+        // users row. That was already the behaviour; the transaction makes it
+        // harmless, because the failed attempt's user row is now rolled back
+        // instead of accumulating. Left alone to keep this commit to one change.
         if (error.code === '23505') {
           username = `${username}.${Math.random().toString(36).substring(2, 5)}`;
           attempts++;
