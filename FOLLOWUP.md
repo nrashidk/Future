@@ -88,6 +88,8 @@ Also flagged: the Arabic report offers "get your full PDF report" wording that l
 
 None of this is a regression from 3ba4941; all pre-existing. Belongs with the parked multi-country/localization workstream. First flagged 2026-09-05.
 
+Also unreviewed: admin.json Arabic keys added 2026-09-05 for student-create validation (genderRequired, selectGenderReq, fieldRequired) were derived by mirroring the shape of existing entries rather than translated. Needs a native-Arabic reviewer pass. Admin-facing, not student-facing.
+
 ## Session log
 
 ### Arabic PDF report — session 2026-06-30
