@@ -19,11 +19,22 @@ interface CountryStepProps {
    * school owns (14459a4). Country and curriculum are two of the five: the
    * school picks them once for everyone it enrols, and the server overwrites
    * whatever the student sends.
+   *
+   * THREE-STATE, and the caller must keep it that way: true, false, or undefined
+   * for "not known yet". Do not coerce it on the way in — `!!value` turns an
+   * unresolved auth query into "not a school student" and offers a choice the
+   * server is about to discard.
    */
   isOrgStudent?: boolean;
 }
 
-export function CountryStep({ data, onUpdate, onNext, onBack, isOrgStudent }: CountryStepProps) {
+export function CountryStep({ data, onUpdate, onNext, onBack, isOrgStudent: isOrgStudentProp }: CountryStepProps) {
+  // UNKNOWN LOCKS. `!== false` rather than a truthiness test: only a positive
+  // "not a school student" shows the editable controls. undefined means the
+  // caller does not yet know — the auth request is in flight — and offering the
+  // pickers on that would let a student choose a country the server is about to
+  // overwrite. Same rule as 7aabc13.
+  const isOrgStudent = isOrgStudentProp !== false;
   const { t } = useTranslation('assessment');
   const { language } = useLanguage();
   const isArabic = language === 'ar';

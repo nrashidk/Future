@@ -60,6 +60,28 @@ export default function Assessment() {
 
   const [, setLocation] = useLocation();
   const { user, isAuthenticated, isLoading } = useAuth();
+
+  // Whether the viewer's demographics belong to a school — undefined while the
+  // answer is genuinely unknown.
+  //
+  // Was `!!(user as any)?.isOrgStudent` at each call site, which coerced
+  // undefined to false: an unresolved auth query unlocked five fields the server
+  // was going to overwrite anyway. Same fail-open shape 7aabc13 removed from the
+  // school edit form, where an unknown student count now locks rather than
+  // unlocks.
+  //
+  // `user` alone cannot carry the distinction: a guest and a self-paid student
+  // both have no isOrgStudent, and so does a student whose request is still in
+  // flight. isLoading is the only thing that separates "no" from "not yet", so
+  // the unknown state is taken from there and everything else resolves to a real
+  // boolean.
+  //
+  // Named schoolMembership, not isOrgStudent, because useAssessmentAvailability
+  // already exports an `isOrgStudent` into this scope on the line below — and it
+  // is derived differently, from user.accountType. The two can disagree; that
+  // one is the last accountType-keyed membership test left and is not this
+  // commit's to move.
+  const schoolMembership: boolean | undefined = isLoading ? undefined : !!user?.isOrgStudent;
   const {
     isOrgStudent,
     isLoading: availLoading,
@@ -999,7 +1021,7 @@ export default function Assessment() {
             data={assessmentData}
             onUpdate={updateAssessmentData}
             onNext={handleNext}
-            isOrgStudent={!!(user as any)?.isOrgStudent}
+            isOrgStudent={schoolMembership}
             predefinedGrade={(user as any)?.predefinedGrade}
             predefinedName={(user as any)?.predefinedName}
             predefinedAge={(user as any)?.predefinedAge}
@@ -1018,7 +1040,7 @@ export default function Assessment() {
             onUpdate={updateAssessmentData}
             onNext={handleNext}
             onBack={() => setCurrentStep(1)}
-            isOrgStudent={!!(user as any)?.isOrgStudent}
+            isOrgStudent={schoolMembership}
           />
         )}
         

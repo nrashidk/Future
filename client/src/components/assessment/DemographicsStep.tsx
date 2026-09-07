@@ -20,9 +20,12 @@ interface DemographicsStepProps {
   /**
    * True when the viewer holds an organization_members row with role 'student'
    * — the same test PATCH /api/assessments/:id uses to decide which fields the
-   * school owns (14459a4). Authoritative, and served by /api/auth/user; the
-   * `!!predefinedGrade` inference below is only a fallback for a caller that
-   * does not pass it.
+   * school owns (14459a4). Served by /api/auth/user.
+   *
+   * THREE-STATE, and the caller must keep it that way: true, false, or undefined
+   * for "not known yet". Do not coerce it on the way in — `!!value` turns an
+   * unresolved auth query into "not a school student" and unlocks five fields
+   * the server is about to overwrite.
    */
   isOrgStudent?: boolean;
 }
@@ -32,18 +35,28 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
 
   const [isMobile, setIsMobile] = useState(false);
   
-  // Whether the school owns this student's demographics. Prefer the server's
-  // flag; fall back to inferring from a pre-filled grade only so an older caller
-  // keeps working. Inference is the weaker test — it asks "is a value present"
-  // rather than "is this a school student".
-  const isOrgStudent = isOrgStudentProp ?? !!predefinedGrade;
+  // The three fields the school states on the student's behalf, and which the
+  // server overwrites with the school's values on every save
+  // (assessment.routes.ts, SCHOOL_OWNED_ASSESSMENT_FIELDS). Shown rather than
+  // hidden: this screen is the only place anyone sees what the school recorded,
+  // so it is the only chance to notice a wrong name, grade or gender.
+  //
+  // UNKNOWN LOCKS. `!== false` rather than a truthiness test: only a positive
+  // "not a school student" unlocks. undefined means the caller does not yet know
+  // — the auth request is in flight — and unlocking on that would offer an edit
+  // the server is about to discard. Same rule as 7aabc13. The old
+  // `?? !!predefinedGrade` fallback is gone with it: inferring membership from
+  // whether a value happens to be present is what this prop replaced.
+  const schoolOwnsDemographics = isOrgStudentProp !== false;
 
-  // The three the school states on the student's behalf, and which the server
-  // overwrites with the school's values on every save (assessment.routes.ts,
-  // SCHOOL_OWNED_ASSESSMENT_FIELDS). Shown rather than hidden: this screen is
-  // the only place anyone sees what the school recorded, so it is the only
-  // chance to notice a wrong name, grade or gender.
-  const schoolOwnsDemographics = isOrgStudent;
+  // Consent goes the OTHER way on the same unknown, deliberately. Institutional
+  // consent is a legal artifact, not a UI state: it is granted because a school
+  // took responsibility for this student, so it needs a positive yes. Locking a
+  // field we may not own costs a moment of a disabled input; auto-accepting
+  // consent on behalf of someone who turns out not to be a school student is not
+  // recoverable by re-rendering. Both directions are the conservative one for
+  // what they protect.
+  const isOrgStudent = isOrgStudentProp === true;
   
   // Pre-fill all fields if predefined and not already set (only depend on predefined values to avoid redundant re-runs)
   useEffect(() => {

@@ -41,6 +41,39 @@ export type PublicUserField = (typeof PUBLIC_USER_FIELDS)[number];
 export type PublicUser = Pick<User, PublicUserField>;
 
 /**
+ * Fields GET /api/auth/user attaches to the user it returns which are NOT
+ * `users` columns — decorations read from the caller's organization_members row
+ * and their school (server/routes/auth.routes.ts). toPublicUser preserves any
+ * key that is not a column, which is what lets them through.
+ *
+ * Declared here so the client can read them without an `as any`. The cast is
+ * what let `!!(user as any)?.isOrgStudent` look safe: it hid that the property
+ * may be absent, and `!!undefined` silently answers "no" to a question that had
+ * no answer yet.
+ *
+ * Every field is optional and all of them are absent for a caller who is not a
+ * school student, so ABSENCE HERE DOES NOT MEAN "NOT LOADED" — it means "not an
+ * org student", but only once the request has actually resolved. A caller that
+ * needs to distinguish the two must take that from its own loading state, not
+ * from these.
+ */
+export interface AuthUserOrgFields {
+  /** True only when the caller holds an organization_members row with role 'student'. */
+  isOrgStudent?: boolean;
+  predefinedName?: string | null;
+  predefinedGrade?: string | null;
+  predefinedAge?: number | null;
+  predefinedGender?: string | null;
+  organizationName?: string | null;
+  organizationLogoUrl?: string | null;
+  organizationCountryId?: string | null;
+  organizationCurriculum?: string | null;
+}
+
+/** The user shape a client actually receives from GET /api/auth/user. */
+export type AuthUser = PublicUser & AuthUserOrgFields;
+
+/**
  * Every column name on `users`, read from the table definition so it cannot
  * drift out of sync with the schema. Keys that are NOT columns are caller-added
  * decorations (predefinedGrade, organizationName, …) and are preserved as-is.
