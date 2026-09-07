@@ -122,8 +122,9 @@ fifth hand-rolled copy. Three things to settle first:
 - setLanguage PATCHes /api/users/me/language (LanguageContext.tsx:73), so a mid-assessment
   switch persists to users.preferredLanguage and changes the language of server-generated
   narrative and the report. Probably wanted, but it should be a decision, not a side effect.
-- RTL through the assessment steps is untested; FOLLOWUP.md:114 already carries an open
-  BIDI/overflow item against the Arabic report.
+- RTL through the assessment steps is untested; "Bug B — RTL career-page layout", under
+  STILL OPEN in the "Arabic PDF report — session 2026-06-30" session-log entry, already
+  carries open BIDI and overflow items against the Arabic report.
 - BLOCKED ON: the four student-facing Arabic strings from ec2a54f are unreviewed. A switcher
   makes them reachable. Review before adding the toggle, not after.
 First flagged 2026-09-07.
