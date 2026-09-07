@@ -1531,3 +1531,22 @@ assessment rows pointing at a value no longer in countries.curricula. This is th
 reconciliation gap that blocks a superadmin override on the org curriculum lock (01e20cf) —
 neither can be closed until something can re-scope existing assessment rows. Phase 6.
 First flagged 2026-09-07.
+
+### Curriculum rename orphans organizations.curriculum, and the lock blocks recovery  (severity: medium-high)
+POST /api/superadmin/countries/:id/curricula/rename (superadmin.routes.ts:2385-2432) rewrites
+countries.curricula, subjects and quiz_questions, but not organizations.curriculum. A renamed
+curriculum leaves every school on it holding a string that no longer appears in
+countries.curricula.
+
+Consequences, which compound:
+- The school's stored curriculum no longer matches the edit form's availableCurricula lookup,
+  so the dropdown cannot offer the value back.
+- Enrolment (549cd43) and org creation (81ea920) both gate on the school's curriculum.
+- If the school has students, the immutability lock (01e20cf) prevents correcting it at all.
+
+Net: a superadmin rename can put a school into a state only a direct DB write can fix. The
+rename is the only path that produces it, so the fix belongs there — cascade to
+organizations.curriculum in the same transaction — not as a carve-out in the lock.
+
+Distinct from the assessments cascade gap (47c5067): that one needs Phase 6 reconciliation,
+this one is a missing UPDATE in an existing transaction. First flagged 2026-09-07.
