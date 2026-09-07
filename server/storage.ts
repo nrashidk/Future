@@ -114,6 +114,7 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { gradeSortKey, mergeGradeCounts, toCanonicalGrade } from "@shared/grade";
+import { splitStudentName } from "@shared/studentName";
 import { eq, and, or, desc, count, avg, sql, inArray, notInArray, isNotNull, gte, type SQL } from "drizzle-orm";
 
 /**
@@ -372,6 +373,11 @@ export interface IStorage {
   getOrganizationMemberByUserId(userId: string): Promise<OrganizationMember | undefined>;
   getOrganizationMembersByOrganizationId(organizationId: string): Promise<OrganizationMember[]>;
   countOrganizationStudents(organizationId: string): Promise<number>;
+  updateStudentMemberProfile(
+    memberId: string,
+    userId: string,
+    updates: { studentName?: string; grade?: string; studentGender?: string; studentId?: string | null },
+  ): Promise<OrganizationMember>;
   deleteOrganizationMember(memberId: string): Promise<boolean>;
   bulkDeleteOrganizationMembers(memberIds: string[]): Promise<number>;
   getOrganizationStats(organizationId: string): Promise<{
@@ -2523,6 +2529,11 @@ export class DatabaseStorage implements IStorage {
         organizationId: organizationMembers.organizationId,
         userId: organizationMembers.userId,
         studentId: organizationMembers.studentId,
+        // The name as the school typed it. users.firstName/lastName below are a
+        // split of the same string, and an edit form must prefill from this one:
+        // the split is lossy (it cannot tell a two-word first name from a first
+        // and last), so round-tripping through it would rewrite the name.
+        studentName: organizationMembers.studentName,
         studentGender: organizationMembers.studentGender,
         grade: organizationMembers.grade,
         role: organizationMembers.role,
@@ -2608,6 +2619,60 @@ export class DatabaseStorage implements IStorage {
       .where(eq(organizationMembers.id, id))
       .returning();
     return member;
+  }
+
+  /**
+   * Update a student member's profile — the demographics on the member row, and
+   * the name copy on the users row, together.
+   *
+   * DUPLICATED STATE, deliberately kept in sync here. A student's name lives in
+   * two places: organization_members.student_name holds it as the school typed
+   * it, and users.firstName/users.lastName hold a split of the same string
+   * (seeded by createUserWithCredentials). Nothing reconciles them, and they are
+   * read by different screens — the admin members table renders the users copy
+   * (AdminOrganizations.tsx:877) while the member row is what the CHECK
+   * constrains — so writing one without the other shows the admin a rename that
+   * appears not to have saved.
+   *
+   * The better long-term shape is a single canonical source: student_name as the
+   * one name of record, with users.firstName/lastName either dropped for
+   * org-generated students or derived at read time. That is a migration plus a
+   * sweep of every users.firstName reader, so it is not this commit. Until then,
+   * this function is the only place a student's name may be updated, and the two
+   * writes share one transaction so a failure cannot leave the copies disagreeing.
+   *
+   * users.username is deliberately NOT recomputed. It is derived from the same
+   * split at create time, but it is a login credential the student has been
+   * given — on paper, in most cases. Rebuilding it on a rename would silently
+   * lock the student out.
+   */
+  async updateStudentMemberProfile(
+    memberId: string,
+    userId: string,
+    updates: {
+      studentName?: string;
+      grade?: string;
+      studentGender?: string;
+      studentId?: string | null;
+    },
+  ): Promise<OrganizationMember> {
+    return db.transaction(async (tx) => {
+      const [member] = await tx
+        .update(organizationMembers)
+        .set({ ...updates, updatedAt: new Date() })
+        .where(eq(organizationMembers.id, memberId))
+        .returning();
+
+      if (updates.studentName !== undefined) {
+        const { firstName, lastName } = splitStudentName(updates.studentName);
+        await tx
+          .update(users)
+          .set({ firstName, lastName, updatedAt: new Date() })
+          .where(eq(users.id, userId));
+      }
+
+      return member;
+    });
   }
 
   async deleteOrganizationMember(id: string): Promise<boolean> {
@@ -2710,9 +2775,10 @@ export class DatabaseStorage implements IStorage {
     const { generatePassword } = await import("./utils/passwordGenerator");
     const { hashPassword } = await import("./utils/passwordHash");
 
-    const nameParts = userData.fullName.trim().split(/\s+/);
-    const firstName = nameParts[0] || 'Student';
-    const lastName = nameParts.slice(1).join(' ') || 'User';
+    // Shared with updateStudentMemberProfile: student_name and
+    // users.firstName/lastName are two copies of the same name, and they only
+    // stay in agreement while every writer splits identically.
+    const { firstName, lastName } = splitStudentName(userData.fullName);
 
     const password = generatePassword(userData.passwordComplexity || 'medium');
     const passwordHash = await hashPassword(password);

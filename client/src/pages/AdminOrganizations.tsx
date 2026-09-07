@@ -98,6 +98,12 @@ interface OrganizationMember {
   organizationId: string;
   grade?: string;
   studentId?: string;
+  // The name as the school typed it. Distinct from user.firstName/lastName
+  // below, which are a lossy split of the same string — an edit form must
+  // prefill from this one or a round-trip through the split would rewrite the
+  // name. Nothing renders it yet; the members table shows the users copy
+  // (:877).
+  studentName?: string;
   studentGender?: string;
   role: string;
   hasCompletedAssessment: boolean;

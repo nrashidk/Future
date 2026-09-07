@@ -5,7 +5,7 @@ import { storage } from "../storage";
 import { isAuthenticated } from "../auth";
 import { isAdmin, isOrgAdmin, getSuperadminEmails } from "../middleware/auth.middleware";
 import { dataExportLimiter } from "../middleware/rateLimiter.middleware";
-import { insertQuizQuestionSchema, type InsertOrganizationMember } from "@shared/schema";
+import { insertQuizQuestionSchema, studentDemographicsSchema } from "@shared/schema";
 import { toPublicUser } from "@shared/userPublic";
 import { CANONICAL_GRADES, SCHOOL_GRADES, toCanonicalGrade } from "@shared/grade";
 import { z } from "zod";
@@ -901,11 +901,67 @@ export function registerAdminRoutes(app: Express) {
         return res.status(403).json({ message: "Forbidden: Member does not belong to this organization" });
       }
 
-      const { fullName, grade } = req.body;
-      const updates: Partial<InsertOrganizationMember> = {};
+      const { fullName, grade, studentGender, studentId } = req.body;
+      const updates: {
+        studentName?: string;
+        grade?: string;
+        studentGender?: string;
+        studentId?: string | null;
+      } = {};
 
-      if (fullName !== undefined) updates.studentName = fullName;
+      // studentAge is deliberately absent from this allowlist. The CHECK
+      // excludes it and schema.ts:182-185 records why: no form has ever
+      // collected it, there is no DOB to derive it from, and nothing in scoring
+      // or the report reads it — `grade` is what age-appropriate content is
+      // keyed on. Accepting it here would only create a second half-populated
+      // column in a minor's record.
+      //
+      // Name, gender and grade are the three the CHECK requires
+      // (schema.ts:188-191), so a request that names one of them must supply a
+      // real value. Before this, `{"fullName": ""}` returned 200 and wrote a
+      // blank name — an empty string satisfies a NOT NULL, so the CHECK let
+      // through exactly the state it exists to prevent — and `{"fullName":
+      // null}` reached the database and came back as a raw 23514 wearing a 500.
+      //
+      // Stricter than the CHECK in one respect: the CHECK binds student rows
+      // only, and this does not check role. Clearing a name on an admin row
+      // would be legal in the database, but no caller does it and no form will,
+      // so the simpler rule is the one that cannot write a blank into a
+      // student's record by accident.
+      //
+      // The messages are taken FROM studentDemographicsSchema rather than
+      // restated, so the create path and this one cannot drift into describing
+      // the same requirement differently to the same admin. Parsing "" through a
+      // single field yields the sentence that field would emit at create.
+      const requiredFieldMessage = (field: "studentName" | "studentGender" | "grade"): string => {
+        const parsed = studentDemographicsSchema.shape[field].safeParse("");
+        return parsed.success ? `${field} is required` : parsed.error.errors[0].message;
+      };
+
+      const rejectsAsCleared = (value: unknown) =>
+        typeof value !== "string" || isClearedOrgField(value);
+
+      if (fullName !== undefined) {
+        if (rejectsAsCleared(fullName)) {
+          return res.status(400).json({ message: requiredFieldMessage("studentName") });
+        }
+        // Trimmed to match createUserWithCredentials, which stores
+        // userData.studentName?.trim() — otherwise the same name typed the same
+        // way is stored differently depending on which route wrote it.
+        updates.studentName = fullName.trim();
+      }
+
+      if (studentGender !== undefined) {
+        if (rejectsAsCleared(studentGender)) {
+          return res.status(400).json({ message: requiredFieldMessage("studentGender") });
+        }
+        updates.studentGender = studentGender.trim();
+      }
+
       if (grade !== undefined) {
+        if (grade === null || (typeof grade === "string" && isClearedOrgField(grade))) {
+          return res.status(400).json({ message: requiredFieldMessage("grade") });
+        }
         // Was `parseInt(grade)` — a number written into a TEXT column, via an
         // `any`-typed object so TypeScript never caught it. It stored "10" for
         // input "10" and NaN for input "grade10", making this handler the third
@@ -921,7 +977,23 @@ export function registerAdminRoutes(app: Express) {
         updates.grade = canonical;
       }
 
-      const member = await storage.updateOrganizationMember(req.params.memberId, updates);
+      // studentId is the school's own identifier and is unconstrained — no
+      // CHECK, no schema rule — so clearing it is a legitimate edit and becomes
+      // null rather than "". Coerced to a string because it is a TEXT column and
+      // a school's ID is plausibly numeric in a JSON body; that is the same trap
+      // the grade comment above describes.
+      if (studentId !== undefined) {
+        updates.studentId = isClearedOrgField(studentId) ? null : String(studentId).trim();
+      }
+
+      // Not updateOrganizationMember: a name change has to write the users row
+      // too, in the same transaction. See updateStudentMemberProfile for why the
+      // name exists in two places at all.
+      const member = await storage.updateStudentMemberProfile(
+        req.params.memberId,
+        existingMember.userId,
+        updates,
+      );
       res.json(member);
     } catch (error) {
       console.error("Error updating organization member:", error);
