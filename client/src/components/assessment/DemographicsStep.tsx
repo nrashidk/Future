@@ -30,19 +30,6 @@ interface DemographicsStepProps {
 export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, predefinedName, predefinedAge, predefinedGender, isOrgStudent: isOrgStudentProp }: DemographicsStepProps) {
   const { t } = useTranslation('assessment');
 
-  // Convert grade codes to localized labels using i18n keys
-  const getGradeLabel = (gradeCode: string): string => {
-    const gradeKeyMap: Record<string, string> = {
-      'grade8': 'demographics.grade8',
-      'grade9': 'demographics.grade9',
-      'grade10': 'demographics.grade10',
-      'grade11': 'demographics.grade11',
-      'grade12': 'demographics.grade12',
-      'graduated': 'demographics.graduated',
-    };
-    const key = gradeKeyMap[gradeCode];
-    return key ? t(key) : gradeCode;
-  };
   const [isMobile, setIsMobile] = useState(false);
   
   // Whether the school owns this student's demographics. Prefer the server's
@@ -123,7 +110,7 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
             </div>
             <div className="flex-1">
               <Label htmlFor="name" className="text-lg font-semibold">
-                {t('demographics.name')} {predefinedName && <span className="text-xs text-muted-foreground font-normal ms-2">({t('demographics.setBySchool')})</span>}
+                {t('demographics.name')} {schoolOwnsDemographics && <span className="text-xs text-muted-foreground font-normal ms-2">({t('demographics.setBySchool')})</span>}
               </Label>
             </div>
           </div>
@@ -181,7 +168,7 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
             </div>
             <div className="flex-1">
               <Label htmlFor="grade" className="text-lg font-semibold">
-                {t('demographics.grade')} {predefinedGrade && <span className="text-xs text-muted-foreground font-normal ms-2">({t('demographics.setBySchoolGrade', { grade: getGradeLabel(predefinedGrade) })})</span>}
+                {t('demographics.grade')} {schoolOwnsDemographics && <span className="text-xs text-muted-foreground font-normal ms-2">({t('demographics.setBySchool')})</span>}
               </Label>
             </div>
           </div>
@@ -226,7 +213,7 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
             </div>
             <div className="flex-1">
               <Label htmlFor="gender" className="text-lg font-semibold">
-                {t('demographics.gender')} {predefinedGender && <span className="text-xs text-muted-foreground font-normal ms-2">({t('demographics.setBySchool')})</span>}
+                {t('demographics.gender')} {schoolOwnsDemographics && <span className="text-xs text-muted-foreground font-normal ms-2">({t('demographics.setBySchool')})</span>}
               </Label>
             </div>
           </div>

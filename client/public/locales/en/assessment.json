@@ -66,7 +66,6 @@
     "name": "Your Name",
     "namePlaceholder": "Enter your full name",
     "setBySchool": "Set by your school",
-    "setBySchoolGrade": "Set by your school: {{grade}}",
     "age": "Age",
     "agePlaceholder": "Your age",
     "grade": "Current Grade",
