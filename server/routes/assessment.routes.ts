@@ -162,13 +162,25 @@ export function registerAssessmentRoutes(app: Express) {
       let assessmentCurriculum = validatedData.curriculum;
       
       if (userId) {
-        const user = await storage.getUser(userId);
-        if (user?.accountType === "org_student") {
-          const orgMember = await storage.getOrganizationMemberByUserId(userId);
+        // MEMBERSHIP COMES FROM THE MEMBER ROW, NOT users.accountType — the last
+        // of the five sites to move (14459a4, e9f8d81, 15203ec, 6fd8946).
+        // organizationMembers.userId is .unique() (schema.ts:151), so the row
+        // both proves membership and names the school in one query; accountType
+        // is a bare text column with eight write sites, only one of which shares
+        // a transaction with the member insert, and auth.ts:353 already writes a
+        // value outside its own documented set.
+        //
+        // role === 'student', not merely "has a member row": school admins share
+        // this table (schema.ts:159) and are not students of their own school.
+        //
+        // This also removes a query. The old code fetched the user only to read
+        // accountType off it, then fetched the member row anyway.
+        const orgMember = await storage.getOrganizationMemberByUserId(userId);
 
-          // LICENSE GUARD (org_student only): a school license grants a student a
-          // limited number of assessment allocations. Block creation when the
-          // student has no unused allocation left.
+        if (orgMember?.role === 'student') {
+          // LICENSE GUARD (school students only): a school license grants a
+          // student a limited number of assessment allocations. Block creation
+          // when the student has no unused allocation left.
           //
           // Framed as "does the student have an available (unused) allocation?"
           // rather than "have they ever completed one." Today the license grants a
@@ -180,23 +192,48 @@ export function registerAssessmentRoutes(app: Express) {
           // grants a fresh allocation here — compute unused allocations for the
           // active period instead of reading the single hasCompletedAssessment flag.
           //
-          // Fail-open on a missing orgMember row: a properly-enrolled org_student
-          // always has one, so this near-impossible case biases toward not blocking
-          // a legitimate student rather than fail-closed.
-          const hasUnusedAllocation = !(orgMember?.hasCompletedAssessment ?? false);
-          if (!hasUnusedAllocation) {
+          // The old "fail-open on a missing orgMember row" caveat is gone with
+          // the accountType test that created it: the row IS the membership test
+          // now, so its absence means "not a school student" rather than "a
+          // school student we failed to look up". The state it was hedging
+          // against — a committed org_student users row with no membership —
+          // was 8c07e25's orphan bug, and is unreachable since that insert
+          // became transactional.
+          if (orgMember.hasCompletedAssessment) {
             return res.status(403).json({
               message: "Assessment already completed for this allocation",
             });
           }
 
-          if (orgMember) {
-            const organization = await storage.getOrganizationById(orgMember.organizationId);
-            if (organization?.curriculum) {
-              // Override curriculum with organization's curriculum for org students
-              assessmentCurriculum = organization.curriculum;
-            }
+          // FAILS CLOSED, matching the PATCH lock (14459a4). This previously
+          // fell through to validatedData.curriculum — the student's own pick
+          // silently won precisely when the school's value was unavailable,
+          // which is the one case the inheritance exists for. 549cd43 refuses to
+          // enrol a student into a school with no curriculum, so reaching this
+          // means an invariant has already broken; it is logged as a server
+          // error even though the response is a 4xx.
+          //
+          // Same known population as the PATCH guard: a student enrolled BEFORE
+          // 549cd43 into a school missing country or curriculum. That guard is
+          // runtime, not a backfill, so nothing proves the set is empty — see
+          // docs/v2-phase4-step3-recon.md §2. Such a student is blocked here
+          // rather than starting an assessment drawn from the wrong quiz bank.
+          const organization = await storage.getOrganizationById(orgMember.organizationId);
+          if (!organization?.curriculum) {
+            console.error(
+              `[assessment POST] curriculum unavailable for member ${orgMember.id} ` +
+                `(org ${orgMember.organizationId})`,
+            );
+            return res.status(400).json({
+              message:
+                "School setup incomplete: your school has no curriculum on record, so an " +
+                "assessment cannot be started. Ask your school administrator to complete " +
+                "the school's setup.",
+            });
           }
+
+          // Override curriculum with organization's curriculum for org students
+          assessmentCurriculum = organization.curriculum;
         }
       }
 
