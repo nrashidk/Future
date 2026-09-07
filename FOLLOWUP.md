@@ -92,6 +92,8 @@ Also unreviewed: admin.json Arabic keys added 2026-09-05 for student-create vali
 
 Extended 2026-09-05: three further admin.json keys added the same day for the school create/edit forms (countryRequired, selectCountryReq, countryNoCurricula) — same reviewer pass. Two are shape-mirrors like the batch above (countryRequired follows gradeRequired; selectCountryReq is selectCountryOptional minus its parenthetical). countryNoCurricula is different and carries more risk: it is a full sentence translated rather than derived from an existing string, so nothing constrains it to house wording. All six are admin-facing, not student-facing.
 
+Extended 2026-09-07: one more, curriculumLockedNote, added with the country/curriculum lock on the school edit form. Same reviewer pass, and the riskiest of the batch so far — two full sentences with an {{n}} interpolation, translated rather than derived from any existing string, explaining WHY a control is disabled. If the Arabic is unclear the admin sees a dead select and no working explanation, which is worse than the untranslated case. Also unresolved for Arabic: the sentence reads "{{n}} مسجلين" for every count including 1, since the key interpolates n rather than i18next's count and so gets no plural forms; Arabic needs more forms than English, not fewer. Admin-facing, not student-facing.
+
 ### SuperadminDashboard renders raw error blobs  (severity: low)
 serverErrorMessage (client/src/lib/queryClient.ts) was added 2026-09-05 to parse the
 "STATUS: {json}" shape that throwIfResNotOk produces, and applied across
