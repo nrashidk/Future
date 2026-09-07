@@ -887,6 +887,12 @@ export default function AdminOrganizations() {
                           <TableHead>{t('orgs.name')}</TableHead>
                           <TableHead>{t('orgs.username')}</TableHead>
                           <TableHead>{t('orgs.gender')}</TableHead>
+                          {/* AGE, DERIVED — never the date of birth itself. A DOB
+                              column would put every student's birth date on one
+                              screen, which is the shape that leaks by screenshot
+                              and screen-share; an age is what an admin scanning a
+                              roster actually needs. See the step-4 recon §6. */}
+                          <TableHead>{t('orgs.age')}</TableHead>
                           <TableHead>{t('orgs.grade')}</TableHead>
                           <TableHead>{t('orgs.studentId')}</TableHead>
                           <TableHead>{t('orgs.status')}</TableHead>
@@ -909,6 +915,15 @@ export default function AdminOrganizations() {
                             </TableCell>
                             <TableCell>{member.user.username}</TableCell>
                             <TableCell className="capitalize">{member.studentGender || '-'}</TableCell>
+                            {/* Derived against today, not stored. This is the
+                                roster's live view of how old a student is now,
+                                which is a different question from assessments.age
+                                — that one is a snapshot taken when the assessment
+                                was created and must not be recomputed. '-' covers
+                                the rows that predate the column and have no date
+                                of birth yet, and the admin rows, which never have
+                                one. */}
+                            <TableCell>{ageOnDate(member.dateOfBirth, toDateOnlyString(new Date())) ?? '-'}</TableCell>
                             <TableCell>{member.grade || '-'}</TableCell>
                             <TableCell>{member.studentId || '-'}</TableCell>
                             <TableCell>
