@@ -376,7 +376,13 @@ export interface IStorage {
   updateStudentMemberProfile(
     memberId: string,
     userId: string,
-    updates: { studentName?: string; grade?: string; studentGender?: string; studentId?: string | null },
+    updates: {
+      studentName?: string;
+      grade?: string;
+      studentGender?: string;
+      studentId?: string | null;
+      dateOfBirth?: string;
+    },
   ): Promise<OrganizationMember>;
   deleteOrganizationMember(memberId: string): Promise<boolean>;
   bulkDeleteOrganizationMembers(memberIds: string[]): Promise<number>;
@@ -2537,6 +2543,10 @@ export class DatabaseStorage implements IStorage {
         // and last), so round-tripping through it would rewrite the name.
         studentName: organizationMembers.studentName,
         studentGender: organizationMembers.studentGender,
+        // Needed by the edit form, which must prefill it: a DOB the admin cannot
+        // see is one they cannot confirm, and an edit that resubmits the form
+        // without it would look like a clear.
+        dateOfBirth: organizationMembers.dateOfBirth,
         grade: organizationMembers.grade,
         role: organizationMembers.role,
         hasCompletedAssessment: organizationMembers.hasCompletedAssessment,
@@ -2656,6 +2666,8 @@ export class DatabaseStorage implements IStorage {
       grade?: string;
       studentGender?: string;
       studentId?: string | null;
+      /** Canonical 'YYYY-MM-DD'. Validated by the caller; see the member PATCH. */
+      dateOfBirth?: string;
     },
   ): Promise<OrganizationMember> {
     return db.transaction(async (tx) => {

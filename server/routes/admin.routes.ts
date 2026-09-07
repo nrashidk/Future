@@ -939,12 +939,13 @@ export function registerAdminRoutes(app: Express) {
         return res.status(403).json({ message: "Forbidden: Member does not belong to this organization" });
       }
 
-      const { fullName, grade, studentGender, studentId } = req.body;
+      const { fullName, grade, studentGender, studentId, dateOfBirth } = req.body;
       const updates: {
         studentName?: string;
         grade?: string;
         studentGender?: string;
         studentId?: string | null;
+        dateOfBirth?: string;
       } = {};
 
       // studentAge is deliberately absent from this allowlist. The CHECK
@@ -955,8 +956,9 @@ export function registerAdminRoutes(app: Express) {
       // column in a minor's record.
       //
       // Name, gender and grade are the three the CHECK requires
-      // (schema.ts:188-191), so a request that names one of them must supply a
-      // real value. Before this, `{"fullName": ""}` returned 200 and wrote a
+      // (schema.ts:188-191), and dateOfBirth is the fourth that
+      // studentDemographicsSchema requires without the CHECK yet backing it, so
+      // a request that names any of them must supply a real value. Before this, `{"fullName": ""}` returned 200 and wrote a
       // blank name — an empty string satisfies a NOT NULL, so the CHECK let
       // through exactly the state it exists to prevent — and `{"fullName":
       // null}` reached the database and came back as a raw 23514 wearing a 500.
@@ -971,7 +973,9 @@ export function registerAdminRoutes(app: Express) {
       // restated, so the create path and this one cannot drift into describing
       // the same requirement differently to the same admin. Parsing "" through a
       // single field yields the sentence that field would emit at create.
-      const requiredFieldMessage = (field: "studentName" | "studentGender" | "grade"): string => {
+      const requiredFieldMessage = (
+        field: "studentName" | "studentGender" | "grade" | "dateOfBirth",
+      ): string => {
         const parsed = studentDemographicsSchema.shape[field].safeParse("");
         return parsed.success ? `${field} is required` : parsed.error.errors[0].message;
       };
@@ -1013,6 +1017,34 @@ export function registerAdminRoutes(app: Express) {
           });
         }
         updates.grade = canonical;
+      }
+
+      // Date of birth. Required when named, like name/gender/grade and unlike
+      // studentId: it is one of the four studentDemographicsSchema rejects a
+      // create without, so an edit must not be able to remove what a create
+      // could not omit. rejectsAsCleared covers "" and null together — the same
+      // two values that made `{"fullName": ""}` a silent 200 before 94cd048 —
+      // and both are read as an attempt to clear, not as "leave it alone".
+      // Omitting the key entirely is how a caller says that.
+      //
+      // Validated against the SERVER'S date, exactly as the M1 create path does.
+      // Both defer to validateDateOfBirth, so the same bad date produces the same
+      // sentence whether an admin typed it into the create form or the edit form.
+      //
+      // The required message comes from studentDemographicsSchema like the other
+      // three, so there is still only one place that says what the rule is.
+      if (dateOfBirth !== undefined) {
+        if (rejectsAsCleared(dateOfBirth)) {
+          return res.status(400).json({ message: requiredFieldMessage("dateOfBirth") });
+        }
+
+        const dobResult = validateDateOfBirth(dateOfBirth, toDateOnlyString(new Date()));
+        if (!dobResult.ok) {
+          return res.status(400).json({ message: dobResult.message });
+        }
+        // Normalized, not the raw input — so the column holds one format no
+        // matter which route wrote it.
+        updates.dateOfBirth = dobResult.value;
       }
 
       // studentId is the school's own identifier and is unconstrained — no
