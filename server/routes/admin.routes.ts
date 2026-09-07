@@ -675,25 +675,24 @@ export function registerAdminRoutes(app: Express) {
         });
       }
 
-      // Date of birth, validated HERE and not in studentDemographicsSchema. That
-      // schema is the shared sink for M1/M2/M3 (storage.createUserWithCredentials
-      // parses it), so adding date_of_birth to it makes a DOB mandatory on the
-      // bulk and CSV paths in the same breath — and neither of those sends one
-      // yet. This commit gives M1 the field; the sink requirement that binds all
-      // three is the next commit.
+      // Date of birth. studentDemographicsSchema now requires and validates this
+      // at the sink for all three create paths, so this block is no longer the
+      // thing that makes it mandatory — it is an EARLY rejection, and it earns
+      // its place twice over. It refuses a bad date before the capacity query
+      // and before the password hash, and it produces a bare `{ message }`,
+      // whereas the sink's ZodError arrives at the catch below as a flattened
+      // string alongside an `errors` array. An admin correcting a typo gets one
+      // sentence either way, because both sides defer to validateDateOfBirth.
       //
       // The reference date is the SERVER'S, from its own clock, never a value
       // the request could carry. Age derived from a client-supplied "today" is
       // an age the client chooses, and the plausibility band is the only thing
       // standing between a typo'd year and a minor's record.
       //
-      // A rejection is a 400 carrying the module's own sentence, which names the
-      // offending value and the bound it missed — the same shape as the
-      // demographics failures above and below, which also hand the admin a
-      // sentence rather than a field name. `dateOfBirth` is only validated when
-      // present: undefined stays undefined and the column stays null, because
-      // the column is still nullable and the other two write paths do not send
-      // one. Commit 4 is what closes that gap for all three at once.
+      // Only validated when PRESENT. An absent date now falls through to the
+      // sink, which is where "required" is enforced, rather than being rejected
+      // here with a sentence this route would have to keep in step with the
+      // schema's. One place owns the requirement; this one owns the early exit.
       let canonicalDateOfBirth: string | undefined;
       if (dateOfBirth !== undefined && dateOfBirth !== null && dateOfBirth !== "") {
         const dobResult = validateDateOfBirth(dateOfBirth, toDateOnlyString(new Date()));

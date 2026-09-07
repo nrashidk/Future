@@ -2718,20 +2718,22 @@ export class DatabaseStorage implements IStorage {
     studentAge?: number;
     studentGender?: string;
     /**
-     * Canonical 'YYYY-MM-DD', or undefined.
+     * Canonical 'YYYY-MM-DD'.
      *
-     * NOT validated here, deliberately, and this is the one input to this
-     * function that is trusted rather than checked. The plausibility band it has
-     * to be judged against is relative to a reference date, and the reference
-     * date is a decision — "today on the server" for a create, but not
-     * necessarily for a backfill or an import of historical records. Reading the
-     * clock in here would make that choice invisible and untestable, which is the
-     * failure shared/dateOfBirth.ts's `asOf` parameter exists to prevent. So the
-     * write sites validate and pass the normalized string; see admin.routes.ts.
+     * REQUIRED IN PRACTICE, though still optional in this type. It is validated
+     * by studentDemographicsSchema below, along with the other three demographic
+     * fields, so omitting it throws a ZodError out of this function having
+     * written nothing — which the routes turn into a 400. The type stays
+     * optional to match studentName/studentGender/grade directly above, which
+     * are equally required and equally typed `?`: the guard is the schema, and
+     * making these four the only non-optional members of this object would imply
+     * TypeScript were enforcing something it is not.
      *
-     * Optional, because the column is nullable and only M1 sends one so far. The
-     * requirement that binds M1/M2/M3 together goes in studentDemographicsSchema,
-     * which is parsed below.
+     * A caller that has already validated (admin.routes.ts M1 does, so it can
+     * reject before the capacity query and the password hash) passes the
+     * normalized string and the schema simply agrees with it. Validating twice is
+     * free here and produces the same sentence either way, because both sides
+     * defer to validateDateOfBirth.
      */
     dateOfBirth?: string;
     passwordComplexity?: 'medium' | 'strong';
@@ -2752,6 +2754,7 @@ export class DatabaseStorage implements IStorage {
       studentName,
       studentGender: userData.studentGender,
       grade: userData.grade,
+      dateOfBirth: userData.dateOfBirth,
     });
 
     // The owning school must have a country and a curriculum. Those two decide

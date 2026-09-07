@@ -16,6 +16,7 @@ import {
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { toDateOnlyString, validateDateOfBirth } from "./dateOfBirth";
 
 // Session storage table - for PostgreSQL session store
 export const sessions = pgTable(
@@ -1079,6 +1080,15 @@ export type InsertOrganizationMember = z.infer<typeof insertOrganizationMemberSc
  *
  * studentAge is absent by design — see the check() on the table above.
  *
+ * dateOfBirth is required here and NOT in the table's check(), which is the
+ * reverse of the other three and is deliberate. The database cannot require it
+ * yet: the existing student rows have no date of birth and none is derivable, so
+ * a role-scoped CHECK would refuse every UPDATE to those rows until their
+ * schools fill them in (server/migrations/015_add_student_date_of_birth.sql).
+ * This schema can require it immediately, because it only ever sees rows being
+ * CREATED. So new students must have one from now on while the old rows are
+ * fixed at leisure, and the CHECK follows once they are.
+ *
  * ENFORCED at storage.createUserWithCredentials, via studentDemographicsSchema
  * below, which is the sink all three student-create routes funnel through.
  */
@@ -1099,6 +1109,41 @@ export const insertStudentMemberSchema = insertOrganizationMemberSchema.extend({
     .string({ required_error: "Grade is required" })
     .trim()
     .min(1, "Grade is required"),
+  // Every message past the presence check comes FROM validateDateOfBirth rather
+  // than being restated here, so the four write paths and the member PATCH all
+  // describe the same rule in the same sentence. The PATCH gets them for free:
+  // it derives its messages by parsing "" through this schema's shape
+  // (admin.routes.ts requiredFieldMessage), which lands on the min(1) below.
+  //
+  // READS THE SERVER CLOCK, and that is a real trade worth naming. The band this
+  // validates against ("is this a plausible age") is only meaningful relative to
+  // a reference date, and validateDateOfBirth takes that date as a parameter
+  // precisely so no caller can be vague about it. A schema has nowhere to put a
+  // parameter, so this one picks "today, on the server" and hard-codes it. The
+  // cost is that this single line is not unit-testable — the same input parses
+  // differently on different days by design. It is accepted because the
+  // alternative shapes are worse: a schema factory would break the two existing
+  // call sites and the .shape[field] derivation above, and validating only the
+  // reference-date-independent half (format, real calendar date) would let a
+  // bulk import of 2001 birth dates through the one guard M2 and M3 have. The
+  // logic being deferred to is exhaustively tested with an injected asOf in
+  // shared/dateOfBirth.test.ts; only the choice of "today" is untested here.
+  dateOfBirth: z
+    .string({ required_error: "Date of birth is required" })
+    .trim()
+    .min(1, "Date of birth is required")
+    .superRefine((value, ctx) => {
+      // min(1) above has already reported an empty string. zod runs this refine
+      // anyway, and without the guard "" collects a second issue — the admin is
+      // told the field is required AND that "" is not a YYYY-MM-DD date, joined
+      // into one sentence by the routes' ZodError flattening.
+      if (value.length === 0) return;
+
+      const result = validateDateOfBirth(value, toDateOnlyString(new Date()));
+      if (!result.ok) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: result.message });
+      }
+    }),
 });
 export type InsertStudentMember = z.infer<typeof insertStudentMemberSchema>;
 
@@ -1110,11 +1155,20 @@ export type InsertStudentMember = z.infer<typeof insertStudentMemberSchema>;
  * be used there: it requires userId, which does not exist until the users row
  * has been inserted — i.e. only inside the transaction, which is exactly the
  * window this guard exists to avoid entering.
+ *
+ * Adding dateOfBirth here is what makes a date of birth mandatory on ALL THREE
+ * create paths at once, not just the one whose form collects it. M2 (bulk) and
+ * M3 (CSV import) funnel through the same sink and send no DOB, so they begin
+ * rejecting every create the moment this lands and stay broken until their own
+ * inputs are wired. That is the intended order and not an oversight: the guard
+ * goes in first so there is no window in which a student row can be created
+ * without one, and the paths catch up behind it.
  */
 export const studentDemographicsSchema = insertStudentMemberSchema.pick({
   studentName: true,
   studentGender: true,
   grade: true,
+  dateOfBirth: true,
 });
 export type StudentDemographics = z.infer<typeof studentDemographicsSchema>;
 
