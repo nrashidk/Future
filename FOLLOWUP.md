@@ -1556,3 +1556,11 @@ class as the orphan-user bug fixed in 8c07e25.
 
 Distinct from the assessments cascade gap (47c5067): that one needs Phase 6 reconciliation,
 this one is a missing UPDATE on a path that has no transaction. First flagged 2026-09-07.
+
+### studentGender accepts any non-empty string  (severity: low)
+shared/schema.ts:157 documents 'male' | 'female' as the allowed values, but nothing enforces
+it — not the create path (studentDemographicsSchema, schema.ts:1084-1088), not the PATCH
+path, and no DB constraint. Any non-empty string is stored. Adding an enum must cover both
+paths in one change; doing it on edit only would make create and edit diverge, which is the
+drift the shared-split extraction was written to prevent. Existing prod rows are all 'male'
+or 'female', so a CHECK is currently addable without a backfill. First flagged 2026-09-07.
