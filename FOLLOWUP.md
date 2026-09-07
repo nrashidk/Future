@@ -26,167 +26,6 @@ NARRATIVE POLISH (minor, noticed in the first full prod PDF): LLM reasoning stil
 subjects are "Business"/"Art" (pre-umbrella-6 phrasing); "Next Steps" says "Take Business further"
 even for non-business careers. Cosmetic, not broken.
 
-## Deferred / triage
-
-### PDF omits grade-branch action steps  (severity: medium — product decision)
-The grade-branched "Next Steps" (explore/narrow/apply bands from generateEnhancedActionSteps) render ONLY on the on-screen report (Results.tsx). ResultsPrint.tsx (the Puppeteer PDF) fetches premiumActionSteps in its payload but never renders them — grep-confirmed no action-step reference in the file. Since the PDF is the parent-shareable artifact and grade-tailored steps are the feature's payoff, this may be an unintended gap. DECISION NEEDED: is the PDF meant to include action steps? If yes, adding the block is a scoped change requiring its own Chrome 150 PDF verification. Verified on-screen for grades 12 (Band 3) and 10 (Band 2) on 2026-07-06.
-
-### getRecommendationsByAssessment has no ORDER BY  (severity: low — latent)
-storage.ts (~965–969): bare select().from().where(eq(assessmentId)) with no ORDER BY. Insertion is best-match-first, but Postgres doesn't guarantee row order without ORDER BY, and the PATCH re-run does delete→re-insert (recommendations.routes.ts:147), so heap reuse can reorder. Harmless TODAY because the only consumers relying on order (the hoisted Work Style / Strengths panels via .find()) read career-NEUTRAL fields, so which row wins doesn't matter. Becomes a real bug the moment anything relies on recommendations[0] being the top match, or .find() on a career-SPECIFIC field. Fix: add explicit ORDER BY (e.g. overallScore desc) to the query. Would need verification against a PATCH re-run.
-
-### Local dev blocked — missing env secrets  (severity: low — dev ergonomics)
-npm run dev fails: .env in Codespaces has only DATABASE_URL. Server validation also requires SESSION_SECRET, SUPERADMIN_EMAILS, DB_ENCRYPTION_KEY. SESSION_SECRET and SUPERADMIN_EMAILS can be dev-appropriate values; DB_ENCRYPTION_KEY MUST match the Render literal exactly or the app cannot decrypt api_credentials (do NOT generate a fresh one). Until populated, local render testing isn't possible — verification has to go through deploy-to-Render. Non-blocking but costs a deploy cycle per UI check.
-
-### CSP blocks an inline event handler on report page — RESOLVED (fixed 2026-07-07 in b729bb7, closed 2026-09-05)
-Not a user action, which is why the console message was misleading. The blocked handler was `onload="this.media='all'"` on the Google Fonts `<link>` in client/index.html — the `media="print"` non-blocking font trick. CSP's `script-src-attr 'none'` blocked the flip, so the stylesheet stayed `media="print"` and the fonts never applied, on **every** page (not just the report — index.html is the shared shell). Nothing the user clicks was broken; the symptom was app-wide fallback to system fonts. Fixed 2026-07-07 in b729bb7: the flip moved into bundled JS at client/src/main.tsx:10-18, keyed off a `.async-font` class on the link, with an `l.sheet` check for the already-loaded case. CSP unchanged — violation removed, not permitted; `<noscript>` fallback retained. This entry was logged 2026-07-06, one day before the fix, and never closed. VERIFIED 2026-09-05: live prod console on results?assessmentId=23f6008e shows no script-src-attr violation.
-
-### favoriteSubjects & dreamGuidance free-text reaches LLM prompt unsanitized  (severity: low — pre-existing injection vector)
-{{favoriteSubjects}} is student-controlled free-text interpolated verbatim into the career_reasoning (and education_pathways) prompts via replaceTemplateVariables. A crafted value could inject instructions into the student's OWN narrative. Blast radius is limited: confirmed the API key is NOT in the model's context and each call carries only that one student's data, so no key exfiltration and no cross-student access — worst case is a student manipulating their own report text. {{dreamGuidance}} is the same class of vector: it renders the student's free-text careerAspirations into the career_reasoning prompt (guardrailed into an instruction block, but still student-controlled free-text), with the same blast radius (student's own report, API key not in model context). Pre-existing, independent of the Step 5 template change. Fix: constrain both fields at the WRITE boundary (validate/whitelist favoriteSubjects against the known subject catalog on save; sanitize/bound careerAspirations), and audit existing stored values. First flagged 2026-07-06.
-
-### Dependency vulnerabilities flagged by Dependabot  (severity: TBD — needs review)
-Investigation only, no fix applied. **The counts reconcile exactly** — Dependabot and npm audit see the SAME 3 packages, just counted differently.
-
-**Counts.** Dependabot (default branch): 10 alerts — 4 high, 4 moderate, 2 low. Render build-time `npm audit`: 3 vulnerabilities — 1 moderate, 2 high. Local `npm audit` (2026-07-07): identical to Render — 3 (1 moderate, 2 high). The gap is NOT devDependencies or extra GitHub advisories: it's **per-advisory vs per-package counting**. npm audit rolls each package up to its single highest severity (3 packages → 2 high + 1 moderate); Dependabot lists every advisory separately. The 3 packages carry 10 advisories between them: undici 7 (3 high, 2 moderate, 2 low), multer 2 (1 high, 1 moderate), dompurify 1 (1 moderate) = **4 high / 4 moderate / 2 low — an exact match to Dependabot's 10.** Mystery resolved; nothing hidden in the dev graph.
-
-**The 3 packages** (all in `dependencies`, none in devDependencies):
-| package | severity (max) | direct/transitive | path | runtime? | current→fix |
-|---|---|---|---|---|---|
-| multer | high | **direct** (`multer@^2.1.1`) | 2 DoS CVEs (deep nested field names; incomplete cleanup of aborted uploads) | **YES — request path.** File-upload middleware in files.routes.ts + admin.routes.ts (CSV/JSON bulk student import, image/logo uploads) | 2.1.1 → 2.2.0 |
-| dompurify | moderate | transitive (via `isomorphic-dompurify` → dompurify) | ALLOWED_ATTR pollution via setConfig() | **YES — request path.** Used by server/utils/sanitize.ts + contribution.routes.ts to sanitize user input at runtime | 3.4.9 → 3.4.11 |
-| undici | high | transitive (via `isomorphic-dompurify` → jsdom → undici) | 7 CVEs (SOCKS5 TLS-bypass, Set-Cookie header injection, WebSocket DoS, proxy pool reuse, keep-alive queue poisoning, SameSite downgrade, cache disclosure) | **Effectively NO.** jsdom bundles undici as its HTTP client, but isomorphic-dompurify uses jsdom only to build a DOM for sanitization — it makes no outbound HTTP with undici, and every undici CVE requires actually issuing requests through it. Present in the graph, not exercised on any request path. (Node 22 also ships its own separate built-in undici; this is jsdom's copy.) Lower real urgency despite the "high" label | 7.27.2 → 7.28.0 |
-
-**Fixability — all three resolve with plain `npm audit fix`; NONE need `--force`.** Confirmed via `npm audit fix --dry-run` (non-mutating): multer 2.1.1→2.2.0 (minor, same major), undici 7.27.2→7.28.0 (minor, same major), dompurify 3.4.9→3.4.11 (patch). No major-version bump, no SEMVER-breaking warning, no `--force` prompt. The dry-run also lists ~68 "added" packages — those are just platform-specific optional binaries (lightningcss / rollup / tailwind oxide) enumerated on this Linux box, unrelated to the security changes; the only real diff is the 3 `change` lines above.
-
-**Priority read:** multer is the one that matters — direct dep, high severity, squarely in the request path (student file uploads). dompurify moderate but also on the request path. undici is high-labeled but not reachable through our usage. Even so, all three go away with a single non-breaking `npm audit fix`.
-
-**Caveat before applying (per instructions — not done here):** verify the bumps don't disturb the build, especially anything touching vite/esbuild/puppeteer/drizzle. These three don't obviously touch that chain (multer is Express upload; dompurify/undici come in via isomorphic-dompurify/jsdom), but run a build + the upload paths after fixing. First flagged 2026-07-07.
-
-### Career-reasoning prompt contradicts quiz results  (severity: medium-high — credibility)
-Confirmed in a live prod PDF (assessment 23f6008e, 2026-09-05). The subject-strengths block shows Mathematics 0% (0 of 4 correct), while the LLM "Why This Career?" narratives praise Mathematics as a strength on three of five careers: Product Manager ("your love of Mathematics supports the analytical side"), Journalist ("Mathematics sharpens the analytical thinking needed to fact-check data"), Marketing Manager ("Mathematics connects to analytics and budgeting"). Cause: the career_reasoning prompt is fed favoriteSubjects (student-declared) with no quiz competency scores, so a failed subject is treated as an asset. Reader can falsify the claim from the same page. Fix: pass per-subject quiz scores into the prompt and instruct the model to frame low-scoring subjects as growth areas, not strengths. Needs a real PDF to verify. First flagged 2026-09-05.
-
-### PDF footer shows wrong date  (severity: low — visible on artifact)
-PDFs rendered 2026-09-05 print "Generated on 9/4/2026". The footer date is not the render date — likely the assessment completion/created date, or a timezone/derivation bug. Find the source of that value in ResultsPrint.tsx and confirm what it is meant to show. First flagged 2026-09-05.
-
-### O*NET US growth band surfaced in a top-3 match  (severity: medium — already parked, now confirmed live)
-Same PDF: Journalist ranked #3 with "Growth Outlook: Declining — projected decline". That is a US BLS-derived band shown to a UAE grade-12 student. Concrete instance of the parked O*NET-US-data-exposure item (see "MULTI-COUNTRY / LOCALIZATION — parked workstream", PARKED ITEMS #1, ~line 1375); growth bands need localization or suppression before go-live. First flagged 2026-09-05.
-
-### Logged-out visitor gets a rendered report shell with a Download button  (severity: medium)
-Observed live 2026-09-05 on results?assessmentId=23f6008e in a logged-out session. Server-side gating is CORRECT — /api/assessments/:id returns 403 and /api/assessments/:id/quiz returns 404, no data leaks. But the client renders the full report shell anyway: hero, "Download PDF Report" button, and the upsell block, wrapped around data it never received. Should redirect to login. Clicking Download in that state 403s. Also note the inconsistent authz shape: 403 on one endpoint, 404 on the other for the same unauthorized request. Belongs with Phase 5 (guest->account claim, free-account access). First flagged 2026-09-05.
-
-### Arabic report renders canonical English values and English action steps  (severity: medium-high)
-Observed live 2026-09-05 on the Arabic report (screenshots taken from prod). Four gaps, two causes:
-
-STORED-VALUE DISPLAY (canonical English shown raw instead of translated):
-- Subject names in the Subject Strengths block: "Social Studies", "Arabic", "Mathematics", "Science", "Computer Science" render in English while the surrounding labels and "٤ من ٤ صحيح" are correctly Arabic. The subject id is canonical English by design (SubjectsStep.tsx:36-47, persisted at :73/:78 so it matches subjects.name and quiz_questions.subject). SubjectsStep itself translates for display via t(subject.labelKey) at :157 — the report does not. Fix: route stored subject ids through the same locale keys at render on both Results.tsx and ResultsPrint.tsx. Scope trap: the id->labelKey map lives only as a private array literal in SubjectsStep.tsx:40-47. Neither Results.tsx nor ResultsPrint.tsx imports it, and the print page can't reach component-local state. The real fix is extract the six-entry map to shared/ first, then consume it in three places — which also removes the hand-duplication drift the comment at SubjectsStep.tsx:36-39 warns about.
-- Country renders in English. Data already exists — countries carry nameAr/missionAr/visionAr/prioritySectorsAr and CountryStep.tsx:233/251/260 already reads them. The report simply isn't using them. Cheap render fix.
-- Curriculum renders in English, and this one is NOT the same fix. There is no Arabic anywhere: shared/schema.ts:235 stores curriculum as a bare text column, CountryStep.tsx:215-217 renders the raw string. Translating it needs new data — a locale map keyed on the four values ("MOE National", "British", "American", "IB"), or an Ar column. Data work, not a render change.
-
-GENERATED CONTENT NOT LANGUAGE-AWARE:
-- "Next Steps" / الخطوات التالية items render as English sentences inside the Arabic report ("Complete Bachelor's degree in Computer Science or related field", "Build skills in: Programming, Problem Solving, Data Structures"). Education Path is affected too. These are composed server-side, not locale keys, so the generator needs the assessment language. Worst of the four: this is the report's payoff section and is unreadable to an Arabic-first parent.
-
-Also flagged: the Arabic report offers "get your full PDF report" wording that leads to the purchase page rather than a download. Check whether the English copy is equally misleading or whether the Arabic translation overpromises. Not a translation bug — a copy/gating question.
-
-None of this is a regression from 3ba4941; all pre-existing. Belongs with the parked multi-country/localization workstream. First flagged 2026-09-05.
-
-Also unreviewed: admin.json Arabic keys added 2026-09-05 for student-create validation (genderRequired, selectGenderReq, fieldRequired) were derived by mirroring the shape of existing entries rather than translated. Needs a native-Arabic reviewer pass. Admin-facing, not student-facing.
-
-Extended 2026-09-05: three further admin.json keys added the same day for the school create/edit forms (countryRequired, selectCountryReq, countryNoCurricula) — same reviewer pass. Two are shape-mirrors like the batch above (countryRequired follows gradeRequired; selectCountryReq is selectCountryOptional minus its parenthetical). countryNoCurricula is different and carries more risk: it is a full sentence translated rather than derived from an existing string, so nothing constrains it to house wording. All six are admin-facing, not student-facing.
-
-Extended 2026-09-07: one more, curriculumLockedNote, added with the country/curriculum lock on the school edit form. Same reviewer pass, and the riskiest of the batch so far — two full sentences with an {{n}} interpolation, translated rather than derived from any existing string, explaining WHY a control is disabled. If the Arabic is unclear the admin sees a dead select and no working explanation, which is worse than the untranslated case. Also unresolved for Arabic: the sentence reads "{{n}} مسجلين" for every count including 1, since the key interpolates n rather than i18next's count and so gets no plural forms; Arabic needs more forms than English, not fewer. A sibling key, curriculumLockedChecking, was added the same day for the still-loading state and carries the same caveat. Admin-facing, not student-facing.
-
-Extended again 2026-09-07 (df937e3): seven more admin.json keys for the edit-student form — editStudentTitle, editStudentDesc, editStudentUsernameHint, updateStudentBtn, updatingStudent, studentUpdateSuccess, studentUpdateError. Same reviewer pass. Four are shape-mirrors of the create-form equivalents directly above them in the file (updateStudentBtn / updatingStudent follow createStudentAccountBtn / creatingStudentBtn; studentUpdateSuccess / studentUpdateError follow studentCreateSuccess / studentCreateError) and carry little risk. Three are new translated sentences and are the ones to check: editStudentDesc and editStudentUsernameHint both promise that the student's username and password will NOT change, which is the reassurance that stops an admin avoiding the form for fear of breaking a credential they have already handed out — if that promise does not read clearly in Arabic the key has failed at its only job. editStudentDesc also interpolates {{username}}, so the Arabic must place a Latin-script credential inside an RTL sentence without the surrounding text reordering around it; check it rendered, not just read. All seven are admin-facing, not student-facing.
-
-Extended again 2026-09-07 (e9f8d81) — AND THIS BATCH IS DIFFERENT: four assessment.json keys for the school-owned fields on the Basic Info and Country steps — demographics.schoolOwnedNote, country.setBySchoolTitle, country.schoolOwnedNote, country.notSetBySchool. Every earlier batch in this note ended "admin-facing, not student-facing" and could wait for a reviewer. These are read by 13-18 year old students, in the assessment itself, and they are the ONLY explanation a student gets for why three fields on one screen and two on another will not accept input. A student who cannot read the reason sees a form that appears broken and has no way to learn that their school set those values or that their school administrator is who fixes a wrong one. Treat as the first student-facing entry in this note and review before the Arabic assessment flow is shown to a real school. demographics.schoolOwnedNote carries the extra load of saying that age, alone among the four fields on that screen, is still theirs to set — if that clause is lost in translation the student is left assuming the whole screen is locked.
-
-### SuperadminDashboard renders raw error blobs  (severity: low)
-serverErrorMessage (client/src/lib/queryClient.ts) was added 2026-09-05 to parse the
-"STATUS: {json}" shape that throwIfResNotOk produces, and applied across
-AdminOrganizations.tsx. SuperadminDashboard.tsx still uses the raw `error.message ||`
-pattern in its own mutations, so it shows users the status code and JSON body. The helper
-is exported and ready; this is a mechanical follow-up. First flagged 2026-09-05.
-
-### The org-student journey has no language control at any point  (severity: medium)
-There is no app-wide layout — App.tsx:130-151 routes straight to page components, and
-components/layout/Header (which owns the toggle at :114-120, rendered :144-153 desktop and
-:159-168 mobile) is imported only by Landing.tsx. Three pages hand-roll their own copy:
-Login.tsx:62, Register.tsx:91, Profile.tsx:192.
-
-StudentLogin.tsx — a school student's actual entry point — has no useLanguage at all.
-Assessment.tsx:826-940 builds its own inline header and never got a language control.
-Results.tsx reads language but cannot set it. So login -> assessment -> results has no
-language control anywhere, for the cohort most likely to want Arabic. Their only route today
-is the Profile button mid-assessment, i.e. leaving through the leave-confirm guard.
-
-Fix is extracting a shared LanguageToggle and using it in all five places — not adding a
-fifth hand-rolled copy. Three things to settle first:
-- setLanguage PATCHes /api/users/me/language (LanguageContext.tsx:73), so a mid-assessment
-  switch persists to users.preferredLanguage and changes the language of server-generated
-  narrative and the report. Probably wanted, but it should be a decision, not a side effect.
-- RTL through the assessment steps is untested; "Bug B — RTL career-page layout", under
-  STILL OPEN in the "Arabic PDF report — session 2026-06-30" session-log entry, already
-  carries open BIDI and overflow items against the Arabic report.
-- BLOCKED ON: the four student-facing Arabic strings from ec2a54f are unreviewed. A switcher
-  makes them reachable. Review before adding the toggle, not after.
-First flagged 2026-09-07.
-
-### DB endpoint guard is a blacklist and fails open on an unknown endpoint  (severity: medium)
-server/db.ts:20 and drizzle.config.ts:18 refuse ONE hardcoded production endpoint id,
-defaulted in source. Anything unrecognised is permitted, so a recreated Neon branch with a
-new id, or a typo'd PRODUCTION_DB_ENDPOINT_ID, silently disarms the guard. The id is also
-published in a public repo, and the same id is hardcoded as an ABORT check in five
-scripts/oneoff/*.cjs files (those fail closed, so they are safe, just disclosing).
-
-A whitelist inversion was written and verified on 2026-09-07 (shared/dbEndpoint.ts, both call
-sites sharing one module, 14 tests, drizzle-kit resolution confirmed end to end) but parked
-before commit: it is a boot-path change requiring ALLOWED_DB_ENDPOINT_ID on Render before
-deploy, and the service refuses to start without it.
-
-Note the tradeoff if resumed: a whitelist alone moves prod access from a typed override
-(ALLOW_PRODUCTION_DB=true, required each time) into a config file that can go stale. Consider
-keeping the override on top of the whitelist. First flagged 2026-09-07.
-
-### Curriculum rename does not cascade to assessments  (severity: medium, Phase 6)
-renameCurriculumInSubjects and renameCurriculumInQuizQuestions (storage.ts:854-881) cascade a
-curriculum rename through subjects and quiz_questions, but stop short of assessments.
-assessments.curriculum keeps the old string, so a renamed curriculum leaves existing
-assessment rows pointing at a value no longer in countries.curricula. This is the same
-reconciliation gap that blocks a superadmin override on the org curriculum lock (01e20cf) —
-neither can be closed until something can re-scope existing assessment rows. Phase 6.
-First flagged 2026-09-07.
-
-### Curriculum rename orphans organizations.curriculum, and the lock blocks recovery  (severity: medium-high)
-POST /api/superadmin/countries/:id/curricula/rename (superadmin.routes.ts:2385-2432) rewrites
-countries.curricula, subjects and quiz_questions, but not organizations.curriculum. A renamed
-curriculum leaves every school on it holding a string that no longer appears in
-countries.curricula.
-
-Consequences, which compound:
-- The school's stored curriculum no longer matches the edit form's availableCurricula lookup,
-  so the dropdown cannot offer the value back.
-- Enrolment (549cd43) and org creation (81ea920) both gate on the school's curriculum.
-- If the school has students, the immutability lock (01e20cf) prevents correcting it at all.
-
-Net: a superadmin rename can put a school into a state only a direct DB write can fix. The
-rename is the only path that produces it, so the fix belongs there, not as a carve-out
-in the lock. Note the scope is larger than one UPDATE: the route runs four sequential
-writes with no transaction at all (superadmin.routes.ts:2380-2432 — updateCountry,
-renameCurriculumInSubjects, renameCurriculumInQuizQuestions, clearSubjectCache), so a
-partial failure today already leaves a rename half-applied with no rollback and a 500 that
-says nothing about how far it got. Fixing this means wrapping all four writes plus the new
-organizations.curriculum update in a transaction that does not currently exist. Same defect
-class as the orphan-user bug fixed in 8c07e25.
-
-Distinct from the assessments cascade gap (47c5067): that one needs Phase 6 reconciliation,
-this one is a missing UPDATE on a path that has no transaction. First flagged 2026-09-07.
-
-### studentGender accepts any non-empty string  (severity: low)
-shared/schema.ts:157 documents 'male' | 'female' as the allowed values, but nothing enforces
-it — not the create path (studentDemographicsSchema, schema.ts:1084-1088), not the PATCH
-path, and no DB constraint. Any non-empty string is stored. Adding an enum must cover both
-paths in one change; doing it on edit only would make create and edit diverge, which is the
-drift the shared-split extraction was written to prevent. Existing prod rows are all 'male'
-or 'female', so a CHECK is currently addable without a backfill. First flagged 2026-09-07.
-
 ## Session log
 
 ### Arabic PDF report — session 2026-06-30
@@ -1613,3 +1452,164 @@ broken on staging and prod until the create path sends studentName
 splits fullName into users.firstName/lastName and leaves the member row's student_name
 NULL, which now violates the constraint). No real schools exist, so nothing is affected in
 practice. Fixed in the follow-up.
+
+## Deferred / triage
+
+### PDF omits grade-branch action steps  (severity: medium — product decision)
+The grade-branched "Next Steps" (explore/narrow/apply bands from generateEnhancedActionSteps) render ONLY on the on-screen report (Results.tsx). ResultsPrint.tsx (the Puppeteer PDF) fetches premiumActionSteps in its payload but never renders them — grep-confirmed no action-step reference in the file. Since the PDF is the parent-shareable artifact and grade-tailored steps are the feature's payoff, this may be an unintended gap. DECISION NEEDED: is the PDF meant to include action steps? If yes, adding the block is a scoped change requiring its own Chrome 150 PDF verification. Verified on-screen for grades 12 (Band 3) and 10 (Band 2) on 2026-07-06.
+
+### getRecommendationsByAssessment has no ORDER BY  (severity: low — latent)
+storage.ts (~965–969): bare select().from().where(eq(assessmentId)) with no ORDER BY. Insertion is best-match-first, but Postgres doesn't guarantee row order without ORDER BY, and the PATCH re-run does delete→re-insert (recommendations.routes.ts:147), so heap reuse can reorder. Harmless TODAY because the only consumers relying on order (the hoisted Work Style / Strengths panels via .find()) read career-NEUTRAL fields, so which row wins doesn't matter. Becomes a real bug the moment anything relies on recommendations[0] being the top match, or .find() on a career-SPECIFIC field. Fix: add explicit ORDER BY (e.g. overallScore desc) to the query. Would need verification against a PATCH re-run.
+
+### Local dev blocked — missing env secrets  (severity: low — dev ergonomics)
+npm run dev fails: .env in Codespaces has only DATABASE_URL. Server validation also requires SESSION_SECRET, SUPERADMIN_EMAILS, DB_ENCRYPTION_KEY. SESSION_SECRET and SUPERADMIN_EMAILS can be dev-appropriate values; DB_ENCRYPTION_KEY MUST match the Render literal exactly or the app cannot decrypt api_credentials (do NOT generate a fresh one). Until populated, local render testing isn't possible — verification has to go through deploy-to-Render. Non-blocking but costs a deploy cycle per UI check.
+
+### CSP blocks an inline event handler on report page — RESOLVED (fixed 2026-07-07 in b729bb7, closed 2026-09-05)
+Not a user action, which is why the console message was misleading. The blocked handler was `onload="this.media='all'"` on the Google Fonts `<link>` in client/index.html — the `media="print"` non-blocking font trick. CSP's `script-src-attr 'none'` blocked the flip, so the stylesheet stayed `media="print"` and the fonts never applied, on **every** page (not just the report — index.html is the shared shell). Nothing the user clicks was broken; the symptom was app-wide fallback to system fonts. Fixed 2026-07-07 in b729bb7: the flip moved into bundled JS at client/src/main.tsx:10-18, keyed off a `.async-font` class on the link, with an `l.sheet` check for the already-loaded case. CSP unchanged — violation removed, not permitted; `<noscript>` fallback retained. This entry was logged 2026-07-06, one day before the fix, and never closed. VERIFIED 2026-09-05: live prod console on results?assessmentId=23f6008e shows no script-src-attr violation.
+
+### favoriteSubjects & dreamGuidance free-text reaches LLM prompt unsanitized  (severity: low — pre-existing injection vector)
+{{favoriteSubjects}} is student-controlled free-text interpolated verbatim into the career_reasoning (and education_pathways) prompts via replaceTemplateVariables. A crafted value could inject instructions into the student's OWN narrative. Blast radius is limited: confirmed the API key is NOT in the model's context and each call carries only that one student's data, so no key exfiltration and no cross-student access — worst case is a student manipulating their own report text. {{dreamGuidance}} is the same class of vector: it renders the student's free-text careerAspirations into the career_reasoning prompt (guardrailed into an instruction block, but still student-controlled free-text), with the same blast radius (student's own report, API key not in model context). Pre-existing, independent of the Step 5 template change. Fix: constrain both fields at the WRITE boundary (validate/whitelist favoriteSubjects against the known subject catalog on save; sanitize/bound careerAspirations), and audit existing stored values. First flagged 2026-07-06.
+
+### Dependency vulnerabilities flagged by Dependabot  (severity: TBD — needs review)
+Investigation only, no fix applied. **The counts reconcile exactly** — Dependabot and npm audit see the SAME 3 packages, just counted differently.
+
+**Counts.** Dependabot (default branch): 10 alerts — 4 high, 4 moderate, 2 low. Render build-time `npm audit`: 3 vulnerabilities — 1 moderate, 2 high. Local `npm audit` (2026-07-07): identical to Render — 3 (1 moderate, 2 high). The gap is NOT devDependencies or extra GitHub advisories: it's **per-advisory vs per-package counting**. npm audit rolls each package up to its single highest severity (3 packages → 2 high + 1 moderate); Dependabot lists every advisory separately. The 3 packages carry 10 advisories between them: undici 7 (3 high, 2 moderate, 2 low), multer 2 (1 high, 1 moderate), dompurify 1 (1 moderate) = **4 high / 4 moderate / 2 low — an exact match to Dependabot's 10.** Mystery resolved; nothing hidden in the dev graph.
+
+**The 3 packages** (all in `dependencies`, none in devDependencies):
+| package | severity (max) | direct/transitive | path | runtime? | current→fix |
+|---|---|---|---|---|---|
+| multer | high | **direct** (`multer@^2.1.1`) | 2 DoS CVEs (deep nested field names; incomplete cleanup of aborted uploads) | **YES — request path.** File-upload middleware in files.routes.ts + admin.routes.ts (CSV/JSON bulk student import, image/logo uploads) | 2.1.1 → 2.2.0 |
+| dompurify | moderate | transitive (via `isomorphic-dompurify` → dompurify) | ALLOWED_ATTR pollution via setConfig() | **YES — request path.** Used by server/utils/sanitize.ts + contribution.routes.ts to sanitize user input at runtime | 3.4.9 → 3.4.11 |
+| undici | high | transitive (via `isomorphic-dompurify` → jsdom → undici) | 7 CVEs (SOCKS5 TLS-bypass, Set-Cookie header injection, WebSocket DoS, proxy pool reuse, keep-alive queue poisoning, SameSite downgrade, cache disclosure) | **Effectively NO.** jsdom bundles undici as its HTTP client, but isomorphic-dompurify uses jsdom only to build a DOM for sanitization — it makes no outbound HTTP with undici, and every undici CVE requires actually issuing requests through it. Present in the graph, not exercised on any request path. (Node 22 also ships its own separate built-in undici; this is jsdom's copy.) Lower real urgency despite the "high" label | 7.27.2 → 7.28.0 |
+
+**Fixability — all three resolve with plain `npm audit fix`; NONE need `--force`.** Confirmed via `npm audit fix --dry-run` (non-mutating): multer 2.1.1→2.2.0 (minor, same major), undici 7.27.2→7.28.0 (minor, same major), dompurify 3.4.9→3.4.11 (patch). No major-version bump, no SEMVER-breaking warning, no `--force` prompt. The dry-run also lists ~68 "added" packages — those are just platform-specific optional binaries (lightningcss / rollup / tailwind oxide) enumerated on this Linux box, unrelated to the security changes; the only real diff is the 3 `change` lines above.
+
+**Priority read:** multer is the one that matters — direct dep, high severity, squarely in the request path (student file uploads). dompurify moderate but also on the request path. undici is high-labeled but not reachable through our usage. Even so, all three go away with a single non-breaking `npm audit fix`.
+
+**Caveat before applying (per instructions — not done here):** verify the bumps don't disturb the build, especially anything touching vite/esbuild/puppeteer/drizzle. These three don't obviously touch that chain (multer is Express upload; dompurify/undici come in via isomorphic-dompurify/jsdom), but run a build + the upload paths after fixing. First flagged 2026-07-07.
+
+### Career-reasoning prompt contradicts quiz results  (severity: medium-high — credibility)
+Confirmed in a live prod PDF (assessment 23f6008e, 2026-09-05). The subject-strengths block shows Mathematics 0% (0 of 4 correct), while the LLM "Why This Career?" narratives praise Mathematics as a strength on three of five careers: Product Manager ("your love of Mathematics supports the analytical side"), Journalist ("Mathematics sharpens the analytical thinking needed to fact-check data"), Marketing Manager ("Mathematics connects to analytics and budgeting"). Cause: the career_reasoning prompt is fed favoriteSubjects (student-declared) with no quiz competency scores, so a failed subject is treated as an asset. Reader can falsify the claim from the same page. Fix: pass per-subject quiz scores into the prompt and instruct the model to frame low-scoring subjects as growth areas, not strengths. Needs a real PDF to verify. First flagged 2026-09-05.
+
+### PDF footer shows wrong date  (severity: low — visible on artifact)
+PDFs rendered 2026-09-05 print "Generated on 9/4/2026". The footer date is not the render date — likely the assessment completion/created date, or a timezone/derivation bug. Find the source of that value in ResultsPrint.tsx and confirm what it is meant to show. First flagged 2026-09-05.
+
+### O*NET US growth band surfaced in a top-3 match  (severity: medium — already parked, now confirmed live)
+Same PDF: Journalist ranked #3 with "Growth Outlook: Declining — projected decline". That is a US BLS-derived band shown to a UAE grade-12 student. Concrete instance of the parked O*NET-US-data-exposure item (see "MULTI-COUNTRY / LOCALIZATION — parked workstream", PARKED ITEMS #1, ~line 1375); growth bands need localization or suppression before go-live. First flagged 2026-09-05.
+
+### Logged-out visitor gets a rendered report shell with a Download button  (severity: medium)
+Observed live 2026-09-05 on results?assessmentId=23f6008e in a logged-out session. Server-side gating is CORRECT — /api/assessments/:id returns 403 and /api/assessments/:id/quiz returns 404, no data leaks. But the client renders the full report shell anyway: hero, "Download PDF Report" button, and the upsell block, wrapped around data it never received. Should redirect to login. Clicking Download in that state 403s. Also note the inconsistent authz shape: 403 on one endpoint, 404 on the other for the same unauthorized request. Belongs with Phase 5 (guest->account claim, free-account access). First flagged 2026-09-05.
+
+### Arabic report renders canonical English values and English action steps  (severity: medium-high)
+Observed live 2026-09-05 on the Arabic report (screenshots taken from prod). Four gaps, two causes:
+
+STORED-VALUE DISPLAY (canonical English shown raw instead of translated):
+- Subject names in the Subject Strengths block: "Social Studies", "Arabic", "Mathematics", "Science", "Computer Science" render in English while the surrounding labels and "٤ من ٤ صحيح" are correctly Arabic. The subject id is canonical English by design (SubjectsStep.tsx:36-47, persisted at :73/:78 so it matches subjects.name and quiz_questions.subject). SubjectsStep itself translates for display via t(subject.labelKey) at :157 — the report does not. Fix: route stored subject ids through the same locale keys at render on both Results.tsx and ResultsPrint.tsx. Scope trap: the id->labelKey map lives only as a private array literal in SubjectsStep.tsx:40-47. Neither Results.tsx nor ResultsPrint.tsx imports it, and the print page can't reach component-local state. The real fix is extract the six-entry map to shared/ first, then consume it in three places — which also removes the hand-duplication drift the comment at SubjectsStep.tsx:36-39 warns about.
+- Country renders in English. Data already exists — countries carry nameAr/missionAr/visionAr/prioritySectorsAr and CountryStep.tsx:233/251/260 already reads them. The report simply isn't using them. Cheap render fix.
+- Curriculum renders in English, and this one is NOT the same fix. There is no Arabic anywhere: shared/schema.ts:235 stores curriculum as a bare text column, CountryStep.tsx:215-217 renders the raw string. Translating it needs new data — a locale map keyed on the four values ("MOE National", "British", "American", "IB"), or an Ar column. Data work, not a render change.
+
+GENERATED CONTENT NOT LANGUAGE-AWARE:
+- "Next Steps" / الخطوات التالية items render as English sentences inside the Arabic report ("Complete Bachelor's degree in Computer Science or related field", "Build skills in: Programming, Problem Solving, Data Structures"). Education Path is affected too. These are composed server-side, not locale keys, so the generator needs the assessment language. Worst of the four: this is the report's payoff section and is unreadable to an Arabic-first parent.
+
+Also flagged: the Arabic report offers "get your full PDF report" wording that leads to the purchase page rather than a download. Check whether the English copy is equally misleading or whether the Arabic translation overpromises. Not a translation bug — a copy/gating question.
+
+None of this is a regression from 3ba4941; all pre-existing. Belongs with the parked multi-country/localization workstream. First flagged 2026-09-05.
+
+Also unreviewed: admin.json Arabic keys added 2026-09-05 for student-create validation (genderRequired, selectGenderReq, fieldRequired) were derived by mirroring the shape of existing entries rather than translated. Needs a native-Arabic reviewer pass. Admin-facing, not student-facing.
+
+Extended 2026-09-05: three further admin.json keys added the same day for the school create/edit forms (countryRequired, selectCountryReq, countryNoCurricula) — same reviewer pass. Two are shape-mirrors like the batch above (countryRequired follows gradeRequired; selectCountryReq is selectCountryOptional minus its parenthetical). countryNoCurricula is different and carries more risk: it is a full sentence translated rather than derived from an existing string, so nothing constrains it to house wording. All six are admin-facing, not student-facing.
+
+Extended 2026-09-07: one more, curriculumLockedNote, added with the country/curriculum lock on the school edit form. Same reviewer pass, and the riskiest of the batch so far — two full sentences with an {{n}} interpolation, translated rather than derived from any existing string, explaining WHY a control is disabled. If the Arabic is unclear the admin sees a dead select and no working explanation, which is worse than the untranslated case. Also unresolved for Arabic: the sentence reads "{{n}} مسجلين" for every count including 1, since the key interpolates n rather than i18next's count and so gets no plural forms; Arabic needs more forms than English, not fewer. A sibling key, curriculumLockedChecking, was added the same day for the still-loading state and carries the same caveat. Admin-facing, not student-facing.
+
+Extended again 2026-09-07 (df937e3): seven more admin.json keys for the edit-student form — editStudentTitle, editStudentDesc, editStudentUsernameHint, updateStudentBtn, updatingStudent, studentUpdateSuccess, studentUpdateError. Same reviewer pass. Four are shape-mirrors of the create-form equivalents directly above them in the file (updateStudentBtn / updatingStudent follow createStudentAccountBtn / creatingStudentBtn; studentUpdateSuccess / studentUpdateError follow studentCreateSuccess / studentCreateError) and carry little risk. Three are new translated sentences and are the ones to check: editStudentDesc and editStudentUsernameHint both promise that the student's username and password will NOT change, which is the reassurance that stops an admin avoiding the form for fear of breaking a credential they have already handed out — if that promise does not read clearly in Arabic the key has failed at its only job. editStudentDesc also interpolates {{username}}, so the Arabic must place a Latin-script credential inside an RTL sentence without the surrounding text reordering around it; check it rendered, not just read. All seven are admin-facing, not student-facing.
+
+Extended again 2026-09-07 (e9f8d81) — AND THIS BATCH IS DIFFERENT: four assessment.json keys for the school-owned fields on the Basic Info and Country steps — demographics.schoolOwnedNote, country.setBySchoolTitle, country.schoolOwnedNote, country.notSetBySchool. Every earlier batch in this note ended "admin-facing, not student-facing" and could wait for a reviewer. These are read by 13-18 year old students, in the assessment itself, and they are the ONLY explanation a student gets for why three fields on one screen and two on another will not accept input. A student who cannot read the reason sees a form that appears broken and has no way to learn that their school set those values or that their school administrator is who fixes a wrong one. Treat as the first student-facing entry in this note and review before the Arabic assessment flow is shown to a real school. demographics.schoolOwnedNote carries the extra load of saying that age, alone among the four fields on that screen, is still theirs to set — if that clause is lost in translation the student is left assuming the whole screen is locked.
+
+### SuperadminDashboard renders raw error blobs  (severity: low)
+serverErrorMessage (client/src/lib/queryClient.ts) was added 2026-09-05 to parse the
+"STATUS: {json}" shape that throwIfResNotOk produces, and applied across
+AdminOrganizations.tsx. SuperadminDashboard.tsx still uses the raw `error.message ||`
+pattern in its own mutations, so it shows users the status code and JSON body. The helper
+is exported and ready; this is a mechanical follow-up. First flagged 2026-09-05.
+
+### The org-student journey has no language control at any point  (severity: medium)
+There is no app-wide layout — App.tsx:130-151 routes straight to page components, and
+components/layout/Header (which owns the toggle at :114-120, rendered :144-153 desktop and
+:159-168 mobile) is imported only by Landing.tsx. Three pages hand-roll their own copy:
+Login.tsx:62, Register.tsx:91, Profile.tsx:192.
+
+StudentLogin.tsx — a school student's actual entry point — has no useLanguage at all.
+Assessment.tsx:826-940 builds its own inline header and never got a language control.
+Results.tsx reads language but cannot set it. So login -> assessment -> results has no
+language control anywhere, for the cohort most likely to want Arabic. Their only route today
+is the Profile button mid-assessment, i.e. leaving through the leave-confirm guard.
+
+Fix is extracting a shared LanguageToggle and using it in all five places — not adding a
+fifth hand-rolled copy. Three things to settle first:
+- setLanguage PATCHes /api/users/me/language (LanguageContext.tsx:73), so a mid-assessment
+  switch persists to users.preferredLanguage and changes the language of server-generated
+  narrative and the report. Probably wanted, but it should be a decision, not a side effect.
+- RTL through the assessment steps is untested; "Bug B — RTL career-page layout", under
+  STILL OPEN in the "Arabic PDF report — session 2026-06-30" session-log entry, already
+  carries open BIDI and overflow items against the Arabic report.
+- BLOCKED ON: the four student-facing Arabic strings from ec2a54f are unreviewed. A switcher
+  makes them reachable. Review before adding the toggle, not after.
+First flagged 2026-09-07.
+
+### DB endpoint guard is a blacklist and fails open on an unknown endpoint  (severity: medium)
+server/db.ts:20 and drizzle.config.ts:18 refuse ONE hardcoded production endpoint id,
+defaulted in source. Anything unrecognised is permitted, so a recreated Neon branch with a
+new id, or a typo'd PRODUCTION_DB_ENDPOINT_ID, silently disarms the guard. The id is also
+published in a public repo, and the same id is hardcoded as an ABORT check in five
+scripts/oneoff/*.cjs files (those fail closed, so they are safe, just disclosing).
+
+A whitelist inversion was written and verified on 2026-09-07 (shared/dbEndpoint.ts, both call
+sites sharing one module, 14 tests, drizzle-kit resolution confirmed end to end) but parked
+before commit: it is a boot-path change requiring ALLOWED_DB_ENDPOINT_ID on Render before
+deploy, and the service refuses to start without it.
+
+Note the tradeoff if resumed: a whitelist alone moves prod access from a typed override
+(ALLOW_PRODUCTION_DB=true, required each time) into a config file that can go stale. Consider
+keeping the override on top of the whitelist. First flagged 2026-09-07.
+
+### Curriculum rename does not cascade to assessments  (severity: medium, Phase 6)
+renameCurriculumInSubjects and renameCurriculumInQuizQuestions (storage.ts:854-881) cascade a
+curriculum rename through subjects and quiz_questions, but stop short of assessments.
+assessments.curriculum keeps the old string, so a renamed curriculum leaves existing
+assessment rows pointing at a value no longer in countries.curricula. This is the same
+reconciliation gap that blocks a superadmin override on the org curriculum lock (01e20cf) —
+neither can be closed until something can re-scope existing assessment rows. Phase 6.
+First flagged 2026-09-07.
+
+### Curriculum rename orphans organizations.curriculum, and the lock blocks recovery  (severity: medium-high)
+POST /api/superadmin/countries/:id/curricula/rename (superadmin.routes.ts:2385-2432) rewrites
+countries.curricula, subjects and quiz_questions, but not organizations.curriculum. A renamed
+curriculum leaves every school on it holding a string that no longer appears in
+countries.curricula.
+
+Consequences, which compound:
+- The school's stored curriculum no longer matches the edit form's availableCurricula lookup,
+  so the dropdown cannot offer the value back.
+- Enrolment (549cd43) and org creation (81ea920) both gate on the school's curriculum.
+- If the school has students, the immutability lock (01e20cf) prevents correcting it at all.
+
+Net: a superadmin rename can put a school into a state only a direct DB write can fix. The
+rename is the only path that produces it, so the fix belongs there, not as a carve-out
+in the lock. Note the scope is larger than one UPDATE: the route runs four sequential
+writes with no transaction at all (superadmin.routes.ts:2380-2432 — updateCountry,
+renameCurriculumInSubjects, renameCurriculumInQuizQuestions, clearSubjectCache), so a
+partial failure today already leaves a rename half-applied with no rollback and a 500 that
+says nothing about how far it got. Fixing this means wrapping all four writes plus the new
+organizations.curriculum update in a transaction that does not currently exist. Same defect
+class as the orphan-user bug fixed in 8c07e25.
+
+Distinct from the assessments cascade gap (47c5067): that one needs Phase 6 reconciliation,
+this one is a missing UPDATE on a path that has no transaction. First flagged 2026-09-07.
+
+### studentGender accepts any non-empty string  (severity: low)
+shared/schema.ts:157 documents 'male' | 'female' as the allowed values, but nothing enforces
+it — not the create path (studentDemographicsSchema, schema.ts:1084-1088), not the PATCH
+path, and no DB constraint. Any non-empty string is stored. Adding an enum must cover both
+paths in one change; doing it on edit only would make create and edit diverge, which is the
+drift the shared-split extraction was written to prevent. Existing prod rows are all 'male'
+or 'female', so a CHECK is currently addable without a backfill. First flagged 2026-09-07.
