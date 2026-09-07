@@ -234,6 +234,7 @@
     "countryNoCurricula": "This country has no curricula configured. Add them in Country Management first.",
     "curriculumHint": "Students will receive quiz questions aligned with this curriculum",
     "curriculumLockedNote": "Country and curriculum are fixed once a school has students ({{n}} enrolled). Their assessments are drawn from this curriculum's quiz bank, so changing it would leave existing results out of step.",
+    "curriculumLockedChecking": "Checking enrolment. Country and curriculum are fixed once a school has students, so they stay locked until the count is known.",
     "schoolAdminSection": "School Admin Account",
     "schoolAdminSectionDesc": "Create an admin account that can manage students and view reports",
     "firstNameRequired": "First Name *",

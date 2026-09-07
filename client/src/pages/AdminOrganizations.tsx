@@ -171,7 +171,7 @@ export default function AdminOrganizations() {
     return true;
   });
 
-  const { data: members = [], isLoading: membersLoading } = useQuery<OrganizationMember[]>({
+  const { data: members = [], isLoading: membersLoading, isSuccess: membersLoaded } = useQuery<OrganizationMember[]>({
     queryKey: ['/api/admin/organizations', selectedOrgId, 'members'],
     enabled: !!selectedOrgId,
   });
@@ -185,10 +185,17 @@ export default function AdminOrganizations() {
   // can be told without a second request. Admin rows share the members table and
   // are not what the lock is about, hence the role filter.
   //
-  // Reads 0 while that query is in flight, which leaves the selects briefly
-  // editable; the server refuses the PATCH either way. The disable is an
-  // explanation, not the enforcement.
-  const selectedOrgStudentCount = members.filter(m => m.role === 'student').length;
+  // undefined, not 0, until the query has actually resolved: the form treats an
+  // unknown count as LOCKED. `members` defaults to [] while in flight, and
+  // reporting that as "no students" would leave the selects editable for an
+  // admin to start a change the server then refuses — the 400 arriving after the
+  // work, rather than the disable arriving before it. isSuccess rather than
+  // !isLoading because a disabled query (no school selected) is pending, not
+  // loading, and because a fresh queryKey has no data to fall back on when the
+  // selected school changes.
+  const selectedOrgStudentCount = membersLoaded
+    ? members.filter(m => m.role === 'student').length
+    : undefined;
 
   // Auto-select first organization for org_admin when organizations load
   useEffect(() => {
@@ -1245,7 +1252,7 @@ ${t('orgs.credFileImportant')}
   );
 }
 
-function EditOrganizationForm({ organization, studentCount, onSuccess }: { organization: Organization; studentCount: number; onSuccess: () => void }) {
+function EditOrganizationForm({ organization, studentCount, onSuccess }: { organization: Organization; studentCount: number | undefined; onSuccess: () => void }) {
   const { toast } = useToast();
   const { t } = useTranslation('admin');
   const [formData, setFormData] = useState({
@@ -1273,8 +1280,16 @@ function EditOrganizationForm({ organization, studentCount, onSuccess }: { organ
   // records the curriculum it was drawn under. Only a school that already has
   // the field set is locked: filling in a blank one stays open, which is how an
   // unconfigured school is made usable.
-  const countryLocked = studentCount > 0 && !!organization.countryId;
-  const curriculumLocked = studentCount > 0 && !!organization.curriculum;
+  //
+  // An unknown count (undefined — the members query has not resolved) locks too.
+  // The disable exists to tell the admin the rule BEFORE they pick a new
+  // curriculum; defaulting to editable would invert that, letting them make a
+  // change and learn from a 400 that it was never allowed. Failing safe costs at
+  // most a moment of a select being disabled on a school that turns out to have
+  // no students.
+  const countUnknown = studentCount === undefined;
+  const countryLocked = (countUnknown || studentCount > 0) && !!organization.countryId;
+  const curriculumLocked = (countUnknown || studentCount > 0) && !!organization.curriculum;
 
   const mutation = useMutation({
     mutationFn: async (data: typeof formData) => {
@@ -1483,10 +1498,14 @@ function EditOrganizationForm({ organization, studentCount, onSuccess }: { organ
         </div>
 
         {/* Said rather than merely done: a select that will not open reads as a
-            bug unless the reason is on screen. */}
+            bug unless the reason is on screen. The unknown-count wording states
+            the rule without a number — claiming one we do not have would be
+            worse than admitting the check is still running. */}
         {(countryLocked || curriculumLocked) && (
           <p className="text-xs text-muted-foreground" data-testid="note-edit-org-curriculum-locked">
-            {t('orgs.curriculumLockedNote', { n: studentCount })}
+            {countUnknown
+              ? t('orgs.curriculumLockedChecking')
+              : t('orgs.curriculumLockedNote', { n: studentCount })}
           </p>
         )}
 
