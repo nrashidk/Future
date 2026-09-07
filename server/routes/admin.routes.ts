@@ -411,6 +411,23 @@ export function registerAdminRoutes(app: Express) {
       // Before the first student, both stay freely editable: that is the window
       // in which a school is configured, and 549cd43 refuses enrolment until it
       // has been.
+      //
+      // Unconditional, including for superadmins, and deliberately so. An
+      // override would need somewhere for the existing rows to go: every
+      // assessments.curriculum value already written under the old curriculum
+      // stays as it is, and nothing in the codebase re-scopes or re-scores them.
+      // The nearest thing that exists is the curriculum RENAME cascade
+      // (storage.renameCurriculumInSubjects / renameCurriculumInQuizQuestions),
+      // and it is telling that it rewrites subjects and quiz_questions and stops
+      // short of assessments — even relabelling a curriculum leaves those rows
+      // alone.
+      // A superadmin exempted from this guard would therefore reintroduce
+      // exactly the silent invalidation it exists to prevent, with the only
+      // difference being that the person who caused it had the authority to.
+      // The escape hatch cannot be the permission; it has to be the
+      // reconciliation — migrating or re-scoring the affected assessments — and
+      // that is Phase 6 work, not a flag on this branch. Until it exists, the
+      // supported answer is a separate school.
       const changingFields = changedOrgCurriculumFields(existing, { countryId, curriculum });
       if (changingFields.length > 0) {
         // Only counted when an actual change is proposed — a rename or a logo
