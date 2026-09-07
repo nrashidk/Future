@@ -1522,3 +1522,12 @@ broken on staging and prod until the create path sends studentName
 splits fullName into users.firstName/lastName and leaves the member row's student_name
 NULL, which now violates the constraint). No real schools exist, so nothing is affected in
 practice. Fixed in the follow-up.
+
+### Curriculum rename does not cascade to assessments  (severity: medium, Phase 6)
+renameCurriculumInSubjects and renameCurriculumInQuizQuestions (storage.ts:854-881) cascade a
+curriculum rename through subjects and quiz_questions, but stop short of assessments.
+assessments.curriculum keeps the old string, so a renamed curriculum leaves existing
+assessment rows pointing at a value no longer in countries.curricula. This is the same
+reconciliation gap that blocks a superadmin override on the org curriculum lock (01e20cf) —
+neither can be closed until something can re-scope existing assessment rows. Phase 6.
+First flagged 2026-09-07.
