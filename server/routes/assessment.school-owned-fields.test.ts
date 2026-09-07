@@ -105,6 +105,29 @@ describe("resolveSchoolOwnedFields", () => {
     expect(overrides).toEqual({ name: "Ahmed Ali", grade: "grade10", gender: "male" });
   });
 
+  // POST builds its request with every field present (`?? null`) because a
+  // create writes the whole row — a field the client omitted must still come
+  // from the school rather than being left null for a later PATCH to fill in.
+  // `missing` is about the SCHOOL's value being absent, never the client's.
+  it("resolves a field the client did not supply, in the create-shaped call", () => {
+    const requested = { name: null, grade: null, gender: null, countryId: null, curriculum: null };
+    const { overrides, missing } = resolveSchoolOwnedFields(requested, MEMBER, ORG);
+    expect(missing).toEqual([]);
+    expect(overrides).toEqual({
+      name: "Ahmed Ali",
+      grade: "grade10",
+      gender: "male",
+      countryId: "ae",
+      curriculum: "MOE National",
+    });
+  });
+
+  it("still leaves age alone in the create-shaped call", () => {
+    const requested = { name: null, grade: null, gender: null, countryId: null, curriculum: null, age: 15 };
+    const { overrides } = resolveSchoolOwnedFields(requested, MEMBER, ORG);
+    expect(overrides).not.toHaveProperty("age");
+  });
+
   it("reports the organization's fields as missing when it is absent but they are named", () => {
     const { missing } = resolveSchoolOwnedFields({ curriculum: "British" }, MEMBER, undefined);
     expect(missing).toEqual(["curriculum"]);

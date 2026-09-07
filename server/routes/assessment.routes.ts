@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { randomBytes } from "crypto";
 import { storage } from "../storage";
 import { isAuthenticated } from "../auth";
-import { insertAssessmentSchema } from "@shared/schema";
+import { insertAssessmentSchema, type InsertAssessment } from "@shared/schema";
 import { z } from "zod";
 import { calculateRiasecScores } from "../questionBanks/riasec";
 import { normalizeSubjects } from "../utils/subjects";
@@ -158,8 +158,10 @@ export function registerAssessmentRoutes(app: Express) {
         assessmentType = 'premium';
       }
 
-      // For organization students, inherit curriculum from their organization
-      let assessmentCurriculum = validatedData.curriculum;
+      // School-owned fields, resolved from the school's own rows. Empty for
+      // everyone else, so the spread below is a no-op for a guest or a self-paid
+      // student.
+      let schoolOwnedValues: Partial<Record<string, unknown>> = {};
       
       if (userId) {
         // MEMBERSHIP COMES FROM THE MEMBER ROW, NOT users.accountType — the last
@@ -205,46 +207,64 @@ export function registerAssessmentRoutes(app: Express) {
             });
           }
 
-          // FAILS CLOSED, matching the PATCH lock (14459a4). This previously
-          // fell through to validatedData.curriculum — the student's own pick
-          // silently won precisely when the school's value was unavailable,
-          // which is the one case the inheritance exists for. 549cd43 refuses to
-          // enrol a student into a school with no curriculum, so reaching this
-          // means an invariant has already broken; it is logged as a server
-          // error even though the response is a 4xx.
-          //
-          // Same known population as the PATCH guard: a student enrolled BEFORE
-          // 549cd43 into a school missing country or curriculum. That guard is
-          // runtime, not a backfill, so nothing proves the set is empty — see
-          // docs/v2-phase4-step3-recon.md §2. Such a student is blocked here
-          // rather than starting an assessment drawn from the wrong quiz bank.
+          // ALL FIVE SCHOOL-OWNED FIELDS, not just curriculum. This inherited
+          // curriculum alone and accepted name, grade, gender and countryId from
+          // the client, leaving the PATCH lock (14459a4) to correct them on the
+          // next save — which made that lock optional: a caller that POSTs and
+          // never PATCHes keeps its own demographics permanently. Resolving them
+          // here means the row is created correct rather than repaired later.
           const organization = await storage.getOrganizationById(orgMember.organizationId);
-          if (!organization?.curriculum) {
+
+          // Every field counts as touched, unlike on PATCH, where the resolver
+          // only considers what the payload names. A create writes the whole row:
+          // a field the client omitted must still come from the school rather
+          // than being left null for the first PATCH to fill in.
+          const requested: Record<string, unknown> = {};
+          for (const field of SCHOOL_OWNED_ASSESSMENT_FIELDS) {
+            requested[field] = (validatedData as Record<string, unknown>)[field] ?? null;
+          }
+
+          const { overrides, missing } = resolveSchoolOwnedFields(requested, orgMember, organization);
+
+          // FAILS CLOSED, matching the PATCH lock. The old code fell through to
+          // validatedData.curriculum — the student's own pick silently won
+          // precisely when the school's value was unavailable, which is the one
+          // case the inheritance exists for. name/gender/grade are guaranteed by
+          // the demographics CHECK and country/curriculum by the enrolment guard
+          // (549cd43), so reaching this means an invariant has already broken;
+          // logged as a server error even though the response is a 4xx.
+          if (missing.length > 0) {
             console.error(
-              `[assessment POST] curriculum unavailable for member ${orgMember.id} ` +
-                `(org ${orgMember.organizationId})`,
+              `[assessment POST] school-owned field(s) unavailable for member ${orgMember.id} ` +
+                `(org ${orgMember.organizationId}): ${missing.join(', ')}`,
             );
             return res.status(400).json({
               message:
-                "School setup incomplete: your school has no curriculum on record, so an " +
-                "assessment cannot be started. Ask your school administrator to complete " +
-                "the school's setup.",
+                `School setup incomplete: your school has no ${missing.join(' and ')} on record, ` +
+                `so an assessment cannot be started. Ask your school administrator to complete ` +
+                `the school's setup.`,
             });
           }
 
-          // Override curriculum with organization's curriculum for org students
-          assessmentCurriculum = organization.curriculum;
+          // Silently overwritten, matching PATCH: the client is told nothing,
+          // because the assessment's own steps render these read-only for a
+          // school student (e9f8d81) and a mismatch means a stale form or a
+          // direct API call.
+          schoolOwnedValues = overrides;
         }
       }
 
       const assessment = await storage.createAssessment({
         ...validatedData,
+        // After validatedData, so the school's values win over the client's. The
+        // cast is because the resolver is field-agnostic and returns unknown; the
+        // keys are SCHOOL_OWNED_ASSESSMENT_FIELDS, all of them columns here.
+        ...(schoolOwnedValues as Partial<InsertAssessment>),
         userId,
         isGuest,
         guestSessionId: guestToken,
         assessmentType,
         riasecScores,
-        curriculum: assessmentCurriculum,
       });
 
       // Set guest token in httpOnly cookie for security (prevents XSS token theft)
