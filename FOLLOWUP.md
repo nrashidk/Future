@@ -129,6 +129,22 @@ fifth hand-rolled copy. Three things to settle first:
   makes them reachable. Review before adding the toggle, not after.
 First flagged 2026-09-07.
 
+### DB endpoint guard is a blacklist and fails open on an unknown endpoint  (severity: medium)
+server/db.ts:20 and drizzle.config.ts:18 refuse ONE hardcoded production endpoint id,
+defaulted in source. Anything unrecognised is permitted, so a recreated Neon branch with a
+new id, or a typo'd PRODUCTION_DB_ENDPOINT_ID, silently disarms the guard. The id is also
+published in a public repo, and the same id is hardcoded as an ABORT check in five
+scripts/oneoff/*.cjs files (those fail closed, so they are safe, just disclosing).
+
+A whitelist inversion was written and verified on 2026-09-07 (shared/dbEndpoint.ts, both call
+sites sharing one module, 14 tests, drizzle-kit resolution confirmed end to end) but parked
+before commit: it is a boot-path change requiring ALLOWED_DB_ENDPOINT_ID on Render before
+deploy, and the service refuses to start without it.
+
+Note the tradeoff if resumed: a whitelist alone moves prod access from a typed override
+(ALLOW_PRODUCTION_DB=true, required each time) into a config file that can go stale. Consider
+keeping the override on top of the whitelist. First flagged 2026-09-07.
+
 ## Session log
 
 ### Arabic PDF report — session 2026-06-30
