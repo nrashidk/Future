@@ -841,7 +841,7 @@ export function registerAdminRoutes(app: Express) {
 
       for (const memberData of members) {
         try {
-          const { username, fullName, grade, studentId, studentName, studentAge, studentGender } = memberData;
+          const { username, fullName, grade, studentId, studentName, studentAge, studentGender, dateOfBirth } = memberData;
           
           if (!fullName || !grade) {
             throw new Error("Missing required fields: fullName and grade");
@@ -864,6 +864,13 @@ export function registerAdminRoutes(app: Express) {
             studentName: studentName || undefined,
             studentAge: studentAge ? parseInt(studentAge.toString()) : undefined,
             studentGender: studentGender || undefined,
+            // Passed through unvalidated, unlike M1, which checks it up front to
+            // reject before the capacity query. Here the sink IS the early
+            // rejection — it runs before any write — and a per-row failure lands
+            // in results.errors with the module's sentence, which is what a bulk
+            // caller needs anyway. Adding a second check here would restate the
+            // rule to say the same thing one row sooner.
+            dateOfBirth: dateOfBirth || undefined,
             passwordComplexity: passwordComplexity as 'medium' | 'strong',
             organizationId,
           });
@@ -2158,9 +2165,28 @@ export function registerAdminRoutes(app: Express) {
         return trimmed;
       };
 
-      // Parse header row (expected: fullName, grade, studentId, studentName, studentAge, studentGender)
+      // Parse header row. Columns are matched BY NAME, so order is irrelevant;
+      // an unrecognised column is ignored.
+      //   required: fullName, grade, studentGender, dateOfBirth
+      //   optional: studentId, studentName, studentAge
+      //
+      // Only fullName and dateOfBirth are listed as requiredHeaders, and the
+      // asymmetry is deliberate rather than an omission. A missing COLUMN and an
+      // empty CELL are different failures: grade and gender are already checked
+      // per row further down (grade by toCanonicalGrade, gender at the sink), so
+      // a file that omits those columns entirely fails every row with a sentence
+      // naming the field. fullName and dateOfBirth are hoisted to a whole-file
+      // rejection because a file missing either is not a partially-bad import,
+      // it is the wrong file — and telling the admin that once, before creating
+      // anything, beats handing back five hundred identical row errors.
+      //
+      // dateOfBirth is required FROM THE START, with no compatibility window for
+      // older templates. There are no customers yet, so the only cost of
+      // refusing a file in the previous shape is an admin re-exporting one, and
+      // the alternative — accepting a DOB-less file and failing every row at the
+      // sink — is the same rejection delivered less clearly.
       const headers = lines[0].split(',').map(h => sanitizeCSVField(h.replace(/"/g, '')));
-      const requiredHeaders = ['fullName'];
+      const requiredHeaders = ['fullName', 'dateOfBirth'];
       const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
       
       if (missingHeaders.length > 0) {
@@ -2242,6 +2268,12 @@ export function registerAdminRoutes(app: Express) {
             studentName: rowData.studentName || undefined,
             studentAge: rowData.studentAge ? parseInt(rowData.studentAge) : undefined,
             studentGender: rowData.studentGender || undefined,
+            // undefined rather than '' for the same reason as studentName above:
+            // the sink distinguishes an absent value from a blank one only
+            // insofar as both are rejected, but undefined produces "Date of
+            // birth is required" while '' would produce the same sentence via a
+            // different branch. Kept consistent with its neighbours.
+            dateOfBirth: rowData.dateOfBirth || undefined,
             passwordComplexity: organization.passwordComplexity as any,
           });
 

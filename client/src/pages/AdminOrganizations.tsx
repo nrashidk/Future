@@ -1971,6 +1971,53 @@ function CreateMemberForm({ organizationId, onSuccess }: { organizationId: strin
   );
 }
 
+/**
+ * The columns the bulk-upload CSV must carry, matched by name.
+ *
+ * These four are the ones studentDemographicsSchema rejects a create without
+ * (shared/schema.ts), so a file missing any of them fails every row. Listing
+ * them here lets the form say so once, before uploading, instead of the admin
+ * reading five hundred copies of the same sentence.
+ *
+ * studentId, studentName and studentAge stay optional. studentName falls back to
+ * fullName at the sink; studentAge is on its way out, superseded by
+ * dateOfBirth, and is still accepted only because the create paths still write
+ * it.
+ */
+const BULK_REQUIRED_COLUMNS = ['fullName', 'grade', 'studentGender', 'dateOfBirth'] as const;
+
+/**
+ * Split one CSV row, respecting double-quoted fields.
+ *
+ * Replaces a bare `line.split(',')`, which mis-split any quoted value
+ * containing a comma — "Ali, Ahmed" became two fields and shifted every column
+ * after it. That was survivable while parsing was positional only because the
+ * result was already unreliable; with named columns the header row itself is
+ * parsed by this function, so it has to be right.
+ *
+ * Mirrors the server-side parser in the CSV import route (admin.routes.ts) so
+ * the two paths read the same file the same way.
+ */
+function splitCsvRow(row: string): string[] {
+  const values: string[] = [];
+  let current = '';
+  let insideQuotes = false;
+
+  for (const char of row) {
+    if (char === '"') {
+      insideQuotes = !insideQuotes;
+    } else if (char === ',' && !insideQuotes) {
+      values.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  values.push(current.trim());
+
+  return values;
+}
+
 function BulkUploadForm({ organizationId, onSuccess }: { organizationId: string; onSuccess: () => void }) {
   const { toast } = useToast();
   const { t } = useTranslation('admin');
@@ -1984,15 +2031,49 @@ function BulkUploadForm({ organizationId, onSuccess }: { organizationId: string;
       
       const text = await file.text();
       const lines = text.split('\n').filter(line => line.trim());
+
+      // Columns are matched BY NAME against the header row. This parser used to
+      // destructure by POSITION —
+      //   const [username, grade, studentId, studentName, studentAge, studentGender] = line.split(',')
+      // — which made column ORDER the contract and the header row decorative. A
+      // file with the right columns in a different order was silently misread:
+      // a grade landing in studentId is not an error anywhere downstream, it is
+      // just a wrong record. Adding date_of_birth is what forced this, because
+      // any new column shifts every field after it, but the positional parser
+      // was already wrong for a spreadsheet an admin had reordered.
+      //
+      // Also note the first column is now `fullName`, not `username`. Under
+      // positional parsing its name was arbitrary — the header said `username`
+      // while the value was used as the student's full name, and the shipped
+      // template's own sample data ("ahmed.ali") was a username, which would
+      // have been stored as a child's name. Under named parsing the header has
+      // to say what the field is.
+      const headers = splitCsvRow(lines[0]);
+      const missing = BULK_REQUIRED_COLUMNS.filter(h => !headers.includes(h));
+      if (missing.length > 0) {
+        // One clear failure before anything is sent, rather than N identical
+        // per-row errors coming back from the sink.
+        throw new Error(t('orgs.csvMissingColumns', { columns: missing.join(', ') }));
+      }
+
       const students = lines.slice(1).map(line => {
-        const [username, grade, studentId, studentName, studentAge, studentGender] = line.split(',').map(s => s.trim());
-        return { 
-          fullName: username,
-          grade, 
-          studentId: studentId || undefined,
-          studentName: studentName || undefined,
+        const values = splitCsvRow(line);
+        const cell = (name: string) => {
+          const index = headers.indexOf(name);
+          return index === -1 ? '' : (values[index] ?? '');
+        };
+        const studentAge = cell('studentAge');
+        return {
+          fullName: cell('fullName'),
+          grade: cell('grade'),
+          studentId: cell('studentId') || undefined,
+          studentName: cell('studentName') || undefined,
           studentAge: studentAge ? parseInt(studentAge) : undefined,
-          studentGender: studentGender || undefined
+          studentGender: cell('studentGender') || undefined,
+          // Sent as typed. The server validates against ITS clock and returns
+          // the shared module's sentence per row; normalizing here would be a
+          // second opinion on a minor's birth date formed in the browser.
+          dateOfBirth: cell('dateOfBirth') || undefined,
         };
       });
 
@@ -2020,7 +2101,27 @@ function BulkUploadForm({ organizationId, onSuccess }: { organizationId: string;
   });
 
   const handleDownloadTemplate = () => {
-    const csv = "username,grade,studentId,studentName,studentAge,studentGender\nahmed.ali,grade10,S12345,Ahmed Ali,15,male\nfatima.hassan,grade11,S12346,Fatima Hassan,16,female";
+    // Regenerated for the named-column contract. The previous template was
+    // stale in three ways at once, each of which would now produce a wrong
+    // record or a rejected file: its first column was headed `username` but
+    // held the student's NAME (and its sample values, "ahmed.ali", were
+    // usernames — a child's name column seeded with a login); it carried no
+    // dateOfBirth, which is now required; and it presented studentGender as
+    // just another trailing column when the sink has required it since the
+    // demographics guard landed.
+    //
+    // studentAge is deliberately NOT in the template any more, though the
+    // parser still accepts the column. It is superseded by dateOfBirth and is
+    // being dropped once nothing reads it; a template that invites schools to
+    // fill in a field on its way out would be teaching the wrong shape to
+    // exactly the people hardest to re-teach.
+    //
+    // Names are quoted so the sample survives being edited into one containing
+    // a comma, which is the first thing a real school will do.
+    const csv =
+      "fullName,grade,studentGender,dateOfBirth,studentId,studentName\n" +
+      '"Ahmed Ali",grade10,male,2010-03-14,S12345,"Ahmed Ali"\n' +
+      '"Fatima Hassan",grade11,female,2009-11-02,S12346,"Fatima Hassan"';
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -2093,11 +2194,18 @@ function BulkUploadForm({ organizationId, onSuccess }: { organizationId: string;
         <div className="bg-muted/50 p-4 rounded-lg space-y-3">
           <p className="text-sm font-medium">{t('orgs.csvFormatLabel')}</p>
           <p className="text-xs text-muted-foreground">
-            {t('orgs.csvRequiredCols')}<span className="font-semibold">username, grade</span>
+            {/* Read from BULK_REQUIRED_COLUMNS rather than restated, so the
+                panel and the check that rejects the file cannot disagree about
+                what is required. The previous copy said "Required: username,
+                grade" and listed studentGender as optional, which had been
+                untrue since the demographics guard landed. */}
+            {t('orgs.csvRequiredCols')}<span className="font-semibold">{BULK_REQUIRED_COLUMNS.join(', ')}</span>
             <br />
-            {t('orgs.csvOptionalCols')}<span className="font-semibold">studentId, studentName, studentAge, studentGender</span>
+            {t('orgs.csvOptionalCols')}<span className="font-semibold">studentId, studentName</span>
             <br />
-            <span className="text-xs text-muted-foreground/70">{t('orgs.csvPreFillNote')}</span>
+            <span className="text-xs text-muted-foreground/70">{t('orgs.csvDateFormatNote')}</span>
+            <br />
+            <span className="text-xs text-muted-foreground/70">{t('orgs.csvColumnOrderNote')}</span>
           </p>
           <Button 
             variant="outline" 
