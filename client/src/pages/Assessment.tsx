@@ -999,6 +999,7 @@ export default function Assessment() {
             data={assessmentData}
             onUpdate={updateAssessmentData}
             onNext={handleNext}
+            isOrgStudent={!!(user as any)?.isOrgStudent}
             predefinedGrade={(user as any)?.predefinedGrade}
             predefinedName={(user as any)?.predefinedName}
             predefinedAge={(user as any)?.predefinedAge}
@@ -1017,6 +1018,7 @@ export default function Assessment() {
             onUpdate={updateAssessmentData}
             onNext={handleNext}
             onBack={() => setCurrentStep(1)}
+            isOrgStudent={!!(user as any)?.isOrgStudent}
           />
         )}
         

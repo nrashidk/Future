@@ -17,9 +17,17 @@ interface DemographicsStepProps {
   predefinedName?: string | null;
   predefinedAge?: number | null;
   predefinedGender?: string | null;
+  /**
+   * True when the viewer holds an organization_members row with role 'student'
+   * — the same test PATCH /api/assessments/:id uses to decide which fields the
+   * school owns (14459a4). Authoritative, and served by /api/auth/user; the
+   * `!!predefinedGrade` inference below is only a fallback for a caller that
+   * does not pass it.
+   */
+  isOrgStudent?: boolean;
 }
 
-export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, predefinedName, predefinedAge, predefinedGender }: DemographicsStepProps) {
+export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, predefinedName, predefinedAge, predefinedGender, isOrgStudent: isOrgStudentProp }: DemographicsStepProps) {
   const { t } = useTranslation('assessment');
 
   // Convert grade codes to localized labels using i18n keys
@@ -37,8 +45,18 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
   };
   const [isMobile, setIsMobile] = useState(false);
   
-  // Detect if user is an organization student (has predefinedGrade)
-  const isOrgStudent = !!predefinedGrade;
+  // Whether the school owns this student's demographics. Prefer the server's
+  // flag; fall back to inferring from a pre-filled grade only so an older caller
+  // keeps working. Inference is the weaker test — it asks "is a value present"
+  // rather than "is this a school student".
+  const isOrgStudent = isOrgStudentProp ?? !!predefinedGrade;
+
+  // The three the school states on the student's behalf, and which the server
+  // overwrites with the school's values on every save (assessment.routes.ts,
+  // SCHOOL_OWNED_ASSESSMENT_FIELDS). Shown rather than hidden: this screen is
+  // the only place anyone sees what the school recorded, so it is the only
+  // chance to notice a wrong name, grade or gender.
+  const schoolOwnsDemographics = isOrgStudent;
   
   // Pre-fill all fields if predefined and not already set (only depend on predefined values to avoid redundant re-runs)
   useEffect(() => {
@@ -84,6 +102,19 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
         </p>
       </div>
 
+      {/* Locked fields are shown, not hidden, so this line has to say why they
+          cannot be edited and who can change them. A disabled input with no
+          explanation reads as a broken form, and this screen is the only place
+          a student ever sees what their school recorded about them. */}
+      {schoolOwnsDemographics && (
+        <p
+          className="text-sm text-muted-foreground text-center max-w-2xl mx-auto -mt-4"
+          data-testid="note-demographics-school-owned"
+        >
+          {t('demographics.schoolOwnedNote')}
+        </p>
+      )}
+
       <div className="grid md:grid-cols-2 gap-6">
         <StickyNote color="yellow" rotation="-1">
           <div className="flex items-center gap-3 mb-4">
@@ -102,7 +133,7 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
             placeholder={t('demographics.namePlaceholder')}
             value={data.name}
             onChange={(e) => onUpdate("name", e.target.value)}
-            disabled={!!predefinedName}
+            disabled={schoolOwnsDemographics}
             className="bg-background/50 border-foreground/20"
             data-testid="input-name"
           />
@@ -115,10 +146,20 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
             </div>
             <div className="flex-1">
               <Label htmlFor="age" className="text-lg font-semibold">
-                {t('demographics.age')} {predefinedAge && <span className="text-xs text-muted-foreground font-normal ms-2">({t('demographics.setBySchool')})</span>}
+                {/* No "set by school" marker: age is the one demographic the
+                    student still owns, so labelling it as the school's would be
+                    a lie the field itself contradicts. */}
+                {t('demographics.age')}
               </Label>
             </div>
           </div>
+          {/* Age is NOT locked, unlike the three fields around it. The server
+              does not own it: organization_members.student_age is nullable,
+              excluded from the demographics CHECK and NULL on every row, so
+              there is no school value to hold the student to (migration
+              014:29-38). It was disabled on `!!predefinedAge` — never true
+              today, but that would have silently locked a field the server
+              still lets the student edit the moment an age appeared. */}
           <Input
             id="age"
             type="number"
@@ -127,7 +168,7 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
             placeholder={t('demographics.agePlaceholder')}
             value={data.age || ""}
             onChange={(e) => onUpdate("age", parseInt(e.target.value) || null)}
-            disabled={!!predefinedAge}
+            disabled={false}
             className="bg-background/50 border-foreground/20"
             data-testid="input-age"
           />
@@ -149,7 +190,7 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
               id="grade"
               value={data.grade || ""}
               onChange={(e) => onUpdate("grade", e.target.value)}
-              disabled={!!predefinedGrade}
+              disabled={schoolOwnsDemographics}
               className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background/50 border-foreground/20 px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               data-testid="select-grade"
             >
@@ -162,8 +203,8 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
               <option value="graduated">{t('demographics.graduated')}</option>
             </select>
           ) : (
-            <Select value={data.grade} onValueChange={(value) => onUpdate("grade", value)} disabled={!!predefinedGrade}>
-              <SelectTrigger className="bg-background/50 border-foreground/20" disabled={!!predefinedGrade} data-testid="select-grade">
+            <Select value={data.grade} onValueChange={(value) => onUpdate("grade", value)} disabled={schoolOwnsDemographics}>
+              <SelectTrigger className="bg-background/50 border-foreground/20" disabled={schoolOwnsDemographics} data-testid="select-grade">
                 <SelectValue placeholder={t('demographics.selectGrade')} />
               </SelectTrigger>
               <SelectContent position="popper" className="z-[9999]">
@@ -194,7 +235,7 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
               id="gender"
               value={data.gender || ""}
               onChange={(e) => onUpdate("gender", e.target.value)}
-              disabled={!!predefinedGender}
+              disabled={schoolOwnsDemographics}
               className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background/50 border-foreground/20 px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               data-testid="select-gender"
             >
@@ -203,8 +244,8 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
               <option value="female">{t('demographics.female')}</option>
             </select>
           ) : (
-            <Select value={data.gender} onValueChange={(value) => onUpdate("gender", value)} disabled={!!predefinedGender}>
-              <SelectTrigger className="bg-background/50 border-foreground/20" disabled={!!predefinedGender} data-testid="select-gender">
+            <Select value={data.gender} onValueChange={(value) => onUpdate("gender", value)} disabled={schoolOwnsDemographics}>
+              <SelectTrigger className="bg-background/50 border-foreground/20" disabled={schoolOwnsDemographics} data-testid="select-gender">
                 <SelectValue placeholder={t('demographics.selectGender')} />
               </SelectTrigger>
               <SelectContent position="popper" className="z-[9999]">

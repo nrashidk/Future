@@ -89,7 +89,8 @@
     "termsOfUse": "Terms of Use",
     "privacyPolicy": "Privacy Policy",
     "disclaimer": "Disclaimer",
-    "under18Note": "Note: Users under 18 require parental or institutional consent."
+    "under18Note": "Note: Users under 18 require parental or institutional consent.",
+    "schoolOwnedNote": "Your school filled in your name, grade and gender. Check they are right — if anything is wrong, ask your school administrator to correct it before you continue. You can still set your own age."
   },
   "subjects": {
     "title": "What Subjects Do You Love?",
@@ -180,7 +181,10 @@
     "prioritySectors": "Priority Sectors — {{name}}",
     "categoryTech": "Technology",
     "categoryClimate": "Climate & Environment",
-    "categoryEconomic": "Economy"
+    "categoryEconomic": "Economy",
+    "setBySchoolTitle": "Set by your school",
+    "schoolOwnedNote": "Your school chose the country and curriculum for everyone it enrols, so these are not yours to change. Ask your school administrator if either looks wrong.",
+    "notSetBySchool": "Not set"
   },
   "aspirations": {
     "title": "Dream Big!",

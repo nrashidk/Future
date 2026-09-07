@@ -13,9 +13,17 @@ interface CountryStepProps {
   onUpdate: (field: string, value: any) => void;
   onNext: () => void;
   onBack?: () => void;
+  /**
+   * True when the viewer holds an organization_members row with role 'student'
+   * — the same test PATCH /api/assessments/:id uses to decide which fields the
+   * school owns (14459a4). Country and curriculum are two of the five: the
+   * school picks them once for everyone it enrols, and the server overwrites
+   * whatever the student sends.
+   */
+  isOrgStudent?: boolean;
 }
 
-export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps) {
+export function CountryStep({ data, onUpdate, onNext, onBack, isOrgStudent }: CountryStepProps) {
   const { t } = useTranslation('assessment');
   const { language } = useLanguage();
   const isArabic = language === 'ar';
@@ -85,7 +93,17 @@ export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps
   };
 
   // Can proceed if country is selected AND (either no curricula available OR curriculum is selected)
-  const canProceed = !!selectedCountryId && (availableCurricula.length === 0 || !!selectedCurriculum);
+  //
+  // For an org student the values come from the school, not from these controls,
+  // so availableCurricula must not gate them: that list is fetched from the
+  // country and can legitimately fail to contain the school's curriculum (see
+  // the rename-cascade note below). Gating on it would strand the student on a
+  // step with nothing to interact with. The school-side values are guaranteed
+  // present by the enrolment guard (549cd43), and the server 400s if they are
+  // not, so there is nothing left for this step to validate.
+  const canProceed = isOrgStudent
+    ? !!selectedCountryId && !!selectedCurriculum
+    : !!selectedCountryId && (availableCurricula.length === 0 || !!selectedCurriculum);
 
   if (countriesLoading) {
     return (
@@ -138,6 +156,52 @@ export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps
         </p>
       </div>
 
+      {/* The step is NOT skipped for org students and the step count does not
+          change — everyone sees the same "Step N of 8". What changes is that the
+          two fields are shown as confirmation rather than as a choice.
+
+          Rendered as read-only VALUES, not as disabled <Select>s, unlike the
+          Basic Info step. A disabled Select can only display a value that is in
+          its option list, and the school's curriculum can legitimately be absent
+          from countries.curricula: the superadmin rename cascade rewrites
+          countries, subjects and quiz_questions but not organizations.curriculum
+          (FOLLOWUP.md, aa1d13c), leaving schools holding a string the list no
+          longer contains. A disabled Select would then show an empty box for a
+          value the server is about to write. Text shows what is actually stored. */}
+      {isOrgStudent ? (
+        <StickyNote color="blue" rotation="1" className="max-w-2xl mx-auto">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+              <Globe2 className="w-6 h-6 text-primary" />
+            </div>
+            <h3 className="text-xl font-semibold">{t('country.setBySchoolTitle')}</h3>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <p className="text-sm text-foreground/70 font-body mb-1">{t('country.selectCountry')}</p>
+              <p className="text-lg font-semibold" data-testid="text-school-country">
+                {(() => {
+                  const own = countries.find((c: any) => c.id === selectedCountryId);
+                  if (!own) return selectedCountryId || t('country.notSetBySchool');
+                  return own.flag ? `${own.flag} ${own.name}` : own.name;
+                })()}
+              </p>
+            </div>
+
+            <div>
+              <p className="text-sm text-foreground/70 font-body mb-1">{t('country.selectCurriculum')}</p>
+              <p className="text-lg font-semibold" data-testid="text-school-curriculum">
+                {selectedCurriculum || t('country.notSetBySchool')}
+              </p>
+            </div>
+          </div>
+
+          <p className="text-sm text-muted-foreground mt-4" data-testid="note-country-school-owned">
+            {t('country.schoolOwnedNote')}
+          </p>
+        </StickyNote>
+      ) : (
       <StickyNote color="blue" rotation="1" className="max-w-2xl mx-auto">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
@@ -177,8 +241,9 @@ export function CountryStep({ data, onUpdate, onNext, onBack }: CountryStepProps
           </Select>
         )}
       </StickyNote>
+      )}
 
-      {selectedCountryId && availableCurricula.length > 0 && (
+      {!isOrgStudent && selectedCountryId && availableCurricula.length > 0 && (
         <StickyNote color="green" rotation="-1" className="max-w-2xl mx-auto animate-in fade-in duration-300">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">

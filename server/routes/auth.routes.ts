@@ -25,31 +25,58 @@ export function registerAuthRoutes(app: Express) {
         user.accountType = "superadmin";
       }
       
-      // Organization students should be treated as premium users since they have school access
-      if (user.accountType === 'org_student') {
+      // MEMBERSHIP COMES FROM THE MEMBER ROW, NOT users.accountType — the same
+      // test PATCH /api/assessments/:id uses to decide which fields a school
+      // owns (14459a4, assessment.routes.ts). These two must agree: this handler
+      // supplies the values the assessment form pre-fills and renders read-only,
+      // and that route overwrites those same fields with the school's values. If
+      // one keys on accountType and the other on the member row, a student whose
+      // flag is wrong gets a blank, editable form and then a silent overwrite —
+      // precisely the confusing state the silent overwrite was chosen to avoid.
+      //
+      // role === 'student', not merely "has a member row": school admins share
+      // this table (schema.ts:159) and are not students of their own school.
+      //
+      // Costs one indexed lookup on a unique column for every caller rather than
+      // only for self-declared org students. That is the price of not trusting a
+      // flag with eight write sites, one of which (auth.ts:353) already writes a
+      // value outside its own documented set. Superadmins are exempted since
+      // they are never enrolled.
+      const orgMember = isSuperadmin
+        ? undefined
+        : await storage.getOrganizationMemberByUserId(userId);
+
+      if (orgMember?.role === 'student') {
+        // Organization students are treated as premium since they have school
+        // access. Derived from the same row as the pre-fill, so the two cannot
+        // disagree about who is a school student.
         user.isPremium = true;
-        
-        // Fetch organization member data to get pre-filled student info
-        const orgMember = await storage.getOrganizationMemberByUserId(userId);
-        if (orgMember) {
-          // Add all pre-filled fields to user object
-          (user as any).predefinedGrade = orgMember.grade;
-          (user as any).predefinedName = orgMember.studentName;
-          (user as any).predefinedAge = orgMember.studentAge;
-          (user as any).predefinedGender = orgMember.studentGender;
-          
-          // Fetch organization details to get school name, logo, and country
-          const organization = await storage.getOrganizationById(orgMember.organizationId);
-          if (organization) {
-            (user as any).organizationName = organization.name;
-            (user as any).organizationLogoUrl = organization.logoUrl || null;
-            (user as any).organizationCountryId = organization.countryId || null;
-            // Paired with organizationCountryId: the assessment's CountryStep
-            // pre-fills both, and POST/PATCH /api/assessments force the org's
-            // curriculum for org_students anyway — sending it lets the form show
-            // the value the server is going to store.
-            (user as any).organizationCurriculum = organization.curriculum || null;
-          }
+
+        // An explicit flag, so the client stops inferring membership from
+        // whether a pre-filled value happens to be present. DemographicsStep
+        // derived it as `!!predefinedGrade`, which conflates "is a school
+        // student" with "has a grade on file" — the same category error as
+        // keying on accountType, one layer up.
+        (user as any).isOrgStudent = true;
+
+        // Pre-filled student info. The assessment renders these read-only for
+        // org students; PATCH enforces them regardless.
+        (user as any).predefinedGrade = orgMember.grade;
+        (user as any).predefinedName = orgMember.studentName;
+        (user as any).predefinedAge = orgMember.studentAge;
+        (user as any).predefinedGender = orgMember.studentGender;
+
+        // Fetch organization details to get school name, logo, and country
+        const organization = await storage.getOrganizationById(orgMember.organizationId);
+        if (organization) {
+          (user as any).organizationName = organization.name;
+          (user as any).organizationLogoUrl = organization.logoUrl || null;
+          (user as any).organizationCountryId = organization.countryId || null;
+          // Paired with organizationCountryId: the assessment's CountryStep
+          // pre-fills both, and POST/PATCH /api/assessments force the org's
+          // curriculum for org_students anyway — sending it lets the form show
+          // the value the server is going to store.
+          (user as any).organizationCurriculum = organization.curriculum || null;
         }
       }
       
