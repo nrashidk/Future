@@ -1545,8 +1545,14 @@ Consequences, which compound:
 - If the school has students, the immutability lock (01e20cf) prevents correcting it at all.
 
 Net: a superadmin rename can put a school into a state only a direct DB write can fix. The
-rename is the only path that produces it, so the fix belongs there — cascade to
-organizations.curriculum in the same transaction — not as a carve-out in the lock.
+rename is the only path that produces it, so the fix belongs there, not as a carve-out
+in the lock. Note the scope is larger than one UPDATE: the route runs four sequential
+writes with no transaction at all (superadmin.routes.ts:2380-2432 — updateCountry,
+renameCurriculumInSubjects, renameCurriculumInQuizQuestions, clearSubjectCache), so a
+partial failure today already leaves a rename half-applied with no rollback and a 500 that
+says nothing about how far it got. Fixing this means wrapping all four writes plus the new
+organizations.curriculum update in a transaction that does not currently exist. Same defect
+class as the orphan-user bug fixed in 8c07e25.
 
 Distinct from the assessments cascade gap (47c5067): that one needs Phase 6 reconciliation,
-this one is a missing UPDATE in an existing transaction. First flagged 2026-09-07.
+this one is a missing UPDATE on a path that has no transaction. First flagged 2026-09-07.
