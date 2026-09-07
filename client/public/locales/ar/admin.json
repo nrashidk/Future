@@ -175,6 +175,7 @@
     "genderRequired": "الجنس *",
     "dateOfBirthRequired": "تاريخ الميلاد *",
     "dateOfBirthHint": "يُستخدم لحساب عمر الطالب وقت إجراء التقييم.",
+    "dateOfBirthAgeToday": "العمر اليوم: {{age}}",
     "studentIdOptional": "رقم الطالب (اختياري)",
     "cancel": "إلغاء",
     "creating": "جاري الإنشاء...",

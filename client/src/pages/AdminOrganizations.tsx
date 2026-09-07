@@ -15,7 +15,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { queryClient, apiRequest, serverErrorMessage } from "@/lib/queryClient";
 import { validateEmail } from "@/lib/utils";
 import { SCHOOL_GRADES, gradeToNumber } from "@shared/grade";
-import { MAX_STUDENT_AGE_YEARS, MIN_STUDENT_AGE_YEARS, toDateOnlyString } from "@shared/dateOfBirth";
+import { MAX_STUDENT_AGE_YEARS, MIN_STUDENT_AGE_YEARS, ageOnDate, toDateOnlyString } from "@shared/dateOfBirth";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
@@ -1715,6 +1715,33 @@ function CreateMemberForm({ organizationId, onSuccess }: { organizationId: strin
 
   const dobBounds = dateOfBirthInputBounds();
 
+  // The age the entered date implies TODAY, or null when there is nothing worth
+  // showing. Echoed back under the field because the one error this input is
+  // really exposed to is a WRONG YEAR, and a wrong year is invisible in a date
+  // string and glaring as an age: 2001-03-14 looks entirely plausible sitting in
+  // an input, "Age today: 25" does not. min/max catch a year outside the band;
+  // nothing else catches 2008 typed for 2011, which would silently produce a
+  // wrong derived age on every assessment that student ever takes.
+  //
+  // "TODAY" IS IN THE LABEL AND MUST STAY THERE. The age that ends up in the
+  // record is the age at ASSESSMENT time, derived then, which can be months
+  // later and a year higher. A bare "Age: 15" next to a field whose whole
+  // purpose is assessment-time age quietly promises the wrong number.
+  //
+  // Null while the value is unparseable or out of band, so this stays a
+  // confirmation and not a second error channel: those cases already have the
+  // browser's bubble and then the server's sentence, and a half-typed year would
+  // otherwise flicker "Age today: 1" as the admin types.
+  //
+  // Browser clock, like dateOfBirthInputBounds. Worth one day at the boundary,
+  // for a number that is shown and never sent.
+  const derivedAge = (() => {
+    const age = ageOnDate(formData.dateOfBirth, toDateOnlyString(new Date()));
+    if (age === null) return null;
+    if (age < MIN_STUDENT_AGE_YEARS || age > MAX_STUDENT_AGE_YEARS) return null;
+    return age;
+  })();
+
   const mutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       const response = await apiRequest('POST', `/api/admin/organizations/${organizationId}/members`, data);
@@ -1893,6 +1920,11 @@ function CreateMemberForm({ organizationId, onSuccess }: { organizationId: strin
           <p className="text-xs text-muted-foreground mt-1">
             {t('orgs.dateOfBirthHint')}
           </p>
+          {derivedAge !== null && (
+            <p className="text-xs text-muted-foreground mt-1" data-testid="text-derived-age">
+              {t('orgs.dateOfBirthAgeToday', { age: derivedAge })}
+            </p>
+          )}
           {fieldErrors.dateOfBirth && (
             <p className="text-xs text-destructive mt-1" data-testid="error-date-of-birth">{fieldErrors.dateOfBirth}</p>
           )}
