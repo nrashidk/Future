@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { queryClient, apiRequest, serverErrorMessage } from "@/lib/queryClient";
 import { validateEmail } from "@/lib/utils";
+import { BULK_REQUIRED_COLUMNS, parseBulkStudentCsv } from "@/lib/bulkStudentCsv";
 import { SCHOOL_GRADES, gradeToNumber } from "@shared/grade";
 import { MAX_STUDENT_AGE_YEARS, MIN_STUDENT_AGE_YEARS, ageOnDate, toDateOnlyString } from "@shared/dateOfBirth";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -1984,40 +1985,6 @@ function CreateMemberForm({ organizationId, onSuccess }: { organizationId: strin
  * dateOfBirth, and is still accepted only because the create paths still write
  * it.
  */
-const BULK_REQUIRED_COLUMNS = ['fullName', 'grade', 'studentGender', 'dateOfBirth'] as const;
-
-/**
- * Split one CSV row, respecting double-quoted fields.
- *
- * Replaces a bare `line.split(',')`, which mis-split any quoted value
- * containing a comma — "Ali, Ahmed" became two fields and shifted every column
- * after it. That was survivable while parsing was positional only because the
- * result was already unreliable; with named columns the header row itself is
- * parsed by this function, so it has to be right.
- *
- * Mirrors the server-side parser in the CSV import route (admin.routes.ts) so
- * the two paths read the same file the same way.
- */
-function splitCsvRow(row: string): string[] {
-  const values: string[] = [];
-  let current = '';
-  let insideQuotes = false;
-
-  for (const char of row) {
-    if (char === '"') {
-      insideQuotes = !insideQuotes;
-    } else if (char === ',' && !insideQuotes) {
-      values.push(current.trim());
-      current = '';
-    } else {
-      current += char;
-    }
-  }
-  values.push(current.trim());
-
-  return values;
-}
-
 function BulkUploadForm({ organizationId, onSuccess }: { organizationId: string; onSuccess: () => void }) {
   const { toast } = useToast();
   const { t } = useTranslation('admin');
@@ -2030,52 +1997,15 @@ function BulkUploadForm({ organizationId, onSuccess }: { organizationId: string;
       if (!file) throw new Error("No file selected");
       
       const text = await file.text();
-      const lines = text.split('\n').filter(line => line.trim());
-
-      // Columns are matched BY NAME against the header row. This parser used to
-      // destructure by POSITION —
-      //   const [username, grade, studentId, studentName, studentAge, studentGender] = line.split(',')
-      // — which made column ORDER the contract and the header row decorative. A
-      // file with the right columns in a different order was silently misread:
-      // a grade landing in studentId is not an error anywhere downstream, it is
-      // just a wrong record. Adding date_of_birth is what forced this, because
-      // any new column shifts every field after it, but the positional parser
-      // was already wrong for a spreadsheet an admin had reordered.
-      //
-      // Also note the first column is now `fullName`, not `username`. Under
-      // positional parsing its name was arbitrary — the header said `username`
-      // while the value was used as the student's full name, and the shipped
-      // template's own sample data ("ahmed.ali") was a username, which would
-      // have been stored as a child's name. Under named parsing the header has
-      // to say what the field is.
-      const headers = splitCsvRow(lines[0]);
-      const missing = BULK_REQUIRED_COLUMNS.filter(h => !headers.includes(h));
-      if (missing.length > 0) {
+      const parsed = parseBulkStudentCsv(text);
+      if (!parsed.ok) {
         // One clear failure before anything is sent, rather than N identical
-        // per-row errors coming back from the sink.
-        throw new Error(t('orgs.csvMissingColumns', { columns: missing.join(', ') }));
+        // per-row errors coming back from the sink. The parser reports column
+        // NAMES; the sentence is this layer's to compose, in the admin's
+        // language.
+        throw new Error(t('orgs.csvMissingColumns', { columns: parsed.missingColumns.join(', ') }));
       }
-
-      const students = lines.slice(1).map(line => {
-        const values = splitCsvRow(line);
-        const cell = (name: string) => {
-          const index = headers.indexOf(name);
-          return index === -1 ? '' : (values[index] ?? '');
-        };
-        const studentAge = cell('studentAge');
-        return {
-          fullName: cell('fullName'),
-          grade: cell('grade'),
-          studentId: cell('studentId') || undefined,
-          studentName: cell('studentName') || undefined,
-          studentAge: studentAge ? parseInt(studentAge) : undefined,
-          studentGender: cell('studentGender') || undefined,
-          // Sent as typed. The server validates against ITS clock and returns
-          // the shared module's sentence per row; normalizing here would be a
-          // second opinion on a minor's birth date formed in the browser.
-          dateOfBirth: cell('dateOfBirth') || undefined,
-        };
-      });
+      const students = parsed.rows;
 
       const response = await apiRequest('POST', `/api/admin/organizations/${organizationId}/members/bulk`, {
         members: students,
