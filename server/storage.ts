@@ -399,6 +399,8 @@ export interface IStorage {
     studentName?: string;
     studentAge?: number;
     studentGender?: string;
+    /** Canonical 'YYYY-MM-DD'. Validated by the caller; see admin.routes.ts M1. */
+    dateOfBirth?: string;
     passwordComplexity?: 'medium' | 'strong';
   }): Promise<{
     user: User;
@@ -2715,6 +2717,23 @@ export class DatabaseStorage implements IStorage {
     studentName?: string;
     studentAge?: number;
     studentGender?: string;
+    /**
+     * Canonical 'YYYY-MM-DD', or undefined.
+     *
+     * NOT validated here, deliberately, and this is the one input to this
+     * function that is trusted rather than checked. The plausibility band it has
+     * to be judged against is relative to a reference date, and the reference
+     * date is a decision — "today on the server" for a create, but not
+     * necessarily for a backfill or an import of historical records. Reading the
+     * clock in here would make that choice invisible and untestable, which is the
+     * failure shared/dateOfBirth.ts's `asOf` parameter exists to prevent. So the
+     * write sites validate and pass the normalized string; see admin.routes.ts.
+     *
+     * Optional, because the column is nullable and only M1 sends one so far. The
+     * requirement that binds M1/M2/M3 together goes in studentDemographicsSchema,
+     * which is parsed below.
+     */
+    dateOfBirth?: string;
     passwordComplexity?: 'medium' | 'strong';
   }): Promise<{
     user: User;
@@ -2831,6 +2850,7 @@ export class DatabaseStorage implements IStorage {
               studentName,
               studentAge: userData.studentAge,
               studentGender: userData.studentGender,
+              dateOfBirth: userData.dateOfBirth,
               role: 'student',
             })
             .returning();

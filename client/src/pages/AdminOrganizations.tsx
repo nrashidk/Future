@@ -15,6 +15,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { queryClient, apiRequest, serverErrorMessage } from "@/lib/queryClient";
 import { validateEmail } from "@/lib/utils";
 import { SCHOOL_GRADES, gradeToNumber } from "@shared/grade";
+import { MAX_STUDENT_AGE_YEARS, MIN_STUDENT_AGE_YEARS, toDateOnlyString } from "@shared/dateOfBirth";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
@@ -1602,6 +1603,34 @@ function EditOrganizationForm({ organization, studentCount, onSuccess }: { organ
  * of that error. Test ids derive from `id` so each form's controls stay
  * individually addressable.
  */
+/**
+ * The `min`/`max` a native date input should carry for a student's date of
+ * birth, as 'YYYY-MM-DD'.
+ *
+ * Derived from the SAME two constants the server validates against
+ * (shared/dateOfBirth.ts), so the picker's range and the 400 the admin would
+ * otherwise get can never disagree. The oldest allowed birth date is the one
+ * that makes a student exactly MAX_STUDENT_AGE_YEARS today, and the newest makes
+ * them exactly MIN_STUDENT_AGE_YEARS.
+ *
+ * Uses the browser's clock, which belongs to the admin and is therefore not
+ * trusted for anything: this only narrows a picker. validateDateOfBirth re-runs
+ * the same bounds against the server's own date on arrival, so a wrong client
+ * clock costs a confusing picker range, never an accepted value.
+ *
+ * Constructs a Date only to shift the YEAR, then goes straight back to a string
+ * via the shared helper — the month and day are carried across untouched, so
+ * there is no instant arithmetic for a timezone to move.
+ */
+function dateOfBirthInputBounds(): { min: string; max: string } {
+  const today = new Date();
+  const shiftYears = (years: number) => {
+    const d = new Date(Date.UTC(today.getUTCFullYear() - years, today.getUTCMonth(), today.getUTCDate()));
+    return toDateOnlyString(d);
+  };
+  return { min: shiftYears(MAX_STUDENT_AGE_YEARS), max: shiftYears(MIN_STUDENT_AGE_YEARS) };
+}
+
 function GradeSelect({ id, value, onValueChange, error }: {
   id: string;
   value: string;
@@ -1666,6 +1695,7 @@ function CreateMemberForm({ organizationId, onSuccess }: { organizationId: strin
     grade: "",
     studentId: "",
     studentGender: "",
+    dateOfBirth: "",
     username: "",
     passwordComplexity: "medium" as "easy" | "medium" | "strong",
   });
@@ -1674,7 +1704,16 @@ function CreateMemberForm({ organizationId, onSuccess }: { organizationId: strin
   // organization_members) and by studentDemographicsSchema on the server. Both
   // controls are Radix Selects, not native inputs, so a `required` attribute
   // does nothing — the gate has to be explicit.
-  const [fieldErrors, setFieldErrors] = useState<{ grade?: string; studentGender?: string }>({});
+  //
+  // dateOfBirth joins them in the gate but NOT for that reason: it is a native
+  // date input, so `required` does work and the browser blocks an empty submit
+  // on its own. It is gated here anyway so all three required fields fail the
+  // same way — a browser bubble on one and an inline red sentence on the other
+  // two is the kind of split that makes a form feel broken — and so the gate
+  // survives the control being changed later.
+  const [fieldErrors, setFieldErrors] = useState<{ grade?: string; studentGender?: string; dateOfBirth?: string }>({});
+
+  const dobBounds = dateOfBirthInputBounds();
 
   const mutation = useMutation({
     mutationFn: async (data: typeof formData) => {
@@ -1698,9 +1737,10 @@ function CreateMemberForm({ organizationId, onSuccess }: { organizationId: strin
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const errors: { grade?: string; studentGender?: string } = {};
+    const errors: { grade?: string; studentGender?: string; dateOfBirth?: string } = {};
     if (!formData.grade) errors.grade = t('orgs.fieldRequired');
     if (!formData.studentGender) errors.studentGender = t('orgs.fieldRequired');
+    if (!formData.dateOfBirth) errors.dateOfBirth = t('orgs.fieldRequired');
     setFieldErrors(errors);
     if (Object.keys(errors).length > 0) return;
     mutation.mutate(formData);
@@ -1814,6 +1854,49 @@ function CreateMemberForm({ organizationId, onSuccess }: { organizationId: strin
           }}
           error={fieldErrors.studentGender}
         />
+
+        {/* A NATIVE date input, not a Radix control, and that is the point: it
+            is a real form element, so `required`, `min` and `max` are enforced
+            by the browser before this component sees a submit, and the admin
+            gets the platform's own date picker and locale-appropriate entry
+            rather than a bespoke one. The Selects above cannot do any of that,
+            which is why they need the explicit gate in handleSubmit.
+
+            The value is 'YYYY-MM-DD' — the input type's own wire format, which
+            is exactly what shared/dateOfBirth.ts and the date column expect. No
+            parsing, no Date, no timezone, at any point between this field and
+            Postgres.
+
+            min/max come from the shared bounds rather than literals so the
+            picker refuses out-of-band years for the same reason and by the same
+            numbers the server's 400 would. They are computed against the
+            BROWSER's clock, which is the admin's and is not trustworthy — that
+            is fine, because this is a convenience that narrows the picker, and
+            validateDateOfBirth re-checks the value against the SERVER's date
+            once it arrives. A skewed client clock can only cost a warning here,
+            never buy a value past the server. */}
+        <div>
+          <Label htmlFor="date-of-birth">{t('orgs.dateOfBirthRequired')}</Label>
+          <Input
+            id="date-of-birth"
+            type="date"
+            value={formData.dateOfBirth}
+            onChange={(e) => {
+              setFormData(f => ({ ...f, dateOfBirth: e.target.value }));
+              setFieldErrors(err => ({ ...err, dateOfBirth: undefined }));
+            }}
+            required
+            min={dobBounds.min}
+            max={dobBounds.max}
+            data-testid="input-date-of-birth"
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            {t('orgs.dateOfBirthHint')}
+          </p>
+          {fieldErrors.dateOfBirth && (
+            <p className="text-xs text-destructive mt-1" data-testid="error-date-of-birth">{fieldErrors.dateOfBirth}</p>
+          )}
+        </div>
 
         <div>
           <Label htmlFor="username">{t('orgs.usernameOptField')}</Label>

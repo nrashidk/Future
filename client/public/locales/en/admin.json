@@ -173,6 +173,8 @@
     "usernameOptional": "Username (optional, will be auto-generated)",
     "gradeRequired": "Grade *",
     "genderRequired": "Gender *",
+    "dateOfBirthRequired": "Date of Birth *",
+    "dateOfBirthHint": "Used to work out the student's age at the time of their assessment.",
     "studentIdOptional": "Student ID (optional)",
     "cancel": "Cancel",
     "creating": "Creating...",

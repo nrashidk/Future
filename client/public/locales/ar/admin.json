@@ -173,6 +173,8 @@
     "usernameOptional": "اسم المستخدم (اختياري، سيتم إنشاؤه تلقائياً)",
     "gradeRequired": "الصف *",
     "genderRequired": "الجنس *",
+    "dateOfBirthRequired": "تاريخ الميلاد *",
+    "dateOfBirthHint": "يُستخدم لحساب عمر الطالب وقت إجراء التقييم.",
     "studentIdOptional": "رقم الطالب (اختياري)",
     "cancel": "إلغاء",
     "creating": "جاري الإنشاء...",

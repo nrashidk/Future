@@ -8,6 +8,7 @@ import { dataExportLimiter } from "../middleware/rateLimiter.middleware";
 import { insertQuizQuestionSchema, studentDemographicsSchema } from "@shared/schema";
 import { toPublicUser } from "@shared/userPublic";
 import { CANONICAL_GRADES, SCHOOL_GRADES, toCanonicalGrade } from "@shared/grade";
+import { toDateOnlyString, validateDateOfBirth } from "@shared/dateOfBirth";
 import { z } from "zod";
 import { isPremiumAssessment } from "../utils/assessmentTier";
 import * as fileStorage from "../services/fileStorage";
@@ -656,7 +657,7 @@ export function registerAdminRoutes(app: Express) {
         return res.status(403).json({ message: "Forbidden" });
       }
 
-      const { username, fullName, grade, passwordComplexity = 'medium', studentId, studentName, studentAge, studentGender } = req.body;
+      const { username, fullName, grade, passwordComplexity = 'medium', studentId, studentName, studentAge, studentGender, dateOfBirth } = req.body;
       const organizationId = req.params.id;
 
       if (!fullName || !grade) {
@@ -672,6 +673,34 @@ export function registerAdminRoutes(app: Express) {
         return res.status(400).json({
           message: `Invalid grade: ${JSON.stringify(grade)}. Expected one of ${CANONICAL_GRADES.join(", ")}.`,
         });
+      }
+
+      // Date of birth, validated HERE and not in studentDemographicsSchema. That
+      // schema is the shared sink for M1/M2/M3 (storage.createUserWithCredentials
+      // parses it), so adding date_of_birth to it makes a DOB mandatory on the
+      // bulk and CSV paths in the same breath — and neither of those sends one
+      // yet. This commit gives M1 the field; the sink requirement that binds all
+      // three is the next commit.
+      //
+      // The reference date is the SERVER'S, from its own clock, never a value
+      // the request could carry. Age derived from a client-supplied "today" is
+      // an age the client chooses, and the plausibility band is the only thing
+      // standing between a typo'd year and a minor's record.
+      //
+      // A rejection is a 400 carrying the module's own sentence, which names the
+      // offending value and the bound it missed — the same shape as the
+      // demographics failures above and below, which also hand the admin a
+      // sentence rather than a field name. `dateOfBirth` is only validated when
+      // present: undefined stays undefined and the column stays null, because
+      // the column is still nullable and the other two write paths do not send
+      // one. Commit 4 is what closes that gap for all three at once.
+      let canonicalDateOfBirth: string | undefined;
+      if (dateOfBirth !== undefined && dateOfBirth !== null && dateOfBirth !== "") {
+        const dobResult = validateDateOfBirth(dateOfBirth, toDateOnlyString(new Date()));
+        if (!dobResult.ok) {
+          return res.status(400).json({ message: dobResult.message });
+        }
+        canonicalDateOfBirth = dobResult.value;
       }
 
       // Check available capacity
@@ -690,6 +719,9 @@ export function registerAdminRoutes(app: Express) {
         studentName: studentName || undefined,
         studentAge: studentAge ? parseInt(studentAge.toString()) : undefined,
         studentGender: studentGender || undefined,
+        // Already normalized to 'YYYY-MM-DD' by validateDateOfBirth, so what
+        // reaches the column is canonical regardless of how the admin typed it.
+        dateOfBirth: canonicalDateOfBirth,
         passwordComplexity: passwordComplexity as 'medium' | 'strong',
         organizationId,
       });
