@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   check,
+  date,
   index,
   uniqueIndex,
   integer,
@@ -154,6 +155,28 @@ export const organizationMembers = pgTable("organization_members", {
   studentId: text("student_id"), // School's own student ID
   studentName: text("student_name"), // Pre-filled student name
   studentAge: integer("student_age"), // Pre-filled student age
+  // The school-recorded date of birth, and the field student_age above is being
+  // replaced by: an age is wrong within twelve months of being written, a birth
+  // date is not. The assessment derives age from this at assessment time
+  // (Phase 4 step 4). student_age is still written by the three create paths and
+  // is dropped in a later commit of that step, once nothing reads it.
+  //
+  // `mode: "string"` is EXPLICIT, not decorative. It happens to be drizzle's
+  // default for date(), but the alternative — mode: "date" — would hand every
+  // caller a JS Date, and a birth date routed through one becomes an instant
+  // that renders as the previous day west of Greenwich, moving a student's
+  // birthday and their derived age by a day. shared/dateOfBirth.ts works in
+  // 'YYYY-MM-DD' strings for exactly this reason; this keeps the column and that
+  // module speaking the same language. Do not change it to "date".
+  //
+  // NULLABLE, and with no CHECK yet, both deliberately. Admin rows share this
+  // table and have no DOB (the four write sites listed at the check() below), so
+  // a per-column .notNull() is wrong here for the same reason it was wrong for
+  // name/gender/grade. The role-scoped CHECK that makes it required for STUDENT
+  // rows lands separately, after the existing student rows have a DOB — see
+  // docs/v2-phase4-step4-recon.md §2. Until then this column is additive and
+  // nothing depends on it.
+  dateOfBirth: date("date_of_birth", { mode: "string" }),
   studentGender: text("student_gender"), // Pre-filled student gender ('male' or 'female')
   grade: text("grade"), // Pre-filled grade ('grade8', 'grade9', etc.)
   role: text("role").notNull().default("student"), // 'student' or 'admin'
@@ -179,10 +202,17 @@ export const organizationMembers = pgTable("organization_members", {
   // all four for a rule that only ever applied to students, so the requirement is
   // expressed here, keyed on `role`.
   //
-  // student_age is deliberately absent: it is unrecoverable (no form has ever
-  // collected it and there is no DOB column to derive it from) and nothing in
-  // scoring or the report reads it — `grade` is the field age-appropriate content
-  // is keyed on. See server/migrations/014_require_student_demographics.sql.
+  // student_age is deliberately absent: nothing in scoring or the report reads it
+  // — `grade` is the field age-appropriate content is keyed on. See
+  // server/migrations/014_require_student_demographics.sql.
+  //
+  // That migration also called student_age UNRECOVERABLE, "no form has ever
+  // collected it and there is no DOB column to derive it from", and closed with
+  // "Revisit only if a DOB column is ever added". date_of_birth above is that
+  // column. student_age stays out of this CHECK regardless — it is being dropped,
+  // not required — and date_of_birth is not in it YET: the existing student rows
+  // have no DOB and none is derivable, so the role-scoped CHECK that requires it
+  // lands only once they are filled. See docs/v2-phase4-step4-recon.md §2.
   //
   // Name matches that migration's constraint exactly, so db:push sees no drift.
   check(
