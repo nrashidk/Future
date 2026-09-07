@@ -145,6 +145,48 @@ Note the tradeoff if resumed: a whitelist alone moves prod access from a typed o
 (ALLOW_PRODUCTION_DB=true, required each time) into a config file that can go stale. Consider
 keeping the override on top of the whitelist. First flagged 2026-09-07.
 
+### Curriculum rename does not cascade to assessments  (severity: medium, Phase 6)
+renameCurriculumInSubjects and renameCurriculumInQuizQuestions (storage.ts:854-881) cascade a
+curriculum rename through subjects and quiz_questions, but stop short of assessments.
+assessments.curriculum keeps the old string, so a renamed curriculum leaves existing
+assessment rows pointing at a value no longer in countries.curricula. This is the same
+reconciliation gap that blocks a superadmin override on the org curriculum lock (01e20cf) —
+neither can be closed until something can re-scope existing assessment rows. Phase 6.
+First flagged 2026-09-07.
+
+### Curriculum rename orphans organizations.curriculum, and the lock blocks recovery  (severity: medium-high)
+POST /api/superadmin/countries/:id/curricula/rename (superadmin.routes.ts:2385-2432) rewrites
+countries.curricula, subjects and quiz_questions, but not organizations.curriculum. A renamed
+curriculum leaves every school on it holding a string that no longer appears in
+countries.curricula.
+
+Consequences, which compound:
+- The school's stored curriculum no longer matches the edit form's availableCurricula lookup,
+  so the dropdown cannot offer the value back.
+- Enrolment (549cd43) and org creation (81ea920) both gate on the school's curriculum.
+- If the school has students, the immutability lock (01e20cf) prevents correcting it at all.
+
+Net: a superadmin rename can put a school into a state only a direct DB write can fix. The
+rename is the only path that produces it, so the fix belongs there, not as a carve-out
+in the lock. Note the scope is larger than one UPDATE: the route runs four sequential
+writes with no transaction at all (superadmin.routes.ts:2380-2432 — updateCountry,
+renameCurriculumInSubjects, renameCurriculumInQuizQuestions, clearSubjectCache), so a
+partial failure today already leaves a rename half-applied with no rollback and a 500 that
+says nothing about how far it got. Fixing this means wrapping all four writes plus the new
+organizations.curriculum update in a transaction that does not currently exist. Same defect
+class as the orphan-user bug fixed in 8c07e25.
+
+Distinct from the assessments cascade gap (47c5067): that one needs Phase 6 reconciliation,
+this one is a missing UPDATE on a path that has no transaction. First flagged 2026-09-07.
+
+### studentGender accepts any non-empty string  (severity: low)
+shared/schema.ts:157 documents 'male' | 'female' as the allowed values, but nothing enforces
+it — not the create path (studentDemographicsSchema, schema.ts:1084-1088), not the PATCH
+path, and no DB constraint. Any non-empty string is stored. Adding an enum must cover both
+paths in one change; doing it on edit only would make create and edit diverge, which is the
+drift the shared-split extraction was written to prevent. Existing prod rows are all 'male'
+or 'female', so a CHECK is currently addable without a backfill. First flagged 2026-09-07.
+
 ## Session log
 
 ### Arabic PDF report — session 2026-06-30
@@ -1571,45 +1613,3 @@ broken on staging and prod until the create path sends studentName
 splits fullName into users.firstName/lastName and leaves the member row's student_name
 NULL, which now violates the constraint). No real schools exist, so nothing is affected in
 practice. Fixed in the follow-up.
-
-### Curriculum rename does not cascade to assessments  (severity: medium, Phase 6)
-renameCurriculumInSubjects and renameCurriculumInQuizQuestions (storage.ts:854-881) cascade a
-curriculum rename through subjects and quiz_questions, but stop short of assessments.
-assessments.curriculum keeps the old string, so a renamed curriculum leaves existing
-assessment rows pointing at a value no longer in countries.curricula. This is the same
-reconciliation gap that blocks a superadmin override on the org curriculum lock (01e20cf) —
-neither can be closed until something can re-scope existing assessment rows. Phase 6.
-First flagged 2026-09-07.
-
-### Curriculum rename orphans organizations.curriculum, and the lock blocks recovery  (severity: medium-high)
-POST /api/superadmin/countries/:id/curricula/rename (superadmin.routes.ts:2385-2432) rewrites
-countries.curricula, subjects and quiz_questions, but not organizations.curriculum. A renamed
-curriculum leaves every school on it holding a string that no longer appears in
-countries.curricula.
-
-Consequences, which compound:
-- The school's stored curriculum no longer matches the edit form's availableCurricula lookup,
-  so the dropdown cannot offer the value back.
-- Enrolment (549cd43) and org creation (81ea920) both gate on the school's curriculum.
-- If the school has students, the immutability lock (01e20cf) prevents correcting it at all.
-
-Net: a superadmin rename can put a school into a state only a direct DB write can fix. The
-rename is the only path that produces it, so the fix belongs there, not as a carve-out
-in the lock. Note the scope is larger than one UPDATE: the route runs four sequential
-writes with no transaction at all (superadmin.routes.ts:2380-2432 — updateCountry,
-renameCurriculumInSubjects, renameCurriculumInQuizQuestions, clearSubjectCache), so a
-partial failure today already leaves a rename half-applied with no rollback and a 500 that
-says nothing about how far it got. Fixing this means wrapping all four writes plus the new
-organizations.curriculum update in a transaction that does not currently exist. Same defect
-class as the orphan-user bug fixed in 8c07e25.
-
-Distinct from the assessments cascade gap (47c5067): that one needs Phase 6 reconciliation,
-this one is a missing UPDATE on a path that has no transaction. First flagged 2026-09-07.
-
-### studentGender accepts any non-empty string  (severity: low)
-shared/schema.ts:157 documents 'male' | 'female' as the allowed values, but nothing enforces
-it — not the create path (studentDemographicsSchema, schema.ts:1084-1088), not the PATCH
-path, and no DB constraint. Any non-empty string is stored. Adding an enum must cover both
-paths in one change; doing it on edit only would make create and edit diverge, which is the
-drift the shared-split extraction was written to prevent. Existing prod rows are all 'male'
-or 'female', so a CHECK is currently addable without a backfill. First flagged 2026-09-07.
