@@ -1613,3 +1613,11 @@ path, and no DB constraint. Any non-empty string is stored. Adding an enum must 
 paths in one change; doing it on edit only would make create and edit diverge, which is the
 drift the shared-split extraction was written to prevent. Existing prod rows are all 'male'
 or 'female', so a CHECK is currently addable without a backfill. First flagged 2026-09-07.
+
+### Subject-access export omits everything the school recorded  (severity: medium-high)
+GET /api/users/me/export (user.routes.ts:39) returns users columns (:81-91) and all
+assessments with recommendations, quiz and CVQ data (:93-98), but does not read
+organization_members at all. A school student's own data export therefore omits
+student_name, student_gender, grade and student_id — everything their school recorded about
+them. Users are minors, so this is a live GDPR/PDPL subject-access gap, not a nicety. Adding
+date_of_birth to that table (Phase 4 step 4) makes it worse. First flagged 2026-09-07.
