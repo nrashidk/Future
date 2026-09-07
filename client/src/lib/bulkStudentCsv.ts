@@ -1,3 +1,12 @@
+import { splitCsvRow } from "@shared/csvRow";
+
+/**
+ * Re-exported so this module stays the single import for everything the bulk
+ * upload needs, and so the tests that pin row-splitting behaviour keep sitting
+ * next to the parser that depends on it.
+ */
+export { splitCsvRow };
+
 /**
  * The bulk student-upload CSV parser.
  *
@@ -8,10 +17,12 @@
  *
  * WHAT IT IS NOT: a general CSV library. It handles the subset a school
  * spreadsheet actually exports — comma separators, optional double quotes,
- * either line ending — and deliberately mirrors the server-side parser in the
- * CSV import route (server/routes/admin.routes.ts) so the bulk-paste and import
- * paths read the same file the same way. A change here that is not made there
- * splits that guarantee.
+ * either line ending.
+ *
+ * Row splitting itself lives in shared/csvRow.ts and is the SAME FUNCTION the
+ * server-side CSV import route calls. It used to be a second hand-maintained
+ * copy, and the two were identically wrong about escaped quotes for as long as
+ * nobody compared them.
  */
 
 /**
@@ -42,45 +53,6 @@ export interface BulkStudentRow {
 export type BulkStudentCsvResult =
   | { ok: true; rows: BulkStudentRow[] }
   | { ok: false; missingColumns: string[] };
-
-/**
- * Split one CSV row, respecting double-quoted fields.
- *
- * Replaces a bare `line.split(',')`, which mis-split any quoted value
- * containing a comma — "Ali, Ahmed" became two fields and shifted every column
- * after it. That was survivable while parsing was positional only because the
- * result was already unreliable; with named columns the header row itself goes
- * through this function, so it has to be right.
- *
- * KNOWN DEVIATION FROM RFC 4180: a doubled quote inside a quoted field is the
- * standard way to write a literal quote character, and this drops it rather than
- * emitting one — `"O""Brien"` yields `OBrien`. The server-side parser behaves
- * identically, which is the only reason it is left alone here: the two must
- * agree, so correcting it is a change to both paths and belongs in its own
- * commit. Locked by a test so the behaviour is recorded rather than assumed.
- *
- * Fields are trimmed, which is what makes a hand-edited header row with stray
- * spaces still match by name.
- */
-export function splitCsvRow(row: string): string[] {
-  const values: string[] = [];
-  let current = '';
-  let insideQuotes = false;
-
-  for (const char of row) {
-    if (char === '"') {
-      insideQuotes = !insideQuotes;
-    } else if (char === ',' && !insideQuotes) {
-      values.push(current.trim());
-      current = '';
-    } else {
-      current += char;
-    }
-  }
-  values.push(current.trim());
-
-  return values;
-}
 
 /**
  * Parse a bulk-upload CSV into rows, or report which required columns are absent.

@@ -9,6 +9,7 @@ import { insertQuizQuestionSchema, studentDemographicsSchema } from "@shared/sch
 import { toPublicUser } from "@shared/userPublic";
 import { CANONICAL_GRADES, SCHOOL_GRADES, toCanonicalGrade } from "@shared/grade";
 import { toDateOnlyString, validateDateOfBirth } from "@shared/dateOfBirth";
+import { splitCsvRow } from "@shared/csvRow";
 import { z } from "zod";
 import { isPremiumAssessment } from "../utils/assessmentTier";
 import * as fileStorage from "../services/fileStorage";
@@ -2217,7 +2218,7 @@ export function registerAdminRoutes(app: Express) {
       // refusing a file in the previous shape is an admin re-exporting one, and
       // the alternative — accepting a DOB-less file and failing every row at the
       // sink — is the same rejection delivered less clearly.
-      const headers = lines[0].split(',').map(h => sanitizeCSVField(h.replace(/"/g, '')));
+      const headers = splitCsvRow(lines[0]).map(sanitizeCSVField);
       const requiredHeaders = ['fullName', 'dateOfBirth'];
       const missingHeaders = requiredHeaders.filter(h => !headers.includes(h));
       
@@ -2239,26 +2240,27 @@ export function registerAdminRoutes(app: Express) {
         if (!row.trim()) continue;
 
         try {
-          // Simple CSV parsing (handles quoted values)
-          const values: string[] = [];
-          let currentValue = '';
-          let insideQuotes = false;
-
-          for (let char of row) {
-            if (char === '"') {
-              insideQuotes = !insideQuotes;
-            } else if (char === ',' && !insideQuotes) {
-              values.push(sanitizeCSVField(currentValue.trim()));
-              currentValue = '';
-            } else {
-              currentValue += char;
-            }
-          }
-          values.push(sanitizeCSVField(currentValue.trim())); // Push last value with sanitization
+          // The SAME splitter the bulk-paste path uses (shared/csvRow.ts). This
+          // was a second hand-maintained copy of the loop, and the two were
+          // identically wrong about escaped quotes: both toggled on every quote
+          // and kept none, so `"O""Brien"` was stored as `OBrien` — a corrupted
+          // child's record nothing downstream could distinguish from a name
+          // genuinely typed that way. One function means a school that pastes a
+          // file and a school that uploads the same file get the same students.
+          //
+          // sanitizeCSVField is applied on top, per value: it is this route's
+          // own concern (the file is persisted and re-exported, so a cell
+          // beginning = + - @ is a formula-injection risk) and has nothing to do
+          // with reading the row correctly.
+          const values = splitCsvRow(row).map(sanitizeCSVField);
 
           const rowData: any = {};
           headers.forEach((header, index) => {
-            rowData[header] = values[index]?.replace(/^"|"$/g, '') || '';
+            // No trailing .replace(/^"|"$/g, '') any more. It was dead while the
+            // splitter dropped every quote, and became actively harmful once it
+            // stopped: a value legitimately ending in a quote — `He said "hi"` —
+            // had that quote truncated back off.
+            rowData[header] = values[index] || '';
           });
 
           // Validate required fields

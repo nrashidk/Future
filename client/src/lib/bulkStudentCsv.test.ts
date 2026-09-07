@@ -256,18 +256,29 @@ describe("splitCsvRow", () => {
       .toBe("Ali, Ahmed");
   });
 
-  it("DROPS a doubled quote instead of emitting one — a known RFC 4180 deviation", () => {
-    // RFC 4180 writes a literal quote inside a quoted field as "". This parser
-    // toggles on every quote character and keeps none, so `"O""Brien"` yields
-    // `OBrien` — a silently corrupted name.
-    //
-    // Pinned as-is rather than fixed here for one reason: the server-side
-    // importer does exactly the same thing, and the two paths must read a file
-    // identically. Correcting it is a change to both and belongs in its own
-    // commit. This test is what makes that deviation visible instead of folklore
-    // — when it is fixed, this expectation should be inverted, not deleted.
-    expect(splitCsvRow('"O""Brien",grade10')).toEqual(["OBrien", "grade10"]);
-    expect(splitCsvRow('a,"He said ""hi""",c')).toEqual(["a", "He said hi", "c"]);
+  it("emits one quote for a doubled quote, per RFC 4180", () => {
+    // INVERTED, not deleted. This previously asserted the broken behaviour —
+    // `"O""Brien"` yielding `OBrien` — which was pinned rather than fixed only
+    // because the server-side importer was identically wrong and the two paths
+    // have to read a file the same way. They now call the same function
+    // (shared/csvRow.ts), so the deviation is fixed on both sides at once and
+    // this is what a corrupted child's name looks like when it is not corrupted.
+    expect(splitCsvRow('"O""Brien",grade10')).toEqual(['O"Brien', "grade10"]);
+    expect(splitCsvRow('a,"He said ""hi""",c')).toEqual(["a", 'He said "hi"', "c"]);
+  });
+
+  it("keeps an escaped quote at the very end of a field", () => {
+    // The case the server's downstream .replace(/^"|"$/g, '') truncated: it
+    // stripped a trailing quote that was data, not a delimiter. That strip was
+    // dead code while the splitter dropped every quote and became harmful the
+    // moment it stopped, so it was removed in the same commit.
+    expect(splitCsvRow('"He said ""hi""",grade10')).toEqual(['He said "hi"', "grade10"]);
+  });
+
+  it("carries an escaped quote through the full parser into a student name", () => {
+    expect(
+      rowsOf('fullName,grade,studentGender,dateOfBirth\n"O""Brien, Ahmed",grade10,male,2010-03-14')[0].fullName,
+    ).toBe('O"Brien, Ahmed');
   });
 
   it("strips the quotes around an ordinary quoted field", () => {
