@@ -178,7 +178,7 @@ Shipped and verified-in-code; ONE manual verification step remains (see below).
 2. Throwaway .cjs scripts in working tree need deleting (check_*.cjs, cvq_reset_*.cjs, del_joud*.cjs). Untracked — safe to rm.
 
 #### SECURITY — done, but verify
-- Prod DB password (neondb_owner) was rotated this session after being exposed. Endpoint is now the -pooler variant: ep-floral-rice-astfwiew-pooler. Updated in: Neon, Render env, local .env. CONFIRM .env is gitignored and was never committed.
+- Prod DB password was rotated this session after being exposed. The prod endpoint is now its -pooler variant. Updated in: Neon, Render env, local .env. CONFIRM .env is gitignored and was never committed.
 
 #### Still parked (unchanged from before)
 - Individual-tier lock; PDF length/narrative redesign (decide-first session); nav bugs (Quiz Back, Career Personality Back); admin-flow QA; dependency vulns (10: 4 high/4 mod/2 low — npm reports 0, Dependabot tracking); RESEND_API_KEY not set in prod; Arabic RTL audit; branch protection unfinished.
@@ -843,7 +843,7 @@ CANNOT auto-grant -> surface + "claim your purchase" email. Backstops Fix 4's re
 
 ## Env recipe for THIS codespace (test-mode runtime verification)
 App reads process.env directly (NO dotenv). .env is gitignored — fresh Codespace has none; create it with
-the Neon dev DATABASE_URL (pooled host ep-floral-rice-astfwiew-pooler...eu-central-1...neon.tech).
+the Neon dev DATABASE_URL (the pooled -pooler host for the endpoint that .env points at — see Neon).
 In ONE terminal, same shell as `npm run dev`:
   export $(grep -v '^#' .env | xargs)          # DATABASE_URL (source .env alone may not load it)
   export STRIPE_SECRET_KEY='sk_test_...'        # NOT in .env
@@ -907,8 +907,9 @@ Root cause fixed: dev and prod shared one Neon DB; a stale/ambient prod DATABASE
 silently won and let local work write to production (a real premium account was created in prod this session).
 
 Done:
-- Neon STAGING branch created (ep-soft-recipe-asoeuh0j, schema-only, auto-delete Never). Dev .env points at it.
-  Prod stays on main branch (ep-floral-rice-astfwiew).
+- Neon STAGING branch created (its own endpoint, schema-only, auto-delete Never). Dev .env points at it.
+  Prod stays on the main branch, on the prod endpoint. The two are different databases — that is the
+  whole point of this item.
 - APP_ENV=production set in Render (explicit positive prod signal — NODE_ENV unreliable: Render starts via
   `node dist/index.js`; NODE_ENV=production IS set as a dashboard var, confirmed, so the 8 cookie/enum
   downgrades are NOT live).
@@ -924,7 +925,11 @@ Override the endpoint id via PRODUCTION_DB_ENDPOINT_ID if the branch is ever rec
 Remaining small follow-ups (not blocking):
 - ROTATE Neon credentials: the full connection string (with password) surfaced in terminal output several
   times this session — it's in the transcript. Do when convenient.
-- Scrub the prod Neon hostname from FOLLOWUP.md:752 when rotating (not a credential, but publishes the instance).
+- DONE 2026-09-07: Neon endpoint hostnames scrubbed from this file. They appeared across several
+  sections, not the single line this item used to cite — the prod endpoint in the rotation note, the
+  env recipe, the staging/prod branch note and the migration-014 correction, plus the staging endpoint
+  in two places. Replaced with "the prod endpoint" / "the staging endpoint", preserving every passage's
+  prod-vs-staging distinction. Not credentials, but the repo is public and they publish the instance.
 - .env.example documents only 2 seed passwords — expand to name DATABASE_URL/STRIPE_*/SESSION_SECRET/
   DB_ENCRYPTION_KEY/APP_ENV so a dev has a guardrail (its absence contributed to #2).
 - drizzle-kit swallows exit code: a guard trip PRINTS but exits 0 — if db:push is ever wired into CI, the
@@ -1058,7 +1063,7 @@ visibility this session). This is the decisive fact for Option A vs B — CHECK 
 section) before choosing. Free-tier plans may not support disks at all.
 
 SEVERITY CONTEXT: prod showed 1 school / 2 students in the superadmin dashboard UI (user screenshot,
-2026-08-25) — NOT verified by DB query this session (only staging ep-soft-recipe was queried, which
+2026-08-25) — NOT verified by DB query this session (only the staging endpoint was queried, which
 returned 0 files/0 orgs). Implication: little/no real data at risk YET, but confirm against prod before
 relying on this. This is a MUST-FIX-BEFORE-REAL-SCHOOLS-ONBOARD item, not a live emergency. But it is the
 single most important pre-launch data-integrity item found so far.
@@ -1538,7 +1543,7 @@ REMAINING v2 phases (reconned, ready):
 
 3f04c8b's commit message states that migration 014 was not applied to prod. That is wrong.
 014_require_student_demographics.sql applied successfully via scripts/run-migrations.ts at
-2026-09-05T07:19:02Z against ep-floral-rice-astfwiew; constraint
+2026-09-05T07:19:02Z against the PROD endpoint; constraint
 organization_members_student_demographics_check verified convalidated=true. The earlier
 failed attempts were a malformed DATABASE_URL missing its postgresql scheme, not the
 unclosed Neon pool. Both staging and prod are now on 014 (staging was additionally behind
