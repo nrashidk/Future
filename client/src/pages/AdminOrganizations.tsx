@@ -121,6 +121,25 @@ interface OrganizationMember {
   };
 }
 
+/**
+ * The name to show for a member.
+ *
+ * organization_members.student_name is the name of record — what the school
+ * actually typed. users.firstName/lastName are a lossy split of it, and until
+ * 94cd048 nothing could edit them, so every screen here rendered the split copy
+ * instead. That made a rename look like it had not saved.
+ *
+ * Student rows always have student_name: migration 014 backfilled it from the
+ * users columns and its CHECK has kept it non-null since. Admin rows legitimately
+ * have none — the CHECK exempts them and no admin-creating path collects one — so
+ * they fall back to the users columns, which is all they ever had.
+ */
+function memberDisplayName(member: OrganizationMember): string {
+  const canonical = member.studentName?.trim();
+  if (canonical) return canonical;
+  return `${member.user.firstName} ${member.user.lastName}`.trim();
+}
+
 function getMemberStatus(member: OrganizationMember, t: (key: string) => string): { key: string; label: string; variant: "default" | "secondary" | "outline" | "destructive"; description: string } {
   if (member.role === 'admin') {
     return { key: 'admin', label: t('orgs.adminLabel'), variant: 'secondary', description: t('orgs.statusAdminDesc') };
@@ -880,7 +899,7 @@ export default function AdminOrganizations() {
                               />
                             </TableCell>
                             <TableCell className="font-medium">
-                              {member.user.firstName} {member.user.lastName}
+                              {memberDisplayName(member)}
                             </TableCell>
                             <TableCell>{member.user.username}</TableCell>
                             <TableCell className="capitalize">{member.studentGender || '-'}</TableCell>
@@ -1571,6 +1590,74 @@ function EditOrganizationForm({ organization, studentCount, onSuccess }: { organ
   );
 }
 
+/**
+ * Grade and gender pickers, shared by the create and edit student forms.
+ *
+ * Extracted when the edit form arrived: these are the two fields the
+ * organization_members CHECK requires alongside the name, so both forms must
+ * offer exactly the same options and both must gate on them. Two copies of the
+ * grade list is how "8" and "grade8" both ended up in the column.
+ *
+ * Presentational: the caller owns the value, the error string and the clearing
+ * of that error. Test ids derive from `id` so each form's controls stay
+ * individually addressable.
+ */
+function GradeSelect({ id, value, onValueChange, error }: {
+  id: string;
+  value: string;
+  onValueChange: (value: string) => void;
+  error?: string;
+}) {
+  const { t } = useTranslation('admin');
+  return (
+    <div>
+      <Label htmlFor={id}>{t('orgs.gradeRequired')}</Label>
+      <Select value={value} onValueChange={onValueChange}>
+        <SelectTrigger id={id} data-testid={`select-${id}`}>
+          <SelectValue placeholder={t('orgs.selectGradeOpt')} />
+        </SelectTrigger>
+        <SelectContent>
+          {/* Values are canonical ('grade8'…'grade12'); the label keeps the
+              bare number. This select used to emit "8"…"12", which is how a
+              second grade format entered organization_members. */}
+          {SCHOOL_GRADES.map(g => (
+            <SelectItem key={g} value={g}>{t('orgs.gradeItemN', { n: gradeToNumber(g) })}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {error && (
+        <p className="text-xs text-destructive mt-1" data-testid={`error-${id}`}>{error}</p>
+      )}
+    </div>
+  );
+}
+
+function GenderSelect({ id, value, onValueChange, error }: {
+  id: string;
+  value: string;
+  onValueChange: (value: string) => void;
+  error?: string;
+}) {
+  const { t } = useTranslation('admin');
+  return (
+    <div>
+      <Label htmlFor={id}>{t('orgs.genderRequired')}</Label>
+      <Select value={value} onValueChange={onValueChange}>
+        <SelectTrigger id={id} data-testid={`select-${id}`}>
+          <SelectValue placeholder={t('orgs.selectGenderReq')} />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="male">{t('orgs.maleOption')}</SelectItem>
+          <SelectItem value="female">{t('orgs.femaleOption')}</SelectItem>
+        </SelectContent>
+      </Select>
+      {error && (
+        <p className="text-xs text-destructive mt-1" data-testid={`error-${id}`}>{error}</p>
+      )}
+    </div>
+  );
+}
+
 function CreateMemberForm({ organizationId, onSuccess }: { organizationId: string; onSuccess: () => void }) {
   const { toast } = useToast();
   const { t } = useTranslation('admin');
@@ -1696,28 +1783,15 @@ function CreateMemberForm({ organizationId, onSuccess }: { organizationId: strin
         </div>
 
         <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="grade">{t('orgs.gradeRequired')}</Label>
-            <Select value={formData.grade} onValueChange={(value) => {
+          <GradeSelect
+            id="grade"
+            value={formData.grade}
+            onValueChange={(value) => {
               setFormData(f => ({ ...f, grade: value }));
               setFieldErrors(e => ({ ...e, grade: undefined }));
-            }}>
-              <SelectTrigger id="grade" data-testid="select-grade">
-                <SelectValue placeholder={t('orgs.selectGradeOpt')} />
-              </SelectTrigger>
-              <SelectContent>
-                {/* Values are canonical ('grade8'…'grade12'); the label keeps the
-                    bare number. This select used to emit "8"…"12", which is how a
-                    second grade format entered organization_members. */}
-                {SCHOOL_GRADES.map(g => (
-                  <SelectItem key={g} value={g}>{t('orgs.gradeItemN', { n: gradeToNumber(g) })}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {fieldErrors.grade && (
-              <p className="text-xs text-destructive mt-1" data-testid="error-grade">{fieldErrors.grade}</p>
-            )}
-          </div>
+            }}
+            error={fieldErrors.grade}
+          />
 
           <div>
             <Label htmlFor="student-id">{t('orgs.studentIdFieldLabel')}</Label>
@@ -1731,24 +1805,15 @@ function CreateMemberForm({ organizationId, onSuccess }: { organizationId: strin
           </div>
         </div>
 
-        <div>
-          <Label htmlFor="student-gender">{t('orgs.genderRequired')}</Label>
-          <Select value={formData.studentGender} onValueChange={(value) => {
+        <GenderSelect
+          id="student-gender"
+          value={formData.studentGender}
+          onValueChange={(value) => {
             setFormData(f => ({ ...f, studentGender: value }));
             setFieldErrors(e => ({ ...e, studentGender: undefined }));
-          }}>
-            <SelectTrigger id="student-gender" data-testid="select-student-gender">
-              <SelectValue placeholder={t('orgs.selectGenderReq')} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="male">{t('orgs.maleOption')}</SelectItem>
-              <SelectItem value="female">{t('orgs.femaleOption')}</SelectItem>
-            </SelectContent>
-          </Select>
-          {fieldErrors.studentGender && (
-            <p className="text-xs text-destructive mt-1" data-testid="error-student-gender">{fieldErrors.studentGender}</p>
-          )}
-        </div>
+          }}
+          error={fieldErrors.studentGender}
+        />
 
         <div>
           <Label htmlFor="username">{t('orgs.usernameOptField')}</Label>
@@ -1973,10 +2038,145 @@ function BulkUploadForm({ organizationId, onSuccess }: { organizationId: string;
   );
 }
 
+/**
+ * Edit an existing student's details.
+ *
+ * A separate component from CreateMemberForm rather than a mode of it, matching
+ * CreateOrganizationForm / EditOrganizationForm in this file. Create owns the
+ * credential hand-off (it returns a different subtree once the password exists),
+ * offers username and passwordComplexity, and reads a user+password out of its
+ * response. None of that has an edit equivalent: the PATCH route returns a bare
+ * member row, and username in particular must never change — it is a credential
+ * the student has already been given.
+ *
+ * Prefills the name from studentName, the value the school actually typed. The
+ * fallback to the users columns is for the admin rows this form is not offered
+ * for; it costs one expression and means the field is never blank if this is
+ * ever reached another way.
+ */
+function EditMemberForm({ member, organizationId, onSuccess }: {
+  member: OrganizationMember;
+  organizationId: string;
+  onSuccess: () => void;
+}) {
+  const { toast } = useToast();
+  const { t } = useTranslation('admin');
+  const [formData, setFormData] = useState({
+    fullName: memberDisplayName(member),
+    grade: member.grade || "",
+    studentGender: member.studentGender || "",
+    studentId: member.studentId || "",
+  });
+  // Same gate as CreateMemberForm, for the same reason: grade and gender are
+  // Radix Selects, not native inputs, so a `required` attribute does nothing.
+  // The server rejects a cleared value on either (admin.routes.ts), but the
+  // admin should not have to submit to find that out.
+  const [fieldErrors, setFieldErrors] = useState<{ grade?: string; studentGender?: string }>({});
+
+  const mutation = useMutation({
+    mutationFn: async (data: typeof formData) => {
+      // studentId is the one clearable field — "" reaches the server as a clear
+      // and is stored as null, which is why it is sent as-is rather than omitted.
+      return apiRequest('PATCH', `/api/admin/organizations/${organizationId}/members/${member.id}`, data);
+    },
+    onSuccess: () => {
+      toast({ title: t('superadmin.success'), description: t('orgs.studentUpdateSuccess') });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/organizations', organizationId, 'members'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/organizations'] });
+      onSuccess();
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: t('superadmin.error'),
+        description: serverErrorMessage(error) || t('orgs.studentUpdateError'),
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const errors: { grade?: string; studentGender?: string } = {};
+    if (!formData.grade) errors.grade = t('orgs.fieldRequired');
+    if (!formData.studentGender) errors.studentGender = t('orgs.fieldRequired');
+    setFieldErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+    mutation.mutate(formData);
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <DialogHeader>
+        <DialogTitle>{t('orgs.editStudentTitle')}</DialogTitle>
+        <DialogDescription>
+          {t('orgs.editStudentDesc', { username: member.user.username })}
+        </DialogDescription>
+      </DialogHeader>
+
+      <div className="space-y-4">
+        <div>
+          <Label htmlFor="edit-full-name">{t('orgs.fullNameRequired')}</Label>
+          <Input
+            id="edit-full-name"
+            value={formData.fullName}
+            onChange={(e) => setFormData(f => ({ ...f, fullName: e.target.value }))}
+            required
+            placeholder={t('orgs.fullNamePlaceholder')}
+            data-testid="input-edit-full-name"
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            {t('orgs.editStudentUsernameHint')}
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <GradeSelect
+            id="edit-grade"
+            value={formData.grade}
+            onValueChange={(value) => {
+              setFormData(f => ({ ...f, grade: value }));
+              setFieldErrors(e => ({ ...e, grade: undefined }));
+            }}
+            error={fieldErrors.grade}
+          />
+
+          <div>
+            <Label htmlFor="edit-student-id">{t('orgs.studentIdFieldLabel')}</Label>
+            <Input
+              id="edit-student-id"
+              value={formData.studentId}
+              onChange={(e) => setFormData(f => ({ ...f, studentId: e.target.value }))}
+              placeholder={t('orgs.optionalPlaceholder')}
+              data-testid="input-edit-student-id"
+            />
+          </div>
+        </div>
+
+        <GenderSelect
+          id="edit-student-gender"
+          value={formData.studentGender}
+          onValueChange={(value) => {
+            setFormData(f => ({ ...f, studentGender: value }));
+            setFieldErrors(e => ({ ...e, studentGender: undefined }));
+          }}
+          error={fieldErrors.studentGender}
+        />
+      </div>
+
+      <div className="flex justify-end gap-2 pt-4">
+        <Button type="submit" disabled={mutation.isPending} data-testid="button-submit-edit-student">
+          {mutation.isPending ? t('orgs.updatingStudent') : t('orgs.updateStudentBtn')}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 function MemberActions({ member, organizationId }: { member: OrganizationMember; organizationId: string }) {
   const { toast } = useToast();
   const { t } = useTranslation('admin');
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [newPassword, setNewPassword] = useState<string | null>(null);
 
   const deleteMutation = useMutation({
@@ -2055,6 +2255,28 @@ function MemberActions({ member, organizationId }: { member: OrganizationMember;
 
   return (
     <div className="flex gap-1 justify-end">
+      {/* Students only. An admin member row has no name, gender or grade — the
+          CHECK exempts it and no admin-creating path collects them — so this
+          form would ask an admin to invent demographics for themselves, and the
+          server would then require them. Renaming a school admin is a different
+          job on a different row (users), not this one. */}
+      {member.role === 'student' && (
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogTrigger asChild>
+            <Button variant="ghost" size="icon" data-testid={`button-edit-member-${member.id}`}>
+              <Edit className="w-4 h-4" />
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <EditMemberForm
+              member={member}
+              organizationId={organizationId}
+              onSuccess={() => setIsEditDialogOpen(false)}
+            />
+          </DialogContent>
+        </Dialog>
+      )}
+
       <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
         <DialogTrigger asChild>
           <Button variant="ghost" size="icon" data-testid={`button-reset-password-${member.id}`}>
@@ -2065,7 +2287,7 @@ function MemberActions({ member, organizationId }: { member: OrganizationMember;
           <DialogHeader>
             <DialogTitle>{t('orgs.resetPasswordTitle')}</DialogTitle>
             <DialogDescription>
-              {t('orgs.resetPasswordDesc', { name: `${member.user.firstName} ${member.user.lastName}` })}
+              {t('orgs.resetPasswordDesc', { name: memberDisplayName(member) })}
             </DialogDescription>
           </DialogHeader>
           
@@ -2120,7 +2342,7 @@ function MemberActions({ member, organizationId }: { member: OrganizationMember;
             <AlertDialogHeader>
               <AlertDialogTitle>{t('orgs.deleteStudentTitle')}</AlertDialogTitle>
               <AlertDialogDescription>
-                {t('orgs.deleteStudentDesc', { name: `${member.user.firstName} ${member.user.lastName}` })}
+                {t('orgs.deleteStudentDesc', { name: memberDisplayName(member) })}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
