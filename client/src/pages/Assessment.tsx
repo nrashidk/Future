@@ -61,27 +61,16 @@ export default function Assessment() {
   const [, setLocation] = useLocation();
   const { user, isAuthenticated, isLoading } = useAuth();
 
-  // Whether the viewer's demographics belong to a school — undefined while the
-  // answer is genuinely unknown.
+  // ONE membership concept in this file. useAssessmentAvailability now derives
+  // it from the organization_members row, via /api/auth/user's isOrgStudent
+  // decoration — the same test the server's field lock uses (14459a4) — so the
+  // second local this page briefly kept was the same value from the same source
+  // under a different name, and is gone.
   //
-  // Was `!!(user as any)?.isOrgStudent` at each call site, which coerced
-  // undefined to false: an unresolved auth query unlocked five fields the server
-  // was going to overwrite anyway. Same fail-open shape 7aabc13 removed from the
-  // school edit form, where an unknown student count now locks rather than
-  // unlocks.
-  //
-  // `user` alone cannot carry the distinction: a guest and a self-paid student
-  // both have no isOrgStudent, and so does a student whose request is still in
-  // flight. isLoading is the only thing that separates "no" from "not yet", so
-  // the unknown state is taken from there and everything else resolves to a real
-  // boolean.
-  //
-  // Named schoolMembership, not isOrgStudent, because useAssessmentAvailability
-  // already exports an `isOrgStudent` into this scope on the line below — and it
-  // is derived differently, from user.accountType. The two can disagree; that
-  // one is the last accountType-keyed membership test left and is not this
-  // commit's to move.
-  const schoolMembership: boolean | undefined = isLoading ? undefined : !!user?.isOrgStudent;
+  // THREE-STATE: undefined while auth is unresolved. Passed to the steps
+  // uncoerced, because `!!undefined` answers "not a school student" for a
+  // student we have not identified yet and unlocks five fields the server is
+  // about to overwrite (15203ec).
   const {
     isOrgStudent,
     isLoading: availLoading,
@@ -1021,7 +1010,7 @@ export default function Assessment() {
             data={assessmentData}
             onUpdate={updateAssessmentData}
             onNext={handleNext}
-            isOrgStudent={schoolMembership}
+            isOrgStudent={isOrgStudent}
             predefinedGrade={(user as any)?.predefinedGrade}
             predefinedName={(user as any)?.predefinedName}
             predefinedAge={(user as any)?.predefinedAge}
@@ -1040,7 +1029,7 @@ export default function Assessment() {
             onUpdate={updateAssessmentData}
             onNext={handleNext}
             onBack={() => setCurrentStep(1)}
-            isOrgStudent={schoolMembership}
+            isOrgStudent={isOrgStudent}
           />
         )}
         
