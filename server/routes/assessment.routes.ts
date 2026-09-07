@@ -52,6 +52,66 @@ function normalizeAssessmentPayload(body: any): { normalized?: any; error?: stri
   return { normalized };
 }
 
+/**
+ * The five assessment fields a school states on its students' behalf.
+ *
+ * `age` is deliberately absent. organization_members.student_age is nullable,
+ * excluded from the demographics CHECK, and NULL on every row — migration
+ * 014:29-38 records why: no form has ever collected it and there is no DOB column
+ * to derive it from. There is no school-side value to lock to, and inventing one
+ * would put a fabricated age in a minor's record. It stays student-supplied.
+ */
+export const SCHOOL_OWNED_ASSESSMENT_FIELDS = ['name', 'grade', 'gender', 'countryId', 'curriculum'] as const;
+
+type SchoolOwnedField = typeof SCHOOL_OWNED_ASSESSMENT_FIELDS[number];
+
+/**
+ * Decide what a school's rows say about the fields this PATCH is touching.
+ *
+ * Pure so the rule can be tested without a database or a mounted route; the
+ * caller owns the lookups and the response. Returns the values to write and the
+ * fields the school could not supply.
+ *
+ * FAILS CLOSED. A field the school owns but has no value for is reported in
+ * `missing`, never left as the student's own input — the previous behaviour let
+ * the student's value win precisely when the school's was unavailable.
+ *
+ * `organization` may be null when the payload touches none of the two fields it
+ * owns; countryId/curriculum are only ever reported missing if the payload
+ * actually names them, so passing null to save a query cannot manufacture a
+ * failure.
+ */
+export function resolveSchoolOwnedFields(
+  updateData: Record<string, unknown>,
+  member: { studentName?: string | null; studentGender?: string | null; grade?: string | null },
+  organization: { countryId?: string | null; curriculum?: string | null } | null | undefined,
+): { overrides: Partial<Record<SchoolOwnedField, unknown>>; missing: SchoolOwnedField[] } {
+  const schoolValues: Record<SchoolOwnedField, unknown> = {
+    name: member.studentName,
+    grade: member.grade,
+    gender: member.studentGender,
+    countryId: organization?.countryId,
+    curriculum: organization?.curriculum,
+  };
+
+  const overrides: Partial<Record<SchoolOwnedField, unknown>> = {};
+  const missing: SchoolOwnedField[] = [];
+
+  for (const field of SCHOOL_OWNED_ASSESSMENT_FIELDS) {
+    if (updateData[field] === undefined) continue;
+    const value = schoolValues[field];
+    // An empty string is as unusable as null here: it satisfies a NOT NULL while
+    // still failing every downstream `!assessment.grade` check.
+    if (value === null || value === undefined || (typeof value === 'string' && value.trim() === '')) {
+      missing.push(field);
+    } else {
+      overrides[field] = value;
+    }
+  }
+
+  return { overrides, missing };
+}
+
 export function registerAssessmentRoutes(app: Express) {
   app.post("/api/assessments", async (req: any, res) => {
     try {
@@ -263,6 +323,19 @@ export function registerAssessmentRoutes(app: Express) {
         if (!guestToken || guestToken !== existingAssessment.guestSessionId) {
           return res.status(403).json({ message: "Forbidden" });
         }
+      } else {
+        // Neither owner column set. The chain was `if / else if` with no else, so
+        // such a row reached the update having had NO ownership check at all and
+        // was writable by any unauthenticated caller. GET on this same resource
+        // already fails closed on the identical shape (:212-218 uses a plain
+        // else, and a NULL guestSessionId can never match a presented token), so
+        // this closes an asymmetry rather than inventing a rule.
+        //
+        // Defensive: prod and staging both return zero rows with both columns
+        // NULL. It is unreachable through any create path — POST always sets one
+        // or the other (:80-82) — but it is one line and the alternative is an
+        // unauthenticated write.
+        return res.status(403).json({ message: "Forbidden" });
       }
 
       // Sanitize user input to prevent XSS
@@ -288,7 +361,20 @@ export function registerAssessmentRoutes(app: Express) {
         'prioritySubjects', 'interests', 'personalityTraits', 'careerAspirations',
         'strengths', 'workPreferences', 'riasecResponses', 'cvqResponses',
         'subjectCompetencies',
-        'currentStep', 'currentStepMetadata', 'completedAt',
+        'currentStep', 'completedAt',
+        // NOT a column on assessments, and unlike educationLevel below there is
+        // no shim that consumes it: nothing in client/src, server or shared
+        // reads or writes currentStepMetadata. It reached updateAssessment and
+        // was silently discarded by drizzle, whose buildUpdateSet iterates the
+        // TABLE's columns and emits only those present in the set object. Dead,
+        // inert, removed.
+        //
+        // educationLevel IS load-bearing and stays. It is not a column either,
+        // but normalizeAssessmentPayload (:19-52) promotes it to `grade` and
+        // deletes it — and this filter runs BEFORE that normalization, so
+        // dropping it from the allowlist would strip the field before the shim
+        // could see it, silently breaking any client still sending the legacy
+        // name.
         'educationLevel'
       ];
       
@@ -335,22 +421,84 @@ export function registerAssessmentRoutes(app: Express) {
         updateData.assessmentType = 'premium';
       }
 
-      // Org students inherit their school's curriculum, exactly as POST does
-      // (see the create handler above). Without this, adding 'curriculum' to the
-      // allowlist would let an org student's own pick silently override on the
-      // next PATCH the curriculum the create path had just forced. Gated on the
-      // field actually being present so a normal auto-save that doesn't touch
-      // curriculum costs no extra queries.
-      if (updateData.curriculum !== undefined && existingAssessment.userId) {
-        const owner = await storage.getUser(existingAssessment.userId);
-        if (owner?.accountType === "org_student") {
-          const orgMember = await storage.getOrganizationMemberByUserId(existingAssessment.userId);
-          if (orgMember) {
-            const organization = await storage.getOrganizationById(orgMember.organizationId);
-            if (organization?.curriculum) {
-              updateData.curriculum = organization.curriculum;
-            }
+      // SCHOOL-OWNED FIELDS. A school enrols its students and records their name,
+      // gender and grade on their behalf, and picks the country and curriculum the
+      // whole school sits under. Those five are the school's to state, not the
+      // student's to edit — the quiz bank is selected on {countryId, grade,
+      // curriculum}, and the analytics rollups group on the school's copy, so a
+      // student who edits them here detaches their own results from both.
+      //
+      // Previously only `curriculum` was overridden, so name, grade, gender and
+      // countryId were freely writable by any student with the endpoint. The
+      // field list and the resolution rule live at SCHOOL_OWNED_ASSESSMENT_FIELDS
+      // / resolveSchoolOwnedFields above, including why `age` is not among them.
+      //
+      // MEMBERSHIP COMES FROM THE MEMBER ROW, NOT users.accountType.
+      // organizationMembers.userId is .unique() (schema.ts:151), so the row both
+      // proves membership and names the school in one query. accountType is a
+      // bare text column with eight write sites, only one of which
+      // (storage.ts:2817) is in the same transaction as the member insert, and
+      // auth.ts:353 already writes a fourth value ("public") outside its own
+      // documented set. Keying on it means a student whose flag is wrong keeps a
+      // member row, a school and CHECK-constrained demographics while escaping
+      // this lock entirely.
+      //
+      // role === 'student' is the test, not merely "has a member row": this table
+      // holds school admins too (schema.ts:159), and an admin taking the
+      // assessment personally is not a student of their school.
+      const touchesSchoolOwned = SCHOOL_OWNED_ASSESSMENT_FIELDS.some((f) => updateData[f] !== undefined);
+
+      if (touchesSchoolOwned && existingAssessment.userId) {
+        const orgMember = await storage.getOrganizationMemberByUserId(existingAssessment.userId);
+
+        if (orgMember?.role === 'student') {
+          // The organization row is only needed for the two fields it owns, so a
+          // Demographics-step save (name/age/grade/gender, no country) costs one
+          // query rather than two. Combined with the touchesSchoolOwned gate
+          // above, a save that touches none of the five — every step after
+          // Country, which is most autosaves — costs none at all. The old gate
+          // could not carry over: it tested `curriculum !== undefined`, and these
+          // fields are present on most demographics saves.
+          const needsOrganization =
+            updateData.countryId !== undefined || updateData.curriculum !== undefined;
+          const organization = needsOrganization
+            ? await storage.getOrganizationById(orgMember.organizationId)
+            : null;
+
+          const { overrides, missing } = resolveSchoolOwnedFields(updateData, orgMember, organization);
+
+          // FAIL CLOSED. The old block returned the student's own value whenever
+          // a lookup came up short — the student's input silently won precisely
+          // when the school's was unavailable. Every one of these five is
+          // supposed to be guaranteed: name/gender/grade by the CHECK
+          // (schema.ts:188-191), countryId/curriculum by the enrolment guard
+          // (549cd43), which refuses to enrol into a school missing either.
+          // Reaching this branch therefore means an invariant has already broken,
+          // so it is logged as a server error even though the response is a 4xx.
+          //
+          // Known population at risk: a student enrolled BEFORE 549cd43 into a
+          // school with no country or curriculum. That guard is runtime, not a
+          // backfill, so nothing proves the set is empty — see
+          // docs/v2-phase4-step3-recon.md §2. Such a student is blocked here
+          // rather than quietly writing their own value.
+          if (missing.length > 0) {
+            console.error(
+              `[assessment PATCH] school-owned field(s) unavailable for member ${orgMember.id} ` +
+                `(org ${orgMember.organizationId}): ${missing.join(', ')}`,
+            );
+            return res.status(400).json({
+              message:
+                `School setup incomplete: your school has no ${missing.join(' and ')} on record, ` +
+                `so ${missing.length > 1 ? 'those fields cannot' : 'that field cannot'} be saved. ` +
+                `Ask your school administrator to complete the school's setup.`,
+            });
           }
+
+          // Silently overwrite rather than reject. The next commit disables these
+          // fields in the Demographics and Country steps, so a mismatch here means
+          // a stale form or a direct API call — neither of which gives the student
+          // anything to act on, and a 400 would strand a mid-assessment autosave.
+          Object.assign(updateData, overrides);
         }
       }
 
