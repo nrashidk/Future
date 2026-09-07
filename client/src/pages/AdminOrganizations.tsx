@@ -178,6 +178,18 @@ export default function AdminOrganizations() {
 
   const selectedOrg = organizations.find(org => org.id === selectedOrgId);
 
+  // EditOrganizationForm needs this: the PATCH endpoint locks country and
+  // curriculum once a school has students. The organization row carries no
+  // student count, but the edit dialog only ever opens for selectedOrg, and the
+  // members query above is already loaded for exactly that school — so the form
+  // can be told without a second request. Admin rows share the members table and
+  // are not what the lock is about, hence the role filter.
+  //
+  // Reads 0 while that query is in flight, which leaves the selects briefly
+  // editable; the server refuses the PATCH either way. The disable is an
+  // explanation, not the enforcement.
+  const selectedOrgStudentCount = members.filter(m => m.role === 'student').length;
+
   // Auto-select first organization for org_admin when organizations load
   useEffect(() => {
     if (user?.accountType === 'org_admin' && organizations.length > 0 && !selectedOrgId) {
@@ -555,6 +567,7 @@ export default function AdminOrganizations() {
                     <DialogContent>
                       <EditOrganizationForm 
                         organization={selectedOrg}
+                        studentCount={selectedOrgStudentCount}
                         onSuccess={() => {
                           setIsEditOrgDialogOpen(false);
                           queryClient.invalidateQueries({ queryKey: ['/api/admin/organizations'] });
@@ -1232,7 +1245,7 @@ ${t('orgs.credFileImportant')}
   );
 }
 
-function EditOrganizationForm({ organization, onSuccess }: { organization: Organization; onSuccess: () => void }) {
+function EditOrganizationForm({ organization, studentCount, onSuccess }: { organization: Organization; studentCount: number; onSuccess: () => void }) {
   const { toast } = useToast();
   const { t } = useTranslation('admin');
   const [formData, setFormData] = useState({
@@ -1254,6 +1267,14 @@ function EditOrganizationForm({ organization, onSuccess }: { organization: Organ
 
   const selectedCountry = countries.find(c => c.id === formData.countryId);
   const availableCurricula = selectedCountry?.curricula || [];
+
+  // The PATCH endpoint refuses to CHANGE either field once the school has
+  // students — the quiz bank is curriculum-scoped and every existing assessment
+  // records the curriculum it was drawn under. Only a school that already has
+  // the field set is locked: filling in a blank one stays open, which is how an
+  // unconfigured school is made usable.
+  const countryLocked = studentCount > 0 && !!organization.countryId;
+  const curriculumLocked = studentCount > 0 && !!organization.curriculum;
 
   const mutation = useMutation({
     mutationFn: async (data: typeof formData) => {
@@ -1446,6 +1467,7 @@ function EditOrganizationForm({ organization, onSuccess }: { organization: Organ
           <Select 
             value={formData.countryId} 
             onValueChange={(value) => setFormData(f => ({ ...f, countryId: value, curriculum: "" }))}
+            disabled={countryLocked}
           >
             <SelectTrigger id="edit-org-country" data-testid="select-edit-org-country">
               <SelectValue placeholder={t('orgs.selectCountryReq')} />
@@ -1460,6 +1482,14 @@ function EditOrganizationForm({ organization, onSuccess }: { organization: Organ
           </Select>
         </div>
 
+        {/* Said rather than merely done: a select that will not open reads as a
+            bug unless the reason is on screen. */}
+        {(countryLocked || curriculumLocked) && (
+          <p className="text-xs text-muted-foreground" data-testid="note-edit-org-curriculum-locked">
+            {t('orgs.curriculumLockedNote', { n: studentCount })}
+          </p>
+        )}
+
         {formData.countryId && availableCurricula.length === 0 && (
           <p className="text-xs text-destructive" data-testid="error-edit-org-no-curricula">
             {t('orgs.countryNoCurricula')}
@@ -1472,6 +1502,7 @@ function EditOrganizationForm({ organization, onSuccess }: { organization: Organ
             <Select 
               value={formData.curriculum} 
               onValueChange={(value) => setFormData(f => ({ ...f, curriculum: value }))}
+              disabled={curriculumLocked}
             >
               <SelectTrigger id="edit-org-curriculum" data-testid="select-edit-org-curriculum">
                 <SelectValue placeholder={t('orgs.selectCurriculumOpt')} />

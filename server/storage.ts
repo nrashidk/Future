@@ -371,6 +371,7 @@ export interface IStorage {
   getOrganizationMemberById(id: string): Promise<OrganizationMember | undefined>;
   getOrganizationMemberByUserId(userId: string): Promise<OrganizationMember | undefined>;
   getOrganizationMembersByOrganizationId(organizationId: string): Promise<OrganizationMember[]>;
+  countOrganizationStudents(organizationId: string): Promise<number>;
   deleteOrganizationMember(memberId: string): Promise<boolean>;
   bulkDeleteOrganizationMembers(memberIds: string[]): Promise<number>;
   getOrganizationStats(organizationId: string): Promise<{
@@ -2493,6 +2494,26 @@ export class DatabaseStorage implements IStorage {
       .from(organizationMembers)
       .where(eq(organizationMembers.userId, userId));
     return member;
+  }
+
+  /**
+   * How many STUDENT members a school has. Admin rows share this table (role
+   * 'admin'), and they are not what the country/curriculum lock is about — an
+   * admin has no assessment to invalidate.
+   *
+   * A count, not a filter over getOrganizationMembersByOrganizationId: that one
+   * joins users and builds an assessment-status map per row, all of which the
+   * caller would throw away to ask whether the number is zero.
+   */
+  async countOrganizationStudents(organizationId: string): Promise<number> {
+    const [row] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(organizationMembers)
+      .where(and(
+        eq(organizationMembers.organizationId, organizationId),
+        eq(organizationMembers.role, 'student'),
+      ));
+    return row?.count ?? 0;
   }
 
   async getOrganizationMembersByOrganizationId(organizationId: string): Promise<any[]> {

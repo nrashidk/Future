@@ -71,6 +71,45 @@ const imageUpload = multer({
   },
 });
 
+/**
+ * An absent value, in the sense both organization guards below care about.
+ * a18343b treats "" as a clear rather than as a value: writing it would satisfy
+ * a NOT NULL while still failing every `!org.countryId` check downstream.
+ */
+export const isClearedOrgField = (value: unknown): boolean =>
+  value === null || (typeof value === "string" && value.trim() === "");
+
+/**
+ * Which of country/curriculum a PATCH would CHANGE from one real value to a
+ * different real one — the edit that invalidates existing students, because the
+ * quiz bank is curriculum-scoped and each assessment stores the curriculum it
+ * was drawn under. Changing the school's setting does not rewrite those rows,
+ * so school and students silently diverge.
+ *
+ * Three things are deliberately NOT changes:
+ *  - filling in a field that is currently null. That is how a school created
+ *    before 81ea920, or by the Stripe group-purchase path, becomes usable at
+ *    all, and a18343b already depends on it staying open.
+ *  - resubmitting the value already stored. The edit form PATCHes every field
+ *    it holds, so a rename would otherwise be rejected for "changing" a country
+ *    it merely echoed back. Compared against the row, not against presence in
+ *    the payload.
+ *  - clearing a field. That is a18343b's guard, which runs first and refuses it
+ *    outright, students or not.
+ */
+export function changedOrgCurriculumFields(
+  existing: { countryId: string | null; curriculum: string | null },
+  proposed: { countryId?: unknown; curriculum?: unknown },
+): Array<"country" | "curriculum"> {
+  const changed = (current: string | null, next: unknown) =>
+    next !== undefined && !isClearedOrgField(next) && !!current && next !== current;
+
+  return [
+    changed(existing.countryId, proposed.countryId) ? "country" as const : null,
+    changed(existing.curriculum, proposed.curriculum) ? "curriculum" as const : null,
+  ].filter((f): f is "country" | "curriculum" => f !== null);
+}
+
 export function registerAdminRoutes(app: Express) {
   // Super Admin Endpoints - Quiz Question Management
   app.get("/api/admin/questions", isAuthenticated, isAdmin, async (req, res) => {
@@ -345,11 +384,8 @@ export function registerAdminRoutes(app: Express) {
         return res.status(404).json({ message: "School not found" });
       }
 
-      const isCleared = (value: unknown) =>
-        value === null || (typeof value === "string" && value.trim() === "");
-
-      const clearingCountry = countryId !== undefined && isCleared(countryId);
-      const clearingCurriculum = curriculum !== undefined && isCleared(curriculum);
+      const clearingCountry = countryId !== undefined && isClearedOrgField(countryId);
+      const clearingCurriculum = curriculum !== undefined && isClearedOrgField(curriculum);
 
       if ((clearingCountry && existing.countryId) || (clearingCurriculum && existing.curriculum)) {
         const fields = [
@@ -362,6 +398,36 @@ export function registerAdminRoutes(app: Express) {
             `${fields.length > 1 ? "They are" : "It is"} required to add students, so ` +
             `${fields.length > 1 ? "they" : "it"} cannot be cleared once set.`,
         });
+      }
+
+      // Once the school has students, country and curriculum are immutable — not
+      // merely un-clearable. a18343b blocks MOE National -> null; this blocks
+      // MOE National -> British, which is the same damage by a different route:
+      // the quiz bank is curriculum-scoped and each assessment stores the
+      // curriculum it was drawn under, so a switch leaves every enrolled
+      // student's results describing a curriculum the school no longer claims.
+      // Nothing rewrites those rows, and nothing downstream notices.
+      //
+      // Before the first student, both stay freely editable: that is the window
+      // in which a school is configured, and 549cd43 refuses enrolment until it
+      // has been.
+      const changingFields = changedOrgCurriculumFields(existing, { countryId, curriculum });
+      if (changingFields.length > 0) {
+        // Only counted when an actual change is proposed — a rename or a logo
+        // swap must not pay for this query.
+        const studentCount = await storage.countOrganizationStudents(req.params.id);
+        if (studentCount > 0) {
+          return res.status(400).json({
+            message:
+              `School setup locked: ${existing.name} has ${studentCount} ` +
+              `student${studentCount === 1 ? "" : "s"} enrolled, so its ` +
+              `${changingFields.join(" and ")} cannot be changed. Their assessments are ` +
+              `drawn from the curriculum's quiz bank and record the curriculum they were ` +
+              `taken under, so changing ${changingFields.length > 1 ? "them" : "it"} now ` +
+              `would leave those results describing a curriculum this school no longer has. ` +
+              `Create a separate school instead.`,
+          });
+        }
       }
 
       // Assign only real values. A cleared field on a school that never had one
