@@ -105,6 +105,29 @@ AdminOrganizations.tsx. SuperadminDashboard.tsx still uses the raw `error.messag
 pattern in its own mutations, so it shows users the status code and JSON body. The helper
 is exported and ready; this is a mechanical follow-up. First flagged 2026-09-05.
 
+### The org-student journey has no language control at any point  (severity: medium)
+There is no app-wide layout — App.tsx:130-151 routes straight to page components, and
+components/layout/Header (which owns the toggle at :114-120, rendered :144-153 desktop and
+:159-168 mobile) is imported only by Landing.tsx. Three pages hand-roll their own copy:
+Login.tsx:62, Register.tsx:91, Profile.tsx:192.
+
+StudentLogin.tsx — a school student's actual entry point — has no useLanguage at all.
+Assessment.tsx:826-940 builds its own inline header and never got a language control.
+Results.tsx reads language but cannot set it. So login -> assessment -> results has no
+language control anywhere, for the cohort most likely to want Arabic. Their only route today
+is the Profile button mid-assessment, i.e. leaving through the leave-confirm guard.
+
+Fix is extracting a shared LanguageToggle and using it in all five places — not adding a
+fifth hand-rolled copy. Three things to settle first:
+- setLanguage PATCHes /api/users/me/language (LanguageContext.tsx:73), so a mid-assessment
+  switch persists to users.preferredLanguage and changes the language of server-generated
+  narrative and the report. Probably wanted, but it should be a decision, not a side effect.
+- RTL through the assessment steps is untested; FOLLOWUP.md:114 already carries an open
+  BIDI/overflow item against the Arabic report.
+- BLOCKED ON: the four student-facing Arabic strings from ec2a54f are unreviewed. A switcher
+  makes them reachable. Review before adding the toggle, not after.
+First flagged 2026-09-07.
+
 ## Session log
 
 ### Arabic PDF report — session 2026-06-30
