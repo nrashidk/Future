@@ -811,7 +811,23 @@ export default function Assessment() {
   //
   // No mention of an error anywhere in the copy: nothing the student did is
   // wrong, and this screen's only job is to say what is missing and who fixes it.
-  if (isOrgStudent && schoolDataIncomplete && !hasInProgress) {
+  //
+  // hasAvailable IS LOAD-BEARING — do not simplify it out. It looks redundant
+  // next to the branch below, which already handles a student with no
+  // allocation, and it is not: without it this branch catches a student who has
+  // already COMPLETED their assessment, since they are also !hasInProgress and
+  // also have a null date of birth. They would be told to go and ask their
+  // school for something they do not need, and — the actual regression — the
+  // branch below would become unreachable for them, taking with it the
+  // completedReportId button that is their only route from here to the report
+  // they already have.
+  //
+  // Stated as a condition rather than left to branch ORDER for the same reason.
+  // Putting this block after the allocation lock would fix the symptom today and
+  // break again the first time someone reorders two adjacent early returns. The
+  // condition says what this screen is actually for: a student who has an
+  // assessment to start, and cannot start it yet.
+  if (isOrgStudent && schoolDataIncomplete && hasAvailable && !hasInProgress) {
     return (
       <PageLayout variant="gradient">
         <div className="flex items-center justify-center px-4 py-12 min-h-[calc(100vh-12rem)]">
