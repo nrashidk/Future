@@ -3,6 +3,7 @@ import { isAuthenticated } from "../auth";
 import { storage } from "../storage";
 import { getSuperadminEmails } from "../middleware/auth.middleware";
 import { toPublicUser } from "@shared/userPublic";
+import { ageOnDate, toDateOnlyString } from "@shared/dateOfBirth";
 
 export function registerAuthRoutes(app: Express) {
   app.get("/api/auth/user", isAuthenticated, async (req: any, res) => {
@@ -63,8 +64,49 @@ export function registerAuthRoutes(app: Express) {
         // org students; PATCH enforces them regardless.
         (user as any).predefinedGrade = orgMember.grade;
         (user as any).predefinedName = orgMember.studentName;
-        (user as any).predefinedAge = orgMember.studentAge;
         (user as any).predefinedGender = orgMember.studentGender;
+
+        // DERIVED from the school's date of birth, not read from student_age,
+        // which is on its way out — an age is wrong within twelve months of
+        // being written, a birth date is not.
+        //
+        // THE DATE OF BIRTH ITSELF IS NEVER SENT, and there must never be a
+        // `predefinedDob`. This response goes to the student's own browser, so
+        // every field on it is a field a minor's device holds and any script on
+        // that page can read. An age is what the form needs; a birth date is
+        // strictly more identifying and buys the client nothing.
+        //
+        // Null when the school has no DOB on record. The client does not use
+        // that null to decide anything — schoolDataIncomplete below is the
+        // explicit signal — because inferring "school data missing" from an
+        // absent value is the same category error as deriving isOrgStudent from
+        // `!!predefinedGrade`, which the comment above this block exists to
+        // record.
+        //
+        // Derived against TODAY here, which is a display value only. The age
+        // actually stored is derived server-side at assessment create
+        // (assessment.routes.ts) and anchored to that row thereafter; this one
+        // just pre-fills a field the student cannot edit.
+        (user as any).predefinedAge = ageOnDate(orgMember.dateOfBirth, toDateOnlyString(new Date()));
+
+        // Whether this student's school has left something unrecorded that the
+        // assessment cannot proceed without.
+        //
+        // ONLY date_of_birth is checked, and the name is deliberately general
+        // anyway — see the report accompanying this commit. The other five
+        // school-owned fields cannot be absent today: name, gender and grade are
+        // held by the organization_members CHECK, and country and curriculum by
+        // the enrolment guard that refuses to create a student in a school
+        // missing either. date_of_birth is the only one with no such backstop,
+        // because its own CHECK cannot land until the students who predate the
+        // column have one.
+        //
+        // The client uses this to show an explanation at the assessment ENTRY
+        // POINT. Without it the student reaches the demographics step, finds a
+        // locked and empty required age they cannot fill, and cannot advance —
+        // the server's fail-closed guard sits at assessment create, which is
+        // three steps further on and never reached.
+        (user as any).schoolDataIncomplete = !orgMember.dateOfBirth;
 
         // Fetch organization details to get school name, logo, and country
         const organization = await storage.getOrganizationById(orgMember.organizationId);

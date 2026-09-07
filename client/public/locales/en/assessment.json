@@ -3,6 +3,10 @@
   "pageTitle": "Career Assessment",
   "leaveConfirm": "Your assessment is in progress. Are you sure you want to leave? Your answers are saved and you can resume later.",
   "loading": "Loading...",
+  "schoolDataIncomplete": {
+    "title": "Your school needs to add your date of birth",
+    "body": "Before you can start, your school needs to add your date of birth to your student record. Ask your school administrator to add it, then come back and start your assessment."
+  },
   "lock": {
     "title": "You've completed your assessment",
     "orgStudentBody": "You've used your assessment license. To take another, please contact your school administrator to request an additional license.",
@@ -89,7 +93,7 @@
     "privacyPolicy": "Privacy Policy",
     "disclaimer": "Disclaimer",
     "under18Note": "Note: Users under 18 require parental or institutional consent.",
-    "schoolOwnedNote": "Your school filled in your name, grade and gender. Check they are right — if anything is wrong, ask your school administrator to correct it before you continue. You can still set your own age."
+    "schoolOwnedNote": "Your school filled in your name, age, grade and gender. Your age is worked out from the date of birth your school has on record. Check they are right \u2014 if anything is wrong, ask your school administrator to correct it before you continue."
   },
   "subjects": {
     "title": "What Subjects Do You Love?",

@@ -9,6 +9,7 @@ import { normalizeSubjects } from "../utils/subjects";
 import { validatePromptInputFields } from "../utils/assessmentValidation";
 import { sanitizeRequestBody } from "../utils/sanitize";
 import { printTokenAuthorizes } from "../utils/printToken";
+import { ageOnDate, toDateOnlyString } from "@shared/dateOfBirth";
 
 /**
  * Normalize assessment payload before validation
@@ -53,17 +54,41 @@ function normalizeAssessmentPayload(body: any): { normalized?: any; error?: stri
 }
 
 /**
- * The five assessment fields a school states on its students' behalf.
+ * The six assessment fields a school states on its students' behalf.
  *
- * `age` is deliberately absent. organization_members.student_age is nullable,
- * excluded from the demographics CHECK, and NULL on every row — migration
- * 014:29-38 records why: no form has ever collected it and there is no DOB column
- * to derive it from. There is no school-side value to lock to, and inventing one
- * would put a fabricated age in a minor's record. It stays student-supplied.
+ * `age` was absent from this list until organization_members.date_of_birth
+ * existed. The reason it was absent is worth keeping, because it is the reason
+ * it is here now: migration 014:29-38 recorded that student_age was nullable,
+ * excluded from the demographics CHECK and NULL on every row, with "no form has
+ * ever collected it and there is no DOB column to derive it from" — so there was
+ * no school-side value to lock to, and inventing one would have put a fabricated
+ * age in a minor's record. Migration 015 added that column.
+ *
+ * age is UNLIKE the other five in one respect: it is DERIVED, not copied. The
+ * school states a date of birth; the age is computed from it at the moment the
+ * assessment is created and stored on the row. That is the whole point of
+ * replacing student_age — an age is wrong within twelve months of being written,
+ * a birth date is not.
  */
-export const SCHOOL_OWNED_ASSESSMENT_FIELDS = ['name', 'grade', 'gender', 'countryId', 'curriculum'] as const;
+export const SCHOOL_OWNED_ASSESSMENT_FIELDS = ['name', 'grade', 'gender', 'age', 'countryId', 'curriculum'] as const;
 
 type SchoolOwnedField = typeof SCHOOL_OWNED_ASSESSMENT_FIELDS[number];
+
+/**
+ * What to call a school-owned field when telling a student what their school has
+ * not recorded.
+ *
+ * Only `age` needs one, and it needs it badly: the school does not hold an age,
+ * it holds a DATE OF BIRTH, and "your school has no age on record" sends an
+ * admin looking for a field that does not exist on their form. The other five
+ * names read correctly as they are.
+ */
+const SCHOOL_OWNED_FIELD_LABELS: Partial<Record<SchoolOwnedField, string>> = {
+  age: 'date of birth',
+};
+
+const describeMissingFields = (missing: SchoolOwnedField[]): string =>
+  missing.map(f => SCHOOL_OWNED_FIELD_LABELS[f] ?? f).join(' and ');
 
 /**
  * Decide what a school's rows say about the fields this PATCH is touching.
@@ -83,13 +108,29 @@ type SchoolOwnedField = typeof SCHOOL_OWNED_ASSESSMENT_FIELDS[number];
  */
 export function resolveSchoolOwnedFields(
   updateData: Record<string, unknown>,
-  member: { studentName?: string | null; studentGender?: string | null; grade?: string | null },
+  member: {
+    studentName?: string | null;
+    studentGender?: string | null;
+    grade?: string | null;
+    dateOfBirth?: string | null;
+  },
   organization: { countryId?: string | null; curriculum?: string | null } | null | undefined,
+  asOf: string,
 ): { overrides: Partial<Record<SchoolOwnedField, unknown>>; missing: SchoolOwnedField[] } {
   const schoolValues: Record<SchoolOwnedField, unknown> = {
     name: member.studentName,
     grade: member.grade,
     gender: member.studentGender,
+    // DERIVED, not copied — the only one of the six that is. ageOnDate returns
+    // null for a member with no date of birth, which falls into the same
+    // `missing` branch below as a null name, so a school that has not recorded a
+    // DOB fails closed exactly like a school with no curriculum.
+    //
+    // `asOf` is a PARAMETER rather than this function reading the clock, which
+    // is shared/dateOfBirth.ts's contract and matters more here than anywhere
+    // else: this value is written to assessments.age and never recomputed, so
+    // "as of when" is the difference between an age snapshot and a wrong number.
+    age: ageOnDate(member.dateOfBirth, asOf),
     countryId: organization?.countryId,
     curriculum: organization?.curriculum,
   };
@@ -102,6 +143,9 @@ export function resolveSchoolOwnedFields(
     const value = schoolValues[field];
     // An empty string is as unusable as null here: it satisfies a NOT NULL while
     // still failing every downstream `!assessment.grade` check.
+    // age is a number, so only the null/undefined arms apply to it — ageOnDate
+    // returns null rather than 0 or NaN for anything it cannot derive, so there
+    // is no falsy-but-valid value to guard against here.
     if (value === null || value === undefined || (typeof value === 'string' && value.trim() === '')) {
       missing.push(field);
     } else {
@@ -224,7 +268,17 @@ export function registerAssessmentRoutes(app: Express) {
             requested[field] = (validatedData as Record<string, unknown>)[field] ?? null;
           }
 
-          const { overrides, missing } = resolveSchoolOwnedFields(requested, orgMember, organization);
+          // The reference date for the derived age is TODAY, because that is the
+          // day this assessment is being created. This is the one and only place
+          // an age is computed from a date of birth for a school student; the
+          // PATCH below re-derives against this row's createdAt, so it can only
+          // ever reproduce the same number.
+          const { overrides, missing } = resolveSchoolOwnedFields(
+            requested,
+            orgMember,
+            organization,
+            toDateOnlyString(new Date()),
+          );
 
           // FAILS CLOSED, matching the PATCH lock. The old code fell through to
           // validatedData.curriculum — the student's own pick silently won
@@ -240,7 +294,7 @@ export function registerAssessmentRoutes(app: Express) {
             );
             return res.status(400).json({
               message:
-                `School setup incomplete: your school has no ${missing.join(' and ')} on record, ` +
+                `School setup incomplete: your school has no ${describeMissingFields(missing)} on record, ` +
                 `so an assessment cannot be started. Ask your school administrator to complete ` +
                 `the school's setup.`,
             });
@@ -522,14 +576,41 @@ export function registerAssessmentRoutes(app: Express) {
             ? await storage.getOrganizationById(orgMember.organizationId)
             : null;
 
-          const { overrides, missing } = resolveSchoolOwnedFields(updateData, orgMember, organization);
+          // THE ASSESSMENT'S OWN CREATION DATE, not today. assessments.age is a
+          // SNAPSHOT of who the student was when they took it: a report
+          // regenerated a year later must not show a different age from the PDF
+          // a parent already has, and a student whose birthday falls mid-flow
+          // must not see their age change between two autosaves.
+          //
+          // Re-deriving here rather than skipping `age` is what keeps the lock
+          // intact — a student PATCHing their own age still has it overwritten —
+          // and anchoring to createdAt is what makes that overwrite idempotent:
+          // it can only ever reproduce the number POST already stored.
+          //
+          // createdAt is defaultNow() and so is set for every row, but it is
+          // nullable in the type; falling back to today is the same answer for
+          // the row being created in this request's own lifetime, which is the
+          // only way it could be absent.
+          const { overrides, missing } = resolveSchoolOwnedFields(
+            updateData,
+            orgMember,
+            organization,
+            toDateOnlyString(existingAssessment.createdAt ?? new Date()),
+          );
 
           // FAIL CLOSED. The old block returned the student's own value whenever
           // a lookup came up short — the student's input silently won precisely
-          // when the school's was unavailable. Every one of these five is
-          // supposed to be guaranteed: name/gender/grade by the CHECK
-          // (schema.ts:188-191), countryId/curriculum by the enrolment guard
-          // (549cd43), which refuses to enrol into a school missing either.
+          // when the school's was unavailable. Five of these six are supposed to
+          // be guaranteed: name/gender/grade by the CHECK (schema.ts:188-191),
+          // countryId/curriculum by the enrolment guard (549cd43), which refuses
+          // to enrol into a school missing either.
+          //
+          // `age` is the exception and is NOT guaranteed: date_of_birth is
+          // nullable and the role-scoped CHECK cannot land until the existing
+          // student rows are filled in (migration 015). A student whose school
+          // has no DOB is blocked from STARTING an assessment — at the entry
+          // point, not here — so reaching this branch for age means the DOB was
+          // removed after the row was created.
           // Reaching this branch therefore means an invariant has already broken,
           // so it is logged as a server error even though the response is a 4xx.
           //
@@ -545,7 +626,7 @@ export function registerAssessmentRoutes(app: Express) {
             );
             return res.status(400).json({
               message:
-                `School setup incomplete: your school has no ${missing.join(' and ')} on record, ` +
+                `School setup incomplete: your school has no ${describeMissingFields(missing)} on record, ` +
                 `so ${missing.length > 1 ? 'those fields cannot' : 'that field cannot'} be saved. ` +
                 `Ask your school administrator to complete the school's setup.`,
             });

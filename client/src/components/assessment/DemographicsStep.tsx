@@ -146,20 +146,47 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
             </div>
             <div className="flex-1">
               <Label htmlFor="age" className="text-lg font-semibold">
-                {/* No "set by school" marker: age is the one demographic the
-                    student still owns, so labelling it as the school's would be
-                    a lie the field itself contradicts. */}
-                {t('demographics.age')}
+                {/* The marker now applies, where it previously did not. It used
+                    to read "age is the one demographic the student still owns,
+                    so labelling it as the school's would be a lie the field
+                    itself contradicts" — true while there was no school-side
+                    source for it. There is one now: the school records a date of
+                    birth and the server derives this age from it, so the field
+                    IS the school's and saying so is the honest label. */}
+                {t('demographics.age')} {schoolOwnsDemographics && <span className="text-xs text-muted-foreground font-normal ms-2">({t('demographics.setBySchool')})</span>}
               </Label>
             </div>
           </div>
-          {/* Age is NOT locked, unlike the three fields around it. The server
-              does not own it: organization_members.student_age is nullable,
-              excluded from the demographics CHECK and NULL on every row, so
-              there is no school value to hold the student to (migration
-              014:29-38). It was disabled on `!!predefinedAge` — never true
-              today, but that would have silently locked a field the server
-              still lets the student edit the moment an age appeared. */}
+          {/* Age IS locked for school students now, like the three fields
+              around it. This block used to say the opposite, and the reason it
+              gave was accurate at the time: organization_members.student_age was
+              nullable, excluded from the demographics CHECK and NULL on every
+              row, so there was no school value to hold the student to (migration
+              014:29-38). Migration 015 added date_of_birth, the school records
+              it at student-create, and the server derives this age from it — so
+              a school value exists and the student is held to it, exactly as
+              they are for name, grade and gender.
+
+              GATED ON schoolOwnsDemographics, NOT ON !!predefinedAge. The old
+              block closed with a warning aimed squarely at this change: the
+              field had once been disabled on `!!predefinedAge`, which "would
+              have silently locked a field the server still lets the student
+              edit the moment an age appeared". Keying on whether a value
+              happens to have arrived conflates "this student's school owns this
+              field" with "a value turned up", the same category error as
+              deriving isOrgStudent from `!!predefinedGrade`. The gate has to be
+              about WHO THE STUDENT IS.
+
+              A school student never sees this empty. One whose school has no
+              date of birth on record is stopped at the assessment entry point
+              with an explanation (Assessment.tsx), because the server's
+              fail-closed guard is at assessment create — three steps after this
+              screen — and a locked, empty, required field with a dead Next
+              button is a dead end a 13-year-old cannot get out of.
+
+              SELF-PAID PATH UNCHANGED: editable, min 13 / max 25, no marker.
+              min/max are left on the element for both, though they constrain
+              only the path that can still type into it. */}
           <Input
             id="age"
             type="number"
@@ -168,7 +195,7 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
             placeholder={t('demographics.agePlaceholder')}
             value={data.age || ""}
             onChange={(e) => onUpdate("age", parseInt(e.target.value) || null)}
-            disabled={false}
+            disabled={schoolOwnsDemographics}
             className="bg-background/50 border-foreground/20"
             data-testid="input-age"
           />

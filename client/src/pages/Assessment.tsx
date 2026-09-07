@@ -11,7 +11,7 @@ import CVQStep from "@/components/CVQStep";
 import { CountryStep } from "@/components/assessment/CountryStep";
 import { AspirationsStep } from "@/components/assessment/AspirationsStep";
 import { QuizStep } from "@/components/assessment/QuizStep";
-import { GraduationCap, LogIn, LogOut, User, ClipboardCheck, Building2, BarChart, Shield, FileQuestion, RotateCcw, PlayCircle, Loader2 } from "lucide-react";
+import { GraduationCap, LogIn, LogOut, User, ClipboardCheck, CalendarDays, Building2, BarChart, Shield, FileQuestion, RotateCcw, PlayCircle, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 import type { Assessment as AssessmentRecord } from "@shared/schema";
@@ -60,6 +60,13 @@ export default function Assessment() {
 
   const [, setLocation] = useLocation();
   const { user, isAuthenticated, isLoading } = useAuth();
+  // Sent by /api/auth/user for school students only, computed from the member
+  // row already loaded there. An explicit flag rather than something inferred
+  // from `predefinedAge` being null, for the reason auth.routes.ts records: a
+  // missing value and a missing school record are different facts, and deriving
+  // one from the other is how `!!predefinedGrade` came to stand in for "is a
+  // school student".
+  const schoolDataIncomplete = (user as any)?.schoolDataIncomplete === true;
 
   // ONE membership concept in this file. useAssessmentAvailability now derives
   // it from the organization_members row, via /api/auth/user's isOrgStudent
@@ -781,6 +788,44 @@ export default function Assessment() {
           <p className="text-lg text-muted-foreground">{t("loading")}</p>
         </div>
       </div>
+    );
+  }
+
+  // BLOCKED: org_student whose school has not recorded something the assessment
+  // cannot proceed without — today that is only their date of birth, which the
+  // server derives their age from.
+  //
+  // Placed HERE, at the entry point, rather than left to the server's
+  // fail-closed guard, because that guard is at assessment CREATE and create
+  // happens at step 3 (handleNext, "save after Subjects, before Quiz"). The
+  // demographics step is step 1. Without this branch the student reaches a
+  // locked, empty, required age field with a dead Next button and no back
+  // button, three steps before the server would have told them what was wrong.
+  //
+  // Deliberately NOT applied to a student with an assessment already in
+  // progress. Their age was written at create, from the rules that applied then,
+  // and it is anchored to that row; blocking them here would strand them
+  // mid-flow with a report they can no longer finish, which is a worse dead end
+  // than the one this exists to prevent. A school that removes a DOB after a
+  // student has started does not invalidate what was already derived.
+  //
+  // No mention of an error anywhere in the copy: nothing the student did is
+  // wrong, and this screen's only job is to say what is missing and who fixes it.
+  if (isOrgStudent && schoolDataIncomplete && !hasInProgress) {
+    return (
+      <PageLayout variant="gradient">
+        <div className="flex items-center justify-center px-4 py-12 min-h-[calc(100vh-12rem)]">
+          <div className="max-w-md w-full text-center space-y-6 rounded-xl p-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10">
+              <CalendarDays className="w-8 h-8 text-primary" />
+            </div>
+            <div className="space-y-2">
+              <h1 className="text-4xl md:text-5xl font-bold">{t("schoolDataIncomplete.title")}</h1>
+              <p className="text-lg text-muted-foreground">{t("schoolDataIncomplete.body")}</p>
+            </div>
+          </div>
+        </div>
+      </PageLayout>
     );
   }
 
