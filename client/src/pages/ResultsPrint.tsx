@@ -24,6 +24,7 @@ import {
 import { useQuery, useQueries } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef } from "react";
 import { isPremiumAssessment } from "@shared/assessmentTier";
+import { subjectLabelKey } from "@shared/subjects";
 import { GROWTH_BAND_I18N, isOnetGrowthBand } from "@shared/growthBands";
 import i18n from "@/i18n/config";
 import { useTranslation } from "react-i18next";
@@ -59,6 +60,25 @@ interface EnrichedRecommendation extends Recommendation {
   document.documentElement.lang = _lang;
   document.documentElement.dir = _lang === "ar" ? "rtl" : "ltr";
   i18n.changeLanguage(_lang); // begins fetching locale JSON early
+}
+
+/**
+ * Display name for a stored subject id. The ids are canonical English database
+ * keys (@shared/subjects) and were being printed raw here, so an Arabic report
+ * showed "Social Studies" under a correctly-Arabic heading and beside a
+ * correctly-Arabic score line.
+ *
+ * `assessment:` prefix because the label keys live in the assessment namespace
+ * while this page runs under `results`. Both are preloaded (i18n/config.ts).
+ *
+ * An id outside the six falls back to itself: subjects.name and
+ * quiz_questions.subject are free text server-side, so one can reach a report,
+ * and showing its raw id beats a missing-key placeholder over a score the
+ * student earned.
+ */
+function subjectDisplayName(id: string, tFn: (key: string) => string): string {
+  const key = subjectLabelKey(id);
+  return key ? tFn(`assessment:${key}`) : id;
 }
 
 /**
@@ -224,10 +244,6 @@ export default function ResultsPrint() {
     enabled: !!assessmentId && isPremiumAssessment(assessment?.assessmentType),
   });
 
-  const { data: curriculum } = useQuery<any>({
-    queryKey: [`/api/curricula/${assessment?.curriculumId}`],
-    enabled: !!assessment?.curriculumId,
-  });
 
   // /api/auth/user enriches the payload with predefined* fields sourced
   // from organizationMembers (studentName / grade / studentGender, and an age
@@ -614,7 +630,7 @@ export default function ResultsPrint() {
                   .map(([subject, score]: [string, any]) => (
                     <div key={subject} className="p-4 bg-background/30 rounded-lg">
                       <div className="flex items-center justify-between mb-2">
-                        <span className="font-semibold font-body">{subject}</span>
+                        <span className="font-semibold font-body">{subjectDisplayName(subject, t)}</span>
                         <span className="text-lg font-bold text-primary">
                           {score.percentage}%
                         </span>

@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Calculator, Atom, BookOpen, Languages, Landmark, Computer, Star, CheckCircle2 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
+import { SUBJECT_IDS, SUBJECT_LABEL_KEYS, type SubjectId } from "@shared/subjects";
 
 interface SubjectsStepProps {
   data: any;
@@ -33,18 +34,24 @@ export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepPro
   // shown pre-selected.
   const [prioritiesConfirmed, setPrioritiesConfirmed] = useState(false);
 
-  // The six umbrella subjects. Each `id` must match subjects.name in the DB
-  // EXACTLY, because it is stored on the assessment and later compared against
-  // quiz_questions.subject to build the quiz pool - a drift here silently
-  // yields an empty question pool for that subject.
-  const subjects = [
-    { id: "Mathematics", labelKey: "subjects.subjectMathematics", icon: Calculator, color: "blue" as const },
-    { id: "Science", labelKey: "subjects.subjectScience", icon: Atom, color: "purple" as const },
-    { id: "English", labelKey: "subjects.subjectEnglish", icon: BookOpen, color: "green" as const },
-    { id: "Arabic", labelKey: "subjects.subjectArabic", icon: Languages, color: "yellow" as const },
-    { id: "Social Studies", labelKey: "subjects.subjectSocialStudies", icon: Landmark, color: "pink" as const },
-    { id: "Computer Science", labelKey: "subjects.subjectComputerScience", icon: Computer, color: "blue" as const },
-  ];
+  // Icon and colour are the only things this screen adds to a subject. The ids
+  // and their label keys now live in @shared/subjects, because three other
+  // places need them and one of them is the server; the DB-exactness rule that
+  // used to be a comment here is documented there, next to the list it governs.
+  const PRESENTATION: Record<SubjectId, { icon: typeof Calculator; color: "blue" | "purple" | "green" | "yellow" | "pink" }> = {
+    "Mathematics": { icon: Calculator, color: "blue" },
+    "Science": { icon: Atom, color: "purple" },
+    "English": { icon: BookOpen, color: "green" },
+    "Arabic": { icon: Languages, color: "yellow" },
+    "Social Studies": { icon: Landmark, color: "pink" },
+    "Computer Science": { icon: Computer, color: "blue" },
+  };
+
+  const subjects = SUBJECT_IDS.map((id) => ({
+    id,
+    labelKey: SUBJECT_LABEL_KEYS[id],
+    ...PRESENTATION[id],
+  }));
 
   const favoriteSubjects = data.favoriteSubjects || [];
   const prioritySubjects = data.prioritySubjects || [];

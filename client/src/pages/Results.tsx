@@ -1,5 +1,6 @@
 import { useAuth } from "@/hooks/useAuth";
 import { pickLatestForGrade, toCanonicalGrade } from "@shared/grade";
+import { subjectLabelKey } from "@shared/subjects";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { StickyNote } from "@/components/StickyNote";
 import ReportMarkdown from "@/components/ReportMarkdown";
@@ -72,6 +73,25 @@ interface EnrichedRecommendation extends RecommendationResponse {
  */
 function localizeField(ar: string | null | undefined, en: string | null | undefined): string {
   return (ar && ar.trim()) ? ar : (en || '');
+}
+
+/**
+ * Display name for a stored subject id. The ids are canonical English database
+ * keys (@shared/subjects) and were being printed raw here, so an Arabic report
+ * showed "Social Studies" under a correctly-Arabic heading and beside a
+ * correctly-Arabic score line.
+ *
+ * `assessment:` prefix because the label keys live in the assessment namespace
+ * while this page runs under `results`. Both are preloaded (i18n/config.ts).
+ *
+ * An id outside the six falls back to itself: subjects.name and
+ * quiz_questions.subject are free text server-side, so one can reach a report,
+ * and showing its raw id beats a missing-key placeholder over a score the
+ * student earned.
+ */
+function subjectDisplayName(id: string, tFn: (key: string) => string): string {
+  const key = subjectLabelKey(id);
+  return key ? tFn(`assessment:${key}`) : id;
 }
 
 /**
@@ -611,7 +631,7 @@ export default function Results() {
                 .map(([subject, score]: [string, any]) => (
                   <div key={subject} className="p-4 bg-background/30 rounded-lg" data-testid={`card-subject-${subject.toLowerCase().replace(/\s+/g, '-')}`}>
                     <div className="flex items-center justify-between mb-2">
-                      <span className="font-semibold font-body">{subject}</span>
+                      <span className="font-semibold font-body">{subjectDisplayName(subject, t)}</span>
                       <span className="text-lg font-bold text-primary" data-testid={`text-score-${subject.toLowerCase().replace(/\s+/g, '-')}`}>
                         {score.percentage}%
                       </span>

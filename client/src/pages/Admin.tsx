@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { SUBJECT_IDS } from "@shared/subjects";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -38,7 +39,10 @@ interface Country {
   curricula?: string[];
 }
 
-const SUBJECTS = ["Mathematics", "Science", "English", "Arabic", "Social Studies", "Computer Science"];
+// Was a second hand-maintained copy of the six canonical ids. Any drift between
+// it and the assessment's list silently empties a quiz pool, which is the failure
+// @shared/subjects exists to make impossible.
+const SUBJECTS = SUBJECT_IDS;
 const GRADES = ["8", "9", "10", "11", "12"];
 const DIFFICULTIES = ["easy", "medium", "hard"];
 const COGNITIVE_LEVELS = ["knowledge", "comprehension", "application", "analysis"];
