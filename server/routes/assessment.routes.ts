@@ -165,7 +165,10 @@ export function registerAssessmentRoutes(app: Express) {
 
       // Bound/whitelist the free-text fields that reach the LLM prompt
       // (favoriteSubjects, careerAspirations) before anything is persisted.
-      const promptFieldError = await validatePromptInputFields(sanitizedBody);
+      // isCreate: turns on the min-3 subject rule, which applies only here.
+      // The PATCH below deliberately omits it — the client auto-saves mid-edit
+      // states that legitimately hold fewer. See assessmentValidation.ts.
+      const promptFieldError = await validatePromptInputFields(sanitizedBody, { isCreate: true });
       if (promptFieldError) {
         return res.status(400).json({ message: promptFieldError });
       }

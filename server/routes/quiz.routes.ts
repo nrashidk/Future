@@ -21,11 +21,30 @@ function applyLanguageToQuestion(question: any, lang: string): any {
   };
 }
 
+/**
+ * PER-SUBJECT AND ADDITIVE — there is no total, and no budget being divided.
+ * Each chosen subject independently draws
+ *   min(base + (isPriority ? priorityBonus : 0), maxQuestionsPerSubject)
+ * so the quiz LENGTH GROWS with each subject the student adds:
+ *
+ *              3 subj   4 subj   5 subj      (priority subjects = min(n, 3))
+ *     free        12       14       16       priority 4 each, others 2 each
+ *     premium     15       18       21       priority 5 each, others 3 each
+ *     school      15       18       21
+ *
+ * Nothing here varies by grade. `school` and `premium` are identical configs and
+ * quiz.tier.test.ts pins that, so a divergence has to be deliberate.
+ *
+ * There was a fourth field, `tierMultiplier` (1 / 1.2 / 1.2), removed because it
+ * was never read — the premium/school gap comes entirely from the higher `base`.
+ * A config value that looks like it scales the quiz and does not is worse than
+ * no value at all: it invites a reader to reason about a 20% uplift that has
+ * never existed.
+ */
 interface QuizDistributionConfig {
   baseQuestionsPerSubject: number;
   priorityBonus: number;
   maxQuestionsPerSubject: number;
-  tierMultiplier: number;
 }
 
 const TIER_CONFIGS: Record<string, QuizDistributionConfig> = {
@@ -33,19 +52,16 @@ const TIER_CONFIGS: Record<string, QuizDistributionConfig> = {
     baseQuestionsPerSubject: 2,
     priorityBonus: 2,
     maxQuestionsPerSubject: 4,
-    tierMultiplier: 1,
   },
   premium: {
     baseQuestionsPerSubject: 3,
     priorityBonus: 2,
     maxQuestionsPerSubject: 5,
-    tierMultiplier: 1.2,
   },
   school: {
     baseQuestionsPerSubject: 3,
     priorityBonus: 2,
     maxQuestionsPerSubject: 5,
-    tierMultiplier: 1.2,
   },
 };
 

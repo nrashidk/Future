@@ -18,6 +18,8 @@ vi.mock("../storage", () => ({
 const {
   validatePromptInputFields,
   MAX_ASPIRATION_LENGTH,
+  MIN_FAVORITE_SUBJECTS,
+  MAX_PRIORITY_SUBJECTS,
 } = await import("./assessmentValidation");
 
 describe("validatePromptInputFields", () => {
@@ -126,5 +128,100 @@ describe("validatePromptInputFields", () => {
   it("rejects non-string elements in careerAspirations", async () => {
     const err = await validatePromptInputFields({ careerAspirations: [123] });
     expect(err).toMatch(/must contain only text/i);
+  });
+
+  // ---------------------------------------------------------------------------
+  // prioritySubjects, and the create-only minimum.
+  //
+  // prioritySubjects had NO validation at all: not here, not in
+  // insertAssessmentSchema, and it sits in the PATCH allowlist
+  // (assessment.routes.ts:505). Only SubjectsStep enforced "exactly 3", and a
+  // client is not a control.
+  // ---------------------------------------------------------------------------
+
+  it("accepts up to MAX_PRIORITY_SUBJECTS priorities", async () => {
+    const err = await validatePromptInputFields({
+      favoriteSubjects: ["Science", "Mathematics", "English"],
+      prioritySubjects: ["Science", "Mathematics", "English"],
+    });
+    expect(err).toBeNull();
+  });
+
+  it("rejects more priorities than the cap", async () => {
+    const err = await validatePromptInputFields({
+      favoriteSubjects: ["Science", "Mathematics", "English", "Arabic"],
+      prioritySubjects: ["Science", "Mathematics", "English", "Arabic"],
+    });
+    expect(err).toContain(`max ${MAX_PRIORITY_SUBJECTS}`);
+  });
+
+  it("rejects a priority that is not one of the chosen subjects", async () => {
+    // Inert rather than dangerous in calculateQuizDistribution — it iterates
+    // favoriteSubjects — so without this the quiz is silently shorter than the
+    // student's ranking implies.
+    const err = await validatePromptInputFields({
+      favoriteSubjects: ["Science", "Mathematics", "English"],
+      prioritySubjects: ["Science", "Arabic"],
+    });
+    expect(err).toContain("not one of the chosen subjects");
+  });
+
+  it("compares the subset AFTER normalization, so an alias is not a mismatch", async () => {
+    // "Physics" normalizes to "Science"; naming it a priority alongside a
+    // favorite stored as "Science" is the same subject, not an orphan.
+    const err = await validatePromptInputFields({
+      favoriteSubjects: ["Science", "Mathematics", "English"],
+      prioritySubjects: ["Physics"],
+    });
+    expect(err).toBeNull();
+  });
+
+  it("skips the subset check when priorities arrive without subjects", async () => {
+    // Cannot be checked without reading the stored row, and this function is
+    // deliberately DB-free apart from the subject whitelist.
+    const err = await validatePromptInputFields({ prioritySubjects: ["Science"] });
+    expect(err).toBeNull();
+  });
+
+  it("rejects a non-array prioritySubjects", async () => {
+    const err = await validatePromptInputFields({ prioritySubjects: "Science" });
+    expect(err).toContain("must be an array");
+  });
+
+  it("passes when prioritySubjects is explicitly null", async () => {
+    const err = await validatePromptInputFields({ prioritySubjects: null });
+    expect(err).toBeNull();
+  });
+
+  it("enforces the minimum on create", async () => {
+    const err = await validatePromptInputFields(
+      { favoriteSubjects: ["Science"] },
+      { isCreate: true },
+    );
+    expect(err).toContain(`min ${MIN_FAVORITE_SUBJECTS}`);
+  });
+
+  it("accepts exactly the minimum on create", async () => {
+    const err = await validatePromptInputFields(
+      { favoriteSubjects: ["Science", "Mathematics", "English"] },
+      { isCreate: true },
+    );
+    expect(err).toBeNull();
+  });
+
+  it("does NOT enforce the minimum on update", async () => {
+    // THE POINT OF THE ASYMMETRY. Assessment.tsx auto-saves the whole array
+    // every two seconds while the student edits, so swapping one subject for
+    // another passes through a 2-element state. A symmetric rule would 400 it,
+    // and the auto-save swallows errors — progress would silently stop saving.
+    const err = await validatePromptInputFields({ favoriteSubjects: ["Science", "Mathematics"] });
+    expect(err).toBeNull();
+  });
+
+  it("still enforces the maximum on update", async () => {
+    const err = await validatePromptInputFields({
+      favoriteSubjects: ["Science", "Mathematics", "English", "Arabic", "Social Studies", "Computer Science"],
+    });
+    expect(err).toContain("Too many favorite subjects");
   });
 });

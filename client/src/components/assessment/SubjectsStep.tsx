@@ -18,9 +18,20 @@ const MAX_PRIORITY_SUBJECTS = 3;
 // MAX_PRIORITY_SUBJECTS on purpose: at exactly this count the selection IS the
 // priority set, above it the student must rank an explicit top three.
 const MIN_SUBJECTS = 3;
-// Hard ceiling on the selection. The quiz budget is a fixed 18 questions split
-// across the chosen subjects, so allowing a 6th subject would thin every
-// subject's share below a usable number - the cap is what keeps the total at 18.
+// Hard ceiling on the selection, and NOT because of a fixed quiz budget — an
+// earlier version of this comment claimed the quiz is "a fixed 18 questions
+// split across the chosen subjects", which is wrong in both halves.
+// calculateQuizDistribution (server/routes/quiz.routes.ts) is per-subject and
+// additive, so the quiz gets LONGER with each subject rather than thinner:
+//
+//              3 subj   4 subj   5 subj
+//     free        12       14       16
+//     premium     15       18       21
+//
+// 18 is one of six cells, not the total. The cap bounds how long the quiz can
+// get — a 6th subject would take a free student to 18 and a premium one to 24 —
+// and it is mirrored server-side by MAX_FAVORITE_SUBJECTS, which is what makes
+// it real against a direct API call.
 const MAX_SUBJECTS = 5;
 
 export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepProps) {
