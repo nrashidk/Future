@@ -1510,6 +1510,8 @@ STORED-VALUE DISPLAY (canonical English shown raw instead of translated):
 
 GENERATED CONTENT NOT LANGUAGE-AWARE:
 - "Next Steps" / الخطوات التالية items render as English sentences inside the Arabic report ("Complete Bachelor's degree in Computer Science or related field", "Build skills in: Programming, Problem Solving, Data Structures"). Education Path is affected too. These are composed server-side, not locale keys, so the generator needs the assessment language. Worst of the four: this is the report's payoff section and is unreadable to an Arabic-first parent.
+  - NEXT STEPS: RESOLVED 2026-09-08. Two independent causes, neither of them a missing translation. The generator was already fully bilingual but was being fed the English career, because localizeCareer ran after it (6fc35a4); and narrativeLanguage was resolved from the stored preferredLanguage while isArabic beside it read Accept-Language, so the two disagreed for any signed-in reader with no stored preference (24ba9b4). The quoted strings specifically came from a third path: they are the basic action steps frozen in English in recommendations.action_steps at generate time, now composed at serve time instead (c341bde).
+  - EDUCATION PATH: NOT A CODE BUG, closed 2026-09-08. Both report pages already read `rec.career.educationLevelAr` with an English fallback, the localizeCareer spread preserves that field, and the language variable at the render site is the same one every correct string on the page uses — all three verified rather than assumed. It rendered English because careers.education_level_ar was NULL: career-arabic-content.ts had never been run against prod. Confirmed by the same 2026-09-04 PDF, where the career TITLES and DESCRIPTIONS were English too — Lawyer, Product Manager, Journalist, Psychologist, Marketing Manager. IMPLICATION, and it is larger than this bullet: every Arabic report generated before that script was finally run showed English career content THROUGHOUT, not merely in Education Path. Prod now reads 68/68 on education_level_ar. See the career-arabic-content entry below for why a manual, untracked script made this possible and will again.
 
 Also flagged: the Arabic report offers "get your full PDF report" wording that leads to the purchase page rather than a download. Check whether the English copy is equally misleading or whether the Arabic translation overpromises. Not a translation bug — a copy/gating question.
 
@@ -1739,9 +1741,17 @@ it; it is a manual invocation nobody is prompted to make.
 
 It matches rows on eq(careers.title, item.title) and logs a warning on a miss, so it fails
 silently in a script nobody watches. Two consequences, both recurring: any catalog expansion
-leaves the new careers with NULL Arabic until someone remembers to run it (e65cd3c grew the
-catalog 39 -> 68 on 2026-09-02 and the Arabic gap was visible in reports on 2026-09-04), and
-editing a career's English title silently orphans its Arabic content.
+leaves the new careers with NULL Arabic until someone remembers to run it, and editing a
+career's English title silently orphans its Arabic content.
+
+CONFIRMED 2026-09-08, and worse than the expansion case above: the script had never been run
+against prod AT ALL. The 2026-09-04 Arabic PDF showed English titles, descriptions and
+education levels for all five careers on it, including careers that predate the 39 -> 68
+expansion and have had entries in this file since 2026-05-08. So it is not that new careers
+missed a backfill — no career had ever received one. Every Arabic report generated before the
+script was finally run showed English career content throughout. Prod now reads 68/68 on
+education_level_ar, so it has been run (or the fields filled via the superadmin career editor,
+superadmin.routes.ts:1975/2020) at some point after 2026-09-04. Nothing recorded when.
 
 Fix direction: make it a tracked migration, or a seed step that runs at boot, or at minimum an
 npm script with a coverage assertion that fails loudly. Match on a stable key rather than the
