@@ -216,6 +216,7 @@
     "completeSubtitle": "Great job! That's everything we need.",
     "answersRecorded": "Your answers have been recorded",
     "generatingRecs": "Generating your personalized career recommendations...",
+    "discardedNotice": "Your subjects changed, so here's a fresh quiz to match them — your earlier answers were about subjects you no longer picked.",
     "submit": "Submit Quiz",
     "submitting": "Submitting...",
     "continueToResults": "Continue to Results",

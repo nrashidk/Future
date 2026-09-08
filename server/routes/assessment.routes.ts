@@ -673,6 +673,7 @@ export function registerAssessmentRoutes(app: Express) {
       // score is already on the assessment, and it stays. A student who has
       // submitted cannot reach Subjects to change them anyway — QuizStep offers
       // no Back once completed — but this does not rely on the UI for that.
+      let quizDiscarded = false;
       if (Array.isArray(updateData.favoriteSubjects)) {
         const before = new Set((existingAssessment.favoriteSubjects as string[] | null) ?? []);
         const after = new Set(updateData.favoriteSubjects as string[]);
@@ -683,6 +684,7 @@ export function registerAssessmentRoutes(app: Express) {
           const existingQuiz = await storage.getAssessmentQuizByAssessmentId(req.params.id);
           if (existingQuiz && !existingQuiz.completedAt) {
             await storage.deleteAssessmentQuiz(existingQuiz.id);
+            quizDiscarded = true;
             console.log(
               `[Quiz] Subjects changed on assessment ${req.params.id} — discarded unsubmitted quiz ${existingQuiz.id}`
             );
@@ -691,7 +693,22 @@ export function registerAssessmentRoutes(app: Express) {
       }
 
       const assessment = await storage.updateAssessment(req.params.id, updateData);
-      res.json(assessment);
+
+      // REPORTED ONLY WHEN A ROW WAS ACTUALLY DELETED — not when subjects changed
+      // and there was no quiz, and not when nothing changed. This is the only
+      // moment anything knows the quiz was discarded: POST /quiz/generate cannot
+      // infer it, because the evidence is the row it no longer finds, and a fresh
+      // rebuild is byte-identical to a first visit (responses: [], completed:
+      // false). Without this the student returns to a silently emptied quiz.
+      //
+      // A RESPONSE FIELD, NOT A COLUMN OR A FLAG ON THE ASSESSMENT: it is true
+      // for exactly one read and then gone, which is the lifetime of the fact.
+      // Persisting it would mean owning when to clear it, and every wrong answer
+      // to that shows a student a notice about something that did not just happen.
+      //
+      // Spread first so the field cannot be shadowed by a column of the same name
+      // if one is ever added.
+      res.json(quizDiscarded ? { ...assessment, quizDiscarded: true } : assessment);
     } catch (error) {
       console.error("Error updating assessment:", error);
       res.status(500).json({ message: "Failed to update assessment" });

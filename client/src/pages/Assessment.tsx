@@ -91,6 +91,10 @@ export default function Assessment() {
   const [assessmentId, setAssessmentId] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [aspirationsError, setAspirationsError] = useState<string | null>(null);
+  // Set from the PATCH that discarded an unsubmitted quiz because the student
+  // changed their subjects (assessment.routes.ts). Lives here rather than in
+  // QuizStep because the PATCH happens on step 3, before QuizStep exists.
+  const [quizDiscarded, setQuizDiscarded] = useState(false);
   const [resumePrompt, setResumePrompt] = useState<{
     assessmentId: string;
     currentStep: number;
@@ -601,8 +605,16 @@ export default function Assessment() {
           }
         }
         
-        // Silently auto-save in background
-        await apiRequest("PATCH", `/api/assessments/${assessmentId}`, backendData);
+        // Silently auto-save in background. The response is read for one reason:
+        // this PATCH can be the one that discards a stale quiz, and it is easy to
+        // miss that it is a second call site. A student who edits their subjects
+        // and waits two seconds before pressing Next gets the deletion HERE, and
+        // handleNext's later PATCH then reports nothing — the subjects already
+        // match by then. Dropping this response would lose the notice for exactly
+        // the students who paused to think.
+        const autoSaveRes = await apiRequest("PATCH", `/api/assessments/${assessmentId}`, backendData);
+        const autoSaved = await autoSaveRes.json().catch(() => null);
+        if (autoSaved?.quizDiscarded) setQuizDiscarded(true);
       } catch (error) {
         // Silently fail - don't disturb user with auto-save errors
         console.error("Auto-save failed:", error);
@@ -725,6 +737,7 @@ export default function Assessment() {
             // Update existing assessment
             const response = await apiRequest("PATCH", `/api/assessments/${assessmentId}`, backendData);
             assessment = await response.json();
+            if (assessment?.quizDiscarded) setQuizDiscarded(true);
           } else {
             // Create new assessment (guest token is now stored in httpOnly cookie automatically)
             const response = await apiRequest("POST", "/api/assessments", backendData);
@@ -1228,8 +1241,9 @@ export default function Assessment() {
             {assessmentId ? (
               <QuizStep
                 assessmentId={assessmentId}
-                onComplete={() => setCurrentStep(5)}
-                onBack={() => setCurrentStep(3)}
+                quizDiscarded={quizDiscarded}
+                onComplete={() => { setQuizDiscarded(false); setCurrentStep(5); }}
+                onBack={() => { setQuizDiscarded(false); setCurrentStep(3); }}
               />
             ) : (
               <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">

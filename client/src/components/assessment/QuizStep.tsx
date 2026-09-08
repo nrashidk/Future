@@ -30,6 +30,14 @@ interface QuizStepProps {
    * happen.
    */
   onBack?: () => void;
+  /**
+   * True when the PATCH that changed this student's subjects discarded an
+   * unsubmitted quiz, so the questions below are a rebuild rather than a first
+   * visit. Nothing on this screen could work that out for itself: the two cases
+   * produce an identical /quiz/generate response, because the deleted row is
+   * exactly the evidence that is gone.
+   */
+  quizDiscarded?: boolean;
 }
 
 interface QuizOption {
@@ -53,11 +61,17 @@ interface QuizResponse {
   answer: string;
 }
 
-export function QuizStep({ assessmentId, onComplete, onBack }: QuizStepProps) {
+export function QuizStep({ assessmentId, onComplete, onBack, quizDiscarded }: QuizStepProps) {
   const { t } = useTranslation('assessment');
   const { toast } = useToast();
   const { language } = useLanguage();
   const [responses, setResponses] = useState<Record<string, string>>({});
+  // CAPTURED AT MOUNT, not read from the prop on every render. The parent clears
+  // its flag when the student leaves this step, and reading the prop live would
+  // make the notice vanish mid-read if anything else cleared it first. Taken once
+  // here, it lasts exactly as long as this visit to the quiz — and a later visit
+  // mounts fresh with the flag already false, so it does not reappear.
+  const [showDiscardNotice] = useState(!!quizDiscarded);
   const [showResults, setShowResults] = useState(false);
 
   // Generate/fetch quiz (guest token is sent via httpOnly cookie automatically)
@@ -266,6 +280,19 @@ export function QuizStep({ assessmentId, onComplete, onBack }: QuizStepProps) {
           {t('quiz.answeredOf', { answered: Object.keys(responses).length, total: questions.length })}
         </div>
       </div>
+
+      {/* Deliberately not a destructive/warning style. Nothing went wrong: the
+          student changed their subjects and the old answers were about subjects
+          they no longer picked, so a rebuilt quiz is the correct outcome and the
+          copy says why rather than apologising for it. */}
+      {showDiscardNotice && (
+        <div
+          className="max-w-3xl mx-auto rounded-lg border bg-accent/30 px-4 py-3 text-sm text-muted-foreground font-body text-center"
+          data-testid="text-quiz-discarded-notice"
+        >
+          {t('quiz.discardedNotice')}
+        </div>
+      )}
 
       <div className="max-w-3xl mx-auto space-y-6">
         {questions.map((question: QuizQuestion, index: number) => {
