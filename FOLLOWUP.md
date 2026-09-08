@@ -1537,12 +1537,30 @@ Extended again 2026-09-08 (schoolOwnedNote shortened) — STUDENT-FACING, and it
 
 Extended again 2026-09-07 (roster Age column): one new admin.json key, orgs.age ("Age" / "العمر"), a single-word column heading and about as low-risk as this note gets. Recorded for completeness and because of what it sits next to: orgs.gender was changed in the same commit from "Gender (optional)" to "Gender", so the Arabic lost its "(اختياري)" too. That was not a wording preference — gender has been REQUIRED at the student-create sink since 40cba56, and the header had been telling admins the opposite ever since. Worth a reviewer knowing the parenthetical was removed deliberately and must not be restored. A third key, orgs.selectGenderOpt ("Select gender (optional)"), was DELETED from both files in the same commit for the same reason: GenderSelect switched to selectGenderReq when the gate landed, so it had no code reference left and was a live-looking string asserting the opposite of the rule — invisible in the UI but not to anyone reviewing admin.json. Admin-facing, not student-facing.
 
-### SuperadminDashboard renders raw error blobs  (severity: low)
+### SuperadminDashboard renders raw error blobs — RESOLVED (fixed 2026-09-08 in 2d4fbfa and 9395256, closed 2026-09-08)
 serverErrorMessage (client/src/lib/queryClient.ts) was added 2026-09-05 to parse the
-"STATUS: {json}" shape that throwIfResNotOk produces, and applied across
-AdminOrganizations.tsx. SuperadminDashboard.tsx still uses the raw `error.message ||`
-pattern in its own mutations, so it shows users the status code and JSON body. The helper
-is exported and ready; this is a mechanical follow-up. First flagged 2026-09-05.
+"STATUS: {json}" shape that throwIfResNotOk produces.
+
+CORRECTION to this entry's original claim that the helper was "applied across
+AdminOrganizations.tsx": it was applied to most of that file, and three sites were missed
+until 2026-09-08 — the downloadFile catch, the logo-upload catch, and the logo-upload throw
+(2d4fbfa). Those three are worth distinguishing from the headline symptom: all three use raw
+fetch rather than apiRequest, so they never produced the "STATUS: {json}" shape at all. What
+they shared was the dead `||` fallback — error.message is always a non-empty string, so the
+localized t() could never render, and an untranslated browser string ("Failed to fetch", or a
+SyntaxError from a non-JSON error body) reached the admin in its place. The throw site is
+deliberately left as-is: it re-throws the PARSED body's own message field, which
+serverErrorMessage would return unchanged.
+
+Also closed 2026-09-08 (9395256): SuperadminDashboard.tsx's own 19 sites, plus 16 more in the
+admin components it renders as its tabs — CountryManagement (5), ScoringConfigEditor (5),
+SubjectManagement (5), ContributeQuestions (1). Those were never named in this entry, and are
+why it could not have been closed by fixing SuperadminDashboard.tsx alone: they are one screen
+from the superadmin's point of view.
+
+Two `error.message ||` sites remain in client/, both correct as they stand: StudentLogin.tsx
+reads the parsed body's own message rather than a throwIfResNotOk string, and
+AdminOrganizations' logo-upload throw is the one described above. First flagged 2026-09-05.
 
 ### The org-student journey has no language control at any point  (severity: medium)
 There is no app-wide layout — App.tsx:130-151 routes straight to page components, and
