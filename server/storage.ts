@@ -252,6 +252,7 @@ export interface IStorage {
   getQuizQuestionCountsBySubject(countryId?: string, curriculum?: string): Promise<Array<{ subject: string; curriculum: string; count: number }>>;
   createAssessmentQuiz(assessmentQuiz: InsertAssessmentQuiz): Promise<AssessmentQuiz>;
   getAssessmentQuizByAssessmentId(assessmentId: string): Promise<AssessmentQuiz | undefined>;
+  deleteAssessmentQuiz(assessmentQuizId: string): Promise<boolean>;
   createQuizResponse(response: InsertQuizResponse): Promise<QuizResponse>;
   getQuizResponsesByQuizId(assessmentQuizId: string): Promise<QuizResponse[]>;
   updateQuizResponse(id: string, data: Partial<InsertQuizResponse>): Promise<QuizResponse>;
@@ -1233,6 +1234,33 @@ export class DatabaseStorage implements IStorage {
       .from(assessmentQuizzes)
       .where(eq(assessmentQuizzes.assessmentId, assessmentId));
     return quiz;
+  }
+
+  /**
+   * Delete a quiz attempt and everything it owns.
+   *
+   * RESPONSES FIRST, THEN THE ROW, IN ONE TRANSACTION. quiz_responses
+   * .assessment_quiz_id has no ON DELETE CASCADE (schema.ts), so dropping the
+   * quiz alone would violate the foreign key. Following deleteQuizQuestion,
+   * which deletes the same child table first for the same reason — but inside a
+   * transaction, which that one is not: a failure between the two statements
+   * here would leave orphaned responses pointing at a quiz that no longer
+   * exists, and this runs on a student's live assessment rather than on an
+   * admin's question edit.
+   *
+   * Does NOT check completedAt. The caller owns that decision — this is the
+   * mechanism, and the only current caller (the subjects-changed invalidation in
+   * assessment.routes.ts) refuses to touch a submitted quiz.
+   */
+  async deleteAssessmentQuiz(assessmentQuizId: string): Promise<boolean> {
+    return await db.transaction(async (tx) => {
+      await tx.delete(quizResponses).where(eq(quizResponses.assessmentQuizId, assessmentQuizId));
+      const result = await tx
+        .delete(assessmentQuizzes)
+        .where(eq(assessmentQuizzes.id, assessmentQuizId))
+        .returning();
+      return result.length > 0;
+    });
   }
 
   async createQuizResponse(responseData: InsertQuizResponse): Promise<QuizResponse> {

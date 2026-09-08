@@ -13,6 +13,23 @@ import { useLanguage } from "@/contexts/LanguageContext";
 interface QuizStepProps {
   assessmentId: string;
   onComplete: () => void;
+  /**
+   * Back to Subjects. Optional to match every other step, but this one had no
+   * such prop at all until now — the quiz was the only step in the flow with a
+   * step behind it and no way to reach it.
+   *
+   * That was not a decision: the server tells a student whose subjects yield no
+   * questions to "update your subject preferences" (quiz.routes.ts), and it said
+   * so on the one screen where they could not.
+   *
+   * ONLY RENDERED WHILE THE QUIZ IS UNSUBMITTED. Changing subjects discards an
+   * unsubmitted quiz server-side so the pool can be rebuilt (the PATCH handler in
+   * assessment.routes.ts), and a submitted quiz is scored and must stay that way.
+   * Re-entry after submission is already a no-op — the auto-advance below bounces
+   * straight back — so offering Back there would promise something that cannot
+   * happen.
+   */
+  onBack?: () => void;
 }
 
 interface QuizOption {
@@ -36,7 +53,7 @@ interface QuizResponse {
   answer: string;
 }
 
-export function QuizStep({ assessmentId, onComplete }: QuizStepProps) {
+export function QuizStep({ assessmentId, onComplete, onBack }: QuizStepProps) {
   const { t } = useTranslation('assessment');
   const { toast } = useToast();
   const { language } = useLanguage();
@@ -304,7 +321,22 @@ export function QuizStep({ assessmentId, onComplete }: QuizStepProps) {
         })}
       </div>
 
-      <div className="flex justify-center pt-8">
+      <div className="flex justify-center gap-4 pt-8">
+        {/* Gated on !quizData?.completed as well as onBack: a completed quiz
+            never renders this branch today (the auto-advance fires first), but
+            the guard states the rule rather than relying on that ordering. */}
+        {onBack && !quizData?.completed && (
+          <Button
+            size="lg"
+            variant="outline"
+            onClick={onBack}
+            disabled={submitMutation.isPending}
+            className="px-8 py-6 text-lg rounded-full"
+            data-testid="button-back-quiz"
+          >
+            {t('nav.back')}
+          </Button>
+        )}
         <Button
           size="lg"
           onClick={handleSubmit}

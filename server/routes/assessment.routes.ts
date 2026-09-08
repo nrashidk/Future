@@ -640,6 +640,56 @@ export function registerAssessmentRoutes(app: Express) {
         }
       }
 
+      // INVALIDATE AN UNSUBMITTED QUIZ WHEN THE SUBJECT SET ACTUALLY CHANGES.
+      //
+      // The quiz pool is built from favoriteSubjects, but ONLY on first
+      // generation: POST /quiz/generate short-circuits on an existing quiz row
+      // and re-serves the stored questions forever (quiz.routes.ts). So a
+      // student who goes back to Subjects, picks differently and returns would
+      // sit a quiz about subjects they no longer claim, and the report's Subject
+      // Strengths block would be computed from it. Dropping the stale attempt
+      // here lets the next generate rebuild from the new subjects.
+      //
+      // TRIGGERED BY THE DATA CHANGE, NOT BY THE BACK BUTTON. Putting it here
+      // rather than on the client's back navigation is what makes "went back to
+      // look, changed nothing" cost nothing: no diff, no delete. It also needs no
+      // snapshot state to survive a reload, cannot be bypassed by reaching step 3
+      // another way (resume, a direct PATCH), and keeps the rule next to the
+      // write that breaks the invariant.
+      //
+      // SETS, NOT ARRAYS. Both sides are normalized first (normalizeSubjects runs
+      // over the payload above, and the stored value was normalized by whichever
+      // write produced it), then compared order-insensitively — otherwise merely
+      // reordering the same subjects, or an alias resolving to the same canonical
+      // name, would destroy a quiz for no reason.
+      //
+      // prioritySubjects IS DELIBERATELY EXCLUDED. It changes how many questions
+      // each subject gets (calculateQuizDistribution), not which subjects are in
+      // the pool. A stale distribution is a far smaller wrong than a stale pool,
+      // and invalidating on it would wipe a quiz for a student who only
+      // reordered their priorities.
+      //
+      // completedAt === null is the hard guard: a submitted quiz is scored, that
+      // score is already on the assessment, and it stays. A student who has
+      // submitted cannot reach Subjects to change them anyway — QuizStep offers
+      // no Back once completed — but this does not rely on the UI for that.
+      if (Array.isArray(updateData.favoriteSubjects)) {
+        const before = new Set((existingAssessment.favoriteSubjects as string[] | null) ?? []);
+        const after = new Set(updateData.favoriteSubjects as string[]);
+        const changed =
+          before.size !== after.size || [...after].some((subject) => !before.has(subject));
+
+        if (changed) {
+          const existingQuiz = await storage.getAssessmentQuizByAssessmentId(req.params.id);
+          if (existingQuiz && !existingQuiz.completedAt) {
+            await storage.deleteAssessmentQuiz(existingQuiz.id);
+            console.log(
+              `[Quiz] Subjects changed on assessment ${req.params.id} — discarded unsubmitted quiz ${existingQuiz.id}`
+            );
+          }
+        }
+      }
+
       const assessment = await storage.updateAssessment(req.params.id, updateData);
       res.json(assessment);
     } catch (error) {

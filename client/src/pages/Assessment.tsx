@@ -1229,6 +1229,7 @@ export default function Assessment() {
               <QuizStep
                 assessmentId={assessmentId}
                 onComplete={() => setCurrentStep(5)}
+                onBack={() => setCurrentStep(3)}
               />
             ) : (
               <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
