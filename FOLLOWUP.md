@@ -2102,3 +2102,30 @@ Two fixes, and the first is cheap: reconcile or delete the :1148 numbering so on
 exists. Then scope the licence rework from the current schema rather than from a plan, since
 the plan it would have been scoped from (docs/v2-rebuild-plan.md Phase 6) never existed.
 Recorded 2026-09-08.
+
+
+### A safeguard that contains the failure mode it guards against  (severity: process, not code)
+Three instances in one session, which is why this is recorded as a pattern rather than filed
+against any one of them.
+
+- .gitignore:26-48 justified its allowlist on the grounds that git status would make an
+  untracked doc obvious. It does not — git status never shows an ignored file, which is the
+  entire point of ignoring one, and sixteen cited documents went missing without anyone
+  noticing. That comment now carries its own correction.
+- seed.ts's Arabic-coverage check, whose whole job was to report missing content, was wrapped
+  in a bare `catch {}` that swallowed its own failure. Replaced in 9a93193.
+- The coverage gate that replaced it (9a93193) contained an unguarded `await import()` inside
+  its OWN catch — the exact bug class that same commit was written to report. Closed in
+  ebd7939 by removing the await rather than wrapping it, since wrapping would have left a
+  safeguard whose failure path was another safeguard.
+
+Each was written by someone who had just understood the failure mode and did not apply that
+understanding to their own code. The understanding was real in every case; it just stopped at
+the boundary of the thing being fixed.
+
+Worth a standing check: when adding a safeguard, ask what happens when the safeguard itself
+fails. Concretely — does it report its own failure, or swallow it? Does the evidence it relies
+on actually exist (git status showing an ignored file did not)? And does it contain an instance
+of the very thing it detects? The third question is the one all three of these failed.
+
+First flagged 2026-09-08.
