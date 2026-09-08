@@ -1982,3 +1982,47 @@ docs/future-readiness-plan.md A3' } into the careers table. Not a comment — a 
 database, presenting a nonexistent file as its provenance to anyone auditing growth bands. The
 note text is fixed, but the per-row rationale for each exception now lives only in that file's
 structure. Recorded 2026-09-08.
+
+### "Phase 6" is defined twice in this file, incompatibly  (severity: medium — it misdirects a live deferral)
+quiz.routes.ts:100 defers retiring users.isPremium as an entitlement flag to "the v2 license
+rework (FOLLOWUP.md, Phase 6)". That deferral is load-bearing: it is the stated reason the
+org_student conflation was NOT fixed by flipping the column, across ~15 server and ~10 client
+read sites.
+
+The pointer resolves to two different phases:
+
+- :1148, in the older plan summary — "Phase 6: Career Journey (fill across grades, per-grade
+  link fix, duplicate-grade prompt, soft-delete); dashboard (…)". Nothing about licensing. In
+  that numbering the license rework is PHASE 4 (:1143).
+- :1411, in the later list — "Phase 6 (license rework, the big one): consume-at-completion,
+  unified self/school licensing, repurchase-sells-licenses, needs a real license table."
+
+The later numbering is the one the shipped work follows: Phase 4 delivered mandatory school
+country/curriculum, Phase 5 delivered the guest→account claim (04b01d0, c0c009d). So :1148 is
+stale and its phase numbers are off by two from reality. A reader who lands on it first
+concludes the licence deferral points at the Career Journey and that quiz.routes.ts cites the
+wrong phase.
+
+CORRECTION to how this was first written up: Phase 6 is NOT unscoped. :1411 gives it four
+items. What it lacks is a scope — four bullets naming outcomes, with no statement of what
+"consume-at-completion" changes, which tables a "real license table" replaces
+(users.purchasedLicenses, organizations.totalLicenses/usedLicenses/isUnlimitedLicenses today),
+or what happens to rows written under the current model.
+
+Known to belong to Phase 6, gathered from this file and from the 2026-09-08 session:
+- consume-at-completion (:1411)
+- unified self/school licensing (:1411)
+- repurchase-sells-licenses (:1411)
+- a real license table (:1411) — replacing the counters on users and organizations
+- retiring users.isPremium as an entitlement flag (quiz.routes.ts:86-105), which is what the
+  response-only isPremium decoration in auth.routes.ts exists to work around
+- the curriculum-rename reconciliation, which cannot close until something can re-scope
+  existing assessment rows (47c5067, and the entry above)
+- the free-retake cap of 3 (decision made, not implemented) — it changes what a licence is
+  consumed BY, and the org-student allocation is currently the literal 1 in Profile.tsx and in
+  useAssessmentAvailability.ts
+
+Two fixes, and the first is cheap: reconcile or delete the :1148 numbering so one Phase 6
+exists. Then scope the licence rework from the current schema rather than from a plan, since
+the plan it would have been scoped from (docs/v2-rebuild-plan.md Phase 6) never existed.
+Recorded 2026-09-08.
