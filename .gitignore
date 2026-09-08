@@ -31,8 +31,24 @@ methodology-audit-recon.md
 # Why this direction: the previous denylist (docs/*-recon.md, docs/*-audit.md,
 # docs/step-*.md, ...) made the NAMING CONVENTION load-bearing — a new analysis file
 # that didn't happen to match a pattern (docs/cvq-notes.md) got committed silently.
-# Failing that way is the bad one. Inverted, the worst case is a real doc staying
-# untracked until someone adds a `!` line, which `git status` makes obvious.
+# Failing that way is the bad one, and that reasoning still holds.
+#
+# WHAT THIS COMMENT USED TO CLAIM, AND WHY IT WAS WRONG. It said the worst case was
+# "a real doc staying untracked until someone adds a `!` line, which `git status`
+# makes obvious". git status does NOT make it obvious: it never lists an ignored
+# file, which is the entire point of ignoring one. `git status --ignored` does, and
+# nobody runs it.
+#
+# The cost of that mistake, measured 2026-09-08: SIXTEEN docs/*.md files cited from
+# code do not exist and never did — `git log --all` shows zero commits touching any
+# of them. Among them are docs/v2-rebuild-plan.md and docs/v2-phase3-recon.md, which
+# shared/assessmentFlow.ts:4-11 cites as its SPEC and as the reason the module
+# exists. Sixteen documents went missing without anyone noticing, exactly as this
+# comment said would be survivable.
+#
+# So: the allowlist direction is right, and the safety net named here is imaginary.
+# If you write a doc under docs/ that anything else will cite, add its `!` line IN
+# THE SAME COMMIT as the citation. Nothing will remind you later.
 #
 # ADDING A REAL PROJECT DOC? Add a matching `!docs/<name>.md` line here, or it will
 # not be tracked. Analysis output needs no entry — it is ignored by default.
@@ -46,3 +62,5 @@ docs/*.md
 !docs/career-sourcing-map.md
 !docs/uae-official-sectors.md
 !docs/v2-phase4-recon.md
+!docs/v2-phase4-step4-recon.md
+!docs/v2-phase5-recon.md
