@@ -1708,3 +1708,20 @@ SESSION_SECRET's length and DB_ENCRYPTION_KEY's format (env-validation.ts:44-53)
 Fix order is: set RESEND_API_KEY, decide the sending domain and verify it in Resend, set
 EMAIL_FROM to match, then consider promoting the key to REQUIRED. Do not reorder — the domain
 question is unanswerable while no mail is sent. First flagged 2026-09-08.
+
+### Arabic career content is applied by an untracked, manually-run, title-matched script  (severity: medium)
+server/migrations/career-arabic-content.ts supplies Arabic titles, descriptions, required
+skills and education levels for careers. It is invisible to the migration runner —
+runner.ts:50 filters allFiles.filter(f => f.endsWith(".sql")) and tracks applied names in
+schema_migrations, so a .ts file is never seen and never recorded. There is no npm script for
+it; it is a manual invocation nobody is prompted to make.
+
+It matches rows on eq(careers.title, item.title) and logs a warning on a miss, so it fails
+silently in a script nobody watches. Two consequences, both recurring: any catalog expansion
+leaves the new careers with NULL Arabic until someone remembers to run it (e65cd3c grew the
+catalog 39 -> 68 on 2026-09-02 and the Arabic gap was visible in reports on 2026-09-04), and
+editing a career's English title silently orphans its Arabic content.
+
+Fix direction: make it a tracked migration, or a seed step that runs at boot, or at minimum an
+npm script with a coverage assertion that fails loudly. Match on a stable key rather than the
+English title. First flagged 2026-09-08.
