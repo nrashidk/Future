@@ -423,8 +423,33 @@ export default function Profile() {
               .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
               .find(a => a.name || a.age || a.grade || a.gender);
 
-            const demoName = latestAssessment?.name || 
-              (user.firstName || user.lastName ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : null);
+            // predefinedName, NOT the account holder's name. This fell back to
+            // user.firstName/lastName while its three siblings below fall back to
+            // their predefined* decoration, and auth.routes.ts has been supplying
+            // predefinedName from organization_members.studentName all along —
+            // Profile just never read it.
+            //
+            // The bug that produced: an org student who has not taken an
+            // assessment yet got their school-recorded GRADE, AGE and GENDER
+            // beside the ACCOUNT HOLDER'S name. Where a parent or guardian
+            // registered the account, the block described one person by name and
+            // a different one by every other field, on a page about a minor.
+            //
+            // It also decided what the block's caption could honestly say. With
+            // the account-holder fallback there were three possible sources —
+            // assessment, school record, and the account itself — and the third
+            // is not something a block about the assessment subject should ever
+            // show. Reading predefinedName leaves two, and the guard below
+            // (`if (!demoName && !demoAge && !demoGrade && !demoGender) return
+            // null`) then covers the rest: a viewer with neither an assessment
+            // nor a member row has no subject to describe, so the block does not
+            // render at all rather than describing the wrong person.
+            //
+            // `??` not `||`, matching the three below: an empty studentName is a
+            // value the school recorded, and falling through it would silently
+            // reintroduce the holder's name for exactly the rows where the
+            // school's record is incomplete.
+            const demoName = latestAssessment?.name ?? (user as any).predefinedName ?? null;
             const demoAge = latestAssessment?.age ?? (user as any).predefinedAge ?? null;
             const demoGrade = latestAssessment?.grade ?? (user as any).predefinedGrade ?? null;
             const demoGender = latestAssessment?.gender ?? (user as any).predefinedGender ?? null;
