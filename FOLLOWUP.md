@@ -1572,6 +1572,29 @@ The line's whole job is to say that nothing went wrong — a rebuilt quiz is the
 outcome of changing subjects, not an error. If the Arabic reads as an apology or a warning it
 has failed even if every word is accurate. First flagged 2026-09-08.
 
+Extended again 2026-09-08: four profile.json keys for the Plan & Access row — premium.title,
+premium.access, premium.accessSchoolStudent, premium.accessSchoolAdmin. STUDENT-FACING for two
+of them (a school student sees accessSchoolStudent on their own profile); the other two are
+also seen by school admins.
+
+Three checkable points:
+
+  1. «الخطة والوصول» for "Plan & Access" is a literal pairing of two nouns. Confirm it reads as
+     a section heading rather than a sentence fragment, and that الوصول ("access") is the right
+     noun for what a student HAS rather than an action they perform.
+  2. «وصول عبر المدرسة» ("access via the school") is the load-bearing one. It replaces a badge
+     that said «مميز» (Premium) with a crown, which told a 13-year-old they had bought
+     something their school bought for them. The Arabic must convey "your school provides this"
+     without implying the student is a lesser tier than a paying one — the English "School
+     access" is deliberately neutral, not a downgrade, and the register should match.
+  3. «حساب مدرسة» ("school account") is shown to school ADMINS. Confirm it reads as a
+     description of the account type and not as an instruction or a label for the school
+     itself; «حساب مدرسي» is the likely alternative and a native eye should pick between them.
+
+Also removed as orphans in the same change: premium.loading and premium.unavailable, which
+only the old orgStats-dependent badge used. Nothing else referenced them. First flagged
+2026-09-08.
+
 Extended again 2026-09-07 (DOB age echo): one more admin.json key, dateOfBirthAgeToday — "Age today: {{age}}", rendered under the date-of-birth field as the admin types. Same reviewer pass. The word carrying the whole key is TODAY, and it is load-bearing rather than decorative: the age that ends up in the student's record is the age at ASSESSMENT time, which can be months later and a year higher, so an Arabic rendering that drops the temporal qualifier and reads as a bare "العمر" turns a confirmation into a promise the system does not keep. Check that the Arabic still says today, not just age. Two further things a reviewer should look at rather than read: the key interpolates a Latin-numeral {{age}} into an RTL sentence, so confirm the digits land after the colon and do not reorder against the label; and the number is interpolated as {{age}} rather than i18next's count, so it gets no plural forms — harmless in English, and worth a second look in Arabic where more forms exist and "العمر اليوم: 2" would not be how the number is spoken. Admin-facing, not student-facing.
 
 Extended again 2026-09-07 (bulk CSV columns): three more admin.json keys for the bulk-upload format panel — csvDateFormatNote, csvColumnOrderNote and csvMissingColumns — and one REMOVED, csvPreFillNote, which named "name, age, gender" as the fields worth pre-filling and is wrong on two counts now that age is superseded by date of birth and gender is required rather than optional; it was deleted from both files rather than left unrendered, since a stale string is the one thing a reviewer cannot tell apart from a live one. All three new keys are full translated sentences rather than shape-mirrors, and they are the instructions an admin follows before uploading a file containing several hundred minors' records, so a vague Arabic rendering costs a re-export at best. csvDateFormatNote is the one to get exactly right: it contains the literal pattern YYYY-MM-DD and a Latin-numeral example, both of which must stay in Latin script and in that order inside an RTL sentence — if the Arabic renders the example as 14-03-2010, or reorders the pattern, it is instructing schools to produce files the server will reject row by row. Check it rendered, not just read. csvMissingColumns interpolates {{columns}}, a comma-separated list of Latin-script field names, into an RTL sentence and has the same embedding concern. Admin-facing, not student-facing.

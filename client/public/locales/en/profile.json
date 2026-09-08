@@ -44,12 +44,12 @@
     "genderPreferNotToSay": "Prefer Not to Say"
   },
   "premium": {
-    "title": "Premium Status",
-    "status": "Status",
+    "title": "Plan & Access",
+    "access": "Access",
     "premium": "Premium",
     "free": "Free",
-    "loading": "Loading...",
-    "unavailable": "Unavailable",
+    "accessSchoolStudent": "School access",
+    "accessSchoolAdmin": "School account",
     "purchasedLicenses": "Purchased Licenses",
     "usedLicenses": "Used Licenses",
     "remainingLicenses": "Remaining Licenses",

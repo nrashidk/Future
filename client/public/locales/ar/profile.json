@@ -44,12 +44,12 @@
     "genderPreferNotToSay": "أفضل عدم الإفصاح"
   },
   "premium": {
-    "title": "حالة الاشتراك المميز",
-    "status": "الحالة",
+    "title": "الخطة والوصول",
+    "access": "الوصول",
     "premium": "مميز",
     "free": "مجاني",
-    "loading": "جارٍ التحميل...",
-    "unavailable": "غير متاح",
+    "accessSchoolStudent": "وصول عبر المدرسة",
+    "accessSchoolAdmin": "حساب مدرسة",
     "purchasedLicenses": "الرخص المشتراة",
     "usedLicenses": "الرخص المستخدمة",
     "remainingLicenses": "الرخص المتبقية",

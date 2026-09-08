@@ -519,21 +519,33 @@ export default function Profile() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* FOUR SHAPES, FOUR ANSWERS. This row used to force all of them
+                  through premium/free, and got two of the four wrong.
+
+                  THE CROWN NOW MEANS "YOU BOUGHT THIS" AND NOTHING ELSE. An org
+                  student was shown "Premium" with a crown, because isPremium is a
+                  response-only decoration auth.routes.ts adds so the client
+                  renders the premium flow — not a purchase they made. It
+                  advertised to a 13-year-old a licence their school bought, and
+                  it contradicted the sentence directly below it
+                  (premium.studentAccess, "…through your school"). The badge and
+                  that sentence now agree.
+
+                  ORG ADMIN NO LONGER READS orgStats. The old branch derived
+                  "Premium"/"Free" from totalLicenses > 0, so a school admin whose
+                  school had not bought licences yet was labelled Free
+                  PERSONALLY — a statement about the organization printed as a
+                  statement about them. "School account" is true the moment we
+                  know who they are, which is why the loading and error states are
+                  gone from this row: it no longer waits on a request whose answer
+                  it does not use. The licence rows below still gate on orgStats
+                  and still show both states. */}
               <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">{t("premium.status")}</p>
+                <p className="text-sm text-muted-foreground">{t("premium.access")}</p>
                 {isOrgAdmin ? (
-                  isOrgStatsLoading ? (
-                    <Badge variant="outline" data-testid="badge-premium-status">{t("premium.loading")}</Badge>
-                  ) : orgStatsError ? (
-                    <Badge variant="outline" data-testid="badge-premium-status">{t("premium.unavailable")}</Badge>
-                  ) : orgStats && orgStats.totalLicenses > 0 ? (
-                    <Badge className="bg-yellow-500 hover:bg-yellow-600" data-testid="badge-premium-status">
-                      <Crown className="w-3 h-3 me-1" />
-                      {t("premium.premium")}
-                    </Badge>
-                  ) : (
-                    <Badge variant="outline" data-testid="badge-premium-status">{t("premium.free")}</Badge>
-                  )
+                  <Badge variant="outline" data-testid="badge-premium-status">{t("premium.accessSchoolAdmin")}</Badge>
+                ) : isOrgStudent ? (
+                  <Badge variant="outline" data-testid="badge-premium-status">{t("premium.accessSchoolStudent")}</Badge>
                 ) : user.isPremium ? (
                   <Badge className="bg-yellow-500 hover:bg-yellow-600" data-testid="badge-premium-status">
                     <Crown className="w-3 h-3 me-1" />
