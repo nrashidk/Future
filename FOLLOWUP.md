@@ -2179,3 +2179,76 @@ catalogue uses, but nothing prevents the next tile, or the next career tag, from
 it. A test asserting that every picker tile projects onto at least one career would.
 
 First flagged 2026-09-08.
+
+### Legal documents describe a system that no longer exists  (severity: HIGH)
+legal.json was last edited 2026-05-08 (57a6178) and its own lastUpdated string reads 6 April
+2026. Migrations 014-017 landed since. The three pages are pure t() shells — the documents ARE
+those 72 lines.
+
+1. DATE OF BIRTH IS UNDISCLOSED. Both languages say data collected is "name, age, school, and
+   country" (en:11/ar:11). student_age was dropped (017) and date_of_birth was made mandatory
+   for every student row (016, schema.ts:179), school-supplied via four admin write paths. A
+   birth date is a stable direct identifier for a minor; an age is not.
+
+2. THE SCHOOL/STUDENT SPLIT IS DESCRIBED NOWHERE. The policy offers one sentence — "limited
+   data ... with authorized educational institutions" (en:26) — and claims "anonymized
+   insights for institutional reporting" (en:18). The code serves schools named per-student
+   DOB, gender, email and RIASEC/CVQ extracts (storage.ts:2609, admin.routes.ts:1854, :1959),
+   and lets a superadmin read any named student's results (superadmin.routes.ts:1639, :1693) —
+   a recipient category the documents never admit exists.
+
+3. CONSENT IS ASSERTED AND NEVER RECORDED. consentGiven appears nowhere in server/ or shared/
+   — no column, no timestamp, no policy version. DemographicsStep.tsx:75-77 auto-ticks the box
+   for org students, so the population where consent matters most never gives it. The
+   COPPA/PDPL claim at en:22 rests on an artifact that does not exist. "Parental or
+   institutional" consent names a branch with no implementation — there is no parent or
+   guardian concept anywhere in the codebase. Separately: COPPA is US law for under-13s, cited
+   for a UAE 13-18 cohort under UAE governing law. Needs a lawyer, not a developer.
+
+4. RETENTION PROMISES NOTHING THAT SHIPS. No cron, TTL or purge for student data. Institutional
+   deletion removes only the membership row (storage.ts:2752-2757), orphaning the child's
+   psychometric record; a student who has completed an assessment cannot be removed at all
+   (admin.routes.ts:1111). The self-service export and erasure endpoints work but no client
+   code calls them, and the export omits the organization_members row, so it excludes the DOB.
+
+5. THE ARABIC PREVAILS AND NAMES AN UNREGISTERED ENTITY. en and ar are structurally identical
+   — same keys, same date, same gaps — so the Arabic is a faithful translation of an
+   out-of-date document. Its one substantive divergence: the 11 entity strings translate the
+   name and never carry the Latin form. Under UAE governing law (s7) the Arabic ordinarily
+   prevails, so the prevailing text names an entity in no registry. Neither language gives a
+   legal entity form, licence number, address, or named data controller.
+
+NEEDS HUMAN REVIEW, not code: organizationEvents.affectedUserId (schema.ts:1378) has no
+onDelete, so DELETE /api/users/me may FK-violate and 500. Data-dependent, unverified.
+
+Do not rewrite the legal documents from this. They need a registered entity name, a named
+controller, and a lawyer. A rewrite from the code would accurately describe the system and
+still not be a compliant policy. First flagged 2026-09-08.
+
+VERIFIED ON RECORD 2026-09-08, at the point of transcribing this out of the gitignored recon
+doc and into this file. Every citation above was re-checked against the working tree and every
+one holds: the 2026-05-08 edit date and the April lastUpdated string, the four en: line
+references, the 72-line files, dateOfBirth at schema.ts:179, the DOB column in the members
+query, deleteOrganizationMember touching only that one table, the isLocked block on deleting a
+student who has completed an assessment, both superadmin routes, affectedUserId's missing
+onDelete, and the count of Arabic entity strings — 11, with the Latin form appearing zero
+times. consentGiven is confirmed CLIENT-ONLY: five occurrences, all in DemographicsStep.tsx and
+Assessment.tsx, none in server/ or shared/, and Assessment.tsx:541 sets it true with the
+comment "Institutional consent". The export and erasure endpoints exist at user.routes.ts:39
+and :117; the only /api/users/me call anywhere in client/src is the language PATCH.
+
+ONE ADDITION not in the original review, found while checking en:22. The same sentence says
+Future Pathways "is designed for students aged 10+". The product's cohort is 13-18 and the
+assessment's own grade vocabulary starts at grade 8. So the policy states an age floor three
+years below the youngest user the system is built for — which, on a document already citing
+COPPA, is the floor that would decide whether US under-13 rules were being invoked
+deliberately. That is a question for the lawyer along with the rest of point 3, not a string to
+quietly correct.
+
+RELATED ENTRIES, so this does not fragment. Point 4's export gap is the same finding as
+"Subject-access export omits everything the school recorded" (:1737), reached from the legal
+side rather than the code side. Point 1 is governed by the standing DOB constraint (:2019),
+which is the rule the documents fail to disclose rather than a rule the code breaks. Point 5 is
+the legal half of "Brand name is authored independently in five layers" (:1745), whose own
+unresolved question — whether legal.json's entity strings should track the product name at all
+— is answered here: they must not, until there is a registered entity to name.
