@@ -1776,3 +1776,15 @@ superadmin.routes.ts:1975/2020) at some point after 2026-09-04. Nothing recorded
 Fix direction: make it a tracked migration, or a seed step that runs at boot, or at minimum an
 npm script with a coverage assertion that fails loudly. Match on a stable key rather than the
 English title. First flagged 2026-09-08.
+
+### A large body of Arabic lives outside i18n and outside the review path  (severity: medium)
+premiumNarratives.ts and freeNarrative.ts carry hand-written Arabic — the seven-step,
+three-grade-band action-step templates and their interpolations — as string literals in
+server code, not as keys in client/public/locales/ar/*.json. The unreviewed-Arabic note in
+this file assumes a reviewer working through the locale files; that reviewer would never see
+any of this, and a future translation pass over ar/ would silently skip it.
+
+This is student-facing content that reaches the report and the PDF. It has never been in the
+review path. Scope it before the next translation pass: report how much Arabic sits in
+server/ as literals, and decide whether it moves into the locale files or gets its own
+review track. First flagged 2026-09-08.
