@@ -164,8 +164,8 @@ export async function sendPasswordResetEmail(
   language = "en"
 ): Promise<EmailResult> {
   if (!resend) {
-    if (process.env.NODE_ENV === "production") {
-      console.error("[Email] RESEND_API_KEY is not configured in production. Password reset email NOT sent to:", to);
+    if (!isLogOnlyMailEnvironment()) {
+      console.error("[Email] RESEND_API_KEY is not configured. Password reset email NOT sent to:", to);
       return { success: false, error: "Email service not configured. Please contact your administrator." };
     }
     console.warn("[Email] Resend not configured. Email would be sent to:", to);
@@ -209,4 +209,29 @@ export async function sendPasswordResetEmail(
  */
 export function isEmailConfigured(): boolean {
   return !!resend;
+}
+
+/**
+ * Whether an unconfigured mail service may be treated as "logged, not sent"
+ * rather than as a failure. True ONLY in local development.
+ *
+ * ASKS FOR AN EXPLICIT YES, which is the whole point. This was
+ * `NODE_ENV === "production"` guarding the strict branch, so every value that
+ * was not exactly "production" — unset, "staging", a start command changed from
+ * `npm start` to `node dist/index.js` — took the lenient one and reported a
+ * password reset as sent when nothing had been sent. An ambient variable that
+ * has to SAY production to make the system safe is one deploy edit away from
+ * silently unlocking it; this inverts that, so absence is strict and only
+ * `NODE_ENV=development`, which `npm run dev` sets explicitly (package.json),
+ * buys the log-only path.
+ *
+ * Extracted and exported so the decision is testable on its own, the same
+ * reason resolveQuizTier is (quiz.routes.ts, quiz.tier.test.ts). Both callers
+ * — this module's dev branch and the 503 gate on
+ * POST /api/password-reset/request — must read the SAME predicate: they are one
+ * decision expressed twice, and the bug they exist to prevent is exactly the
+ * two of them disagreeing.
+ */
+export function isLogOnlyMailEnvironment(): boolean {
+  return process.env.NODE_ENV === "development";
 }

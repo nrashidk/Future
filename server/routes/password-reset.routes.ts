@@ -5,7 +5,7 @@ import { db } from "../db";
 import { users, passwordResetTokens } from "@shared/schema";
 import { eq, and, gt, isNull } from "drizzle-orm";
 import { hashPassword } from "../utils/passwordHash";
-import { sendPasswordResetEmail, isEmailConfigured } from "../services/email";
+import { sendPasswordResetEmail, isEmailConfigured, isLogOnlyMailEnvironment } from "../services/email";
 import { sanitizeString } from "../utils/sanitize";
 import rateLimit from "express-rate-limit";
 import zxcvbn from "zxcvbn";
@@ -42,9 +42,25 @@ export function registerPasswordResetRoutes(app: Express) {
    */
   app.post("/api/password-reset/request", resetRequestLimiter, async (req, res) => {
     try {
-      // Gate early: in production, if email is not configured every request
-      // must fail uniformly to avoid account enumeration side-channels.
-      if (process.env.NODE_ENV === "production" && !isEmailConfigured()) {
+      // Gate early: if email is not configured every request must fail
+      // uniformly, both to avoid account enumeration side-channels and because
+      // the alternative is telling a locked-out user to check an inbox nothing
+      // was sent to.
+      //
+      // NOT GATED ON NODE_ENV === "production" any more. That made the strict
+      // branch conditional on an ambient variable SAYING production, so any
+      // other value — unset, "staging", a start command changed from
+      // `npm start` to `node dist/index.js` — skipped this gate, and
+      // sendPasswordResetEmail's matching branch then returned
+      // { success: true, messageId: "dev-mode-no-email" }. The route sees no
+      // failure, so the caller gets the generic 200 and the green "Check Your
+      // Email" card for mail that was never sent. RESEND_API_KEY is in fact
+      // unset in production today (constants.ts lists it OPTIONAL), so the only
+      // thing standing between a visible 503 and a silent lockout was NODE_ENV.
+      //
+      // isLogOnlyMailEnvironment() is the same predicate that module uses, and
+      // it requires an explicit NODE_ENV=development: absence is now strict.
+      if (!isEmailConfigured() && !isLogOnlyMailEnvironment()) {
         return res.status(503).json({
           success: false,
           message: "Email service is not available. Please contact your administrator.",
