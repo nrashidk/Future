@@ -13,6 +13,11 @@ import { applyCareerRelatedSubjects } from "./migrations/career-related-subjects
 import { applyCareerGrowthBands } from "./migrations/career-growth-bands";
 import { applyCareerFutureReadiness } from "./migrations/career-future-readiness";
 import { WEF_16_SKILLS, CAREER_WEF_SKILL_AFFINITIES } from "./wefSkillsData";
+// Static, not a dynamic import: the coverage gate below reports from inside its
+// own catch, and `await import()` there would be an unguarded await in the one
+// place that must never fail silently. seedStatus.ts imports nothing, so there
+// is no cycle to avoid.
+import { markSeedIncomplete } from "./seedStatus";
 
 // ---------------------------------------------------------------------------
 // VISION ALIGNMENT — UAE priority sector ↔ career-category mapping
@@ -3253,7 +3258,6 @@ export async function seedDatabase() {
     const { checkContentCoverage } = await import("./migrations/contentCoverage");
     const problems = await checkContentCoverage();
     if (problems.length > 0) {
-      const { markSeedIncomplete } = await import("./seedStatus");
       console.error(
         `\n❌ CONTENT COVERAGE GATE FAILED — ${problems.length} problem(s). ` +
         `Student-facing content is missing or stale.`,
@@ -3271,7 +3275,9 @@ export async function seedDatabase() {
     }
   } catch (error: any) {
     // The gate itself failing is a reportable event, not something to swallow.
-    const { markSeedIncomplete } = await import("./seedStatus");
+    // Nothing in here awaits: markSeedIncomplete is statically imported above,
+    // because an `await import()` on this path would be an unguarded await
+    // inside the catch of the very check meant to catch that class of bug.
     console.error("❌ Content coverage gate could not run:", error?.message || error);
     markSeedIncomplete([`gate failed to run: ${error?.message || error}`]);
   }
@@ -3447,10 +3453,16 @@ export async function seedDatabase() {
       console.log(`✓ Created scoring tier: ${tier.name}`);
     } catch (error: any) {
       if (error?.message?.includes('unique') || error?.code === '23505' || error?.cause?.code === '23505') {
-        const existing = await storage.getScoringTierByKey(tierData.key);
-        if (existing) {
-          seededTiers[tierData.key] = existing;
-          console.log(`  Scoring tier ${tierData.name} already exists`);
+        // GUARD: an await inside a catch body is NOT protected by that catch —
+        // a throw here propagates straight out of seedDatabase(). Non-fatal.
+        try {
+          const existing = await storage.getScoringTierByKey(tierData.key);
+          if (existing) {
+            seededTiers[tierData.key] = existing;
+            console.log(`  Scoring tier ${tierData.name} already exists`);
+          }
+        } catch (lookupError: any) {
+          console.error(`  Scoring tier lookup error for ${tierData.name} (non-fatal, continuing):`, lookupError?.message || lookupError);
         }
       } else {
         console.error(`  Error creating tier ${tierData.name}:`, error);
@@ -3485,33 +3497,41 @@ export async function seedDatabase() {
   
   // Seed tier component weights
   for (const [tierKey, componentWeights] of Object.entries(tierWeightConfigs)) {
-    const tier = seededTiers[tierKey];
-    if (!tier) continue;
+    // GUARD: getTierComponentWeights below was unprotected. This is where the
+    // 2026-09-08 prod boot stopped — the School Assessment (group) iteration —
+    // and it produced no output because seedDatabase() simply ended there.
+    // Per-iteration so one tier failing cannot cost the others their weights.
+    try {
+      const tier = seededTiers[tierKey];
+      if (!tier) continue;
 
-    const existingTierWeights = await storage.getTierComponentWeights(tier.id);
+      const existingTierWeights = await storage.getTierComponentWeights(tier.id);
 
-    for (const [componentKey, config] of Object.entries(componentWeights)) {
-      const component = seededComponents[componentKey];
-      if (!component) continue;
+      for (const [componentKey, config] of Object.entries(componentWeights)) {
+        const component = seededComponents[componentKey];
+        if (!component) continue;
 
-      const weightExists = existingTierWeights.some(w => w.componentId === component.id);
-      if (weightExists && !forceReseed) {
-        console.log(`  skipped (exists, FORCE_RESEED not set): tier weight ${tierKey}/${componentKey}`);
-        continue;
+        const weightExists = existingTierWeights.some(w => w.componentId === component.id);
+        if (weightExists && !forceReseed) {
+          console.log(`  skipped (exists, FORCE_RESEED not set): tier weight ${tierKey}/${componentKey}`);
+          continue;
+        }
+
+        try {
+          await storage.upsertTierComponentWeight({
+            tierId: tier.id,
+            componentId: component.id,
+            weight: config.weight,
+            isEnabled: config.isEnabled,
+          });
+        } catch (error: any) {
+          console.error(`  Error setting weight for ${tierKey}/${componentKey}:`, error.message);
+        }
       }
-
-      try {
-        await storage.upsertTierComponentWeight({
-          tierId: tier.id,
-          componentId: component.id,
-          weight: config.weight,
-          isEnabled: config.isEnabled,
-        });
-      } catch (error: any) {
-        console.error(`  Error setting weight for ${tierKey}/${componentKey}:`, error.message);
-      }
+      console.log(`✓ Configured weights for tier: ${tier.name}`);
+    } catch (error: any) {
+      console.error(`  Tier weight seeding error for ${tierKey} (non-fatal, continuing):`, error?.message || error);
     }
-    console.log(`✓ Configured weights for tier: ${tier.name}`);
   }
   
   // Seed LLM Prompt Templates for premium reports
