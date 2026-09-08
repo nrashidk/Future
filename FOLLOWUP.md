@@ -1762,17 +1762,34 @@ Extended again 2026-09-08: four more profile.json keys for the two profile block
 their captions — account.title, details.title, details.subtitleAssessment,
 details.subtitleSchool. STUDENT-FACING: a school student reads all four on their own profile.
 
-Two checkable points:
+SUPERSEDED the same day by the block merge (029e678). Three of those four keys no longer
+exist: the two blocks are one, so there is no heading pair and no per-block caption. Checkpoint
+1 below is retired with them — it asked whether an Arabic PAIR read as a contrast, and there
+is no pair. Do not review it; it will not match the page.
 
-  1. THE PAIR MUST READ AS A CONTRAST. «صاحب الحساب» (Account Holder) and «بيانات التقييم»
-     (Assessment Details) exist to tell a reader that the two blocks are about possibly
-     DIFFERENT PEOPLE — a guardian who registered the account, and the student the assessment
-     is about. If the Arabic pair reads as two views of one person the headings have failed at
-     their only job, and the failure is invisible: both blocks still look correct alone.
+The keys actually needing Arabic review are now FOUR AGAIN, and different:
+account.title («معلوماتي»), details.studentName («الطالب»), details.sourceAssessment and
+details.sourceSchool (the two provenance sentences), plus assessment.completedOf
+(«{{completed}} من {{cap}}»). ALL STUDENT-FACING — a school student reads every one on their
+own profile.
+
+Three checkable points:
+
+  1. «الطالب» IS THE LOAD-BEARING ONE, and it renders in exactly one situation: the account
+     name and the assessment subject's name differ, i.e. a guardian registered the account for
+     a child. The word must read as "the person this assessment is about" and NOT as a form of
+     address to the reader — the reader in that case is the parent, not the student. If a
+     gendered or vocative reading creeps in, it names the wrong person on a page about a minor.
   2. «من سجلات مدرستك» ("from your school's records") is shown to a student whose school
      supplied their name, grade, age and gender. Confirm سجلات is the right word for an
      administrative record rather than an academic transcript, and that the sentence does not
-     read as though the school is grading them. It is a provenance note, not a judgement.
+     read as though the school is grading them. It is a provenance note, not a judgement. It
+     is now a full sentence under the assessment fields rather than a block caption, so confirm
+     it still reads as a note about those fields and not about the whole card.
+  3. «{{completed}} من {{cap}}» — من is doing "of" in a ratio, not "from". Confirm that reads
+     as a count against a ceiling to an Arabic-reading 13-year-old, and that the digits sit the
+     right way round in RTL. This is the string that tells a school student they have one
+     allocation and a free account that it has three.
 
 First flagged 2026-09-08.
 
