@@ -403,7 +403,6 @@ export interface IStorage {
     username?: string;
     studentId?: string;
     studentName?: string;
-    studentAge?: number;
     studentGender?: string;
     /** Canonical 'YYYY-MM-DD'. Validated by the caller; see admin.routes.ts M1. */
     dateOfBirth?: string;
@@ -2727,7 +2726,6 @@ export class DatabaseStorage implements IStorage {
     username?: string;
     studentId?: string;
     studentName?: string;
-    studentAge?: number;
     studentGender?: string;
     /**
      * Canonical 'YYYY-MM-DD'.
@@ -2863,7 +2861,6 @@ export class DatabaseStorage implements IStorage {
               studentId: userData.studentId,
               // Derived and validated at the top of this function.
               studentName,
-              studentAge: userData.studentAge,
               studentGender: userData.studentGender,
               dateOfBirth: userData.dateOfBirth,
               role: 'student',

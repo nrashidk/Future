@@ -155,12 +155,10 @@ export const organizationMembers = pgTable("organization_members", {
   // Student information (can be pre-filled by school admin)
   studentId: text("student_id"), // School's own student ID
   studentName: text("student_name"), // Pre-filled student name
-  studentAge: integer("student_age"), // Pre-filled student age
-  // The school-recorded date of birth, and the field student_age above is being
-  // replaced by: an age is wrong within twelve months of being written, a birth
-  // date is not. The assessment derives age from this at assessment time
-  // (Phase 4 step 4). student_age is still written by the three create paths and
-  // is dropped in a later commit of that step, once nothing reads it.
+  // The school-recorded date of birth. It REPLACED a student_age column, dropped
+  // in server/migrations/017_drop_student_age.sql: an age is wrong within twelve
+  // months of being written, a birth date is not. The assessment derives age
+  // from this at assessment time and anchors it to the row.
   //
   // `mode: "string"` is EXPLICIT, not decorative. It happens to be drizzle's
   // default for date(), but the alternative — mode: "date" — would hand every
@@ -204,16 +202,16 @@ export const organizationMembers = pgTable("organization_members", {
   // all four for a rule that only ever applied to students, so the requirement is
   // expressed here, keyed on `role`.
   //
-  // student_age is deliberately absent: nothing in scoring or the report reads it
-  // — `grade` is the field age-appropriate content is keyed on. See
-  // server/migrations/014_require_student_demographics.sql.
+  // There is no age field here to require. 014 excluded student_age from this
+  // CHECK as UNRECOVERABLE — "no form has ever collected it and there is no DOB
+  // column to derive it from" — and closed with "Revisit only if a DOB column is
+  // ever added". date_of_birth above is that column, and the revisit dropped
+  // student_age outright (server/migrations/017_drop_student_age.sql) rather than
+  // requiring it: age is derived from the birth date at assessment time, never
+  // stored on the member row.
   //
-  // That migration also called student_age UNRECOVERABLE, "no form has ever
-  // collected it and there is no DOB column to derive it from", and closed with
-  // "Revisit only if a DOB column is ever added". date_of_birth above is that
-  // column. student_age stays out of this CHECK regardless — it is being dropped,
-  // not required — and date_of_birth is not in THIS check either: it is required
-  // by a second, separate check() below rather than by widening this one. See
+  // date_of_birth is not in THIS check either. It is required by a second,
+  // separate check() below rather than by widening this one — see
   // docs/v2-phase4-step4-recon.md §1c.
   //
   // Name matches that migration's constraint exactly, so db:push sees no drift.
@@ -1101,7 +1099,9 @@ export type InsertOrganizationMember = z.infer<typeof insertOrganizationMemberSc
  * returns a useful 400 on a bad value. Duplicating that as an enum here would be
  * a second grade format waiting to drift from the first.
  *
- * studentAge is absent by design — see the check() on the table above.
+ * There is no studentAge to require: the column was dropped in
+ * server/migrations/017_drop_student_age.sql, superseded by dateOfBirth plus
+ * derivation. See the check() on the table above.
  *
  * dateOfBirth is required here AND, since
  * server/migrations/016_require_student_date_of_birth.sql, by a role-scoped CHECK

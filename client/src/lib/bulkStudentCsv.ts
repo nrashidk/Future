@@ -33,9 +33,10 @@ export { splitCsvRow };
  * them up front lets the form say so once, before uploading, instead of the
  * admin reading five hundred copies of the same sentence.
  *
- * studentId, studentName and studentAge stay optional. studentName falls back to
- * fullName at the sink; studentAge is superseded by dateOfBirth and is still
- * accepted only because the create paths still write it.
+ * studentId and studentName stay optional; studentName falls back to fullName at
+ * the sink. studentAge is not parsed at all — the column was superseded by
+ * dateOfBirth and dropped in server/migrations/017_drop_student_age.sql, so a
+ * file still carrying it is ignored like any other unrecognised heading.
  */
 export const BULK_REQUIRED_COLUMNS = ['fullName', 'grade', 'studentGender', 'dateOfBirth'] as const;
 
@@ -45,7 +46,6 @@ export interface BulkStudentRow {
   grade: string;
   studentId?: string;
   studentName?: string;
-  studentAge?: number;
   studentGender?: string;
   dateOfBirth?: string;
 }
@@ -103,13 +103,11 @@ export function parseBulkStudentCsv(text: string): BulkStudentCsvResult {
       return index === -1 ? '' : (values[index] ?? '');
     };
 
-    const studentAge = cell('studentAge');
     return {
       fullName: cell('fullName'),
       grade: cell('grade'),
       studentId: cell('studentId') || undefined,
       studentName: cell('studentName') || undefined,
-      studentAge: studentAge ? parseInt(studentAge) : undefined,
       studentGender: cell('studentGender') || undefined,
       // Sent as typed. The server validates against ITS clock and returns the
       // shared module's sentence per row; normalizing here would be a second

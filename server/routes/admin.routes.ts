@@ -658,7 +658,7 @@ export function registerAdminRoutes(app: Express) {
         return res.status(403).json({ message: "Forbidden" });
       }
 
-      const { username, fullName, grade, passwordComplexity = 'medium', studentId, studentName, studentAge, studentGender, dateOfBirth } = req.body;
+      const { username, fullName, grade, passwordComplexity = 'medium', studentId, studentName, studentGender, dateOfBirth } = req.body;
       const organizationId = req.params.id;
 
       if (!fullName || !grade) {
@@ -717,7 +717,6 @@ export function registerAdminRoutes(app: Express) {
         grade: canonicalGrade,
         studentId: studentId || undefined,
         studentName: studentName || undefined,
-        studentAge: studentAge ? parseInt(studentAge.toString()) : undefined,
         studentGender: studentGender || undefined,
         // Already normalized to 'YYYY-MM-DD' by validateDateOfBirth, so what
         // reaches the column is canonical regardless of how the admin typed it.
@@ -842,7 +841,7 @@ export function registerAdminRoutes(app: Express) {
 
       for (const memberData of members) {
         try {
-          const { username, fullName, grade, studentId, studentName, studentAge, studentGender, dateOfBirth } = memberData;
+          const { username, fullName, grade, studentId, studentName, studentGender, dateOfBirth } = memberData;
           
           if (!fullName || !grade) {
             throw new Error("Missing required fields: fullName and grade");
@@ -863,8 +862,7 @@ export function registerAdminRoutes(app: Express) {
             grade: canonicalGrade,
             studentId: studentId || undefined,
             studentName: studentName || undefined,
-            studentAge: studentAge ? parseInt(studentAge.toString()) : undefined,
-            studentGender: studentGender || undefined,
+                studentGender: studentGender || undefined,
             // Passed through unvalidated, unlike M1, which checks it up front to
             // reject before the capacity query. Here the sink IS the early
             // rejection — it runs before any write — and a per-row failure lands
@@ -949,12 +947,11 @@ export function registerAdminRoutes(app: Express) {
         dateOfBirth?: string;
       } = {};
 
-      // studentAge is deliberately absent from this allowlist. The CHECK
-      // excludes it and schema.ts:182-185 records why: no form has ever
-      // collected it, there is no DOB to derive it from, and nothing in scoring
-      // or the report reads it — `grade` is what age-appropriate content is
-      // keyed on. Accepting it here would only create a second half-populated
-      // column in a minor's record.
+      // There is no age field to allow or exclude. student_age was dropped in
+      // server/migrations/017_drop_student_age.sql — no form ever collected it,
+      // nothing in scoring or the report read it, and date_of_birth plus
+      // derivation supersedes it. An age is not something a school states about
+      // a student here; a birth date is, and the server derives the rest.
       //
       // Name, gender and grade are the three the CHECK requires
       // (schema.ts:188-191), and dateOfBirth is the fourth that
@@ -1897,7 +1894,6 @@ export function registerAdminRoutes(app: Express) {
             grade: member.grade,
             studentId: member.studentId,
             studentName: member.studentName,
-            studentAge: member.studentAge,
             studentGender: member.studentGender,
             status: completedAssessment ? 'completed' : 'pending',
             assessmentType: completedAssessment?.assessmentType,
@@ -2201,7 +2197,7 @@ export function registerAdminRoutes(app: Express) {
       // Parse header row. Columns are matched BY NAME, so order is irrelevant;
       // an unrecognised column is ignored.
       //   required: fullName, grade, studentGender, dateOfBirth
-      //   optional: studentId, studentName, studentAge
+      //   optional: studentId, studentName
       //
       // Only fullName and dateOfBirth are listed as requiredHeaders, and the
       // asymmetry is deliberate rather than an omission. A missing COLUMN and an
@@ -2300,7 +2296,6 @@ export function registerAdminRoutes(app: Express) {
             // practice a CSV without the column now gets the student's real name
             // rather than either a blank or a failure.
             studentName: rowData.studentName || undefined,
-            studentAge: rowData.studentAge ? parseInt(rowData.studentAge) : undefined,
             studentGender: rowData.studentGender || undefined,
             // undefined rather than '' for the same reason as studentName above:
             // the sink distinguishes an absent value from a blank one only

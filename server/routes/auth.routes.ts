@@ -66,9 +66,10 @@ export function registerAuthRoutes(app: Express) {
         (user as any).predefinedName = orgMember.studentName;
         (user as any).predefinedGender = orgMember.studentGender;
 
-        // DERIVED from the school's date of birth, not read from student_age,
-        // which is on its way out — an age is wrong within twelve months of
-        // being written, a birth date is not.
+        // DERIVED from the school's date of birth. There is no student_age
+        // column to read: it was dropped in
+        // server/migrations/017_drop_student_age.sql, because an age is wrong
+        // within twelve months of being written and a birth date is not.
         //
         // THE DATE OF BIRTH ITSELF IS NEVER SENT, and there must never be a
         // `predefinedDob`. This response goes to the student's own browser, so

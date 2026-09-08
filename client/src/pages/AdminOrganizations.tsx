@@ -2021,10 +2021,9 @@ function CreateMemberForm({ organizationId, onSuccess }: { organizationId: strin
  * them here lets the form say so once, before uploading, instead of the admin
  * reading five hundred copies of the same sentence.
  *
- * studentId, studentName and studentAge stay optional. studentName falls back to
- * fullName at the sink; studentAge is on its way out, superseded by
- * dateOfBirth, and is still accepted only because the create paths still write
- * it.
+ * studentId and studentName stay optional; studentName falls back to fullName at
+ * the sink. There is no studentAge column any more — it was superseded by
+ * dateOfBirth and dropped in server/migrations/017_drop_student_age.sql.
  */
 function BulkUploadForm({ organizationId, onSuccess }: { organizationId: string; onSuccess: () => void }) {
   const { toast } = useToast();
@@ -2081,11 +2080,12 @@ function BulkUploadForm({ organizationId, onSuccess }: { organizationId: string;
     // just another trailing column when the sink has required it since the
     // demographics guard landed.
     //
-    // studentAge is deliberately NOT in the template any more, though the
-    // parser still accepts the column. It is superseded by dateOfBirth and is
-    // being dropped once nothing reads it; a template that invites schools to
-    // fill in a field on its way out would be teaching the wrong shape to
-    // exactly the people hardest to re-teach.
+    // studentAge is gone from the template and from the schema
+    // (server/migrations/017_drop_student_age.sql). dateOfBirth replaced it: a
+    // school states a birth date once and the server derives the age at each
+    // assessment, where an age typed into a spreadsheet is wrong within twelve
+    // months. A column the parser now ignores has no business in a template
+    // handed to schools.
     //
     // Names are quoted so the sample survives being edited into one containing
     // a comma, which is the first thing a real school will do.

@@ -61,7 +61,6 @@ describe("the required-column contract", () => {
         dateOfBirth: "2010-03-14",
         studentId: "S12345",
         studentName: "Ahmed Ali",
-        studentAge: undefined,
       },
       {
         fullName: "Fatima Hassan",
@@ -70,7 +69,6 @@ describe("the required-column contract", () => {
         dateOfBirth: "2009-11-02",
         studentId: "S12346",
         studentName: "Fatima Hassan",
-        studentAge: undefined,
       },
     ]);
   });
@@ -115,7 +113,6 @@ describe("named columns, not positional", () => {
         dateOfBirth: "2010-03-14",
         studentId: undefined,
         studentName: undefined,
-        studentAge: undefined,
       },
     ]);
   });
@@ -147,7 +144,6 @@ describe("named columns, not positional", () => {
 
     expect(row.studentName).toBeUndefined();
     expect(row.studentId).toBeUndefined();
-    expect(row.studentAge).toBeUndefined();
   });
 
   it("treats an empty optional cell as absent", () => {
@@ -165,10 +161,19 @@ describe("named columns, not positional", () => {
     expect(row.dateOfBirth).toBeUndefined();
   });
 
-  it("still parses studentAge, as a number, while the create paths write it", () => {
+  // INVERTED, not deleted. This used to assert that studentAge parsed as a
+  // number, "while the create paths write it". They no longer do: the column was
+  // superseded by dateOfBirth and dropped in
+  // server/migrations/017_drop_student_age.sql. The case is kept pointing the
+  // other way because schools hold files with that column in them, and what
+  // matters now is that such a file still imports — the heading is ignored, not
+  // rejected, and every other field lands where it belongs.
+  it("ignores a studentAge column, which no longer exists", () => {
     const row = rowsOf("fullName,grade,studentGender,dateOfBirth,studentAge\nAhmed Ali,grade10,male,2010-03-14,15")[0];
 
-    expect(row.studentAge).toBe(15);
+    expect(row).not.toHaveProperty("studentAge");
+    expect(row.fullName).toBe("Ahmed Ali");
+    expect(row.dateOfBirth).toBe("2010-03-14");
   });
 
   it("passes the date of birth through exactly as typed", () => {

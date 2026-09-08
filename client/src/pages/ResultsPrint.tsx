@@ -230,7 +230,8 @@ export default function ResultsPrint() {
   });
 
   // /api/auth/user enriches the payload with predefined* fields sourced
-  // from organizationMembers (studentName / studentAge / grade / studentGender)
+  // from organizationMembers (studentName / grade / studentGender, and an age
+  // derived from dateOfBirth)
   // for org_student users — this is the canonical source for school student demographics.
   const { data: user } = useQuery<any>({
     queryKey: ['/api/auth/user'],
