@@ -22,9 +22,13 @@ export function useAssessmentAvailability() {
   // /api/auth/user from the caller's organization_members row with role
   // 'student' (e9f8d81) — the same test the server's field lock uses (14459a4)
   // and the same one the assessment's steps read (15203ec). This was
-  // `user?.accountType === "org_student"`, the last accountType-keyed
-  // membership test in the codebase: a student whose flag was wrong got the
-  // correct field lock and, from here, the wrong availability answer.
+  // `user?.accountType === "org_student"`: a student whose flag was wrong got
+  // the correct field lock and, from here, the wrong availability answer.
+  //
+  // This note used to call itself the last accountType-keyed membership test in
+  // the codebase. It was one file early — Profile.tsx still keyed on
+  // accountType and was moved after this one, so the copy of this note in that
+  // file is the one that actually ends the list.
   //
   // THREE-STATE, matching 15203ec: undefined while auth is unresolved. A guest,
   // a self-paid student and a student still being identified all lack the

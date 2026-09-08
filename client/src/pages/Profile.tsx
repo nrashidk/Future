@@ -47,7 +47,51 @@ export default function Profile() {
   const [, navigate] = useLocation();
 
   const isOrgAdmin = user?.accountType === 'org_admin';
-  const isOrgStudent = user?.accountType === 'org_student';
+  // MEMBERSHIP COMES FROM THE MEMBER ROW, not from accountType. isOrgStudent is
+  // decorated onto /api/auth/user from the caller's organization_members row with
+  // role 'student' (auth.routes.ts) — the same test the server's field lock uses
+  // (14459a4), the assessment's steps read (15203ec) and useAssessmentAvailability
+  // was moved to (e9f8d81).
+  //
+  // This was the LAST accountType-keyed membership test in the codebase. The
+  // comment in useAssessmentAvailability claimed that distinction for the one
+  // e9f8d81 moved; it was one file early, and is corrected in this same change.
+  // This is the one that actually ends the list. The five before it were moved for a reason this file was the live
+  // example of: the two sources can disagree, and when they do the app disagrees
+  // with itself. A student with a member row but a stale accountType got the
+  // school-owned field lock in the assessment and the INDIVIDUAL layout here — no
+  // school, no grade, and the upgrade prompt at :256 offered to sell them a licence
+  // their school had already bought. The converse now resolves correctly too: a
+  // student removed from their organization keeps accountType 'org_student' but
+  // loses the member row, and is no longer shown a school they are not in.
+  //
+  // COERCED WITH `!!`, DELIBERATELY, and this is the one file where that is not
+  // the fail-open shape 15203ec removed from the assessment steps. There it
+  // mattered because both steps read the value while the auth query was still in
+  // flight, and `!!undefined` answered "not a school student" — unlocking five
+  // fields the server was about to overwrite. Two things stop the unknown state
+  // from ever reaching a use site here:
+  //
+  //   1. UNKNOWN NEVER RENDERS. The early return at :115 shows a spinner while
+  //      isLoading, and :126 returns before the body when there is no user.
+  //      Nothing below either guard runs until the auth query has settled and
+  //      `user` is non-null, so undefined is not a state this value is read in.
+  //      The only reads above the guards are useQuery `enabled` flags, and they
+  //      already gate on `!!user` — disabled through the same window.
+  //   2. NOTHING HERE IS LOCKED ON IT. Every use site is layout or a link target:
+  //      the two-column school block (:282), the school-access counter (:589),
+  //      the individual licence rows (:547), the announcement banner (:256), the
+  //      first-assessment CTA destination (:686). A false answer shows a student
+  //      LESS of what their school holds and points them at /tier-selection —
+  //      wrong, and undone by the next render. No editable field on this page
+  //      has its lock derived from this value, which is the difference between
+  //      here and the assessment steps.
+  //
+  // (1) is the load-bearing reason; (2) is why a miss would have been cosmetic
+  // rather than a bug. If the isLoading guard at :115 is ever removed, this must
+  // become the three-state `isLoading ? undefined : !!user?.isOrgStudent` that
+  // useAssessmentAvailability uses.
+  const isOrgStudent = !!user?.isOrgStudent;
   const isSuperadmin = user?.accountType === 'superadmin';
 
   // For individual users and org students: fetch their own assessments
