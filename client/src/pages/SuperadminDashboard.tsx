@@ -222,8 +222,8 @@ export default function SuperadminDashboard() {
   // No `grade` here on purpose: POST /api/superadmin/students creates a STANDALONE
   // user, and there is nowhere to put a grade — `users` has no grade column and a
   // standalone user has no organization_members row. The dialog used to collect a
-  // grade and REQUIRE it, and the server silently discarded it
-  // (docs/v2-phase2-recon.md W7). A student's grade is recorded per assessment
+  // grade and REQUIRE it, and the server silently discarded it.
+  // A student's grade is recorded per assessment
   // (assessments.grade, written by the Demographics step), which is the one place
   // it can stay correct.
   const [newStudentForm, setNewStudentForm] = useState({ firstName: "", lastName: "", email: "", username: "" });
@@ -2636,7 +2636,7 @@ export default function SuperadminDashboard() {
                     growthOutlook — a fourth vocabulary no reader could parse, so
                     every superadmin-edited career fell back to raw English in the
                     Arabic report. growthOutlook is now derived server-side from
-                    this band. See docs/future-readiness-plan.md A6. */}
+                    this band. */}
                 <Select value={careerForm.onetGrowthBand} onValueChange={(v) => setCareerForm({ ...careerForm, onetGrowthBand: v })}>
                   <SelectTrigger data-testid="select-career-growth">
                     <SelectValue />

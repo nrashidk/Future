@@ -12,7 +12,7 @@
 --
 -- Derived by deriveReadiness() in server/services/futureReadiness.ts and
 -- backfilled by server/migrations/career-future-readiness.ts.
--- See docs/future-readiness-plan.md B1 and docs/future-readiness-recon.md §1e.
+-- The combine rule itself is documented on deriveReadiness().
 --
 -- Occupation-level and COUNTRY-INDEPENDENT, in the same class as
 -- careers.values_profile — not the class of job_market_trends. There is no
@@ -25,7 +25,7 @@
 -- reconciles the ENTIRE schema and, against the current staging branch, plans to
 -- DROP the playing_with_neon and schema_migrations tables — the second of which
 -- is this runner's own ledger. Additive DDL goes through
--- server/migrations/runner.ts. See docs/future-readiness-partA-done.md §1.
+-- server/migrations/runner.ts.
 
 -- 'stable' is the safety default: a row that never receives a computed verdict
 -- reads as ordinary and PASSES the gate. A failed backfill, a legacy row or an

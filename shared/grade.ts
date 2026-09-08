@@ -3,7 +3,7 @@
  *
  * Canonical format: 'grade8' | 'grade9' | 'grade10' | 'grade11' | 'grade12' | 'graduated'
  *
- * WHY this module exists (see docs/v2-phase2-recon.md §1a): student grade was
+ * WHY this module exists: student grade was
  * written in three incompatible formats — 'grade10' (the assessment Demographics
  * step), '10' (the admin add-student select) and NaN (a `parseInt` on a text
  * column in the member PATCH). One grade therefore denoted up to three distinct
@@ -158,8 +158,8 @@ export function nextGrade(current: string | number | null | undefined): Canonica
 /**
  * Merge grade-keyed counts into ONE bucket per grade, ordered by grade.
  *
- * This is the "Grade 10 twice" fix expressed as data (docs/v2-phase2-recon.md
- * R1/R2). Rows holding '10' and rows holding 'grade10' are the same grade and
+ * This is the "Grade 10 twice" fix expressed as data. Rows holding '10' and
+ * rows holding 'grade10' are the same grade and
  * must sum into a single bucket BEFORE anything picks a max over them —
  * otherwise the split halves can both lose to a smaller unsplit grade, which is
  * the top-grade metric bug (R2).
@@ -207,7 +207,7 @@ export interface GradedRecord {
 /**
  * The record for one specific grade — the most recently completed one.
  *
- * This is the resolver behind Bug #12 (docs/v2-phase2-recon.md R4/C10): the
+ * This is the resolver behind Bug #12: the
  * Career Journey's per-grade "View Results" link carries `?grade=grade10`, and
  * Results.tsx has to turn that into THAT grade's assessment. Before this, it
  * read no grade param at all and every per-grade link opened the latest report.

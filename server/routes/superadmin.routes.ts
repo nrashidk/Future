@@ -1978,7 +1978,7 @@ export function registerSuperadminRoutes(app: Express) {
         return res.status(400).json({ message: "Missing required fields" });
       }
       // growthOutlook is DERIVED and is no longer accepted from the client — the
-      // band is the only growth input. See docs/future-readiness-plan.md A6.
+      // band is the only growth input.
       if (!isOnetGrowthBand(onetGrowthBand)) {
         return res.status(400).json({ message: "onetGrowthBand must be one of: " + ONET_GROWTH_BANDS.join(", ") });
       }

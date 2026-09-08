@@ -302,7 +302,7 @@ const CAREER_ARABIC_CONTENT: CareerArContent[] = [
     educationLevelAr: "بكالوريوس علوم الحاسب أو مجال ذي صلة",
   },
   // --- PHASE 3 STAGE 1: the 29 derived careers ------------------------------
-  // (docs/career-sourcing-map.md §5 Tier 1 + Tier 2, docs/phase3-stage1-done.md)
+  // (docs/career-sourcing-map.md §5 Tier 1 + Tier 2)
   //
   // ⚠️ descriptionAr on ALL 29 entries is the ENGLISH text, as an explicit,
   // greppable placeholder — the same convention the two Space careers above use.

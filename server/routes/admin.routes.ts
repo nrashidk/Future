@@ -668,7 +668,7 @@ export function registerAdminRoutes(app: Express) {
       // Grade must name a supported grade. Previously this was a presence-only
       // check and the value went to the column via `grade.toString()`, so the
       // admin select's "10" was stored verbatim alongside the assessment step's
-      // "grade10" (docs/v2-phase2-recon.md W2).
+      // "grade10".
       const canonicalGrade = toCanonicalGrade(grade);
       if (canonicalGrade === null) {
         return res.status(400).json({
@@ -2268,8 +2268,8 @@ export function registerAdminRoutes(app: Express) {
 
           // Grade came straight off the file with no validation and no
           // normalization (`rowData.grade || ''`), so an arbitrary spreadsheet
-          // value — or an empty string — landed in the column
-          // (docs/v2-phase2-recon.md W4). Fail the row instead.
+          // value — or an empty string — landed in the column.
+          // Fail the row instead.
           const canonicalGrade = toCanonicalGrade(rowData.grade);
           if (canonicalGrade === null) {
             results.failed++;

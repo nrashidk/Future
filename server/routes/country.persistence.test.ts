@@ -1,7 +1,7 @@
 /**
  * Generated-country persistence — the three tables, not one.
  *
- * The defect this pins (docs/priority-alignment-plan.md section 7): the create-country
+ * The defect this pins: the create-country
  * route called createOrUpdateCountryPrioritySector and stopped. The generated
  * skill vectors were computed and thrown away, and country_sector_categories
  * was never written at all — so calculateVisionScore returned VISION_FLOOR for

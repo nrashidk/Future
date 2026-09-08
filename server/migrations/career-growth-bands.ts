@@ -9,8 +9,7 @@
  * all: the client localiser's vocabulary had no declining tier and its regex
  * matched only an UNSIGNED percentage, so the seed author recorded two
  * O*NET-`decline` occupations (Nuclear Engineer, Primary School Teacher) as
- * "Moderate (0% growth)" to stay inside it. See docs/future-readiness-recon.md
- * §1a and docs/future-readiness-plan.md A1.
+ * "Moderate (0% growth)" to stay inside it.
  *
  * This module makes careers.onetGrowthBand the source of truth and rewrites
  * careers.growthOutlook as a pure derivative of it via growthOutlookFor().
@@ -525,7 +524,7 @@ export async function applyCareerGrowthBands(): Promise<void> {
             fetchedAt: GROWTH_BANDS_FETCHED_AT,
             projectionVintage: GROWTH_BANDS_VINTAGE,
             ...(item.band === 'not_applicable'
-              ? { note: 'reviewed exception — see docs/future-readiness-plan.md A3' }
+              ? { note: 'reviewed exception — rationale recorded per row in this file' }
               : {}),
           },
           // DERIVED, never authored. growthOutlookFor is the column's only writer.

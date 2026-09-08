@@ -97,7 +97,7 @@ export type QuizTier = 'free' | 'premium' | 'school';
  *
  * Deliberately NOT fixed by flipping users.isPremium for org_students: that flag
  * means "this account paid for premium" and is read in ~15 server and ~10 client
- * sites. The v2 license rework (docs/v2-rebuild-plan.md Phase 6) has to retire it
+ * sites. The v2 license rework (FOLLOWUP.md, Phase 6) has to retire it
  * as an entitlement flag entirely, so widening its meaning now would deepen the
  * conflation it has to untangle - and flipping it would only fix students created
  * AFTER the change, leaving every existing one needing a data backfill.

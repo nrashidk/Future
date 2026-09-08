@@ -71,7 +71,7 @@ describe("CAREER_GROWTH_BANDS", () => {
     // THE assertion. A fifth declining career must be a reviewed decision, not
     // a diff nobody noticed — three of these four (Nuclear Engineer and both
     // teacher careers) are careers the UAE is actively investing in, and the
-    // band is a US-headcount projection. See docs/future-readiness-recon.md §1b.
+    // band is a US-headcount projection.
     const declining = CAREER_GROWTH_BANDS.filter((c) => c.band === "decline").map((c) => c.title);
     expect(declining.sort()).toEqual([...EXPECTED_DECLINE_TITLES].sort());
   });

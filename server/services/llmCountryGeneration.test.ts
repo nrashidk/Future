@@ -1,7 +1,7 @@
 /**
  * LLM country generation — the gates and the prompt contract.
  *
- * These pin the three defects in docs/priority-alignment-plan.md section 7 and the
+ * These pin the three defects in the country-generation path and the
  * three gates that stop them coming back:
  *   1. per-skill importance 0-100 (the old shape carried ONE importanceScore
  *      for a whole sector, which the schema has nowhere to put);
@@ -454,7 +454,7 @@ describe("completeness gate", () => {
   // This is where the gate earns its keep. The seeded 68 are all professional
   // occupations so the gate excludes none of them, but a model enumerating
   // "careers serving country X's priority sectors" will happily return the WEF
-  // fastest-declining list. See docs/future-readiness-plan.md B4.
+  // fastest-declining list.
   // -------------------------------------------------------------------------
 
   it.each([

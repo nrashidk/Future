@@ -8,7 +8,7 @@
  * word. The bug was never in the label.
  *
  * These exercise mergeGradeCounts, which server/storage.ts getAnalyticsOverview
- * applies to the grouped rows. See docs/v2-phase2-recon.md R1/R2.
+ * applies to the grouped rows.
  */
 import { describe, it, expect } from 'vitest';
 import { mergeGradeCounts } from './grade';

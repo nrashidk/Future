@@ -158,7 +158,7 @@ function getCountryDisplayName(
 // percentage — and fell back to returning the raw English string on anything it
 // could not parse. That fallback is what silently censored "Declining" from
 // every Arabic report. An enum indexing a lookup has no unmatched-input path.
-// See shared/growthBands.ts and docs/future-readiness-plan.md A4.
+// See shared/growthBands.ts.
 function localizeGrowthBand(
   band: string | null | undefined,
   tFn: (key: string) => string,
@@ -276,7 +276,7 @@ export default function Results() {
   // Get assessmentId from URL query params
   const urlParams = new URLSearchParams(window.location.search);
   const urlAssessmentId = urlParams.get("assessmentId");
-  // Bug #12 (docs/v2-phase2-recon.md R4): the Career Journey's per-grade
+  // Bug #12: the Career Journey's per-grade
   // "View Results" links carry ?grade=grade10. This page used to read only
   // assessmentId, so every one of those links fell through to "no id" and the
   // server answered with the student's LATEST assessment — all four grade links
@@ -289,7 +289,7 @@ export default function Results() {
   // Resolve ?grade= to one of the CALLER'S OWN assessments. /api/assessments/my
   // scopes to req.user.userId server-side and takes no id from the client, so
   // this cannot reach another student's report — no new endpoint, and no new
-  // authorization surface (docs/v2-phase2-recon.md K8).
+  // authorization surface.
   const needsGradeLookup = !urlAssessmentId && urlGrade !== null;
   const { data: myAssessments, isLoading: myAssessmentsLoading } = useQuery<any[]>({
     queryKey: ['/api/assessments/my'],

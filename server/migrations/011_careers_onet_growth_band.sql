@@ -11,7 +11,7 @@
 -- onet_growth_band replaces it as the source of truth. growth_outlook stays for
 -- backwards compatibility but is now DERIVED from the band by
 -- growthOutlookFor() in shared/growthBands.ts and must never be authored.
--- See docs/future-readiness-plan.md A1 and docs/future-readiness-recon.md §1a.
+-- The 22 corrected rows and the derivation are in migration career-growth-bands.ts.
 --
 -- Mirrors `careers.onetGrowthBand` / `careers.onetGrowthSource` in
 -- shared/schema.ts. Keep the two in sync.

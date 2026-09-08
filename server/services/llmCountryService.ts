@@ -10,7 +10,6 @@
  * vector in country_sector_wef_skills and (b) category rules in
  * country_sector_categories. Without (b) calculateVisionScore returns the floor
  * for every career (server/services/matching.ts) - an inert vision component.
- * See docs/priority-alignment-plan.md section 7.
  */
 
 import type { IStorage } from "../storage";
@@ -100,7 +99,7 @@ interface AnthropicCallResult {
 /**
  * The Anthropic server-side web-search tool.
  *
- * Owner requirement (docs/priority-alignment-plan.md section 7): country data must
+ * Owner requirement: country data must
  * be sourced from live official government pages, not model recall. This is the
  * mechanism. `web_search_20260209` is the dynamic-filtering variant supported by
  * the model this file targets; older models take `web_search_20250305`, and on
@@ -443,7 +442,7 @@ Respond with JSON in this format:
 }
 
 // ===========================================================================
-// PRIORITY-SECTOR GENERATION - docs/priority-alignment-plan.md section 7
+// PRIORITY-SECTOR GENERATION
 // ===========================================================================
 //
 // What a generated sector must carry before it is worth writing (the

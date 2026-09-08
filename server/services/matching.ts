@@ -764,8 +764,7 @@ export function calculateSubjectsScore(
   );
   
   // Flat 20 for a genuine non-match, and for a career whose tags project to
-  // nothing at all (pure art/design/profession vocabulary - see
-  // docs/piece-d-recon.md §4/§6).
+  // nothing at all (pure art/design/profession vocabulary).
   if (matchingSubjects.length === 0) {
     return {
       careerId: career.id,
@@ -1039,7 +1038,7 @@ function skillAlignment(
  * and "Chef" in Education - in the student-facing, Arabic-localised rationale
  * below. Skills are a fine but ambiguous signal about profile similarity;
  * the category map is a coarse but CORRECT statement about sector membership.
- * The hybrid uses each for what it is good at. See docs/wef-phase1-plan.md.
+ * The hybrid uses each for what it is good at.
  *
  * OVERRIDE-EXCLUSIVE: if a career has ANY per-career override row, those rows
  * are the ONLY candidates for it. Merging per-sector ("override ?? category")

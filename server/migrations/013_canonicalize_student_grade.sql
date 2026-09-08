@@ -10,7 +10,7 @@
 --
 -- That is the single root cause of the analytics "Grade 10 twice" bar, the
 -- broken per-grade Career Journey link, and the blocked next-grade
--- re-assessment path. See docs/v2-phase2-recon.md §1a and §5.
+-- re-assessment path.
 --
 -- SCOPE — exactly two columns, both `text` and both nullable:
 --   assessments.grade            (shared/schema.ts:596)

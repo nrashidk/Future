@@ -23,7 +23,7 @@
  * The careers loop in seed.ts:807-808 is INSERT-only (`if
  * (!existingCareerTitles.has(career.title))`), so edits to the seed array reach a
  * from-scratch database only. This is what updates the rows that already exist on
- * staging/prod. Both are kept in sync deliberately — see docs/teacher-fix-done.md.
+ * staging/prod. Both are kept in sync deliberately.
  *
  * Idempotent: a plain UPDATE ... SET to a constant. Re-running on an
  * already-corrected row is a no-op write. Add further careers to the array below

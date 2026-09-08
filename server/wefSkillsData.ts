@@ -212,7 +212,7 @@ export const CAREER_WEF_SKILL_AFFINITIES: {
   // --- PHASE 3 STEP 1: Space & Future Sciences ------------------------------
   // Both are authored to load the sector's lead skills (Numeracy 95, Creativity
   // 85, Scientific Literacy 80 - server/seed.ts). Measured alignment against the
-  // live sector vector: 1.000 for both. Spec: docs/new-careers-spec.md §6.
+  // live sector vector: 1.000 for both. Authored in e65cd3c.
   {
     careerTitle: "Aerospace Engineer",
     skills: {
@@ -1116,7 +1116,7 @@ export const CAREER_WEF_SKILL_AFFINITIES: {
   },
   // Robotics Engineer (17-2199.08) -> Artificial Intelligence
   // Artificial Intelligence (ICT 95 / Numeracy 85). Verbatim from
-  // docs/new-careers-spec.md §6, where this vector was measured at alignment
+  // e65cd3c, where this vector was measured at alignment
   // 0.861. O*NET interest code RIC: hands-on build-and-test as much as
   // control theory, hence Communication 65 and Social 50, the lowest of the
   // AI three.
@@ -1278,7 +1278,7 @@ export const CAREER_WEF_SKILL_AFFINITIES: {
   // Hospitality Manager (11-9081.00) -> Tourism & Hospitality
   // Tourism & Hospitality (Social and Cultural Awareness 95 / Communication
   // 80 / Leadership 70 / Financial Literacy 65). Verbatim from
-  // docs/new-careers-spec.md §6 (measured alignment 1.000). Scientific
+  // e65cd3c (measured alignment 1.000). Scientific
   // Literacy 40 is deliberate and load-bearing: because skillAlignment
   // mean-centres, a low score on the highest-variance column is as
   // informative as a high one, and it is what keeps hospitality careers out
@@ -1305,7 +1305,7 @@ export const CAREER_WEF_SKILL_AFFINITIES: {
     },
   },
   // Tourism & Events Manager (13-1121.00) -> Tourism & Hospitality
-  // Tourism & Hospitality. Verbatim from docs/new-careers-spec.md §6
+  // Tourism & Hospitality. authored in e65cd3c
   // (measured alignment 0.959). Scientific Literacy 35 is the lowest value in
   // the whole 68-career matrix - see the Hospitality Manager note.
   {
@@ -1362,7 +1362,7 @@ export const CAREER_WEF_SKILL_AFFINITIES: {
   },
   // Agricultural Scientist (Agronomist) (19-1013.00) -> Food Security & Agriculture
   // Food Security & Agriculture (Scientific Literacy 90 / ICT 75 / Numeracy
-  // 70). Verbatim from docs/new-careers-spec.md §6 (measured alignment 0.793,
+  // 70). Authored in e65cd3c (measured alignment 0.793,
   // rank 1). Scientific Literacy 100.
   {
     careerTitle: "Agricultural Scientist (Agronomist)",
@@ -1386,7 +1386,7 @@ export const CAREER_WEF_SKILL_AFFINITIES: {
     },
   },
   // Food Technologist (19-1012.00) -> Food Security & Agriculture
-  // Food Security & Agriculture. Verbatim from docs/new-careers-spec.md §6
+  // Food Security & Agriculture. authored in e65cd3c
   // (measured alignment 0.714, rank 1).
   {
     careerTitle: "Food Technologist",
@@ -1749,7 +1749,7 @@ export const CAREER_WEF_SKILL_AFFINITIES: {
   },
   // Industrial Engineer (17-2112.00) -> Technology
   // Technology (ICT 95 / Critical Thinking 85 / Financial Literacy 70 /
-  // Leadership 65). Verbatim from docs/new-careers-spec.md §6 (measured
+  // Leadership 65). Authored in e65cd3c (measured
   // alignment 0.752). Deliberately less Creativity (70) and less
   // realistic-facing than Robotics Engineer - the contrast that separates the
   // two re-homed manufacturing careers.

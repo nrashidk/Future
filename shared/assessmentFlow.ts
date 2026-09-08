@@ -1,16 +1,16 @@
 /**
  * The assessment step order — the single source of truth for both tiers.
  *
- * WHY this module exists (docs/v2-phase3-recon.md §5): the step order was
+ * WHY this module exists: the step order was
  * encoded in THREE unsynchronised places — the 7-way conditional in
  * Assessment.tsx, the `totalSteps` constant, and ProgressTracker's title arrays.
  * They had already drifted: a free student sitting on the Quiz was shown the
  * label "Results", because freeStepTitles listed a step order the conditional
  * had never implemented. One array, derived everywhere, removes that bug class.
  *
- * SPEC (docs/v2-rebuild-plan.md L2/L3):
- *   steps 1-4 are IDENTICAL for both tiers — the shared spine — then they
- *   diverge, and Aspirations is always the last input step.
+ * THE INVARIANT, and it is the rule the arrays below encode rather than a
+ * citation of one: steps 1-4 are IDENTICAL for both tiers — the shared spine —
+ * then they diverge, and Aspirations is always the last input step.
  */
 
 /**
@@ -112,7 +112,7 @@ const hasItems = (v: unknown[] | null | undefined): boolean => Array.isArray(v) 
  * Where to resume a FREE assessment — derived from the DATA PRESENT, never from
  * the stored `assessments.currentStep`.
  *
- * THE PROBLEM (docs/v2-phase3-recon.md §6b). Phase 3 renumbered the free flow,
+ * THE PROBLEM. Phase 3 renumbered the free flow,
  * and the Country/Subjects swap renumbered it again: pre-Phase-3 step 3 was
  * Interests and step 5 was Country; post-Phase-3 step 2 was Subjects and step 3
  * Country; now step 2 is Country and step 3 Subjects. `assessments.currentStep`

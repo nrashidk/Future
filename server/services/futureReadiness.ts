@@ -18,7 +18,7 @@
  * LARGEST absolute job creators on earth, Figure 2.4), the third despite the UAE
  * operating Barakah. Excluding a career means a 15-year-old never learns the
  * option existed; that error is invisible and irreversible, so the threshold for
- * making it has to be high. See docs/future-readiness-recon.md §2.
+ * making it has to be high.
  *
  * COUNTRY-INDEPENDENT BY CONSTRUCTION: nothing in this module reads a countryId
  * or a country-scoped table. Readiness is a property of the occupation, in the
@@ -259,7 +259,7 @@ export function matchWefDecliningRole(title: string): string | null {
 }
 
 /**
- * THE COMBINE RULE (docs/future-readiness-recon.md §1e). Strict AND is the only
+ * THE COMBINE RULE. Strict AND is the only
  * thing that can produce 'declining', and 'declining' is the only thing the gate
  * acts on.
  *

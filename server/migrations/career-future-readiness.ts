@@ -11,7 +11,7 @@
  * There is deliberately no hand-authored list of "declining careers" anywhere.
  * A human cannot type a career into the excluded set; the only way a career
  * becomes 'declining' is for both published sources to say so. That is the whole
- * safety property — see docs/future-readiness-recon.md §2 for why the softer
+ * safety property — see deriveReadiness() in services/futureReadiness.ts for why the softer
  * alternatives were rejected.
  *
  * Title-keyed and idempotent: careers.id differs between the production and

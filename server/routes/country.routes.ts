@@ -115,7 +115,7 @@ export interface SectorPersistenceResult {
  * generated skill mappings were computed and discarded) and
  * country_sector_categories was never written at all, which makes
  * calculateVisionScore return VISION_FLOOR for every career — a uniformly inert
- * vision component. See docs/priority-alignment-plan.md section 7.
+ * vision component.
  *
  * displayOrder is 1-based and follows the accepted order, because it drives
  * rankFactor in server/services/matching.ts and therefore has to encode real

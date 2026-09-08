@@ -36,8 +36,8 @@
  * OLD sector name as free text (server/services/matching.ts:1078-1085). After
  * the rename the Arabic substitution map no longer contains that string, so
  * historical Arabic reports silently fall back to English for the sector token.
- * Staging has 0 recommendations; production does not. See
- * docs/phase2-renames-done.md — that is a prod-only decision, not a code fix.
+ * Staging has 0 recommendations; production does not. That is a prod-only
+ * decision, not a code fix.
  */
 import { db } from "../db";
 import { sql } from "drizzle-orm";

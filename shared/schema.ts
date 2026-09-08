@@ -562,7 +562,10 @@ export const careers = pgTable("careers", {
    * read, but it is now DERIVED: the only writer is
    * growthOutlookFor(onetGrowthBand) in shared/growthBands.ts. Do not author it,
    * do not let the superadmin UI or an LLM set it directly.
-   * Scheduled for removal — see docs/future-readiness-plan.md A7.
+   * SCHEDULED FOR REMOVAL, and nothing but this comment records that. The plan
+   * item that scheduled it (docs/future-readiness-plan.md A7) was never committed
+   * and no longer exists, so this sentence is now the whole of the commitment:
+   * once no reader is left that needs the prose string, drop the column.
    */
   growthOutlook: text("growth_outlook").notNull(),
 

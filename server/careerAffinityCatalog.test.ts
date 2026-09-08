@@ -14,7 +14,7 @@
  * That is the failure this file exists to make loud. It is a size-and-coverage
  * guard, not a content one: what the numbers should BE is argued in
  * server/wefSkillsData.ts, server/riasecAffinities.ts and
- * docs/phase3-stage2-done.md.
+ * the Phase 3 stage 2 catalog work.
  */
 
 import { readFileSync } from "fs";

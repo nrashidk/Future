@@ -5,7 +5,7 @@
  * The band is what O*NET actually publishes on an occupation summary page
  * ("Projected growth (2024-2034)"). The specific percentages that used to live
  * in careers.growthOutlook were hand-authored, unsourced, and wrong on 22 of 68
- * rows — see docs/future-readiness-recon.md §1a.
+ * rows.
  *
  * IMPORTANT: this is a U.S. Bureau of Labor Statistics projection surfaced by
  * O*NET. It counts U.S. headcount. It is NOT a verdict on whether an occupation

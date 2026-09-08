@@ -75,7 +75,7 @@ export function collectMissingComponents(
     // the shared spine (step 4), so the value WILL normally be present — but the
     // quiz is skippable when no questions exist for the student's country, and
     // requiring it would also 400 every free assessment already in flight under
-    // the old order where the quiz came last. See docs/v2-phase3-recon.md §2e.
+    // the old order where the quiz came last.
     if (isEmptyList(assessment.interests)) missing.push("Interests");
     if (!assessment.careerAspirations) missing.push("Career Aspirations");
   }

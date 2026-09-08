@@ -8,7 +8,7 @@
  * every link showed the newest report no matter which grade was clicked.
  *
  * The fix resolves ?grade= against the caller's own assessments with
- * pickLatestForGrade. See docs/v2-phase2-recon.md R4/C10.
+ * pickLatestForGrade.
  */
 import { describe, it, expect } from 'vitest';
 import { pickLatestForGrade, toCanonicalGrade } from './grade';

@@ -55,7 +55,7 @@ import { WEF_16_SKILLS, CAREER_WEF_SKILL_AFFINITIES } from "./wefSkillsData";
 // way. The new answer matches this file's own stated intent for the Engineering
 // rule ("reaches Electrical + Mechanical only", i.e. Renewable Energy), so it
 // is left as measured; pinning it with a per-career override would make it
-// deterministic and is the recommended follow-up. See docs/phase3-stage2-done.md.
+// deterministic and is the recommended follow-up.
 // `sector` MUST be byte-identical to the countries.prioritySectors entry —
 // recommendations.routes.ts localises reasoning by \b-substituting that exact
 // string for its Arabic counterpart.
@@ -96,7 +96,7 @@ import { WEF_16_SKILLS, CAREER_WEF_SKILL_AFFINITIES } from "./wefSkillsData";
 // server/migrations/sector-renames.ts for why, and note that it must run
 // BEFORE the sector upsert loop.
 //
-// PHASE 1 (priority-alignment plan, docs/priority-alignment-plan.md section 6):
+// PHASE 1 (priority-alignment):
 // Cultural & Creative Industries and Financial Services are ADDED, and the
 // Creative Arts, Media & Communications, Design & Architecture and Finance
 // categories are re-pointed off the catch-all sector (named Technology then,
@@ -234,7 +234,7 @@ export const UAE_SECTOR_CAREER_OVERRIDES: Array<{
   // three Education careers (Education @100), Film & TV Producer and Video
   // Editor (Media & Communications @90), Health Informatics Specialist
   // (Healthcare @85) and Chemical + Environmental Engineer (Engineering @80)
-  // are all in that group. See docs/phase3-stage2-done.md §3.
+  // are all in that group.
   //
   // Two categories floor without a row, exactly as Science already did:
   //   Science            - 6 of the 29 are Science; it has no category rule.
@@ -475,7 +475,7 @@ export const UAE_SECTOR_WEF_SKILLS: Array<{
     // catalog max |r| 0.903 -> 0.763 and mean |r| 0.397 -> 0.354, with NO pair
     // left above 0.80. ZERO careers changed sector and zero careers floor.
     //
-    // docs/priority-alignment-plan.md §2 proposed Social and Cultural Awareness
+    // The priority-alignment work proposed Social and Cultural Awareness
     // at 80 for this sector back when it had no measurement to justify it. It
     // was right, for the reason it could not yet show.
     skills: {
@@ -671,15 +671,15 @@ export const UAE_SECTOR_WEF_SKILLS: Array<{
     description: "UAE Tourism Strategy 2031, aviation and the visitor economy",
     // NEW (Phase 3 stage 2). This sector could not be added before now: it had
     // exactly ONE serving career (Chef, which floored at 40 with no sector at
-    // all) and docs/sector-list-recon.md's own coverage gate rejects a sector
-    // that claims nothing. It now claims four.
+    // all), and the coverage gate rejects a sector that claims nothing. It now
+    // claims four.
     //
     // Contrastive by construction. Social and Cultural Awareness is the 5th
     // most discriminating column in the affinity matrix (sd 14.1) and NO other
     // sector leads on it - Education & Human Capital holds it at 80 and
     // Cultural & Creative Industries at 60, both as supporting terms. Leading on
     // it at 95 is what keeps this sector off the Education vector, which is the
-    // pair docs/priority-alignment-plan.md §2 measured at r=0.947 back when
+    // pair measured at r=0.947 back when
     // Tourism had one career and no distinct column of its own.
     skills: {
       // Guests, delegates and crews from everywhere, served in a country where
@@ -712,8 +712,8 @@ export const UAE_SECTOR_WEF_SKILLS: Array<{
     name: "Food Security",
     displayOrder: 10,
     description: "National Food Security Strategy 2051 and desert agritech",
-    // NEW (Phase 3 stage 2). Previously an EMPTY sector - docs/sector-list-recon.md
-    // §3 rejected it outright because no career in the catalog was even adjacent.
+    // NEW (Phase 3 stage 2). Previously an EMPTY sector, rejected outright
+    // because no career in the catalog was even adjacent.
     // Four careers were derived FROM the sector rather than the other way round
     // (docs/career-sourcing-map.md §3.10), which is why it can ship now.
     //
@@ -721,7 +721,7 @@ export const UAE_SECTOR_WEF_SKILLS: Array<{
     // is the single most discriminating column (sd 19.5) and THREE sectors now
     // want it: Healthcare leads on it at 95, Renewable Energy &
     // Sustainability at 90, and this sector needs it too - agronomy and food
-    // science are laboratory disciplines. docs/priority-alignment-plan.md §2
+    // science are laboratory disciplines. The priority-alignment work
     // measured Space <-> Food Security at r=0.904 with zero careers here.
     //
     // The separation is carried by what this vector does NOT take: no Critical
@@ -1463,16 +1463,16 @@ export async function seedDatabase() {
       valuesProfile: { achievement: 44, benevolence: 36, self_direction: 66, security: 58, power: 56 },
     },
     // --- PHASE 3 STEP 1: Space & Advanced Sciences careers ---------------------
-    // Spec: docs/new-careers-spec.md §5. Both carry a per-career override to
+    // Catalog: docs/career-sourcing-map.md §5. Both carry a per-career override to
     // Space & Advanced Sciences (UAE_SECTOR_CAREER_OVERRIDES above) — Aerospace
     // because the Engineering category rule would credit Renewable Energy &
     // Sustainability instead, Space Scientist because its category (Science)
     // has no rule at all and it would otherwise floor at 40.
     //
     // RESOLVED in Phase 3 Stage 1: both now carry a COMPUTED valuesProfile.
-    // The blocker recorded in docs/phase3-space-careers.md was that the
-    // Work-Styles pipeline (onet_fetch_cache.py -> compute_profiles.py) needs an
-    // ONET_KEY. That pipeline is superseded (docs/cvq-divergence-recon.md): the
+    // The blocker was that the Work-Styles pipeline
+    // (onet_fetch_cache.py -> compute_profiles.py) needs an ONET_KEY.
+    // That pipeline is superseded: the
     // shipped profiles come from the O*NET 30.0 Work Values flat file via
     // scripts/generate-cvq-values-profiles.ts, which needs no key. Both codes
     // (17-2011.00, 19-2011.00) are in the 874-occupation Work Values set, so
@@ -1612,8 +1612,9 @@ export async function seedDatabase() {
       // ⚠️ O*NET projects DECLINE. The client localiser has no "Declining"
       // tier and its pattern requires a non-negative integer
       // (Results.tsx:140), so the honest value cannot be expressed today.
-      // Recorded as the lowest expressible tier and FLAGGED in
-      // docs/phase3-stage1-done.md — a 6th tier is needed.
+      // Recorded as the lowest expressible tier. A 6TH TIER IS NEEDED, and this
+      // comment is now the only record of that: the note it used to cite
+      // (docs/phase3-stage1-done.md) was never committed and no longer exists.
       growthOutlook: "Moderate (0% growth)",
       icon: "⚛️",
       onetCode: "17-2161.00", // Nuclear Engineers
@@ -1921,8 +1922,9 @@ export async function seedDatabase() {
       // ⚠️ O*NET projects DECLINE. The client localiser has no "Declining"
       // tier and its pattern requires a non-negative integer
       // (Results.tsx:140), so the honest value cannot be expressed today.
-      // Recorded as the lowest expressible tier and FLAGGED in
-      // docs/phase3-stage1-done.md — a 6th tier is needed.
+      // Recorded as the lowest expressible tier. A 6TH TIER IS NEEDED, and this
+      // comment is now the only record of that: the note it used to cite
+      // (docs/phase3-stage1-done.md) was never committed and no longer exists.
       growthOutlook: "Moderate (0% growth)",
       icon: "🍎",
       onetCode: "25-2021.00", // Elementary School Teachers, Except Special Education

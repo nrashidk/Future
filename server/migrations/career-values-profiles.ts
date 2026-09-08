@@ -30,7 +30,7 @@
  * rescale bounds every other career was computed against.
  *
  * PHASE 3 STAGE 1 REGENERATION (this file): the catalog went 37 -> 68 careers
- * (docs/career-sourcing-map.md section 5; docs/phase3-stage1-done.md). Four of the
+ * (docs/career-sourcing-map.md section 5). Four of the
  * ten rescale bounds moved, so ALL 37 pre-existing profiles were rewritten - mean
  * shift 6.5 points, max 18. No raw O*NET value changed; only the catalog-relative
  * frame did. That is the SCALE WARNING above behaving exactly as documented.
