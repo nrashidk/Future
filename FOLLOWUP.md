@@ -2307,3 +2307,22 @@ only fires for components absent from COMPONENT_BREAKDOWN_META (today: marketDem
 is rare rather than absent — worth folding into the bidi pass rather than fixing alone.
 
 Recorded 2026-09-08.
+
+
+### Arabic unreviewed — landing-page instrument citations  (severity: low)
+Commit 3 of the methodology-exposure change added two Arabic strings, unreviewed:
+
+- `ar/landing.json` `research.personalitySource` — `المصدر: نموذج هولاند (RIASEC) لأنماط
+  الشخصية المهنية، Making Vocational Choices (1997)`
+- `ar/landing.json` `research.valuesSource` — `المصدر: نظرية شوارتز للقيم الإنسانية الأساسية
+  (1992)`
+
+DELIBERATE MIXED SCRIPT, unlike the strings commit 1 removed. `(RIASEC)` and the English
+work title are kept in the Arabic because a citation's job is to be looked up, and a
+transliterated title cannot be. That is the opposite call from `ar/results.json:64`, where
+the same acronym was removed — the difference is audience, not consistency: the student's
+report explains, this line is evidence for an evaluator. It does mean this string carries
+the mixed LTR/Arabic run described in bidi leak (2) above and should be eyeballed in the
+rendered Arabic landing page, not just read in the JSON.
+
+Recorded 2026-09-08.

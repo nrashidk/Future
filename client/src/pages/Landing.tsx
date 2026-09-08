@@ -329,12 +329,18 @@ export default function Landing() {
               <p className="text-sm text-muted-foreground font-body mb-2">
                 {t("research.personalityDesc")}
               </p>
+              <p className="text-xs text-muted-foreground italic">
+                {t("research.personalitySource")}
+              </p>
             </StickyNote>
 
             <StickyNote color="yellow" rotation="2" className="p-6">
               <h4 className="text-lg font-bold mb-2">{t("research.valuesTitle")}</h4>
               <p className="text-sm text-muted-foreground font-body mb-2">
                 {t("research.valuesDesc")}
+              </p>
+              <p className="text-xs text-muted-foreground italic">
+                {t("research.valuesSource")}
               </p>
             </StickyNote>
 
