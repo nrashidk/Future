@@ -1633,3 +1633,19 @@ organization_members at all. A school student's own data export therefore omits
 student_name, student_gender, grade and student_id — everything their school recorded about
 them. Users are minors, so this is a live GDPR/PDPL subject-access gap, not a nicety. Adding
 date_of_birth to that table (Phase 4 step 4) makes it worse. First flagged 2026-09-07.
+
+### Brand name is authored independently in five layers  (severity: low, but blocks a rename)
+"Future Pathways" appears 58 times across 21 files with no canonical definition: i18n locales
+(31, of which 11 are in legal.json), hardcoded JSX bypassing i18n (Footer.tsx x2,
+Landing.tsx:393, Profile.tsx:164, StudentProgress.tsx:102), server-side email.ts (8) and
+research/sources.ts, static client/index.html (7 — title, meta, og:, twitter:, JSON-LD), and
+docs. Arabic carries 30 occurrences of مسارات المستقبل, a literal translation.
+
+Three things must be decided before any rename: the Arabic form (a coined compound has no
+automatic Arabic equivalent — transliterate or keep a descriptive name); whether legal.json's
+11 strings should track the product name at all, since they name the entity in the privacy
+policy, terms, and PDPL/COPPA consent clauses and the registered entity may differ; and
+whether to land a single BRAND_NAME in shared/ first.
+
+Separately and more urgently: the sending domain does not match the site — see the FROM_EMAIL
+item. First flagged 2026-09-08.
