@@ -1785,6 +1785,37 @@ this file assumes a reviewer working through the locale files; that reviewer wou
 any of this, and a future translation pass over ar/ would silently skip it.
 
 This is student-facing content that reaches the report and the PDF. It has never been in the
-review path. Scope it before the next translation pass: report how much Arabic sits in
-server/ as literals, and decide whether it moves into the locale files or gets its own
-review track. First flagged 2026-09-08.
+review path.
+
+SCOPED 2026-09-08. 2358 string literals containing Arabic across 11 files in server/. The
+count splits into two populations that need different answers, so the single number overstates
+the problem and the small number understates it:
+
+  PROSE IN APPLICATION CODE — 130 literals, and the actual subject of this entry:
+    106  server/services/premiumNarratives.ts   action-step and narrative templates
+     14  server/services/freeNarrative.ts       free-tier reasoning + basic action steps
+      7  server/services/email.ts               the password-reset email, subject and body
+      3  server/routes/recommendations.routes.ts
+  These are sentences a developer wrote inside logic. They belong in the locale files, or in
+  a review track that someone actually owns. Note email.ts is on this list and is NOT report
+  content — a whole bilingual transactional email is hardcoded there, which no earlier note in
+  this file has mentioned.
+
+  CONTENT DATA — 2228 literals:
+    931  server/migrations/quiz-arabic-content-grades9-12.ts
+    443  server/migrations/career-arabic-content.ts
+    318  server/migrations/quiz-arabic-content.ts
+    287  server/seed.ts
+    202  server/questionBanks/uae/arabic.ts
+     32  server/wefSkillsData.ts
+     15  server/cvq-seed.ts
+  Translated CONTENT rather than UI strings, so moving it into locale files would be wrong —
+  it belongs in the database, and most of it is a backfill script's payload. But it is equally
+  outside the ar/*.json review path, and career-arabic-content.ts has already demonstrated what
+  that costs (see the entry above: it had never been run against prod, and every Arabic report
+  before it was run showed English career content throughout).
+
+So the decision is not one decision. The 130 need a home in i18n or a named reviewer; the 2228
+need a way to be reviewed as content and a way to be reliably applied, which is the tracked-
+migration problem in the entry above rather than a translation problem. First flagged
+2026-09-08.
