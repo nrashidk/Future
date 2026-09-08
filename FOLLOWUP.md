@@ -1691,7 +1691,7 @@ whether to land a single BRAND_NAME in shared/ first.
 Separately and more urgently: the sending domain does not match the site — see the FROM_EMAIL
 item. First flagged 2026-09-08.
 
-### Password reset is dead in production — RESEND_API_KEY unset, then FROM_EMAIL points off-domain  (severity: HIGH, confirmed)
+### Password reset is dead in production — RESEND_API_KEY unset, then FROM_EMAIL points off-domain  (severity: HIGH → MEDIUM, key set 2026-09-08, flow still unverified)
 Render boot log, 2026-09-08:
 
     ⚠️  Optional environment variables not set:
@@ -1731,6 +1731,26 @@ SESSION_SECRET's length and DB_ENCRYPTION_KEY's format (env-validation.ts:44-53)
 Fix order is: set RESEND_API_KEY, decide the sending domain and verify it in Resend, set
 EMAIL_FROM to match, then consider promoting the key to REQUIRED. Do not reorder — the domain
 question is unanswerable while no mail is sent. First flagged 2026-09-08.
+
+UPDATED 2026-09-08: step one is done. The 06:52 deploy log validates cleanly with no
+"optional environment variables not set" block, so RESEND_API_KEY is set and the Resend client
+is constructed. Password reset is no longer dead at the first hurdle.
+
+STILL OPEN, and the severity now rests on these rather than on the key: the sending domain is
+not verified in Resend, and Resend refuses to send from an unverified domain — so a reset may
+still fail, now at the API rather than at construction. Nothing has exercised the flow
+end-to-end since the key was set, so "it sends" is untested rather than known. Two things to
+do, in order: verify the domain EMAIL_FROM names (or point EMAIL_FROM at one already verified,
+which also settles the futurepathways.com / futurepath.ae mismatch above), then send one real
+reset and confirm it arrives rather than inferring it from the absence of an error.
+
+Note the failure mode has changed shape but not gone away. With no key, the request failed
+closed at the isEmailConfigured() gate and the caller saw a 503. With a key but an unverified
+domain, that gate PASSES and the send 403s inside sendPasswordResetEmail — which the route
+logs without changing its response, deliberately, to keep account enumeration closed
+(password-reset.routes.ts). So the user is told to check their email. bf5e2f5 removed the
+NODE_ENV escape hatch from the gate but the gate still only asks whether a client exists, not
+whether a send succeeded; that distinction is now the live one.
 
 ### Arabic career content is applied by an untracked, manually-run, title-matched script  (severity: medium)
 server/migrations/career-arabic-content.ts supplies Arabic titles, descriptions, required
