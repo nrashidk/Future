@@ -2129,3 +2129,36 @@ on actually exist (git status showing an ignored file did not)? And does it cont
 of the very thing it detects? The third question is the one all three of these failed.
 
 First flagged 2026-09-08.
+
+
+### The old picker offered a subject no career has ever been tagged with  (severity: low, closed by data)
+The pre-2026-08-27 subject picker had twelve tiles: Mathematics, Physics, Chemistry, Biology,
+Computer Science, English, History, Geography, Economics, Business, Art, Music. Nine of those
+resolve to something the matching engine can use — six are umbrella-6 members or fold into one
+(Physics/Chemistry/Biology → Science, History/Geography/Economics → Social Studies).
+
+Three do not fold: Business, Art and Music self-map in DEFAULT_SUBJECT_MAP
+(server/utils/subjectMap.ts:69-79), so they normalise to themselves rather than to an
+umbrella-6 subject. Business and Art were still MEANINGFUL picks at the time — 17 careers carry
+the raw tag "Business" and 13 carry "Art", and before Piece D (221d496, 2026-08-31) the match
+compared against raw career tags, so those students matched.
+
+MUSIC NEVER MATCHED ANYTHING. Zero careers have ever been tagged with it: `git log -S "'Music'"`
+over server/seed.ts returns no commit, so it is not a regression or a tag that was later
+removed — the tile shipped against a catalogue that never referenced it. A student who picked
+Music got a subject that was inert on the day they picked it, contributed nothing to
+calculateSubjectsScore, and — because the denominator is the CAREER's tag count, not the
+student's — did not even cost them anything. It simply did nothing, silently, and the report
+gave no sign that one of their three choices had been discarded.
+
+The cost was bounded by the flat-20 floor: a student whose picks were Music plus two other
+non-folding tiles would have scored 20 on every career in the catalogue.
+
+CLOSED ON THE DATA, 2026-09-08: prod holds 6 completed assessments carrying Art/Business/Music
+and all 6 are test fixtures. No real student was affected. Recorded because the failure MODE is
+the point — a picker tile and a career tag vocabulary that nothing checks against each other.
+The umbrella-6 picker removed this particular gap by shrinking the picker to values the
+catalogue uses, but nothing prevents the next tile, or the next career tag, from reintroducing
+it. A test asserting that every picker tile projects onto at least one career would.
+
+First flagged 2026-09-08.
