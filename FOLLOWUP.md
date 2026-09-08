@@ -1133,7 +1133,29 @@ investigate + BUILD to populate. Translations: UI-strings editor writes wrong lo
 confirm Database-Content tab works. Analytics: fix "Grade 10 twice" bucketing; confirm all-careers-"Declining".
 Payment/coverage views: self-payer sees own history, school admin sees student coverage.
 
-### RECOMMENDED BUILD ORDER
+### RECOMMENDED BUILD ORDER — SUPERSEDED, PHASE NUMBERS ARE STALE (marked 2026-09-08)
+**Do not read a phase number below as current.** This is the build order as PLANNED, kept
+because it records what was intended at the time. The live list is the one further down this
+file ("Phase 6 (license rework, the big one) …"), and where the two disagree that one wins —
+the shipped work follows it: Phase 4 delivered mandatory school country/curriculum, Phase 5
+delivered the guest→account claim (04b01d0, c0c009d).
+
+THE NUMBERS DID NOT SHIFT BY A CONSTANT, so no single offset translates them:
+
+| Planned below | Actually shipped as |
+|---|---|
+| Phase 1 (prod-safe fixes) | Phase 1 |
+| Phase 2 (flow restructure, Aspirations-last, shared spine) | **Phase 3** — shared/assessmentFlow.ts |
+| Phase 3 (mandatory school Country+Curriculum, lock steps 1&3) | **Phase 4** |
+| Phase 4 (**license rework**) | **Phase 6** — the live entry |
+| Phase 5 (guest→account claim, free access) | Phase 5 — claim delivered; free→paid carry-over still open |
+| Phase 6 (Career Journey, dashboard) | not scheduled in the live numbering |
+
+IN PARTICULAR, quiz.routes.ts:100 IS CORRECT. It defers retiring users.isPremium to "Phase 6",
+meaning the license rework — Phase 6 in the live numbering, Phase 4 in the stale one below.
+Anyone who reads the line below and concludes that citation points at the Career Journey has
+been misled by this section, not by the code. See the "Phase 6 is defined twice" entry.
+
 Phase 1 (prod-safe, no schema, high value): priority-subjects fix; school-free-quiz-tier fix; per-page Next
   lock; PDF failure; small renames (Self Assessment button, Students->Users, guest banner).
 Phase 2 (flow restructure): Aspirations-last reorder; make steps 1-4 a genuinely shared component path; quiz
