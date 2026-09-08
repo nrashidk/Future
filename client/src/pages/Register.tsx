@@ -5,7 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, serverErrorMessage } from "@/lib/queryClient";
 import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -69,10 +69,17 @@ export default function Register() {
       });
       setLocation("/auth/callback");
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      // serverErrorMessage, not error.message (0dd5408). Same shape, same dead
+      // fallback: throwIfResNotOk formats failures as `<status>: <raw body>`, so
+      // a registration rejected for a duplicate email or a weak password showed
+      // the status code and unparsed JSON instead of the reason.
+      //
+      // ?? not ||: error.message is always non-empty, so t("errorDesc") below
+      // was unreachable and a non-English visitor got English JSON.
       toast({
         title: t("register.errorTitle"),
-        description: error.message || t("register.errorDesc"),
+        description: serverErrorMessage(error) ?? t("register.errorDesc"),
         variant: "destructive",
       });
     },

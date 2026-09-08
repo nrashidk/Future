@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, serverErrorMessage } from "@/lib/queryClient";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -74,10 +74,20 @@ export default function ResetPassword() {
         description: t("resetPassword.successToastDesc"),
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      // serverErrorMessage, not error.message (0dd5408) — the toast was showing
+      // `<status>: <raw body>`, the format throwIfResNotOk produces, so a bad or
+      // expired token surfaced as 400:{"message":...} rather than the sentence
+      // inside it. This screen is the second half of the password-reset flow, so
+      // it is where a user who has finally received a working link lands next.
+      //
+      // ?? not ||: error.message is always a non-empty string, so it always won
+      // the ||, and t("errorDesc") below has never rendered. serverErrorMessage
+      // returns null rather than a fallback so the caller supplies its own
+      // localized text, and only nullish coalescing lets that null through.
       toast({
         title: t("resetPassword.errorTitle"),
-        description: error.message || t("resetPassword.errorDesc"),
+        description: serverErrorMessage(error) ?? t("resetPassword.errorDesc"),
         variant: "destructive",
       });
     },
