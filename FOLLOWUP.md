@@ -1533,7 +1533,7 @@ STORED-VALUE DISPLAY (canonical English shown raw instead of translated):
 GENERATED CONTENT NOT LANGUAGE-AWARE:
 - "Next Steps" / الخطوات التالية items render as English sentences inside the Arabic report ("Complete Bachelor's degree in Computer Science or related field", "Build skills in: Programming, Problem Solving, Data Structures"). Education Path is affected too. These are composed server-side, not locale keys, so the generator needs the assessment language. Worst of the four: this is the report's payoff section and is unreadable to an Arabic-first parent.
   - NEXT STEPS: RESOLVED 2026-09-08. Two independent causes, neither of them a missing translation. The generator was already fully bilingual but was being fed the English career, because localizeCareer ran after it (6fc35a4); and narrativeLanguage was resolved from the stored preferredLanguage while isArabic beside it read Accept-Language, so the two disagreed for any signed-in reader with no stored preference (24ba9b4). The quoted strings specifically came from a third path: they are the basic action steps frozen in English in recommendations.action_steps at generate time, now composed at serve time instead (c341bde).
-  - EDUCATION PATH: NOT A CODE BUG, closed 2026-09-08. Both report pages already read `rec.career.educationLevelAr` with an English fallback, the localizeCareer spread preserves that field, and the language variable at the render site is the same one every correct string on the page uses — all three verified rather than assumed. It rendered English because careers.education_level_ar was NULL: career-arabic-content.ts had never been run against prod. Confirmed by the same 2026-09-04 PDF, where the career TITLES and DESCRIPTIONS were English too — Lawyer, Product Manager, Journalist, Psychologist, Marketing Manager. IMPLICATION, and it is larger than this bullet: every Arabic report generated before that script was finally run showed English career content THROUGHOUT, not merely in Education Path. Prod now reads 68/68 on education_level_ar. See the career-arabic-content entry below for why a manual, untracked script made this possible and will again.
+  - EDUCATION PATH: NOT A CODE BUG, closed 2026-09-08. Both report pages already read `rec.career.educationLevelAr` with an English fallback, the localizeCareer spread preserves that field, and the language variable at the render site is the same one every correct string on the page uses — all three verified rather than assumed. It rendered English because careers.education_level_ar was NULL: career-arabic-content.ts's payload had not reached prod. Confirmed by the same 2026-09-04 PDF, where the career TITLES and DESCRIPTIONS were English too — Lawyer, Product Manager, Journalist, Psychologist, Marketing Manager. IMPLICATION, and it is larger than this bullet: every Arabic report generated in that window showed English career content THROUGHOUT, not merely in Education Path. Prod now reads 68/68 on education_level_ar. CORRECTED 2026-09-08: the reason was NOT that the script was manual or unwired — it runs at boot from seed.ts:3129 and has since 2026-05-06. seedDatabase() was aborting before it. See the corrected entry below for the mechanism.
 
 Also flagged: the Arabic report offers "get your full PDF report" wording that leads to the purchase page rather than a download. Check whether the English copy is equally misleading or whether the Arabic translation overpromises. Not a translation bug — a copy/gating question.
 
@@ -1855,30 +1855,84 @@ watch for, it is the current behaviour if the domain is unverified. Verify the d
 then send one real reset and confirm arrival; do not infer success from the absence of an
 error, because the absence of a visible error is exactly the symptom.
 
-### Arabic career content is applied by an untracked, manually-run, title-matched script  (severity: medium)
+### Nine .ts content migrations run at boot behind an unguarded prefix that can skip all of them  (severity: high)
 server/migrations/career-arabic-content.ts supplies Arabic titles, descriptions, required
 skills and education levels for careers. It is invisible to the migration runner —
-runner.ts:50 filters allFiles.filter(f => f.endsWith(".sql")) and tracks applied names in
-schema_migrations, so a .ts file is never seen and never recorded. There is no npm script for
-it; it is a manual invocation nobody is prompted to make.
+runner.ts:51 filters allFiles.filter(f => f.endsWith(".sql")) and tracks applied names in
+schema_migrations, so a .ts file is never seen and never recorded, and there is no npm script
+for it.
 
-It matches rows on eq(careers.title, item.title) and logs a warning on a miss, so it fails
-silently in a script nobody watches. Two consequences, both recurring: any catalog expansion
-leaves the new careers with NULL Arabic until someone remembers to run it, and editing a
-career's English title silently orphans its Arabic content.
+CORRECTED 2026-09-08. The original of this entry — dictated, and wrong — said the script was
+manual, unwired, and had never been run against prod at all. The correction matters because it
+moves the defect somewhere else entirely. career-arabic-content.ts is invoked from
+seed.ts:3129 and has been since aa08aff (2026-05-06), alongside eight other .ts content
+migrations at seed.ts:3115-3188 — Grade 8 and Grades 9-12 quiz Arabic, values profiles, WEF
+affinities, growth bands, future readiness, relatedSubjects — plus sector renames earlier at
+seed.ts:2982. seed.ts runs on every boot (index.ts:216-217) and is idempotent by design, and
+the "Career Arabic content: 68 updated" line in the deploy log is career-arabic-content.ts:581
+printing its own result: the same file, not a separate duplicate implementation. Nothing here
+needed wiring up. It already was wired.
 
-CONFIRMED 2026-09-08, and worse than the expansion case above: the script had never been run
-against prod AT ALL. The 2026-09-04 Arabic PDF showed English titles, descriptions and
-education levels for all five careers on it, including careers that predate the 39 -> 68
-expansion and have had entries in this file since 2026-05-08. So it is not that new careers
-missed a backfill — no career had ever received one. Every Arabic report generated before the
-script was finally run showed English career content throughout. Prod now reads 68/68 on
-education_level_ar, so it has been run (or the fields filled via the superadmin career editor,
-superadmin.routes.ts:1975/2020) at some point after 2026-09-04. Nothing recorded when.
+THE REAL DEFECT is that the boot invocation can be skipped without leaving a trace. Each of
+the nine apply calls has its own try/catch, but they sit ~2350 lines into seedDatabase(), and
+five awaits ahead of them are outside any try block:
 
-Fix direction: make it a tracked migration, or a seed step that runs at boot, or at minimum an
-npm script with a coverage assertion that fails loudly. Match on a stable key rather than the
-English title. First flagged 2026-09-08.
+    seed.ts:2031   await storage.getAllCareers()
+    seed.ts:2711   await storage.getAllQuizQuestions?.()
+    seed.ts:2898   await storage.getAllCareers()
+    seed.ts:2906   await storage.getCareerWefSkillAffinityCount()
+    seed.ts:2969   await storage.getAllCountries()
+
+One throw at any of them aborts seedDatabase() entirely. index.ts:217 is
+seedDatabase().catch(console.error), which swallows it. The server then boots and serves
+traffic normally with all nine content migrations silently skipped. storage.ts:913 is
+db.select().from(careers) — every column in the Drizzle schema — so any drift between
+shared/schema.ts and the prod careers table throws at seed.ts:2031, before the content block.
+That is a sufficient and likely mechanism for prod serving English career content for months
+while the code was correct the whole time. It also explains why nothing recorded when the
+backfill finally landed: nothing recorded when it stopped failing, either. The absence of a
+visible error was, again, exactly the symptom.
+
+Fix direction, and it is NOT "make it a tracked migration or a boot step" — it is already a
+boot step. Make the boot step's failure observable: guard the unguarded prefix so an early
+throw cannot skip the content block, log an aborted seed at error level and surface it rather
+than console.error, and assert coverage after the block on the career-growth-bands.ts:546 gate
+pattern. Note that seed.ts:3196-3209 already does a version of that assertion for Arabic only
+and wraps it in a bare `catch {}` that swallows its own failure.
+
+STILL TRUE, and unchanged by the correction: it matches rows on eq(careers.title, item.title)
+and logs a warning on a miss, so a catalog expansion leaves new careers with NULL Arabic until
+someone adds their entries, and editing a career's English title orphans its Arabic content.
+The stable key is careers.onetCode (shared/schema.ts:617, indexed at :621); all 68 seed
+careers carry one, and career-growth-bands.ts already carries onetCode on all 68 of its own
+entries while still matching on title. Switching to it needs NOT NULL + unique on the column
+first, with an explicit Entrepreneur exception (schema.ts:577) — deliberately deferred
+2026-09-08 as its own piece of work, not folded into the observability fixes above.
+
+First flagged 2026-09-08, corrected 2026-09-08.
+
+### Two adjacent defects in the same nine modules  (severity: medium)
+Both found while correcting the entry above. Same shape of code, neither about Arabic.
+
+WEF AFFINITY BACKFILL IS INSERT-ONCE, NOT IDEMPOTENT. wef-skill-affinities.ts:47 skips any
+career that already has affinities (`if (existing.length > 0) continue; // Already seeded -
+never overwrite.`). The other eight modules overwrite unconditionally, so re-running them
+repairs drift; this one cannot. A wrong or stale affinity score can never be corrected by
+re-running the backfill — it needs a manual DB edit, or a deliberate delete-then-reseed. The
+comment states the intent, so this is a design choice to revisit rather than an oversight, but
+it means "re-run the seed" is not a repair path for affinities the way it is for every other
+piece of content data here.
+
+A DUPLICATE CAREER TITLE CORRUPTS SILENTLY, WITH NO WARNING AT ALL. careers.title has no
+unique constraint (shared/schema.ts:548; the table's only indexes are :621-623, on onetCode,
+countryId and futureReadiness). Every title-matched module then takes .limit(1) —
+career-arabic-content.ts:565-569, and the same shape at career-values-profiles.ts:439,
+career-growth-bands.ts:508 and career-related-subjects.ts:64 — so two rows sharing a title
+means an arbitrary one is updated and the other silently keeps stale content. This is WORSE
+than the miss case documented above: a miss at least logs `⚠ Career not found` and increments
+notFound, whereas the duplicate path emits no signal whatsoever and the run reports full
+coverage. Any coverage assertion built on the notFound counters will not catch it. First
+flagged 2026-09-08.
 
 ### A large body of Arabic lives outside i18n and outside the review path  (severity: medium)
 premiumNarratives.ts and freeNarrative.ts carry hand-written Arabic — the seven-step,
@@ -1915,8 +1969,8 @@ the problem and the small number understates it:
   Translated CONTENT rather than UI strings, so moving it into locale files would be wrong —
   it belongs in the database, and most of it is a backfill script's payload. But it is equally
   outside the ar/*.json review path, and career-arabic-content.ts has already demonstrated what
-  that costs (see the entry above: it had never been run against prod, and every Arabic report
-  before it was run showed English career content throughout).
+  that costs (see the entry above: its payload silently failed to reach prod for months, and
+  every Arabic report in that window showed English career content throughout).
 
 So the decision is not one decision. The 130 need a home in i18n or a named reviewer; the 2228
 need a way to be reviewed as content and a way to be reliably applied, which is the tracked-
