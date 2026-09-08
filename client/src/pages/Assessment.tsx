@@ -991,15 +991,6 @@ export default function Assessment() {
                 <Button
                   variant="outline"
                   className="min-h-[44px]"
-                  onClick={() => guardedNavigate("/assessment")}
-                  data-testid="button-nav-assessment"
-                >
-                  <ClipboardCheck className="w-4 h-4 me-2" aria-hidden="true" />
-                  {tCommon("nav.assessment")}
-                </Button>
-                <Button
-                  variant="outline"
-                  className="min-h-[44px]"
                   onClick={() => guardedNavigate("/analytics")}
                   data-testid="button-nav-analytics"
                 >
@@ -1008,17 +999,16 @@ export default function Assessment() {
                 </Button>
               </>
             )}
-            {user?.accountType !== 'superadmin' && user?.accountType !== 'org_admin' && (
-              <Button
-                variant="outline"
-                className="min-h-[44px]"
-                onClick={() => guardedNavigate("/assessment")}
-                data-testid="button-nav-assessment"
-              >
-                <ClipboardCheck className="w-4 h-4 me-2" aria-hidden="true" />
-                {tCommon("nav.assessment")}
-              </Button>
-            )}
+            {/* NO "Assessment" NAV BUTTON HERE. This header is only ever rendered
+                BY the assessment page, so the button pointed at the route the
+                viewer is already on. It was worse than a no-op: it goes through
+                guardedNavigate, so a student past step 1 got the "leave the
+                assessment?" confirm — and then, on confirming, a setLocation to
+                the page they were already looking at. It appeared twice, once in
+                the org_admin group above and once in a catch-all branch that
+                existed only to render it for everyone else, which is why the
+                catch-all is gone entirely rather than emptied. The other nav
+                buttons all point somewhere else and stay. */}
             {isAuthenticated && (
               <>
                 <Button
