@@ -990,13 +990,39 @@ export default function Assessment() {
       {/* Header */}
       <div className="bg-background border-b sticky top-0 z-40 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          {/* Brand block links home, the convention every other page follows
+              (Header.tsx, Profile.tsx, StudentProgress.tsx — all `Link href="/"`
+              with data-testid="link-home"). It was the only inert one.
+
+              AN <a>, NOT A wouter <Link>, because the plain click has to reach
+              guardedNavigate: this is the one page where leaving costs the
+              viewer unsaved answers, and a Link would take a student out of a
+              part-finished assessment silently. Keeping a real href rather than
+              a button preserves what a link is — the status-bar target, the
+              context menu, cmd/ctrl/shift-click into a new tab — and screen
+              readers still announce a link, which is what it is.
+
+              MODIFIED CLICKS PASS THROUGH DELIBERATELY. They open the landing
+              page somewhere else and leave this tab, and its answers, untouched,
+              so there is nothing to confirm; intercepting them would break
+              "open in new tab" to guard against a loss that cannot happen. The
+              plain click is the only one that leaves. */}
+          <a
+            href="/"
+            onClick={(e) => {
+              if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+              e.preventDefault();
+              guardedNavigate("/");
+            }}
+            className="flex items-center gap-3 hover-elevate rounded-lg px-3 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            data-testid="link-home"
+          >
             <GraduationCap className="w-8 h-8 text-primary" aria-hidden="true" />
             <div>
               <h1 className="text-xl font-bold">{tCommon("header.brandName")}</h1>
               <p className="text-sm text-muted-foreground font-body">{t("header.subtitle")}</p>
             </div>
-          </div>
+          </a>
           <div className="flex gap-2">
             {user?.accountType === 'superadmin' && (
               <>
