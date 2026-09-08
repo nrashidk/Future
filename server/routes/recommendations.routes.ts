@@ -17,7 +17,7 @@ import {
   generateEnhancedActionSteps,
 } from "../services/premiumNarratives";
 import { isPremiumAssessment } from "../utils/assessmentTier";
-import { formatFreeReasoning } from "../services/freeNarrative";
+import { formatFreeReasoning, buildFreeActionSteps } from "../services/freeNarrative";
 import { collectMissingComponents } from "../utils/assessmentCompleteness";
 import { mintPrintToken, printTokenAuthorizes } from "../utils/printToken";
 import type { Career } from "@shared/schema";
@@ -343,6 +343,13 @@ export function registerRecommendationsRoutes(app: Express) {
         recommendations.map(async (rec) => {
           const career = await storage.getCareerById(rec.careerId);
           const wefSkillTags = wefSkillsByCareer.get(rec.careerId) ?? [];
+
+          // ONE localized career for every branch below. It was called four
+          // separate times on four return paths, which is how the premium branch
+          // came to localize AFTER generating (fixed in 6fc35a4) while the others
+          // localized on the way out.
+          const localizedCareer = localizeCareer(career, isArabic);
+          const stepsLanguage: "en" | "ar" = isArabic ? 'ar' : 'en';
           
           // Premium tier: Generate enhanced narratives dynamically (not stored in DB)
           if (isPremium && assessment && career) {
@@ -378,11 +385,9 @@ export function registerRecommendationsRoutes(app: Express) {
                 // reads career.titleAr, which localizeCareer preserves rather than
                 // consumes, so running it against an already-localized career is
                 // idempotent.
-                const localizedCareer = localizeCareer(career, isArabic)!;
-
                 const narrativeContext = {
                   assessment,
-                  career: localizedCareer,
+                  career: localizedCareer!,
                   riasecScores: assessment.riasecScores as any,
                   cvqScores: hasCvqData ? (cvqResult.normalizedScores as Record<string, any>) : undefined,
                   overallScore: rec.overallMatchScore,
@@ -428,7 +433,7 @@ export function registerRecommendationsRoutes(app: Express) {
               } catch (error) {
                 console.error('[Premium Narratives] Error generating for career:', career.id, error);
                 // Fallback: return basic recommendation without premium narratives
-                return { ...rec, career: localizeCareer(career, isArabic), wefSkillTags };
+                return { ...rec, career: localizedCareer, wefSkillTags };
               }
             }
           }
@@ -465,8 +470,18 @@ export function registerRecommendationsRoutes(app: Express) {
                 overallScore: rec.overallMatchScore,
                 language: isArabic ? 'ar' : 'en',
               }),
-              career: localizeCareer(career, isArabic),
+              career: localizedCareer,
               wefSkillTags,
+              // Composed here, not read from the row. The stored action_steps are
+              // two English sentences frozen at generate time — see
+              // buildFreeActionSteps for why that is the wrong moment to pick a
+              // language. The column is still written and still the audit record;
+              // it is just no longer what the report renders.
+              actionSteps: buildFreeActionSteps(
+                localizedCareer?.educationLevel ?? rec.requiredEducation,
+                localizedCareer?.requiredSkills,
+                stepsLanguage,
+              ),
               // No LLM narrative for free — that stays premium.
               premiumReasoning: null,
               pdfLocked: true,
@@ -493,8 +508,21 @@ export function registerRecommendationsRoutes(app: Express) {
           }
           return {
             ...rec,
-            career: localizeCareer(career, isArabic),
+            career: localizedCareer,
             wefSkillTags,
+            // SAME STORED-ENGLISH PROBLEM AS THE FREE BRANCH, and this is the
+            // path that produced it in a PDF: a premium assessment without RIASEC
+            // never reaches generateEnhancedActionSteps, so it has no
+            // premiumActionSteps and the report falls back to rec.actionSteps —
+            // the two sentences frozen in English at generate time. Premium is
+            // also the only tier that can download a PDF (the free branch sets
+            // pdfLocked), so this branch, not the free one, is what an Arabic
+            // premium report shows.
+            actionSteps: buildFreeActionSteps(
+              localizedCareer?.educationLevel ?? rec.requiredEducation,
+              localizedCareer?.requiredSkills,
+              stepsLanguage,
+            ),
             premiumReasoning: fallbackReasoning,
           };
         })

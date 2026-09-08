@@ -256,3 +256,59 @@ export function formatFreeReasoning(input: FreeNarrativeInput): string {
 
   return paragraphs.join("\n\n");
 }
+
+
+/**
+ * Free-tier action steps, composed at SERVE time rather than read from the DB.
+ *
+ * WHAT THIS REPLACES. `recommendations.action_steps` is written once, inside the
+ * POST /generate transaction, as two English sentences built from the career's
+ * English education level and skills (recommendations.routes.ts). Generation
+ * time is the wrong moment to choose a language: the row outlives the request
+ * that made it, and the reader who eventually opens the report may want the
+ * other one. So an Arabic free report showed
+ * "Complete Bachelor's degree in Computer Science or related field" under an
+ * Arabic heading, and no ?lang=ar could change it — the sentence had been a
+ * string in the database since the day the assessment finished.
+ *
+ * Composing here makes free and premium differ by how rich their templates are
+ * rather than by mechanism: premium's generateEnhancedActionSteps
+ * (premiumNarratives.ts) has always been built this way, and this is the same
+ * shape with two steps instead of seven.
+ *
+ * NO MIGRATION, NO BACKFILL, AND THE COLUMN STAYS. action_steps is NOT NULL and
+ * keeps being written exactly as before — it remains the audit record of what
+ * was generated, alongside the reasoning blob this module already re-renders.
+ * It simply stops being what the report reads. An `action_steps_ar` column was
+ * the obvious alternative and is worse: it doubles the write, needs a backfill,
+ * and still bakes the language choice in at generation time, so a third
+ * language would need a third column.
+ *
+ * PASS AN ALREADY-LOCALIZED CAREER. Both values are interpolated verbatim, so
+ * this reads career.educationLevel and career.requiredSkills as given rather
+ * than reaching for the *Ar fields itself — localizeCareer has already resolved
+ * them, and doing it twice is how the two copies drift.
+ *
+ * The English strings are byte-identical to what recommendations.routes.ts
+ * writes today, so an English report is unchanged.
+ */
+export function buildFreeActionSteps(
+  educationLevel: string | null | undefined,
+  requiredSkills: string[] | null | undefined,
+  language: "en" | "ar"
+): string[] {
+  const steps: string[] = [];
+  const skills = (requiredSkills ?? []).slice(0, 3);
+
+  if (educationLevel) {
+    steps.push(language === "ar" ? `أكمل ${educationLevel}` : `Complete ${educationLevel}`);
+  }
+  if (skills.length > 0) {
+    steps.push(
+      language === "ar"
+        ? `طوّر مهاراتك في: ${skills.join("، ")}`
+        : `Build skills in: ${skills.join(", ")}`
+    );
+  }
+  return steps;
+}
