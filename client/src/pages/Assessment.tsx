@@ -107,6 +107,35 @@ export default function Assessment() {
 
   const isPremiumUser = user?.isPremium || false;
 
+  // WHICH FLOW, as opposed to what the viewer bought. Every tier-shaped decision
+  // on this page reads this; isPremiumUser above stays the answer to "is this a
+  // self-paying premium account", and nothing below asks that question.
+  //
+  // BELT-AND-BRACES, and it changes nothing today. An org student already
+  // arrives with isPremiumUser true: auth.routes.ts sets `user.isPremium = true`
+  // on the response for anyone holding an organization_members row with role
+  // 'student'. The decoration is correct and this does not doubt it — the two
+  // halves of this expression are true together for every caller alive.
+  //
+  // It exists because that decoration is exactly what the server has already
+  // decided not to rely on for this population. quiz.routes.ts:86-98 records
+  // that a school student's users.isPremium COLUMN is false — the true is
+  // response-only — and resolves quiz tier from isSchoolUser instead, expressly
+  // declining to fix it by flipping the column. Anyone who applies that same
+  // reasoning to the decoration removes the only signal this page had that a
+  // school student is on the premium flow, and every failure that follows is
+  // silent: a 7-step assessment, no RIASEC, no CVQ, and — before any of that —
+  // a redirect to /tier-selection offering to sell a licence the school bought.
+  // Membership is the durable fact, and is now read alongside the flag.
+  //
+  // `=== true`, not truthiness, because isOrgStudent is three-state (15203ec):
+  // undefined while auth is unresolved. Unknown falls through to isPremiumUser,
+  // which is the free flow for an unidentified caller — the right direction,
+  // and it matters most at the routing guard, where the wrong answer takes the
+  // student off the page entirely. In practice the guard is also gated on
+  // !isLoading, so it never observes the undefined window.
+  const isPremiumFlow = isPremiumUser || isOrgStudent === true;
+
   // THE TERMINAL SCREENS. Each of the three is rendered INSTEAD of the form by an
   // early return further down, and each is a dead end with nothing to save: the
   // student cannot enter anything on any of them. They are hoisted to here, above
@@ -201,14 +230,21 @@ export default function Assessment() {
   // Before Phase 3 both tiers were hardcoded to 7 and the two 7s disagreed:
   // premium's excluded Results while free's included it, which is how the free
   // progress labels came to be off by one step. See shared/assessmentFlow.ts.
-  const totalSteps = totalStepsForTier(isPremiumUser);
+  //
+  // Note that COUNTRY IS NOT THE DIFFERENCE between the two counts, and cannot
+  // be: it is step 2 of SPINE_STEP_IDS, shared by both tiers, so it contributes
+  // one to each. Rendering it read-only for org students changes what is inside
+  // the step, never whether the step is counted. The whole of the difference is
+  // the fork at step 5 — free has one divergent step (Interests), premium has
+  // two (RIASEC, CVQ).
+  const totalSteps = totalStepsForTier(isPremiumFlow);
 
   // The last step that collects input — Aspirations for both tiers, so 6 free
   // and 7 premium. Report generation fires here, so a reload at this step means
   // "generation may be in flight" (poll) rather than "resume the form".
   // This was a module-level constant of 7, correct for premium and wrong for
   // free the moment free's last step became 6.
-  const finalGenerationStep = finalInputStep(isPremiumUser);
+  const finalGenerationStep = finalInputStep(isPremiumFlow);
 
   // Lazy initialiser so an org student's country/curriculum are present in the
   // FIRST render rather than arriving in an effect. CountryStep seeds its
@@ -409,7 +445,7 @@ export default function Assessment() {
         // step from the data actually present, which is correct under either
         // numbering. PREMIUM's order is unchanged by Phase 3, so its stored
         // currentStep stays valid and is used as-is.
-        const resumeStep = isPremiumUser
+        const resumeStep = isPremiumFlow
           ? inProgress.currentStep
           : deriveFreeResumeStep(inProgress);
 
@@ -425,7 +461,7 @@ export default function Assessment() {
     };
 
     checkServerDraft();
-  }, [isLoading, isAuthenticated, apiResumeChecked, isPremiumUser]);
+  }, [isLoading, isAuthenticated, apiResumeChecked, isPremiumFlow]);
 
   // Persist draft to sessionStorage whenever assessmentId / step / data changes
   // Guards: only save once an assessment has been created (assessmentId set) and past step 1
@@ -436,12 +472,17 @@ export default function Assessment() {
     } catch {}
   }, [assessmentId, currentStep, assessmentData]);
 
-  // Routing guard: Redirect authenticated non-premium users to tier selection
+  // Routing guard: redirect an authenticated viewer who is not on the premium
+  // flow to tier selection. isPremiumFlow, not isPremiumUser: an org student's
+  // school has already bought the licence, so this must never offer to sell them
+  // one. It reads the same for them today either way — see :137 — and this is
+  // the site where a wrong answer costs the most, because it removes the student
+  // from the page before any of the tier branches below can be reached.
   useEffect(() => {
-    if (!isLoading && isAuthenticated && !isPremiumUser && !isGuest) {
+    if (!isLoading && isAuthenticated && !isPremiumFlow && !isGuest) {
       setLocation("/tier-selection");
     }
-  }, [isLoading, isAuthenticated, isPremiumUser, isGuest, setLocation]);
+  }, [isLoading, isAuthenticated, isPremiumFlow, isGuest, setLocation]);
 
   // Smart skip logic: Auto-populate demographics and skip to Subjects if all fields pre-filled
   useEffect(() => {
@@ -546,8 +587,12 @@ export default function Assessment() {
         // Leaving this in would PATCH an empty array over whatever the column
         // held, and the generation gate used to reject exactly that value.
         
-        // Include premium assessment scores if available
-        if (isPremiumUser) {
+        // Include premium assessment scores if available. isPremiumFlow: these
+        // responses exist only because the premium branches rendered RIASEC and
+        // CVQ, so the test that decides whether to send them has to be the test
+        // that decided to collect them. The length checks already make this a
+        // no-op for a free student, whose objects are empty.
+        if (isPremiumFlow) {
           if (Object.keys(assessmentData.riasecResponses).length > 0) {
             backendData.riasecResponses = assessmentData.riasecResponses;
           }
@@ -565,7 +610,7 @@ export default function Assessment() {
     }, 2000); // Debounce: save 2 seconds after last change
 
     return () => clearTimeout(timeoutId);
-  }, [assessmentData, assessmentId, currentStep, isAuthenticated, isPremiumUser]);
+  }, [assessmentData, assessmentId, currentStep, isAuthenticated, isPremiumFlow]);
 
   const updateAssessmentData = (field: string, value: any) => {
     setAssessmentData((prev) => ({ ...prev, [field]: value }));
@@ -661,12 +706,12 @@ export default function Assessment() {
         // No personalityTraits — see the auto-save effect above.
         
         // Include RIASEC scores if premium user completed RIASEC assessment
-        if (isPremiumUser && Object.keys(assessmentData.riasecResponses).length > 0) {
+        if (isPremiumFlow && Object.keys(assessmentData.riasecResponses).length > 0) {
           backendData.riasecResponses = assessmentData.riasecResponses;
         }
         
         // Include CVQ responses if premium user completed CVQ assessment
-        if (isPremiumUser && Object.keys(assessmentData.cvqResponses).length > 0) {
+        if (isPremiumFlow && Object.keys(assessmentData.cvqResponses).length > 0) {
           backendData.cvqResponses = assessmentData.cvqResponses;
         }
         
@@ -1052,7 +1097,11 @@ export default function Assessment() {
       </div>
 
       {/* Progress Tracker */}
-      <ProgressTracker currentStep={currentStep} totalSteps={totalSteps} isPremium={isPremiumUser} />
+      {/* isPremium here selects the step-TITLE list (stepIdsForTier), so it is a
+          flow question despite the prop name, and takes isPremiumFlow like the
+          totalSteps beside it. The two must agree or the labels drift off the
+          steps, which is the bug shared/assessmentFlow.ts exists to prevent. */}
+      <ProgressTracker currentStep={currentStep} totalSteps={totalSteps} isPremium={isPremiumFlow} />
 
       {/* Resume Prompt — shown instead of step content when a saved draft is detected */}
       {resumePrompt && (
@@ -1167,7 +1216,7 @@ export default function Assessment() {
         {/* Step 5: RIASEC (premium) | Interests (free) — divergence begins */}
         {currentStep === 5 && (
           <>
-            {isPremiumUser ? (
+            {isPremiumFlow ? (
               <RiasecStep
                 onComplete={handleRiasecComplete}
                 onBack={() => setCurrentStep(4)}
@@ -1186,7 +1235,7 @@ export default function Assessment() {
         {/* Step 6: CVQ (premium) | Aspirations (free — LAST INPUT STEP, generates) */}
         {currentStep === 6 && (
           <>
-            {isPremiumUser ? (
+            {isPremiumFlow ? (
               assessmentId ? (
                 <CVQStep
                   assessmentId={assessmentId}
@@ -1219,7 +1268,7 @@ export default function Assessment() {
         
         {/* Step 7: Aspirations (premium — LAST INPUT STEP, generates).
             Free has no step 7: its step 7 is Results, which is a separate page. */}
-        {currentStep === 7 && isPremiumUser && (
+        {currentStep === 7 && isPremiumFlow && (
           <AspirationsStep
             data={assessmentData}
             onUpdate={updateAssessmentData}
