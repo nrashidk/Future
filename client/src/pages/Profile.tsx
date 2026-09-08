@@ -5,13 +5,49 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
-import { GraduationCap, Crown, Users, ClipboardCheck, Home, User, LogOut, BarChart, Shield, Building2, FileQuestion, TrendingUp, ClipboardList, Cake, Users2, FileText } from "lucide-react";
+import { GraduationCap, Crown, Users, ClipboardCheck, Home, User, LogOut, BarChart, Shield, Building2, FileQuestion, TrendingUp, ClipboardList, Cake, Users2, FileText, Mail, Clock } from "lucide-react";
 import { StickyNote } from "@/components/StickyNote";
+import type { LucideIcon } from "lucide-react";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTranslation } from "react-i18next";
 import { isPremiumAssessment } from "@shared/assessmentTier";
-import { SCHOOL_ALLOCATIONS_PER_STUDENT } from "@shared/assessmentLimits";
+import { SCHOOL_ALLOCATIONS_PER_STUDENT, FREE_ASSESSMENT_CAP } from "@shared/assessmentLimits";
+
+/**
+ * One field of the merged profile block, as a sticky-note card.
+ *
+ * Module scope, not inside Profile: a component defined in a render body is a
+ * new type on every render and remounts its subtree, which for nine cards would
+ * throw away the DOM on every state change on this page.
+ */
+function ProfileNote({
+  icon: Icon,
+  label,
+  color,
+  rotation,
+  testId,
+  children,
+}: {
+  icon: LucideIcon;
+  label: string;
+  color: "yellow" | "pink" | "blue" | "green" | "purple" | "orange";
+  rotation: "-2" | "-1" | "0" | "1" | "2";
+  testId: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <StickyNote color={color} rotation={rotation}>
+      <div className="flex items-center gap-3 mb-3">
+        <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+          <Icon className="w-4 h-4 text-primary" />
+        </div>
+        <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
+      </div>
+      <div className="font-bold text-lg leading-snug" data-testid={testId}>{children}</div>
+    </StickyNote>
+  );
+}
 
 interface Assessment {
   id: string;
@@ -291,190 +327,69 @@ export default function Profile() {
         </div>
 
         <div className="grid gap-6">
-          {/* Account Information */}
-          <StickyNote rotation="-1" color="yellow">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="w-5 h-5" />
-                {t("account.title")}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Two-column layout for org students: name/username on left, school/grade on right */}
-              {isOrgStudent ? (
-                <>
-                  <div className="grid grid-cols-2 gap-6">
-                    {/* Left column: Name and Username */}
-                    <div className="space-y-4">
-                      <div>
-                        <p className="text-sm text-muted-foreground">{t("account.name")}</p>
-                        <p className="font-medium" data-testid="text-user-name">
-                          {user.firstName || user.lastName ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : t("account.notProvided")}
-                        </p>
-                      </div>
-                      {user.username && (
-                        <div>
-                          <p className="text-sm text-muted-foreground">{t("account.username")}</p>
-                          <p className="font-medium" data-testid="text-user-username">{user.username}</p>
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* Right column: School and Grade */}
-                    <div className="space-y-4">
-                      {((user as any).organizationName || organization) && (
-                        <div>
-                          <p className="text-sm text-muted-foreground mb-2">{t("account.school")}</p>
-                          <div className="flex items-center gap-3">
-                            {(user as any).organizationLogoUrl && (
-                              <img 
-                                src={(user as any).organizationLogoUrl} 
-                                alt={t("account.schoolLogoAlt")}
-                                className="h-10 w-10 object-contain rounded"
-                                data-testid="img-org-logo-profile"
-                              />
-                            )}
-                            <p className="font-medium text-primary" data-testid="text-organization-name">
-                              {(user as any).organizationName || organization?.name}
-                            </p>
-                          </div>
-                        </div>
-                      )}
-                      {(user as any).predefinedGrade && (
-                        <div>
-                          <p className="text-sm text-muted-foreground">{t("account.grade")}</p>
-                          <p className="font-medium" data-testid="text-student-grade">{(user as any).predefinedGrade}</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Third line: Account Type */}
-                  <div className="pt-2 border-t">
-                    <p className="text-sm text-muted-foreground mb-2">{t("account.accountType")}</p>
-                    {getAccountTypeBadge()}
-                  </div>
-                </>
-              ) : isOrgAdmin ? (
-                <>
-                  {/* Two-column layout for org admins: name/email on left, username/organization on right */}
-                  <div className="grid grid-cols-2 gap-6">
-                    {/* Left column: Name and Email */}
-                    <div className="space-y-4">
-                      <div>
-                        <p className="text-sm text-muted-foreground">{t("account.name")}</p>
-                        <p className="font-medium" data-testid="text-user-name">
-                          {user.firstName || user.lastName ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : t("account.notProvided")}
-                        </p>
-                      </div>
-                      {user.email && (
-                        <div>
-                          <p className="text-sm text-muted-foreground">{t("account.email")}</p>
-                          <p className="font-medium" data-testid="text-user-email">{user.email}</p>
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* Right column: Username and Organization */}
-                    <div className="space-y-4">
-                      {user.username && (
-                        <div>
-                          <p className="text-sm text-muted-foreground">{t("account.username")}</p>
-                          <p className="font-medium" data-testid="text-user-username">{user.username}</p>
-                        </div>
-                      )}
-                      {((user as any).organizationName || organization) && (
-                        <div>
-                          <p className="text-sm text-muted-foreground">{t("account.organization")}</p>
-                          <p className="font-medium text-primary" data-testid="text-organization-name">
-                            {(user as any).organizationName || organization?.name}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {/* Third line: Account Type */}
-                  <div className="pt-2 border-t">
-                    <p className="text-sm text-muted-foreground mb-2">{t("account.accountType")}</p>
-                    {getAccountTypeBadge()}
-                  </div>
-                </>
-              ) : (
-                <>
-                  {/* Regular layout for individual users */}
-                  <div>
-                    <p className="text-sm text-muted-foreground">{t("account.name")}</p>
-                    <p className="font-medium" data-testid="text-user-name">
-                      {user.firstName || user.lastName ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : t("account.notProvided")}
-                    </p>
-                  </div>
-                  {user.email && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">{t("account.email")}</p>
-                      <p className="font-medium" data-testid="text-user-email">{user.email}</p>
-                    </div>
-                  )}
-                  {user.username && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">{t("account.username")}</p>
-                      <p className="font-medium" data-testid="text-user-username">{user.username}</p>
-                    </div>
-                  )}
-                  {(user as any).lastLoginAt && (
-                    <div>
-                      <p className="text-sm text-muted-foreground">{t("account.lastLogin")}</p>
-                      <p className="font-medium" data-testid="text-last-login">
-                        {new Date((user as any).lastLoginAt).toLocaleString(language === 'ar' ? 'ar-AE' : 'en-US')}
-                      </p>
-                    </div>
-                  )}
-                  <div>
-                    <p className="text-sm text-muted-foreground mb-2">{t("account.accountType")}</p>
-                    {getAccountTypeBadge()}
-                  </div>
-                </>
-              )}
-            </CardContent>
-          </StickyNote>
+          {/* ONE BLOCK, not two. Account Holder and Assessment Details were split
+              by 24aff62 on the strength of a prod row where the holder was
+              "Nasser Rashid" and the subject "Khaled" — a testing artifact, not
+              the common case. A real account holder registers under their own
+              name, so the split showed the same person twice under two headings
+              that promised a contrast the data did not contain.
 
-          {/* Student Details - Shown for students (individual and org) */}
-          {!isOrgAdmin && !isSuperadmin && (() => {
-            // Get demographics from latest assessment or predefined org student data
+              The case that survives the merge is a guardian registering for a
+              child. It is handled by VALUE, not by heading: the account fields
+              show the account, the assessment fields show the subject, and the
+              subject's name appears ONLY when it actually differs (see
+              subjectNameDiffers). In the common case there is one name card; in
+              the guardian case there are two, distinctly labelled, so the reader
+              meets the difference where it exists instead of being warned about
+              it everywhere it does not. */}
+          {(() => {
             const latestAssessment = [...assessments]
               .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
               .find(a => a.name || a.age || a.grade || a.gender);
 
-            // predefinedName, NOT the account holder's name. This fell back to
-            // user.firstName/lastName while its three siblings below fall back to
-            // their predefined* decoration, and auth.routes.ts has been supplying
-            // predefinedName from organization_members.studentName all along —
-            // Profile just never read it.
-            //
-            // The bug that produced: an org student who has not taken an
-            // assessment yet got their school-recorded GRADE, AGE and GENDER
-            // beside the ACCOUNT HOLDER'S name. Where a parent or guardian
-            // registered the account, the block described one person by name and
-            // a different one by every other field, on a page about a minor.
-            //
-            // It also decided what the block's caption could honestly say. With
-            // the account-holder fallback there were three possible sources —
-            // assessment, school record, and the account itself — and the third
-            // is not something a block about the assessment subject should ever
-            // show. Reading predefinedName leaves two, and the guard below
-            // (`if (!demoName && !demoAge && !demoGrade && !demoGender) return
-            // null`) then covers the rest: a viewer with neither an assessment
-            // nor a member row has no subject to describe, so the block does not
-            // render at all rather than describing the wrong person.
-            //
-            // `??` not `||`, matching the three below: an empty studentName is a
-            // value the school recorded, and falling through it would silently
-            // reintroduce the holder's name for exactly the rows where the
-            // school's record is incomplete.
+            // predefinedName, NOT the account holder's name — see 0f4155b. An org
+            // student who has not taken an assessment gets their school-recorded
+            // values; falling back to the holder here would describe one person
+            // by name and a different one by every other field.
             const demoName = latestAssessment?.name ?? (user as any).predefinedName ?? null;
             const demoAge = latestAssessment?.age ?? (user as any).predefinedAge ?? null;
             const demoGrade = latestAssessment?.grade ?? (user as any).predefinedGrade ?? null;
             const demoGender = latestAssessment?.gender ?? (user as any).predefinedGender ?? null;
+
+            const accountName = user.firstName || user.lastName
+              ? `${user.firstName || ''} ${user.lastName || ''}`.trim()
+              : '';
+
+            // THE ONLY REASON A SECOND NAME CARD EXISTS. Compared case- and
+            // whitespace-insensitively, because "the same person" is a question
+            // about who the name refers to, not about how it was typed. When they
+            // match — the overwhelming majority — the card does not render and the
+            // block shows one name, which is the whole point of the merge.
+            //
+            // AN EMPTY accountName COUNTS AS DIFFERING, and must. A bulk-imported
+            // school account frequently has no first/last name on its users row at
+            // all — its only name is organization_members.studentName, which
+            // reaches here as demoName. Requiring accountName to be non-empty would
+            // then drop the student's name off the page entirely: "Name: Not
+            // provided" above, and the name the school recorded nowhere. That is
+            // the same information loss 0f4155b fixed from the other direction.
+            const subjectNameDiffers =
+              !!demoName &&
+              demoName.trim().toLowerCase() !== accountName.trim().toLowerCase();
+
+            // Assessment fields belong to students. An org admin or superadmin has
+            // no assessment subject, so those cards are absent for them entirely
+            // rather than rendered empty.
+            const showsSubjectFields =
+              !isOrgAdmin && !isSuperadmin && !!(demoName || demoAge || demoGrade || demoGender);
+
+            // The source credit 24aff62 added, kept and narrowed. It used to caption
+            // a whole block; with no separate heading it would appear to describe
+            // the account fields too, which come from the users row. Scoped to the
+            // assessment fields, it stays true.
+            const subjectSource = latestAssessment
+              ? t("details.sourceAssessment")
+              : t("details.sourceSchool");
 
             const getGradeLabel = (gradeCode: string): string => {
               const gradeMap: Record<string, string> = {
@@ -495,83 +410,95 @@ export default function Profile() {
               return genderMap[g.toLowerCase()] || genderMap[g] || (g.charAt(0).toUpperCase() + g.slice(1));
             };
 
-            if (!demoName && !demoAge && !demoGrade && !demoGender) return null;
-
-            // NAME THE SOURCE RATHER THAN GENERALISE OVER IT. The caption used to
-            // read "Your profile from your latest assessment" in both cases, and
-            // was false in one of them: an org student who has not taken an
-            // assessment sees this block populated entirely from their school's
-            // member row, under a sentence crediting an assessment they have not
-            // taken.
-            //
-            // The two sources are exhaustive because of the commit before this
-            // one. demoName now reads predefinedName rather than the account
-            // holder's name, so there is no third "from the account itself" case
-            // to describe — and a viewer with neither source has all four values
-            // null and never reaches this return.
-            //
-            // Keyed on latestAssessment rather than on the values: if an
-            // assessment exists it is what supplied them, and the ?? fallbacks
-            // only fire when it does not.
-            const detailsSource = latestAssessment
-              ? t("details.subtitleAssessment")
-              : t("details.subtitleSchool");
+            const notProvided = (
+              <span className="text-muted-foreground font-normal text-base">{t("account.notProvided")}</span>
+            );
+            const orgName = (user as any).organizationName || organization?.name;
 
             return (
               <div>
                 <div className="mb-4 text-center">
-                  <h2 className="text-xl font-bold">{t("details.title")}</h2>
-                  <p className="text-sm text-muted-foreground" data-testid="text-details-source">{detailsSource}</p>
+                  <h2 className="text-xl font-bold">{t("account.title")}</h2>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
-                  <StickyNote color="yellow" rotation="-1">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <User className="w-4 h-4 text-primary" />
-                      </div>
-                      <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{t("details.name")}</p>
-                    </div>
-                    <p className="font-bold text-lg leading-snug" data-testid="text-demo-name">
-                      {demoName || <span className="text-muted-foreground font-normal text-base">{t("account.notProvided")}</span>}
-                    </p>
-                  </StickyNote>
+                  <ProfileNote icon={User} label={t("account.name")} color="yellow" rotation="-1" testId="text-user-name">
+                    {accountName || notProvided}
+                  </ProfileNote>
 
-                  <StickyNote color="pink" rotation="1">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <Cake className="w-4 h-4 text-primary" />
-                      </div>
-                      <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{t("details.age")}</p>
-                    </div>
-                    <p className="font-bold text-lg" data-testid="text-demo-age">
-                      {demoAge ? t("details.yearsOld", { age: demoAge }) : <span className="text-muted-foreground font-normal text-base">{t("account.notProvided")}</span>}
-                    </p>
-                  </StickyNote>
+                  {user.email && (
+                    <ProfileNote icon={Mail} label={t("account.email")} color="blue" rotation="1" testId="text-user-email">
+                      <span className="break-all">{user.email}</span>
+                    </ProfileNote>
+                  )}
 
-                  <StickyNote color="blue" rotation="2">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <GraduationCap className="w-4 h-4 text-primary" />
-                      </div>
-                      <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{t("details.grade")}</p>
-                    </div>
-                    <p className="font-bold text-lg" data-testid="text-demo-grade">
-                      {demoGrade ? getGradeLabel(demoGrade) : <span className="text-muted-foreground font-normal text-base">{t("account.notProvided")}</span>}
-                    </p>
-                  </StickyNote>
+                  {user.username && (
+                    <ProfileNote icon={FileText} label={t("account.username")} color="purple" rotation="2" testId="text-user-username">
+                      {user.username}
+                    </ProfileNote>
+                  )}
 
-                  <StickyNote color="green" rotation="-2">
-                    <div className="flex items-center gap-3 mb-3">
-                      <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                        <Users2 className="w-4 h-4 text-primary" />
-                      </div>
-                      <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{t("details.gender")}</p>
-                    </div>
-                    <p className="font-bold text-lg" data-testid="text-demo-gender">
-                      {demoGender ? getGenderLabel(demoGender) : <span className="text-muted-foreground font-normal text-base">{t("account.notProvided")}</span>}
-                    </p>
-                  </StickyNote>
+                  {orgName && (
+                    <ProfileNote
+                      icon={Building2}
+                      label={isOrgStudent ? t("account.school") : t("account.organization")}
+                      color="orange"
+                      rotation="-2"
+                      testId="text-organization-name"
+                    >
+                      <span className="flex items-center gap-3">
+                        {(user as any).organizationLogoUrl && (
+                          <img
+                            src={(user as any).organizationLogoUrl}
+                            alt={t("account.schoolLogoAlt")}
+                            className="h-8 w-8 object-contain rounded"
+                            data-testid="img-org-logo-profile"
+                          />
+                        )}
+                        <span className="text-primary">{orgName}</span>
+                      </span>
+                    </ProfileNote>
+                  )}
+
+                  <ProfileNote icon={Shield} label={t("account.accountType")} color="green" rotation="1" testId="text-account-type">
+                    {getAccountTypeBadge()}
+                  </ProfileNote>
+
+                  {(user as any).lastLoginAt && (
+                    <ProfileNote icon={Clock} label={t("account.lastLogin")} color="pink" rotation="-1" testId="text-last-login">
+                      <span className="text-base">
+                        {new Date((user as any).lastLoginAt).toLocaleString(language === 'ar' ? 'ar-AE' : 'en-US')}
+                      </span>
+                    </ProfileNote>
+                  )}
+
+                  {showsSubjectFields && (
+                    <>
+                      {subjectNameDiffers && (
+                        <ProfileNote icon={Users2} label={t("details.studentName")} color="yellow" rotation="2" testId="text-demo-name">
+                          {demoName}
+                        </ProfileNote>
+                      )}
+
+                      <ProfileNote icon={Cake} label={t("details.age")} color="pink" rotation="1" testId="text-demo-age">
+                        {demoAge ? t("details.yearsOld", { age: demoAge }) : notProvided}
+                      </ProfileNote>
+
+                      <ProfileNote icon={GraduationCap} label={t("details.grade")} color="blue" rotation="2" testId="text-demo-grade">
+                        {demoGrade ? getGradeLabel(demoGrade) : notProvided}
+                      </ProfileNote>
+
+                      <ProfileNote icon={Users2} label={t("details.gender")} color="green" rotation="-2" testId="text-demo-gender">
+                        {demoGender ? getGenderLabel(demoGender) : notProvided}
+                      </ProfileNote>
+                    </>
+                  )}
                 </div>
+
+                {showsSubjectFields && (
+                  <p className="mt-3 text-sm text-muted-foreground text-center" data-testid="text-details-source">
+                    {subjectSource}
+                  </p>
+                )}
               </div>
             );
           })()}
@@ -752,10 +679,39 @@ export default function Profile() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
+                {/* "2 of 3" ONLY WHERE A CEILING EXISTS, and it is a different
+                    ceiling per population — see shared/assessmentLimits.ts:
+                      org student  -> the school's allocation (SCHOOL_ALLOCATIONS_PER_STUDENT)
+                      free account -> the anti-abuse cap (FREE_ASSESSMENT_CAP)
+                      premium      -> NEITHER. Their bound is purchasedLicenses, a
+                                      consumable already shown as purchased/used/
+                                      remaining above. A denominator here would
+                                      either duplicate that or contradict it, since
+                                      this count includes free completions and the
+                                      licence count deliberately does not.
+                    An org admin never reaches this block (it is inside
+                    !isOrgAdmin && !isSuperadmin); their figure is a roll-up of
+                    their students' completions, which has no per-person ceiling.
+
+                    `completed`, NOT `count`: `count` is i18next's reserved plural
+                    selector. It resolves correctly today only by falling back to
+                    the unsuffixed key, and would silently start selecting forms the
+                    moment anyone added completedOf_one — in Arabic, six of them.
+                    SuperadminDashboard's own completedOf already avoids it. */}
                 <div className="flex items-center justify-between mb-6 pb-4 border-b">
                   <p className="text-sm text-muted-foreground">{t("assessment.completed")}</p>
                   <p className="font-bold text-2xl text-green-600" data-testid="text-completed-assessments-count">
-                    {individualCompletedAssessments}
+                    {isOrgStudent
+                      ? t("assessment.completedOf", {
+                          completed: individualCompletedAssessments,
+                          cap: SCHOOL_ALLOCATIONS_PER_STUDENT,
+                        })
+                      : !user.isPremium
+                        ? t("assessment.completedOf", {
+                            completed: individualCompletedAssessments,
+                            cap: FREE_ASSESSMENT_CAP,
+                          })
+                        : individualCompletedAssessments}
                   </p>
                 </div>
                 {assessments.length === 0 ? (

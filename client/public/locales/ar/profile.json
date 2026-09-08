@@ -6,12 +6,11 @@
   "title": "ملفي الشخصي",
   "subtitle": "إدارة حسابك وعرض تقدمك",
   "account": {
-    "title": "صاحب الحساب",
+    "title": "معلوماتي",
     "name": "الاسم",
     "email": "البريد الإلكتروني",
     "username": "اسم المستخدم",
     "school": "المدرسة",
-    "grade": "الصف",
     "organization": "المؤسسة",
     "accountType": "نوع الحساب",
     "lastLogin": "آخر تسجيل دخول",
@@ -25,10 +24,9 @@
     }
   },
   "details": {
-    "title": "بيانات التقييم",
-    "subtitleAssessment": "من تقييمك الأخير",
-    "subtitleSchool": "من سجلات مدرستك",
-    "name": "الاسم",
+    "studentName": "الطالب",
+    "sourceAssessment": "تفاصيل التقييم مأخوذة من آخر تقييم لك.",
+    "sourceSchool": "تفاصيل التقييم مأخوذة من سجلات مدرستك.",
     "age": "العمر",
     "grade": "الصف",
     "gender": "الجنس",
@@ -79,7 +77,8 @@
     "continueAssessment": "مواصلة التقييم",
     "viewReport": "عرض التقرير",
     "viewJourney": "عرض الرحلة المهنية",
-    "assessment": "تقييم"
+    "assessment": "تقييم",
+    "completedOf": "{{completed}} من {{cap}}"
   },
   "organization": {
     "title": "إدارة المؤسسة",

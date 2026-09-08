@@ -6,12 +6,11 @@
   "title": "My Profile",
   "subtitle": "Manage your account and view your progress",
   "account": {
-    "title": "Account Holder",
+    "title": "My Information",
     "name": "Name",
     "email": "Email",
     "username": "Username",
     "school": "School",
-    "grade": "Grade",
     "organization": "Organization",
     "accountType": "Account Type",
     "lastLogin": "Last login",
@@ -25,10 +24,9 @@
     }
   },
   "details": {
-    "title": "Assessment Details",
-    "subtitleAssessment": "From your latest assessment",
-    "subtitleSchool": "From your school's records",
-    "name": "Name",
+    "studentName": "Student",
+    "sourceAssessment": "Assessment details come from your latest assessment.",
+    "sourceSchool": "Assessment details come from your school's records.",
     "age": "Age",
     "grade": "Grade",
     "gender": "Gender",
@@ -79,7 +77,8 @@
     "continueAssessment": "Continue Your Assessment",
     "viewReport": "View Report",
     "viewJourney": "View Career Journey",
-    "assessment": "Assessment"
+    "assessment": "Assessment",
+    "completedOf": "{{completed}} of {{cap}}"
   },
   "organization": {
     "title": "Organization Management",
