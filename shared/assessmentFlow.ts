@@ -24,21 +24,19 @@
  */
 export const SPINE_STEP_IDS = ['basicInfo', 'country', 'subjects', 'quiz'] as const;
 
-/** FREE: spine → Interests → Aspirations → Results. No RIASEC, no CVQ. */
+/** FREE: spine → Interests → Aspirations. No RIASEC, no CVQ. */
 export const FREE_STEP_IDS = [
   ...SPINE_STEP_IDS,
   'interests',
   'aspirations',
-  'results',
 ] as const;
 
-/** PREMIUM: spine → RIASEC → CVQ → Aspirations → Results. No Interests. */
+/** PREMIUM: spine → RIASEC → CVQ → Aspirations. No Interests. */
 export const PREMIUM_STEP_IDS = [
   ...SPINE_STEP_IDS,
   'careerPersonality',
   'personalValues',
   'aspirations',
-  'results',
 ] as const;
 
 export type StepId = (typeof FREE_STEP_IDS)[number] | (typeof PREMIUM_STEP_IDS)[number];
@@ -48,17 +46,34 @@ export function stepIdsForTier(isPremium: boolean): readonly StepId[] {
 }
 
 /**
- * Total steps shown to the student: 7 free, 8 premium.
+ * Total steps shown to the student: 6 free, 7 premium.
  *
- * This COUNTS 'results', which Assessment.tsx does not render — completion
- * redirects to /results. Counting it is what makes the two tiers agree: before
- * Phase 3 both were hardcoded to 7, but premium's 7 excluded Results while
- * free's 7 included a "Results" label on what was actually the Quiz.
+ * NO LONGER COUNTS 'results', and this reverses a deliberate earlier decision,
+ * so the reasoning on both sides is worth keeping.
  *
- * Consequence, and it is intended: the progress bar reads 6-of-7 (free) and
- * 7-of-8 (premium) on the Aspirations step rather than 100%. The student is not
- * finished there — generation still has to run — so claiming 100% was the less
- * honest reading.
+ * 'results' was included because Phase 3 needed the two tiers to agree — before
+ * it, both were hardcoded to 7, but premium's 7 excluded Results while free's 7
+ * included a "Results" label on what was actually the Quiz. Counting it fixed
+ * that, and had a second effect the old docstring recorded as intended: the bar
+ * read 6-of-7 rather than 100% on Aspirations, so it did not claim the student
+ * was finished while report generation still had to run.
+ *
+ * BOTH REASONS SURVIVE THE REMOVAL, which is why it is safe to reverse.
+ * The tiers still agree, because the mismatch was never about Results — it was
+ * about which steps each tier actually rendered, and one list derived everywhere
+ * is what fixed that. And the honest bar is preserved directly, in the one place
+ * that draws it: ProgressTracker now divides by totalSteps rather than
+ * totalSteps - 1, which is arithmetically identical at every step to the old
+ * formula over the old count, and reaches 100% only on a step this page never
+ * shows.
+ *
+ * WHY REVERSE IT AT ALL. 'results' is not a step. The stepper unmounts the
+ * moment generation completes and the student is navigated to /results, so it
+ * counted a position the student can never occupy and told them "Step 6 of 7"
+ * on the last thing they will ever do here. The final button already says "Get
+ * My Report", which is honest about that. Using the step count to smuggle in a
+ * statement about generation progress was the part that did not belong: the
+ * step list describes screens, and generation is not one.
  */
 export function totalStepsForTier(isPremium: boolean): number {
   return stepIdsForTier(isPremium).length;

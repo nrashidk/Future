@@ -21,10 +21,17 @@ import {
 } from './assessmentFlow';
 
 describe('the free step order (L3)', () => {
-  it('is Basic, Country, Subjects, Quiz, Interests, Aspirations, Results', () => {
+  it('is Basic, Country, Subjects, Quiz, Interests, Aspirations', () => {
     expect([...FREE_STEP_IDS]).toEqual([
-      'basicInfo', 'country', 'subjects', 'quiz', 'interests', 'aspirations', 'results',
+      'basicInfo', 'country', 'subjects', 'quiz', 'interests', 'aspirations',
     ]);
+  });
+
+  it('does not contain Results — it is a page, not a step', () => {
+    // The stepper unmounts when generation completes and the student is
+    // navigated to /results, so counting it named a position nobody can occupy.
+    expect(FREE_STEP_IDS).not.toContain('results');
+    expect(PREMIUM_STEP_IDS).not.toContain('results');
   });
 
   it('no longer contains a Personality step', () => {
@@ -54,10 +61,10 @@ describe('the free step order (L3)', () => {
 });
 
 describe('the premium step order is unchanged', () => {
-  it('is Basic, Country, Subjects, Quiz, RIASEC, CVQ, Aspirations, Results', () => {
+  it('is Basic, Country, Subjects, Quiz, RIASEC, CVQ, Aspirations', () => {
     expect([...PREMIUM_STEP_IDS]).toEqual([
       'basicInfo', 'country', 'subjects', 'quiz',
-      'careerPersonality', 'personalValues', 'aspirations', 'results',
+      'careerPersonality', 'personalValues', 'aspirations',
     ]);
   });
 
@@ -88,11 +95,13 @@ describe('the shared 4-step spine (L2)', () => {
 });
 
 describe('Aspirations is always the last input step (L3)', () => {
-  it('is immediately before Results in both tiers', () => {
+  it('is the last entry in both tiers', () => {
+    // Was "immediately before Results". Results is no longer a step, so the last
+    // input step is now literally the last one — which is the property L3 was
+    // always describing, with the phantom entry removed from in front of it.
     for (const isPremium of [false, true]) {
       const ids = stepIdsForTier(isPremium);
-      expect(ids[ids.length - 1]).toBe('results');
-      expect(ids[ids.length - 2]).toBe('aspirations');
+      expect(ids[ids.length - 1]).toBe('aspirations');
     }
   });
 
@@ -103,9 +112,17 @@ describe('Aspirations is always the last input step (L3)', () => {
 });
 
 describe('step counts', () => {
-  it('is 7 free and 8 premium, both counting Results', () => {
-    expect(totalStepsForTier(false)).toBe(7);
-    expect(totalStepsForTier(true)).toBe(8);
+  it('is 6 free and 7 premium, neither counting Results', () => {
+    expect(totalStepsForTier(false)).toBe(6);
+    expect(totalStepsForTier(true)).toBe(7);
+  });
+
+  it('ends each tier on its last input step', () => {
+    // The property that makes the count honest: the final step number IS the
+    // total, so "Step 6 of 6" is the last thing a free student does here rather
+    // than "Step 6 of 7" with a seventh they can never reach.
+    expect(finalInputStep(false)).toBe(totalStepsForTier(false));
+    expect(finalInputStep(true)).toBe(totalStepsForTier(true));
   });
 
   it('no longer reports the same total for both tiers', () => {
@@ -201,8 +218,4 @@ describe('deriveFreeResumeStep — free resume ignores the stored step', () => {
     }
   });
 
-  it('never returns the Results step', () => {
-    // Results is a separate page; resuming "into" it would be meaningless.
-    expect(deriveFreeResumeStep(complete)).not.toBe(stepNumberOf(false, 'results'));
-  });
 });

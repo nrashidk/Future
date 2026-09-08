@@ -45,7 +45,24 @@ export function ProgressTracker({ currentStep, totalSteps, isPremiumFlow = false
     current: i + 1 === currentStep,
   }));
 
-  const progress = ((currentStep - 1) / (totalSteps - 1)) * 100;
+  // STEPS FINISHED, not steps entered — divided by totalSteps, not totalSteps - 1.
+  //
+  // On the final step the student has completed every step before it and is
+  // partway through this one, so the honest reading is (n-1)/n, not 100%. The
+  // old divisor reached 100% the moment they arrived at the last screen, while
+  // the report they came for still had to be generated.
+  //
+  // This is not a cap and not a magic constant: it is ARITHMETICALLY IDENTICAL,
+  // at every step, to the old formula over the old step count. The step list
+  // used to carry a phantom 'results' entry precisely to keep the bar honest, so
+  // totalSteps was one larger and (currentStep-1)/(totalSteps_old-1) is exactly
+  // (currentStep-1)/totalSteps_new. Dropping the phantom step therefore changed
+  // no percentage anywhere — it only stopped the stepper counting a screen the
+  // student can never stand on.
+  //
+  // The bar consequently never reads 100% on this page, which is correct:
+  // finishing the last step navigates to /results and unmounts this component.
+  const progress = ((currentStep - 1) / totalSteps) * 100;
 
   return (
     <div className="w-full max-w-6xl mx-auto px-4 py-6">
