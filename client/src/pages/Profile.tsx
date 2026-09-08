@@ -475,11 +475,31 @@ export default function Profile() {
 
             if (!demoName && !demoAge && !demoGrade && !demoGender) return null;
 
+            // NAME THE SOURCE RATHER THAN GENERALISE OVER IT. The caption used to
+            // read "Your profile from your latest assessment" in both cases, and
+            // was false in one of them: an org student who has not taken an
+            // assessment sees this block populated entirely from their school's
+            // member row, under a sentence crediting an assessment they have not
+            // taken.
+            //
+            // The two sources are exhaustive because of the commit before this
+            // one. demoName now reads predefinedName rather than the account
+            // holder's name, so there is no third "from the account itself" case
+            // to describe — and a viewer with neither source has all four values
+            // null and never reaches this return.
+            //
+            // Keyed on latestAssessment rather than on the values: if an
+            // assessment exists it is what supplied them, and the ?? fallbacks
+            // only fire when it does not.
+            const detailsSource = latestAssessment
+              ? t("details.subtitleAssessment")
+              : t("details.subtitleSchool");
+
             return (
               <div>
                 <div className="mb-4 text-center">
                   <h2 className="text-xl font-bold">{t("details.title")}</h2>
-                  <p className="text-sm text-muted-foreground">{t("details.subtitle")}</p>
+                  <p className="text-sm text-muted-foreground" data-testid="text-details-source">{detailsSource}</p>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <StickyNote color="yellow" rotation="-1">

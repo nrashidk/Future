@@ -6,7 +6,7 @@
   "title": "My Profile",
   "subtitle": "Manage your account and view your progress",
   "account": {
-    "title": "Account Information",
+    "title": "Account Holder",
     "name": "Name",
     "email": "Email",
     "username": "Username",
@@ -25,8 +25,9 @@
     }
   },
   "details": {
-    "title": "My Details",
-    "subtitle": "Your profile from your latest assessment",
+    "title": "Assessment Details",
+    "subtitleAssessment": "From your latest assessment",
+    "subtitleSchool": "From your school's records",
     "name": "Name",
     "age": "Age",
     "grade": "Grade",

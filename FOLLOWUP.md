@@ -1736,6 +1736,24 @@ whether to land a single BRAND_NAME in shared/ first.
 Separately and more urgently: the sending domain does not match the site — see the FROM_EMAIL
 item. First flagged 2026-09-08.
 
+Extended again 2026-09-08: four more profile.json keys for the two profile block headings and
+their captions — account.title, details.title, details.subtitleAssessment,
+details.subtitleSchool. STUDENT-FACING: a school student reads all four on their own profile.
+
+Two checkable points:
+
+  1. THE PAIR MUST READ AS A CONTRAST. «صاحب الحساب» (Account Holder) and «بيانات التقييم»
+     (Assessment Details) exist to tell a reader that the two blocks are about possibly
+     DIFFERENT PEOPLE — a guardian who registered the account, and the student the assessment
+     is about. If the Arabic pair reads as two views of one person the headings have failed at
+     their only job, and the failure is invisible: both blocks still look correct alone.
+  2. «من سجلات مدرستك» ("from your school's records") is shown to a student whose school
+     supplied their name, grade, age and gender. Confirm سجلات is the right word for an
+     administrative record rather than an academic transcript, and that the sentence does not
+     read as though the school is grading them. It is a provenance note, not a judgement.
+
+First flagged 2026-09-08.
+
 ### Password reset is dead in production — RESEND_API_KEY unset, then FROM_EMAIL points off-domain  (severity: HIGH → MEDIUM, key set 2026-09-08, flow still unverified)
 Render boot log, 2026-09-08:
 
