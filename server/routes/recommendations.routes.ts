@@ -256,12 +256,31 @@ export function registerRecommendationsRoutes(app: Express) {
       // Fetch CVQ result for premium users (needed for enhanced narratives)
       const cvqResult = isPremium && assessmentId ? await storage.getCvqResultByAssessmentId(assessmentId) : null;
 
-      // Resolve narrative language: an explicit ?lang= query param takes
-      // priority (used by the PDF renderer so the report language matches the
-      // download language), falling back to the user's stored preference.
+      // Resolve narrative language. THIS MUST AGREE WITH isArabic ABOVE — they
+      // are the same question asked twice in one handler, and they used to answer
+      // it from different sources: isArabic reads ?lang= then Accept-Language,
+      // while this read ?lang= then the user's STORED preference and never looked
+      // at the header at all.
+      //
+      // The gap was visible. A signed-in student reading the report in Arabic
+      // sends Accept-Language: ar (queryClient sets it from the language toggle)
+      // but may have no stored preferredLanguage, because it is only persisted
+      // when the toggle is used while signed in and the PATCH that saves it is
+      // fire-and-forget. isArabic was then true and this was "en": the careers,
+      // skills and reasoning around the student came back Arabic while the
+      // generated action steps — which read narrativeContext.language — came back
+      // English, inside the same card. That is the "English sentences inside the
+      // Arabic report" symptom, and it needed no missing translation to produce.
+      //
+      // Order: explicit ?lang= wins (the PDF renderer sets it so the download
+      // language is honoured), then the live request signal, then the stored
+      // default. The header is preferred over the stored value deliberately — it
+      // is what the reader chose in the UI they are looking at right now, where
+      // the stored value is a default that may predate that choice.
       const langOverride = typeof req.query.lang === 'string' ? req.query.lang : null;
-      let narrativeLanguage = (langOverride === 'ar' || langOverride === 'en') ? langOverride : "en";
-      if (!langOverride && assessment?.userId) {
+      let narrativeLanguage: string =
+        (langOverride === 'ar' || langOverride === 'en') ? langOverride : (isArabic ? 'ar' : 'en');
+      if (!langOverride && !acceptLang.startsWith('ar') && !acceptLang.startsWith('en') && assessment?.userId) {
         const narrativeUser = await storage.getUser(assessment.userId);
         narrativeLanguage = narrativeUser?.preferredLanguage || "en";
       }
