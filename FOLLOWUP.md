@@ -1922,3 +1922,43 @@ one token maps to exactly one row. A guest who completes two assessments has bot
 localStorage but only the later token in the cookie — the earlier row's token exists nowhere
 and it can never be claimed. Reusing the existing cookie at create time would fix it, but that
 widens what a single token authorizes and is a separate decision. First flagged 2026-09-08.
+
+### CONSTRAINT — student date of birth never leaves the school boundary  (standing rule, not a finding)
+NOT SOMETHING TO CLOSE. This is a rule to check new work against, recorded here because the
+analysis behind it (docs/v2-phase4-step4-recon.md §6, tracked as of 2026-09-08) is a set of
+decisions NOT to add something, and a decision not to add something leaves no code to comment.
+
+THE RULE: date of birth is stored, is visible to the school that entered it, and never crosses
+that boundary. Everything downstream carries DERIVED AGE only.
+
+Why DOB and not age: DOB is a standing identifier, is a common knowledge-based-authentication
+factor, and combined with a name and a school substantially narrows a real child. An age is a
+bounded integer that ages out. The whole reason student_age was replaced by date_of_birth
+(migrations 015-017) was accuracy at assessment time, not a decision to circulate birth dates.
+
+The surfaces this governs, and what each may carry:
+
+- GET /api/admin/organizations/:id/members — MAY carry DOB. The one place it legitimately
+  belongs: the school typed the value and the edit form prefills from this response. The
+  explicit column allowlist there is what makes including it a decision rather than an
+  accident; keep the allowlist.
+- The members table UI — derived age, or nothing. A DOB column puts every student's birth date
+  on one screen, which is the shape that leaks by screenshot and screen-share.
+- GET /api/auth/user — THE CHOKE POINT. It sends predefined* fields to the STUDENT'S OWN
+  BROWSER, and orgMember there is the full row, so DOB arrives automatically and must be
+  dropped deliberately. Send predefinedAge, derived. There must never be a predefinedDob. A
+  one-line slip here puts a minor's birth date in a JSON response any XSS or shared screen can
+  read. auth.routes.ts carries this rule as a comment; that comment is load-bearing.
+- JSON export POST .../export-students — derived age, not DOB. This file leaves the system: it
+  is downloaded, emailed and dropped in shared drives. If DOB in an export is ever genuinely
+  needed, that is a separate decision with its own approval, not a side effect of a schema
+  change.
+- Credential CSVs — no DOB. These carry plaintext passwords and have the shortest path to being
+  forwarded.
+- Report and PDF — derived age only. The PDF is the parent-shareable artifact; a birth date
+  must never appear on it.
+- Analytics — no age dimension exists today. A DOB-derived age dimension would be a new
+  personal-data flow needing its own decision, not an extension of an existing one.
+
+Related and separately tracked: the subject-access export gap above, which does not read
+organization_members at all — the same table this constraint governs. Recorded 2026-09-08.
