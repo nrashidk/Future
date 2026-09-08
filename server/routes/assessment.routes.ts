@@ -648,20 +648,81 @@ export function registerAssessmentRoutes(app: Express) {
     }
   });
 
+  /**
+   * Claim a guest's assessments into the account they just created.
+   *
+   * READS THE COOKIE, NOT THE BODY, and that is the whole fix. This used to
+   * require `guestSessionId` in the request body and 400 without it — a value
+   * the client is STRUCTURALLY FORBIDDEN from holding, because the token is set
+   * httpOnly (:327) and deliberately withheld from the create response (:335).
+   * Both of those are correct: an httpOnly token cannot be stolen by XSS. The
+   * contract was the wrong half. AuthCallback read the id from a localStorage
+   * key that nothing has ever written, so the condition guarding this call was
+   * never true and the claim had never once run.
+   *
+   * `req.cookies.guest_token` is what every other guest-authorized route already
+   * reads (:385, :433, recommendations.routes.ts) — this was the only guest path
+   * in the codebase looking in the body.
+   *
+   * STILL FAILS CLOSED. The cookie is presented, not asserted: the browser sends
+   * it because it was set on this origin, and storage.migrateGuestAssessments
+   * re-verifies every id against it server-side, refusing any row that already
+   * has an owner. A caller cannot claim another user's assessment by guessing an
+   * id, and cannot claim anything at all without holding the token that created
+   * it.
+   */
   app.post("/api/assessments/migrate", isAuthenticated, async (req: any, res) => {
     try {
-      const { guestAssessmentIds, guestSessionId } = req.body;
+      const { guestAssessmentIds } = req.body;
       const userId = req.user.userId;
 
       if (!Array.isArray(guestAssessmentIds) || guestAssessmentIds.length === 0) {
         return res.status(400).json({ message: "No assessments to migrate" });
       }
 
-      if (!guestSessionId) {
-        return res.status(400).json({ message: "Guest session ID required for migration" });
+      const guestToken = req.cookies?.guest_token;
+      if (!guestToken) {
+        return res.status(400).json({ message: "No guest session to migrate from" });
       }
 
-      const migratedCount = await storage.migrateGuestAssessments(guestAssessmentIds, userId, guestSessionId);
+      const migratedCount = await storage.migrateGuestAssessments(guestAssessmentIds, userId, guestToken);
+
+      // CLEAR THE COOKIE ONLY WHEN SOMETHING WAS ACTUALLY CLAIMED.
+      //
+      // A claimed row now has a userId, so the guest branch of the ownership gate
+      // (recommendations.routes.ts) no longer applies to it — but the cookie
+      // would still be presented on every subsequent request, and leaving a live
+      // token for a row that has an owner is a credential outliving its purpose.
+      //
+      // PARTIAL SUCCESS IS THE NORMAL CASE, NOT AN EDGE CASE, so this is
+      // deliberately `> 0` and not `=== guestAssessmentIds.length`. A fresh token
+      // is minted per guest assessment (:186 — the create path never reuses an
+      // existing cookie) and res.cookie overwrites the previous one, so one token
+      // matches exactly one row while localStorage accumulates the ids of every
+      // guest assessment this browser has ever seen. A guest who did two
+      // assessments sends two ids and can only ever claim the newer: the older
+      // one's token was overwritten in the browser and is unrecoverable. Requiring
+      // a full match would therefore leave the cookie live forever for anyone with
+      // more than one, which is the opposite of what this clear is for.
+      //
+      // Nothing is lost by clearing on a partial claim. The ids that did not
+      // migrate were never claimable with THIS token — they carry different ones —
+      // so the cookie was not their access path either.
+      //
+      // Zero claimed means the cookie matched nothing. It is left alone on
+      // purpose: it may still be the only thing authorizing a report the user can
+      // currently read, and destroying that access while granting no ownership in
+      // exchange would take a report away rather than save one.
+      //
+      // Flags must mirror the ones at :326-333 or the browser keeps the cookie.
+      if (migratedCount > 0) {
+        res.clearCookie("guest_token", {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "strict",
+          path: "/",
+        });
+      }
 
       res.json({ 
         success: true, 

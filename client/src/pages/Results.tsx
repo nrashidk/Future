@@ -28,7 +28,7 @@ import {
   Loader2,
   User
 } from "lucide-react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { COMPONENT_BREAKDOWN_META, type ComponentBreakdownEntry } from "@/lib/componentBreakdown";
@@ -378,19 +378,11 @@ export default function Results() {
     }
   }, [recommendations, isAuthenticated]);
 
-  const migrateMutation = useMutation({
-    mutationFn: async () => {
-      const guestAssessmentIds = JSON.parse(localStorage.getItem("guestAssessments") || "[]");
-      return await apiRequest("POST", "/api/assessments/migrate", { guestAssessmentIds });
-    },
-    onSuccess: (data: any) => {
-      toast({
-        title: t('migrateSuccessTitle'),
-        description: t('migrateSuccessDesc'),
-      });
-      localStorage.removeItem("guestAssessments");
-    },
-  });
+  // NO migrateMutation HERE. One was declared and never invoked — no .mutate()
+  // call existed anywhere — while implying a second, working claim path beside
+  // AuthCallback's. It also omitted the session id the endpoint then required,
+  // so it would have 400'd had anything called it. The claim happens once, in
+  // AuthCallback, on the way back from signing up.
 
   const handleDownloadPDF = async () => {
     // In-flight guard: a second click while a generation is running would spawn
