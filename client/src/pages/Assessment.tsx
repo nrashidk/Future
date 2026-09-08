@@ -107,8 +107,39 @@ export default function Assessment() {
 
   const isPremiumUser = user?.isPremium || false;
 
-  // True when the student has started filling in data and hasn't finished yet
-  const isInProgress = currentStep > 1 && !resumePrompt;
+  // THE TERMINAL SCREENS. Each of the three is rendered INSTEAD of the form by an
+  // early return further down, and each is a dead end with nothing to save: the
+  // student cannot enter anything on any of them. They are hoisted to here, above
+  // the guards, so the guards and the returns read the same booleans instead of
+  // restating the conditions — the failure this had was exactly that drift.
+  //
+  // `=== true` on isOrgStudent, and !availLoading, to match the early returns:
+  // isOrgStudent is three-state (undefined while auth is unresolved), and the
+  // availLoading spinner returns above both branches, so without those two a
+  // student we have not identified yet would be counted as sitting on the lock.
+  const showsPollingScreen = isPollingForResults;
+  const showsSchoolDataIncomplete =
+    isOrgStudent === true && !availLoading && schoolDataIncomplete && hasAvailable && !hasInProgress;
+  const showsCompletionLock =
+    isOrgStudent === true && !availLoading && !hasAvailable && !hasInProgress;
+  const isOnTerminalScreen = showsPollingScreen || showsSchoolDataIncomplete || showsCompletionLock;
+
+  // True when the student has started filling in data and hasn't finished yet.
+  //
+  // isOnTerminalScreen IS LOAD-BEARING, and it is what this condition was missing.
+  // currentStep is component state that nothing resets when the page switches to
+  // a terminal screen, so `currentStep > 1` outlives the form: on the completion
+  // lock in particular it stays at the final step while the screen behind it says
+  // the assessment is already finished. Everything downstream is armed off this
+  // one boolean, and the visible symptom was the browser's own "Leave site?"
+  // dialog on logout from that screen — Header's logout is a plain
+  // `window.location.href = "/api/logout"` (Header.tsx:99) that never reaches
+  // Guard 4, so beforeunload was the only thing that could have raised it.
+  //
+  // Asking "is the student looking at the form" rather than "is the step number
+  // greater than one" is the fix; the step number is a proxy that was only ever
+  // right by accident.
+  const isInProgress = currentStep > 1 && !resumePrompt && !isOnTerminalScreen;
 
   // Guard 1 — hard navigations (refresh, tab-close, address-bar, external link, full-page redirect)
   useEffect(() => {
@@ -760,7 +791,7 @@ export default function Assessment() {
   }
 
   // Shown when the page is reloaded mid-generation: poll until results arrive.
-  if (isPollingForResults) {
+  if (showsPollingScreen) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5">
         <div className="text-center space-y-6 px-4 max-w-md mx-auto">
@@ -827,7 +858,7 @@ export default function Assessment() {
   // break again the first time someone reorders two adjacent early returns. The
   // condition says what this screen is actually for: a student who has an
   // assessment to start, and cannot start it yet.
-  if (isOrgStudent && schoolDataIncomplete && hasAvailable && !hasInProgress) {
+  if (showsSchoolDataIncomplete) {
     return (
       <PageLayout variant="gradient">
         <div className="flex items-center justify-center px-4 py-12 min-h-[calc(100vh-12rem)]">
@@ -848,7 +879,7 @@ export default function Assessment() {
   // LOCKED: org_student who has used their one allocation and has nothing in
   // progress. Individuals/guests (isOrgStudent === false) and mid-assessment or
   // fresh students never reach this branch.
-  if (isOrgStudent && !hasAvailable && !hasInProgress) {
+  if (showsCompletionLock) {
     return (
       <PageLayout variant="gradient">
         <div className="flex items-center justify-center px-4 py-12 min-h-[calc(100vh-12rem)]">
