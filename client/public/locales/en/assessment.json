@@ -12,6 +12,12 @@
     "orgStudentBody": "You've used your assessment license. To take another, please contact your school administrator to request an additional license.",
     "viewReport": "View your report"
   },
+  "freeCap": {
+    "title": "You've used your free assessments",
+    "body": "Free accounts can complete up to {{cap}} assessments. Your reports are saved and you can revisit them any time.",
+    "viewReports": "View your reports",
+    "upgrade": "Need another assessment? See your options"
+  },
   "resume": {
     "title": "Welcome back!",
     "subtitle": "You have an assessment in progress at step {{step}} of {{total}}.",

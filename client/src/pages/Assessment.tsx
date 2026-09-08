@@ -18,6 +18,7 @@ import type { Assessment as AssessmentRecord } from "@shared/schema";
 import { useAssessmentAvailability } from "@/hooks/useAssessmentAvailability";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { deriveFreeResumeStep, finalInputStep, totalStepsForTier } from "@shared/assessmentFlow";
+import { FREE_ASSESSMENT_CAP } from "@shared/assessmentLimits";
 
 // v2 — Phase 3 renumbered the FREE step order (Country and Interests swapped
 // sides of the Quiz; Personality was removed). A v1 draft encodes the OLD
@@ -84,6 +85,7 @@ export default function Assessment() {
     hasAvailable,
     hasInProgress,
     completedReportId,
+    isFreeCapReached,
   } = useAssessmentAvailability();
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
@@ -128,16 +130,18 @@ export default function Assessment() {
   // declining to fix it by flipping the column. Anyone who applies that same
   // reasoning to the decoration removes the only signal this page had that a
   // school student is on the premium flow, and every failure that follows is
-  // silent: a 7-step assessment, no RIASEC, no CVQ, and — before any of that —
-  // a redirect to /tier-selection offering to sell a licence the school bought.
+  // silent: a 7-step assessment, no RIASEC, no CVQ. It used to be worse — a
+  // wrong answer here also redirected the student to /tier-selection, offering
+  // to sell a licence their school had already bought — but that redirect is
+  // gone now that free accounts may take the assessment, so the cost of a miss
+  // is a wrong FLOW rather than an ejection from the page.
   // Membership is the durable fact, and is now read alongside the flag.
   //
   // `=== true`, not truthiness, because isOrgStudent is three-state (15203ec):
   // undefined while auth is unresolved. Unknown falls through to isPremiumUser,
-  // which is the free flow for an unidentified caller — the right direction,
-  // and it matters most at the routing guard, where the wrong answer takes the
-  // student off the page entirely. In practice the guard is also gated on
-  // !isLoading, so it never observes the undefined window.
+  // which is the free flow for an unidentified caller — still the right
+  // direction: it now shows the free step order rather than removing the student
+  // from the page, and it self-corrects on the next render.
   const isPremiumFlow = isPremiumUser || isOrgStudent === true;
 
   // THE TERMINAL SCREENS. Each of the three is rendered INSTEAD of the form by an
@@ -155,7 +159,21 @@ export default function Assessment() {
     isOrgStudent === true && !availLoading && schoolDataIncomplete && hasAvailable && !hasInProgress;
   const showsCompletionLock =
     isOrgStudent === true && !availLoading && !hasAvailable && !hasInProgress;
-  const isOnTerminalScreen = showsPollingScreen || showsSchoolDataIncomplete || showsCompletionLock;
+  // FREE ACCOUNT AT THE CAP. Its own full condition, not a fallthrough from the
+  // branch above: the :904 comment on that one records why stating the condition
+  // beats relying on branch order, and this screen is the case that would break
+  // first if it were reordered. isOrgStudent === false excludes school students
+  // (who get the allocation lock, different copy, different remedy) and the
+  // undefined window; isFreeCapReached is already false for premium accounts.
+  //
+  // !hasInProgress for the same reason the allocation lock carries it: a draft
+  // started under the cap can still be finished. The server agrees — the
+  // generation guard counts assessments OTHER than the one being generated, so
+  // an in-flight assessment is never blocked by its own existence.
+  const showsFreeCapReached =
+    isOrgStudent === false && !availLoading && isFreeCapReached && !hasInProgress;
+  const isOnTerminalScreen =
+    showsPollingScreen || showsSchoolDataIncomplete || showsCompletionLock || showsFreeCapReached;
 
   // True when the student has started filling in data and hasn't finished yet.
   //
@@ -278,10 +296,14 @@ export default function Assessment() {
   }));
 
   // Guest mode is driven by `?guest=true` (set by the Landing CTAs). Gated on
-  // !isAuthenticated so an authenticated visitor arriving with the param still
-  // follows the normal authenticated routing below: `isGuest` suppresses the
-  // non-premium redirect to /tier-selection, and lifting that block for free
-  // accounts is Phase 5 (Bug #7), not this change.
+  // !isAuthenticated so an authenticated visitor arriving with the param is
+  // treated as the account they are signed into rather than as a guest — their
+  // work belongs to that account, and a guest row would strand it under a token.
+  //
+  // `isGuest` used to carry a second job: suppressing the non-premium redirect
+  // to /tier-selection. That redirect is gone (free accounts may take the
+  // assessment, capped at FREE_ASSESSMENT_CAP), so this flag no longer decides
+  // who may be on the page — only how their work is attributed.
   useEffect(() => {
     if (isLoading) return;
     const params = new URLSearchParams(window.location.search);
@@ -476,17 +498,21 @@ export default function Assessment() {
     } catch {}
   }, [assessmentId, currentStep, assessmentData]);
 
-  // Routing guard: redirect an authenticated viewer who is not on the premium
-  // flow to tier selection. isPremiumFlow, not isPremiumUser: an org student's
-  // school has already bought the licence, so this must never offer to sell them
-  // one. It reads the same for them today either way — see :137 — and this is
-  // the site where a wrong answer costs the most, because it removes the student
-  // from the page before any of the tier branches below can be reached.
-  useEffect(() => {
-    if (!isLoading && isAuthenticated && !isPremiumFlow && !isGuest) {
-      setLocation("/tier-selection");
-    }
-  }, [isLoading, isAuthenticated, isPremiumFlow, isGuest, setLocation]);
+  // NO ROUTING GUARD HERE, DELIBERATELY. This used to redirect an authenticated
+  // non-premium, non-guest viewer to /tier-selection. Free accounts may now take
+  // the assessment, capped at FREE_ASSESSMENT_CAP completions, so the redirect is
+  // gone rather than rewritten.
+  //
+  // It was wrong in every context it fired — after signup, after a password
+  // reset, after login — and the password-reset case is the one that shows why:
+  // a user who had just recovered their account was answered with a pricing
+  // page. A cap is not a paywall, and the difference is what the user is shown
+  // when they reach it. That is showsFreeCapReached above, which renders a
+  // terminal screen pointing at the reports they already have.
+  //
+  // The free-tier ceiling is NOT enforced from here. Client-side routing is not
+  // a control: the authoritative guards are the create check in
+  // assessment.routes.ts and the generation check in recommendations.routes.ts.
 
   // Smart skip logic: Auto-populate demographics and skip to Subjects if all fields pre-filled
   useEffect(() => {
@@ -954,6 +980,40 @@ export default function Assessment() {
                 <a href={`/results?assessmentId=${completedReportId}`}>{t("lock.viewReport")}</a>
               </Button>
             )}
+          </div>
+        </div>
+      </PageLayout>
+    );
+  }
+
+  // FREE ACCOUNT AT THE CAP. Deliberately NOT a redirect to pricing — that is the
+  // behaviour this change removes. The primary action is the reports they
+  // already have; the upsell is secondary and phrased as more assessments, not
+  // as the only way out of this screen.
+  if (showsFreeCapReached) {
+    return (
+      <PageLayout variant="gradient">
+        <div className="flex items-center justify-center px-4 py-12 min-h-[calc(100vh-12rem)]">
+          <div className="max-w-md w-full text-center space-y-6 rounded-xl p-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10">
+              <ClipboardCheck className="w-8 h-8 text-primary" />
+            </div>
+            <div className="space-y-2">
+              <h1 className="text-4xl md:text-5xl font-bold">{t("freeCap.title")}</h1>
+              <p className="text-lg text-muted-foreground">
+                {t("freeCap.body", { cap: FREE_ASSESSMENT_CAP })}
+              </p>
+            </div>
+            <div className="space-y-3">
+              <Button asChild size="lg" className="w-full text-lg px-8 py-6 rounded-full shadow-xl" data-testid="button-free-cap-view-reports">
+                <a href={completedReportId ? `/results?assessmentId=${completedReportId}` : "/profile"}>
+                  {t("freeCap.viewReports")}
+                </a>
+              </Button>
+              <Button asChild variant="ghost" size="sm" className="w-full" data-testid="link-free-cap-upgrade">
+                <a href="/tier-selection">{t("freeCap.upgrade")}</a>
+              </Button>
+            </div>
           </div>
         </div>
       </PageLayout>

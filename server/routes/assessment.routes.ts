@@ -10,6 +10,7 @@ import { validatePromptInputFields } from "../utils/assessmentValidation";
 import { sanitizeRequestBody } from "../utils/sanitize";
 import { printTokenAuthorizes } from "../utils/printToken";
 import { ageOnDate, toDateOnlyString } from "@shared/dateOfBirth";
+import { FREE_ASSESSMENT_CAP, isFreeTierCapReached } from "@shared/assessmentLimits";
 
 /**
  * Normalize assessment payload before validation
@@ -305,6 +306,38 @@ export function registerAssessmentRoutes(app: Express) {
           // school student (e9f8d81) and a mismatch means a stale form or a
           // direct API call.
           schoolOwnedValues = overrides;
+        } else {
+          // FREE-TIER CAP (authenticated, not a school student). A free account
+          // may complete FREE_ASSESSMENT_CAP assessments; beyond that, creation
+          // is refused here so the client gets a legible rejection rather than
+          // discovering the limit at generation time.
+          //
+          // SELF-PAYING PREMIUM USERS ARE EXCLUDED. Their bound is
+          // users.purchasedLicenses, a different limit that this guard must not
+          // silently take over — see shared/assessmentLimits.ts. Read from the
+          // users row, not from a request field and not from the response-only
+          // isPremium decoration auth.routes.ts adds for school students (that
+          // decoration is why quiz.routes.ts:86-105 stopped trusting the flag;
+          // school students never reach this branch anyway, having a member row).
+          //
+          // NOT THE ONLY GUARD. This bounds how many assessments can be STARTED,
+          // and completion happens elsewhere — in the generation transaction in
+          // recommendations.routes.ts, which is where the authoritative check
+          // lives. Two tabs opened at cap-1 both pass here; only that one keeps
+          // the count exact.
+          const account = await storage.getUser(userId);
+          if (!account?.isPremium) {
+            const completedCount = await storage.countCompletedAssessmentsByUser(userId);
+            // isSchoolStudent false: this is the else of `orgMember?.role === 'student'`.
+            if (isFreeTierCapReached(false, !!account?.isPremium, completedCount)) {
+              return res.status(403).json({
+                message: `Free accounts can complete up to ${FREE_ASSESSMENT_CAP} assessments.`,
+                code: "FREE_ASSESSMENT_CAP_REACHED",
+                cap: FREE_ASSESSMENT_CAP,
+                completed: completedCount,
+              });
+            }
+          }
         }
       }
 

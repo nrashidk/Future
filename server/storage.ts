@@ -115,7 +115,7 @@ import {
 import { db } from "./db";
 import { gradeSortKey, mergeGradeCounts, toCanonicalGrade } from "@shared/grade";
 import { splitStudentName } from "@shared/studentName";
-import { eq, and, or, desc, count, avg, sql, inArray, notInArray, isNotNull, gte, type SQL } from "drizzle-orm";
+import { eq, ne, and, or, desc, count, avg, sql, inArray, notInArray, isNotNull, gte, type SQL } from "drizzle-orm";
 
 /**
  * One row of the VISION-ALIGNMENT sector <-> career-category map.
@@ -217,6 +217,7 @@ export interface IStorage {
   createAssessment(assessment: InsertAssessment): Promise<Assessment>;
   getAssessmentById(id: string): Promise<Assessment | undefined>;
   getAssessmentsByUser(userId: string): Promise<Assessment[]>;
+  countCompletedAssessmentsByUser(userId: string, excludeAssessmentId?: string): Promise<number>;
   getAssessmentByGuestToken(guestToken: string): Promise<Assessment | undefined>;
   updateAssessment(id: string, assessment: Partial<InsertAssessment>): Promise<Assessment>;
   migrateGuestAssessments(guestAssessmentIds: string[], userId: string, guestSessionId: string): Promise<number>;
@@ -975,6 +976,38 @@ export class DatabaseStorage implements IStorage {
       .from(assessments)
       .where(eq(assessments.userId, userId))
       .orderBy(desc(assessments.createdAt));
+  }
+
+  /**
+   * Completed-assessment count for one user, for the free-tier cap guard.
+   *
+   * A count query rather than getAssessmentsByUser(...).filter(): that method
+   * selects every column of every row to answer a question about a number, and
+   * this one runs on the create path of every free assessment. Served by
+   * assessments_user_id_idx (shared/schema.ts:703).
+   *
+   * `excludeAssessmentId` exists for the generation-time guard: completion
+   * happens when recommendations are generated, so the row being generated is
+   * still isCompleted=false at check time on the first pass but must not be
+   * counted twice on a retry. Callers ask "how many OTHER assessments has this
+   * user completed", which is the question that stays correct either way.
+   */
+  async countCompletedAssessmentsByUser(
+    userId: string,
+    excludeAssessmentId?: string,
+  ): Promise<number> {
+    const conditions = [
+      eq(assessments.userId, userId),
+      eq(assessments.isCompleted, true),
+    ];
+    if (excludeAssessmentId) {
+      conditions.push(ne(assessments.id, excludeAssessmentId));
+    }
+    const [row] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(assessments)
+      .where(and(...conditions));
+    return row?.count ?? 0;
   }
 
   async getAssessmentByGuestToken(guestToken: string): Promise<Assessment | undefined> {

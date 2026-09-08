@@ -10,6 +10,8 @@ import { StickyNote } from "@/components/StickyNote";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTranslation } from "react-i18next";
+import { isPremiumAssessment } from "@shared/assessmentTier";
+import { SCHOOL_ALLOCATIONS_PER_STUDENT } from "@shared/assessmentLimits";
 
 interface Assessment {
   id: string;
@@ -18,7 +20,12 @@ interface Assessment {
   grade: string | null;
   gender: string | null;
   createdAt: string;
-  tier: string;
+  // The COLUMN is assessments.assessment_type (shared/schema.ts:676). This
+  // interface declared `tier`, a field the API has never sent, so every read of
+  // it was undefined — see the tier label below, which silently rendered
+  // nothing. Renamed rather than added alongside, so the phantom cannot be
+  // reached again.
+  assessmentType: string;
   isCompleted: boolean;
 }
 
@@ -133,7 +140,22 @@ export default function Profile() {
   const completed = assessments.filter(a => a.isCompleted).length;
   const individualCompletedAssessments = completed;
   const individualAvailableLicenses = user.purchasedLicenses || 0;
-  const individualUsedLicenses = completed;
+
+  // FILTERED ON TIER, and it must be. A licence is consumed by a PREMIUM
+  // completion; a free assessment costs nothing and consumes nothing. This was
+  // the unfiltered `completed`, which was correct only for as long as an
+  // authenticated free user could not complete anything — /assessment redirected
+  // them to pricing before they could start. Once free accounts are allowed to
+  // take the assessment, that count charges a user for assessments they were
+  // never sold: complete three free ones, then buy a licence, and the profile
+  // opens showing three already spent.
+  //
+  // isPremiumAssessment on the ROW, not user.isPremium: the question is what
+  // this assessment was, not what the account is now. A premium assessment taken
+  // before a downgrade still consumed its licence.
+  const individualUsedLicenses = assessments.filter(
+    a => a.isCompleted && isPremiumAssessment(a.assessmentType)
+  ).length;
   const individualRemainingLicenses = Math.max(0, individualAvailableLicenses - individualUsedLicenses);
 
   const getAccountTypeBadge = () => {
@@ -651,7 +673,7 @@ export default function Profile() {
                   <div className="flex items-center justify-between mt-3">
                     <p className="text-sm text-muted-foreground">{t("premium.availableAssessments")}</p>
                     <p className="font-bold text-2xl text-primary" data-testid="text-student-available-assessments">
-                      {Math.max(0, 1 - assessments.filter(a => a.isCompleted).length)}
+                      {Math.max(0, SCHOOL_ALLOCATIONS_PER_STUDENT - assessments.filter(a => a.isCompleted).length)}
                     </p>
                   </div>
                 </div>
@@ -740,7 +762,13 @@ export default function Profile() {
                 <div className="text-center py-8">
                   <p className="text-muted-foreground mb-4">{t("assessment.noAssessments")}</p>
                   <Button asChild data-testid="button-start-first-assessment">
-                    <Link href={isOrgStudent ? "/assessment" : "/tier-selection"}>
+                    {/* Free accounts go to the assessment, not to pricing. They may
+                        take it, capped at FREE_ASSESSMENT_CAP completions, and the
+                        cap is shown as a terminal screen on that page rather than
+                        as a redirect to buy. Sending them here to /tier-selection
+                        while /assessment lets them start is the inconsistency this
+                        removes: told to buy in one place, allowed in the other. */}
+                    <Link href="/assessment">
                       <ClipboardCheck className="w-4 h-4 me-2" />
                       {t("assessment.startFirst")}
                     </Link>
@@ -770,7 +798,7 @@ export default function Profile() {
                         <p className="font-medium">{latestAssessment.name || t("assessment.assessment")}</p>
                         <p className="text-sm text-muted-foreground">
                           {new Date(latestAssessment.createdAt).toLocaleDateString(language === 'ar' ? 'ar-AE' : 'en-US')}
-                          {latestAssessment.tier && ` • ${latestAssessment.tier === 'premium' || latestAssessment.tier === 'school' ? t("premium.premium") : t("premium.free")}`}
+                          {latestAssessment.assessmentType && ` • ${isPremiumAssessment(latestAssessment.assessmentType) ? t("premium.premium") : t("premium.free")}`}
                         </p>
                         {/* Completed assessment: link to its report by assessmentId (kept ID-parameterized for future per-year history) */}
                         {latestAssessment.isCompleted && (
