@@ -1649,3 +1649,44 @@ whether to land a single BRAND_NAME in shared/ first.
 
 Separately and more urgently: the sending domain does not match the site — see the FROM_EMAIL
 item. First flagged 2026-09-08.
+
+### Password reset is dead in production — RESEND_API_KEY unset, then FROM_EMAIL points off-domain  (severity: HIGH, confirmed)
+Render boot log, 2026-09-08:
+
+    ⚠️  Optional environment variables not set:
+      - RESEND_API_KEY
+
+`resend` is constructed only when that key is present (email.ts:3), so in production it is
+null and no mail is sent at all. Password reset is the entire outbound mail surface — one
+`resend.emails.send` call in the codebase (email.ts:186), one sender
+(`sendPasswordResetEmail`), one caller (password-reset.routes.ts:104). No other mail library
+exists in server/. So password reset has been wholly non-functional for as long as the key
+has been unset, and nothing else is affected because nothing else sends mail.
+
+Who this locks out: anyone whose account has an email — individual users, org_admins and
+superadmins. Org students without email are already routed to admin-managed credential reset
+(password-reset.routes.ts:112-114) and are unaffected, but the admins who manage their
+rosters are not: an org_admin who forgets their password has no self-service recovery, and
+their whole school's roster management goes with them.
+
+RESEND_API_KEY is classified OPTIONAL (constants.ts:89, "Required for email delivery" — the
+comment already contradicts the classification) so boot prints a warning and continues. That
+is the right call for Stripe, whose absence disables a feature; it is the wrong call here,
+where the absent feature is account recovery. Worth deciding whether it moves to REQUIRED
+alongside the SPACES_* keys, which were promoted on exactly this reasoning: "an unset value
+is an outage, not a degradation" (constants.ts:76-77).
+
+SECOND PROBLEM, downstream of the first and only reachable once mail works at all. EMAIL_FROM
+defaults to "Future Pathways <noreply@futurepathways.com>" (email.ts:5, and .env.example:90
+documents the default) while the product is futurepath.ae — index.html:7 canonical, and
+APP_URL's own default at email.ts:176. Resend refuses to send from an unverified domain, so
+either futurepathways.com is verified in the Resend account (deliverability fine; the name is
+merely off-brand) or every send 403s. Verification requires DNS control, so there is no third
+case. Even in the good case the From: domain would not match the domain in the reset link the
+mail carries, which is a phishing heuristic that costs reputation with Gmail and Outlook.
+Neither EMAIL_FROM nor its agreement with APP_URL is asserted at startup, unlike
+SESSION_SECRET's length and DB_ENCRYPTION_KEY's format (env-validation.ts:44-53).
+
+Fix order is: set RESEND_API_KEY, decide the sending domain and verify it in Resend, set
+EMAIL_FROM to match, then consider promoting the key to REQUIRED. Do not reorder — the domain
+question is unanswerable while no mail is sent. First flagged 2026-09-08.
