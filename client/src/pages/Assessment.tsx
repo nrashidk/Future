@@ -904,8 +904,24 @@ export default function Assessment() {
 
   return (
     <main id="main-content" className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 pb-12">
-      {/* Guest Banner */}
-      {isGuest && !isAuthenticated && (
+      {/* Guest Banner — "create an account to save your progress".
+          GATED ON assessmentId, which is what makes that sentence true. It is
+          set by the POST handleNext fires on leaving Subjects (step 3), so the
+          banner first appears on the Quiz (step 4).
+          Before then the offer is not merely premature, it is false in the
+          damaging direction: handleSaveAndLogin is a full-page redirect to
+          /api/login, which discards every piece of React state on the way out,
+          and the sessionStorage draft that would otherwise carry it is not
+          written yet — the effect that writes DRAFT_KEY returns early while
+          assessmentId is null. On steps 1-3 the button destroyed exactly the
+          progress it offered to save. From step 4 both survive the redirect:
+          the row exists server-side against the guest token, and the draft is
+          in sessionStorage.
+          assessmentId rather than `currentStep >= 4` deliberately — the id
+          being set IS the condition, and it stays correct if the save point
+          moves. It also covers a guest resuming a draft, who has a row from
+          the start. */}
+      {isGuest && !isAuthenticated && assessmentId && (
         <div className="bg-accent border-b border-accent-border sticky top-0 z-50 backdrop-blur-sm bg-accent/80">
           <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
             <div className="flex items-center gap-2">
