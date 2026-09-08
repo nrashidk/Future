@@ -170,13 +170,14 @@ export const organizationMembers = pgTable("organization_members", {
   // 'YYYY-MM-DD' strings for exactly this reason; this keeps the column and that
   // module speaking the same language. Do not change it to "date".
   //
-  // NULLABLE, and with no CHECK yet, both deliberately. Admin rows share this
-  // table and have no DOB (the four write sites listed at the check() below), so
-  // a per-column .notNull() is wrong here for the same reason it was wrong for
-  // name/gender/grade. The role-scoped CHECK that makes it required for STUDENT
-  // rows lands separately, after the existing student rows have a DOB — see
-  // docs/v2-phase4-step4-recon.md §2. Until then this column is additive and
-  // nothing depends on it.
+  // NULLABLE AT THE COLUMN, REQUIRED FOR STUDENTS AT THE TABLE. Admin rows share
+  // this table and have no DOB (the four write sites listed at the check()
+  // below), so a per-column .notNull() is wrong here for the same reason it was
+  // wrong for name/gender/grade. The requirement is student-only, so it is
+  // expressed as the role-scoped organization_members_student_dob_check() below
+  // instead — added once the existing student rows had been filled by their
+  // schools (server/migrations/016_require_student_date_of_birth.sql). This
+  // column stays nullable in Drizzle terms and that is not a gap.
   dateOfBirth: date("date_of_birth", { mode: "string" }),
   studentGender: text("student_gender"), // Pre-filled student gender ('male' or 'female')
   grade: text("grade"), // Pre-filled grade ('grade8', 'grade9', etc.)
@@ -211,14 +212,36 @@ export const organizationMembers = pgTable("organization_members", {
   // collected it and there is no DOB column to derive it from", and closed with
   // "Revisit only if a DOB column is ever added". date_of_birth above is that
   // column. student_age stays out of this CHECK regardless — it is being dropped,
-  // not required — and date_of_birth is not in it YET: the existing student rows
-  // have no DOB and none is derivable, so the role-scoped CHECK that requires it
-  // lands only once they are filled. See docs/v2-phase4-step4-recon.md §2.
+  // not required — and date_of_birth is not in THIS check either: it is required
+  // by a second, separate check() below rather than by widening this one. See
+  // docs/v2-phase4-step4-recon.md §1c.
   //
   // Name matches that migration's constraint exactly, so db:push sees no drift.
   check(
     "organization_members_student_demographics_check",
     sql`${table.role} <> 'student' OR (${table.studentName} IS NOT NULL AND ${table.studentGender} IS NOT NULL AND ${table.grade} IS NOT NULL)`,
+  ),
+  // Student rows must also carry a date of birth; admin rows are exempt, for the
+  // same reason and via the same `role <> 'student'` short-circuit as above.
+  //
+  // A SECOND CONSTRAINT RATHER THAN A WIDER FIRST ONE, deliberately. Adding
+  // date_of_birth to the check above would mean DROP + ADD on a constraint that
+  // is already applied and convalidated in production; the drop is the risky
+  // half, since for the duration of that transaction the name/gender/grade
+  // guarantee is off. This is purely additive. See
+  // docs/v2-phase4-step4-recon.md §1c.
+  //
+  // PRESENCE ONLY, no range bound: a plausibility bound wants to be relative to
+  // today, and CURRENT_DATE is STABLE not IMMUTABLE, so Postgres rejects it in a
+  // CHECK. Plausibility lives at the write boundary in shared/dateOfBirth.ts
+  // (MIN_STUDENT_AGE_YEARS / MAX_STUDENT_AGE_YEARS), where a bad value is a 400
+  // an admin can read rather than a raw 23514. Same split 013 chose for grade.
+  //
+  // Name matches server/migrations/016_require_student_date_of_birth.sql exactly,
+  // so db:push sees no drift.
+  check(
+    "organization_members_student_dob_check",
+    sql`${table.role} <> 'student' OR ${table.dateOfBirth} IS NOT NULL`,
   ),
 ]);
 
@@ -1080,14 +1103,17 @@ export type InsertOrganizationMember = z.infer<typeof insertOrganizationMemberSc
  *
  * studentAge is absent by design — see the check() on the table above.
  *
- * dateOfBirth is required here and NOT in the table's check(), which is the
- * reverse of the other three and is deliberate. The database cannot require it
- * yet: the existing student rows have no date of birth and none is derivable, so
- * a role-scoped CHECK would refuse every UPDATE to those rows until their
- * schools fill them in (server/migrations/015_add_student_date_of_birth.sql).
- * This schema can require it immediately, because it only ever sees rows being
- * CREATED. So new students must have one from now on while the old rows are
- * fixed at leisure, and the CHECK follows once they are.
+ * dateOfBirth is required here AND, since
+ * server/migrations/016_require_student_date_of_birth.sql, by a role-scoped CHECK
+ * on the table — but this schema required it first, and that ordering was the
+ * point. The database could not require it initially: the existing student rows
+ * had no date of birth and none was derivable, so a CHECK would have refused
+ * every UPDATE to those rows until their schools filled them in. This schema
+ * could require it immediately, because it only ever sees rows being CREATED. So
+ * new students needed one from the start while the old rows were fixed at
+ * leisure, and the CHECK followed once they were. It has: 016 landed with all
+ * student rows carrying a DOB, and this layer is now the one that turns a missing
+ * DOB into a readable 400 instead of a constraint violation.
  *
  * ENFORCED at storage.createUserWithCredentials, via studentDemographicsSchema
  * below, which is the sink all three student-create routes funnel through.
