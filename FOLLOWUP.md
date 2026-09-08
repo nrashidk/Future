@@ -1837,3 +1837,25 @@ So the decision is not one decision. The 130 need a home in i18n or a named revi
 need a way to be reviewed as content and a way to be reliably applied, which is the tracked-
 migration problem in the entry above rather than a translation problem. First flagged
 2026-09-08.
+
+### returnTo is produced twice and consumed nowhere  (severity: low, but blocks a real flow)
+Two call sites append returnTo — Results.tsx handleSignUp (now /register, so it no longer
+needs it) and Assessment.tsx:824 handleSaveAndLogin (returnTo=/assessment). Nothing reads it:
+auth.ts:270 redirects to /login and discards the parameter, and grep finds only the two
+producers.
+
+The live consequence is on the second one: a guest who signs up mid-assessment lands on
+/results or /, not back on the form they were filling. That is the case a working returnTo
+would serve.
+
+Implementing it is not a one-line fix. It has to thread through /login, the OAuth state
+parameter, /register and /auth/callback, and it needs a same-origin allowlist — an
+open-redirect surface on a platform for minors. server/auth.ts is also marked do-not-touch in
+CLAUDE.md. Scope deliberately rather than as a side effect. First flagged 2026-09-08.
+
+### A guest's earlier assessments are unclaimable by design  (severity: low)
+assessment.routes.ts:186 mints a fresh guest token on every POST and overwrites the cookie, so
+one token maps to exactly one row. A guest who completes two assessments has both ids in
+localStorage but only the later token in the cookie — the earlier row's token exists nowhere
+and it can never be claimed. Reusing the existing cookie at create time would fix it, but that
+widens what a single token authorizes and is a separate decision. First flagged 2026-09-08.
