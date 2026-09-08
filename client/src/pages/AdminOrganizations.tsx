@@ -60,10 +60,18 @@ async function downloadFile(url: string, defaultFilename: string, toast: any, t:
     window.URL.revokeObjectURL(downloadUrl);
     
     toast({ title: t('orgs.downloadedTitle'), description: t('orgs.downloadStartedDesc') });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    // serverErrorMessage, for consistency with the rest of this file (0dd5408)
+    // and for the ?? — error.message is always a non-empty string, so under the
+    // old || the localized fallback could never render and an untranslated
+    // browser string ("Failed to fetch") reached a school admin in its place.
+    //
+    // Note this catch never sees throwIfResNotOk's "<status>: {json}" shape:
+    // the throw above reads the PARSED body's own message field, so the helper
+    // is here for its markup/length guard and the ??, not to strip a prefix.
     toast({ 
-      title: t('orgs.downloadFailedDesc'), 
-      description: error.message || t('orgs.downloadFailedDesc'), 
+      title: t('orgs.downloadFailed'), 
+      description: serverErrorMessage(error) ?? t('orgs.downloadFailedDesc'), 
       variant: "destructive" 
     });
   } finally {
@@ -1398,8 +1406,15 @@ function EditOrganizationForm({ organization, studentCount, onSuccess }: { organ
       setFormData(f => ({ ...f, logoUrl: result.logoUrl }));
       toast({ title: t('superadmin.success'), description: t('orgs.logoUploadSuccess') });
       queryClient.invalidateQueries({ queryKey: ['/api/admin/organizations'] });
-    } catch (error: any) {
-      toast({ title: t('superadmin.error'), description: error.message || t('orgs.logoUploadError'), variant: "destructive" });
+    } catch (error: unknown) {
+      // serverErrorMessage for the ?? and the markup/length guard. The throw
+      // above hands this catch a clean sentence, but it is not the only thing
+      // that lands here: `await response.json()` on the line before it throws a
+      // SyntaxError when the error body is not JSON, which is live on a 5MB
+      // upload — a proxy's HTML 502 or a body-size 413 both arrive that way. The
+      // old || put whatever the browser called that straight into the toast and
+      // made t('orgs.logoUploadError') unreachable.
+      toast({ title: t('superadmin.error'), description: serverErrorMessage(error) ?? t('orgs.logoUploadError'), variant: "destructive" });
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) {
