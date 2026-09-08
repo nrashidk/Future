@@ -335,9 +335,35 @@ export function registerRecommendationsRoutes(app: Express) {
             // Only generate narratives if we have required data
             if (hasRiasecData) {
               try {
+                // LOCALIZE BEFORE GENERATING, not after. This used to run only on
+                // the way out, one line below the generators, so every heuristic
+                // generator interpolated the ENGLISH career into Arabic sentence
+                // templates: generateEnhancedActionSteps builds
+                // `... مهارات مثل ${skills01}` from career.requiredSkills, and
+                // requiredSkillsAr — which localizeCareer had been swapping in all
+                // along — arrived too late to be used. The templates are already
+                // fully bilingual (premiumNarratives.ts); they were being fed the
+                // wrong ingredients.
+                //
+                // NOT passed to the LLM, deliberately. The heuristic generators
+                // interpolate these values verbatim, so they need them
+                // pre-localized; generateCareerReasoningNarrative instead receives
+                // the language as an explicit instruction and writes its own prose,
+                // so it keeps the canonical English career and is unaffected. That
+                // also leaves the prompt text stable, which matters because the
+                // narrative cache is keyed on (assessment, career, promptKey,
+                // language) and not on prompt content — a changed prompt would not
+                // invalidate anything.
+                //
+                // localTitle() inside the generators stays correct either way: it
+                // reads career.titleAr, which localizeCareer preserves rather than
+                // consumes, so running it against an already-localized career is
+                // idempotent.
+                const localizedCareer = localizeCareer(career, isArabic)!;
+
                 const narrativeContext = {
                   assessment,
-                  career,
+                  career: localizedCareer,
                   riasecScores: assessment.riasecScores as any,
                   cvqScores: hasCvqData ? (cvqResult.normalizedScores as Record<string, any>) : undefined,
                   overallScore: rec.overallMatchScore,
@@ -372,7 +398,7 @@ export function registerRecommendationsRoutes(app: Express) {
                 // Return enriched recommendation with both component reasoning and premium narratives
                 return {
                   ...rec,
-                  career: localizeCareer(career, isArabic),
+                  career: localizedCareer,
                   wefSkillTags,
                   // Add premium fields (not stored in DB, generated on-demand)
                   premiumReasoning,
