@@ -122,6 +122,23 @@ export interface CareerMatch {
     reasoning: string;
   }[];
   appliedConfigVersion: string; // Hash of component config for auditability
+  /** Persisted to recommendations.scoring_provenance — see shared/schema.ts. */
+  scoringProvenance: ScoringProvenance;
+}
+
+/**
+ * The two identifiers that together say which scoring regime produced a score.
+ * Written to recommendations.scoring_provenance at insert.
+ */
+export interface ScoringProvenance {
+  /** SCORING_ALGORITHM_VERSION — the calculator code. Hand-bumped. */
+  algorithm: number;
+  /** generateConfigVersion() — component keys + weights. Automatic. */
+  configHash: string;
+  /** Which weight table applied: the assessment's tier. */
+  tier: string;
+  /** ISO date (YYYY-MM-DD) this score was computed. */
+  scoredAt: string;
 }
 
 /**
@@ -720,11 +737,53 @@ function calculateCareerMatch(
     overallScore: Math.round(overallScore * 10) / 10, // Round to 1 decimal
     componentScores,
     appliedConfigVersion,
+    scoringProvenance: {
+      algorithm: SCORING_ALGORITHM_VERSION,
+      configHash: appliedConfigVersion,
+      tier: (context.assessment as { assessmentType?: string })?.assessmentType ?? "unknown",
+      scoredAt: new Date().toISOString().slice(0, 10),
+    },
   };
 }
 
 /**
+ * SCORING ALGORITHM VERSION — the identity of the calculator CODE.
+ *
+ * BUMP THIS WHEN THE GOLDEN FIXTURES MOVE. That is the whole rule, and it is
+ * deliberately mechanical rather than a judgement call: change any calculator in
+ * a way that alters a score and server/services/scoringProvenance.test.ts fails,
+ * telling you to bump this and update the fixtures in the same commit. "Bump
+ * when scoring semantics change" is what everyone writes and nobody applies.
+ *
+ * DO NOT bump for: a weights edit (that is configHash's job, and it is computed
+ * automatically), narrative text, ordering, or presentation.
+ *
+ * There is no automatic scheme for this half. Hashing the source is the only
+ * candidate and it is worse than useless — it bumps when a comment is edited, so
+ * it stops meaning anything within a month.
+ *
+ * HISTORY, so the numbers mean something:
+ *   1  before 2026-08-31. Career relatedSubjects compared as RAW strings, with
+ *      the raw tag count as the denominator.
+ *   2  221d496, 2026-08-31 ("Piece D"). Career tags normalized onto the
+ *      umbrella-6 before matching, and the NORMALIZED set used as the
+ *      denominator. This is the change that re-based every pre-existing
+ *      assessment's subjects score and that nothing recorded — the reason this
+ *      constant exists. No row carries 1 or 2: provenance was not written then,
+ *      and those versions are listed so a NULL row can be dated, not claimed.
+ *   3  2026-09-08. First version actually recorded. No scoring change from 2 —
+ *      the number moves because the recording starts, not because the maths did.
+ */
+export const SCORING_ALGORITHM_VERSION = 3;
+
+/**
  * Generate deterministic config version hash
+ *
+ * COMPONENT KEYS AND WEIGHTS ONLY, and that is its documented limit rather than
+ * an oversight: it captures the half of a score that an admin can change at
+ * runtime. It CANNOT see a code change — 221d496 altered a denominator and left
+ * every key and weight untouched, so this hash was byte-identical across it.
+ * SCORING_ALGORITHM_VERSION covers that half.
  */
 function generateConfigVersion(components: AssessmentComponent[]): string {
   const configString = components

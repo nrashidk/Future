@@ -732,6 +732,38 @@ export const recommendations = pgTable("recommendations", {
   futureMarketDemand: real("future_market_demand").notNull(),
   componentBreakdown: jsonb("component_breakdown"), // [{key, displayName, score, weight}] per-career, tier-aware. Nullable: legacy rows have none.
 
+  /**
+   * WHICH SCORING REGIME PRODUCED THIS ROW.
+   *   { algorithm: number, configHash: string, tier: string, scoredAt: string }
+   *
+   * Two identifiers, because a score has two independent inputs that change by
+   * different mechanisms:
+   *   `configHash`  — component keys + weights, admin-editable at runtime.
+   *                   Computed automatically (generateConfigVersion), so it can
+   *                   never be forgotten.
+   *   `algorithm`   — the calculator CODE: denominators, floors, normalizers.
+   *                   A monotonic integer, bumped by hand, because no automatic
+   *                   scheme works. Hashing the source would bump on a comment.
+   *
+   * Both are needed, and the counterexample is in this repo's own history:
+   * 221d496 (2026-08-31, "Piece D") changed a DENOMINATOR inside
+   * calculateSubjectsScore. Every component key and weight was identical before
+   * and after, so configHash alone would have certified two different scoring
+   * regimes as the same version. SCORING_ALGORITHM_VERSION in
+   * server/services/matching.ts is what moves for a change like that, and
+   * server/services/scoringProvenance.test.ts is what makes forgetting it fail.
+   *
+   * NULL MEANS UNKNOWN, and is never backfilled: scored before provenance was
+   * recorded. Such a row may predate 221d496, so its subject_match_score is not
+   * necessarily reproducible from today's code and the same answers. The only
+   * evidence available for a NULL row is recommendations.created_at; date it
+   * against the cutovers rather than assuming a value.
+   *   2026-08-31  221d496  career tags normalized; subjects denominator re-based
+   *   2026-09-08  this column added
+   * Same nullable-legacy convention as componentBreakdown above.
+   */
+  scoringProvenance: jsonb("scoring_provenance"),
+
   // Recommendation details
   reasoning: text("reasoning").notNull(),
   actionSteps: text("action_steps").array().notNull(),

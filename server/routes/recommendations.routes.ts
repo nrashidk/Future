@@ -193,6 +193,11 @@ export function registerRecommendationsRoutes(app: Express) {
               score: c.score,
               weight: c.weight,
             })),
+            // WHICH SCORING REGIME PRODUCED THIS ROW. Written here rather than in
+            // matching.ts so the scorer stays the producer and the route the
+            // persister, matching componentBreakdown above. Existing rows keep
+            // NULL and are never backfilled — see shared/schema.ts.
+            scoringProvenance: match.scoringProvenance,
             // Store component reasoning for audit trail (premium narratives generated dynamically)
             reasoning: componentReasoning,
             actionSteps: basicActionSteps,
