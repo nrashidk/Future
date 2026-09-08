@@ -1527,6 +1527,27 @@ Extended again 2026-09-07 (e9f8d81) — AND THIS BATCH IS DIFFERENT: four assess
 
 Extended again 2026-09-07 (M1 date of birth): two more admin.json keys for the date-of-birth field on the student-create form — dateOfBirthRequired and dateOfBirthHint. Same reviewer pass, and back to admin-facing rather than student-facing. dateOfBirthRequired is a shape-mirror of gradeRequired / genderRequired directly above it in the file and carries little risk. dateOfBirthHint is the one to check: it is a new translated sentence, and its whole job is to tell the admin WHY a school is being asked for a minor's birth date — that it is there to derive the student's age at assessment time, and not as one more identifier collected for its own sake. An admin who cannot read that reason is being asked for a child's DOB with no stated purpose, which is a consent problem and not merely a translation one. Also worth a native eye: the field renders a NATIVE date input, so the picker's own month names, first day of week and value ordering come from the browser locale rather than from i18next — check in an Arabic browser that what the picker shows agrees with the label beside it, since nothing in this codebase controls it.
 
+Extended again 2026-09-08 (c341bde) — AND THIS BATCH IS NOT IN A LOCALE FILE: two Arabic
+strings for the basic action steps a report shows under "الخطوات التالية", added in
+server/services/freeNarrative.ts (buildFreeActionSteps). STUDENT-FACING, and the second
+student-facing batch in this note after e9f8d81.
+
+Different from every batch above in a way that matters for how it gets reviewed: these are
+HARDCODED IN TYPESCRIPT, not keys in client/public/locales/ar/*.json. A reviewer working
+through the ar/ locale files — which is how every earlier batch here would be checked — will
+never see them. They have to be reviewed in the source, and any future translation pass over
+the locale files will silently miss them. The same is true of premiumNarratives.ts, which has
+carried a much larger body of unreviewed Arabic action-step templates since before this note
+began; this batch is the prompt to look at that file too, not just these two lines.
+
+The strings are `أكمل {educationLevel}` and `طوّر مهاراتك في: {skills}`, both interpolating an
+already-localized value. Two things for a native eye. First, أكمل is imperative "complete",
+which reads correctly before a degree name but may not before every value educationLevelAr
+holds — that column is free text and its contents were authored separately. Second, the skills
+list joins on the Arabic comma (، U+060C) rather than a Latin one, which is right, but the
+list items themselves come from requiredSkillsAr and their own register was never checked
+against this sentence frame. First flagged 2026-09-08.
+
 Extended again 2026-09-07 (DOB age echo): one more admin.json key, dateOfBirthAgeToday — "Age today: {{age}}", rendered under the date-of-birth field as the admin types. Same reviewer pass. The word carrying the whole key is TODAY, and it is load-bearing rather than decorative: the age that ends up in the student's record is the age at ASSESSMENT time, which can be months later and a year higher, so an Arabic rendering that drops the temporal qualifier and reads as a bare "العمر" turns a confirmation into a promise the system does not keep. Check that the Arabic still says today, not just age. Two further things a reviewer should look at rather than read: the key interpolates a Latin-numeral {{age}} into an RTL sentence, so confirm the digits land after the colon and do not reorder against the label; and the number is interpolated as {{age}} rather than i18next's count, so it gets no plural forms — harmless in English, and worth a second look in Arabic where more forms exist and "العمر اليوم: 2" would not be how the number is spoken. Admin-facing, not student-facing.
 
 Extended again 2026-09-07 (bulk CSV columns): three more admin.json keys for the bulk-upload format panel — csvDateFormatNote, csvColumnOrderNote and csvMissingColumns — and one REMOVED, csvPreFillNote, which named "name, age, gender" as the fields worth pre-filling and is wrong on two counts now that age is superseded by date of birth and gender is required rather than optional; it was deleted from both files rather than left unrendered, since a stale string is the one thing a reviewer cannot tell apart from a live one. All three new keys are full translated sentences rather than shape-mirrors, and they are the instructions an admin follows before uploading a file containing several hundred minors' records, so a vague Arabic rendering costs a re-export at best. csvDateFormatNote is the one to get exactly right: it contains the literal pattern YYYY-MM-DD and a Latin-numeral example, both of which must stay in Latin script and in that order inside an RTL sentence — if the Arabic renders the example as 14-03-2010, or reorders the pattern, it is instructing schools to produce files the server will reject row by row. Check it rendered, not just read. csvMissingColumns interpolates {{columns}}, a comma-separated list of Latin-script field names, into an RTL sentence and has the same embedding concern. Admin-facing, not student-facing.
