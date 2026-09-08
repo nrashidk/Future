@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, serverErrorMessage } from "@/lib/queryClient";
 import { useTranslation } from "react-i18next";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -43,10 +43,24 @@ export default function ForgotPassword() {
     onSuccess: () => {
       setEmailSent(true);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      // serverErrorMessage, not error.message (0dd5408). throwIfResNotOk formats
+      // failures as `<status>: <raw body>`, so the raw value shown here was
+      //   503: {"success":false,"message":"Email service is not available..."}
+      // — the status code and unparsed JSON in a toast. This is the flow where
+      // that matters most: RESEND_API_KEY is unset in production, so the 503 is
+      // what a locked-out admin actually gets, and the one sentence telling them
+      // to contact an administrator was buried inside the blob.
+      //
+      // ?? not ||, and that is the whole reason the localized fallback below has
+      // never once rendered: error.message is always a non-empty string, so it
+      // always won the ||. An Arabic-speaking admin got English JSON. Nullish
+      // coalescing lets serverErrorMessage's deliberate null — it returns null
+      // rather than a fallback, so the caller supplies its own localized text —
+      // reach t() as intended.
       toast({
         title: t("forgotPassword.errorTitle"),
-        description: error.message || t("forgotPassword.errorDesc"),
+        description: serverErrorMessage(error) ?? t("forgotPassword.errorDesc"),
         variant: "destructive",
       });
     },
