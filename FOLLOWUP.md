@@ -1962,3 +1962,23 @@ The surfaces this governs, and what each may carry:
 
 Related and separately tracked: the subject-access export gap above, which does not read
 organization_members at all — the same table this constraint governs. Recorded 2026-09-08.
+
+### careers.growthOutlook is scheduled for deletion, with no tracker  (severity: low)
+The column is notNull, deprecated as an authored field, and derived from onetGrowthBand. Its
+removal was scheduled by "A7" of docs/future-readiness-plan.md, which has never existed in any
+commit. Nothing in FOLLOWUP mentioned it until now. Condition for removal: once no reader is
+left that needs the prose string, drop the column. Recorded 2026-09-08 during a citation audit
+(28fafee) that found 16 cited docs/ paths with zero commits behind them.
+
+### Two seeded careers carry a knowingly-wrong growth value  (severity: low)
+server/seed.ts records two careers whose honest growth cannot be expressed in the current five
+tiers, each stored at "the lowest expressible tier" and flagged against a note that never
+existed. A sixth tier is needed, or the two rows need a different representation. Recorded
+2026-09-08.
+
+### A growth-band exception cites a document that never existed, in the DATA  (severity: low)
+server/migrations/career-growth-bands.ts:527 wrote { note: 'reviewed exception — see
+docs/future-readiness-plan.md A3' } into the careers table. Not a comment — a value in the
+database, presenting a nonexistent file as its provenance to anyone auditing growth bands. The
+note text is fixed, but the per-row rationale for each exception now lives only in that file's
+structure. Recorded 2026-09-08.
