@@ -1744,13 +1744,31 @@ do, in order: verify the domain EMAIL_FROM names (or point EMAIL_FROM at one alr
 which also settles the futurepathways.com / futurepath.ae mismatch above), then send one real
 reset and confirm it arrives rather than inferring it from the absence of an error.
 
-Note the failure mode has changed shape but not gone away. With no key, the request failed
-closed at the isEmailConfigured() gate and the caller saw a 503. With a key but an unverified
-domain, that gate PASSES and the send 403s inside sendPasswordResetEmail — which the route
-logs without changing its response, deliberately, to keep account enumeration closed
-(password-reset.routes.ts). So the user is told to check their email. bf5e2f5 removed the
-NODE_ENV escape hatch from the gate but the gate still only asks whether a client exists, not
-whether a send succeeded; that distinction is now the live one.
+SETTING THE KEY TRADED AN HONEST FAILURE FOR A SILENT ONE, and this is the part to carry
+forward, because it is not obvious and it is live right now rather than hypothetical.
+
+  Before: no key -> isEmailConfigured() is false -> the gate at password-reset.routes.ts:47
+  returns 503 "Email service is not available. Please contact your administrator." The user
+  is not told a reset is coming. Bad, but honest.
+
+  Now: key set, domain unverified -> isEmailConfigured() is TRUE, because it is `!!resend` and
+  a client was constructed. The gate passes. The send then 403s inside
+  sendPasswordResetEmail, Resend refusing an unverified sending domain. The route logs that
+  failure and deliberately does NOT change its response, so account enumeration stays closed —
+  which means the caller receives the generic 200 and the green "Check Your Email" card for
+  mail that was never accepted.
+
+THE GATE ASKS WHETHER A CLIENT EXISTS, NOT WHETHER A SEND SUCCEEDED. That was a latent
+distinction while the key was missing, since both questions had the same answer. Setting the
+key separated them, and nothing else in the flow closes the gap: bf5e2f5 removed the NODE_ENV
+escape hatch so the gate now fails closed in every environment, but a gate that cannot see a
+rejected send has nothing to fail closed ON.
+
+So a locked-out org_admin today gets the worst of both: no email, and a screen telling them one
+is on the way. This lasts until the sending domain is verified in Resend — it is not a risk to
+watch for, it is the current behaviour if the domain is unverified. Verify the domain first,
+then send one real reset and confirm arrival; do not infer success from the absence of an
+error, because the absence of a visible error is exactly the symptom.
 
 ### Arabic career content is applied by an untracked, manually-run, title-matched script  (severity: medium)
 server/migrations/career-arabic-content.ts supplies Arabic titles, descriptions, required
