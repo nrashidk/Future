@@ -2252,3 +2252,25 @@ which is the rule the documents fail to disclose rather than a rule the code bre
 the legal half of "Brand name is authored independently in five layers" (:1745), whose own
 unresolved question — whether legal.json's entity strings should track the product name at all
 — is answered here: they must not, until there is a registered entity to name.
+
+
+### Arabic unreviewed — instrument names removed from the student's report  (severity: low)
+Commit 1 of the methodology-exposure change edited three Arabic strings and none has been
+reviewed by an Arabic speaker:
+
+- `ar/results.json:64` `featureLearningDesc` — `استبيان هولاند (RIASEC) المكوّن من 30 سؤالاً`
+  became `استبيان الشخصية المهنية المكوّن من 30 سؤالاً`. This also removes an RTL/Latin script
+  break: the old string embedded the bare Latin acronym mid-sentence in Arabic text, so the
+  Arabic reader got jargon and a direction switch in the same phrase.
+- `ar/pricing.json:12` `feature2` — `مخزون شخصية RIASEC المهنية` became `مخزون الشخصية المهنية`.
+- `ar/pricing.json:14` `feature4` — `ملف القيم الشخصية (CVQ)` became `ملف القيم الشخصية`.
+
+SEPARATE TERM QUESTION, deliberately NOT fixed here. `feature2` renders "inventory" as
+`مخزون`, which is inventory in the stock-of-goods sense, not the psychometric sense. The
+sibling string in results.json uses `استبيان` (questionnaire), which is the right register.
+So the two surfaces now describe the same instrument with two different nouns, one of them
+probably wrong. It was left alone because this commit's scope was removing the acronym, and
+changing the noun is an Arabic wording decision that wants a speaker rather than a
+find-and-replace. Worth folding into the standing Arabic/RTL audit below.
+
+Recorded 2026-09-08.
