@@ -36,7 +36,7 @@ vi.mock("../db", () => ({
 vi.mock("../storage", () => ({ storage: {} }));
 
 const { registerPublicRoutes } = await import("./public.routes");
-const { markSeedOk, markSeedFailed, getSeedStatus } = await import("../seedStatus");
+const { markSeedOk, markSeedFailed, markSeedIncomplete, getSeedStatus } = await import("../seedStatus");
 
 async function getHealth(): Promise<{ status: number; body: any }> {
   const app = express();
@@ -83,6 +83,25 @@ describe("/health reports boot seed status", () => {
     expect(JSON.stringify(body)).not.toContain("onet_growth_band");
     // ...while the operator-facing status still carries it.
     expect(getSeedStatus().error).toContain("onet_growth_band");
+  });
+
+  it("reports degraded when the seed ran but the coverage gate found gaps", async () => {
+    // Distinct from "failed": seedDatabase() completed, but student-facing
+    // content is missing. Both must surface.
+    markSeedIncomplete(["MISSING_CONTENT career-arabic-content.ts: 68 careers"]);
+    const { status, body } = await getHealth();
+    expect(status).toBe(200);
+    expect(body).toEqual({ status: "degraded", seed: "incomplete" });
+  });
+
+  it("markSeedOk does not erase a gap the coverage gate already reported", async () => {
+    // The gate runs INSIDE seedDatabase(); index.ts calls markSeedOk() on the way
+    // out. Without this guard the ok would overwrite the finding.
+    vi.resetModules();
+    const fresh = await import("../seedStatus");
+    fresh.markSeedIncomplete(["MISSING_CONTENT career-arabic-content.ts: 68 careers"]);
+    fresh.markSeedOk();
+    expect(fresh.getSeedStatus().state).toBe("incomplete");
   });
 
   it("still 503s when the database itself is unreachable", async () => {

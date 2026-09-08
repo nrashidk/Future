@@ -15,7 +15,7 @@ interface ArContent {
   explanationAr: string;
 }
 
-const GRADE8_ARABIC_CONTENT: ArContent[] = [
+export const GRADE8_ARABIC_CONTENT: ArContent[] = [
   // ─── MATHEMATICS ───────────────────────────────────────────────
   {
     question: "Solve for x: 3x + 7 = 22",

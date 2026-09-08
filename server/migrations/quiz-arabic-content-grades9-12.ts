@@ -15,7 +15,7 @@ interface ArContent {
   explanationAr: string;
 }
 
-const GRADES9_12_ARABIC_CONTENT: ArContent[] = [
+export const GRADES9_12_ARABIC_CONTENT: ArContent[] = [
 
   // ═══════════════════════════════════════════════════════════════════
   // MATHEMATICS — GRADE 9

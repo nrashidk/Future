@@ -3231,22 +3231,49 @@ export async function seedDatabase() {
     console.error("  Career relatedSubjects error (non-fatal, continuing):", error.message);
   }
 
-  // Validate Arabic completeness — warn about canonical careers missing AR translations
-  // Only checks careers whose titles match the canonical seed list; rogue/test DB
-  // entries with non-standard titles (e.g. suffixed with digits) are excluded.
+  // COVERAGE GATE for every content migration applied above.
+  //
+  // Replaces an Arabic-only check that was wrapped in a bare `catch {}` — it
+  // swallowed its own failure, so the one piece of code whose job was to report
+  // missing content could itself fail silently. That is the same defect it was
+  // meant to catch.
+  //
+  // Asserts against the rows actually in the database, following the gate at
+  // career-growth-bands.ts:546, NOT against the "<n> updated, <m> not found"
+  // counters the modules keep. careers.title has no unique constraint and every
+  // title-matched module takes .limit(1), so a duplicate title leaves stale
+  // content while the counters still report full coverage — see
+  // migrations/contentCoverage.ts.
+  //
+  // Reports at error level and marks the boot incomplete (surfaces on /health as
+  // status=degraded). Does NOT throw: this runs after the content block, and
+  // taking the rest of the seed down would trade a reporting failure for a
+  // seeding failure.
   try {
-    const { CANONICAL_CAREER_TITLES } = await import("./migrations/career-arabic-content");
-    const allCareers = await storage.getAllCareers();
-    const missingAr = allCareers.filter(
-      c => CANONICAL_CAREER_TITLES.has(c.title) &&
-           (!c.titleAr || !c.descriptionAr || !c.requiredSkillsAr?.length || !c.educationLevelAr)
-    );
-    if (missingAr.length > 0) {
-      console.warn(`⚠️  ${missingAr.length} career(s) missing Arabic translations: ${missingAr.map(c => c.title).join(', ')}`);
-      console.warn("   To fix: edit in the Superadmin Dashboard → Careers tab or use career-arabic-content.ts");
+    const { checkContentCoverage } = await import("./migrations/contentCoverage");
+    const problems = await checkContentCoverage();
+    if (problems.length > 0) {
+      const { markSeedIncomplete } = await import("./seedStatus");
+      console.error(
+        `\n❌ CONTENT COVERAGE GATE FAILED — ${problems.length} problem(s). ` +
+        `Student-facing content is missing or stale.`,
+      );
+      for (const p of problems) {
+        console.error(`   [${p.check}] ${p.module}: ${p.detail}`);
+      }
+      console.error(
+        "   These migrations run at boot from seed.ts. Re-deploying re-runs them; " +
+        "if a problem persists, the cause is upstream of the migration.\n",
+      );
+      markSeedIncomplete(problems.map(p => `${p.check} ${p.module}: ${p.detail}`));
+    } else {
+      console.log("✓ Content coverage gate passed (careers + quiz Arabic, values, growth, readiness)");
     }
-  } catch {
-    // Non-fatal — don't block startup
+  } catch (error: any) {
+    // The gate itself failing is a reportable event, not something to swallow.
+    const { markSeedIncomplete } = await import("./seedStatus");
+    console.error("❌ Content coverage gate could not run:", error?.message || error);
+    markSeedIncomplete([`gate failed to run: ${error?.message || error}`]);
   }
 
   // Seed Test Organization Admin Account (for testing admin functionality)
