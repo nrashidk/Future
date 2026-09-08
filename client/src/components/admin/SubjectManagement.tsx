@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, serverErrorMessage } from "@/lib/queryClient";
 import { useTranslation } from "react-i18next";
 import { 
   Plus, Edit, Trash2, Search, GraduationCap, Copy, 
@@ -134,8 +134,8 @@ export default function SubjectManagement() {
       resetForm();
       queryClient.invalidateQueries({ queryKey: ["/api/superadmin/subjects"] });
     },
-    onError: (error: any) => {
-      toast({ title: t('subjects.error'), description: error.message || t('subjects.failedCreate'), variant: "destructive" });
+    onError: (error: unknown) => {
+      toast({ title: t('subjects.error'), description: serverErrorMessage(error) ?? t('subjects.failedCreate'), variant: "destructive" });
     },
   });
 
@@ -158,8 +158,8 @@ export default function SubjectManagement() {
       resetForm();
       queryClient.invalidateQueries({ queryKey: ["/api/superadmin/subjects"] });
     },
-    onError: (error: any) => {
-      toast({ title: t('subjects.error'), description: error.message || t('subjects.failedUpdate'), variant: "destructive" });
+    onError: (error: unknown) => {
+      toast({ title: t('subjects.error'), description: serverErrorMessage(error) ?? t('subjects.failedUpdate'), variant: "destructive" });
     },
   });
 
@@ -173,8 +173,8 @@ export default function SubjectManagement() {
       setSelectedSubject(null);
       queryClient.invalidateQueries({ queryKey: ["/api/superadmin/subjects"] });
     },
-    onError: (error: any) => {
-      toast({ title: t('subjects.error'), description: error.message || t('subjects.failedDelete'), variant: "destructive" });
+    onError: (error: unknown) => {
+      toast({ title: t('subjects.error'), description: serverErrorMessage(error) ?? t('subjects.failedDelete'), variant: "destructive" });
     },
   });
 
@@ -191,8 +191,8 @@ export default function SubjectManagement() {
       setCloneData({ sourceCountryId: "", sourceCurriculum: "", targetCountryId: "", targetCurriculum: "" });
       queryClient.invalidateQueries({ queryKey: ["/api/superadmin/subjects"] });
     },
-    onError: (error: any) => {
-      toast({ title: t('subjects.error'), description: error.message || t('subjects.failedClone'), variant: "destructive" });
+    onError: (error: unknown) => {
+      toast({ title: t('subjects.error'), description: serverErrorMessage(error) ?? t('subjects.failedClone'), variant: "destructive" });
     },
   });
 
@@ -266,8 +266,8 @@ export default function SubjectManagement() {
       queryClient.invalidateQueries({ queryKey: ["/api/superadmin/subjects"] });
       queryClient.invalidateQueries({ queryKey: ["/api/superadmin/subjects/question-counts"] });
     },
-    onError: (error: any) => {
-      toast({ title: t('subjects.error'), description: error.message || t('subjects.failedRegister'), variant: "destructive" });
+    onError: (error: unknown) => {
+      toast({ title: t('subjects.error'), description: serverErrorMessage(error) ?? t('subjects.failedRegister'), variant: "destructive" });
     },
   });
 

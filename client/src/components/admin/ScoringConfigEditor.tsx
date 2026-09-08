@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, serverErrorMessage } from "@/lib/queryClient";
 import { useTranslation } from "react-i18next";
 import { 
   Settings, Save, AlertTriangle, CheckCircle, 
@@ -124,8 +124,8 @@ export default function ScoringConfigEditor() {
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/scoring-config'] });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/scoring-config/changelog'] });
     },
-    onError: (error: any) => {
-      toast({ title: t('superadmin.errorTitle'), description: error.message || t('scoring.failedUpdateWeights'), variant: "destructive" });
+    onError: (error: unknown) => {
+      toast({ title: t('superadmin.errorTitle'), description: serverErrorMessage(error) ?? t('scoring.failedUpdateWeights'), variant: "destructive" });
     },
   });
 
@@ -144,8 +144,8 @@ export default function ScoringConfigEditor() {
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/llm-prompts'] });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/scoring-config/changelog'] });
     },
-    onError: (error: any) => {
-      toast({ title: t('superadmin.errorTitle'), description: error.message || t('scoring.failedUpdatePrompt'), variant: "destructive" });
+    onError: (error: unknown) => {
+      toast({ title: t('superadmin.errorTitle'), description: serverErrorMessage(error) ?? t('scoring.failedUpdatePrompt'), variant: "destructive" });
     },
   });
 
@@ -159,8 +159,8 @@ export default function ScoringConfigEditor() {
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/api-credentials'] });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/scoring-config/changelog'] });
     },
-    onError: (error: any) => {
-      toast({ title: t('superadmin.errorTitle'), description: error.message || t('scoring.failedSaveKey'), variant: "destructive" });
+    onError: (error: unknown) => {
+      toast({ title: t('superadmin.errorTitle'), description: serverErrorMessage(error) ?? t('scoring.failedSaveKey'), variant: "destructive" });
     },
   });
 
@@ -177,8 +177,8 @@ export default function ScoringConfigEditor() {
       }
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/api-credentials'] });
     },
-    onError: (error: any) => {
-      toast({ title: t('superadmin.errorTitle'), description: error.message || t('scoring.failedTestKey'), variant: "destructive" });
+    onError: (error: unknown) => {
+      toast({ title: t('superadmin.errorTitle'), description: serverErrorMessage(error) ?? t('scoring.failedTestKey'), variant: "destructive" });
     },
   });
 
@@ -191,8 +191,8 @@ export default function ScoringConfigEditor() {
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/api-credentials'] });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/scoring-config/changelog'] });
     },
-    onError: (error: any) => {
-      toast({ title: t('superadmin.errorTitle'), description: error.message || t('scoring.failedDeleteKey'), variant: "destructive" });
+    onError: (error: unknown) => {
+      toast({ title: t('superadmin.errorTitle'), description: serverErrorMessage(error) ?? t('scoring.failedDeleteKey'), variant: "destructive" });
     },
   });
 

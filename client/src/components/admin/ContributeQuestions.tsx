@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, serverErrorMessage } from "@/lib/queryClient";
 import { useTranslation } from "react-i18next";
 import { StickyNote } from "@/components/StickyNote";
 import { 
@@ -174,10 +174,10 @@ export default function ContributeQuestions() {
       queryClient.invalidateQueries({ queryKey: ['/api/contributions/balance'] });
       queryClient.invalidateQueries({ queryKey: ['/api/contributions/submissions'] });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: t('contributions.submitError'),
-        description: error.message || t('contributions.submitError'),
+        description: serverErrorMessage(error) ?? t('contributions.submitError'),
         variant: "destructive",
       });
     },

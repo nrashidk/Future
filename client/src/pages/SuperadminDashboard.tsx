@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, serverErrorMessage } from "@/lib/queryClient";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -321,8 +321,8 @@ export default function SuperadminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations', selectedOrgId, 'admins'] });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations'] });
     },
-    onError: (error: any) => {
-      toast({ title: t('superadmin.error'), description: error.message || t('superadmin.failedToAddAdmin'), variant: "destructive" });
+    onError: (error: unknown) => {
+      toast({ title: t('superadmin.error'), description: serverErrorMessage(error) ?? t('superadmin.failedToAddAdmin'), variant: "destructive" });
     },
   });
 
@@ -335,8 +335,8 @@ export default function SuperadminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations', selectedOrgId, 'admins'] });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations'] });
     },
-    onError: (error: any) => {
-      toast({ title: t('superadmin.error'), description: error.message || t('superadmin.failedToRemoveAdmin'), variant: "destructive" });
+    onError: (error: unknown) => {
+      toast({ title: t('superadmin.error'), description: serverErrorMessage(error) ?? t('superadmin.failedToRemoveAdmin'), variant: "destructive" });
     },
   });
 
@@ -349,8 +349,8 @@ export default function SuperadminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations', selectedOrgId, 'admins'] });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations'] });
     },
-    onError: (error: any) => {
-      toast({ title: t('superadmin.error'), description: error.message || t('superadmin.failedToPromoteAdmin'), variant: "destructive" });
+    onError: (error: unknown) => {
+      toast({ title: t('superadmin.error'), description: serverErrorMessage(error) ?? t('superadmin.failedToPromoteAdmin'), variant: "destructive" });
     },
   });
 
@@ -363,8 +363,8 @@ export default function SuperadminDashboard() {
       toast({ title: t('superadmin.impersonationStarted'), description: data.message || "Now impersonating user" });
       window.location.href = '/';
     },
-    onError: (error: any) => {
-      toast({ title: t('superadmin.error'), description: error.message || t('superadmin.failedToImpersonate'), variant: "destructive" });
+    onError: (error: unknown) => {
+      toast({ title: t('superadmin.error'), description: serverErrorMessage(error) ?? t('superadmin.failedToImpersonate'), variant: "destructive" });
     },
   });
 
@@ -387,8 +387,8 @@ export default function SuperadminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/students'] });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations'] });
     },
-    onError: (error: any) => {
-      toast({ title: t('superadmin.error'), description: error.message || t('superadmin.failedToResetPasswords'), variant: "destructive" });
+    onError: (error: unknown) => {
+      toast({ title: t('superadmin.error'), description: serverErrorMessage(error) ?? t('superadmin.failedToResetPasswords'), variant: "destructive" });
     },
   });
 
@@ -409,8 +409,8 @@ export default function SuperadminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations'] });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/metrics'] });
     },
-    onError: (error: any) => {
-      toast({ title: t('superadmin.error'), description: error.message || t('superadmin.failedToDeleteSchools'), variant: "destructive" });
+    onError: (error: unknown) => {
+      toast({ title: t('superadmin.error'), description: serverErrorMessage(error) ?? t('superadmin.failedToDeleteSchools'), variant: "destructive" });
     },
   });
 
@@ -424,8 +424,8 @@ export default function SuperadminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations'] });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/metrics'] });
     },
-    onError: (error: any) => {
-      toast({ title: t('superadmin.error'), description: error.message || t('superadmin.failedToUpdateLicenses'), variant: "destructive" });
+    onError: (error: unknown) => {
+      toast({ title: t('superadmin.error'), description: serverErrorMessage(error) ?? t('superadmin.failedToUpdateLicenses'), variant: "destructive" });
     },
   });
 
@@ -457,8 +457,8 @@ export default function SuperadminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations'] });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/metrics'] });
     },
-    onError: (error: any) => {
-      toast({ title: t('superadmin.error'), description: error.message || t('superadmin.failedToCreateSchool'), variant: "destructive" });
+    onError: (error: unknown) => {
+      toast({ title: t('superadmin.error'), description: serverErrorMessage(error) ?? t('superadmin.failedToCreateSchool'), variant: "destructive" });
     },
   });
 
@@ -480,8 +480,8 @@ export default function SuperadminDashboard() {
       setNewStudentForm({ firstName: "", lastName: "", email: "", username: "" });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/students'] });
     },
-    onError: (error: any) => {
-      toast({ title: t('superadmin.error'), description: error.message || t('superadmin.failedToCreateStudent'), variant: "destructive" });
+    onError: (error: unknown) => {
+      toast({ title: t('superadmin.error'), description: serverErrorMessage(error) ?? t('superadmin.failedToCreateStudent'), variant: "destructive" });
     },
   });
   const [deleteOrgConfirmName, setDeleteOrgConfirmName] = useState("");
@@ -566,8 +566,8 @@ export default function SuperadminDashboard() {
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations'] });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/metrics'] });
     },
-    onError: (error: any) => {
-      toast({ title: t('superadmin.error'), description: error.message || t('superadmin.failedToDeleteSchool'), variant: "destructive" });
+    onError: (error: unknown) => {
+      toast({ title: t('superadmin.error'), description: serverErrorMessage(error) ?? t('superadmin.failedToDeleteSchool'), variant: "destructive" });
     },
   });
 
@@ -581,8 +581,8 @@ export default function SuperadminDashboard() {
       setResetPasswordResult({ username: data.username, newPassword: data.newPassword });
       toast({ title: t('superadmin.passwordReset'), description: t('superadmin.passwordResetDesc') });
     },
-    onError: (error: any) => {
-      toast({ title: t('superadmin.error'), description: error.message || t('superadmin.failedToResetPassword'), variant: "destructive" });
+    onError: (error: unknown) => {
+      toast({ title: t('superadmin.error'), description: serverErrorMessage(error) ?? t('superadmin.failedToResetPassword'), variant: "destructive" });
     },
   });
 
@@ -595,8 +595,8 @@ export default function SuperadminDashboard() {
       toast({ title: t('superadmin.fileDeleted'), description: t('superadmin.fileDeletedDesc') });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/files'] });
     },
-    onError: (error: any) => {
-      toast({ title: t('superadmin.error'), description: error.message || t('superadmin.failedToDeleteFile'), variant: "destructive" });
+    onError: (error: unknown) => {
+      toast({ title: t('superadmin.error'), description: serverErrorMessage(error) ?? t('superadmin.failedToDeleteFile'), variant: "destructive" });
     },
   });
 
@@ -611,8 +611,8 @@ export default function SuperadminDashboard() {
       resetAnnouncementForm();
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/announcements'] });
     },
-    onError: (error: any) => {
-      toast({ title: t('superadmin.error'), description: error.message || t('superadmin.failedToCreateAnnouncement'), variant: "destructive" });
+    onError: (error: unknown) => {
+      toast({ title: t('superadmin.error'), description: serverErrorMessage(error) ?? t('superadmin.failedToCreateAnnouncement'), variant: "destructive" });
     },
   });
 
@@ -627,8 +627,8 @@ export default function SuperadminDashboard() {
       resetAnnouncementForm();
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/announcements'] });
     },
-    onError: (error: any) => {
-      toast({ title: t('superadmin.error'), description: error.message || t('superadmin.failedToUpdateAnnouncement'), variant: "destructive" });
+    onError: (error: unknown) => {
+      toast({ title: t('superadmin.error'), description: serverErrorMessage(error) ?? t('superadmin.failedToUpdateAnnouncement'), variant: "destructive" });
     },
   });
 
@@ -640,8 +640,8 @@ export default function SuperadminDashboard() {
       toast({ title: t('superadmin.announcementDeleted'), description: t('superadmin.announcementDeletedDesc') });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/announcements'] });
     },
-    onError: (error: any) => {
-      toast({ title: t('superadmin.error'), description: error.message || t('superadmin.failedToDeleteAnnouncement'), variant: "destructive" });
+    onError: (error: unknown) => {
+      toast({ title: t('superadmin.error'), description: serverErrorMessage(error) ?? t('superadmin.failedToDeleteAnnouncement'), variant: "destructive" });
     },
   });
 
@@ -661,8 +661,8 @@ export default function SuperadminDashboard() {
       resetCareerForm();
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/careers'] });
     },
-    onError: (error: any) => {
-      toast({ title: t('superadmin.error'), description: error.message || t('superadmin.failedToCreateCareer'), variant: "destructive" });
+    onError: (error: unknown) => {
+      toast({ title: t('superadmin.error'), description: serverErrorMessage(error) ?? t('superadmin.failedToCreateCareer'), variant: "destructive" });
     },
   });
 
@@ -682,8 +682,8 @@ export default function SuperadminDashboard() {
       resetCareerForm();
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/careers'] });
     },
-    onError: (error: any) => {
-      toast({ title: t('superadmin.error'), description: error.message || t('superadmin.failedToUpdateCareer'), variant: "destructive" });
+    onError: (error: unknown) => {
+      toast({ title: t('superadmin.error'), description: serverErrorMessage(error) ?? t('superadmin.failedToUpdateCareer'), variant: "destructive" });
     },
   });
 
@@ -695,8 +695,8 @@ export default function SuperadminDashboard() {
       toast({ title: t('superadmin.careerDeleted'), description: t('superadmin.careerDeletedDesc') });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/careers'] });
     },
-    onError: (error: any) => {
-      toast({ title: t('superadmin.error'), description: error.message || t('superadmin.failedToDeleteCareer'), variant: "destructive" });
+    onError: (error: unknown) => {
+      toast({ title: t('superadmin.error'), description: serverErrorMessage(error) ?? t('superadmin.failedToDeleteCareer'), variant: "destructive" });
     },
   });
 
@@ -713,8 +713,8 @@ export default function SuperadminDashboard() {
       }
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/careers'] });
     },
-    onError: (error: any) => {
-      toast({ title: t('superadmin.error'), description: error.message || t('superadmin.failedToApplyArabic'), variant: "destructive" });
+    onError: (error: unknown) => {
+      toast({ title: t('superadmin.error'), description: serverErrorMessage(error) ?? t('superadmin.failedToApplyArabic'), variant: "destructive" });
     },
   });
 

@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, serverErrorMessage } from "@/lib/queryClient";
 import { useTranslation } from "react-i18next";
 import { 
   Globe, Plus, Edit, Trash2, Sparkles, BookOpen, 
@@ -99,10 +99,10 @@ export default function CountryManagement() {
           : t('countries.createSuccessManual')
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({ 
         title: t('countries.errorTitle'), 
-        description: error.message || t('countries.createError'), 
+        description: serverErrorMessage(error) ?? t('countries.createError'), 
         variant: "destructive" 
       });
     },
@@ -133,10 +133,10 @@ export default function CountryManagement() {
       queryClient.invalidateQueries({ queryKey: ['/api/countries'] });
       toast({ title: t('countries.updateSuccess'), description: t('countries.deleteSuccess') });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({ 
         title: t('countries.errorTitle'), 
-        description: error.message || t('countries.deleteError'), 
+        description: serverErrorMessage(error) ?? t('countries.deleteError'), 
         variant: "destructive" 
       });
     },
@@ -151,11 +151,11 @@ export default function CountryManagement() {
       setRepopulatingCountryId(null);
       toast({ title: t('countries.updateSuccess'), description: t('countries.refreshSuccess') });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       setRepopulatingCountryId(null);
       toast({ 
         title: t('countries.errorTitle'), 
-        description: error.message || t('countries.refreshError'), 
+        description: serverErrorMessage(error) ?? t('countries.refreshError'), 
         variant: "destructive" 
       });
     },
@@ -179,10 +179,10 @@ export default function CountryManagement() {
         description: t('countries.questionsGeneratedDesc', { n: result.questionsCreated, tokens: result.tokensUsed })
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({ 
         title: t('countries.errorTitle'), 
-        description: error.message || t('countries.generateError'), 
+        description: serverErrorMessage(error) ?? t('countries.generateError'), 
         variant: "destructive" 
       });
     },
@@ -204,10 +204,10 @@ export default function CountryManagement() {
         description: t('countries.curriculumRenamedDesc', { subjects: result.updated?.subjects || 0, questions: result.updated?.questions || 0 })
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({ 
         title: t('countries.errorTitle'), 
-        description: error.message || t('countries.renameError'), 
+        description: serverErrorMessage(error) ?? t('countries.renameError'), 
         variant: "destructive" 
       });
     },
