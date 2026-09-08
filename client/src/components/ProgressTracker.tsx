@@ -14,10 +14,18 @@ interface Step {
 interface ProgressTrackerProps {
   currentStep: number;
   totalSteps: number;
-  isPremium?: boolean;
+  /**
+   * WHICH FLOW, not what the viewer bought. This selects the step-title list
+   * below and nothing else, so it is a tier question — and it was called
+   * `isPremium`, an entitlement name, which is how it came to be passed the
+   * caller's raw premium flag. A school student is on the premium flow without
+   * being a premium ACCOUNT; Assessment.tsx now passes its isPremiumFlow, and
+   * the name says what the value has to mean.
+   */
+  isPremiumFlow?: boolean;
 }
 
-export function ProgressTracker({ currentStep, totalSteps, isPremium = false }: ProgressTrackerProps) {
+export function ProgressTracker({ currentStep, totalSteps, isPremiumFlow = false }: ProgressTrackerProps) {
   const { t } = useTranslation('assessment');
   const { language } = useLanguage();
   const isRTL = language === 'ar';
@@ -28,7 +36,7 @@ export function ProgressTracker({ currentStep, totalSteps, isPremium = false }: 
   // results] while the free flow ran [.., country, aspirations, QUIZ] — so a
   // free student taking the quiz was told they were on "Results".
   // The step ids double as the i18n keys under `progress.`.
-  const stepTitles = stepIdsForTier(isPremium).map(id => t(`progress.${id}`));
+  const stepTitles = stepIdsForTier(isPremiumFlow).map(id => t(`progress.${id}`));
 
   const steps: Step[] = Array.from({ length: totalSteps }, (_, i) => ({
     number: i + 1,

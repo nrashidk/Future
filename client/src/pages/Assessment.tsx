@@ -1097,11 +1097,11 @@ export default function Assessment() {
       </div>
 
       {/* Progress Tracker */}
-      {/* isPremium here selects the step-TITLE list (stepIdsForTier), so it is a
-          flow question despite the prop name, and takes isPremiumFlow like the
-          totalSteps beside it. The two must agree or the labels drift off the
-          steps, which is the bug shared/assessmentFlow.ts exists to prevent. */}
-      <ProgressTracker currentStep={currentStep} totalSteps={totalSteps} isPremium={isPremiumFlow} />
+      {/* Both tier arguments come from isPremiumFlow and must: totalSteps counts
+          the steps, isPremiumFlow names them (stepIdsForTier), and labels drifting
+          off the steps they label is the bug shared/assessmentFlow.ts exists to
+          prevent. */}
+      <ProgressTracker currentStep={currentStep} totalSteps={totalSteps} isPremiumFlow={isPremiumFlow} />
 
       {/* Resume Prompt — shown instead of step content when a saved draft is detected */}
       {resumePrompt && (
