@@ -2028,38 +2028,48 @@ export async function seedDatabase() {
     },
   ];
 
-  const existingCareers = await storage.getAllCareers();
-  const existingCareerTitles = new Set(existingCareers.map(c => c.title));
+  // GUARD: everything below runs ~1000+ lines before the content-migration block
+  // at the end of this function, and an uncaught throw here aborts seedDatabase()
+  // outright — index.ts swallows it and the server boots with every .ts content
+  // migration silently skipped. storage.getAllCareers() selects every column in
+  // the Drizzle schema, so any drift between shared/schema.ts and the live careers
+  // table throws right here. Non-fatal: a failure must not cost the rest of the seed.
+  try {
+    const existingCareers = await storage.getAllCareers();
+    const existingCareerTitles = new Set(existingCareers.map(c => c.title));
 
-  for (const career of careers) {
-    if (!existingCareerTitles.has(career.title)) {
-      try {
-        const created = await storage.createCareer(career);
-        console.log(`✓ Created career: ${career.title}`);
+    for (const career of careers) {
+      if (!existingCareerTitles.has(career.title)) {
+        try {
+          const created = await storage.createCareer(career);
+          console.log(`✓ Created career: ${career.title}`);
         
-        // Create job market trends for each country
-        for (const country of countries) {
-          try {
-            await storage.createJobMarketTrend({
-              countryId: country.id,
-              careerId: created.id,
-              demandScore: 50 + Math.random() * 50, // 50-100
-              growthRate: Math.random() * 30, // 0-30%
-              nationalPriorityAlignment: career.relatedSubjects.some(s => 
-                country.prioritySectors.some(sector => sector.toLowerCase().includes(s.toLowerCase()))
-              ) ? 70 + Math.random() * 30 : 40 + Math.random() * 40, // Higher if aligned
-              year: 2025,
-              averageSalaryLocal: career.averageSalary,
-              openings: Math.floor(Math.random() * 1000) + 100,
-            });
-          } catch (error) {
-            // Trend might exist
+          // Create job market trends for each country
+          for (const country of countries) {
+            try {
+              await storage.createJobMarketTrend({
+                countryId: country.id,
+                careerId: created.id,
+                demandScore: 50 + Math.random() * 50, // 50-100
+                growthRate: Math.random() * 30, // 0-30%
+                nationalPriorityAlignment: career.relatedSubjects.some(s => 
+                  country.prioritySectors.some(sector => sector.toLowerCase().includes(s.toLowerCase()))
+                ) ? 70 + Math.random() * 30 : 40 + Math.random() * 40, // Higher if aligned
+                year: 2025,
+                averageSalaryLocal: career.averageSalary,
+                openings: Math.floor(Math.random() * 1000) + 100,
+              });
+            } catch (error) {
+              // Trend might exist
+            }
           }
+        } catch (error) {
+          console.log(`Error creating career ${career.title}:`, error);
         }
-      } catch (error) {
-        console.log(`Error creating career ${career.title}:`, error);
       }
     }
+  } catch (error: any) {
+    console.error("  Career seeding error (non-fatal, continuing):", error.message);
   }
 
   // Template-based quiz question generator
@@ -2708,43 +2718,49 @@ export async function seedDatabase() {
   // Flatten all questions for seeding
   const allQuestions = flattenQuestionBank(uaeQuestionBank);
   
-  const existingQuestions = await storage.getAllQuizQuestions?.() || [];
-  const existingQuestionTexts = new Set(existingQuestions.map((q: any) => q.question));
+  // GUARD: same reason as the careers block above — an uncaught throw here skips
+  // every content migration at the end of this function. Non-fatal.
+  try {
+    const existingQuestions = await storage.getAllQuizQuestions?.() || [];
+    const existingQuestionTexts = new Set(existingQuestions.map((q: any) => q.question));
 
-  let createdCount = 0;
-  for (const question of allQuestions) {
-    if (!existingQuestionTexts.has(question.question)) {
-      try {
-        // Use countryId and curriculum from the question bank
-        // Convert string grade to numeric grade for database compatibility
-        const numericGrade = question.grade ? parseInt(question.grade) : null;
+    let createdCount = 0;
+    for (const question of allQuestions) {
+      if (!existingQuestionTexts.has(question.question)) {
+        try {
+          // Use countryId and curriculum from the question bank
+          // Convert string grade to numeric grade for database compatibility
+          const numericGrade = question.grade ? parseInt(question.grade) : null;
         
-        // Extract only the fields that match InsertQuizQuestion schema
-        await storage.createQuizQuestion({ 
-          question: question.question,
-          questionType: question.questionType,
-          options: question.options,
-          correctAnswer: question.correctAnswer,
-          explanation: question.explanation,
-          ...(question.questionAr ? { questionAr: question.questionAr } : {}),
-          ...(question.optionsAr ? { optionsAr: question.optionsAr } : {}),
-          ...(question.explanationAr ? { explanationAr: question.explanationAr } : {}),
-          subject: question.subject,
-          grade: numericGrade!,
-          countryId: question.countryId, // Now properly links to UAE country
-          curriculum: question.curriculum, // MOE National curriculum
-          topic: question.topic,
-          difficulty: question.difficulty,
-          cognitiveLevel: question.cognitiveLevel,
-        });
-        createdCount++;
-      } catch (error) {
-        console.log(`Error creating quiz question:`, error);
+          // Extract only the fields that match InsertQuizQuestion schema
+          await storage.createQuizQuestion({ 
+            question: question.question,
+            questionType: question.questionType,
+            options: question.options,
+            correctAnswer: question.correctAnswer,
+            explanation: question.explanation,
+            ...(question.questionAr ? { questionAr: question.questionAr } : {}),
+            ...(question.optionsAr ? { optionsAr: question.optionsAr } : {}),
+            ...(question.explanationAr ? { explanationAr: question.explanationAr } : {}),
+            subject: question.subject,
+            grade: numericGrade!,
+            countryId: question.countryId, // Now properly links to UAE country
+            curriculum: question.curriculum, // MOE National curriculum
+            topic: question.topic,
+            difficulty: question.difficulty,
+            cognitiveLevel: question.cognitiveLevel,
+          });
+          createdCount++;
+        } catch (error) {
+          console.log(`Error creating quiz question:`, error);
+        }
       }
     }
-  }
   
-  console.log(`✓ Created ${createdCount} new quiz questions (total: ${allQuestions.length})`);
+    console.log(`✓ Created ${createdCount} new quiz questions (total: ${allQuestions.length})`);
+  } catch (error: any) {
+    console.error("  Quiz question seeding error (non-fatal, continuing):", error.message);
+  }
 
   // Seed Assessment Components
   console.log("\n📋 Seeding assessment components...");
@@ -2807,73 +2823,85 @@ export async function seedDatabase() {
       seededComponents[componentData.key] = component;
       console.log(`✓ Created component: ${component.name} (${component.weight}%)`);
     } catch (error: any) {
-      if (error?.message?.includes('unique') || error?.code === '23505' || error?.cause?.code === '23505') {
-        // Component already exists - fetch and update weight
-        const components = await storage.getAllAssessmentComponents?.() || [];
-        const existing = components.find((c: any) => c.key === componentData.key);
-        if (existing) {
-          if (forceReseed) {
-            // Update weight and isActive status
-            const updated = await storage.updateAssessmentComponent(existing.id, {
-              weight: componentData.weight,
-              isActive: componentData.isActive,
-              description: componentData.description,
-            });
-            seededComponents[componentData.key] = updated;
-            console.log(`  ${componentData.name} already exists (updated weight to ${componentData.weight}%)`);
-          } else {
-            seededComponents[componentData.key] = existing;
-            console.log(`  skipped (exists, FORCE_RESEED not set): assessment component ${componentData.key}`);
+      // GUARD: these awaits are inside a catch block, which does NOT protect them —
+      // a throw here propagates out of seedDatabase(). Non-fatal.
+      try {
+        if (error?.message?.includes('unique') || error?.code === '23505' || error?.cause?.code === '23505') {
+          // Component already exists - fetch and update weight
+          const components = await storage.getAllAssessmentComponents?.() || [];
+          const existing = components.find((c: any) => c.key === componentData.key);
+          if (existing) {
+            if (forceReseed) {
+              // Update weight and isActive status
+              const updated = await storage.updateAssessmentComponent(existing.id, {
+                weight: componentData.weight,
+                isActive: componentData.isActive,
+                description: componentData.description,
+              });
+              seededComponents[componentData.key] = updated;
+              console.log(`  ${componentData.name} already exists (updated weight to ${componentData.weight}%)`);
+            } else {
+              seededComponents[componentData.key] = existing;
+              console.log(`  skipped (exists, FORCE_RESEED not set): assessment component ${componentData.key}`);
+            }
           }
+        } else {
+          console.error(`  Error creating component ${componentData.name}:`, error);
         }
-      } else {
-        console.error(`  Error creating component ${componentData.name}:`, error);
+      } catch (error: any) {
+        console.error("  Assessment component update error (non-fatal, continuing):", error.message);
       }
     }
   }
   
   // Seed RIASEC career affinities (regardless of whether component was created or fetched)
   const riasecComponent = seededComponents['riasec'];
-  if (riasecComponent) {
-    console.log("\n🎯 Seeding RIASEC career affinities...");
-    const allCareers = await storage.getAllCareers();
+  // GUARD: same reason as the blocks above — storage.getAllCareers() below is
+  // unprotected and throws on any careers-table schema drift. Non-fatal.
+  try {
+    if (riasecComponent) {
+      console.log("\n🎯 Seeding RIASEC career affinities...");
+      const allCareers = await storage.getAllCareers();
 
-    // IDEMPOTENT since Phase 3 stage 3. This loop used to be an unconditional
-    // storage.createCareerComponentAffinity() wrapped in a catch that swallowed
-    // SQLSTATE 23505 "if the affinity already exists" — but the table had NO
-    // unique constraint, so 23505 could never be raised and every boot appended
-    // one more identical row per career. Staging had reached 358 rows for 68
-    // careers before migration 010_career_component_affinities_unique.sql
-    // deduped it and added career_component_affinity_unique_idx.
-    //
-    // The upsert below is keyed on that index, so a re-run now UPDATES in place:
-    // re-running the seed adds zero rows, and editing a vector in
-    // server/riasecAffinities.ts actually reaches an existing database (it never
-    // did before — the first copy won and every later copy was dead weight).
-    let riasecCreated = 0, riasecUpdated = 0, riasecMissing = 0;
-    for (const mapping of RIASEC_CAREER_AFFINITIES) {
-      const career = allCareers.find(c => c.title === mapping.careerTitle);
-      if (!career) {
-        console.log(`⚠️  Career not found: ${mapping.careerTitle}`);
-        riasecMissing++;
-        continue;
-      }
+      // IDEMPOTENT since Phase 3 stage 3. This loop used to be an unconditional
+      // storage.createCareerComponentAffinity() wrapped in a catch that swallowed
+      // SQLSTATE 23505 "if the affinity already exists" — but the table had NO
+      // unique constraint, so 23505 could never be raised and every boot appended
+      // one more identical row per career. Staging had reached 358 rows for 68
+      // careers before migration 010_career_component_affinities_unique.sql
+      // deduped it and added career_component_affinity_unique_idx.
+      //
+      // The upsert below is keyed on that index, so a re-run now UPDATES in place:
+      // re-running the seed adds zero rows, and editing a vector in
+      // server/riasecAffinities.ts actually reaches an existing database (it never
+      // did before — the first copy won and every later copy was dead weight).
+      let riasecCreated = 0, riasecUpdated = 0, riasecMissing = 0;
+      for (const mapping of RIASEC_CAREER_AFFINITIES) {
+        const career = allCareers.find(c => c.title === mapping.careerTitle);
+        if (!career) {
+          console.log(`⚠️  Career not found: ${mapping.careerTitle}`);
+          riasecMissing++;
+          continue;
+        }
 
-      try {
-        const existing = await storage.getCareerComponentAffinity(career.id, riasecComponent.id);
-        await storage.createOrUpdateCareerComponentAffinity({
-          careerId: career.id,
-          componentId: riasecComponent.id,
-          affinityData: mapping.affinities, // Store all 6 theme scores as jsonb
-        });
-        if (existing) { riasecUpdated++; } else { riasecCreated++; }
-      } catch (error: any) {
-        console.error(`  Error upserting RIASEC affinity for ${career.title}:`, error);
+        try {
+          const existing = await storage.getCareerComponentAffinity(career.id, riasecComponent.id);
+          await storage.createOrUpdateCareerComponentAffinity({
+            careerId: career.id,
+            componentId: riasecComponent.id,
+            affinityData: mapping.affinities, // Store all 6 theme scores as jsonb
+          });
+          if (existing) { riasecUpdated++; } else { riasecCreated++; }
+        } catch (error: any) {
+          console.error(`  Error upserting RIASEC affinity for ${career.title}:`, error);
+        }
       }
+      console.log(`✓ RIASEC affinities: ${riasecCreated} created, ${riasecUpdated} updated, ${riasecMissing} careers not found`);
+    } else {
+      console.error("⚠️  Failed to create or fetch RIASEC component");
     }
-    console.log(`✓ RIASEC affinities: ${riasecCreated} created, ${riasecUpdated} updated, ${riasecMissing} careers not found`);
-  } else {
-    console.error("⚠️  Failed to create or fetch RIASEC component");
+  } catch (error: any) {
+    console.error("  RIASEC career affinity seeding error (non-fatal, continuing):", error.message);
   }
 
   // Seed WEF (World Economic Forum) 16 Skills Framework
@@ -2895,212 +2923,225 @@ export async function seedDatabase() {
   
   // Seed Career-WEF Skill Affinities
   console.log("\n🔗 Seeding Career-WEF Skill affinities...");
-  const allCareersForWef = await storage.getAllCareers();
+  // GUARD: same reason as the blocks above. Both awaits below were unprotected,
+  // and getAllCareers() throws on any careers-table schema drift. Non-fatal.
+  try {
+    const allCareersForWef = await storage.getAllCareers();
   
-  // Check if affinities are already seeded by comparing expected vs actual counts
-  const expectedAffinityCount = CAREER_WEF_SKILL_AFFINITIES.reduce((total, mapping) => {
-    return total + Object.keys(mapping.skills).length;
-  }, 0);
+    // Check if affinities are already seeded by comparing expected vs actual counts
+    const expectedAffinityCount = CAREER_WEF_SKILL_AFFINITIES.reduce((total, mapping) => {
+      return total + Object.keys(mapping.skills).length;
+    }, 0);
   
-  // Get actual count from database
-  const existingAffinityCount = await storage.getCareerWefSkillAffinityCount();
+    // Get actual count from database
+    const existingAffinityCount = await storage.getCareerWefSkillAffinityCount();
   
-  if (existingAffinityCount >= expectedAffinityCount) {
-    console.log(`✓ WEF career affinities already seeded (${existingAffinityCount}/${expectedAffinityCount}), skipping...`);
-  } else {
-    console.log(`  Found ${existingAffinityCount} existing affinities, need ${expectedAffinityCount}. Seeding missing affinities...`);
-    // Proceed with seeding
-    let affinitiesCreated = 0;
-    let affinitiesUpdated = 0;
+    if (existingAffinityCount >= expectedAffinityCount) {
+      console.log(`✓ WEF career affinities already seeded (${existingAffinityCount}/${expectedAffinityCount}), skipping...`);
+    } else {
+      console.log(`  Found ${existingAffinityCount} existing affinities, need ${expectedAffinityCount}. Seeding missing affinities...`);
+      // Proceed with seeding
+      let affinitiesCreated = 0;
+      let affinitiesUpdated = 0;
     
-    for (const mapping of CAREER_WEF_SKILL_AFFINITIES) {
-      const career = allCareersForWef.find(c => c.title === mapping.careerTitle);
-      if (!career) {
-        console.log(`⚠️  Career not found: ${mapping.careerTitle}`);
-        continue;
-      }
-      
-      // For each skill affinity score
-      for (const [skillName, affinityScore] of Object.entries(mapping.skills)) {
-        const wefSkill = seededWefSkills[skillName];
-        if (!wefSkill) {
-          console.log(`⚠️  WEF skill not found: ${skillName}`);
+      for (const mapping of CAREER_WEF_SKILL_AFFINITIES) {
+        const career = allCareersForWef.find(c => c.title === mapping.careerTitle);
+        if (!career) {
+          console.log(`⚠️  Career not found: ${mapping.careerTitle}`);
           continue;
         }
-        
-        // Validate affinity score (0-100)
-        if (affinityScore < 0 || affinityScore > 100) {
-          console.warn(`⚠️  Invalid affinity score for ${career.title} - ${skillName}: ${affinityScore} (expected 0-100)`);
-        }
-        
-        try {
-          // Check if affinity already exists to determine if we're creating or updating
-          const existing = await storage.getCareerWefSkillAffinity(career.id, wefSkill.id);
-          
-          await storage.createOrUpdateCareerWefSkillAffinity(
-            career.id,
-            wefSkill.id,
-            {
-              affinityScore,
-              source: 'Expert Panel',
-              evidence: null,
-            }
-          );
-          
-          if (existing) {
-            affinitiesUpdated++;
-          } else {
-            affinitiesCreated++;
+      
+        // For each skill affinity score
+        for (const [skillName, affinityScore] of Object.entries(mapping.skills)) {
+          const wefSkill = seededWefSkills[skillName];
+          if (!wefSkill) {
+            console.log(`⚠️  WEF skill not found: ${skillName}`);
+            continue;
           }
-        } catch (error: any) {
-          console.error(`  Error creating affinity for ${career.title} - ${skillName}:`, error);
+        
+          // Validate affinity score (0-100)
+          if (affinityScore < 0 || affinityScore > 100) {
+            console.warn(`⚠️  Invalid affinity score for ${career.title} - ${skillName}: ${affinityScore} (expected 0-100)`);
+          }
+        
+          try {
+            // Check if affinity already exists to determine if we're creating or updating
+            const existing = await storage.getCareerWefSkillAffinity(career.id, wefSkill.id);
+          
+            await storage.createOrUpdateCareerWefSkillAffinity(
+              career.id,
+              wefSkill.id,
+              {
+                affinityScore,
+                source: 'Expert Panel',
+                evidence: null,
+              }
+            );
+          
+            if (existing) {
+              affinitiesUpdated++;
+            } else {
+              affinitiesCreated++;
+            }
+          } catch (error: any) {
+            console.error(`  Error creating affinity for ${career.title} - ${skillName}:`, error);
+          }
         }
       }
-    }
     
-    console.log(`✓ Created ${affinitiesCreated} new affinities, updated ${affinitiesUpdated} existing affinities`);
-    console.log(`✓ Total affinities: ${affinitiesCreated + affinitiesUpdated} across ${allCareersForWef.length} careers × 16 WEF skills`);
+      console.log(`✓ Created ${affinitiesCreated} new affinities, updated ${affinitiesUpdated} existing affinities`);
+      console.log(`✓ Total affinities: ${affinitiesCreated + affinitiesUpdated} across ${allCareersForWef.length} careers × 16 WEF skills`);
+    }
+  } catch (error: any) {
+    console.error("  WEF career affinity seeding error (non-fatal, continuing):", error.message);
   }
 
   // Seed UAE Priority Sectors and WEF Skills Mapping
   console.log("\n🇦🇪 Seeding UAE Priority Sectors → WEF Skills mapping...");
   
 
-  const allCountries = await storage.getAllCountries();
-  const uaeCountry = allCountries.find((c: any) => c.code === "UAE");
-  if (!uaeCountry) {
-    console.warn("⚠️  UAE country not found, skipping priority sectors seeding");
-  } else {
-    // MUST run before the upsert loop below. createOrUpdateCountryPrioritySector
-    // conflicts on (country_id, name), so it cannot rename — given a renamed
-    // entry in UAE_SECTOR_WEF_SKILLS it would INSERT a second sector and leave
-    // the old one behind with its skill vector and category rules orphaned.
-    // This reconciles the existing rows first, in place, keeping their ids.
-    // Non-fatal: a failure here leaves the old names live, which still scores
-    // correctly — it must not take the rest of the seed down with it.
-    try {
-      await applySectorRenames(uaeCountry.id);
-    } catch (error: any) {
-      console.error("  Sector rename migration error (non-fatal, continuing):", error.message);
-    }
+  // GUARD: same reason as the blocks above. This is the last unprotected stretch
+  // before the content-migration block, and it contains applySectorRenames, which
+  // is itself one of the nine .ts migrations. Non-fatal.
+  try {
+    const allCountries = await storage.getAllCountries();
+    const uaeCountry = allCountries.find((c: any) => c.code === "UAE");
+    if (!uaeCountry) {
+      console.warn("⚠️  UAE country not found, skipping priority sectors seeding");
+    } else {
+      // MUST run before the upsert loop below. createOrUpdateCountryPrioritySector
+      // conflicts on (country_id, name), so it cannot rename — given a renamed
+      // entry in UAE_SECTOR_WEF_SKILLS it would INSERT a second sector and leave
+      // the old one behind with its skill vector and category rules orphaned.
+      // This reconciles the existing rows first, in place, keeping their ids.
+      // Non-fatal: a failure here leaves the old names live, which still scores
+      // correctly — it must not take the rest of the seed down with it.
+      try {
+        await applySectorRenames(uaeCountry.id);
+      } catch (error: any) {
+        console.error("  Sector rename migration error (non-fatal, continuing):", error.message);
+      }
 
-    let sectorsCreated = 0;
-    let skillMappingsCreated = 0;
-    let skillMappingsRemoved = 0;
-    const seededSectors: Record<string, string> = {}; // sector name -> id, for the vision mapping below
+      let sectorsCreated = 0;
+      let skillMappingsCreated = 0;
+      let skillMappingsRemoved = 0;
+      const seededSectors: Record<string, string> = {}; // sector name -> id, for the vision mapping below
 
-    for (const sectorData of UAE_SECTOR_WEF_SKILLS) {
-      // Create or update sector
-      const sector = await storage.createOrUpdateCountryPrioritySector(
-        uaeCountry.id,
-        sectorData.name,
-        sectorData.displayOrder,
-        sectorData.description
-      );
-      sectorsCreated++;
-      seededSectors[sectorData.name] = sector.id;
-
-      // Map sector to WEF skills
-      const keptSkillIds: string[] = [];
-      for (const [skillName, importance] of Object.entries(sectorData.skills)) {
-        // No aliasing: every key above must be one of the WEF 16 verbatim. The
-        // previous "Sustainability" -> "Scientific Literacy" alias collided on
-        // the (sector_id, wef_skill_id) unique index and silently cost Renewable
-        // Energy a skill. A typo must fail loudly here, not merge into a
-        // neighbour.
-        const wefSkill = seededWefSkills[skillName];
-
-        if (!wefSkill) {
-          console.warn(`⚠️  WEF skill not found: ${skillName} — sector ${sectorData.name} will be missing it`);
-          continue;
-        }
-
-        await storage.createOrUpdateCountrySectorWefSkill(
-          sector.id,
-          wefSkill.id,
-          importance
+      for (const sectorData of UAE_SECTOR_WEF_SKILLS) {
+        // Create or update sector
+        const sector = await storage.createOrUpdateCountryPrioritySector(
+          uaeCountry.id,
+          sectorData.name,
+          sectorData.displayOrder,
+          sectorData.description
         );
-        keptSkillIds.push(wefSkill.id);
-        skillMappingsCreated++;
+        sectorsCreated++;
+        seededSectors[sectorData.name] = sector.id;
+
+        // Map sector to WEF skills
+        const keptSkillIds: string[] = [];
+        for (const [skillName, importance] of Object.entries(sectorData.skills)) {
+          // No aliasing: every key above must be one of the WEF 16 verbatim. The
+          // previous "Sustainability" -> "Scientific Literacy" alias collided on
+          // the (sector_id, wef_skill_id) unique index and silently cost Renewable
+          // Energy a skill. A typo must fail loudly here, not merge into a
+          // neighbour.
+          const wefSkill = seededWefSkills[skillName];
+
+          if (!wefSkill) {
+            console.warn(`⚠️  WEF skill not found: ${skillName} — sector ${sectorData.name} will be missing it`);
+            continue;
+          }
+
+          await storage.createOrUpdateCountrySectorWefSkill(
+            sector.id,
+            wefSkill.id,
+            importance
+          );
+          keptSkillIds.push(wefSkill.id);
+          skillMappingsCreated++;
+        }
+
+        // RECONCILE, don't just upsert. createOrUpdateCountrySectorWefSkill can add
+        // a skill and change an importance but cannot REMOVE one, so on any
+        // already-seeded database a skill deleted from the vector above would keep
+        // its old row and keep feeding skillAlignment - the vector in this file and
+        // the vector the scorer uses would silently disagree. Phase 3 stage 3 is the
+        // first change to remove skills (Healthcare drops Critical
+        // Thinking and Persistence and Grit; Education & Human Capital drops
+        // Creativity), which is what surfaced this.
+        //
+        // Guarded on a non-empty vector: a sector whose skills map somehow arrived
+        // empty must not have its whole mapping deleted.
+        if (keptSkillIds.length > 0) {
+          const removed = await storage.deleteCountrySectorWefSkillsNotIn(sector.id, keptSkillIds);
+          if (removed > 0) {
+            console.log(`  ↺ ${sectorData.name}: removed ${removed} stale sector→skill row(s) no longer in the vector`);
+            skillMappingsRemoved += removed;
+          }
+        }
       }
 
-      // RECONCILE, don't just upsert. createOrUpdateCountrySectorWefSkill can add
-      // a skill and change an importance but cannot REMOVE one, so on any
-      // already-seeded database a skill deleted from the vector above would keep
-      // its old row and keep feeding skillAlignment - the vector in this file and
-      // the vector the scorer uses would silently disagree. Phase 3 stage 3 is the
-      // first change to remove skills (Healthcare drops Critical
-      // Thinking and Persistence and Grit; Education & Human Capital drops
-      // Creativity), which is what surfaced this.
-      //
-      // Guarded on a non-empty vector: a sector whose skills map somehow arrived
-      // empty must not have its whole mapping deleted.
-      if (keptSkillIds.length > 0) {
-        const removed = await storage.deleteCountrySectorWefSkillsNotIn(sector.id, keptSkillIds);
-        if (removed > 0) {
-          console.log(`  ↺ ${sectorData.name}: removed ${removed} stale sector→skill row(s) no longer in the vector`);
-          skillMappingsRemoved += removed;
+      console.log(`✓ Created/updated ${sectorsCreated} UAE priority sectors`);
+      console.log(`✓ Created/updated ${skillMappingsCreated} sector→WEF skill mappings` +
+        (skillMappingsRemoved > 0 ? `, removed ${skillMappingsRemoved} stale` : ""));
+
+      // --- VISION ALIGNMENT: sector ↔ career-category mapping ---
+      // Non-fatal by design: this block is the LAST thing in the priority-sector
+      // section, but seedDatabase() continues well past it (CVQ items, Arabic
+      // content). An uncaught throw here unwinds the whole function and is only
+      // caught by the `.catch(console.error)` at the call site in server/index.ts,
+      // which would silently skip every remaining seed step. A missing vision map
+      // degrades gracefully at runtime (matching.ts falls back to the score floor);
+      // missing CVQ items and Arabic content do not. So this failure must not be
+      // allowed to take them down with it.
+      try {
+        console.log("\n🇦🇪 Seeding UAE vision-alignment sector ↔ career-category mapping...");
+
+        const careersForVision = await storage.getAllCareers();
+        const careerIdByTitle = new Map(careersForVision.map((c: any) => [c.title, c.id as string]));
+        const knownCategories = new Set(careersForVision.map((c: any) => String(c.category).trim().toLowerCase()));
+
+        let categoryRulesSeeded = 0;
+        for (const rule of UAE_SECTOR_CATEGORY_RULES) {
+          const sectorId = seededSectors[rule.sector];
+          if (!sectorId) {
+            console.warn(`⚠️  Vision mapping: unknown sector "${rule.sector}" — skipping rule for ${rule.category}`);
+            continue;
+          }
+          // A rule for a category no career uses is dead data, not an error — warn loudly.
+          if (!knownCategories.has(rule.category.trim().toLowerCase())) {
+            console.warn(`⚠️  Vision mapping: no career uses category "${rule.category}" — rule will never fire`);
+          }
+          await storage.createOrUpdateSectorCategoryRule(sectorId, rule.category, rule.relevance, rule.notes);
+          categoryRulesSeeded++;
         }
+
+        let overridesSeeded = 0;
+        for (const override of UAE_SECTOR_CAREER_OVERRIDES) {
+          const sectorId = seededSectors[override.sector];
+          const careerId = careerIdByTitle.get(override.careerTitle);
+          if (!sectorId) {
+            console.warn(`⚠️  Vision mapping: unknown sector "${override.sector}" — skipping override for ${override.careerTitle}`);
+            continue;
+          }
+          if (!careerId) {
+            // Silently skipping would leave the career on its (wrong) category rule.
+            console.warn(`⚠️  Vision mapping: career "${override.careerTitle}" not found — override NOT applied, career falls back to its category rule`);
+            continue;
+          }
+          await storage.createOrUpdateSectorCareerOverride(sectorId, careerId, override.relevance, override.notes);
+          overridesSeeded++;
+        }
+
+        console.log(`✓ Created/updated ${categoryRulesSeeded} sector→career-category rules`);
+        console.log(`✓ Created/updated ${overridesSeeded} per-career vision overrides`);
+      } catch (error: any) {
+        console.error("  Vision-alignment mapping seed error (non-fatal, continuing):", error.message);
       }
     }
-
-    console.log(`✓ Created/updated ${sectorsCreated} UAE priority sectors`);
-    console.log(`✓ Created/updated ${skillMappingsCreated} sector→WEF skill mappings` +
-      (skillMappingsRemoved > 0 ? `, removed ${skillMappingsRemoved} stale` : ""));
-
-    // --- VISION ALIGNMENT: sector ↔ career-category mapping ---
-    // Non-fatal by design: this block is the LAST thing in the priority-sector
-    // section, but seedDatabase() continues well past it (CVQ items, Arabic
-    // content). An uncaught throw here unwinds the whole function and is only
-    // caught by the `.catch(console.error)` at the call site in server/index.ts,
-    // which would silently skip every remaining seed step. A missing vision map
-    // degrades gracefully at runtime (matching.ts falls back to the score floor);
-    // missing CVQ items and Arabic content do not. So this failure must not be
-    // allowed to take them down with it.
-    try {
-      console.log("\n🇦🇪 Seeding UAE vision-alignment sector ↔ career-category mapping...");
-
-      const careersForVision = await storage.getAllCareers();
-      const careerIdByTitle = new Map(careersForVision.map((c: any) => [c.title, c.id as string]));
-      const knownCategories = new Set(careersForVision.map((c: any) => String(c.category).trim().toLowerCase()));
-
-      let categoryRulesSeeded = 0;
-      for (const rule of UAE_SECTOR_CATEGORY_RULES) {
-        const sectorId = seededSectors[rule.sector];
-        if (!sectorId) {
-          console.warn(`⚠️  Vision mapping: unknown sector "${rule.sector}" — skipping rule for ${rule.category}`);
-          continue;
-        }
-        // A rule for a category no career uses is dead data, not an error — warn loudly.
-        if (!knownCategories.has(rule.category.trim().toLowerCase())) {
-          console.warn(`⚠️  Vision mapping: no career uses category "${rule.category}" — rule will never fire`);
-        }
-        await storage.createOrUpdateSectorCategoryRule(sectorId, rule.category, rule.relevance, rule.notes);
-        categoryRulesSeeded++;
-      }
-
-      let overridesSeeded = 0;
-      for (const override of UAE_SECTOR_CAREER_OVERRIDES) {
-        const sectorId = seededSectors[override.sector];
-        const careerId = careerIdByTitle.get(override.careerTitle);
-        if (!sectorId) {
-          console.warn(`⚠️  Vision mapping: unknown sector "${override.sector}" — skipping override for ${override.careerTitle}`);
-          continue;
-        }
-        if (!careerId) {
-          // Silently skipping would leave the career on its (wrong) category rule.
-          console.warn(`⚠️  Vision mapping: career "${override.careerTitle}" not found — override NOT applied, career falls back to its category rule`);
-          continue;
-        }
-        await storage.createOrUpdateSectorCareerOverride(sectorId, careerId, override.relevance, override.notes);
-        overridesSeeded++;
-      }
-
-      console.log(`✓ Created/updated ${categoryRulesSeeded} sector→career-category rules`);
-      console.log(`✓ Created/updated ${overridesSeeded} per-career vision overrides`);
-    } catch (error: any) {
-      console.error("  Vision-alignment mapping seed error (non-fatal, continuing):", error.message);
-    }
+  } catch (error: any) {
+    console.error("  UAE priority sector seeding error (non-fatal, continuing):", error.message);
   }
 
   // Seed CVQ (Children's Values Questionnaire) items
