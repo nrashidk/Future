@@ -29,7 +29,7 @@ import { GROWTH_BAND_I18N, isOnetGrowthBand } from "@shared/growthBands";
 import i18n from "@/i18n/config";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { COMPONENT_BREAKDOWN_META, type ComponentBreakdownEntry } from "@/lib/componentBreakdown";
+import { COMPONENT_BREAKDOWN_META, findComponentWeight, weightSentence, type ComponentBreakdownEntry } from "@/lib/componentBreakdown";
 import type { Recommendation, Career } from "@shared/schema";
 import { CVQ_DOMAINS } from "@shared/schema";
 
@@ -373,6 +373,13 @@ export default function ResultsPrint() {
   // first (career-neutral) paragraph; strengthsGrowth is rendered whole. Referenced by
   // BOTH mutually-exclusive premium profile pages (CVQ vs Personality); a premium
   // student sees exactly one, so it renders once.
+  // The values weight, for the Career Connection block below. Read from the stored
+  // breakdown rather than stated: it is tier-configurable (tierComponentWeights),
+  // so the literal 20 this replaced was wrong on any tier that does not weight
+  // values at 20%. null when no recommendation carries a cvq component, and the
+  // sentence is omitted rather than defaulted.
+  const cvqWeight = findComponentWeight(recommendations, "cvq");
+
   const hoistedWorkStyleStrengths = (() => {
     const strengthsGrowth = recommendations.find((r: EnrichedRecommendation) => r.strengthsGrowth)?.strengthsGrowth;
     const workStyleRaw = recommendations.find((r: EnrichedRecommendation) => r.workStyleFit)?.workStyleFit;
@@ -847,12 +854,9 @@ export default function ResultsPrint() {
                       <Target className="w-3.5 h-3.5" />
                       {t('careerConnectionTitle')}
                     </h3>
-                    <p className="text-xs font-body mb-2">
+                    <p className="text-xs font-body">
                       {t('careerConnectionDesc')}
-                    </p>
-                    <p className="text-xs text-muted-foreground font-body flex items-start gap-1">
-                      <Star className="w-3 h-3 flex-shrink-0 mt-0.5" />
-                      <span>{t('weightLabel', { pct: 20 })}</span>
+                      {cvqWeight !== null && ` ${t('careerConnectionWeight', { pct: cvqWeight })}`}
                     </p>
                   </div>
                 </div>
@@ -1025,7 +1029,9 @@ export default function ResultsPrint() {
                                 <span className="text-[11px] font-bold">{Math.round(entry.score)}%</span>
                               </div>
                               <Progress value={entry.score} className="h-1" />
-                              <span className="text-[10px] text-muted-foreground">{entry.weight}% {t('weightSuffix')}</span>
+                              <span className="text-[10px] text-muted-foreground">
+                                {(() => { const w = weightSentence(entry); return t(w.key, w.vars); })()}
+                              </span>
                             </div>
                           );
                         })}

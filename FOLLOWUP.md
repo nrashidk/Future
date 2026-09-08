@@ -38,6 +38,16 @@ DONE + VERIFIED:
 STILL OPEN (Arabic report quality):
 - Bug B — RTL career-page layout (dense career pages, were PDF pages 4/6/8). TWO sub-problems:
   (1) OVERFLOW/bleed across page breaks — FIX COMMITTED (3a1d263) BUT NOT YET VERIFIED. min-height:100vh→auto, break-inside:avoid on .career-card-print, grid h-full→h-auto. FIRST ACTION NEXT SESSION: download a real Arabic PDF and check the dense career pages (were 4/6/8) render with clean breaks and no overlap. Print CSS looks-right-renders-wrong — do NOT mark this done until seen in an actual PDF. If still broken, iterate.
+      ADDED HEIGHT 2026-09-08: the weights-as-sentences change (commit 2 of the methodology
+      work) replaces "35% weight" with a full sentence in the 2-col breakdown grid inside
+      each career card — the densest block on the page this item is about. Measured for
+      English it is a wash: the card is 1-up full-width (A4 210mm, .print-page-career
+      padding 2rem, card p-4), so a breakdown cell is ~334px inner and a ~49-char sentence
+      at text-[10px] still occupies one line. ARABIC IS THE OPEN CASE — longer strings in
+      Cairo may wrap to two lines, and six components in a 2-col grid is three rows, so the
+      worst case adds ~3 lines to a card carrying break-inside:avoid. NOT held for
+      verification (explicit decision), so the Arabic PDF check below now covers this block
+      too: look at the per-component weight sentences, not only the page breaks.
   (2) BIDI scrambling of mixed LTR/Arabic runs — STILL OPEN, untouched (lines ~436-448: [dir=rtl] .flex{direction:rtl} + blanket text-align:start reorder inline runs; English tokens scramble against Arabic; entangled with leak b). Needs its own focused pass with unicode-bidi:isolate/dir=auto/bdi protection.
 - Literal ** markdown still renders on labels ("**أسلوب التعاون الجماعي:**" etc.) — parked, decided approach is <strong> restructure not a parser.
 - Leak (b): subject names + skill terms render English in Arabic reports (English/Social Studies/Project Management/Research) — no AR localizer exists for these. Content/data task, parked.
@@ -2272,5 +2282,28 @@ So the two surfaces now describe the same instrument with two different nouns, o
 probably wrong. It was left alone because this commit's scope was removing the acronym, and
 changing the noun is an Arabic wording decision that wants a speaker rather than a
 find-and-replace. Worth folding into the standing Arabic/RTL audit below.
+
+Recorded 2026-09-08.
+
+
+### Arabic unreviewed — weights as sentences  (severity: low)
+Commit 2 of the methodology-exposure change added eight Arabic strings and edited one; none
+has been reviewed by an Arabic speaker:
+
+- `ar/results.json` — seven new weight sentences (`weightSubjects`, `weightInterests`,
+  `weightVision`, `weightRiasec`, `weightCvq`, `weightWefSkills`, `weightGeneric`), all of
+  the shape `تحتسب ... بنسبة {{pct}}% من هذا التطابق.` These replace `weightLabel`
+  (`وزن {{pct}}%`), which was noun-first and worked as a label but not as a clause — so
+  these are new sentence constructions, not translations of an existing one, and are the
+  least reviewed strings in the change.
+- `ar/results.json` `careerConnectionWeight` — new: `في جميع مطابقاتك، يحتسب ما تُقدّره بنسبة
+  {{pct}}% من كل درجة.`
+- `ar/results.json` `careerConnectionTitle` — `(وزن 20%)` removed from the heading.
+
+`weightGeneric` interpolates `{{component}}` from the stored breakdown's English
+`displayName`, so an unmapped component renders an English noun inside an Arabic sentence.
+That is the same mixed-run bidi hazard as leak (b) above, reached by a different route. It
+only fires for components absent from COMPONENT_BREAKDOWN_META (today: marketDemand), so it
+is rare rather than absent — worth folding into the bidi pass rather than fixing alone.
 
 Recorded 2026-09-08.

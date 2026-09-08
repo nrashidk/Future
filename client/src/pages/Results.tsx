@@ -31,7 +31,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
-import { COMPONENT_BREAKDOWN_META, type ComponentBreakdownEntry } from "@/lib/componentBreakdown";
+import { COMPONENT_BREAKDOWN_META, findComponentWeight, weightSentence, type ComponentBreakdownEntry } from "@/lib/componentBreakdown";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -329,6 +329,13 @@ export default function Results() {
   // re-derived tier check. Free-tier assessments come back with pdfLocked:true on
   // every recommendation; used to swap the PDF download CTA for an upgrade CTA.
   const reportLocked = recommendations.some((r: EnrichedRecommendation) => r.pdfLocked === true);
+
+  // The values weight, for the Career Connection block below. Read from the stored
+  // breakdown rather than stated: it is tier-configurable (tierComponentWeights),
+  // so the literal 20 this replaced was wrong on any tier that does not weight
+  // values at 20%. null when no recommendation carries a cvq component, and the
+  // sentence is omitted rather than defaulted.
+  const cvqWeight = findComponentWeight(recommendations, "cvq");
 
   // Fetch quiz data to get subject competency scores
   const { data: quizData } = useQuery<any>({
@@ -846,6 +853,7 @@ export default function Results() {
                   <h4 className="font-semibold mb-2 text-primary">{t('careerConnectionTitle')}</h4>
                   <p className="text-sm font-body">
                     {t('careerConnectionDesc')}
+                    {cvqWeight !== null && ` ${t('careerConnectionWeight', { pct: cvqWeight })}`}
                   </p>
                 </div>
               </div>
@@ -1101,7 +1109,9 @@ export default function Results() {
                               <span className="text-sm font-bold">{Math.round(entry.score)}%</span>
                             </div>
                             <Progress value={entry.score} className="h-2" />
-                            <p className="text-xs text-muted-foreground mt-1">{t('weightLabel', { pct: entry.weight })}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {(() => { const w = weightSentence(entry); return t(w.key, w.vars); })()}
+                            </p>
                           </div>
                         );
                       })}
