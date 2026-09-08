@@ -211,10 +211,34 @@ app.use((req, res, next) => {
     await runMigrations();
   }
 
-  // Seed database on startup (all environments - seed is idempotent)
+  // Seed database on startup (all environments - seed is idempotent).
+  // NOT fatal — a booting server serving stale content beats no server at all.
+  // But it MUST be loud: seedDatabase() applies the nine .ts content migrations
+  // at the end of its run, and this used to be `.catch(console.error)`, so an
+  // abort left the app serving traffic with that content silently missing. It
+  // did, in production, for months. The banner below and the `seed` field on
+  // /health exist so the next occurrence is noticed within one deploy.
   {
     const { seedDatabase } = await import("./seed");
-    await seedDatabase().catch(console.error);
+    const { markSeedOk, markSeedFailed } = await import("./seedStatus");
+    try {
+      await seedDatabase();
+      markSeedOk();
+    } catch (error: any) {
+      markSeedFailed(error);
+      console.error(
+        "\n" +
+        "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n" +
+        "!! SEED ABORTED — the server is starting with INCOMPLETE content.\n" +
+        "!! Reference data and the nine .ts content migrations in server/seed.ts\n" +
+        "!! may not have been applied. Arabic career/quiz content, values\n" +
+        "!! profiles, growth bands and WEF affinities are all applied there.\n" +
+        "!! /health now reports status=degraded, seed=failed.\n" +
+        "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!",
+      );
+      console.error("!! Cause:", error?.stack || error?.message || error);
+      console.error("");
+    }
   }
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
