@@ -5,6 +5,7 @@ import { db } from "../db";
 import { users, assessments, recommendations, assessmentQuizzes, quizResponses, cvqResults, organizationMembers } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { dataExportLimiter } from "../middleware/rateLimiter.middleware";
+import { toClientRecommendations } from "../utils/recommendationView";
 import { z } from "zod";
 
 export function registerUserRoutes(app: Express) {
@@ -53,7 +54,12 @@ export function registerUserRoutes(app: Express) {
       const assessmentRecommendations: Record<string, any[]> = {};
       for (const assessment of userAssessments) {
         const recs = await storage.getRecommendationsByAssessment(assessment.id);
-        assessmentRecommendations[assessment.id] = recs;
+        // The export is student-facing too, and the same bare `db.select()` feeds
+        // it. Withholding the scoring-regime identifiers does NOT narrow the
+        // subject-access right: they describe the algorithm that ran, not the
+        // person it ran on, and every score, reasoning and action step the row
+        // holds about the student is still exported in full.
+        assessmentRecommendations[assessment.id] = toClientRecommendations(recs);
       }
 
       // Fetch quiz data for each assessment

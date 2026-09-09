@@ -21,6 +21,7 @@ import { FREE_ASSESSMENT_CAP, isFreeTierCapReached } from "@shared/assessmentLim
 import { formatFreeReasoning, buildFreeActionSteps } from "../services/freeNarrative";
 import { collectMissingComponents } from "../utils/assessmentCompleteness";
 import { mintPrintToken, printTokenAuthorizes } from "../utils/printToken";
+import { toClientRecommendations, toClientCareerMatch } from "../utils/recommendationView";
 import type { Career } from "@shared/schema";
 
 /** Escape regex metacharacters so user-supplied strings are treated as literals. */
@@ -219,10 +220,14 @@ export function registerRecommendationsRoutes(app: Express) {
         }
       });
 
-      res.json({ 
-        success: true, 
+      res.json({
+        success: true,
         count: careerMatches.length,
-        recommendations: careerMatches // Return new format for immediate use
+        // Same strip as the GET path, on the other type: these are freshly
+        // scored CareerMatch objects, not stored rows, and they carry the
+        // scoring-regime identifiers TWICE — as `scoringProvenance` and as
+        // `appliedConfigVersion`, which is the identical string.
+        recommendations: careerMatches.map(toClientCareerMatch) // Return new format for immediate use
       });
     } catch (error) {
       console.error("Error generating recommendations:", error);
@@ -290,7 +295,14 @@ export function registerRecommendationsRoutes(app: Express) {
         return res.json([]);
       }
 
-      const recommendations = await storage.getRecommendationsByAssessment(assessmentId);
+      // STRIPPED HERE, before the enrichment, not at each return. The five
+      // branches below all answer with `{ ...rec, ... }`, so the operator-only
+      // columns were reaching the student on every one of them — see
+      // server/utils/recommendationView.ts for why this is a strip rather than
+      // an explicit projection, and why the array is the right place for it.
+      const recommendations = toClientRecommendations(
+        await storage.getRecommendationsByAssessment(assessmentId),
+      );
 
       // Tier check / premium narratives (assessment already fetched above for the
       // ownership gate, so we reuse it rather than querying again).

@@ -851,7 +851,25 @@ export const assessmentQuizzes = pgTable("assessment_quizzes", {
   completedAt: timestamp("completed_at"),
   
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [
+  /**
+   * ONE QUIZ PER ASSESSMENT. Created by migration 019, which carries the full
+   * account of what went wrong without it.
+   *
+   * This index is load-bearing for reads, not only for writes.
+   * getAssessmentQuizByAssessmentId (storage.ts:1264-1270) selects by
+   * assessment_id with no ORDER BY and takes the first row; that is safe
+   * BECAUSE at most one row can exist. POST /quiz/generate's duplicate guard
+   * (quiz.routes.ts:197) is likewise a check-then-act that only holds because
+   * this constraint sits underneath it — two concurrent generates used to both
+   * pass the check and both insert, after which submit and matching could read
+   * different rows and disagree about whether the student finished the quiz.
+   *
+   * Drop this index and both of those quietly become wrong again. Neither would
+   * fail; they would return an arbitrary quiz.
+   */
+  uniqueIndex("assessment_quizzes_assessment_id_unique_idx").on(table.assessmentId),
+]);
 
 export const assessmentQuizzesRelations = relations(assessmentQuizzes, ({ one, many }) => ({
   assessment: one(assessments, {

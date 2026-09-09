@@ -1,0 +1,52 @@
+-- One quiz per assessment, enforced by the database.
+--
+-- THE DEFECT. getAssessmentQuizByAssessmentId (server/storage.ts:1264-1270)
+-- selects by assessment_id with no ORDER BY and no LIMIT, and destructures the
+-- first row the planner happens to return. Nothing stopped a second row from
+-- existing: assessment_quizzes.assessment_id had only the implicit index behind
+-- its foreign key, no unique constraint.
+--
+-- HOW A SECOND ROW GETS THERE. POST /quiz/generate guards against creating one
+-- by reading through that same unordered query first (server/routes/
+-- quiz.routes.ts:197). Two concurrent generates — a double-clicked button — can
+-- both run that read before either insert commits, both find nothing, and both
+-- insert. The guard is a check-then-act with no constraint underneath it, which
+-- is not a guard.
+--
+-- WHY IT MATTERS BEYOND TIDINESS. From then on every reader picks arbitrarily
+-- and they need not agree. Submit completes whichever row it picks
+-- (quiz.routes.ts:576); matching may later read the other one — unsubmitted,
+-- its responses never marked — and report 0% subject competency for a student
+-- who genuinely completed the quiz. That is the path by which the fabricated-
+-- zero defect fixed in b578ab0 reached a normally completed assessment through
+-- the ordinary UI. After b578ab0 the same student instead scores on preference
+-- alone: a smaller error, still not their result.
+--
+-- AN ORDER BY WOULD NOT HAVE FIXED IT. Ordering makes the read deterministic
+-- while leaving the duplicate row in the table, and the duplicate is the defect:
+-- it is a second set of questions the student never saw, carrying its own
+-- quiz_responses rows. The constraint is what makes the read safe, so the query
+-- needs no ordering once this index exists.
+--
+-- NO DE-DUPLICATION STEP, DELIBERATELY — unlike migration 010, which collapses
+-- duplicates before its index. Collapsing here would mean deleting
+-- quiz_responses rows, and those are a student's real answers. There is no
+-- automatic rule for choosing which of two quizzes a student keeps, so this
+-- migration refuses to guess: if duplicates exist it fails loudly, migrations
+-- are fatal at boot (server/index.ts:207-212), and a human decides.
+--
+-- VERIFIED CLEAN BEFORE THIS LANDS. Production was checked and returned 0:
+--
+--     SELECT assessment_id, COUNT(*) FROM assessment_quizzes
+--     GROUP BY assessment_id HAVING COUNT(*) > 1;
+--
+-- Run that first in any other environment this is applied to.
+--
+-- Mirrors `assessmentQuizzes` in shared/schema.ts. Keep the two in sync.
+
+-- assessment_id is NOT NULL, so a plain (non-partial) unique index is correct —
+-- Postgres treats NULLs as distinct, which is why country_sector_categories
+-- needed two partial indexes and this does not. It also serves the read path:
+-- every lookup of a quiz is by assessment_id, so no separate index is wanted.
+CREATE UNIQUE INDEX IF NOT EXISTS assessment_quizzes_assessment_id_unique_idx
+  ON assessment_quizzes (assessment_id);
