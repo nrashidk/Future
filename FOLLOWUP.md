@@ -1564,6 +1564,35 @@ clusters are breaking, both are their own scheduled work, neither is on a studen
 ### Career-reasoning prompt contradicts quiz results  (severity: medium-high — credibility)
 Confirmed in a live prod PDF (assessment 23f6008e, 2026-09-05). The subject-strengths block shows Mathematics 0% (0 of 4 correct), while the LLM "Why This Career?" narratives praise Mathematics as a strength on three of five careers: Product Manager ("your love of Mathematics supports the analytical side"), Journalist ("Mathematics sharpens the analytical thinking needed to fact-check data"), Marketing Manager ("Mathematics connects to analytics and budgeting"). Cause: the career_reasoning prompt is fed favoriteSubjects (student-declared) with no quiz competency scores, so a failed subject is treated as an asset. Reader can falsify the claim from the same page. Fix: pass per-subject quiz scores into the prompt and instruct the model to frame low-scoring subjects as growth areas, not strengths. Needs a real PDF to verify. First flagged 2026-09-05.
 
+### Three idioms guard one hazard in Assessment.tsx  (severity: medium)
+A component that writes state and advances in the same handler loses the write, because
+handleNext reads the assessmentData closure from the render before the update commits. That cost
+a half-length quiz on the exactly-3 subjects path (28fcf36), silently, on 9 stored assessments.
+
+The file now guards it three different ways: handleRiasecComplete passes the value as an
+argument (:923, with a comment naming the hazard), the org-student prefill uses
+setTimeout(..., 0) (:578-593), and handleNext takes an explicit override (28fcf36). Each is
+correct; together they mean the next person reading one has no reason to look for the others,
+and a fourth site gets missed.
+
+It is only dangerous where handleNext actually saves — steps 3 and the final Aspirations step —
+which is why CVQStep.tsx:150-151 is latent rather than live. That containment is a property of
+current step numbering, not a rule.
+
+The whole class is invisible to the test suite: every unit involved was correct, and the defect
+lived in the seam between a component's handler and its parent's. vitest.config.ts is node-only,
+so no test could have caught it. First flagged 2026-09-09.
+
+UPDATE, same day: CVQStep was hardened in 467f8bb — it now passes the override rather than
+relying on step 6 not saving, so the one latent site named above is closed and that file uses the
+same idiom as SubjectsStep. The three idioms in Assessment.tsx itself are untouched and remain the
+open part of this entry: the RIASEC and prefill sites are correct and were deliberately not
+reworked. Blast radius of the original defect measured on prod the same day: 9 completed
+assessments on the exactly-3 path, averaging 9.78 questions against an expected 12 free / 15
+premium. Between 6 and 12 rather than a flat 6, which matches the Back-navigation variant (a
+stale PARTIAL priority list) rather than a uniform empty array. All 9 are test fixtures; no real
+student affected.
+
 ### PDF footer shows wrong date  (severity: low — visible on artifact)
 PDFs rendered 2026-09-05 print "Generated on 9/4/2026". The footer date is not the render date — likely the assessment completion/created date, or a timezone/derivation bug. Find the source of that value in ResultsPrint.tsx and confirm what it is meant to show. First flagged 2026-09-05.
 
