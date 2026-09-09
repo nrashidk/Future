@@ -2976,3 +2976,67 @@ stronger of the two claims removed — `شارات إنجاز` is specifically *
 English `badges` was vaguer.
 
 Recorded 2026-09-09.
+
+### Two quizzes can exist for one assessment, and readers pick arbitrarily  (severity: HIGH)
+`getAssessmentQuizByAssessmentId` (`storage.ts:1264-1270`) has no `ORDER BY`, no `LIMIT`, and
+`assessment_quizzes.assessment_id` carries no unique constraint. `POST /quiz/generate` guards
+against a second quiz by reading through that same unordered query (`quiz.routes.ts:197`), so two
+concurrent generates — a double-clicked button — can both find nothing and both insert.
+
+From then on every reader picks an arbitrary row. Submit completes whichever it picks (`:576`);
+matching may read the other and report 0% subject competency for a student who genuinely completed
+the quiz. This is the path by which the fabricated-zero defect reaches a normally completed
+assessment through the ordinary UI.
+
+THE FIX IS A UNIQUE INDEX ON `assessment_id`, NOT AN `ORDER BY` — ordering makes the read
+deterministic while leaving the duplicate row in the table, and a duplicate quiz is itself wrong:
+its responses are a second set of questions the student never answered. Needs a check for existing
+duplicates before the constraint can land:
+
+    SELECT assessment_id, COUNT(*) FROM assessment_quizzes
+    GROUP BY assessment_id HAVING COUNT(*) > 1;
+
+Note the fabricated-zero fix (`b578ab0`) does not close this and was not meant to: it filters on
+`completedAt`, and the failure here is reading the WRONG quiz row — an unsubmitted duplicate of a
+quiz that was in fact submitted. After that fix such a student gets `{}` and scores on preference
+alone rather than on a fabricated 0%, which is a smaller error but still not their result.
+
+First flagged 2026-09-09.
+
+### assessments.subject_competencies is written, client-PATCHable, and read by nothing  (severity: MEDIUM)
+Three copies of one number exist. Submit writes two of them — `assessment_quizzes.subject_scores`
+(`quiz.routes.ts:646`) and `assessments.subject_competencies` (`:652`) — and matching recomputes a
+third from the response rows (`storage.ts:2226`).
+
+`subjectCompetencies` sits in the PATCH allowlist at `assessment.routes.ts:510`, so any owner can
+write arbitrary values into it. **That is harmless today only because nothing reads it**: a grep
+finds the writer, the allowlist entry and the column definition, and no reader at all.
+
+The trap is that it looks like the obvious thing to read. Anyone who later proposes reading it as
+a scoring input — a reasonable-sounding simplification, since it is written at submit and so
+cannot carry an unsubmitted quiz's zeros — **must remove it from that allowlist in the same
+change**, or they hand a student direct control of 60% of their own subject score. Two further
+reasons it was not adopted as the fix for the fabricated zeros: `subjectScores` is
+`{subject: {correct, total, percentage}}`, not the `{subject: number}` the matching context
+expects, and neither column can be assumed present on rows written before it existed, so switching
+readers would silently lose competency for older assessments rather than failing loudly.
+
+The cleanup is to decide which copy is authoritative and delete the others, not to add a reader.
+
+Recorded 2026-09-09.
+
+### Submit-time and recompute-time subject denominators are two implementations  (severity: LOW)
+The same number is computed twice by different code. Submit accumulates `subjectScores` in its
+scoring loop (`quiz.routes.ts:625-632`), incrementing `total` only for rows it actually marked;
+`getAssessmentWithCompetencies` recomputes it from the stored rows. The loop `continue`s twice
+without marking — when a question is not in the fetched set (`:608`) and when a multiple-choice
+question has a falsy `correctAnswer` (`:610-612`) — so those rows left the two totals disagreeing.
+
+`b578ab0` closed the divergence by filtering on `isCorrect IS NOT NULL`, which makes the recompute
+reproduce submit's denominator exactly. **The underlying cause is unfixed**: two independent
+implementations of one calculation, kept in agreement by a filter that a future edit to either
+side can break silently, since nothing compares them. `quiz_questions.correct_answer` is `notNull`
+so the second `continue` can only fire on an empty string — defensive rather than routine, which
+is precisely why a regression here would not be noticed.
+
+Recorded 2026-09-09.
