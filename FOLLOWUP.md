@@ -861,6 +861,9 @@ DONE (committed + pushed):
   dropped 58 packages, zero code change. tsc/tests/build all green.
 
 REMAINING — 4 highs, puppeteer cluster (puppeteer, puppeteer-core, @puppeteer/browsers, extract-zip):
+(counts superseded 2026-09-09 — see the update under "Dependency vulnerabilities flagged by Dependabot" below.
+The puppeteer cluster itself is unchanged and still the plan of record; js-yaml has since been
+patched in place at 4.3.2 without the bump.)
 - LOW real risk: extract-zip symlink traversal fires at BROWSER INSTALL, not PDF render; js-yaml is
   puppeteer-internal. Not on any request path.
 - Fix = puppeteer 24 -> 25 (major bump). HIGHEST regression risk of the batch: touches live PDF gen
@@ -1519,6 +1522,44 @@ Investigation only, no fix applied. **The counts reconcile exactly** — Dependa
 **Priority read:** multer is the one that matters — direct dep, high severity, squarely in the request path (student file uploads). dompurify moderate but also on the request path. undici is high-labeled but not reachable through our usage. Even so, all three go away with a single non-breaking `npm audit fix`.
 
 **Caveat before applying (per instructions — not done here):** verify the bumps don't disturb the build, especially anything touching vite/esbuild/puppeteer/drizzle. These three don't obviously touch that chain (multer is Express upload; dompurify/undici come in via isomorphic-dompurify/jsdom), but run a build + the upload paths after fixing. First flagged 2026-07-07.
+
+**UPDATE 2026-09-09 — the reconciled set was NOT permanently resolved; multer is vulnerable again.**
+The "all three go away with a single non-breaking `npm audit fix`" reading above was accurate when
+written and was applied in 1d3653d (2026-08-24), which recorded multer resolved at **2.2.0**. As of
+2026-09-09 the multer advisory range is **`<=2.2.0`** — the exact version that closed the finding is
+the vulnerable one now, across **4 new high advisories**: DoS via crafted multipart field names; fd
+leak on aborted uploads; file-size-limit bypass via async `fileFilter` race; DoS via oversized array
+index in field names. Still the direct dep on the live upload path (files.routes.ts, admin.routes.ts
+bulk student import) — minors' file uploads. Nothing regressed in this repo; the advisory moved under
+a static version. **So: no audit result is settled. Re-run on a schedule, not once per triage.**
+
+**Count went 8 -> 14 overnight** — four newly-advisory packages, all fixed by the safe path. Cleared
+in ae317d8 (plain `npm audit fix`, no `--force`; lockfile only, package.json unchanged, 0 moves
+outside a declared semver range):
+
+| package | was -> now | severity | note |
+|---|---|---|---|
+| multer | 2.2.0 -> 2.3.0 | high (4 advisories) | direct dep, live upload path |
+| js-yaml | 4.3.1 -> 4.3.2 | high | puppeteer -> cosmiconfig -> js-yaml; patched in place, no puppeteer bump needed |
+| @vitest/mocker | 4.1.10 -> 4.1.11 | moderate | dev-only; moved with vitest + the @vitest/* set |
+| morgan | 1.11.0 -> 1.12.0 | moderate | direct dep; log forging via unescaped Unicode line separators |
+
+Incidental in-range moves: body-parser 1.20.6 -> 1.20.8, qs 6.15.2 -> 6.15.3, tinyrainbow, and the
+browserslist/caniuse-lite/electron-to-chromium chain. One new nested copy —
+`body-parser/node_modules/qs@6.16.0` — because body-parser 1.20.8 tightened its requirement to
+`~6.16.0`, which no longer overlaps express's `~6.15.1`. That nested copy sits outside the qs
+advisory range, so body-parser's qs edge is now clean and only express's own edge remains. Verified:
+tsc --noEmit clean, 735 tests across 46 files pass, build green.
+
+**REMAINING after ae317d8 — 6 (4 high, 2 moderate); Dependabot dedups the same tree to 5.** Both
+clusters are breaking, both are their own scheduled work, neither is on a student request path:
+- **puppeteer cluster** (puppeteer, puppeteer-core, @puppeteer/browsers, extract-zip) — 4 high. Fires
+  at browser INSTALL, not at PDF render. Fix = puppeteer 24 -> 25 (major). Plan of record is the
+  "puppeteer 24->25 — IN PROGRESS" section above; still blocked on a staging deploy that can actually
+  render a PDF (bundled Chrome won't exec in the Codespace).
+- **qs <- express** — 2 moderate (array-limit bypass via bracket-key comma parsing; DoS via
+  attacker-controlled isBuffer). Fix = express 4 -> 5 (major). Not yet scheduled; needs its own recon
+  session before anyone touches it.
 
 ### Career-reasoning prompt contradicts quiz results  (severity: medium-high — credibility)
 Confirmed in a live prod PDF (assessment 23f6008e, 2026-09-05). The subject-strengths block shows Mathematics 0% (0 of 4 correct), while the LLM "Why This Career?" narratives praise Mathematics as a strength on three of five careers: Product Manager ("your love of Mathematics supports the analytical side"), Journalist ("Mathematics sharpens the analytical thinking needed to fact-check data"), Marketing Manager ("Mathematics connects to analytics and budgeting"). Cause: the career_reasoning prompt is fed favoriteSubjects (student-declared) with no quiz competency scores, so a failed subject is treated as an asset. Reader can falsify the claim from the same page. Fix: pass per-subject quiz scores into the prompt and instruct the model to frame low-scoring subjects as growth areas, not strengths. Needs a real PDF to verify. First flagged 2026-09-05.
