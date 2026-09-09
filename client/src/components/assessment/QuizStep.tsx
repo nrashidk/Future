@@ -86,6 +86,7 @@ export function QuizStep({ assessmentId, onComplete, onBack, quizDiscarded }: Qu
   // instead of leaving a permanent hole.
   const lastSavedRef = useRef<Record<string, string>>({});
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hydratedQuizIdRef = useRef<string | null>(null);
 
   // Generate/fetch quiz (guest token is sent via httpOnly cookie automatically)
   const { data: quizData, isLoading: isGenerating, error: generationError } = useQuery({
@@ -102,6 +103,49 @@ export function QuizStep({ assessmentId, onComplete, onBack, quizDiscarded }: Qu
       onComplete();
     }
   }, [quizData, showResults, onComplete]);
+
+  /**
+   * Restore the answers the student already entered.
+   *
+   * Both server read paths have always returned them — the existing-quiz branch
+   * of /quiz/generate and GET /quiz both send `responses` — and this component
+   * had never once looked at that field. Until the previous commit there was
+   * nothing in it but empty strings, so nobody noticed the read end was missing.
+   *
+   * GUARDED BY QUIZ ID, IN A REF. This runs once per quiz and never again for
+   * that quiz. quizData's identity changes on every successful save (the
+   * write-through setQueryData in saveAnswers), so an unguarded effect would
+   * re-seed the form from the cache mid-quiz — harmless when the cache agrees,
+   * and a lost answer the moment it does not. A ref, not state, because the
+   * guard has to hold within the render pass that reads it.
+   *
+   * BLANKS ARE FILTERED. Every row is created with answer: "". An empty string
+   * is not an answer: it would not satisfy allAnswered, but it WOULD count in
+   * the "N of M answered" line above, telling a student they had answered
+   * questions they had not.
+   *
+   * ANYTHING TYPED SINCE THE FETCH WINS — `prev` is spread last.
+   *
+   * lastSavedRef is seeded here as well. It records what the SERVER holds, and
+   * what the server holds is precisely what was just read; without this the
+   * debounced save would see a burst of new answers and PATCH them straight back
+   * to where they came from on every entry to the quiz.
+   */
+  useEffect(() => {
+    const quizId = quizData?.quizId;
+    if (!quizId || hydratedQuizIdRef.current === quizId) return;
+    hydratedQuizIdRef.current = quizId;
+
+    const stored: Record<string, string> = Object.fromEntries(
+      ((quizData.responses ?? []) as QuizResponse[])
+        .filter((r) => typeof r.answer === "string" && r.answer !== "")
+        .map((r) => [r.questionId, r.answer])
+    );
+    if (Object.keys(stored).length === 0) return;
+
+    lastSavedRef.current = stored;
+    setResponses((prev) => ({ ...stored, ...prev }));
+  }, [quizData]);
 
   /**
    * Persist the answers entered so far.
