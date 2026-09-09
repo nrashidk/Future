@@ -2534,7 +2534,7 @@ constrains proposal (1) rather than following from it.
 
 First flagged 2026-09-09. Nothing to be built until the documents are settled.
 
-### Impersonation is a no-op that reports success  (severity: HIGH — it misleads the operator)
+### Impersonation is a no-op that reports success — DELETED 2026-09-09  (was: HIGH)
 POST /api/superadmin/impersonate/:userId (superadmin.routes.ts:1806-1837) writes one thing:
 
     (req.session as any).impersonating = { originalUserId, targetUserId, startedAt };
@@ -2573,6 +2573,47 @@ Do not fix by making the flag work. Decide first whether the feature is wanted; 
 trail and banner and exit are part of the minimum, not follow-ups. If it is not, delete the
 route, the mutation and the button together. First flagged 2026-09-08.
 
+RESOLVED 2026-09-09 by deleting it. Both routes (superadmin.routes.ts:1806-1852), the section
+comment, impersonateMutation, the button, the orphaned UserCog import and all four locale keys
+in both languages went in one commit. Nothing else referenced session.impersonating — it was
+the only bespoke session key in the codebase, and no type declaration, test or other caller
+existed. Live session rows may still carry the key; it is inert and expires with the session.
+
+WHY DELETE RATHER THAN BUILD (recon: docs/impersonation-build-or-delete-recon.md, untracked —
+docs/*.md is gitignored). The need behind the button is real, but it is a READ need, and
+impersonation answered it by granting write authority over a minor's account. Its own
+advertised use case — walk the flow to reproduce a reported bug — would have PATCHed the
+child's assessment record via the autosave at Assessment.tsx:686 and attributed it to them,
+with DELETE /api/users/me and the GDPR export equally live. A correct build would also have
+needed a banner, an exit path, a new audit table (organization_events cannot hold it:
+organization_id is NOT NULL with an FK) and a change to how req.user is resolved, to arrive at
+a capability narrower than the read access described in the entry below.
+
+Corrected while closing, for anyone who reads the original entry above: "a superadmin stuck
+inside a student's session with no visible way out" was the right conclusion for the wrong
+reason. req.logout() in passport 0.7.0 regenerates the session
+(node_modules/passport/lib/sessionmanager.js:80-91) and GET /api/logout (auth.ts:302) is behind
+no guard, so logout would have cleared the flag. The operator was never trapped — they were
+unlabelled, and every write they made was the student's.
+
+### A superadmin cannot see a student's report  (severity: medium)
+GET /api/superadmin/students/:userId/results (superadmin.routes.ts:1639-1653) does not return
+results — it redirects to /results?assessmentId=<id>, handing the superadmin's browser to the
+student-facing page. That page then fetches GET /api/assessments/:id, which requires
+req.user.userId === assessment.userId (assessment.routes.ts:415-418) and 403s, and
+GET /api/recommendations, which returns [] for a non-owner by design as an anti-enumeration
+measure (recommendations.routes.ts:265-283). Neither has a superadmin bypass.
+
+So the "View results" control sends an operator to a page with no assessment and no
+recommendations. The quiz, the CVQ result and the report PDF are equally unreachable
+(quiz.routes.ts:400, cvq.routes.ts:14/:184, recommendations.routes.ts:621-646 — owner or token
+only).
+
+The need behind the deleted impersonation button was this one, and it is a read need: three
+route-level reads with an audit row each, not session identity substitution. Establishing the
+rendered outcome needs the app run, not just the routes read. First flagged 2026-09-09.
+
+
 ### Destructive admin actions have inverted friction  (severity: HIGH — minors' data, no undo)
 Confirmation, audit and undo are distributed across the admin surface in almost exactly the
 wrong order. The actions with the widest blast radius have the least friction.
@@ -2594,7 +2635,7 @@ tables below is unrecorded.
 | **Bulk password reset**, up to 100 students (SuperadminDashboard.tsx:1333 → superadmin.routes.ts:1517) | **None** — bare onClick, no dialog | **None** | None. Old hashes gone |
 | Single password reset (:2397 → :1475) | Modal | **None** | None |
 | **Delete a file** (:1603 → :1770) | **None** — bare onClick | **None** | None. Object then row, both permanent |
-| **Impersonate** (:1470 → :1806) | **None** | **None** | n/a — no-op, see entry above |
+| ~~**Impersonate**~~ | — | — | DELETED 2026-09-09, see the entry above |
 | Delete a school, incl. members + files (:2341 → :1431) | Typed-name modal | console.log only (:1462) | None |
 | Bulk delete schools (:1081 → :1572) | Native confirm() | Attempted, likely lost | None |
 | View any student's results (:1639, :1655) | n/a | **None** | n/a |

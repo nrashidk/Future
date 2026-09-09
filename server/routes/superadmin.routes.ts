@@ -1800,57 +1800,6 @@ export function registerSuperadminRoutes(app: Express) {
   });
 
   // ===============================
-  // USER IMPERSONATION
-  // ===============================
-  
-  app.post("/api/superadmin/impersonate/:userId", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
-    try {
-      const targetUser = await storage.getUser(req.params.userId);
-      if (!targetUser) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      
-      const currentUser = (req as any).currentUser;
-      
-      (req.session as any).impersonating = {
-        originalUserId: currentUser.id,
-        targetUserId: targetUser.id,
-        startedAt: new Date().toISOString(),
-      };
-      
-      res.json({ 
-        success: true, 
-        message: `Now impersonating ${targetUser.username || targetUser.email}`,
-        targetUser: {
-          id: targetUser.id,
-          username: targetUser.username,
-          email: targetUser.email,
-          firstName: targetUser.firstName,
-          lastName: targetUser.lastName,
-          accountType: targetUser.accountType,
-        }
-      });
-    } catch (error) {
-      console.error("Error starting impersonation:", error);
-      res.status(500).json({ message: "Failed to start impersonation" });
-    }
-  });
-
-  app.post("/api/superadmin/stop-impersonation", isAuthenticated, async (req, res) => {
-    try {
-      if (!(req.session as any).impersonating) {
-        return res.status(400).json({ message: "Not currently impersonating anyone" });
-      }
-      
-      delete (req.session as any).impersonating;
-      res.json({ success: true, message: "Stopped impersonation" });
-    } catch (error) {
-      console.error("Error stopping impersonation:", error);
-      res.status(500).json({ message: "Failed to stop impersonation" });
-    }
-  });
-
-  // ===============================
   // SYSTEM ANNOUNCEMENTS
   // ===============================
   

@@ -22,7 +22,7 @@ import {
   TrendingUp, AlertCircle, CheckCircle, Clock, Home, User, LogOut,
   ChevronUp, ChevronDown, History, Infinity, BarChart, Copy, FileQuestion,
   Settings, Globe, Gift, FileText, Megaphone, Briefcase, Eye, RefreshCw,
-  UserCog, Info, AlertTriangle, XCircle, Languages, Database
+  Info, AlertTriangle, XCircle, Languages, Database
 } from "lucide-react";
 import ScoringConfigEditor from "@/components/admin/ScoringConfigEditor";
 import CountryManagement from "@/components/admin/CountryManagement";
@@ -351,20 +351,6 @@ export default function SuperadminDashboard() {
     },
     onError: (error: unknown) => {
       toast({ title: t('superadmin.error'), description: serverErrorMessage(error) ?? t('superadmin.failedToPromoteAdmin'), variant: "destructive" });
-    },
-  });
-
-  const impersonateMutation = useMutation({
-    mutationFn: async (userId: string) => {
-      const res = await apiRequest('POST', `/api/superadmin/impersonate/${userId}`);
-      return res.json();
-    },
-    onSuccess: (data: any) => {
-      toast({ title: t('superadmin.impersonationStarted'), description: data.message || "Now impersonating user" });
-      window.location.href = '/';
-    },
-    onError: (error: unknown) => {
-      toast({ title: t('superadmin.error'), description: serverErrorMessage(error) ?? t('superadmin.failedToImpersonate'), variant: "destructive" });
     },
   });
 
@@ -1464,15 +1450,6 @@ export default function SuperadminDashboard() {
                                       <Eye className="w-4 h-4" />
                                     </a>
                                   </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    onClick={() => impersonateMutation.mutate(student.user.id)}
-                                    title={t('superadmin.impersonate')}
-                                  data-testid={`button-impersonate-${student.user.id}`}
-                                >
-                                  <UserCog className="w-4 h-4" />
-                                </Button>
                                 <Button
                                   variant="ghost"
                                   size="icon"
