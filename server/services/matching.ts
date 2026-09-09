@@ -348,6 +348,33 @@ export async function currentScoringRegimeForTier(
 }
 
 /**
+ * The current regime for EVERY configured tier — the comparison set the stored
+ * estate is measured against.
+ *
+ * One helper rather than two call sites building their own list, so the estate
+ * card and the scoring-config editor can never disagree about what "current"
+ * means. Both endpoints in superadmin.routes.ts go through this.
+ *
+ * The tiers come from scoring_tiers, so this list is exactly as complete as the
+ * database. A stored provenance row naming a tier NOT in it — 'free', 'unknown',
+ * or a tier since deleted — has nothing to compare against, and that is a state
+ * of its own ("no current regime"), never drift. The join in
+ * storage.getScoringEstateCounts is a LEFT JOIN for that reason.
+ */
+export async function currentScoringRegimes(
+  storage: IStorage,
+): Promise<Array<{ tier: string; algorithm: number; configHash: string }>> {
+  const { getScoringConfigSummary } = await import("./scoringConfig");
+  const summary = await getScoringConfigSummary(storage);
+  return Promise.all(
+    summary.tiers.map(async (tier) => ({
+      tier: tier.key,
+      ...(await currentScoringRegimeForTier(storage, tier.key)),
+    })),
+  );
+}
+
+/**
  * Hydrate all data needed for matching
  */
 async function hydrateMatchingContext(

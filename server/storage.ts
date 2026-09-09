@@ -42,6 +42,8 @@ import {
   systemAnnouncements,
   llmNarrativeCache,
   type LlmNarrativeCache,
+  SCORING_ESTATE_STATES,
+  type ScoringEstateState,
   type User,
   type UpsertUser,
   type Country,
@@ -225,6 +227,9 @@ export interface IStorage {
   createRecommendation(recommendation: InsertRecommendation): Promise<Recommendation>;
   getRecommendationsByAssessment(assessmentId: string): Promise<Recommendation[]>;
   deleteRecommendationsByAssessment(assessmentId: string): Promise<number>;
+  getScoringEstateCounts(
+    currentRegimes: Array<{ tier: string; algorithm: number; configHash: string }>,
+  ): Promise<Record<ScoringEstateState, number>>;
 
   // Quiz operations
   createQuizQuestion(question: InsertQuizQuestion): Promise<QuizQuestion>;
@@ -1177,6 +1182,96 @@ export class DatabaseStorage implements IStorage {
       .delete(recommendations)
       .where(eq(recommendations.assessmentId, assessmentId));
     return result.rowCount || 0;
+  }
+
+  /**
+   * HOW MUCH OF THE STORED ESTATE STILL MATCHES TODAY'S SCORING, in one grouped
+   * query. Feeds the card at the top of the superadmin scoring tab.
+   *
+   * `currentRegimes` is computed in Node (matching.currentScoringRegimes) and
+   * injected as a three-row VALUES list. That is the whole reason this can be
+   * SQL at all: configHash is a truncated encoding, but nothing here has to
+   * RECOMPUTE it — the current value arrives as a parameter and the comparison
+   * is string equality, which Postgres does as well as anything.
+   *
+   * Four details carry the correctness:
+   *
+   *   count(DISTINCT assessment_id), NOT count(*). recommendations holds ~5 rows
+   *   per report; counting rows reports a number ~5x larger that means something
+   *   else. The distinct count is well defined because all five rows of an
+   *   assessment are written in one transaction from one activeComponents set,
+   *   and regeneration deletes and re-inserts rather than mixing vintages — so a
+   *   report cannot straddle two states.
+   *
+   *   LEFT JOIN, so an unmatched tier lands in its own branch. provenance.tier
+   *   is free text and the regime list comes from scoring_tiers; a row naming a
+   *   tier that no longer has a config joins to NULL. Getting this structurally
+   *   right in SQL is worth more than it looks — in application code the
+   *   unmatched case falls through into "drifted" by default, which is the false
+   *   positive that teaches an operator to ignore the card.
+   *
+   *   The algorithm test compares JSONB, not (->>'algorithm')::int. The cast
+   *   throws on any row whose algorithm is non-numeric; comparing
+   *   `-> 'algorithm'` against to_jsonb() cannot. Identical result on every
+   *   well-formed row, no failure mode on a malformed one.
+   *
+   *   BRANCH ORDER IS LOAD-BEARING. NULL provenance first (there is nothing to
+   *   read), then unmatched tier (there is nothing to compare), then algorithm,
+   *   then config. Reversing the last two would report a row as config-drifted
+   *   when the calculator itself changed, which is the more serious finding and
+   *   the one that needs the version history to explain.
+   *
+   * A full scan of a table in the tens of rows, on an admin-only endpoint. Not
+   * worth indexing.
+   */
+  async getScoringEstateCounts(
+    currentRegimes: Array<{ tier: string; algorithm: number; configHash: string }>,
+  ): Promise<Record<ScoringEstateState, number>> {
+    const counts = Object.fromEntries(
+      SCORING_ESTATE_STATES.map((state) => [state, 0]),
+    ) as Record<ScoringEstateState, number>;
+
+    // No configured tiers means nothing to compare against — every scored row is
+    // noCurrentRegime, and a zero-row VALUES list is a syntax error rather than
+    // an empty set, so this case cannot go through the query below.
+    const comparison = currentRegimes.length
+      ? sql`
+          WITH current_regime(tier, algorithm, config_hash) AS (
+            VALUES ${sql.join(
+              currentRegimes.map(
+                (r) => sql`(${r.tier}::text, ${r.algorithm}::int, ${r.configHash}::text)`,
+              ),
+              sql`, `,
+            )}
+          )
+          SELECT
+            CASE
+              WHEN r.scoring_provenance IS NULL THEN 'unknown'
+              WHEN cr.tier IS NULL THEN 'noCurrentRegime'
+              WHEN r.scoring_provenance->'algorithm' IS DISTINCT FROM to_jsonb(cr.algorithm)
+                THEN 'algorithmDrifted'
+              WHEN r.scoring_provenance->>'configHash' IS DISTINCT FROM cr.config_hash
+                THEN 'configDrifted'
+              ELSE 'current'
+            END AS state,
+            count(DISTINCT r.assessment_id)::int AS reports
+          FROM recommendations r
+          LEFT JOIN current_regime cr ON cr.tier = r.scoring_provenance->>'tier'
+          GROUP BY 1
+        `
+      : sql`
+          SELECT
+            CASE WHEN r.scoring_provenance IS NULL THEN 'unknown' ELSE 'noCurrentRegime' END AS state,
+            count(DISTINCT r.assessment_id)::int AS reports
+          FROM recommendations r
+          GROUP BY 1
+        `;
+
+    const result = await db.execute(comparison);
+    for (const row of result.rows as Array<{ state: string; reports: number }>) {
+      if (row.state in counts) counts[row.state as ScoringEstateState] = Number(row.reports);
+    }
+    return counts;
   }
 
   // Quiz operations

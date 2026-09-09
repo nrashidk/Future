@@ -775,6 +775,46 @@ export const recommendations = pgTable("recommendations", {
   index("recommendations_career_id_idx").on(table.careerId),
 ]);
 
+/**
+ * HOW A STORED REPORT COMPARES TO TODAY'S SCORING REGIME.
+ *
+ * Computed by storage.getScoringEstateCounts, surfaced on the superadmin scoring
+ * tab. Shared so the server's CASE branches and the client's labels cannot drift
+ * apart. The order here is the order the card renders and is deliberate: it runs
+ * from "nothing to report" to "least is known".
+ *
+ * The two halves are NOT equally trustworthy, and the UI must not present them
+ * as though they are:
+ *
+ *   TRUSTWORTHY. `algorithmDrifted` and `unknown` are exact.
+ *     SCORING_ALGORITHM_VERSION is an integer compared to an integer, and
+ *     `unknown` is a NULL test — no encoding sits in front of either.
+ *
+ *   ONE-DIRECTIONAL. `current` and `configDrifted` split on configHash, which is
+ *     a 12-byte truncation (see generateConfigVersion in
+ *     server/services/matching.ts). The encoding is deterministic, so an
+ *     identical config ALWAYS produces an identical hash — a false
+ *     `configDrifted` is therefore impossible. The error runs one way only:
+ *     genuinely different configs can share the truncated prefix and be counted
+ *     `current`. So `current` means NO DRIFT DETECTED, never "reproducible", and
+ *     `configDrifted` is a floor, not a total.
+ *
+ * `noCurrentRegime` is not drift. provenance.tier is free text
+ * (assessments.assessment_type) while the comparison set comes from
+ * scoring_tiers, so a row naming 'free', 'unknown' or a since-deleted tier has
+ * nothing to compare against. Rendering it as drift would be a false positive of
+ * exactly the kind this card exists to avoid.
+ */
+export const SCORING_ESTATE_STATES = [
+  "current",
+  "configDrifted",
+  "algorithmDrifted",
+  "noCurrentRegime",
+  "unknown",
+] as const;
+
+export type ScoringEstateState = (typeof SCORING_ESTATE_STATES)[number];
+
 export const recommendationsRelations = relations(recommendations, ({ one }) => ({
   assessment: one(assessments, {
     fields: [recommendations.assessmentId],

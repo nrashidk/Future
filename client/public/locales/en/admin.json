@@ -816,6 +816,18 @@
     "promptUpdated": "Prompt Updated",
     "promptUpdatedDesc": "LLM prompt template has been saved",
     "promptUpdatedCacheClearedDesc": "LLM prompt template saved — cached narratives cleared, students will see fresh AI output on their next visit",
+    "estateTitle": "Stored Report Provenance",
+    "estateDesc": "How much of the stored estate still matches today's scoring regime",
+    "estateTotalReports": "stored reports",
+    "estateState": {
+      "current": "no drift detected",
+      "configDrifted": "config drifted",
+      "algorithmDrifted": "algorithm drifted",
+      "noCurrentRegime": "no current regime",
+      "unknown": "unknown (pre-provenance)"
+    },
+    "estateCaveat": "Algorithm drift and unknown are exact counts. The config comparison can only ever under-count drift: configHash is a 12-byte truncation, so identical hashes do not prove identical config — “no drift detected” means exactly that, not that a report is reproducible.",
+    "estateNoData": "No stored reports yet",
     "llmCacheStats": "Narrative Cache",
     "llmCacheStatsDesc": "AI narratives served from cache — each entry represents a saved LLM call",
     "llmCacheTotalCached": "cached narratives",

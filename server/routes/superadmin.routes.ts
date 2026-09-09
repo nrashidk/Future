@@ -1057,33 +1057,64 @@ export function registerSuperadminRoutes(app: Express) {
   app.get("/api/superadmin/scoring-config", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
     try {
       const { getScoringConfigSummary } = await import("../services/scoringConfig");
-      const { currentScoringRegimeForTier, SCORING_ALGORITHM_VERSION } = await import("../services/matching");
+      const { currentScoringRegimes, SCORING_ALGORITHM_VERSION } = await import("../services/matching");
       const summary = await getScoringConfigSummary(storage);
 
       // THE SCORING REGIME A NEW REPORT WOULD BE WRITTEN WITH TODAY, alongside
       // the editable config. Together these are the other half of the comparison
       // against a stored row's recommendations.scoring_provenance — "is this
-      // report reproducible today". No consumer yet; this is the server-side
-      // foundation, and it lands first precisely so no UI is ever tempted to
-      // recompute the hash from the `weights` above. That set is NOT the set the
-      // scorer uses (isActive, premium gating, the >= 95 fallback), so a hash
-      // derived from it would report drift on perfectly reproducible rows.
+      // report reproducible today". It lands here rather than being recomputed
+      // client-side precisely so no UI is ever tempted to derive the hash from
+      // the `weights` above. That set is NOT the set the scorer uses (isActive,
+      // premium gating, the >= 95 fallback), so a hash derived from it would
+      // report drift on perfectly reproducible rows.
       //
-      // One query per tier rather than one for all of them: the cost is a
-      // getAllAssessmentComponents call per tier on an admin-only endpoint with
-      // three tiers, and the tier config underneath is already cached. Sharing
-      // the scorer's exact path is worth more here than saving two queries.
-      const tiers = await Promise.all(
-        summary.tiers.map(async (tier) => ({
-          ...tier,
-          currentConfigHash: (await currentScoringRegimeForTier(storage, tier.key)).configHash,
-        })),
-      );
+      // Same helper the estate card uses, so the two surfaces cannot disagree
+      // about what "current" means.
+      const regimes = await currentScoringRegimes(storage);
+      const hashByTier = new Map(regimes.map((r) => [r.tier, r.configHash]));
+      const tiers = summary.tiers.map((tier) => ({
+        ...tier,
+        currentConfigHash: hashByTier.get(tier.key),
+      }));
 
       res.json({ ...summary, tiers, currentAlgorithm: SCORING_ALGORITHM_VERSION });
     } catch (error) {
       console.error("Error fetching scoring config:", error);
       res.status(500).json({ message: "Failed to fetch scoring configuration" });
+    }
+  });
+
+  // HOW MUCH OF THE STORED ESTATE STILL MATCHES TODAY'S SCORING.
+  //
+  // The fleet-level question, answered before the editor below it — you learn
+  // the state of the estate, then you change the config that invalidates more of
+  // it. Deliberately NOT a per-row badge and NOT an alert: drift is expected,
+  // intentional and continuous (every stored row goes stale the moment a
+  // superadmin saves a weight change, by design), so a monitor that fires on a
+  // normal admin action is noise by the second week.
+  //
+  // Read `current` as "no drift detected", not "reproducible" — see
+  // SCORING_ESTATE_STATES in shared/schema.ts for why that distinction is the
+  // whole point, and why algorithmDrifted and unknown are the two numbers an
+  // operator can quote without qualification.
+  app.get("/api/superadmin/scoring-estate", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const { currentScoringRegimes, SCORING_ALGORITHM_VERSION } = await import("../services/matching");
+      const regimes = await currentScoringRegimes(storage);
+      const counts = await storage.getScoringEstateCounts(regimes);
+
+      res.json({
+        counts,
+        totalReports: Object.values(counts).reduce((sum, n) => sum + n, 0),
+        currentAlgorithm: SCORING_ALGORITHM_VERSION,
+        // Which tiers the comparison could actually be made against. A tier
+        // absent here is why a row lands in noCurrentRegime.
+        comparedTiers: regimes.map((r) => r.tier),
+      });
+    } catch (error) {
+      console.error("Error fetching scoring estate:", error);
+      res.status(500).json({ message: "Failed to fetch scoring estate" });
     }
   });
 

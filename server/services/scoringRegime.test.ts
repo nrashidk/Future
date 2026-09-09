@@ -20,6 +20,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import {
   resolveActiveComponents,
   currentScoringRegimeForTier,
+  currentScoringRegimes,
   generateConfigVersion,
   SCORING_ALGORITHM_VERSION,
 } from "./matching";
@@ -173,6 +174,31 @@ describe("currentScoringRegimeForTier", () => {
     invalidateScoringConfigCache();
     const premium = await currentScoringRegimeForTier(makeStorage(specs), "premium");
     expect(basic.configHash).not.toBe(premium.configHash);
+  });
+});
+
+describe("currentScoringRegimes", () => {
+  it("returns one regime per CONFIGURED tier, matching the per-tier helper", async () => {
+    // The estate card and the scoring-config editor both read this list, so a
+    // disagreement between them would be a disagreement about what "current"
+    // means. One helper, asserted against the single-tier path.
+    const storage = makeStorage(
+      [{ key: "subjects", weight: 35 }, { key: "interests", weight: 35 }, { key: "vision", weight: 30 }],
+      { tierKey: "basic", weights: { subjects: 35, interests: 35, vision: 30 } },
+    );
+    const regimes = await currentScoringRegimes(storage);
+    expect(regimes.map((r) => r.tier)).toEqual(["basic"]);
+    expect(regimes[0].algorithm).toBe(SCORING_ALGORITHM_VERSION);
+    expect(regimes[0].configHash).toBe(
+      (await currentScoringRegimeForTier(storage, "basic")).configHash,
+    );
+  });
+
+  it("returns an empty list when no tier is configured", async () => {
+    // Not a degenerate case to shrug at: it is what puts every stored row into
+    // noCurrentRegime, and it is why storage.getScoringEstateCounts has a
+    // separate branch — a zero-row VALUES list is a syntax error.
+    expect(await currentScoringRegimes(makeStorage([{ key: "subjects", weight: 35 }]))).toEqual([]);
   });
 });
 

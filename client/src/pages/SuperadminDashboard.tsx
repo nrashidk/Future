@@ -22,8 +22,9 @@ import {
   TrendingUp, AlertCircle, CheckCircle, Clock, Home, User, LogOut,
   ChevronUp, ChevronDown, History, Infinity, BarChart, Copy, FileQuestion,
   Settings, Globe, Gift, FileText, Megaphone, Briefcase, Eye, RefreshCw,
-  Info, AlertTriangle, XCircle, Languages, Database
+  Info, AlertTriangle, XCircle, Languages, Database, Layers
 } from "lucide-react";
+import { SCORING_ESTATE_STATES, type ScoringEstateState } from "@shared/schema";
 import ScoringConfigEditor from "@/components/admin/ScoringConfigEditor";
 import CountryManagement from "@/components/admin/CountryManagement";
 import ContributionReviewQueue from "@/components/admin/ContributionReviewQueue";
@@ -50,6 +51,28 @@ interface LlmCacheStats {
   cacheHits: number;
   promptBreakdown: Array<{ promptKey: string; count: number }>;
 }
+
+interface ScoringEstate {
+  counts: Record<ScoringEstateState, number>;
+  totalReports: number;
+  currentAlgorithm: number;
+  comparedTiers: string[];
+}
+
+/**
+ * Colour is reserved for the states an operator can ACT on. `current` is
+ * deliberately neutral rather than green: it means "no drift detected", and the
+ * config half of that detection can only under-count (see SCORING_ESTATE_STATES
+ * in shared/schema.ts), so painting it as a pass would overstate exactly the
+ * number that is least trustworthy.
+ */
+const ESTATE_STATE_CLASS: Record<ScoringEstateState, string> = {
+  current: "text-foreground",
+  configDrifted: "text-amber-600 dark:text-amber-400",
+  algorithmDrifted: "text-red-600 dark:text-red-400",
+  noCurrentRegime: "text-muted-foreground",
+  unknown: "text-muted-foreground",
+};
 
 interface PrimaryAdmin {
   id: string;
@@ -271,6 +294,10 @@ export default function SuperadminDashboard() {
 
   const { data: llmCacheStats, isLoading: llmCacheStatsLoading } = useQuery<LlmCacheStats>({
     queryKey: ['/api/superadmin/llm-cache/stats'],
+  });
+
+  const { data: scoringEstate, isLoading: scoringEstateLoading } = useQuery<ScoringEstate>({
+    queryKey: ['/api/superadmin/scoring-estate'],
   });
 
   const { data: organizations = [], isLoading: orgsLoading } = useQuery<OrganizationWithDetails[]>({
@@ -1748,6 +1775,66 @@ export default function SuperadminDashboard() {
           </TabsContent>
 
           <TabsContent value="scoring" className="space-y-4">
+            {/*
+              THE FLEET-LEVEL QUESTION, READ BEFORE THE EDITOR THAT INVALIDATES
+              THE ESTATE. Placement is deliberate: you learn how much of the
+              stored estate still matches today's scoring, and only then reach
+              the weights below, whose next save moves more of it out of date.
+              Not a per-row badge (that only helps after a school has asked) and
+              not inside ScoringConfigEditor's history tab (that is an audit log
+              of admin actions; this is a property of stored data).
+            */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between gap-4 pb-2 flex-wrap">
+                <div>
+                  <CardTitle className="text-base">{t('scoring.estateTitle')}</CardTitle>
+                  <CardDescription>{t('scoring.estateDesc')}</CardDescription>
+                </div>
+                <Layers className="h-5 w-5 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                {scoringEstateLoading ? (
+                  <p className="text-sm text-muted-foreground">{t('scoring.loading')}</p>
+                ) : scoringEstate && scoringEstate.totalReports > 0 ? (
+                  <div className="space-y-3">
+                    <div>
+                      <span className="text-2xl font-bold" data-testid="text-scoring-estate-total">
+                        {scoringEstate.totalReports}
+                      </span>
+                      <span className="text-sm text-muted-foreground ms-2">
+                        {t('scoring.estateTotalReports')}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-x-6 gap-y-2">
+                      {SCORING_ESTATE_STATES.map((state) => (
+                        <div
+                          key={state}
+                          className="flex items-baseline gap-2"
+                          data-testid={`stat-scoring-estate-${state}`}
+                        >
+                          <span className={`text-xl font-bold ${ESTATE_STATE_CLASS[state]}`}>
+                            {scoringEstate.counts[state]}
+                          </span>
+                          <span className="text-sm text-muted-foreground">
+                            {t(`scoring.estateState.${state}`)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                    <p
+                      className="text-xs text-muted-foreground leading-relaxed"
+                      data-testid="text-scoring-estate-caveat"
+                    >
+                      {t('scoring.estateCaveat')}
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground" data-testid="text-scoring-estate-empty">
+                    {t('scoring.estateNoData')}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
             <Card>
               <CardHeader className="flex flex-row items-center justify-between gap-4 pb-2 flex-wrap">
                 <div>
