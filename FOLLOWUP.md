@@ -1702,19 +1702,18 @@ Note the tradeoff if resumed: a whitelist alone moves prod access from a typed o
 (ALLOW_PRODUCTION_DB=true, required each time) into a config file that can go stale. Consider
 keeping the override on top of the whitelist. First flagged 2026-09-07.
 
-### Curriculum rename does not cascade to assessments  (severity: medium, Phase 6)
-renameCurriculumInSubjects and renameCurriculumInQuizQuestions (storage.ts:854-881) cascade a
-curriculum rename through subjects and quiz_questions, but stop short of assessments.
-assessments.curriculum keeps the old string, so a renamed curriculum leaves existing
-assessment rows pointing at a value no longer in countries.curricula. This is the same
-reconciliation gap that blocks a superadmin override on the org curriculum lock (01e20cf) —
-neither can be closed until something can re-scope existing assessment rows. Phase 6.
-First flagged 2026-09-07.
+### Curriculum rename: two cascade gaps, one of them empties the quiz pool  (severity: HIGH)
+MERGED 2026-09-09 from two adjacent entries that read as a duplicate in the heading list — the
+assessments gap (first flagged 2026-09-07) and the organizations gap (severity raised
+2026-09-08). They are different defects with different fixes and different phases, so both are
+kept in full below; they are filed together because anyone reading one needs the other.
 
-### Curriculum rename empties the quiz pool for every school on it  (severity: HIGH — was medium-high)
 POST /api/superadmin/countries/:id/curricula/rename (superadmin.routes.ts:2385-2432) rewrites
-countries.curricula, subjects and quiz_questions, but not organizations.curriculum. A renamed
-curriculum leaves every school on it holding a string that no longer appears in
+countries.curricula, subjects and quiz_questions. It stops short of two tables that hold the
+same string: assessments and organizations.
+
+#### GAP 1 — organizations.curriculum  (HIGH, fix belongs at the rename)
+A renamed curriculum leaves every school on it holding a string that no longer appears in
 countries.curricula.
 
 SEVERITY RAISED 2026-09-08 (admin-surface recon). The original entry called this an orphaned
@@ -1768,8 +1767,19 @@ says nothing about how far it got. Fixing this means wrapping all four writes pl
 organizations.curriculum update in a transaction that does not currently exist. Same defect
 class as the orphan-user bug fixed in 8c07e25.
 
-Distinct from the assessments cascade gap (47c5067): that one needs Phase 6 reconciliation,
-this one is a missing UPDATE on a path that has no transaction. First flagged 2026-09-07.
+#### GAP 2 — assessments.curriculum  (medium, Phase 6)
+renameCurriculumInSubjects and renameCurriculumInQuizQuestions (storage.ts:854-881) cascade a
+curriculum rename through subjects and quiz_questions, but stop short of assessments.
+assessments.curriculum keeps the old string, so a renamed curriculum leaves existing
+assessment rows pointing at a value no longer in countries.curricula. This is the same
+reconciliation gap that blocks a superadmin override on the org curriculum lock (01e20cf) —
+neither can be closed until something can re-scope existing assessment rows. Phase 6.
+
+WHY THE TWO GAPS DO NOT SHARE A FIX. Gap 1 is a missing UPDATE on a path that has no
+transaction, fixable now at the rename route (47c5067 tracks the same distinction). Gap 2 needs
+Phase 6 reconciliation, because re-scoping a historical assessment row is a decision about what
+a completed assessment means, not a string rewrite. Do not close them in one commit.
+First flagged 2026-09-07.
 
 ### studentGender accepts any non-empty string  (severity: low)
 shared/schema.ts:157 documents 'male' | 'female' as the allowed values, but nothing enforces
@@ -2249,6 +2259,12 @@ those 72 lines.
    institutional" consent names a branch with no implementation — there is no parent or
    guardian concept anywhere in the codebase. Separately: COPPA is US law for under-13s, cited
    for a UAE 13-18 cohort under UAE governing law. Needs a lawyer, not a developer.
+   EXPANDED 2026-09-09 in "Consent is asserted to the child, obtained from nobody, recorded
+   nowhere" below, which supersedes this paragraph's account of the mechanism: the auto-tick is
+   the partial-enrolment fallback, a fully-enrolled student is skipped past the consent screen
+   entirely (Assessment.tsx:526-548), and no terms acceptance exists for the school either — so
+   the claim made to the child refers to no act at all. This paragraph's conclusion stands; its
+   description of how consent is lost was one layer short.
 
 4. RETENTION PROMISES NOTHING THAT SHIPS. No cron, TTL or purge for student data. Institutional
    deletion removes only the membership row (storage.ts:2752-2757), orphaning the child's
@@ -2297,6 +2313,226 @@ which is the rule the documents fail to disclose rather than a rule the code bre
 the legal half of "Brand name is authored independently in five layers" (:1745), whose own
 unresolved question — whether legal.json's entity strings should track the product name at all
 — is answered here: they must not, until there is a registered entity to name.
+
+### Consent is asserted to the child, obtained from nobody, recorded nowhere  (severity: HIGH)
+Full expansion of point 3 of "Legal documents describe a system that no longer exists" above.
+That entry established that consentGiven is CLIENT-ONLY — five occurrences, all in
+DemographicsStep.tsx and Assessment.tsx, none in server/ or shared/ — and that the COPPA/PDPL
+claim at legal.json en:22 rests on it. This entry establishes what those five occurrences
+actually do. It is worse than "the box is auto-ticked for org students", and the auto-tick is
+the third-most-serious thing on the list.
+
+Recon 2026-09-09, read-only. Every citation below was checked against the working tree.
+
+#### 1. THE CONSENT SCREEN IS NEVER RENDERED FOR A FULLY-ENROLLED STUDENT
+Assessment.tsx:526-548. When the school has supplied all four demographics fields — the normal
+result of enrolment — the page fills them in, asserts consent, and steps over the screen:
+
+    const allFieldsPreFilled =
+      predefinedGrade && predefinedName &&
+      predefinedAge !== null && predefinedAge !== undefined &&
+      predefinedGender;
+
+    if (allFieldsPreFilled && !assessmentData.name) {
+      setAssessmentData((prev) => ({ ...prev,
+        name: predefinedName, age: predefinedAge,
+        grade: predefinedGrade, gender: predefinedGender,
+        consentGiven: true, // Institutional consent
+      }));
+      setTimeout(() => setCurrentStep(2), 0);      // :548 — skips DemographicsStep
+
+So for a normally-enrolled org student the consent section does not render at all. Not the
+checkbox, not the "your school has provided institutional consent" sentence, not the link to
+the Terms of Use, not the link to the Privacy Policy. Step 0 is stepped over and the only
+screen in the student's journey that carries a legal disclosure goes with it.
+
+THIS REORDERS THE WHOLE FINDING. DemographicsStep.tsx:75-77 — the auto-tick, and the thing this
+recon was opened to examine — is the PARTIAL-ENROLMENT FALLBACK, not the main path. It runs
+only when the school filled some but not all of name / date of birth / gender / grade. The
+disabled checkbox is what a student sees when their enrolment record is INCOMPLETE. A complete
+record shows them nothing at all.
+
+Consequence for any fix: making the checkbox honest does not help the majority path, because
+the majority path does not render it. A fix that only edits DemographicsStep would leave the
+common case exactly as it is and would look, from the diff, like the problem had been solved.
+
+BE PRECISE ABOUT WHAT IS AND IS NOT REACHABLE. The documents themselves are not hidden:
+Assessment.tsx renders inside PageLayout (:947, :968, :995), PageLayout mounts Footer
+unconditionally (PageLayout.tsx:29), and Footer links /privacy and /terms (Footer.tsx:17, :21).
+So a student CAN reach the policies from the page footer. What never happens is anyone telling
+them those documents govern what they are about to do, or that the psychometric profile they
+are about to produce will be readable by their school. Reachability is not disclosure. Outside
+DemographicsStep and the two policy pages themselves, /terms and /privacy are linked from
+exactly two places in the whole client — Footer.tsx and the Landing page footer
+(Landing.tsx:406, :410).
+
+#### 2. NO TERMS ACCEPTANCE EXISTS FOR THE SCHOOL EITHER — SO THE CLAIM REFERS TO NO ACT
+consentOrg (en/assessment.json:94, ar:94) tells the child, in their own language:
+
+    "Your school has provided institutional consent. You agree to the Terms of Use and
+     Privacy Policy."
+
+There is no act anywhere in the product that this claim could refer to. Not an act that went
+unrecorded — no act. Searched for any acceptance, checkbox, link or attestation on every
+surface where an adult transacts with the product:
+
+| Surface | Result |
+|---|---|
+| Register.tsx | No terms, privacy, consent, agree or legal string of any kind |
+| GroupPricing.tsx (the school's purchase path) | Same — nothing |
+| Checkout.tsx | Nothing. One unrelated comment at :111 matches on the word "value" |
+| StudentLogin.tsx | Nothing |
+| Login.tsx, TierSelection.tsx | Nothing |
+
+A school admin creates an account, buys licences, and creates dozens of minors' accounts
+without being shown the Terms of Use or the Privacy Policy once, let alone being asked to
+accept them or to attest that the school holds guardian consent for the children it is
+enrolling.
+
+THIS IS THE FINDING THAT OUTRANKS THE AUTO-TICK, and the reason the auto-tick is third on this
+list rather than first. An auto-ticked box misattributes a real consent to the wrong party —
+bad, but there is something real underneath it to re-attribute. This box attributes a consent
+that was never given by anybody. The sentence shown to the child is not a mis-statement of the
+record; there is no record, and no procedure that would ever produce one.
+
+#### 3. THE FREE FLOW'S ONE GENUINE TICK IS VOIDED BY CLOSING A TAB
+Assessment.tsx:449, in the resume-a-draft path:
+
+    const hydratedData: AssessmentData = {
+      name: inProgress.name ?? "",
+      ...
+      consentGiven: true,          // :449 — unconditional, not gated on account type
+
+Every other field in that object is hydrated from the saved row with a `??` fallback. Consent
+is the one field that is invented. It is not gated on org membership, so it applies to the free
+flow too — the only population in the product that ticks the box itself. A self-registered
+student who declined the box, abandoned the assessment and came back has consent asserted for
+them on resume. The single place in the entire system where consent is genuinely obtained is
+defeated by closing a tab.
+
+Also note what this means for the DB: assessments has no consent column and
+insertAssessmentSchema omits nothing consent-shaped, because there is nothing to omit. The
+value is form state that dies with the tab. Nothing is being lost on resume, because nothing
+was ever stored — the hydration is inventing a value to satisfy `canProceed`
+(DemographicsStep.tsx:94), which is the same reason the auto-tick exists.
+
+#### 4. WHERE INSTITUTIONAL CONSENT WOULD HAVE BEEN RECORDED — nowhere, and no column exists
+| Checked | Result |
+|---|---|
+| `grep -rn consent server/ shared/` | Zero matches. The one hit, seed.ts:494, is a quiz question about medical history-taking |
+| organizations (schema.ts, 31 columns) | Licences, reward credits, payment, curriculum, password complexity. No terms-accepted flag, no acceptance date, no signatory, no policy version |
+| organization_members | studentId, name, DOB, gender, grade, role, quota, password-reset audit. Nothing consent-shaped |
+| organization_events | Seven recorded event types (licence, admin add/remove/promote, org create, bulk licences, bulk delete). None is consent-related |
+| assessments / insertAssessmentSchema | No consent column; the value is never transmitted |
+
+So this is genuinely new storage, not a migration of something that exists in the wrong place.
+That is the one piece of good news in the entry: nothing has to be reconciled, because nothing
+was ever written.
+
+#### 5. WHAT A CONSENT RECORD NEEDS, AND WHY THE POLICY VERSION CANNOT CURRENTLY BE NAMED
+Minimum fields: the data subject; WHO gave it and in what capacity; timestamp; WHICH POLICY
+VERSION they were shown; evidence of channel (actor user id, IP/UA, or a reference to a
+countersigned document); the scope consented to; and withdrawal state. PDPL Art. 6 and GDPR
+Art. 7(1) both put the burden of DEMONSTRATING consent on the controller. A stored boolean is
+not a demonstration — and here there is not even a boolean.
+
+The storage shape for all of that is easy. The policy-version field is the one that cannot
+currently be filled, and it fails in four independent ways.
+
+legal.json carries exactly one version marker, `lastUpdated: "Last updated: 6 April 2026"`
+(en/legal.json:4):
+
+1. IT COVERS FOUR DOCUMENTS AT ONCE. Privacy, terms, disclaimer and the fourth section share
+   the single string. You cannot say which document changed, therefore you cannot say what a
+   given consent was a consent to.
+2. IT IS A DISPLAY STRING IN A TRANSLATION BUNDLE, NOT DATA. `"Last updated: "` is inside the
+   value; it must be parsed to be a date. Versions belong in a source of truth that is not
+   itself translated.
+3. IT IS PER-LOCALE AND CAN DISAGREE. ar/legal.json carries its own copy. Two renderings of one
+   document must be able to prove they are the SAME VERSION; here they are two independent
+   strings that nothing reconciles.
+4. NOTHING ENFORCES IT. Editing s5Body does not touch line 4. The git history of the file is
+   the only real version record, and a stored consent row cannot reach it.
+
+And the marker currently reads 6 APRIL 2026 — five months in the future as of this recon
+(2026-09-09). The single version identifier in the system is a date that has not happened. A
+consent row stamped with it today would cite a document dated after the consent it records.
+
+WHAT WOULD ACTUALLY IDENTIFY A VERSION: a content hash of each served document, per document
+and per locale, written into the consent row, plus a monotonic version string held outside the
+locale bundles. The bundles then carry the rendering; the version is data. That also turns
+re-consent into a comparison rather than a judgment call about whether an edit was material.
+
+#### 6. SEQUENCING — documents, then version, then consent. In that order.
+The policies as written describe a system that no longer exists (the entry above, severity
+HIGH, five separate divergences). Version-stamping consent against them stamps a document
+already known to be wrong, and THE FIRST STAMPED VERSION BECOMES THE ONE THAT WOULD HAVE TO BE
+PRODUCED in a PDPL or subject-access response — the earliest, most-cited, least-defensible
+text in the system's history, permanently referenced by every consent row written before the
+rewrite. Fix the documents, then version them, then record consent against the version. Doing
+it in any other order manufactures the evidence against itself.
+
+This is also why nothing here should be built yet. The storage shape is the easy part and the
+temptation is to build it first because it is buildable; it is the part that must come last.
+
+#### 7. WHOSE CONSENT IT IS — PROPOSED, NOT SETTLED
+Recorded as a proposal so it is not re-derived, and marked so nobody implements it as decided.
+NONE OF THE FOUR BELOW IS APPROVED.
+
+The position: it is the school's consent to give and the student's to be told. Two different
+acts. The product performs neither, and the auto-tick collapses them into one that gets both
+wrong — it does not obtain the school's, and it puts the student's name on it.
+
+Why the child's consent is the wrong instrument on the merits and not merely procedurally: for
+a 13-18 cohort doing a school-directed activity, consent from the child cannot be FREELY GIVEN
+in the sense either law means. They are in a classroom, a teacher told them to do it, and
+refusal carries a social cost. GDPR Art. 8 puts the digital-services threshold at 16 (13 with
+member-state derogation) and PDPL requires guardian consent for minors; but the freely-given
+problem would remain even above those thresholds. Asking the student harder does not fix it, it
+launders it.
+
+PROPOSED (1) — THE SCHOOL CONSENTS ONCE, AT ENROLMENT, AS A RECORDED ACT BY A NAMED ADMIN.
+Who, when, policy version, plus an explicit attestation that the school holds guardian consent
+for the students it enrols. Attached to the organization. The natural home is org creation or
+licence purchase, where the school is already agreeing to a commercial arrangement, so the
+legal one costs no extra step and lands on an adult with the authority to give it.
+
+PROPOSED (2) — THE STUDENT IS NOTIFIED EVERY TIME, NOT ASKED. Keep the screen, delete the
+checkbox. A plain age-appropriate statement in their language naming their school, what is
+collected, that their school can read their results, and how to object — with the links. AND
+IT MUST RENDER ON THE PREFILLED PATH (finding 1), which today skips it; that is the half of
+this proposal that actually changes what most students see. Removing the control also removes
+the false artifact: with nothing to click, nobody can later point at a tick and say the child
+agreed.
+
+PROPOSED (3) — NO PARENT-FACING FLOW. The school attests it holds guardian consent; that
+attestation is the record. Building a parental channel means storing contact data for the
+parents of minors — a new data class, to solve a problem the school is already positioned to
+own. There is currently no parent or guardian concept anywhere in the codebase and this
+proposes not to introduce one.
+
+PROPOSED (4) — WITHDRAWAL MUST NOT ROUTE THROUGH THE SCHOOL, since the school is the party
+whose consent is being relied upon. At minimum the privacy contact in the policy
+(privacy@futurepath.ae) has to reach someone who can act without the school's involvement.
+That is a policy and staffing commitment, not code.
+
+RULED OUT, and recorded so it is not proposed again: making the checkbox INTERACTIVE for org
+students. That hands a child a veto they cannot meaningfully exercise, and it makes the record
+worse rather than better — a tick from a 13-year-old under classroom conditions is a weaker
+artifact than a school attestation, while looking to an auditor like consent was obtained.
+
+SEPARATE AND HARDER, flagged not solved: the FREE FLOW has a real self-tick (consentAgree) plus
+under18Note telling the user that under-18s need parental or institutional consent, with no
+mechanism to obtain either and no school to move the obligation to. Finding 3 already voids
+that tick on resume. None of the four proposals above addresses it, and it does not follow from
+this decision.
+
+NEEDS A LAWYER, NOT A DEVELOPER, carried forward from point 3 of the legal entry: COPPA is US
+law for under-13s, cited for a UAE 13-18 cohort under UAE governing law, in a document that
+also states an age floor of 10+. Whichever way that resolves changes who must consent, so it
+constrains proposal (1) rather than following from it.
+
+First flagged 2026-09-09. Nothing to be built until the documents are settled.
 
 ### Impersonation is a no-op that reports success  (severity: HIGH — it misleads the operator)
 POST /api/superadmin/impersonate/:userId (superadmin.routes.ts:1806-1837) writes one thing:
