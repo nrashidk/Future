@@ -740,9 +740,55 @@ export default function Assessment() {
     setResumePrompt(null);
   };
 
-  const handleNext = async () => {
+  /**
+   * Fields a step may hand to handleNext directly instead of routing them
+   * through assessmentData first.
+   *
+   * WHY THIS EXISTS. A step that writes state and advances in the SAME event
+   * handler cannot be saved correctly from state: onUpdate queues a React
+   * update, and the handleNext already running keeps the assessmentData binding
+   * captured by the render that created it. Awaiting inside handleNext does not
+   * help — a re-render builds a NEW handleNext with a fresh closure, while the
+   * executing one keeps the old one. So the value is written, and the save that
+   * fires microseconds later still sends the previous value.
+   *
+   * That is not hypothetical: SubjectsStep's exactly-three shortcut
+   * (SubjectsStep.tsx:119-125) did precisely this, and every free-tier student
+   * who picked three subjects got a 6-question quiz instead of 12 — the priority
+   * bonus applied to nothing, because prioritySubjects reached the server as [].
+   * See docs/quiz-priority-subjects-shortfall-recon.md.
+   *
+   * WHY A WHITELIST AND NOT Object.assign. Six step components wire
+   * `onClick={onNext}` directly (AspirationsStep, PersonalityStep,
+   * InterestsStep, CountryStep, DemographicsStep, and SubjectsStep's prioritize
+   * screen), so React hands handleNext a synthetic MouseEvent as its first
+   * argument. Their `onNext: () => void` prop type erases that parameter, so
+   * TypeScript cannot catch it and the event arrives at runtime regardless.
+   * Spreading it over assessmentData would splatter DOM properties into the
+   * request body. Picking named keys makes a stray event contribute nothing,
+   * which is why this stays a whitelist even though it currently holds one
+   * entry: the next field added here is safe by construction rather than by the
+   * caller remembering.
+   */
+  const OVERRIDABLE_NEXT_FIELDS = ["prioritySubjects"] as const;
+  type NextOverride = Partial<Pick<AssessmentData, (typeof OVERRIDABLE_NEXT_FIELDS)[number]>>;
+
+  const handleNext = async (override?: NextOverride) => {
     // Re-entry guard: prevent double-submission while generation is in progress
     if (isGenerating) return;
+
+    // Merge the override over state, taking ONLY whitelisted keys — see above for
+    // why an unfiltered spread is unsafe here. `override` is whatever the caller
+    // passed, which for six of the seven step components is a MouseEvent.
+    const stepData: AssessmentData = { ...assessmentData };
+    if (override && typeof override === "object") {
+      for (const field of OVERRIDABLE_NEXT_FIELDS) {
+        const value = (override as Record<string, unknown>)[field];
+        if (value !== undefined) {
+          (stepData as unknown as Record<string, unknown>)[field] = value;
+        }
+      }
+    }
 
     // Save after Subjects (step 3), before Quiz (step 4) — BOTH TIERS.
     // The save exists because QuizStep needs a persisted assessmentId to call
@@ -768,34 +814,39 @@ export default function Assessment() {
       try {
         const { apiRequest, queryClient } = await import("@/lib/queryClient");
         
-        // Map frontend fields to backend schema
+        // Map frontend fields to backend schema.
+        //
+        // READS stepData, NOT assessmentData: this is the save that carries a
+        // step's own write when that step advanced in the same handler, and
+        // assessmentData is a render behind at that moment. For every step that
+        // does not pass an override the two are identical.
         const backendData: any = {
-          name: assessmentData.name,
-          age: assessmentData.age,
-          grade: assessmentData.grade,
-          gender: assessmentData.gender,
-          favoriteSubjects: assessmentData.favoriteSubjects,
-          prioritySubjects: assessmentData.prioritySubjects || [],
-          interests: assessmentData.interests,
-          countryId: assessmentData.countryId,
+          name: stepData.name,
+          age: stepData.age,
+          grade: stepData.grade,
+          gender: stepData.gender,
+          favoriteSubjects: stepData.favoriteSubjects,
+          prioritySubjects: stepData.prioritySubjects || [],
+          interests: stepData.interests,
+          countryId: stepData.countryId,
           // Must be in THIS payload specifically: it is the save that fires
           // before the quiz, so it is what quiz/generate reads the curriculum
           // from. The debounced auto-save may not have flushed yet.
-          curriculum: assessmentData.curriculum || null,
-          careerAspirations: assessmentData.careerAspirations || [],
-          strengths: assessmentData.strengths || [],
+          curriculum: stepData.curriculum || null,
+          careerAspirations: stepData.careerAspirations || [],
+          strengths: stepData.strengths || [],
         };
         
         // No personalityTraits — see the auto-save effect above.
         
         // Include RIASEC scores if premium user completed RIASEC assessment
-        if (isPremiumFlow && Object.keys(assessmentData.riasecResponses).length > 0) {
-          backendData.riasecResponses = assessmentData.riasecResponses;
+        if (isPremiumFlow && Object.keys(stepData.riasecResponses).length > 0) {
+          backendData.riasecResponses = stepData.riasecResponses;
         }
-        
+
         // Include CVQ responses if premium user completed CVQ assessment
-        if (isPremiumFlow && Object.keys(assessmentData.cvqResponses).length > 0) {
-          backendData.cvqResponses = assessmentData.cvqResponses;
+        if (isPremiumFlow && Object.keys(stepData.cvqResponses).length > 0) {
+          backendData.cvqResponses = stepData.cvqResponses;
         }
         
         // Clear any previous inline error before retrying

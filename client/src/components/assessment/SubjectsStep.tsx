@@ -9,7 +9,18 @@ import { SUBJECT_IDS, SUBJECT_LABEL_KEYS, type SubjectId } from "@shared/subject
 interface SubjectsStepProps {
   data: any;
   onUpdate: (field: string, value: any) => void;
-  onNext: () => void;
+  /**
+   * Advance to the next step, optionally carrying fields that must reach the
+   * save WITHOUT a round trip through parent state.
+   *
+   * The override exists for the exactly-three branch below: it writes
+   * prioritySubjects and advances in the same handler, and handleNext reads the
+   * assessmentData captured by the previous render, so a value written via
+   * onUpdate alone is not visible to the save it triggers. Passing it here makes
+   * the dependency explicit at the call site instead of relying on state
+   * settling in time — which it does not.
+   */
+  onNext: (override?: { prioritySubjects?: string[] }) => void;
   onBack?: () => void;
 }
 
@@ -120,8 +131,18 @@ export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepPro
       // Exactly three: the three chosen subjects ARE the priorities. They are
       // named on screen above this button before it is pressed, so this records
       // what the student was shown — it is not a hidden slice of a longer list.
-      onUpdate("prioritySubjects", [...favoriteSubjects]);
-      onNext();
+      //
+      // BOTH CALLS, and the second is not redundant. onUpdate keeps parent state
+      // correct for every later read (the auto-save, the resume draft, a Back
+      // into this step). The override on onNext is what reaches the save that
+      // fires from THIS handler: handleNext holds the assessmentData binding from
+      // the render before this line, so the queued update is invisible to it.
+      // Without the override the quiz was built from an empty priority list —
+      // 6 questions instead of 12 on the free tier, on every exactly-three
+      // selection. See docs/quiz-priority-subjects-shortfall-recon.md.
+      const priorities = [...favoriteSubjects];
+      onUpdate("prioritySubjects", priorities);
+      onNext({ prioritySubjects: priorities });
       return;
     }
 
@@ -349,7 +370,11 @@ export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepPro
         </Button>
         <Button
           size="lg"
-          onClick={onNext}
+          // Wrapped, not bare: a bare `onClick={onNext}` hands handleNext the
+          // click event as its override argument. It is filtered out at the
+          // other end, but the prioritize screen needs no override at all — the
+          // stars were written on earlier events and have long since committed.
+          onClick={() => onNext()}
           disabled={!canProceedFromPrioritize}
           className="px-12 py-6 text-lg rounded-full shadow-lg"
           data-testid="button-next-priorities"
