@@ -1057,8 +1057,30 @@ export function registerSuperadminRoutes(app: Express) {
   app.get("/api/superadmin/scoring-config", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
     try {
       const { getScoringConfigSummary } = await import("../services/scoringConfig");
+      const { currentScoringRegimeForTier, SCORING_ALGORITHM_VERSION } = await import("../services/matching");
       const summary = await getScoringConfigSummary(storage);
-      res.json(summary);
+
+      // THE SCORING REGIME A NEW REPORT WOULD BE WRITTEN WITH TODAY, alongside
+      // the editable config. Together these are the other half of the comparison
+      // against a stored row's recommendations.scoring_provenance — "is this
+      // report reproducible today". No consumer yet; this is the server-side
+      // foundation, and it lands first precisely so no UI is ever tempted to
+      // recompute the hash from the `weights` above. That set is NOT the set the
+      // scorer uses (isActive, premium gating, the >= 95 fallback), so a hash
+      // derived from it would report drift on perfectly reproducible rows.
+      //
+      // One query per tier rather than one for all of them: the cost is a
+      // getAllAssessmentComponents call per tier on an admin-only endpoint with
+      // three tiers, and the tier config underneath is already cached. Sharing
+      // the scorer's exact path is worth more here than saving two queries.
+      const tiers = await Promise.all(
+        summary.tiers.map(async (tier) => ({
+          ...tier,
+          currentConfigHash: (await currentScoringRegimeForTier(storage, tier.key)).configHash,
+        })),
+      );
+
+      res.json({ ...summary, tiers, currentAlgorithm: SCORING_ALGORITHM_VERSION });
     } catch (error) {
       console.error("Error fetching scoring config:", error);
       res.status(500).json({ message: "Failed to fetch scoring configuration" });

@@ -246,6 +246,108 @@ export async function generateRecommendations(
 }
 
 /**
+ * WHICH COMPONENTS A TIER IS SCORED ON, with their effective weights.
+ *
+ * EXPORTED, and shared with the provenance comparison rather than reimplemented
+ * there, because the set is what generateConfigVersion hashes — so anything that
+ * wants to know the CURRENT configHash must derive it through this exact path or
+ * it is not answering the same question.
+ *
+ * The obvious shortcut is to read `tier_component_weights` via
+ * getScoringConfigSummary / getEnabledComponentsForTier (scoringConfig.ts) and
+ * hash that. It is wrong, in three separate ways, each of which invents drift
+ * that does not exist:
+ *
+ *   1. isActive. This starts from getAllAssessmentComponents() and drops
+ *      inactive components. The summary iterates the weight rows and never looks
+ *      at the component's isActive flag.
+ *   2. Premium gating. A requiresPremium component is dropped for a 'basic'
+ *      assessment. The summary reports it for every tier.
+ *   3. The >= 95 fallback. DB weights are used ONLY when the tier's rows sum to
+ *      at least 95; below that the whole tier silently reverts to the hardcoded
+ *      TIER_WEIGHT_OVERRIDES. The summary always reports the DB numbers, so on a
+ *      half-configured tier the admin screen already shows weights the scorer is
+ *      not using.
+ *
+ * A false "this report is stale" is worse than showing nothing: it trains the
+ * operator to ignore the signal, which is the exact failure the provenance
+ * column exists to prevent. Hence one implementation, called by both.
+ *
+ * FAITHFUL, NOT CORRECTED. Two quirks are preserved deliberately:
+ *   - `assessmentType` is cast to AssessmentTier unchecked. A value outside
+ *     'basic' | 'premium' | 'group' finds no override table and every component
+ *     keeps its database weight.
+ *   - The premium gate compares against the literal 'basic', so the 'free'
+ *     synonym that isFreeAssessment (utils/assessmentTier.ts) accepts does NOT
+ *     get premium components dropped.
+ * Both are how stored rows were actually scored. Changing either here would move
+ * scores and is a SCORING_ALGORITHM_VERSION bump, not a tidy-up.
+ */
+export async function resolveActiveComponents(
+  storage: IStorage,
+  assessmentType: string | null | undefined,
+): Promise<AssessmentComponent[]> {
+  const allComponents = await storage.getAllAssessmentComponents();
+  const tier: AssessmentTier = assessmentType as AssessmentTier;
+
+  // Try to get weights from database first, fallback to hardcoded
+  const tierConfig = await getTierConfig(storage, tier);
+  const useDbConfig = tierConfig !== null && tierConfig.totalWeight >= 95; // Use DB if weights are valid
+
+  // Filter components and apply tier-specific weight overrides
+  return allComponents
+    .filter(component => {
+      // Only include active components
+      if (!component.isActive) return false;
+
+      // Skip premium components if user doesn't have premium access
+      if (component.requiresPremium && assessmentType === 'basic') {
+        return false;
+      }
+
+      return true;
+    })
+    .map(component => {
+      // Apply tier-specific weight override (database-first, then hardcoded fallback)
+      let effectiveWeight: number;
+
+      if (useDbConfig && tierConfig) {
+        const dbWeight = tierConfig.weights.get(component.key);
+        effectiveWeight = (dbWeight?.isEnabled && dbWeight.weight > 0) ? dbWeight.weight : 0;
+      } else {
+        // Fallback to hardcoded weights
+        effectiveWeight = getEffectiveWeight(tier, component.key, component.weight);
+      }
+
+      return {
+        ...component,
+        weight: effectiveWeight, // Use effective weight for this tier
+      };
+    })
+    .filter(component => component.weight > 0); // Remove components with 0 weight
+}
+
+/**
+ * The scoring regime a NEW report would be written with today, for one tier.
+ *
+ * The stored counterpart is recommendations.scoring_provenance. Comparing the
+ * two answers "is this report reproducible today", and the comparison is cheap
+ * because this depends only on (tier, config, component flags) and never on the
+ * student's answers — so it is a per-tier constant, not a per-row lookup, and
+ * the tier configuration it reads is already cached (scoringConfig.ts, 5-minute
+ * TTL, invalidated on every weights write).
+ */
+export async function currentScoringRegimeForTier(
+  storage: IStorage,
+  tier: string,
+): Promise<{ algorithm: number; configHash: string }> {
+  return {
+    algorithm: SCORING_ALGORITHM_VERSION,
+    configHash: generateConfigVersion(await resolveActiveComponents(storage, tier)),
+  };
+}
+
+/**
  * Hydrate all data needed for matching
  */
 async function hydrateMatchingContext(
@@ -258,47 +360,8 @@ async function hydrateMatchingContext(
   // Fetch all careers
   const careers = await storage.getAllCareers();
 
-  // Fetch active components (only those applicable to this user)
-  const allComponents = await storage.getAllAssessmentComponents();
-  const tier: AssessmentTier = assessment.assessmentType as AssessmentTier;
-  
-  // Try to get weights from database first, fallback to hardcoded
-  const tierConfig = await getTierConfig(storage, tier);
-  const useDbConfig = tierConfig !== null && tierConfig.totalWeight >= 95; // Use DB if weights are valid
-  
-  // Filter components and apply tier-specific weight overrides
-  const activeComponentsPromises = allComponents
-    .filter(component => {
-      // Only include active components
-      if (!component.isActive) return false;
-      
-      // Skip premium components if user doesn't have premium access
-      if (component.requiresPremium && assessment.assessmentType === 'basic') {
-        return false;
-      }
-      
-      return true;
-    })
-    .map(async component => {
-      // Apply tier-specific weight override (database-first, then hardcoded fallback)
-      let effectiveWeight: number;
-      
-      if (useDbConfig && tierConfig) {
-        const dbWeight = tierConfig.weights.get(component.key);
-        effectiveWeight = (dbWeight?.isEnabled && dbWeight.weight > 0) ? dbWeight.weight : 0;
-      } else {
-        // Fallback to hardcoded weights
-        effectiveWeight = getEffectiveWeight(tier, component.key, component.weight);
-      }
-      
-      return {
-        ...component,
-        weight: effectiveWeight, // Use effective weight for this tier
-      };
-    });
-  
-  const resolvedComponents = await Promise.all(activeComponentsPromises);
-  const activeComponents = resolvedComponents.filter(component => component.weight > 0); // Remove components with 0 weight
+  // Fetch active components (only those applicable to this user).
+  const activeComponents = await resolveActiveComponents(storage, assessment.assessmentType);
 
   // Bulk fetch career affinities for all careers and active components
   const careerIds = careers.map(c => c.id);
@@ -784,8 +847,36 @@ export const SCORING_ALGORITHM_VERSION = 3;
  * runtime. It CANNOT see a code change — 221d496 altered a denominator and left
  * every key and weight untouched, so this hash was byte-identical across it.
  * SCORING_ALGORITHM_VERSION covers that half.
+ *
+ * EXPORTED so the provenance comparison hashes the current config with the same
+ * function that hashed the stored one. Feed it resolveActiveComponents' output
+ * and nothing else — see that function for the three ways a set assembled from
+ * the admin-facing config differs from the set actually scored.
+ *
+ * NOT A DIGEST, despite the name, and CURRENTLY NEARLY BLIND. It base64-encodes
+ * the sorted `key:weight` join and slices to 16 characters. Base64 is 4 chars per
+ * 3 bytes, so 16 chars is exactly the FIRST 12 BYTES of the string — about one
+ * component. On the real tier configurations that means:
+ *
+ *   basic    hash decodes to "interests:35"  — subjects and vision are invisible
+ *   premium  hash decodes to "cvq:25|riase"  — not even riasec's weight fits
+ *
+ * So an admin weight edit, the one thing this half of provenance exists to catch
+ * automatically, mostly does not move it: change basic's subjects 35->99 and
+ * vision 30->1, or drop vision from the tier altogether, and the hash is
+ * byte-identical. scoringRegime.test.ts pins each of those.
+ *
+ * NOT FIXED HERE ON PURPOSE. Widening or properly hashing this changes what every
+ * STORED provenance row means — their hashes were written under this scheme, so
+ * they would all begin reading as "config drifted" when nothing about them
+ * changed, which is the exact false positive the comparison exists to avoid. A
+ * fix has to decide what happens to those rows (version the scheme, or treat
+ * pre-fix hashes as an unknown config) and belongs in its own commit.
+ *
+ * It is also reversible for the part it keeps, which is why it is operator-only
+ * and stripped from student responses (server/utils/recommendationView.ts).
  */
-function generateConfigVersion(components: AssessmentComponent[]): string {
+export function generateConfigVersion(components: AssessmentComponent[]): string {
   const configString = components
     .slice()
     .sort((a, b) => a.key.localeCompare(b.key))
