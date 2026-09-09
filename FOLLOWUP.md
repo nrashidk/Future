@@ -1702,17 +1702,22 @@ Note the tradeoff if resumed: a whitelist alone moves prod access from a typed o
 (ALLOW_PRODUCTION_DB=true, required each time) into a config file that can go stale. Consider
 keeping the override on top of the whitelist. First flagged 2026-09-07.
 
-### Curriculum rename: two cascade gaps, one of them empties the quiz pool  (severity: HIGH)
+### Curriculum rename: two cascade gaps — GAP 1 FIXED, GAP 2 open  (severity: was HIGH)
 MERGED 2026-09-09 from two adjacent entries that read as a duplicate in the heading list — the
 assessments gap (first flagged 2026-09-07) and the organizations gap (severity raised
 2026-09-08). They are different defects with different fixes and different phases, so both are
 kept in full below; they are filed together because anyone reading one needs the other.
 
-POST /api/superadmin/countries/:id/curricula/rename (superadmin.routes.ts:2385-2432) rewrites
-countries.curricula, subjects and quiz_questions. It stops short of two tables that hold the
-same string: assessments and organizations.
+POST /api/superadmin/countries/:id/curricula/rename rewrote countries.curricula, subjects and
+quiz_questions, and stopped short of two tables holding the same string: assessments and
+organizations. organizations is now covered (GAP 1, below). assessments is not (GAP 2).
 
-#### GAP 1 — organizations.curriculum  (HIGH, fix belongs at the rename)
+A THIRD table was found later and is NOT covered by either gap:
+contribution_submissions.curriculum — filed as its own entry, "Curriculum rename and pending
+contribution submissions", because unlike these two it needs a policy decision before it can be
+written.
+
+#### GAP 1 — organizations.curriculum  (was HIGH — FIXED at the rename; see the Net paragraph below)
 A renamed curriculum leaves every school on it holding a string that no longer appears in
 countries.curricula.
 
@@ -1725,15 +1730,51 @@ assessment:
       curriculum: organization?.curriculum,
 
 That value scopes which quiz bank a student's assessment draws from. After a rename the school
-row holds the old string while subjects and quiz_questions hold the new one, so the lookup
-matches nothing and THE QUESTION POOL IS EMPTY FOR EVERY SCHOOL ON THAT CURRICULUM. This is not
-a cosmetic mismatch on existing records; it breaks the next assessment taken at those schools.
-The rename returns { success: true, updated: { subjects, questions } } and reports no schools,
+row held the old string while subjects and quiz_questions held the new one, so the scoped lookup
+matched nothing.
+
+THE POOL WAS NOT EMPTY, AND THIS ENTRY SAID IT WAS — corrected 2026-09-09, because the wrong
+wording here was worse than the finding. The curriculum-scoped query at quiz.routes.ts:292-299
+is the FIRST of four steps, and the three below it are fallbacks that each widen the pool rather
+than fail. So the student did not hit an error. They sat a quiz drawn from the wrong bank — a
+British-curriculum school's students quizzed on MOE National content — which was then scored,
+stored, and fed into their career recommendation as if it were right.
+
+IT IS A CASCADE, NOT ONE FALLBACK, and the correction is only half made if that is missed. Each
+step drops another scope, and any of them can be the one that answers:
+
+  1. :292-299  countryId + grade + curriculum — the intended query. Returns nothing after a
+     rename, because organizations.curriculum held a name quiz_questions no longer used.
+  2. :301-307  DROPS THE CURRICULUM FILTER. Same country, same grade, every curriculum. This is
+     the step that produced the wrong-bank quiz described above.
+  3. :309-315  DROPS THE COUNTRY TOO (`countryId: null`) — global questions, no country scope.
+  4. :317-328  DROPS BOTH AND MOVES THE GRADE, trying studentGrade ±1 with no country and no
+     curriculum filter at all.
+
+Only after all four return nothing does :330-331 return a 400. So the reachable worst case is
+not merely "another curriculum in the same country" but a quiz assembled from a different
+grade's questions with no country scoping — and steps 3 and 4 are equally silent. The only trace
+of any of it is a console.log per step (:306, :314, :324), which on Render means a line nobody
+reads in a log nobody retains.
+
+The original wording predicted a symptom — an empty pool, a 400, a complaint — that an operator
+would go looking for and never find, while the real damage produced complete, plausible,
+wrong results and no signal at all. Anyone triaging from the old text would have concluded the
+bug was not reproducing.
+
+(Two sub-cases, for whoever verifies: getQuizQuestionsByFilters matches
+`curriculum = $1 OR curriculum IS NULL` (and the same OR-NULL shape for countryId), so if the
+country has any curriculum-agnostic questions step 1 returns THOSE and the cascade never fires —
+the pool is silently narrowed instead of silently widened. A hard 400 arrives only if the
+favourite-subject filter at quiz.routes.ts:346-352 then empties, which blames the student's
+subject choice for a superadmin's rename.)
+
+The rename returned { success: true, updated: { subjects, questions } } and reported no schools,
 because it never counted any.
 
 Consequences, worst first:
-- Every subsequent assessment at an affected school draws from an empty pool
-  (assessment.routes.ts:136). Nothing warns, and the rename reports success.
+- Every subsequent assessment at an affected school was drawn from the wrong curriculum's
+  questions (assessment.routes.ts:136). Nothing warned, and the rename reported success.
 - If the school has students, the immutability lock (01e20cf) prevents correcting it at all —
   old-name to new-name is a change, refused unconditionally, superadmins included by design
   (admin.routes.ts:433-445). The supported answer the lock offers is "create a separate
@@ -1754,31 +1795,73 @@ It notices the assessments gap — which mislabels historical rows — and does 
 organizations gap, which breaks the next assessment. Then it refuses the only in-product repair
 for the damage it did not see. Worth recording as a reasoning failure and not just a missing
 UPDATE: the comment is careful, correct about what it inspected, and inspected one table short.
-Whoever fixes the cascade should also revisit that comment, because it currently reads as
-having surveyed the cascade completely.
 
-Net: a superadmin rename can put a school into a state only a direct DB write can fix. The
-rename is the only path that produces it, so the fix belongs there, not as a carve-out
-in the lock. Note the scope is larger than one UPDATE: the route runs four sequential
-writes with no transaction at all (superadmin.routes.ts:2380-2432 — updateCountry,
-renameCurriculumInSubjects, renameCurriculumInQuizQuestions, clearSubjectCache), so a
-partial failure today already leaves a rename half-applied with no rollback and a 500 that
-says nothing about how far it got. Fixing this means wrapping all four writes plus the new
-organizations.curriculum update in a transaction that does not currently exist. Same defect
-class as the orphan-user bug fixed in 8c07e25.
+REWRITTEN (admin.routes.ts, same commit as the GAP 1 fix). The replacement says what it did not
+inspect, so the survey has a visible edge; separates "this guard is correct" from "the cascade is
+complete", which the old version had fused; and states the distinction the whole paragraph turns
+on — a rename preserves the curriculum's identity so rewriting every stored copy is a complete
+repair, while a switch changes it so the assessments already taken mean something else. The
+guard's conclusion was right the whole time, for a reason it was not giving.
 
-#### GAP 2 — assessments.curriculum  (medium, Phase 6)
-renameCurriculumInSubjects and renameCurriculumInQuizQuestions (storage.ts:854-881) cascade a
-curriculum rename through subjects and quiz_questions, but stop short of assessments.
-assessments.curriculum keeps the old string, so a renamed curriculum leaves existing
-assessment rows pointing at a value no longer in countries.curricula. This is the same
-reconciliation gap that blocks a superadmin override on the org curriculum lock (01e20cf) —
-neither can be closed until something can re-scope existing assessment rows. Phase 6.
+Net: a superadmin rename could put a school into a state only a direct DB write could fix. The
+rename was the only path that produced it, so the fix went there rather than as a carve-out in
+the lock.
 
-WHY THE TWO GAPS DO NOT SHARE A FIX. Gap 1 is a missing UPDATE on a path that has no
-transaction, fixable now at the rename route (47c5067 tracks the same distinction). Gap 2 needs
-Phase 6 reconciliation, because re-scoping a historical assessment row is a decision about what
-a completed assessment means, not a string rewrite. Do not close them in one commit.
+FIXED. storage.renameCurriculum now performs all four writes — countries.curricula, subjects,
+quiz_questions and organizations — inside one db.transaction, replacing
+renameCurriculumInSubjects and renameCurriculumInQuizQuestions, which are gone rather than kept
+alongside it (a non-transactional single-table rename left in the API is the trap the fix
+closes). Every WHERE is scoped by countryId: the same label legitimately exists under more than
+one country, so an unscoped rewrite would have relabelled schools nobody touched. The route
+reports the schools it moved, and both locales print the number. Three details worth knowing:
+
+  - THE PRECONDITIONS MOVED INSIDE THE TRANSACTION and the countries row is taken FOR UPDATE.
+    This is a behaviour change beyond atomicity, not a refactor. They previously ran in the
+    handler against a row nothing held, so two concurrent renames could both pass "newName does
+    not exist" and both proceed, losing one of the two names. Same check-then-act shape, and the
+    same fix, as createGroupPurchaseTransaction.
+  - clearSubjectCache() STAYS OUTSIDE the transaction, after it. It is not a database write —
+    it resets two module-level variables in utils/subjects.ts — and it is the one step that
+    must not be enrolled: clearing mid-transaction lets a concurrent request refill the cache
+    from uncommitted rows, and clearing on rollback discards a cache that was still correct. The
+    earlier count of "four writes" in this entry included it; three of those four were SQL.
+  - THE CACHE CLEAR IS STILL PER-PROCESS. On a multi-instance deploy the other instances serve a
+    stale alias map until CACHE_TTL. Pre-existing, unchanged, and not something the transaction
+    addresses — noted so "cache cleared" is not read as cluster-wide.
+
+Same defect class as the orphan-user bug fixed in 8c07e25.
+
+NO PRODUCTION REPAIR WAS NEEDED. The detection query (docs/curriculum-rename-cascade-recon.md,
+§4 Q1 — schools whose curriculum is absent from their country's curricula array) returned zero
+rows against prod before the fix landed. The fix is preventive; there was no data migration.
+
+#### GAP 2 — assessments.curriculum  (medium, Phase 6 — STILL OPEN)
+storage.renameCurriculum cascades a rename through countries.curricula, subjects,
+quiz_questions and organizations, but stops short of assessments. assessments.curriculum keeps
+the old string, so a renamed curriculum leaves existing assessment rows pointing at a value no
+longer in countries.curricula. This is the same reconciliation gap that blocks a superadmin
+override on the org curriculum lock (01e20cf) — neither can be closed until something can
+re-scope existing assessment rows. Phase 6.
+
+(Rewritten 2026-09-09 after the GAP 1 fix. This paragraph used to name
+renameCurriculumInSubjects and renameCurriculumInQuizQuestions at storage.ts:854-881; both
+functions were DELETED by that fix and folded into storage.renameCurriculum, so the old text
+sent the reader to code that no longer exists. The gap itself is unchanged.)
+
+WHY THE TWO GAPS DID NOT SHARE A FIX. Gap 1 was a missing UPDATE on a path that had no
+transaction, and was fixed at the rename route (47c5067 tracks the same distinction). Gap 2
+needs Phase 6 reconciliation, because re-scoping a historical assessment row is a decision about
+what a completed assessment means, not a string rewrite. That is why the GAP 1 commit
+deliberately left it alone rather than adding a fifth UPDATE that would have looked like
+completing the cascade.
+
+NOTE THE ASYMMETRY THE FIX CREATED, because it is the reason this is now easy to misread. Before
+the fix, subjects/quiz_questions were renamed and organizations/assessments were not, so a
+half-cascaded rename was visible as a live breakage. Now everything the QUIZ path reads is
+consistent and only assessments — which nothing reads for scoping — is stale. The defect is
+therefore quieter than it was, not smaller: a historical row still claims a curriculum name that
+no longer exists, and the only surface that surfaces it is a report or export read after a
+rename. Do not close this by copying the GAP 1 UPDATE.
 First flagged 2026-09-07.
 
 ### studentGender accepts any non-empty string  (severity: low)
@@ -2613,7 +2696,6 @@ The need behind the deleted impersonation button was this one, and it is a read 
 route-level reads with an audit row each, not session identity substitution. Establishing the
 rendered outcome needs the app run, not just the routes read. First flagged 2026-09-09.
 
-
 ### Destructive admin actions have inverted friction  (severity: HIGH — minors' data, no undo)
 Confirmation, audit and undo are distributed across the admin surface in almost exactly the
 wrong order. The actions with the widest blast radius have the least friction.
@@ -3082,6 +3164,73 @@ is precisely why a regression here would not be noticed.
 
 Recorded 2026-09-09.
 
+### Curriculum rename and pending contribution submissions  (severity: medium — needs a decision)
+The third table holding a curriculum string, found during the 2026-09-09 rename recon and
+deliberately LEFT OUT of the GAP 1 fix. That fix was mechanical; this one is not, because the
+right answer differs per submission status and picking one is a product decision.
+
+`contribution_submissions.curriculum` (shared/schema.ts, NOT NULL) is not a label. It is copied
+forward into the quiz bank at approval time:
+
+    server/routes/contribution.routes.ts:518
+      curriculum: submission.curriculum,
+
+So a submission that was pending when a rename ran will, whenever a superadmin approves it,
+INSERT NEW quiz_questions ROWS CARRYING THE OLD NAME — re-contaminating the table the rename just
+cleaned, at an arbitrary later date, through a path nobody is watching. That is a different shape
+from the other two gaps: they leave stale rows behind, this one manufactures fresh ones after the
+fact. A second rename cannot catch them either — by then the old name is gone from
+countries.curricula and the rename route's own precondition refuses the call.
+
+FIVE STATUS BUCKETS, FIVE DIFFERENT ANSWERS. This is why it is not one UPDATE:
+
+1. **pending / llm_verified / in_review — ARMED.** These can still be approved
+   (contribution.routes.ts:486 gates review on exactly this set), so each one is a delayed
+   re-contamination. The case for renaming them is strongest here and close to unarguable.
+
+2. **approved — the genuinely hard one.** The questions this submission produced were already
+   inserted, and the rename cascade DID update them, so the quiz bank is correct. The submission
+   row is now a historical record whose curriculum disagrees with the questions it created.
+   Renaming it keeps the two consistent and loses the record of what the school actually
+   submitted under; leaving it preserves the submission as filed and makes the provenance trail
+   (quiz_questions.contributionSubmissionId) inconsistent. This is a question about whether a
+   submission is a live record or an archived one, and the same question decides GAP 2.
+
+3. **rejected — inert.** Never becomes a question. Renaming buys nothing but tidiness; the
+   argument for leaving it is that it records what was actually rejected.
+
+4. **needs_changes — stale, and a dead end in the current code.** Worth recording on its own:
+   there is NO route that returns a needs_changes submission to a reviewable state. Review is
+   gated on pending/in_review/llm_verified (:486), the only other write is POST /submit which
+   creates a NEW row, and nothing resets the status. So a school asked for changes cannot revise
+   in place — it must resubmit, producing a fresh row with the then-current curriculum. That
+   makes the rename question moot for this bucket and raises a separate one about whether
+   needs_changes should exist at all in its current form.
+
+5. **claimed — AND IT IS NOT IN THE SCHEMA'S OWN LIST.** Added 2026-09-09; the entry said four
+   buckets and there are five. `claimed` is written at contribution.routes.ts:611-613 once the
+   school's reward has been allocated, so it is post-approval and inherits bucket 2's reasoning
+   exactly — the questions are already in the bank and already renamed. What makes it worth its
+   own number is that shared/schema.ts:1655 documents the column as
+   `pending, llm_verified, in_review, approved, rejected, needs_changes` and DOES NOT MENTION
+   `claimed`. Anyone who writes the eventual UPDATE from that comment — the obvious place to
+   look for the allowed values — will produce a status list that silently misses every
+   rewarded submission. The schema comment should be corrected whenever this is actioned.
+   Filed here rather than as its own entry because it is only reachable through this decision.
+
+A SECOND CONSEQUENCE CLOSED ITSELF with the GAP 1 fix, and is recorded so nobody re-opens it:
+contribution.routes.ts:340-344 rejects a submission whose curriculum does not match the school's
+own. While organizations.curriculum held a stale name and the UI offered the new one from
+countries.curricula, the two could never agree and AFFECTED SCHOOLS COULD NOT SUBMIT AT ALL —
+with an error naming two strings a school admin had no way to reconcile. Renaming
+organizations.curriculum fixes the write path. Only the stored rows above are still open.
+
+Detection SQL is in docs/curriculum-rename-cascade-recon.md §4 Q4, ordered so armed rows surface
+first. It returned nothing against prod, consistent with the GAP 1 query — no rename has yet
+been performed on a country with schools or submissions, which is why all of this is preventive.
+
+First flagged 2026-09-09.
+
 ## SCORING PROVENANCE IN THE GDPR EXPORT — DECISION REVERSED 2026-09-09
 
 **The export no longer includes `recommendations.scoring_provenance`** (server/routes/user.routes.ts,
@@ -3115,6 +3264,32 @@ docs/scoring-provenance-recon.md for the rest of that surface.
 **If this is ever reversed again**, reverse it by adding a RESOLVED view to the export ("scored on
 2026-09-08 under algorithm 3") rather than the raw column — that serves Position 1's actual purpose
 without shipping the weight table.
+
+**AMENDMENT 2026-09-09 — half of reason 2 has an expiry date, and the decision still holds.**
+Recorded here rather than left to be rediscovered, because the obvious reading of the widening plan
+below is that it reopens this, and it does not.
+
+Reason 2 above is really two claims, and only one of them is durable:
+
+- *"configHash is a reversible encoding"* — TRUE TODAY, AND DELIBERATELY TEMPORARY. It is base64,
+  so anyone who decodes it reads the weight table back out. The fix planned in "configHash
+  WIDENING" replaces it with a sha256 digest, which is one-way. **When that lands, this half of the
+  argument is gone** — a digest leaks nothing, so "it hands out internal scoring configuration"
+  stops being true and can no longer be cited here.
+- *Reason 1, that it is not personal data* — UNAFFECTED, AND LOAD-BEARING ON ITS OWN.
+  `{algorithm, configHash, tier, scoredAt}` describes the ALGORITHM that ran, not the person it ran
+  on; it is identical for every student scored in the same tier in the same window. Everything the
+  row holds ABOUT the student is still exported in full. That reasoning does not depend on the
+  encoding at all.
+
+So: **do not reopen this when the hash is fixed.** Reason 1 decides it by itself, and reason 2 was
+always the lesser of the two — it explains why exporting the field would additionally COST
+something, not why the field falls outside the right. The practical effect of the fix is only that
+a future argument for inclusion can no longer be met with "and it leaks the weight table"; it still
+has to get past "it is not the student's personal data", which it does not.
+
+The reversal instruction above is likewise unchanged: if it is ever reversed, reverse it with a
+RESOLVED view, not the raw column — that stays right whether the hash is reversible or not.
 
 First flagged 2026-09-09.
 
@@ -3163,5 +3338,115 @@ signal. A fix must therefore also decide what happens to existing rows. Two cand
 Either way it is its own commit, with the schema comment's "can never be forgotten" claim corrected
 in the same change. Until then, `algorithm` is the only half of provenance that reliably moves, and
 any UI built on the comparison should say so rather than implying the config half is authoritative.
+
+**RESOLVED INTO A PLAN — see "configHash WIDENING" at the end of this file.** Candidate 1 is the
+answer; the deciding fact, missing from the list above, is that the v1 scheme remains COMPUTABLE,
+so old rows are compared under v1 and new rows under v2 and nothing is ever compared across
+schemes. The UI caveat this paragraph asks for now exists: the estate card labels the matching
+bucket "no drift detected" rather than "reproducible" and states the under-count in a line.
+
+First flagged 2026-09-09.
+
+## configHash WIDENING — the plan, and why it is not blocked on difficulty
+
+**Written 2026-09-09, after the estate card shipped (commit 1285997). Not implemented. This is the
+decision record for the commit that fixes it, so that commit does not have to re-derive any of it.**
+
+Supersedes the "two candidates" list at the end of the previous entry: candidate 1 is the answer,
+and the reason is a fact that list did not state.
+
+### What the change actually is
+
+`generateConfigVersion` (server/services/matching.ts) ends:
+
+    return Buffer.from(configString).toString('base64').slice(0, 16);
+
+Replace with a real digest:
+
+    createHash('sha256').update(configString).digest('hex').slice(0, 16)
+
+Node crypto, no dependency, two lines. **Truncating a digest is safe; truncating an encoding is
+not** — that distinction is the whole defect. A digest diffuses, so every input byte affects every
+output byte and a 16-char prefix still moves when any component's weight changes. Base64 does not
+diffuse, so 16 chars is literally the first 12 bytes of the input and everything after it is
+invisible. 16 hex chars (64 bits) is far more than drift detection needs; this is not an
+adversarial setting, only a handful of configs ever exist.
+
+THE INPUT STRING DOES NOT NEED WIDENING. `key:weight` over resolveActiveComponents' output already
+captures every config-level input: `isActive` and premium gating show up as ABSENT components, and
+the `>= 95` fallback shows up as DIFFERENT weights. Only the hashing is broken. One nit worth
+folding in while there: `weight` is `real` (float4, shared/schema.ts:1019 and :1486), so a
+fractional weight can stringify as `33.29999923706055`. It is deterministic, so not a correctness
+bug today, but rounding to fixed precision in the digest input costs nothing and removes the trap.
+
+### Existing values CAN coexist, and the reason is specific
+
+The blocker was always "what happens to stored rows", and it dissolves on one observation: **v1 is
+still computable.** It is a pure function of the same component set, and that function is already
+exported. So there is never any need to compare a row across schemes.
+
+Record `{hashVersion, configHash}` in scoring_provenance going forward, and compare each row under
+its OWN scheme:
+
+- row with `hashVersion: 2` → compare against the v2 current hash. Trustworthy.
+- row with no `hashVersion` (every row stored today, implicitly v1) → compare against the v1
+  current hash, recomputed with the retained v1 function. Keeps exactly the weak, one-directional
+  signal it always had — no better, but no false positives either.
+
+That is real coexistence rather than nominal, which is why it beats candidate 2 ("treat pre-fix
+hashes as unknown"). Candidate 2 is honest but throws away signal that is still computable and
+moves a large block of rows into a bucket reading "we don't know" when we partly do. Its only
+argument is wanting to delete the v1 function, which is not worth the fidelity.
+
+A third option — RECOMPUTING STORED HASHES — must be rejected on migration 018's own argument. You
+cannot recompute what a row WAS scored under, only what it WOULD BE scored under now. That is a
+guessed value wearing the costume of provenance, and it is the exact thing 018 refuses for NULL.
+
+### The SQL change is small
+
+storage.getScoringEstateCounts already takes the current regime as an injected VALUES list. Add
+`hash_version` to the CTE and to the join condition, `COALESCE`-ing the row's missing key to 1, and
+the three-row list becomes six (three tiers × two schemes). Nothing else about the query moves —
+the LEFT JOIN, the count(DISTINCT), the jsonb algorithm comparison and the branch order all stand.
+
+### NO ALGORITHM BUMP — and bumping would be actively wrong
+
+SCORING_ALGORITHM_VERSION's rule is mechanical: bump when the golden fixtures move.
+`generateConfigVersion`'s output is produced, stored and stripped — `appliedConfigVersion` is never
+read back into any calculation (verified: matching.ts:823/829/832 write it,
+utils/recommendationView.ts strips it, nothing consumes it). Changing the hash function moves no
+score and no fixture, so scoringProvenance.test.ts will not fail and the rule does not fire.
+
+Worse, a bump would put EVERY stored row into `algorithmDrifted` — the more serious bucket, the one
+that means the calculator itself changed and that needs the version history at matching.ts:855-865
+to explain. That is a bigger and more alarming false positive than the under-count being fixed.
+`hashVersion` is the correct versioning axis, and the fact that it is a DIFFERENT axis from the
+algorithm integer is exactly why it belongs in its own field rather than reusing that one.
+
+### Correct in the same commit
+
+`shared/schema.ts` documents `configHash` as the half of provenance that **"can never be
+forgotten"** because it is computed automatically. That claim is false today and only becomes true
+with this fix, so it must be corrected in the same change rather than left to read as though the
+mechanism works. Same for the note in generateConfigVersion's own docblock describing the
+truncation as current behaviour, and the fourth describe block in
+server/services/scoringRegime.test.ts, which PINS the truncation deliberately — those assertions
+state today's behaviour, not desired behaviour, and the fix is expected to rewrite them rather than
+work around them.
+
+### Why this will stop being tolerable
+
+The estate card (superadmin scoring tab) currently labels the matching bucket **"no drift
+detected"** rather than "reproducible", and prints a line saying the config comparison can only
+under-count. That is a stopgap that makes the card honest, not a fix: it stops the card CLAIMING
+reproducibility, but it cannot confirm it either.
+
+The concrete failure is an operator answering a school. A school asks whether a student's report
+was computed the same way as another, the operator reads "no drift detected" and says yes, and a
+weight edit the truncation cannot see makes that wrong — a falsely reassuring answer about a
+minor's record. Today the honest answer is "I cannot fully tell", which survives being said once.
+
+Related: see the note appended to the GDPR-export entry above — fixing the encoding also removes
+the reversibility half of that decision's reasoning, without reopening it.
 
 First flagged 2026-09-09.
