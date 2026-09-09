@@ -2944,3 +2944,35 @@ on a button in this file's voice. The other three are short labels with no stron
 agree with however the demographics block above phrases a missing value.
 
 Recorded 2026-09-09.
+
+### Arabic unreviewed — the landing hero counter and the progress feature card  (severity: low)
+`1988e76` and `add699e` rewrote three Arabic strings in `ar/landing.json`, none reviewed by an
+Arabic speaker. One of the three is a deliberate structural choice, not a translation, and it is
+the one to check:
+
+- `hero.assessmentsCompleted` / `hero.assessmentsCompletedPlural` — both `عدد التقييمات المكتملة:
+  {{count}}` (was `يثق به {{count}} طالب` on both keys)
+- `features.progressDesc` — `راقب رحلتك بمؤشرات تقدم بصرية` (dropped `وشارات إنجاز`)
+
+**THE TWO COUNTER KEYS ARE DELIBERATELY IDENTICAL, and that needs confirming rather than
+correcting.** Arabic inflects a counted noun differently at 1, 2, 3-10 and 11+; `Landing.tsx:101`
+chooses between exactly two keys, so no inflected phrasing can be right across the plural branch.
+`عدد التقييمات المكتملة: {{count}}` ("number of completed assessments: N") states the count as a
+labelled quantity and is well-formed for every value, including 0 and the literal `"..."` the
+component passes while the query is loading. That is why the singular and plural strings match —
+the distinction is genuinely absent in this construction, not missing. **If a reviewer prefers a
+counted-noun phrasing, the component needs restructuring too, not just the strings**; a two-key
+selector cannot express Arabic plurals, and `displayCount` arrives as a *string*
+(`toLocaleString()`), so i18next's own plural resolution can never fire on it either. The English
+keeps a real singular/plural pair because English has one.
+
+Secondary: `عدد ... :` is a stat-label register, flatter than the promotional `يثق به` it
+replaced. That was unavoidable given the above, but if the hero wants promotional voice in Arabic
+the sentence has to be rebuilt around an uncounted noun rather than re-inflected.
+
+`features.progressDesc` is a deletion, so the risk is only that the remaining clause reads as
+truncated; `راقب رحلتك بمؤشرات تقدم بصرية` should stand alone. Worth noting the Arabic was the
+stronger of the two claims removed — `شارات إنجاز` is specifically *achievement* badges, where the
+English `badges` was vaguer.
+
+Recorded 2026-09-09.
