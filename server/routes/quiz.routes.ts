@@ -166,6 +166,85 @@ export function selectPartialAnswerUpdates(
   return { updates, invalidIds };
 }
 
+/**
+ * SQLSTATE 23505, unique_violation — seen through whatever wrapped it.
+ *
+ * neon-serverless does not always surface the pg error itself: it is frequently
+ * re-thrown with the original as `cause`, so a check on `error.code` alone
+ * misses half the cases. Both are tested, following the precedent already in
+ * seed.ts:2834 and country.routes.ts:532, which check the same two places.
+ */
+export function isUniqueViolation(error: any): boolean {
+  return error?.code === "23505" || error?.cause?.code === "23505";
+}
+
+/**
+ * The payload for a quiz that already exists — the ONE builder for it.
+ *
+ * Two callers return this: the pre-insert duplicate check, and the convergence
+ * path when a concurrent generate lost the insert race. "Returns the same
+ * payload as the existing-quiz branch" is a promise worth making structural
+ * rather than by copy, because the two are reached under different conditions
+ * and only one of them is ever exercised in ordinary use.
+ *
+ * `questions` is derived from the stored response rows, not from a fresh
+ * selection: the rows ARE the quiz, one per question chosen when it was
+ * generated, and re-selecting would hand the student a different paper.
+ */
+export async function buildExistingQuizPayload(quiz: { id: string; completedAt: Date | null }, lang: string) {
+  const responses = await storage.getQuizResponsesByQuizId(quiz.id);
+  const questionIds = responses.map(r => r.questionId);
+
+  const allQuestions = await storage.getAllQuizQuestions();
+  const questions = allQuestions
+    .filter(q => questionIds.includes(q.id))
+    .map(q => applyLanguageToQuestion(transformQuizQuestionForFrontend(q), lang));
+
+  return {
+    quizId: quiz.id,
+    questions,
+    responses: responses.map(r => ({ questionId: r.questionId, answer: r.answer })),
+    completed: !!quiz.completedAt,
+  };
+}
+
+/**
+ * Wait for the winner of a generate race to finish writing its response rows.
+ *
+ * The winner inserts the quiz row, then its N response rows one at a time. A
+ * loser that catches 23505 and reads immediately can therefore see the quiz with
+ * none or only some of its questions — and would return a short paper that the
+ * student cannot submit, because submit requires an answer for every row that
+ * exists by then (quiz.routes.ts:604-607, :617-620).
+ *
+ * `questionsCount` is written at creation and says how many rows to expect, so
+ * the wait has a definite target and a definite end. Bounded hard: this runs
+ * inside a request, and a caller waiting is only better than a caller failing
+ * for as long as the wait is short.
+ *
+ * If the rows never arrive — the winner died mid-loop — this returns what it
+ * has rather than erroring. That is a genuinely broken quiz either way, and it
+ * is the SAME state the pre-insert duplicate check has always returned for such
+ * a row; failing here would only make the race path stricter than the ordinary
+ * path for the same underlying damage. It is logged so it can be seen.
+ */
+export async function awaitQuizResponses(quizId: string, expected: number): Promise<void> {
+  const ATTEMPTS = 10;
+  const DELAY_MS = 100;
+
+  for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
+    const responses = await storage.getQuizResponsesByQuizId(quizId);
+    if (responses.length >= expected) return;
+    await new Promise(resolve => setTimeout(resolve, DELAY_MS));
+  }
+
+  const responses = await storage.getQuizResponsesByQuizId(quizId);
+  console.warn(
+    `[quiz] quiz ${quizId} still holds ${responses.length}/${expected} response rows after ` +
+    `${(ATTEMPTS * DELAY_MS) / 1000}s — returning it as-is; the generate that created it may have died mid-write`
+  );
+}
+
 export function registerQuizRoutes(app: Express) {
   app.post("/api/assessments/:assessmentId/quiz/generate", async (req: any, res) => {
     try {
@@ -194,23 +273,15 @@ export function registerQuizRoutes(app: Express) {
         return res.status(403).json({ message: "Unauthorized to generate quiz for this assessment" });
       }
       
+      // CHECK-THEN-ACT, and it is no longer the only thing standing between a
+      // student and two quizzes. This read is the fast path — it answers every
+      // ordinary repeat request without attempting an insert — but two
+      // concurrent generates can both reach it before either insert commits.
+      // What stops them now is assessment_quizzes_assessment_id_unique_idx
+      // (migration 019); the loser's insert raises 23505 and converges below.
       const existingQuiz = await storage.getAssessmentQuizByAssessmentId(assessmentId);
       if (existingQuiz) {
-        const responses = await storage.getQuizResponsesByQuizId(existingQuiz.id);
-        const questionIds = responses.map(r => r.questionId);
-        const lang = getRequestLanguage(req);
-        
-        const allQuestions = await storage.getAllQuizQuestions();
-        const questions = allQuestions
-          .filter(q => questionIds.includes(q.id))
-          .map(q => applyLanguageToQuestion(transformQuizQuestionForFrontend(q), lang));
-        
-        return res.json({ 
-          quizId: existingQuiz.id, 
-          questions,
-          responses: responses.map(r => ({ questionId: r.questionId, answer: r.answer })),
-          completed: !!existingQuiz.completedAt
-        });
+        return res.json(await buildExistingQuizPayload(existingQuiz, getRequestLanguage(req)));
       }
       
       // Extract numeric grade from strings like "grade11", "11", or just the number
@@ -340,12 +411,55 @@ export function registerQuizRoutes(app: Express) {
       const finalShuffledQuestions = shuffleQuestions(selectedQuestions);
       const questionsWithShuffledOptions = finalShuffledQuestions.map(q => shuffleOptions(q));
       
-      const quiz = await storage.createAssessmentQuiz({
-        assessmentId,
-        questionsCount: questionsWithShuffledOptions.length,
-        totalScore: 0,
-        subjectScores: {}
-      });
+      /**
+       * THE RACE ENDS HERE, BY CONVERGING — not by failing.
+       *
+       * Migration 019 made assessment_id unique, so of two concurrent generates
+       * exactly one insert succeeds and the other raises 23505. Without this
+       * branch that error fell into the route's generic catch below and became
+       * an opaque 500, which QuizStep renders as "unable to generate" beside a
+       * button that SKIPS THE QUIZ ENTIRELY (QuizStep.tsx:404-421) — telling a
+       * student their quiz could not be made while a perfectly good one exists
+       * for their assessment. That is a worse outcome than the duplicate row the
+       * constraint prevents, and it would ship the moment the index does.
+       *
+       * The right answer to "someone else just created this" is the quiz they
+       * created. Both halves of a double-click then get the same paper, which is
+       * what the student already believed was happening.
+       *
+       * IDEMPOTENT, NOT MERELY RECOVERED: this returns the identical payload the
+       * pre-insert check above returns, from the same builder, so a caller
+       * cannot tell which path served it. The only difference is the wait for
+       * the winner's response rows, which the fast path does not need.
+       *
+       * The questions selected above are DISCARDED on this path. They were a
+       * valid paper, but the winner's is the one whose rows are in the table and
+       * the one submit will score.
+       */
+      let quiz;
+      try {
+        quiz = await storage.createAssessmentQuiz({
+          assessmentId,
+          questionsCount: questionsWithShuffledOptions.length,
+          totalScore: 0,
+          subjectScores: {}
+        });
+      } catch (error) {
+        if (!isUniqueViolation(error)) throw error;
+
+        const winner = await storage.getAssessmentQuizByAssessmentId(assessmentId);
+        if (!winner) {
+          // The constraint fired, so a row was there when the insert ran. If it
+          // is gone now something deleted it in between (deleteAssessmentQuiz,
+          // via the subjects-changed invalidation) — genuinely exceptional, and
+          // not something to paper over with a second insert attempt.
+          throw error;
+        }
+
+        console.log(`[quiz] concurrent generate for assessment ${assessmentId}; converging on quiz ${winner.id}`);
+        await awaitQuizResponses(winner.id, winner.questionsCount);
+        return res.json(await buildExistingQuizPayload(winner, getRequestLanguage(req)));
+      }
       
       for (const question of questionsWithShuffledOptions) {
         await storage.createQuizResponse({
