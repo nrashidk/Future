@@ -1711,17 +1711,52 @@ reconciliation gap that blocks a superadmin override on the org curriculum lock 
 neither can be closed until something can re-scope existing assessment rows. Phase 6.
 First flagged 2026-09-07.
 
-### Curriculum rename orphans organizations.curriculum, and the lock blocks recovery  (severity: medium-high)
+### Curriculum rename empties the quiz pool for every school on it  (severity: HIGH — was medium-high)
 POST /api/superadmin/countries/:id/curricula/rename (superadmin.routes.ts:2385-2432) rewrites
 countries.curricula, subjects and quiz_questions, but not organizations.curriculum. A renamed
 curriculum leaves every school on it holding a string that no longer appears in
 countries.curricula.
 
-Consequences, which compound:
+SEVERITY RAISED 2026-09-08 (admin-surface recon). The original entry called this an orphaned
+column and reasoned about stale labels and a dropdown that cannot offer the value back. That
+undersold it. organizations.curriculum is not a label — it is load-bearing input to the
+assessment:
+
+    server/routes/assessment.routes.ts:136
+      curriculum: organization?.curriculum,
+
+That value scopes which quiz bank a student's assessment draws from. After a rename the school
+row holds the old string while subjects and quiz_questions hold the new one, so the lookup
+matches nothing and THE QUESTION POOL IS EMPTY FOR EVERY SCHOOL ON THAT CURRICULUM. This is not
+a cosmetic mismatch on existing records; it breaks the next assessment taken at those schools.
+The rename returns { success: true, updated: { subjects, questions } } and reports no schools,
+because it never counted any.
+
+Consequences, worst first:
+- Every subsequent assessment at an affected school draws from an empty pool
+  (assessment.routes.ts:136). Nothing warns, and the rename reports success.
+- If the school has students, the immutability lock (01e20cf) prevents correcting it at all —
+  old-name to new-name is a change, refused unconditionally, superadmins included by design
+  (admin.routes.ts:433-445). The supported answer the lock offers is "create a separate
+  school", which is not a recovery from a rename.
 - The school's stored curriculum no longer matches the edit form's availableCurricula lookup,
   so the dropdown cannot offer the value back.
 - Enrolment (549cd43) and org creation (81ea920) both gate on the school's curriculum.
-- If the school has students, the immutability lock (01e20cf) prevents correcting it at all.
+
+THE LOCK ALREADY REASONED ABOUT THIS CASCADE AND LOOKED AT THE WRONG TABLE. Its comment at
+admin.routes.ts:416-420 cites the rename by name:
+
+    // The nearest thing that exists is the curriculum RENAME cascade
+    // (storage.renameCurriculumInSubjects / renameCurriculumInQuizQuestions), and it is
+    // telling that it rewrites subjects and quiz_questions and stops short of assessments —
+    // even relabelling a curriculum leaves those rows alone.
+
+It notices the assessments gap — which mislabels historical rows — and does not notice the
+organizations gap, which breaks the next assessment. Then it refuses the only in-product repair
+for the damage it did not see. Worth recording as a reasoning failure and not just a missing
+UPDATE: the comment is careful, correct about what it inspected, and inspected one table short.
+Whoever fixes the cascade should also revisit that comment, because it currently reads as
+having surveyed the cascade completely.
 
 Net: a superadmin rename can put a school into a state only a direct DB write can fix. The
 rename is the only path that produces it, so the fix belongs there, not as a carve-out
@@ -2262,6 +2297,161 @@ which is the rule the documents fail to disclose rather than a rule the code bre
 the legal half of "Brand name is authored independently in five layers" (:1745), whose own
 unresolved question — whether legal.json's entity strings should track the product name at all
 — is answered here: they must not, until there is a registered entity to name.
+
+### Impersonation is a no-op that reports success  (severity: HIGH — it misleads the operator)
+POST /api/superadmin/impersonate/:userId (superadmin.routes.ts:1806-1837) writes one thing:
+
+    (req.session as any).impersonating = { originalUserId, targetUserId, startedAt };
+
+Nothing reads it. `grep -rn "impersonat" server/` returns that route, its stop-impersonation
+partner (:1839), and one unrelated string in a quiz question. Not deserializeUser, not
+isAuthenticated, not any middleware or handler. The session key is written and never consulted.
+
+The UI believes otherwise. SuperadminDashboard.tsx:357-368 toasts "Now impersonating user" and
+hard-navigates to / (:364), where the superadmin is still themselves. There is no impersonation
+banner anywhere in client/, and nothing calls /api/superadmin/stop-impersonation — the exit is a
+route no UI invokes.
+
+WHY THIS IS WORSE THAN A DEAD BUTTON. The failure mode is not "nothing happens", it is "the
+operator is told something happened". A superadmin investigating a student's report of a broken
+assessment clicks impersonate, is told they are now that student, lands on the app, and sees
+their own account. Whatever they conclude from that screen — it works, it does not, the data
+looks right — is a conclusion about the wrong account, drawn with confidence. The button
+manufactures false evidence about a minor's account, which is a worse state than not having the
+feature.
+
+BEFORE ANYONE BUILDS THIS, not after:
+- Impersonating a minor's account needs an audit trail: who impersonated whom, when, for how
+  long, and ideally why. That is a decision to take first, because it is the part that makes
+  the feature defensible under PDPL rather than a silent read of a child's psychometric record
+  by an unnamed operator. Retrofitting audit onto a shipped impersonation feature means a
+  window with no record of who looked at what.
+- A working implementation is not just the middleware read. It needs the persistent banner (the
+  operator must never be able to forget they are someone else) and a reachable exit path. Today
+  neither exists, so "make the middleware honour the flag" would produce a superadmin stuck
+  inside a student's session with no visible way out — a worse bug than the current one.
+- Removing the button is a legitimate outcome and is cheaper than all of the above. That is a
+  product call, not a code call.
+
+Do not fix by making the flag work. Decide first whether the feature is wanted; if it is, audit
+trail and banner and exit are part of the minimum, not follow-ups. If it is not, delete the
+route, the mutation and the button together. First flagged 2026-09-08.
+
+### Destructive admin actions have inverted friction  (severity: HIGH — minors' data, no undo)
+Confirmation, audit and undo are distributed across the admin surface in almost exactly the
+wrong order. The actions with the widest blast radius have the least friction.
+
+The clearest statement of the inversion: deleting ONE school requires typing its name
+(SuperadminDashboard.tsx:2341, typed-name modal). Deleting FIFTY takes a browser confirm()
+(:1081). Resetting ONE HUNDRED students' passwords takes nothing at all (:1333, bare onClick).
+
+WHAT IS AUDITED. organization_events rows are written for exactly seven actions — admin add
+(superadmin.routes.ts:461), admin remove (:523), admin promote (:567), licence change (:663),
+org create (:863), bulk licences (:1028), bulk org delete (:1594, but see the needs-human-review
+item below). scoring_config_change_log covers the four scoring writes. Everything in both
+tables below is unrecorded.
+
+#### Touching a student's data
+
+| Action | Confirm | Audit | Undo |
+|---|---|---|---|
+| **Bulk password reset**, up to 100 students (SuperadminDashboard.tsx:1333 → superadmin.routes.ts:1517) | **None** — bare onClick, no dialog | **None** | None. Old hashes gone |
+| Single password reset (:2397 → :1475) | Modal | **None** | None |
+| **Delete a file** (:1603 → :1770) | **None** — bare onClick | **None** | None. Object then row, both permanent |
+| **Impersonate** (:1470 → :1806) | **None** | **None** | n/a — no-op, see entry above |
+| Delete a school, incl. members + files (:2341 → :1431) | Typed-name modal | console.log only (:1462) | None |
+| Bulk delete schools (:1081 → :1572) | Native confirm() | Attempted, likely lost | None |
+| View any student's results (:1639, :1655) | n/a | **None** | n/a |
+| Export all students nationwide (:1693) | n/a | **None** — rate limiter only | n/a |
+
+The two with no dialog at all are the ones to look at first. **Bulk password reset** rotates up
+to 100 minors' credentials on a single click of a button sitting next to a column of checkboxes;
+the plaintext passwords come back in the response, every affected student is locked out, and
+there is no record that it happened or who did it. **File delete** permanently destroys a
+student PDF from object storage and then the database row from one unguarded icon button — the
+route is careful about ordering (:1770-1799, object first so a failure is visible) and has no
+confirmation in front of it.
+
+#### Touching a school's or the system's configuration
+
+| Action | Confirm | Audit | Undo |
+|---|---|---|---|
+| **Country repopulate** — overwrites 13 columns incl. curricula from LLM output (CountryManagement.tsx:164 → country.routes.ts:550) | **None** | **None** | None |
+| **Curriculum rename** across 3 tables, non-transactional (superadmin.routes.ts:2380) | Modal only | **None** | None — see the rename entry |
+| **Delete a subject** referenced by live questions (superadmin.routes.ts:2288) | Dialog | console.log (:2297) | None |
+| Clone subjects across curricula (:2315) | Dialog | **None** | None |
+| Career create/update/**delete** (:1973/:2013/:2058) | **None** on delete (:1750) | **None** | None |
+| **Bulk apply Arabic to all careers** (:2071) | **None** (:1687) | **None** | None |
+| Announcement create/update/**delete** (:1867/:1897/:1927) | **None** on delete (:1666) | **None** | None |
+| Remove / promote an org admin (:1914/:1905) | **None** | Yes (:523/:567) | None |
+| **Delete LLM API credential** (ScoringConfigEditor.tsx:495) | **None** | Yes | None |
+| Edit i18n bundles, career/CVQ/question Arabic (TranslationManager) | **None** | **None** | None |
+| **Delete a quiz question** (Admin.tsx:411 → admin.routes.ts:189) | **None** — bare onClick | **None** | None |
+
+Country repopulate is the sharpest of these. One unconfirmed click hands an LLM write access to
+the curricula list that every school row, subject row and quiz question is keyed on
+(country.routes.ts:571-585 overwrites curricula and subjects among thirteen columns), with no
+preview of what it is about to change and no diff against what is there. It is the same damage
+class as the curriculum rename entry above, reached without even naming the curriculum.
+
+ONE THING THAT IS RIGHT, so it is not re-litigated: ScoringConfigEditor is the best-audited
+surface in the codebase. scoring_config_change_log records changedBy, previousValue and
+newValue, and the tab renders it (ScoringConfigEditor.tsx:113). Its one gap is small and worth
+noting separately: the server reads req.body.changeReason into changeDescription
+(superadmin.routes.ts:1134) and the client sends only { weights } (ScoringConfigEditor.tsx:119),
+so every weights row has changeDescription: null. The audit trail records what changed and never
+why.
+
+DO NOT FIX BY ADDING CONFIRM DIALOGS EVERYWHERE. The useful shape is a rule about which class of
+action needs which control — typed-name for irreversible multi-record deletes, an audit row for
+anything touching a student's credentials or files, a preview-diff for LLM overwrites of shared
+configuration — applied once, rather than 20 individual dialogs added in 20 commits. Deciding
+that rule is the work; the dialogs are the easy part. First flagged 2026-09-08.
+
+### NEEDS HUMAN REVIEW — two admin-delete claims read from schema, not executed  (severity: unverified)
+Both surfaced during the 2026-09-08 admin recon. Both are read from the schema and the SQL, and
+NEITHER WAS RUN AGAINST A DATABASE. They are recorded so they are not re-derived, and flagged so
+nobody acts on them as established fact.
+
+1. BULK ORG DELETE MAY NOT WORK AT ALL, AND MAY MISREPORT WHEN IT DOES.
+   POST /api/superadmin/organizations/bulk/delete (superadmin.routes.ts:1572-1620) calls
+   storage.deleteOrganization(orgId) directly (:1590) — a bare DELETE FROM organizations
+   (storage.ts:3556-3561). The single-org delete (:1431-1467) does not, and its own comments say
+   why: members, events and files are FK'd with no cascade. The schema agrees —
+
+       shared/schema.ts:152   organization_members.organization_id  notNull, no cascade
+       shared/schema.ts:1316  files.organization_id                 nullable, no cascade
+       shared/schema.ts:1365  organization_events.organization_id   notNull, no cascade
+       shared/schema.ts:813   quiz_questions.contributed_by_org_id  nullable, no cascade
+
+   If that reading is right, bulk delete raises 23503 for any school with members, events, files
+   or contributed questions — that is, every real school. The error is caught per-org
+   (:1605-1607) and folded into { success: false, error: <pg message> }, so the UI shows a
+   partial-failure count rather than "this operation does not work".
+   And for a school empty enough to delete, the NEXT statement inserts an organization_events
+   row pointing at the org just deleted (:1594-1602) — a notNull FK to a row that no longer
+   exists. That insert would throw, be caught by the same handler, and the org reported FAILED
+   although it is gone. The audit row is lost either way.
+   TO VERIFY: attempt a bulk delete of one populated and one empty test school against a real
+   database and read the per-org results. Do not do this against production.
+
+2. DELETING A SCHOOL MAY LEAVE ITS STUDENTS' ACCOUNTS AND ASSESSMENTS BEHIND.
+   Single-org delete (superadmin.routes.ts:1431-1467) removes organization_members, events and
+   files, then the org. It does not touch the users rows those member rows pointed at, or their
+   assessments and recommendations. Org students would keep working credentials
+   (accountType: 'org_student') and a login belonging to no school.
+   Flagging as PDPL-adjacent rather than asserting a violation: "delete the school" may
+   legitimately not mean "delete the children's accounts" — a student may be re-enrolled
+   elsewhere, and cascading a delete into minors' assessment records is not obviously the safer
+   default. But whichever it means is currently undocumented and unenforced, and the code does
+   not record which was intended. That is the finding: not that the behaviour is wrong, but that
+   nobody chose it.
+   RELATED: this is the same shape as point 4 of the legal-documents entry — institutional
+   deletion removing only the membership row (storage.ts:2752-2757) and orphaning the child's
+   psychometric record. That entry reached it from the retention-policy side; this one from the
+   delete-a-school side. One decision closes both.
+
+First flagged 2026-09-08.
 
 
 ### Arabic unreviewed — instrument names removed from the student's report  (severity: low)
