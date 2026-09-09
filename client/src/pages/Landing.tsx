@@ -99,8 +99,8 @@ export default function Landing() {
               <Users className="w-5 h-5 text-primary" />
               <span className="text-sm font-medium" data-testid="text-student-count">
                 {isPlural
-                  ? t("hero.trustedByPlural", { count: displayCount })
-                  : t("hero.trustedBy", { count: displayCount })}
+                  ? t("hero.assessmentsCompletedPlural", { count: displayCount })
+                  : t("hero.assessmentsCompleted", { count: displayCount })}
               </span>
             </div>
           </StickyNote>

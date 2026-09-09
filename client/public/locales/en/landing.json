@@ -6,8 +6,8 @@
     "subtitle": "Find the perfect career that matches your interests, aligns with your country's vision, and prepares you for tomorrow's opportunities",
     "getStarted": "Get Started",
     "exploreGuest": "Explore as Guest →",
-    "trustedBy": "Trusted by {{count}} student",
-    "trustedByPlural": "Trusted by {{count}} students",
+    "assessmentsCompleted": "{{count}} assessment completed",
+    "assessmentsCompletedPlural": "{{count}} assessments completed",
     "partnerSchools": "Partner Schools"
   },
   "howItWorks": {

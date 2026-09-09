@@ -6,8 +6,8 @@
     "subtitle": "ابحث عن المهنة المثالية التي تتوافق مع اهتماماتك، وتتماشى مع رؤية بلدك، وتُعدّك لفرص الغد",
     "getStarted": "ابدأ الآن",
     "exploreGuest": "استكشف كضيف ←",
-    "trustedBy": "يثق به {{count}} طالب",
-    "trustedByPlural": "يثق به {{count}} طالب",
+    "assessmentsCompleted": "عدد التقييمات المكتملة: {{count}}",
+    "assessmentsCompletedPlural": "عدد التقييمات المكتملة: {{count}}",
     "partnerSchools": "المدارس الشريكة"
   },
   "howItWorks": {
