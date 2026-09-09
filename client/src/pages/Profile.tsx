@@ -13,6 +13,8 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useTranslation } from "react-i18next";
 import { isPremiumAssessment } from "@shared/assessmentTier";
 import { SCHOOL_ALLOCATIONS_PER_STUDENT, FREE_ASSESSMENT_CAP } from "@shared/assessmentLimits";
+import { toCanonicalGrade } from "@shared/grade";
+import { isResumableDraft } from "@shared/assessmentFlow";
 
 /**
  * One field of the merged profile block, as a sticky-note card.
@@ -63,6 +65,12 @@ interface Assessment {
   // reached again.
   assessmentType: string;
   isCompleted: boolean;
+  // Read by the history list to decide whether a draft is RESUMABLE. It has to
+  // be here because Assessment.tsx resumes on `currentStep > 1` and nothing
+  // else: a row created by the step-3 save but abandoned before the auto-save
+  // PATCH still holds the default 1, and offering "Continue" on it lands the
+  // student in a fresh assessment.
+  currentStep: number;
 }
 
 interface Organization {
@@ -193,6 +201,32 @@ export default function Profile() {
     a => a.isCompleted && isPremiumAssessment(a.assessmentType)
   ).length;
   const individualRemainingLicenses = Math.max(0, individualAvailableLicenses - individualUsedLicenses);
+
+  // WHICH REPORT IS "THE" REPORT. With retakes every history row reads alike, and
+  // the report a link without an id resolves to is the most recent completed one
+  // — /api/recommendations answers with the latest assessment, and the Career
+  // Journey's per-grade links resolve through pickLatestForGrade. Marking that row
+  // is what stops three identical-looking cards being three coin flips.
+  //
+  // `find`, not a sort: the list arrives ordered by createdAt desc, so the first
+  // completed row IS the most recently completed one.
+  const latestCompletedAssessmentId = assessments.find(a => a.isCompleted)?.id ?? null;
+
+  // ONE grade label for the page. It was local to the merged profile block,
+  // where it labelled a single value; the history list needs the same map and a
+  // second copy of it would drift from the first the moment a grade is added.
+  //
+  // CANONICALISED FIRST, which the local copy did not do. A legacy row still
+  // holding '10' misses every key of a map keyed 'grade10' and fell through to
+  // the raw string, so the profile printed a bare "10" for exactly the school
+  // students whose rows the old admin select wrote that way.
+  const getGradeLabel = (gradeCode: string): string => {
+    const gradeMap: Record<string, string> = {
+      grade8: t("details.grade8"), grade9: t("details.grade9"), grade10: t("details.grade10"),
+      grade11: t("details.grade11"), grade12: t("details.grade12"), graduated: t("details.graduated"),
+    };
+    return gradeMap[toCanonicalGrade(gradeCode) ?? gradeCode] || gradeCode;
+  };
 
   const getAccountTypeBadge = () => {
     switch (user.accountType) {
@@ -390,14 +424,6 @@ export default function Profile() {
             const subjectSource = latestAssessment
               ? t("details.sourceAssessment")
               : t("details.sourceSchool");
-
-            const getGradeLabel = (gradeCode: string): string => {
-              const gradeMap: Record<string, string> = {
-                grade8: t("details.grade8"), grade9: t("details.grade9"), grade10: t("details.grade10"),
-                grade11: t("details.grade11"), grade12: t("details.grade12"), graduated: t("details.graduated"),
-              };
-              return gradeMap[gradeCode] || gradeCode;
-            };
 
             const getGenderLabel = (g: string): string => {
               const genderMap: Record<string, string> = {
@@ -732,42 +758,92 @@ export default function Profile() {
                 </div>
               ) : (
                 <div>
-                  {/* Show Continue button if there's an in-progress assessment */}
-                  {assessments.some(a => !a.isCompleted) && (
-                    <div className="mb-4">
-                      <Button asChild className="w-full" data-testid="button-continue-assessment">
-                        <Link href="/assessment">
-                          <ClipboardCheck className="w-4 h-4 me-2" />
-                          {t("assessment.continueAssessment")}
-                        </Link>
-                      </Button>
-                    </div>
-                  )}
-                  {(() => {
-                    // Get the latest assessment (most recent by createdAt)
-                    const latestAssessment = [...assessments].sort((a, b) => 
-                      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-                    )[0];
-                    
-                    return latestAssessment && (
-                      <div className="p-3 border rounded-lg" data-testid={`assessment-item-${latestAssessment.id}`}>
-                        <p className="font-medium">{latestAssessment.name || t("assessment.assessment")}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(latestAssessment.createdAt).toLocaleDateString(language === 'ar' ? 'ar-AE' : 'en-US')}
-                          {latestAssessment.assessmentType && ` • ${isPremiumAssessment(latestAssessment.assessmentType) ? t("premium.premium") : t("premium.free")}`}
-                        </p>
-                        {/* Completed assessment: link to its report by assessmentId (kept ID-parameterized for future per-year history) */}
-                        {latestAssessment.isCompleted && (
-                          <Button asChild size="sm" className="w-full mt-3 bg-green-50 hover:bg-green-100 text-green-800 border border-green-200" data-testid={`button-view-report-${latestAssessment.id}`}>
-                            <Link href={`/results?assessmentId=${latestAssessment.id}`}>
-                              <FileText className="w-4 h-4 me-2" />
-                              {t("assessment.viewReport")}
-                            </Link>
-                          </Button>
-                        )}
-                      </div>
-                    );
-                  })()}
+                  {/* ONE CARD PER ASSESSMENT. This block sorted the list and
+                      rendered `[0]`, with a comment calling the single row a
+                      placeholder "for future per-year history" — written when a
+                      user could hold exactly one assessment. 261b85f (free
+                      retakes, capped at FREE_ASSESSMENT_CAP) made that false:
+                      the counter above already says "2 of 3" while one card
+                      renders, and every hidden report was unreachable from here.
+
+                      NO CLIENT SORT. /api/assessments/my is ORDER BY created_at
+                      DESC server-side (storage.ts:973-978), so index 0 is the
+                      newest already; re-sorting here could only ever disagree
+                      with the order the rest of the app resolves against.
+
+                      IN-PROGRESS ROWS RENDER TOO. They are part of the history —
+                      hiding them would put the card count back out of step with
+                      the counter, which is the bug being fixed. Only the report
+                      button is guarded on isCompleted, as before. */}
+                  <div className="space-y-3">
+                    {assessments.map((assessment) => {
+                      // GRADE, NOT NAME. `name` is per-assessment demographics and
+                      // holds the same string on every retake, so three rows would
+                      // print one heading three times. Grade is what a retake
+                      // changes, and 029e678 settled that a name earns display only
+                      // where it differs from the account holder's — which the
+                      // merged block above already handles.
+                      const gradeLabel = assessment.grade
+                        ? getGradeLabel(assessment.grade)
+                        : t("assessment.gradeUnknown");
+
+                      // createdAt, NOT completedAt, and deliberately: the list is
+                      // ordered by createdAt, and a draft started in January but
+                      // finished in March would print out of sequence against the
+                      // row above it. This is when the student took it.
+                      const takenOn = new Date(assessment.createdAt)
+                        .toLocaleDateString(language === 'ar' ? 'ar-AE' : 'en-US');
+
+                      // THE SAME PREDICATE THE ASSESSMENT PAGE RESUMES ON, imported
+                      // rather than restated — the old list-wide button gated on
+                      // `some(a => !a.isCompleted)`, a strictly wider set, and
+                      // offered Continue on rows that resumed as a blank
+                      // assessment. See isResumableDraft.
+                      const isResumable = isResumableDraft(assessment);
+
+                      return (
+                        <div key={assessment.id} className="p-3 border rounded-lg" data-testid={`assessment-item-${assessment.id}`}>
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="font-medium">{gradeLabel}</p>
+                            {assessment.id === latestCompletedAssessmentId && (
+                              <Badge variant="secondary" data-testid={`badge-latest-${assessment.id}`}>
+                                {t("assessment.latest")}
+                              </Badge>
+                            )}
+                            {!assessment.isCompleted && (
+                              <Badge variant="outline" data-testid={`badge-in-progress-${assessment.id}`}>
+                                {t("assessment.inProgress")}
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {takenOn}
+                            {assessment.assessmentType && ` • ${isPremiumAssessment(assessment.assessmentType) ? t("premium.premium") : t("premium.free")}`}
+                          </p>
+                          {assessment.isCompleted && (
+                            <Button asChild size="sm" className="w-full mt-3 bg-green-50 hover:bg-green-100 text-green-800 border border-green-200" data-testid={`button-view-report-${assessment.id}`}>
+                              <Link href={`/results?assessmentId=${assessment.id}`}>
+                                <FileText className="w-4 h-4 me-2" />
+                                {t("assessment.viewReport")}
+                              </Link>
+                            </Button>
+                          )}
+                          {/* THE ID TRAVELS. A bare /assessment resumes whichever
+                              draft is newest, so with two drafts the button on the
+                              older row opened the other one. Assessment.tsx reads
+                              this param and resumes that row or none. */}
+                          {isResumable && (
+                            <Button asChild size="sm" className="w-full mt-3" data-testid={`button-continue-assessment-${assessment.id}`}>
+                              <Link href={`/assessment?assessmentId=${assessment.id}`}>
+                                <ClipboardCheck className="w-4 h-4 me-2" />
+                                {t("assessment.continueThis")}
+                              </Link>
+                            </Button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
                   
                   {/* View Progress Journey button - shows career evolution across grades */}
                   {assessments.filter(a => a.isCompleted).length > 0 && (

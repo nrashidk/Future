@@ -74,11 +74,13 @@
     "completed": "التقييمات المكتملة",
     "noAssessments": "لم تُجرِ أي تقييمات بعد.",
     "startFirst": "ابدأ تقييمك الأول",
-    "continueAssessment": "مواصلة التقييم",
     "viewReport": "عرض التقرير",
     "viewJourney": "عرض الرحلة المهنية",
-    "assessment": "تقييم",
-    "completedOf": "{{completed}} من {{cap}}"
+    "completedOf": "{{completed}} من {{cap}}",
+    "latest": "الأحدث",
+    "inProgress": "قيد التنفيذ",
+    "gradeUnknown": "الصف غير مسجل",
+    "continueThis": "متابعة"
   },
   "organization": {
     "title": "إدارة المؤسسة",

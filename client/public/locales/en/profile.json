@@ -74,11 +74,13 @@
     "completed": "Completed Assessments",
     "noAssessments": "You haven't taken any assessments yet.",
     "startFirst": "Start Your First Assessment",
-    "continueAssessment": "Continue Your Assessment",
     "viewReport": "View Report",
     "viewJourney": "View Career Journey",
-    "assessment": "Assessment",
-    "completedOf": "{{completed}} of {{cap}}"
+    "completedOf": "{{completed}} of {{cap}}",
+    "latest": "Latest",
+    "inProgress": "In progress",
+    "gradeUnknown": "Grade not recorded",
+    "continueThis": "Continue"
   },
   "organization": {
     "title": "Organization Management",

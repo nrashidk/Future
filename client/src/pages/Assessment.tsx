@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { ProgressTracker } from "@/components/ProgressTracker";
@@ -17,7 +17,7 @@ import { useTranslation } from "react-i18next";
 import type { Assessment as AssessmentRecord } from "@shared/schema";
 import { useAssessmentAvailability } from "@/hooks/useAssessmentAvailability";
 import { PageLayout } from "@/components/layout/PageLayout";
-import { deriveFreeResumeStep, finalInputStep, totalStepsForTier } from "@shared/assessmentFlow";
+import { deriveFreeResumeStep, finalInputStep, pickDraftToResume, totalStepsForTier } from "@shared/assessmentFlow";
 import { FREE_ASSESSMENT_CAP } from "@shared/assessmentLimits";
 
 // v2 — Phase 3 renumbered the FREE step order (Country and Interests swapped
@@ -33,6 +33,25 @@ import { FREE_ASSESSMENT_CAP } from "@shared/assessmentLimits";
 // key bump — see deriveFreeResumeStep in shared/assessmentFlow.ts.
 const DRAFT_KEY = "fp_assessment_draft_v2";
 const LEGACY_DRAFT_KEYS = ["fp_assessment_draft"];
+
+/**
+ * The assessmentId inside the sessionStorage draft, or null if there is no
+ * readable one.
+ *
+ * Exists because the draft is no longer unconditionally authoritative: the
+ * profile's history sends "resume THIS row" as ?assessmentId=, and answering
+ * with whatever happens to be in sessionStorage would resume a different
+ * assessment than the one the student clicked.
+ */
+function storedDraftAssessmentId(): string | null {
+  try {
+    const raw = sessionStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    return (JSON.parse(raw) as { assessmentId?: string })?.assessmentId ?? null;
+  } catch {
+    return null;
+  }
+}
 
 const POLL_INTERVAL_MS = 2000;
 const MAX_POLL_ATTEMPTS = 45; // ~90 s — generous ceiling for slow generation under load
@@ -295,6 +314,21 @@ export default function Assessment() {
     strengths: [],
   }));
 
+  // WHICH draft to resume, when the profile's history named one.
+  //
+  // Profile renders a Continue button per in-progress row and puts that row's id
+  // in the link. Without this the page resumes the NEWEST draft regardless, so
+  // the button on the older row silently opened the other assessment — the same
+  // "asked for X, got the latest" shape as the per-grade report links (Bug #12).
+  //
+  // Read once from the mount URL: nothing on this page rewrites the query
+  // string, and re-reading per render would make the effects below depend on an
+  // unstable value.
+  const requestedResumeId = useMemo(
+    () => new URLSearchParams(window.location.search).get("assessmentId"),
+    [],
+  );
+
   // Guest mode is driven by `?guest=true` (set by the Landing CTAs). Gated on
   // !isAuthenticated so an authenticated visitor arriving with the param is
   // treated as the account they are signed into rather than as a guest — their
@@ -329,6 +363,10 @@ export default function Assessment() {
       if (!raw) return;
       const draft = JSON.parse(raw) as { assessmentId: string; currentStep: number; assessmentData: AssessmentData };
       if (!draft.assessmentId || typeof draft.currentStep !== "number" || draft.currentStep <= 1) return;
+      // An explicit ?assessmentId= names the row to resume. When the draft in
+      // sessionStorage is a different one it does not win — fall through to the
+      // server check, which fetches the row that was actually asked for.
+      if (requestedResumeId && draft.assessmentId !== requestedResumeId) return;
 
       if (draft.currentStep >= finalGenerationStep) {
         // Async path: check if recommendations are already there
@@ -361,7 +399,7 @@ export default function Assessment() {
     } catch {
       try { sessionStorage.removeItem(DRAFT_KEY); } catch {}
     }
-  }, [isLoading]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isLoading, requestedResumeId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Polling effect: fires every POLL_INTERVAL_MS while isPollingForResults is true.
   // Clears itself and redirects when recommendations appear, or falls back to the
@@ -415,8 +453,12 @@ export default function Assessment() {
 
     setApiResumeChecked(true);
 
-    // sessionStorage draft takes priority — skip server check if one exists
-    if (sessionStorage.getItem(DRAFT_KEY)) return;
+    // sessionStorage draft takes priority (it also holds the richer RIASEC/CVQ
+    // raw drafts) — but only when it is the draft we were asked for. A request
+    // to resume a specific row has to reach the server check even with a draft
+    // in hand, or it resumes the wrong assessment.
+    const storedId = storedDraftAssessmentId();
+    if (storedId && (!requestedResumeId || storedId === requestedResumeId)) return;
 
     const checkServerDraft = async () => {
       try {
@@ -425,8 +467,11 @@ export default function Assessment() {
         const res = await apiRequest("GET", "/api/assessments/my");
         const allAssessments: AssessmentRecord[] = await res.json();
 
-        // Most recent in-progress assessment (array is already ordered by createdAt desc)
-        const inProgress = allAssessments.find(a => !a.isCompleted && a.currentStep > 1);
+        // The row the profile named, or — with no id — the most recent
+        // in-progress one (the array is already ordered by createdAt desc).
+        // The rule is shared with the profile's per-row Continue button, so the
+        // button offered and the row resumed cannot drift apart again.
+        const inProgress = pickDraftToResume(allAssessments, requestedResumeId);
         // No in-progress assessment to resume. The locked-state UI (rendered below)
         // explains a consumed allocation — we no longer redirect to the report on mount.
         if (!inProgress) return;
@@ -487,7 +532,7 @@ export default function Assessment() {
     };
 
     checkServerDraft();
-  }, [isLoading, isAuthenticated, apiResumeChecked, isPremiumFlow]);
+  }, [isLoading, isAuthenticated, apiResumeChecked, isPremiumFlow, requestedResumeId]);
 
   // Persist draft to sessionStorage whenever assessmentId / step / data changes
   // Guards: only save once an assessment has been created (assessmentId set) and past step 1

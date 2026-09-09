@@ -164,3 +164,55 @@ export function deriveFreeResumeStep(assessment: ResumableAssessment): number {
   // assessment belongs, because generation fires from there.
   return stepNumberOf(false, 'aspirations')!;                            // 6
 }
+
+
+/** The shape the resume rules read. Satisfied by `Assessment` as-is. */
+export interface DraftRecord {
+  id: string;
+  isCompleted?: boolean | null;
+  currentStep?: number | null;
+}
+
+/**
+ * Whether a draft can actually be resumed.
+ *
+ * ONE RULE, TWO CALLERS, and they used to disagree. Assessment.tsx resumes a row
+ * only when `currentStep > 1`; Profile's history offered "Continue" for any row
+ * that was merely `!isCompleted`. That is a strictly wider set — the POST that
+ * creates a row does not send currentStep, so a student who abandons between the
+ * create and the first auto-save PATCH leaves a row holding the schema default
+ * of 1. The profile offered Continue on it and the assessment page, finding
+ * nothing to resume, started a blank one.
+ *
+ * currentStep 1 also means "nothing to return to" on its own terms: step 1 is
+ * the first screen, so resuming there and starting fresh are the same place.
+ */
+export function isResumableDraft(record: DraftRecord): boolean {
+  return record.isCompleted !== true && (record.currentStep ?? 1) > 1;
+}
+
+/**
+ * Which draft to resume: the one named by ?assessmentId=, else the most recent.
+ *
+ * The profile's history renders one Continue per resumable row and carries that
+ * row's id, because a bare /assessment resumes whichever draft is newest — so
+ * the button on the older row opened the other assessment. Same shape as the
+ * Career Journey's per-grade links before pickLatestForGrade.
+ *
+ * A NAMED ROW THAT IS NOT RESUMABLE RETURNS NULL rather than falling back to the
+ * newest. Answering a request for one assessment with a different one is the bug
+ * this parameter exists to fix, and a silent fallback would reintroduce it at
+ * exactly the moment the caller is most specific.
+ *
+ * `records` must arrive newest-first — /api/assessments/my is ORDER BY
+ * created_at DESC (storage.ts) — since the unnamed case takes the first match.
+ */
+export function pickDraftToResume<T extends DraftRecord>(
+  records: ReadonlyArray<T>,
+  requestedId?: string | null,
+): T | null {
+  if (requestedId) {
+    return records.find(r => r.id === requestedId && isResumableDraft(r)) ?? null;
+  }
+  return records.find(isResumableDraft) ?? null;
+}
