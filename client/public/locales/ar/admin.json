@@ -1067,7 +1067,7 @@
     "questionsGenerated": "تم توليد الأسئلة",
     "questionsGeneratedDesc": "تم إنشاء {{n}} سؤال (استُخدمت {{tokens}} رمز)",
     "curriculumRenamed": "تمت إعادة تسمية المنهج",
-    "curriculumRenamedDesc": "تم تحديث {{subjects}} مادة و{{questions}} سؤال",
+    "curriculumRenamedDesc": "تم تحديث {{subjects}} مادة و{{questions}} سؤال و{{schools}} مدرسة",
     "renameCurriculumTitle": "إعادة تسمية المنهج",
     "renameCurriculumDesc": "إعادة تسمية منهج في جميع المدارس والأسئلة لدولة معينة",
     "selectCountry": "اختر الدولة",

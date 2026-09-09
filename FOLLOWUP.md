@@ -3081,3 +3081,87 @@ so the second `continue` can only fire on an empty string — defensive rather t
 is precisely why a regression here would not be noticed.
 
 Recorded 2026-09-09.
+
+## SCORING PROVENANCE IN THE GDPR EXPORT — DECISION REVERSED 2026-09-09
+
+**The export no longer includes `recommendations.scoring_provenance`** (server/routes/user.routes.ts,
+`GET /api/users/me/export`). This REVERSES an approved decision from the day before. Both positions
+are recorded because the first one is reasonable and will otherwise be re-derived by the next person
+who reads the export code and notices the gap.
+
+**Position 1 — 2026-09-08, approved: include it.** Provenance is the record of how a score about a
+MINOR was computed. A student's file should say which algorithm and which weighting produced the
+career recommendations they were given, because that is part of how a decision about them was
+reached, and a subject-access right that returns the conclusion but not the basis is a thin one.
+
+**Position 2 — 2026-09-09, adopted: strip it.** Two things decided it:
+
+1. **It is not personal data.** `{algorithm, configHash, tier, scoredAt}` describes the ALGORITHM
+   that ran, not the person it ran on. It is identical for every student scored in the same tier in
+   the same window — it carries no information about the individual. Everything the row holds ABOUT
+   the student (every component score, the reasoning, the action steps, the tier, the date) is still
+   exported in full, so nothing the right actually covers was withheld.
+2. **`configHash` is a reversible encoding of the tier weight table**, not a digest — see
+   generateConfigVersion in server/services/matching.ts. Exporting it hands out internal scoring
+   configuration to anyone who base64-decodes it, which is a cost with no corresponding benefit to
+   the student.
+
+**What Position 1 was right about, and where it now lives.** The underlying need is real: an operator
+must be able to say which regime produced a given report when a school asks. That belongs on the
+OPERATOR surface, which keeps provenance deliberately —
+`GET /api/superadmin/students/:userId/assessments` returns rows verbatim. See
+docs/scoring-provenance-recon.md for the rest of that surface.
+
+**If this is ever reversed again**, reverse it by adding a RESOLVED view to the export ("scored on
+2026-09-08 under algorithm 3") rather than the raw column — that serves Position 1's actual purpose
+without shipping the weight table.
+
+First flagged 2026-09-09.
+
+## configHash IS NEARLY BLIND — the automatic half of provenance does not work
+
+**Discovered 2026-09-09 while building the provenance comparison. Not fixed; fixing it needs a
+decision about stored rows.**
+
+`shared/schema.ts` documents `configHash` as the half of provenance that "can never be forgotten"
+because it is computed automatically from component keys and weights, in contrast to
+`SCORING_ALGORITHM_VERSION`, which is hand-bumped. On the real tier configurations it detects almost
+nothing.
+
+`generateConfigVersion` (server/services/matching.ts) base64-encodes the sorted `key:weight` join and
+slices to 16 characters. Base64 is 4 characters per 3 bytes, so 16 characters is exactly the **first
+12 bytes** of the string — about one component:
+
+| tier | what the hash actually encodes |
+|---|---|
+| basic | `interests:35` — subjects and vision are past the cut |
+| premium | `cvq:25\|riase` — it does not even reach riasec's weight |
+
+Measured consequences, each pinned in server/services/scoringRegime.test.ts:
+
+- basic `subjects` 35→99 **and** `vision` 30→1 — two weight edits — leave the hash byte-identical.
+- Dropping `vision` from basic entirely leaves the hash byte-identical.
+- premium `subjects` 20→5 and `vision` 20→70 leave the hash byte-identical.
+
+So an admin weight edit — the exact event this half of provenance exists to catch without anyone
+remembering to do anything — mostly does not move it. The situation is the one migration 018 was
+written about (a scoring change that nothing recorded), reproduced inside the mechanism meant to
+prevent it.
+
+**WHY IT IS NOT ALREADY FIXED.** Widening the slice or using a real digest changes what every STORED
+provenance row means. Those hashes were written under the truncating scheme, so after a fix they
+would all differ from the current hash and every stored report would read as "config drifted" when
+nothing about it changed — the precise false positive that makes an operator stop trusting the
+signal. A fix must therefore also decide what happens to existing rows. Two candidates:
+
+1. **Version the scheme** — record `{hashVersion, configHash}` and compare only within a version;
+   rows written under v1 compare on v1 rules, or are reported as "config vintage unknown" rather
+   than as drifted.
+2. **Treat pre-fix hashes as an unknown config** — honest, and consistent with how migration 018
+   already treats NULL provenance, but it discards the (weak) signal the existing hashes carry.
+
+Either way it is its own commit, with the schema comment's "can never be forgotten" claim corrected
+in the same change. Until then, `algorithm` is the only half of provenance that reliably moves, and
+any UI built on the comparison should say so rather than implying the config half is authoritative.
+
+First flagged 2026-09-09.

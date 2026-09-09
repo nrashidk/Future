@@ -1067,7 +1067,7 @@
     "questionsGenerated": "Questions Generated",
     "questionsGeneratedDesc": "Created {{n}} questions ({{tokens}} tokens used)",
     "curriculumRenamed": "Curriculum Renamed",
-    "curriculumRenamedDesc": "Updated {{subjects}} subjects and {{questions}} questions",
+    "curriculumRenamedDesc": "Updated {{subjects}} subjects, {{questions}} questions and {{schools}} schools",
     "renameCurriculumTitle": "Rename Curriculum",
     "renameCurriculumDesc": "Rename a curriculum across all schools and questions for a country",
     "selectCountry": "Select country",

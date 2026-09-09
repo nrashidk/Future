@@ -201,7 +201,7 @@ export default function CountryManagement() {
       setRenameForm({ countryId: "", oldName: "", newName: "" });
       toast({ 
         title: t('countries.curriculumRenamed'), 
-        description: t('countries.curriculumRenamedDesc', { subjects: result.updated?.subjects || 0, questions: result.updated?.questions || 0 })
+        description: t('countries.curriculumRenamedDesc', { subjects: result.updated?.subjects || 0, questions: result.updated?.questions || 0, schools: result.updated?.organizations || 0 })
       });
     },
     onError: (error: unknown) => {

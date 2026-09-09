@@ -1,5 +1,5 @@
 import type { Express, Request, Response, NextFunction } from "express";
-import { storage } from "../storage";
+import { storage, CurriculumRenameError } from "../storage";
 import { isAuthenticated } from "../auth";
 import { z } from "zod";
 import { clearSubjectCache } from "../utils/subjects";
@@ -2325,60 +2325,57 @@ export function registerSuperadminRoutes(app: Express) {
   // CURRICULUM RENAME
   // ===============================
 
-  // Rename a curriculum - updates country, subjects, and quiz questions
+  // Rename a curriculum - updates country, subjects, quiz questions and schools
   app.post("/api/superadmin/countries/:countryId/curricula/rename", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
     try {
       const { countryId } = req.params;
       const { oldName, newName } = req.body;
-      
+
       if (!oldName || !newName) {
         return res.status(400).json({ message: "Both oldName and newName are required" });
       }
-      
+
       if (oldName === newName) {
         return res.status(400).json({ message: "New name must be different from old name" });
       }
-      
-      // Get the country
-      const country = await storage.getCountryById(countryId);
-      if (!country) {
-        return res.status(404).json({ message: "Country not found" });
-      }
-      
-      // Check if old curriculum exists in country
-      if (!country.curricula?.includes(oldName)) {
-        return res.status(400).json({ message: `Curriculum '${oldName}' not found in this country` });
-      }
-      
-      // Check if new name already exists
-      if (country.curricula?.includes(newName)) {
-        return res.status(409).json({ message: `Curriculum '${newName}' already exists in this country` });
-      }
-      
-      // Update country's curricula array
-      const newCurricula = country.curricula.map(c => c === oldName ? newName : c);
-      await storage.updateCountry(countryId, { curricula: newCurricula });
-      
-      // Update all subjects with this curriculum
-      const subjectsUpdated = await storage.renameCurriculumInSubjects(countryId, oldName, newName);
-      
-      // Update all quiz questions with this curriculum
-      const questionsUpdated = await storage.renameCurriculumInQuizQuestions(countryId, oldName, newName);
-      
-      // Clear subject cache
+
+      // The country lookup and the two curricula checks that used to sit here
+      // now run INSIDE storage.renameCurriculum, against a FOR UPDATE row. They
+      // were a check-then-act across four unsynchronised statements; see that
+      // method. The two argument checks above stay here because they read the
+      // request, not the database.
+      const updated = await storage.renameCurriculum(countryId, oldName, newName);
+
+      // AFTER the transaction commits, never inside it. The alias map is built
+      // from subjects rows; clearing it while they were still uncommitted would
+      // let a concurrent request refill it from the pre-rename state, and
+      // clearing it on a rollback would throw away a cache that was still right.
+      // A throw above skips this line, which is now correct rather than merely
+      // untidy: if nothing committed, there is nothing to invalidate.
       clearSubjectCache();
-      
+
       res.json({
         success: true,
         message: `Curriculum renamed from '${oldName}' to '${newName}'`,
         updated: {
-          subjects: subjectsUpdated,
-          questions: questionsUpdated
+          subjects: updated.subjects,
+          questions: updated.questions,
+          // The count that was never reported. A rename that moves schools is a
+          // different event from one that only relabels content: those schools'
+          // students draw their quiz from this curriculum, so this is the number
+          // that tells the superadmin the blast radius.
+          organizations: updated.organizations,
         }
       });
     } catch (error) {
+      if (error instanceof CurriculumRenameError) {
+        return res.status(error.status).json({ message: error.message });
+      }
       console.error("Error renaming curriculum:", error);
-      res.status(500).json({ message: "Failed to rename curriculum" });
+      // "No changes were applied" is now a claim this handler can actually make.
+      // Before the transaction it could not: a failure part-way left the country,
+      // the subjects and the questions in whatever state it had reached.
+      res.status(500).json({ message: "Failed to rename curriculum. No changes were applied." });
     }
   });
 

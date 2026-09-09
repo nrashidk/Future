@@ -418,11 +418,6 @@ export function registerAdminRoutes(app: Express) {
       // override would need somewhere for the existing rows to go: every
       // assessments.curriculum value already written under the old curriculum
       // stays as it is, and nothing in the codebase re-scopes or re-scores them.
-      // The nearest thing that exists is the curriculum RENAME cascade
-      // (storage.renameCurriculumInSubjects / renameCurriculumInQuizQuestions),
-      // and it is telling that it rewrites subjects and quiz_questions and stops
-      // short of assessments — even relabelling a curriculum leaves those rows
-      // alone.
       // A superadmin exempted from this guard would therefore reintroduce
       // exactly the silent invalidation it exists to prevent, with the only
       // difference being that the person who caused it had the authority to.
@@ -430,6 +425,31 @@ export function registerAdminRoutes(app: Express) {
       // reconciliation — migrating or re-scoring the affected assessments — and
       // that is Phase 6 work, not a flag on this branch. Until it exists, the
       // supported answer is a separate school.
+      //
+      // A RENAME IS NOT A SWITCH, and this guard should never be asked to stand
+      // in for one. storage.renameCurriculum changes what a curriculum is
+      // CALLED, so identity is preserved and rewriting every stored copy of the
+      // string is a complete repair. This guard refuses changing which
+      // curriculum a school IS ON, where identity changes and the assessments
+      // already taken genuinely mean something else afterwards. No amount of
+      // work on the rename cascade turns the second into the first.
+      //
+      // THE OLD VERSION OF THIS PARAGRAPH ARGUED FROM THE RENAME CASCADE AND HAD
+      // SURVEYED IT INCOMPLETELY. It cited renameCurriculumInSubjects /
+      // renameCurriculumInQuizQuestions, observed that they stopped short of
+      // assessments, and read that as evidence for the conclusion above. Two
+      // tables it did not inspect also stored the string: organizations, which
+      // scopes the live quiz bank and so broke the NEXT assessment rather than
+      // mislabelling past ones, and contribution_submissions. Because it named
+      // the tables it had checked without marking the list as partial, it read
+      // as a completed survey and stopped at least one later reader from
+      // looking further. organizations is fixed; the inventory of what stores
+      // this string, and what is still open, is FOLLOWUP.md — six columns carry
+      // it today and that number is not stable, so treat any list of them in a
+      // comment as a snapshot.
+      //
+      // The conclusion survives all of that, for the reason two paragraphs up
+      // rather than for the reason it used to give.
       const changingFields = changedOrgCurriculumFields(existing, { countryId, curriculum });
       if (changingFields.length > 0) {
         // Only counted when an actual change is proposed — a rename or a logo

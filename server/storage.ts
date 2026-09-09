@@ -193,8 +193,7 @@ export interface IStorage {
   updateSubject(id: string, data: Partial<InsertSubject>): Promise<Subject>;
   deleteSubject(id: string): Promise<boolean>;
   getSubjectByCode(countryId: string, curriculum: string, code: string): Promise<Subject | undefined>;
-  renameCurriculumInSubjects(countryId: string, oldName: string, newName: string): Promise<number>;
-  renameCurriculumInQuizQuestions(countryId: string, oldName: string, newName: string): Promise<number>;
+  renameCurriculum(countryId: string, oldName: string, newName: string): Promise<{ subjects: number; questions: number; organizations: number }>;
 
   // Skills operations
   getAllSkills(): Promise<Skill[]>;
@@ -557,6 +556,27 @@ export interface IStorage {
   }>;
 }
 
+/**
+ * A curriculum rename rejected by its own preconditions.
+ *
+ * Carries the HTTP status the route should return, because the checks now live
+ * inside the transaction (renameCurriculum) rather than in the handler, and the
+ * three refusals are not interchangeable: a missing country is a 404, an unknown
+ * old name is a 400, and a collision with an existing name is a 409. Collapsing
+ * them into one status would tell a superadmin who mistyped the old name that
+ * the country does not exist.
+ *
+ * Deliberately NOT AppError (middleware/errorHandler.middleware.ts): nothing in
+ * server/routes uses it, and importing express-facing middleware into storage
+ * would reverse the dependency direction for the sake of one class.
+ */
+export class CurriculumRenameError extends Error {
+  constructor(message: string, public readonly status: number) {
+    super(message);
+    this.name = "CurriculumRenameError";
+  }
+}
+
 export class DatabaseStorage implements IStorage {
   // User operations
   async getUser(id: string): Promise<User | undefined> {
@@ -866,33 +886,125 @@ export class DatabaseStorage implements IStorage {
     return subject;
   }
 
-  async renameCurriculumInSubjects(countryId: string, oldName: string, newName: string): Promise<number> {
-    const result = await db
-      .update(subjects)
-      .set({ 
-        curriculum: newName,
-        updatedAt: new Date()
-      })
-      .where(
-        and(
-          eq(subjects.countryId, countryId),
-          eq(subjects.curriculum, oldName)
-        )
-      );
-    return result.rowCount ?? 0;
-  }
+  /**
+   * Rename a curriculum across every table that stores its name, atomically.
+   *
+   * REPLACES renameCurriculumInSubjects / renameCurriculumInQuizQuestions, which
+   * were two thirds of this cascade run as three unrelated statements from the
+   * route. They are folded in rather than kept alongside: leaving a
+   * non-transactional single-table rename in the API is the trap this method
+   * exists to close, and the rename route was their only caller.
+   *
+   * ORGANIZATIONS IS THE WRITE THAT WAS MISSING, and it is the one that mattered.
+   * organizations.curriculum is not a label — assessment.routes.ts:136 copies it
+   * into every new assessment as a school-owned field, and that value scopes the
+   * quiz bank. A rename that skipped it left the school holding a string no
+   * longer in countries.curricula, and the quiz then fell through the fallback
+   * cascade at quiz.routes.ts:240-244, which DROPS the curriculum filter and
+   * refills the pool from every curriculum in the country. The student sat a
+   * quiz from the wrong bank, scored and stored as if it were right. Nothing
+   * errored; the only trace was a console.log.
+   *
+   * EVERY WHERE CLAUSE IS SCOPED BY countryId. The same label legitimately
+   * exists under more than one country — 'National' and 'IB' are not unique
+   * strings — so an unscoped rewrite would relabel schools, subjects and
+   * questions belonging to countries the superadmin never touched. The country
+   * scope is what makes this a rename rather than a global find-and-replace.
+   *
+   * THE PRECONDITIONS MOVED INSIDE THE TRANSACTION, and the countries row is
+   * taken FOR UPDATE. They used to run in the route, before any write, against a
+   * row nothing held: two concurrent renames could both pass "newName does not
+   * exist" and both proceed, leaving one of the two names silently lost. Same
+   * check-then-act shape, and the same fix, as createGroupPurchaseTransaction
+   * below.
+   *
+   * assessments.curriculum is deliberately NOT updated here. Re-scoping a
+   * completed assessment is a decision about what it means, not a string
+   * rewrite, and it is tracked as Phase 6 reconciliation in FOLLOWUP.md.
+   * contribution_submissions.curriculum is also left alone, pending a decision
+   * on which submission statuses should follow a rename — likewise FOLLOWUP.md.
+   *
+   * The caller is responsible for clearSubjectCache(), and must call it only
+   * AFTER this resolves. Clearing inside the transaction would repopulate the
+   * cache from uncommitted rows, and clearing on a rollback would discard a
+   * cache that was still correct.
+   */
+  async renameCurriculum(
+    countryId: string,
+    oldName: string,
+    newName: string,
+  ): Promise<{ subjects: number; questions: number; organizations: number }> {
+    return db.transaction(async (tx) => {
+      const [country] = await tx
+        .select()
+        .from(countries)
+        .where(eq(countries.id, countryId))
+        .for('update');
 
-  async renameCurriculumInQuizQuestions(countryId: string, oldName: string, newName: string): Promise<number> {
-    const result = await db
-      .update(quizQuestions)
-      .set({ curriculum: newName })
-      .where(
-        and(
-          eq(quizQuestions.countryId, countryId),
-          eq(quizQuestions.curriculum, oldName)
-        )
-      );
-    return result.rowCount ?? 0;
+      if (!country) {
+        throw new CurriculumRenameError(`Country not found: ${countryId}`, 404);
+      }
+
+      const curricula = country.curricula ?? [];
+
+      if (!curricula.includes(oldName)) {
+        throw new CurriculumRenameError(
+          `Curriculum '${oldName}' not found in this country`,
+          400,
+        );
+      }
+
+      if (curricula.includes(newName)) {
+        throw new CurriculumRenameError(
+          `Curriculum '${newName}' already exists in this country`,
+          409,
+        );
+      }
+
+      await tx
+        .update(countries)
+        .set({
+          curricula: curricula.map((c) => (c === oldName ? newName : c)),
+          updatedAt: new Date(),
+        })
+        .where(eq(countries.id, countryId));
+
+      const subjectsResult = await tx
+        .update(subjects)
+        .set({ curriculum: newName, updatedAt: new Date() })
+        .where(
+          and(
+            eq(subjects.countryId, countryId),
+            eq(subjects.curriculum, oldName)
+          )
+        );
+
+      const questionsResult = await tx
+        .update(quizQuestions)
+        .set({ curriculum: newName })
+        .where(
+          and(
+            eq(quizQuestions.countryId, countryId),
+            eq(quizQuestions.curriculum, oldName)
+          )
+        );
+
+      const organizationsResult = await tx
+        .update(organizations)
+        .set({ curriculum: newName, updatedAt: new Date() })
+        .where(
+          and(
+            eq(organizations.countryId, countryId),
+            eq(organizations.curriculum, oldName)
+          )
+        );
+
+      return {
+        subjects: subjectsResult.rowCount ?? 0,
+        questions: questionsResult.rowCount ?? 0,
+        organizations: organizationsResult.rowCount ?? 0,
+      };
+    });
   }
 
   // Skills operations
