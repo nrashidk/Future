@@ -126,6 +126,46 @@ export function resolveQuizTier(
   return isPremiumUser ? 'premium' : 'free';
 }
 
+/**
+ * Which rows a partial save should write, and which incoming ids are not part of
+ * this quiz at all.
+ *
+ * ROWS ARE RESOLVED THROUGH THE QUIZ'S OWN RESPONSES, never through an id in the
+ * request: the caller passes the rows it already loaded for one quiz, and the
+ * update is issued against the primary key found in that set. A questionId from
+ * another student's quiz cannot match, so a cross-quiz write is impossible by
+ * construction rather than by a check that a later edit could drop.
+ *
+ * UNCHANGED ANSWERS ARE SKIPPED. The client sends the FULL answer set on every
+ * debounce — a deliberate choice, because a dropped request then self-heals on
+ * the next keystroke instead of leaving a permanent hole — so without this a
+ * student answering their twelfth question would issue twelve UPDATEs to store
+ * one new answer.
+ *
+ * Pure, and exported for that reason: there is no express harness in this repo,
+ * so the testable seam has to be a function that takes its rows as an argument.
+ */
+export function selectPartialAnswerUpdates(
+  existingResponses: Array<{ id: string; questionId: string; answer: string | null }>,
+  incoming: Array<{ questionId: string; answer: string }>,
+): { updates: Array<{ id: string; answer: string }>; invalidIds: string[] } {
+  const rowByQuestionId = new Map(existingResponses.map((r) => [r.questionId, r]));
+  const updates: Array<{ id: string; answer: string }> = [];
+  const invalidIds: string[] = [];
+
+  for (const { questionId, answer } of incoming) {
+    const row = rowByQuestionId.get(questionId);
+    if (!row) {
+      invalidIds.push(questionId);
+      continue;
+    }
+    if ((row.answer ?? "") === answer) continue;
+    updates.push({ id: row.id, answer });
+  }
+
+  return { updates, invalidIds };
+}
+
 export function registerQuizRoutes(app: Express) {
   app.post("/api/assessments/:assessmentId/quiz/generate", async (req: any, res) => {
     try {
@@ -390,6 +430,107 @@ export function registerQuizRoutes(app: Express) {
     }
   });
   
+  /**
+   * PARTIAL, PRE-SUBMIT SAVE of the answers a student has entered so far.
+   *
+   * WHY THIS EXISTS. quiz_responses rows are created at generation time with
+   * answer: "" and, until this route, the ONLY writer of that column was the
+   * submit handler below. In-progress answers lived exclusively in QuizStep's
+   * `responses` useState, and step 4 is a conditional render — so the Back
+   * button added in 43ec3e6 unmounted the component and destroyed them. A
+   * student who answered eight questions, stepped back to check a subject and
+   * returned got the same eight questions with every radio cleared. A reload
+   * did the same, and had always done the same.
+   *
+   * IT WRITES `answer` AND NOTHING ELSE. isCorrect and score stay at their
+   * generation-time defaults (null / 0), and completedAt is never set here.
+   * Scoring is the submit handler's alone; a partial row is an answer nobody
+   * has marked yet, which is exactly what it should be until the student says
+   * they are done.
+   *
+   * IT DOES NOT WEAKEN THE SUBMIT GATE. "All questions must be answered"
+   * (:455-458 below) compares the ids in the REQUEST BODY against the quiz's
+   * rows and never reads the stored answer, so rows written here can neither
+   * satisfy that gate nor bypass it. Submit still rescores everything from the
+   * payload it is given; these rows are never authoritative at submit time.
+   *
+   * completedAt IS REFUSED, the same 400 submit returns. The client debounces,
+   * so a save can still be in flight when the student presses Submit; without
+   * this guard that straggler would rewrite the answers of an already-scored
+   * quiz behind its own scores.
+   *
+   * GUESTS TOO. The quiz is reachable with a guest_token cookie (see generate
+   * and submit), so the ownership pair here is theirs as well — a guest's
+   * in-progress answers are no less worth keeping than a member's.
+   */
+  app.patch("/api/assessments/:assessmentId/quiz/responses", async (req: any, res) => {
+    try {
+      const { assessmentId } = req.params;
+      const { responses: userResponses } = req.body;
+      const guestToken = req.body.guestToken || req.cookies?.guest_token;
+
+      if (!Array.isArray(userResponses)) {
+        return res.status(400).json({ message: "Responses must be an array" });
+      }
+
+      // An EMPTY array is accepted as a no-op, where submit 400s on it. This is
+      // a full-set sync, and the full set of a quiz nobody has answered yet is
+      // legitimately empty. The client never sends it; nothing is gained by
+      // making that an error if it ever does.
+      for (const response of userResponses) {
+        if (typeof response?.questionId !== "string" || response.questionId.trim() === "") {
+          return res.status(400).json({ message: "Each response must have a questionId" });
+        }
+        if (typeof response.answer !== "string") {
+          return res.status(400).json({ message: "Each response must have a string answer" });
+        }
+      }
+
+      const answeredIds = userResponses.map((r: any) => r.questionId);
+      if (new Set(answeredIds).size !== answeredIds.length) {
+        return res.status(400).json({ message: "Duplicate question IDs in save" });
+      }
+
+      const assessment = await storage.getAssessmentById(assessmentId);
+      if (!assessment) {
+        return res.status(404).json({ message: "Assessment not found" });
+      }
+
+      const userId = req.isAuthenticated() ? (req.user.userId) : null;
+      const isOwner = req.isAuthenticated() && assessment.userId === userId;
+      const isGuestOwner = assessment.isGuest && guestToken && assessment.guestSessionId === guestToken;
+
+      if (!isOwner && !isGuestOwner) {
+        return res.status(403).json({ message: "Unauthorized to save answers for this assessment" });
+      }
+
+      const quiz = await storage.getAssessmentQuizByAssessmentId(assessmentId);
+      if (!quiz) {
+        return res.status(404).json({ message: "Quiz not found" });
+      }
+
+      if (quiz.completedAt) {
+        return res.status(400).json({ code: "QUIZ_ALREADY_SUBMITTED", message: "This quiz has already been submitted." });
+      }
+
+      const existingResponses = await storage.getQuizResponsesByQuizId(quiz.id);
+      const { updates, invalidIds } = selectPartialAnswerUpdates(existingResponses, userResponses);
+
+      if (invalidIds.length > 0) {
+        return res.status(400).json({ message: `Invalid question IDs: ${invalidIds.join(', ')}` });
+      }
+
+      for (const update of updates) {
+        await storage.updateQuizResponse(update.id, { answer: update.answer });
+      }
+
+      res.json({ quizId: quiz.id, saved: updates.length });
+    } catch (error) {
+      console.error("Error saving quiz answers:", error);
+      res.status(500).json({ message: "Failed to save quiz answers" });
+    }
+  });
+
   app.post("/api/assessments/:assessmentId/quiz/submit", async (req: any, res) => {
     try {
       const { assessmentId } = req.params;
