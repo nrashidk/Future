@@ -2891,3 +2891,56 @@ mixed LTR/Arabic run. The `13–18` digits follow the file's existing convention
 مهارة", `ar:65` "240 سؤالاً").
 
 Recorded 2026-09-09.
+
+### Assessment History renders every row now — three gaps it deliberately leaves  (severity: low)
+b7ea0e5 replaced the single-card Assessment History with a mapped list, and a9b33cc collapsed the
+Career Journey to one row per grade. Three things they knowingly do not do, in the order they will
+be felt:
+
+1. **NO "TAKE IT AGAIN" ENTRY POINT.** The counter says "2 of 3"; nothing in the block starts
+   number 3. The only CTA is the empty-state "Start Your First Assessment", which renders only when
+   the list is empty. This was item 5 of the earlier Profile recon and is the reason free retakes
+   are, from the profile, invisible as an offer — a student learns the cap exists only by reading a
+   count. A new affordance, not part of rendering the rows, which is why it was left.
+
+2. **A STEP-1 DRAFT RENDERS AS A CARD WITH NO ACTION.** Continue is now gated on the same predicate
+   the assessment page resumes on (`isResumableDraft`: `!isCompleted && currentStep > 1`), because
+   the old list-wide `some(a => !a.isCompleted)` offered Continue on rows that started a BLANK
+   assessment. Such rows exist because POST /api/assessments does not send currentStep, so a student
+   who leaves between the create and the first auto-save PATCH leaves the schema default of 1 behind.
+   The row is honest but a dead end — and it is a dead end only because of (1): before the fix, its
+   Continue button worked by accident, doing what a "take it again" button would do deliberately.
+   Fixing (1) closes this one too.
+
+3. **ONE sessionStorage DRAFT SLOT, STILL.** `DRAFT_KEY` is a single slot, so resuming row B
+   overwrites the local draft for row A. Row A's server-side state is intact and it still resumes
+   from the profile; only the richer local RIASEC/CVQ raw responses are lost. Pre-existing and
+   unchanged, but newly REACHABLE: two simultaneous drafts were not something a student could hold
+   before 261b85f, and the per-row Continue buttons are what make choosing between them possible.
+
+Also unchanged, and noted so it is not mistaken for an oversight: `/api/students/me/progression`
+still returns the UNCOLLAPSED history, one entry per assessment. That is deliberate — it is the raw
+history, nothing in the client reads it today, and it is where a within-grade view would belong if
+the "how did I move within Grade 12" question is ever asked as a feature. The collapse belongs to
+the Career Journey, which asks a per-grade question.
+
+Recorded 2026-09-09.
+
+### Arabic unreviewed — four Assessment History row strings  (severity: low)
+b7ea0e5 added four Arabic strings to `ar/profile.json` under `assessment`, none reviewed by an
+Arabic speaker:
+
+- `latest` — `الأحدث` (badge on the most recent completed assessment)
+- `inProgress` — `قيد التنفيذ` (badge on an unfinished one)
+- `gradeUnknown` — `الصف غير مسجل` (row heading when the assessment carries no grade)
+- `continueThis` — `متابعة` (per-row Continue button)
+
+`continueThis` IS THE ONE TO CHECK, and it is a shortening rather than a translation: it replaces
+`continueAssessment` (`مواصلة التقييم`, "Continue Your Assessment"), which was list-wide phrasing and
+wrong on a row. `متابعة` is the bare verbal noun — right for a button whose object is the card it
+sits on, but it is a different register from the sentence it replaced, and `مواصلة` may read better
+on a button in this file's voice. The other three are short labels with no strong alternatives;
+`الصف غير مسجل` ("the grade is not recorded") is the only one that asserts anything, and it should
+agree with however the demographics block above phrases a missing value.
+
+Recorded 2026-09-09.
