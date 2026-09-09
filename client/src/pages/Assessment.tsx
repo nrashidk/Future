@@ -765,12 +765,20 @@ export default function Assessment() {
    * argument. Their `onNext: () => void` prop type erases that parameter, so
    * TypeScript cannot catch it and the event arrives at runtime regardless.
    * Spreading it over assessmentData would splatter DOM properties into the
-   * request body. Picking named keys makes a stray event contribute nothing,
-   * which is why this stays a whitelist even though it currently holds one
-   * entry: the next field added here is safe by construction rather than by the
-   * caller remembering.
+   * request body. Picking named keys makes a stray event contribute nothing, so
+   * a field added here is safe by construction rather than by the caller
+   * remembering.
+   *
+   * THE TWO ENTRIES ARE NOT BOTH BUG FIXES. prioritySubjects was the live defect.
+   * cvqResponses is hardening: CVQStep has the identical write-then-advance shape
+   * (CVQStep.tsx:150-152) but was inert, because handleNext only SAVES at step 3
+   * and at the final Aspirations step, and CVQ renders at step 6 of a premium
+   * flow whose last step is 7. That containment is a property of the current step
+   * numbering, not a rule — and the premium step count already changed once when
+   * results was dropped as a step. Passing the override costs nothing and stops
+   * the safety of that file depending on an arithmetic coincidence two files away.
    */
-  const OVERRIDABLE_NEXT_FIELDS = ["prioritySubjects"] as const;
+  const OVERRIDABLE_NEXT_FIELDS = ["prioritySubjects", "cvqResponses"] as const;
   type NextOverride = Partial<Pick<AssessmentData, (typeof OVERRIDABLE_NEXT_FIELDS)[number]>>;
 
   const handleNext = async (override?: NextOverride) => {

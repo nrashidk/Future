@@ -43,7 +43,16 @@ interface CVQStepProps {
   assessmentId: string;
   responses: Record<string, number>;
   onUpdate: (responses: Record<string, number>) => void;
-  onNext: () => void;
+  /**
+   * Advance to the next step, optionally carrying fields that must reach the
+   * save WITHOUT a round trip through parent state.
+   *
+   * Same contract as SubjectsStep's onNext, and for the same reason: the submit
+   * handler below writes responses and advances in one handler, so the
+   * assessmentData that handleNext reads is a render behind. See the
+   * OVERRIDABLE_NEXT_FIELDS docblock in pages/Assessment.tsx.
+   */
+  onNext: (override?: { cvqResponses?: Record<string, number> }) => void;
   onBack: () => void;
 }
 
@@ -146,9 +155,23 @@ export default function CVQStep({ assessmentId, responses, onUpdate, onNext, onB
     onSuccess: (result) => {
       // Clear draft
       sessionStorage.removeItem("cvq_draft");
-      // Pass normalized scores back to parent
+      // Pass normalized scores back to parent.
+      //
+      // BOTH CALLS, same contract as SubjectsStep's exactly-three branch:
+      // onUpdate keeps parent state right for every later read, and the override
+      // is what would reach a save fired from THIS handler — handleNext holds the
+      // assessmentData binding from the render before this line, so the queued
+      // update is invisible to it.
+      //
+      // HARDENING, NOT A LIVE FIX. handleNext saves only at step 3 and at the
+      // final Aspirations step; this is step 6 of a premium flow that ends at 7,
+      // so no save fires here today and the responses are in any case already
+      // persisted by the POST /api/cvq/submit above. Both of those are facts about
+      // the current flow rather than guarantees, and the premium step count has
+      // already changed once. The override makes this correct whatever step it
+      // lands on.
       onUpdate(localResponses);
-      onNext();
+      onNext({ cvqResponses: localResponses });
     },
   });
 
