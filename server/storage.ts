@@ -113,7 +113,7 @@ import {
   type InsertSystemAnnouncement,
 } from "@shared/schema";
 import { db } from "./db";
-import { gradeSortKey, mergeGradeCounts, toCanonicalGrade } from "@shared/grade";
+import { collapseToLatestPerGrade, gradeSortKey, mergeGradeCounts, toCanonicalGrade } from "@shared/grade";
 import { splitStudentName } from "@shared/studentName";
 import { eq, ne, and, or, desc, count, avg, sql, inArray, notInArray, isNotNull, gte, type SQL } from "drizzle-orm";
 
@@ -3769,13 +3769,49 @@ export class DatabaseStorage implements IStorage {
     interests: string[];
   }>> {
     const progression = await this.getStudentAssessmentProgression(userId);
-    
-    return progression.map(({ assessment, recommendations, careerNames }) => ({
-      // Canonicalized before it leaves the server: the Career Journey compares
-      // grades across years, so a student stored as '10' one year and 'grade10'
-      // the next must not read as two different grades. This is what blocks the
-      // next-grade re-assessment path (plan L12) until it emits one format.
-      grade: toCanonicalGrade(assessment.grade) ?? assessment.grade ?? 'Unknown',
+
+    // ONE ENTRY PER GRADE, and the contract this method owes its callers.
+    //
+    // It used to be one entry per ASSESSMENT, which was the same thing only for
+    // as long as a student could hold one assessment per grade. Free retakes
+    // (261b85f) broke that without touching this file: three Grade 12
+    // assessments produced three entries all labelled 'grade12', and every
+    // consumer read them as three grades. The trajectory divided by the entry
+    // count, so a career picked in all three scored 100% "consistency" across
+    // one grade; the response field named totalGrades reported 3; the timeline
+    // showed whichever one `find` reached first, which — progression is ordered
+    // completedAt ASC — was the OLDEST, while the profile's history marks the
+    // newest as current. Two pages, one grade, different answers.
+    //
+    // Collapsing HERE rather than in each consumer is deliberate: the callers
+    // are a student page, an org-admin endpoint and anything added later, and
+    // the rule they need is identical. Callers wanting the uncollapsed history
+    // have getStudentAssessmentProgression, which still returns every row.
+    //
+    // NOT A FORMAT PROBLEM. An earlier comment here recorded canonicalization as
+    // what "blocks the next-grade re-assessment path (plan L12) until it emits
+    // one format" — the format half is done (canonical grade below, migration
+    // 013 on the stored rows). What was left is CARDINALITY, and free retakes
+    // made same-grade multiplicity reachable without L12 ever landing.
+    //
+    // Latest-per-grade is the product decision: the Career Journey asks how a
+    // student's direction changed as they grew. Three assessments in Grade 12
+    // are not a trajectory. Within-grade movement is a different feature and is
+    // not smuggled in here. See collapseToLatestPerGrade.
+    //
+    // The three fields the collapse reads, lifted out explicitly so it is clear
+    // what it decides on: which grade a row belongs to, and which row is latest.
+    const perGrade = collapseToLatestPerGrade(
+      progression.map(entry => ({
+        grade: entry.assessment.grade,
+        completedAt: entry.assessment.completedAt,
+        isCompleted: entry.assessment.isCompleted,
+        entry,
+      })),
+    );
+
+    return perGrade.map(({ grade, record: { entry: { assessment, recommendations, careerNames } } }) => ({
+      grade,
       completedAt: assessment.completedAt,
       topCareers: recommendations.slice(0, 3).map((rec, i) => ({
         careerId: rec.careerId,

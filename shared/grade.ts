@@ -248,3 +248,57 @@ export function pickLatestForGrade<T extends GradedRecord>(
 
   return best;
 }
+
+
+/**
+ * ONE RECORD PER GRADE — the most recently completed one, grade-ordered.
+ *
+ * The bulk version of pickLatestForGrade, and it exists because free retakes
+ * (261b85f, capped at FREE_ASSESSMENT_CAP) made same-grade multiplicity
+ * reachable: a student may now hold three Grade 12 assessments. Anything that
+ * reads a student's history AS A TRAJECTORY has to collapse them first, or it
+ * counts one grade three times.
+ *
+ * WHY LATEST WINS. The Career Journey asks how a student's direction changed as
+ * they grew — a per-grade question. Three assessments in Grade 12 are not a
+ * trajectory; they are one point measured three times, and the current answer is
+ * the last one. Within-grade movement is a different feature and does not belong
+ * in a grade timeline. Latest is also what the profile's history marks as the
+ * current report and what pickLatestForGrade resolves a per-grade link to, so
+ * all three agree on which assessment represents a grade.
+ *
+ * The bucket key mirrors mergeGradeCounts: canonical where the grade
+ * canonicalizes, the raw label where it does not (never folded into a
+ * neighbour), and `ungradedKey` for rows carrying no grade at all — those are
+ * one bucket rather than one each, since they carry no grade information to
+ * separate them by.
+ *
+ * Ordered by gradeSortKey, so callers get 8..12, then graduated, then anything
+ * unrecognized — never the lexical order in which 'grade10' precedes 'grade9'.
+ */
+export function collapseToLatestPerGrade<T extends GradedRecord>(
+  records: ReadonlyArray<T>,
+  ungradedKey = 'Unknown',
+): Array<{ grade: string; record: T }> {
+  const best = new Map<string, { record: T; time: number }>();
+
+  for (const record of records) {
+    if (record.isCompleted === false) continue;
+
+    const raw = typeof record.grade === 'string' ? record.grade.trim() : record.grade;
+    const key =
+      raw === null || raw === undefined || raw === ''
+        ? ungradedKey
+        : toCanonicalGrade(raw) ?? String(raw);
+
+    // Same tie-break as pickLatestForGrade: a completed record with no
+    // timestamp beats nothing but loses to any record that has one.
+    const time = record.completedAt ? new Date(record.completedAt).getTime() : -Infinity;
+    const current = best.get(key);
+    if (!current || time > current.time) best.set(key, { record, time });
+  }
+
+  return Array.from(best, ([grade, { record }]) => ({ grade, record })).sort(
+    (a, b) => gradeSortKey(a.grade) - gradeSortKey(b.grade) || a.grade.localeCompare(b.grade),
+  );
+}

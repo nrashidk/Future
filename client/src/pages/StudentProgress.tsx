@@ -90,6 +90,12 @@ export default function StudentProgress() {
     // Exact canonical comparison. The old `d.grade.includes(grade)` substring
     // match happened to work for both legacy formats, but it is only correct by
     // accident: '1' matches 'grade10', 'grade11' and 'grade12'.
+    //
+    // `find` is safe because gradeDetails holds ONE entry per grade — the server
+    // collapses retakes to the latest (getStudentCareerEvolution). Before that
+    // collapse, three Grade 12 retakes were three entries and this returned the
+    // one the server listed first, the OLDEST, while the profile's history
+    // called the newest current.
     return evolution?.gradeDetails?.find(d => toCanonicalGrade(d.grade) === grade);
   };
 
@@ -279,6 +285,12 @@ export default function StudentProgress() {
               </CardContent>
             </Card>
 
+            {/* "more than one grade", which is what this panel claims to
+                describe — interests evolving and direction clarifying ACROSS
+                grades. It reads that way only because gradeDetails is now one
+                entry per grade; with retakes counted separately it opened for a
+                student whose three assessments were all Grade 12, and narrated
+                movement across a single year. */}
             {evolution?.gradeDetails && evolution.gradeDetails.length > 1 && (
               <Card>
                 <CardHeader>

@@ -78,12 +78,21 @@ export function registerProgressRoutes(app: Express) {
         }
       }
 
+      // DISTINCT GRADES, NOT ENTRIES. Persistence answers "in how many of this
+      // student's grades did this career appear", so both halves of the fraction
+      // have to count grades. getStudentCareerEvolution now returns one entry per
+      // grade, which makes these equal — the Set states the invariant rather than
+      // relying on it, since a career picked in three Grade 12 retakes scoring
+      // 100% consistency is the bug this guards, and it returns silently the
+      // moment anything upstream stops collapsing.
+      const distinctGrades = new Set(evolution.map(g => g.grade)).size;
+
       Array.from(careerMap.values()).forEach(data => {
         careerTrajectory.push({
           careerId: data.careerId,
           careerName: data.careerName,
           gradesAppeared: data.grades,
-          persistenceScore: data.grades.length / evolution.length,
+          persistenceScore: distinctGrades > 0 ? data.grades.length / distinctGrades : 0,
           avgMatchScore: data.count > 0 ? data.totalScore / data.count : 0,
         });
       });
@@ -92,7 +101,10 @@ export function registerProgressRoutes(app: Express) {
 
       res.json({
         success: true,
-        totalGrades: evolution.length,
+        // The field is named totalGrades and now counts grades. It was
+        // evolution.length, which counted assessments — a student with three
+        // Grade 12 retakes was reported as having three grades.
+        totalGrades: distinctGrades,
         trajectory: careerTrajectory,
         gradeDetails: evolution,
       });
