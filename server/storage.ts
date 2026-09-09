@@ -903,11 +903,13 @@ export class DatabaseStorage implements IStorage {
    * organizations.curriculum is not a label — assessment.routes.ts:136 copies it
    * into every new assessment as a school-owned field, and that value scopes the
    * quiz bank. A rename that skipped it left the school holding a string no
-   * longer in countries.curricula, and the quiz then fell through the fallback
-   * cascade at quiz.routes.ts:240-244, which DROPS the curriculum filter and
-   * refills the pool from every curriculum in the country. The student sat a
-   * quiz from the wrong bank, scored and stored as if it were right. Nothing
-   * errored; the only trace was a console.log.
+   * longer in countries.curricula, and the quiz then fell through the four-tier
+   * fallback cascade at quiz.routes.ts:292-331, each tier of which drops another
+   * scope rather than failing: :301 drops the CURRICULUM, :309 drops the COUNTRY
+   * too, :317 drops both and moves the grade by ±1, and only :330 returns a 400.
+   * So the student sat a quiz from the wrong bank — at worst another country's,
+   * another grade's — scored and stored as if it were right. Nothing errored;
+   * the only trace was one console.log per tier (:306, :314, :324).
    *
    * EVERY WHERE CLAUSE IS SCOPED BY countryId. The same label legitimately
    * exists under more than one country — 'National' and 'IB' are not unique
