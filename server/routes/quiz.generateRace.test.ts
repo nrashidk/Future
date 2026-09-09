@@ -30,7 +30,8 @@ vi.mock("../storage", () => ({
   },
 }));
 
-const { isUniqueViolation, buildExistingQuizPayload, awaitQuizResponses } = await import("./quiz.routes");
+const { buildExistingQuizPayload, awaitQuizResponses } = await import("./quiz.routes");
+const { isUniqueViolation } = await import("../utils/pgErrors");
 
 beforeEach(() => {
   getQuizResponsesByQuizId.mockReset();

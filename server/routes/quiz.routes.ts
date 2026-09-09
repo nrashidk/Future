@@ -3,6 +3,7 @@ import { storage } from "../storage";
 import { transformQuizQuestionForFrontend, shuffleQuestions, shuffleOptions } from "../utils/quiz";
 import { normalizeSubjectsAsync } from "../utils/subjects";
 import { printTokenAuthorizes } from "../utils/printToken";
+import { isUniqueViolation } from "../utils/pgErrors";
 
 /** Detect preferred language from standard Accept-Language or custom X-Language header */
 function getRequestLanguage(req: any): string {
@@ -164,18 +165,6 @@ export function selectPartialAnswerUpdates(
   }
 
   return { updates, invalidIds };
-}
-
-/**
- * SQLSTATE 23505, unique_violation — seen through whatever wrapped it.
- *
- * neon-serverless does not always surface the pg error itself: it is frequently
- * re-thrown with the original as `cause`, so a check on `error.code` alone
- * misses half the cases. Both are tested, following the precedent already in
- * seed.ts:2834 and country.routes.ts:532, which check the same two places.
- */
-export function isUniqueViolation(error: any): boolean {
-  return error?.code === "23505" || error?.cause?.code === "23505";
 }
 
 /**

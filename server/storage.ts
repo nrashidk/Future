@@ -326,7 +326,6 @@ export interface IStorage {
   getWefSkillsForCareers(careerIds: string[]): Promise<Array<{ careerId: string; name: string; nameAr: string | null; description: string; descriptionAr: string | null; affinityScore: number }>>;
   
   // WEF Competency Results operations
-  createWefCompetencyResult(result: InsertWefCompetencyResult): Promise<WefCompetencyResult>;
   upsertWefCompetencyResult(assessmentId: string, userId: string | null, skillScores: Record<string, number>, sourceAttribution: string, isGuest?: boolean, guestSessionId?: string | null): Promise<WefCompetencyResult>;
   getWefCompetencyResultByAssessmentId(assessmentId: string): Promise<WefCompetencyResult | undefined>;
   getWefCompetencyResultByUserId(userId: string): Promise<WefCompetencyResult | undefined>;
@@ -2055,14 +2054,6 @@ export class DatabaseStorage implements IStorage {
   }
 
   // WEF Competency Results operations
-  async createWefCompetencyResult(resultData: InsertWefCompetencyResult): Promise<WefCompetencyResult> {
-    const [result] = await db
-      .insert(wefCompetencyResults)
-      .values(resultData)
-      .returning();
-    return result;
-  }
-
   async upsertWefCompetencyResult(
     assessmentId: string,
     userId: string | null,
