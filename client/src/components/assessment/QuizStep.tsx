@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { StickyNote } from "@/components/StickyNote";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -73,6 +73,19 @@ export function QuizStep({ assessmentId, onComplete, onBack, quizDiscarded }: Qu
   // mounts fresh with the flag already false, so it does not reappear.
   const [showDiscardNotice] = useState(!!quizDiscarded);
   const [showResults, setShowResults] = useState(false);
+  const [isFlushing, setIsFlushing] = useState(false);
+
+  // Latest answers, for the unmount save. The cleanup that runs it is mounted
+  // once and would otherwise close over the empty object from the first render.
+  const responsesRef = useRef<Record<string, string>>({});
+  responsesRef.current = responses;
+
+  // What the SERVER is known to hold. Not a copy of `responses`: it advances
+  // only on a 200. A failed save therefore leaves it behind, and the next answer
+  // resends the full set — which is what makes a dropped request self-heal
+  // instead of leaving a permanent hole.
+  const lastSavedRef = useRef<Record<string, string>>({});
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Generate/fetch quiz (guest token is sent via httpOnly cookie automatically)
   const { data: quizData, isLoading: isGenerating, error: generationError } = useQuery({
@@ -89,6 +102,96 @@ export function QuizStep({ assessmentId, onComplete, onBack, quizDiscarded }: Qu
       onComplete();
     }
   }, [quizData, showResults, onComplete]);
+
+  /**
+   * Persist the answers entered so far.
+   *
+   * SENDS THE FULL ANSWER SET, NOT A DELTA. A dropped request then heals on the
+   * next answer instead of leaving one question blank forever, and the server
+   * skips the rows that already match (selectPartialAnswerUpdates), so the
+   * resend costs nothing in writes.
+   *
+   * THE CACHE IS PATCHED ONLY AFTER THE AWAIT. apiRequest throws on a non-OK
+   * response, so a failure never reaches the setQueryData below — and that
+   * ordering is the whole guard. staleTime is 5 minutes (queryClient.ts), so the
+   * remount after Back is served from cache with NO refetch; a cache patched
+   * after a failed request would assert a persistence that did not happen, and
+   * Back would look safe when it is not. That is worse than losing the answers
+   * honestly, which is what this component did until now.
+   *
+   * Returns true when there is nothing to save, so callers can treat "nothing
+   * pending" and "saved" alike.
+   */
+  const saveAnswers = useCallback(async (): Promise<boolean> => {
+    const current = responsesRef.current;
+    const answered = Object.entries(current).filter(([, answer]) => answer !== "");
+
+    const saved = lastSavedRef.current;
+    const unchanged =
+      answered.length === Object.keys(saved).length &&
+      answered.every(([questionId, answer]) => saved[questionId] === answer);
+    if (unchanged) return true;
+
+    const payload = answered.map(([questionId, answer]) => ({ questionId, answer }));
+
+    await apiRequest("PATCH", `/api/assessments/${assessmentId}/quiz/responses`, {
+      responses: payload,
+    });
+
+    lastSavedRef.current = Object.fromEntries(answered);
+
+    // A FIRST generation returns `responses: []` — the blank rows exist in the
+    // database but the payload does not enumerate them — while the existing-quiz
+    // branch returns one entry per question. So this ADDS entries rather than
+    // mapping over what is there; a map alone would silently no-op on the
+    // student's first visit, which is the common case.
+    queryClient.setQueryData(["/api/assessments", assessmentId, "quiz"], (old: any) => {
+      if (!old) return old;
+      const merged = new Map<string, { questionId: string; answer: string }>(
+        (old.responses ?? []).map((r: any) => [r.questionId, r])
+      );
+      for (const [questionId, answer] of answered) {
+        merged.set(questionId, { ...(merged.get(questionId) ?? { questionId }), answer });
+      }
+      return { ...old, responses: Array.from(merged.values()) };
+    });
+
+    return true;
+  }, [assessmentId]);
+
+  /**
+   * Debounced background save. 400ms, not the 2000ms the parent's form autosave
+   * uses (Assessment.tsx): that one debounces typing, this one debounces radio
+   * clicks, which arrive in bursts and are final the moment they land.
+   *
+   * Failures are silent here, like the parent's autosave — the retry is the next
+   * answer, and the one moment a failure actually costs the student something
+   * (pressing Back) surfaces it there instead.
+   */
+  useEffect(() => {
+    if (!quizData?.quizId || quizData.completed) return;
+
+    const timeoutId = setTimeout(() => {
+      saveAnswers().catch((error) => console.error("Quiz answer save failed:", error));
+    }, 400);
+    saveTimerRef.current = timeoutId;
+
+    return () => clearTimeout(timeoutId);
+  }, [responses, quizData, saveAnswers]);
+
+  /**
+   * Last-chance save for the ways out of this step that are not the Back button
+   * (a route change, the parent advancing). Best-effort and unawaited — nothing
+   * can be awaited in a cleanup. Mounted once, so it reads the refs rather than
+   * the render's closure, and it is a no-op when the debounced save already
+   * landed.
+   */
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveAnswers().catch(() => {});
+    };
+  }, [saveAnswers]);
 
   // Submit quiz mutation — uses apiRequest so CSRF token is always included
   const submitMutation = useMutation({
@@ -147,6 +250,38 @@ export function QuizStep({ assessmentId, onComplete, onBack, quizDiscarded }: Qu
       if (canonicalOption) {
         setResponses(prev => ({ ...prev, [questionId]: canonicalOption.text }));
       }
+    }
+  };
+
+  /**
+   * Back to Subjects — but not before the answers are safely stored.
+   *
+   * A plain onClick={onBack} would reproduce the very bug this batch fixes, in
+   * miniature: answer a question, press Back inside the 400ms window, lose it.
+   * So the pending timer is cleared and the save is AWAITED.
+   *
+   * AND IF THE SAVE FAILS, IT DOES NOT NAVIGATE. Leaving anyway would be exactly
+   * the data loss this exists to end, except now silent and with the student
+   * believing it was handled. Staying put costs them a second press; the answers
+   * are still on screen, and submitting is still open to them.
+   */
+  const handleBack = async () => {
+    if (!onBack) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+
+    setIsFlushing(true);
+    try {
+      await saveAnswers();
+      onBack();
+    } catch (error) {
+      console.error("Quiz answer save failed on back:", error);
+      toast({
+        title: t('quiz.errorTitle'),
+        description: t('quiz.saveFailedOnBack'),
+        variant: "destructive",
+      });
+    } finally {
+      setIsFlushing(false);
     }
   };
 
@@ -356,8 +491,8 @@ export function QuizStep({ assessmentId, onComplete, onBack, quizDiscarded }: Qu
           <Button
             size="lg"
             variant="outline"
-            onClick={onBack}
-            disabled={submitMutation.isPending}
+            onClick={handleBack}
+            disabled={submitMutation.isPending || isFlushing}
             className="px-8 py-6 text-lg rounded-full"
             data-testid="button-back-quiz"
           >

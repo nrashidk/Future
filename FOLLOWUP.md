@@ -2860,3 +2860,34 @@ person, so it is a lower-severity product decision rather than this. It is recor
 docs/landing-recon.md §1 claim 10 and is not part of this entry.
 
 First flagged 2026-09-09.
+
+
+### Arabic unreviewed — the five CVQ value domains  (severity: low)
+The landing fix for the false "10 basic human values" claim rewrote one Arabic string, which no
+Arabic speaker has reviewed:
+
+- `ar/landing.json:54` `research.valuesDesc` — `مُقتبَس من استبيان شوارتز للقيم الشخصية
+  ومُكيَّف للأعمار 13–18، ويقيس خمسة مجالات قيمية — الإنجاز، والإحسان، والتوجّه الذاتي،
+  والأمن، والسلطة — للتوافق المهني القائم على القيم`
+
+This is a new sentence construction, not a translation of the old one — the old string was a
+single clause ("تقييم مُثبَت عبر الثقافات يقيس 10 قيم...") and the replacement is a
+provenance clause plus an enumerated list, so none of it carries over.
+
+FIVE DOMAIN TERMS ARE THE PART TO CHECK, since they are psychometric vocabulary rather than
+ordinary prose and each is a translation decision: `الإنجاز` (achievement), `الإحسان`
+(benevolence), `التوجّه الذاتي` (self-direction), `الأمن` (security), `السلطة` (power). The last
+two are the least certain. `الأمن` and `الأمان` both render "security" and Schwartz's sense is
+closer to safety-and-stability than to national security. `السلطة` was chosen over `القوة`
+because Schwartz's power is social status and control over people rather than strength, but
+`القوة` is the more common rendering in casual Arabic and a reader may expect it. These five
+should agree with whatever the assessment UI itself calls them if it names them in Arabic —
+that was not checked and is worth checking in the same pass.
+
+NO NEW BIDI RUN, deliberately, unlike the citation line directly below it. `ar:55` keeps the
+Latin work title on purpose (see the landing-page instrument citations entry above); this string
+is a description rather than a citation, so it names Schwartz in Arabic only and introduces no
+mixed LTR/Arabic run. The `13–18` digits follow the file's existing convention (`ar:59` "16
+مهارة", `ar:65` "240 سؤالاً").
+
+Recorded 2026-09-09.
