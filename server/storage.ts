@@ -2239,11 +2239,45 @@ export class DatabaseStorage implements IStorage {
     const quiz = await this.getAssessmentQuizByAssessmentId(assessmentId);
     const responses = quiz ? await this.getQuizResponsesByQuizId(quiz.id) : [];
 
-    // Calculate competency scores from quiz responses
+    // Calculate competency scores from quiz responses.
+    //
+    // ONLY A SUBMITTED QUIZ IS A MEASUREMENT. quiz_responses rows are created at
+    // GENERATION time, one per selected question, with answer: "" and
+    // isCorrect: null (quiz.routes.ts:350-358) — before the student has seen a
+    // single question. Counting those into `total` while none of them can reach
+    // `correct` produced a confident 0% for every subject of a quiz nobody had
+    // submitted, and handed it to matching.ts:256 as a measured competency. A
+    // fabricated zero is worse than no data: calculateSubjectsScore treats the
+    // mere presence of a key as "competency data available" and switches to its
+    // 40/60 blend (matching.ts:852-866), so a perfect subject match scored 40
+    // instead of 100 and could fall under the overall-40 floor entirely.
+    //
+    // completedAt IS THE RULE, and it is the same rule everywhere else that has
+    // to decide whether a quiz is real: quiz.routes.ts:581 (refusing a second
+    // submit), :512 (refusing a partial save after submit) and
+    // assessment.routes.ts:720 (discarding a quiz on a subject change only while
+    // it is unsubmitted). This used to be the one place deciding it differently.
+    //
+    // The empty result is the CORRECT answer for an unsubmitted quiz, not a
+    // degraded one: {} makes hasCompetencyData false and matching scores on
+    // preference alone — exactly the path a student with no quiz at all takes.
+    // The two "nothing is known" cases converge instead of diverging.
+    //
+    // WHAT MUST STILL WORK, and does: a submitted quiz answered entirely wrong
+    // has completedAt set and isCorrect: false — not null — on every row, so it
+    // still yields a genuine, measured 0%.
     const competencyScores: Record<string, number> = {};
-    
-    if (quiz && responses.length > 0) {
+
+    if (quiz?.completedAt && responses.length > 0) {
       // Fetch quiz responses with question details (join with quizQuestions to get subject)
+      //
+      // isCorrect IS NOT NULL handles what completedAt cannot: rows inside a
+      // COMPLETED quiz that the submit handler skipped without marking — the two
+      // `continue`s at quiz.routes.ts:608 and :610-612. Submit's own accumulator
+      // (:625-632) increments its total AFTER those skips, so without this
+      // filter the recompute here counts rows submit excluded and the two stored
+      // copies of this number disagree by construction. This makes the recompute
+      // reproduce the submit-time denominator.
       const responsesWithQuestions = await db
         .select({
           response: quizResponses,
@@ -2251,7 +2285,10 @@ export class DatabaseStorage implements IStorage {
         })
         .from(quizResponses)
         .innerJoin(quizQuestions, eq(quizResponses.questionId, quizQuestions.id))
-        .where(eq(quizResponses.assessmentQuizId, quiz.id));
+        .where(and(
+          eq(quizResponses.assessmentQuizId, quiz.id),
+          isNotNull(quizResponses.isCorrect),
+        ));
 
       // Group responses by subject
       const subjectResponses: Record<string, { correct: number; total: number }> = {};

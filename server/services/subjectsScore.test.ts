@@ -124,6 +124,54 @@ describe("calculateSubjectsScore — the denominator is the NORMALIZED set", () 
   });
 });
 
+describe("calculateSubjectsScore — no competency data vs a measured zero", () => {
+  /**
+   * These pin the distinction the storage fix depends on, at the layer that
+   * consumes it. `getAssessmentWithCompetencies` used to compute a 0% for every
+   * subject of a generated-but-unsubmitted quiz, because quiz_responses rows
+   * exist from generation time with isCorrect: null and were counted into the
+   * denominator. It now returns {} until quiz.completedAt is set.
+   *
+   * That fix is only correct if {} and {Science: 0} mean different things HERE —
+   * otherwise it would be moving the same wrong number around. They do:
+   * hasCompetencyData is set by the mere presence of a key (matching.ts:852-861),
+   * so an empty object scores on preference alone while a zero switches on the
+   * 40/60 blend and supplies a zero to 60% of it.
+   *
+   * The storage query itself needs a live Postgres to test, so this is contract
+   * coverage of what the two possible return values do — not of the SQL.
+   */
+
+  it("no competency data scores on preference alone", () => {
+    // Doctor projects to [Science]; a Science picker is 1/1 = 100% preference.
+    // This is the path an unsubmitted quiz now takes, and the path a student
+    // with no quiz at all has always taken. They must be the same path.
+    expect(score(["Science"], DOCTOR, {})).toBe(100);
+    expect(score(["Science"], DOCTOR, undefined)).toBe(100);
+  });
+
+  it("a MEASURED zero still blends down to 40 — this case must survive the fix", () => {
+    // A submitted quiz answered entirely wrong: completedAt set, isCorrect false
+    // (not null) on every row. 100 preference * 0.4 + 0 competency * 0.6 = 40.
+    // The 60 points between this and the case above are exactly what the bug
+    // was silently taking from students who had not submitted anything.
+    expect(score(["Science"], DOCTOR, { Science: 0 })).toBe(40);
+  });
+
+  it("competency still applies upward, so the fix has not disabled it", () => {
+    // 100 * 0.4 + 100 * 0.6 = 100, and a mid score lands between the two.
+    expect(score(["Science"], DOCTOR, { Science: 100 })).toBe(100);
+    expect(score(["Science"], DOCTOR, { Science: 50 })).toBe(70);
+  });
+
+  it("a competency key for a subject the career does not match is ignored", () => {
+    // Only competencies for the MATCHING subjects are read (matching.ts:853-855),
+    // so an unrelated key must not switch the blend on. Doctor + English picker
+    // is a genuine non-match and stays at the flat floor of 20.
+    expect(score(["English"], DOCTOR, { Mathematics: 0 })).toBe(20);
+  });
+});
+
 describe("calculateSubjectsScore — careers that project to nothing", () => {
   it("Fashion Designer stays at the floor (no art axis in the umbrella-6)", () => {
     expect(normalizeCareerSubjects(FASHION.relatedSubjects)).toEqual([]);
