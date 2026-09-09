@@ -2752,3 +2752,111 @@ the mixed LTR/Arabic run described in bidi leak (2) above and should be eyeballe
 rendered Arabic landing page, not just read in the JSON.
 
 Recorded 2026-09-08.
+
+
+### Job-market data feeding every match score is Math.random()  (severity: HIGH)
+Surfaced during the 2026-09-09 landing recon, but it is not a landing-page problem. The copy
+claim is downstream of it.
+
+`job_market_trends` is populated once, in the seed, from a random number generator:
+
+    server/seed.ts:2058   demandScore: 50 + Math.random() * 50,          // 50-100
+    server/seed.ts:2059   growthRate: Math.random() * 30,                // 0-30%
+    server/seed.ts:2065   openings: Math.floor(Math.random() * 1000) + 100,
+
+`nationalPriorityAlignment` (:2060-2064) is the one field with any signal in it — it checks
+`career.relatedSubjects` against `country.prioritySectors` — and then picks a random number
+inside whichever of two bands that check selects. There is no fourth field. Every number in the
+table is generated, and the row is written per career × per country, so the volume of it
+disguises how little is there.
+
+THE TABLE HAS EXACTLY ONE WRITER AND NO INGESTION PATH. `storage.createJobMarketTrend`
+(storage.ts:924) is the only insert, and the seed is its only caller — `grep` over `server/` for
+`jobMarketTrend` outside `seed.ts` returns the three storage readers (:931, :938, :951-958), the
+matching service, and three test fixtures that stub it as an empty Map. Nothing fetches, imports
+or refreshes this data. There is no admin surface for it, unlike careers, questions and
+curricula.
+
+IT REACHES THE STUDENT. `matching.ts:315` groups the trends by career and hands them to the
+scorer, so a component of every career match score every student has ever received is a random
+number. It is not a random number held constant, either: it is regenerated on any seed run that
+finds the table empty, so the same student re-scored after a reset gets a different answer for
+reasons that have nothing to do with the student. That also means no historical report can be
+reproduced.
+
+WHAT NEEDS DECIDING — the actual work, and it is a product decision, not a code fix:
+
+  (a) REMOVE the component from scoring until there is a real source. Honest immediately, and
+      it changes every match score in the product, so it needs the weights redistributed
+      deliberately rather than the component silently zeroed. `tierComponentWeights` already
+      models an `isEnabled: false` component with a weight (seed.ts:3480 does exactly this for
+      cvq on the free tier), so the mechanism exists — but seed.ts:3185 warns that a disabled
+      component still HOLDING its weight contributes nothing while occupying it, which is the
+      trap to avoid here.
+
+  (b) FIND a source. Real labour-market data per country is a procurement and licensing
+      question (UAE MOHRE, national statistics offices, or a commercial feed), not something to
+      be scraped into the seed, and it needs a refresh cadence, provenance and a per-country
+      coverage story — the catalog spans 15 countries (seed.ts:2081-2095), not just the UAE.
+
+Whichever is chosen, the scoring change and the copy change are the same decision and should
+land in that order.
+
+DO NOT FIX THE LANDING COPY IN A WAY THAT IMPLIES THIS IS HANDLED. `landing.json:31` currently
+claims "Get real data on career growth and opportunities in your country" (`ar:31` likewise,
+"بيانات حقيقية"). Softening the wording to something defensible is a legitimate separate
+commit and is NOT a fix for this entry — it removes the false claim from the page and leaves
+the random numbers in the score. This entry stays open until (a) or (b) happens. Anyone editing
+that string should link back here in the commit message so the two are not confused later.
+
+First flagged 2026-09-09.
+
+
+### NEEDS HUMAN REVIEW — the landing page carries a fabricated named-minor testimonial  (severity: HIGH — legal)
+`landing.json:44-45` renders an attributed quotation, styled as a testimonial with a graduation
+icon and an author line (Landing.tsx:271-283, the quote at :277-279 and the attribution at
+:280):
+
+    en/landing.json:44  "\"Future Pathways helped me discover careers I never knew existed.
+                          Now I'm excited about my future!\""
+    en/landing.json:45  "- Sarah, Grade 11"
+
+NO SOURCE, CONSENT RECORD OR PROVENANCE EXISTS ANYWHERE IN THE REPO for it. There is no
+testimonials table, no consent artefact, no attached asset, and no commit message that
+introduces it as a real quotation — it has been carried forward as a string since the page was
+built. The absence is the finding; it is not evidence the person is invented, and this entry
+does not assert that.
+
+THE ARABIC HAS MADE IT WORSE, and this is why it is being raised now rather than left in the
+recon. `ar/landing.json:44` translates the quotation with feminine agreement — "أصبحت الآن
+متحمسة لمستقبلي" — so the persona now carries a grammatical gender in one language that the
+English only implies through the name. A translation decision has added an attribute to a
+person whose existence is unverified. `ar:45` also drops the leading dash the English
+attribution carries, so the two languages already present it slightly differently.
+
+WHY THIS IS NOT AN ORDINARY COPY DEFECT. Every other inaccuracy found on that page overstates a
+feature. This one puts words in the mouth of a named child. The audience is 13-18 and the
+product is sold to schools and evaluated by a ministry; an endorsement attributed to a
+Grade-11 student is exactly the sort of claim a regulator reads as a representation about a
+real data subject, and PDPL treats minors' data as a protected category regardless of whether
+the record sits in a database or in a marketing string. If Sarah is real, a quotation plus a
+grade level plus an implied gender is identifying information about a minor published without
+a recorded basis. If she is not, it is a fabricated endorsement on a page selling to schools.
+Both are worse than a wrong feature bullet, and they need opposite remedies.
+
+DO NOT REWRITE IT, DO NOT SOFTEN IT, AND DO NOT REMOVE IT AS A COPY CLEANUP. The two outcomes
+need a human to choose between them:
+
+  - IF GENUINE: it needs a provenance record — who she is, when it was given, and by whom
+    consent was given, since a 15-to-17-year-old cannot consent to commercial use of her own
+    words. That record needs to exist somewhere durable, not in a commit message. Only then
+    does the string stay.
+  - IF NOT GENUINE: it comes off the page, in both languages, in a commit that says why.
+
+Related, and left alone for the same reason: `landing.json:41` / `ar:41` claims "Join thousands
+of students who have discovered their perfect career match", roughly 200px from a live counter
+that reads the database. That one is unbacked marketing rather than a claim about a named
+person, so it is a lower-severity product decision rather than this. It is recorded in
+docs/landing-recon.md §1 claim 10 and is not part of this entry.
+
+First flagged 2026-09-09.
