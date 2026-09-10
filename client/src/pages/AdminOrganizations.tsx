@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { queryClient, apiRequest, serverErrorMessage } from "@/lib/queryClient";
+import { queryClient, apiRequest, serverErrorMessage, serverErrorCode } from "@/lib/queryClient";
 import { validateEmail } from "@/lib/utils";
 import { BULK_REQUIRED_COLUMNS, parseBulkStudentCsv } from "@/lib/bulkStudentCsv";
 import { SCHOOL_GRADES, gradeToNumber } from "@shared/grade";
@@ -28,8 +28,25 @@ import {
 import { StickyNote } from "@/components/StickyNote";
 import ContributeQuestions from "@/components/admin/ContributeQuestions";
 import { OrganizationConsentCard } from "@/components/admin/OrganizationConsentCard";
+import { CONSENT_REQUIRED_CODE } from "@shared/consentRequired";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 import { useTranslation } from "react-i18next";
+
+/**
+ * THE ONE SERVER FAILURE THIS PAGE TRANSLATES ITSELF.
+ *
+ * The enrolment gate answers 409 with code CONSENT_REQUIRED (server/utils/
+ * consentGate.ts) on every path that creates a school student. Its `message` is
+ * an English literal in server code, so rendering it — which is what every
+ * onError on this page does by default — shows an Arabic-locale admin an
+ * English sentence at the one moment they are being told they cannot proceed.
+ *
+ * Returns null for everything else, so callers keep their existing fallback
+ * chain (serverErrorMessage, then their own localized default) untouched.
+ */
+function consentBlockedMessage(error: unknown, t: (key: string) => string): string | null {
+  return serverErrorCode(error) === CONSENT_REQUIRED_CODE ? t('orgs.consentBlocked') : null;
+}
 
 async function downloadFile(url: string, defaultFilename: string, toast: any, t: (key: string) => string, setIsDownloading?: (v: boolean) => void): Promise<void> {
   try {
@@ -1860,7 +1877,7 @@ function CreateMemberForm({ organizationId, onSuccess }: { organizationId: strin
     onError: (error: any) => {
       toast({ 
         title: t('superadmin.error'), 
-        description: serverErrorMessage(error) || t('orgs.studentCreateError'), 
+        description: consentBlockedMessage(error, t) ?? serverErrorMessage(error) ?? t('orgs.studentCreateError'), 
         variant: "destructive" 
       });
     },
@@ -2088,7 +2105,7 @@ function BulkUploadForm({ organizationId, onSuccess }: { organizationId: string;
     onError: (error: any) => {
       toast({ 
         title: t('superadmin.error'), 
-        description: serverErrorMessage(error) || t('orgs.bulkUploadError'), 
+        description: consentBlockedMessage(error, t) ?? serverErrorMessage(error) ?? t('orgs.bulkUploadError'), 
         variant: "destructive" 
       });
     },

@@ -28,9 +28,15 @@
 
 import type { IStorage } from "../storage";
 import type { OrganizationConsent } from "../../shared/schema";
+import { CONSENT_REQUIRED_CODE } from "../../shared/consentRequired";
 
-/** Machine-readable so the client can tell this apart from an authorization failure. */
-export const CONSENT_REQUIRED_CODE = "CONSENT_REQUIRED";
+/**
+ * Machine-readable so the client can tell this apart from an authorization
+ * failure. Defined in shared/ and re-exported here: the client branches on this
+ * value to render a translated message, and a literal that drifted between the
+ * two ends would fail silently back to the English `message` below.
+ */
+export { CONSENT_REQUIRED_CODE };
 
 export const CONSENT_REQUIRED_MESSAGE =
   "This school has not recorded its consent yet. A school administrator must do that before students can be added.";

@@ -44,6 +44,37 @@ export function serverErrorMessage(error: unknown): string | null {
   return body.length <= 200 && !body.startsWith("<") ? body : null;
 }
 
+/**
+ * Pull the server's machine-readable `code` out of an error thrown by
+ * throwIfResNotOk. The sibling of serverErrorMessage above: same body, the
+ * field meant to be BRANCHED ON rather than displayed.
+ *
+ * The two are not interchangeable. A `message` is authored in English in server
+ * code and reaches the user in whatever language the server happened to write
+ * it in; a `code` is the only part of an error response that survives
+ * translation, because the client recognises it and supplies its own string. So
+ * a failure the user must understand needs a code, and a caller that has one
+ * should prefer it over rendering the message.
+ *
+ * Returns null for a non-JSON body, a body with no `code`, or anything
+ * unparseable — the caller falls through to serverErrorMessage and then to its
+ * own localized default, exactly as it did before.
+ */
+export function serverErrorCode(error: unknown): string | null {
+  if (!(error instanceof Error) || !error.message) return null;
+
+  const withoutStatus = error.message.match(/^\d{3}: ([\s\S]*)$/);
+  const body = (withoutStatus ? withoutStatus[1] : error.message).trim();
+  if (!body.startsWith("{")) return null;
+
+  try {
+    const code = JSON.parse(body)?.code;
+    return typeof code === "string" && code.trim() ? code.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
 function getCsrfToken(): string | null {
   const match = document.cookie.match(/csrf_token=([^;]+)/);
   return match ? match[1] : null;
