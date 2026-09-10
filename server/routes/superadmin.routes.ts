@@ -187,14 +187,14 @@ export async function classifyUnreconciledIntent(pi: Stripe.PaymentIntent): Prom
 /**
  * A DUPLICATE CAREER TITLE IS A 409 THAT NAMES THE COLLISION.
  *
- * careers.title is UNIQUE (migration 020). Without this, a violation reaches the
+ * careers.title is UNIQUE (migration 023). Without this, a violation reaches the
  * generic catch in the route and the superadmin gets `500 Failed to create
  * career` — which does not say a title collided, does not say which career it
  * collided with, and offers no way to converge: the same request retried
  * produces the same 500 forever. That would turn a constraint fixing a data
  * defect into a dead end in the UI, which is a bad trade.
  *
- * IT EXISTS BEFORE THE CONSTRAINT DOES, deliberately. Until migration 020 lands
+ * IT EXISTS BEFORE THE CONSTRAINT DOES, deliberately. Until migration 023 lands
  * nothing can raise 23505 here, so this is inert on arrival — the same shape as
  * the seed loop that caught 23505 against a table with no unique index
  * (migration 010) and therefore caught nothing for every boot it ran. The

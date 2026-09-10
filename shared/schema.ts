@@ -619,6 +619,25 @@ export const careers = pgTable("careers", {
   createdAt: timestamp("created_at").defaultNow(),
 }, (table) => [
   index("careers_onet_code_idx").on(table.onetCode),
+  /**
+   * ONE CAREER PER TITLE. Created by migration 023, which carries the full
+   * account of what rests on it.
+   *
+   * Load-bearing for FOUR migrations that match careers by title with an
+   * unordered `WHERE title = ? LIMIT 1` (career-arabic-content:559,
+   * career-related-subjects:61, career-values-profiles:436,
+   * career-growth-bands:505) and for the match-sort tie-break in
+   * matching.ts (compareMatches), which orders equal-scoring careers by title
+   * and is a TOTAL order only while titles are distinct.
+   *
+   * Drop this index and none of the five fails. Each quietly starts choosing
+   * between rows by heap order, and the four migrations need not choose the
+   * same one.
+   *
+   * EXACT-MATCH ONLY: "Data Scientist" and "Data scientist " both satisfy this
+   * and both still break the four. See FOLLOWUP.
+   */
+  uniqueIndex("careers_title_unique_idx").on(table.title),
   index("careers_country_id_idx").on(table.countryId),
   index("careers_future_readiness_idx").on(table.futureReadiness),
 ]);

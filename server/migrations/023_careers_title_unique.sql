@@ -1,0 +1,73 @@
+-- One career per title, enforced by the database.
+--
+-- THE GAP. careers.title is `text NOT NULL` with no unique constraint
+-- (shared/schema.ts:548). It has been unique across all 68 careers for the life
+-- of the catalogue, but only as a property of the DATA — nothing made it true
+-- and nothing would announce it becoming false.
+--
+-- WHAT RESTS ON IT, and this is the reason rather than tidiness. Four migrations
+-- match careers by title, all with the identical shape:
+--
+--     SELECT id FROM careers WHERE title = ? LIMIT 1     -- no ORDER BY
+--     UPDATE careers SET ... WHERE id = <that id>
+--
+--   career-arabic-content.ts:559     titleAr, descriptionAr, requiredSkillsAr
+--   career-related-subjects.ts:61    relatedSubjects
+--   career-values-profiles.ts:436    valuesProfile
+--   career-growth-bands.ts:505       onetGrowthBand, onetGrowthSource
+--
+-- With a duplicate title each one picks arbitrarily, by heap order — AND THEY
+-- NEED NOT PICK THE SAME ROW. One copy of a career could receive its Arabic
+-- content while the other received its values profile, each migration reporting
+-- success. The student-facing failure is a career that renders half-translated
+-- or unscored, with nothing in any log to say why. This constraint makes all
+-- four provably correct instead of correct-by-accident.
+--
+-- It also underwrites the match-sort tie-break added in adb1c9c, which orders
+-- equal-scoring careers by title. That is a TOTAL order only while titles are
+-- distinct; without this, two same-titled careers fall back to input order,
+-- which is getAllCareers(), which is heap order — silently reopening the
+-- non-determinism that commit closed, for exactly that pair.
+--
+-- WHAT IT DOES NOT CLOSE, stated here so it is not mistaken for solved. UNIQUE
+-- is an EXACT-match constraint. "Data Scientist", "Data scientist" and
+-- "Data Scientist " are three distinct values and all three would be accepted,
+-- while the four migrations above use exact `=` and would fail to match all but
+-- one of them. Near-duplicate titles break this in precisely the way real
+-- duplicates would, and this constraint does not see them. Closing that means a
+-- normalized key — a unique index on lower(btrim(title)) — which is a larger
+-- decision because it would reject titles that differ only in case, and the
+-- catalogue may legitimately want two. Recorded in FOLLOWUP; not taken here.
+--
+-- VERIFIED CLEAN BEFORE THIS LANDS. Production was checked and returned zero
+-- rows for both the exact and the near-duplicate form:
+--
+--     SELECT title, COUNT(*) FROM careers
+--     GROUP BY title HAVING COUNT(*) > 1;
+--
+--     SELECT lower(btrim(title)), COUNT(DISTINCT title) FROM careers
+--     GROUP BY 1 HAVING COUNT(DISTINCT title) > 1;
+--
+-- Run both first in any other environment this is applied to.
+--
+-- NO DE-DUPLICATION STEP, following 019 rather than 010. Collapsing duplicate
+-- careers would mean deleting a careers row, and recommendations rows reference
+-- career_id — a student's stored report would lose the career it named. There is
+-- no automatic rule for choosing which of two same-titled careers survives, so
+-- this migration refuses to guess: if duplicates exist it fails loudly,
+-- migrations are fatal at boot (server/index.ts:207-212), and a human decides.
+--
+-- THE WRITE PATHS ALREADY CONVERGE. seed.ts:2043-2047 inserts only titles not
+-- already present, so it cannot produce a duplicate. POST and PATCH
+-- /api/superadmin/careers answer 409 naming the colliding career (4ceafcd),
+-- which landed BEFORE this so the constraint could not turn a duplicate into an
+-- opaque 500 with no way forward.
+--
+-- Mirrors `careers` in shared/schema.ts. Keep the two in sync.
+
+-- title is NOT NULL, so a plain (non-partial) unique index is correct — Postgres
+-- treats NULLs as distinct, which is why country_sector_categories needed two
+-- partial indexes and this does not. It also serves the four migrations above,
+-- whose lookup is exactly an equality on title.
+CREATE UNIQUE INDEX IF NOT EXISTS careers_title_unique_idx
+  ON careers (title);
