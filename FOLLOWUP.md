@@ -525,6 +525,42 @@ The product supports Arabic (`titleAr`/`descriptionAr`/`nameAr` fields,
 - **Arabic font/glyph rendering** (correct font loaded, no tofu/boxes).
 - **Form inputs and text alignment** in RTL.
 
+**RTL HAS TO BE SEEN, NOT DERIVED — added 2026-09-10.** Five separate things this
+session were correct by reasoning and wrong on screen in Arabic, and the ones that
+looked safest were the ones that failed: a bare digit, a single punctuation mark,
+an interpolated Latin value dropped into an Arabic sentence. Two from the landing
+step cards alone: `<bdi>1.</bdi>` put the period on the far side of the numeral,
+so an RTL reader met the dot before the number (fixed b08ea4d — the period is a
+Latin list convention and Arabic uses a dash or nothing, so it is now English-only);
+and `me-2` on that same `<bdi>` computed to margin-RIGHT on an RTL page, leaving no
+gap at all, because `margin-inline-end` resolves against the ELEMENT's direction and
+a bdi holding only a digit resolves to LTR (fixed 54cdc2a). Note the shape: the
+isolate that fixes the ORDER breaks the SPACING, and neither shows up in the source.
+Rules of thumb worth carrying into the audit proper:
+- A digit is not a strong character. `<bdi>`/`dir="auto"` around digits-only content
+  resolves LTR no matter what page it is on, which flips both the neutrals inside it
+  and every logical property (`me-*`, `ps-*`, `text-align: start`) set on it.
+- Punctuation adjacent to a number is bidi-neutral and lands wherever the surrounding
+  direction pushes it. A dash misplaces exactly like a period; there is no separator
+  that is safe by construction. Prefer no separator.
+- Do not accept "logical properties handle RTL" without a measurement. They handle
+  it relative to the element you put them on.
+- **Same hazard, still unfixed:** `client/public/locales/ar/legal.json` bakes
+  `1. `…`8. ` into the Arabic privacy/terms/disclaimer section titles (s1Title–s8Title
+  in all three documents). Unisolated, so those periods take the RTL paragraph
+  direction and render on the other side of the numeral from the English. Never
+  rendered/checked. Fold into this audit.
+
+**How to actually see it** (no Replit, no prod deploy needed): puppeteer is already a
+dependency, and headless Chrome runs here once its system libs are installed
+(`libatk1.0-0t64 libatk-bridge2.0-0t64 libcups2t64 libdrm2 libxkbcommon0
+libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2t64 libpango-1.0-0
+libcairo2 libnss3 fonts-noto-core`, plus an Arabic font). Seed `localStorage
+fp_language=ar` before navigating, then screenshot AND measure: per-character
+`Range.getBoundingClientRect()` x-positions are what settled both bugs above — a
+screenshot alone is easy to misread, since the same defect can be described as the
+dot being on either side depending on whether you scan the line or read it.
+
 ### Individual-tier assessment lock — PARKED, needs product decisions before build
 
 **STATUS: PARKED / PRE-LAUNCH — documentation only, do not implement now.**
