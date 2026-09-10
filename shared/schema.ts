@@ -1463,6 +1463,131 @@ export const insertOrganizationEventSchema = createInsertSchema(organizationEven
 export type InsertOrganizationEvent = z.infer<typeof insertOrganizationEventSchema>;
 
 // =============================================================================
+// ORGANIZATION CONSENT — the school's recorded act
+// =============================================================================
+
+/**
+ * THE SCHOOL CONSENTS ONCE, AT ENROLMENT, AS A RECORDED ACT BY A NAMED ADMIN.
+ *
+ * The students are 13-18. The school creates and manages their accounts on their
+ * behalf, so the school — not the student — is the consenting party, and the
+ * record has to say who at the school did it, when, against which documents, and
+ * what exactly they asserted.
+ *
+ * APPEND-ONLY. One row per attestation act. There is no "current" flag and no
+ * UPDATE path: re-attestation (a new policy version, a new admin) INSERTs, and
+ * the current attestation is the most recent row for the organization. That is
+ * deliberate — history is load-bearing here, because which attestation covered a
+ * given student depends on that student's enrolment date, and an overwrite
+ * destroys exactly that.
+ *
+ * WHY NOT organization_events. Two reasons, and the second is the one that
+ * decided it. Its event_type is free text with no uniqueness, so "this school
+ * has consented" is not a queryable, enforceable state — and this table IS the
+ * enrolment gate. And its rows are deleted with the organization
+ * (storage.deleteOrganization), which these are not; see the retention note
+ * below. An organization_events row IS written alongside each attestation
+ * ('consent_attested'), so the act appears in the activity log admins already
+ * read. The event is the visible trace; this table is the record.
+ *
+ * WHY NOT COLUMNS ON organizations. Same reason as append-only: one row per org
+ * makes re-attestation an overwrite.
+ *
+ * NO WITHDRAWAL COLUMN, DELIBERATELY. Withdrawal is per-student and must not
+ * route through the school — the school is the party whose consent is being
+ * relied upon, so it cannot also be the gatekeeper of withdrawal. A withdrawal
+ * flag on the school's record would model precisely the thing that design rules
+ * out. Student withdrawal lives on the student's own routes.
+ */
+export const organizationConsents = pgTable("organization_consents", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+
+  /**
+   * NULLABLE, AND ON DELETE SET NULL — this row OUTLIVES the organization.
+   *
+   * organization_events rows are deleted when an org is deleted; these are not,
+   * and deleteOrganization is deliberately NOT extended to remove them. What
+   * this record evidences is that processing had a lawful basis, and that
+   * question is asked most sharply AFTER the data is gone. A record that
+   * evaporates with its subject cannot answer it.
+   *
+   * organizationName is denormalised for the same reason: after the FK nulls,
+   * the row must still name the school it belonged to.
+   *
+   * THE COST, STATED RATHER THAN HIDDEN: a row for a school that no longer
+   * exists still carries an ex-admin's name and email. That is accepted here —
+   * naming the person who attested is the accountability the record exists to
+   * provide, not incidental PII — but it is a real retention decision and should
+   * be revisited if a retention schedule is ever written.
+   */
+  organizationId: varchar("organization_id").references(() => organizations.id, { onDelete: "set null" }),
+  organizationName: text("organization_name").notNull(),
+
+  /**
+   * TWO SEPARABLE CLAIMS, STORED SEPARATELY. Never collapse these into one
+   * boolean or one blob: the second is the one carrying the legal weight, and an
+   * auditor will ask which was asserted, not whether "consent" was given.
+   */
+  consentsToProcessing: boolean("consents_to_processing").notNull(),
+  attestsGuardianConsent: boolean("attests_guardian_consent").notNull(),
+
+  /**
+   * WHO, IN WHAT CAPACITY. The FK is a convenience for joins; the denormalised
+   * name and email are the identity. An attestation that dissolves when its
+   * author leaves the school is not a record, so the user row is allowed to go
+   * without taking the evidence with it.
+   */
+  performedBy: varchar("performed_by").references(() => users.id, { onDelete: "set null" }),
+  performedByRole: text("performed_by_role").notNull(), // 'org_admin' | 'superadmin'
+  performedByName: text("performed_by_name").notNull(),
+  performedByEmail: text("performed_by_email").notNull(),
+
+  /**
+   * WHICH DOCUMENTS. policyVersion is the boot-time content hash of the legal
+   * documents as served (server/utils/policyVersion.ts); policyLastUpdated is
+   * the human string that was actually on the page, kept because it is what the
+   * admin saw; policyLocale is which of en/ar they were served, because the two
+   * files drift independently.
+   */
+  policyVersion: text("policy_version").notNull(),
+  policyLastUpdated: text("policy_last_updated").notNull(),
+  policyLocale: text("policy_locale").notNull(),
+
+  /**
+   * CHANNEL EVIDENCE, AND IT IS THIN — do not describe it as a signature. This
+   * is what a web form can honestly produce: where the request came from, what
+   * browser sent it, and a hash of the exact attestation wording rendered, so
+   * that a later reword cannot be mistaken for what this admin agreed to.
+   */
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  attestationTextHash: text("attestation_text_hash").notNull(),
+
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_org_consents_organization").on(table.organizationId),
+  index("idx_org_consents_created_at").on(table.createdAt),
+]);
+
+export const organizationConsentsRelations = relations(organizationConsents, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [organizationConsents.organizationId],
+    references: [organizations.id],
+  }),
+  performer: one(users, {
+    fields: [organizationConsents.performedBy],
+    references: [users.id],
+  }),
+}));
+
+export type OrganizationConsent = typeof organizationConsents.$inferSelect;
+export const insertOrganizationConsentSchema = createInsertSchema(organizationConsents).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertOrganizationConsent = z.infer<typeof insertOrganizationConsentSchema>;
+
+// =============================================================================
 // SCORING METHODOLOGY CONFIGURATION (Superadmin-managed)
 // =============================================================================
 
