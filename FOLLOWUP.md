@@ -2716,6 +2716,44 @@ constrains proposal (1) rather than following from it.
 
 First flagged 2026-09-09. Nothing to be built until the documents are settled.
 
+BUILT 2026-09-10, and the line above is now wrong on its face. The work shipped BEFORE the
+documents were settled, deliberately: identifying the documents by content hash does not require
+them to be correct, only to be identified, so the legal rewrite stopped being a blocker. Five
+commits, in dependency order:
+
+  c767e2e  a content hash over the `terms` and `privacy` subtrees of legal.json, so a consent
+           record can name the documents it was given against. Fails closed — null rather than
+           a placeholder — and NOTHING GATES ON DRIFT.
+  3a7e48a  `organization_consents` (append-only, one row per act) plus GET/POST
+           /api/my-organization/consent. org_admin only, with no superadmin path: a superadmin
+           asserting that a school holds guardian consent is the fiction the record exists to
+           remove. Both claims or nothing. Ships inert.
+  aec29f7  the attestation card, mounted above the roster for an org_admin. Two checkboxes,
+           and they must stay two. Posts the exact rendered wording back so the hash pins what
+           this admin saw. Drift is a notice, never a block.
+  bbb1869  the enrolment gate: 409 CONSENT_REQUIRED on the three paths that enrol a school
+           student, all of which sink into `storage.createUserWithCredentials`. Fails closed.
+           Placed after the authorization checks so an unauthorized caller still gets 403 and
+           does not learn the school's consent state.
+  c647443  PROPOSAL (2), as ruled: the checkbox is deleted and the student is TOLD. The notice
+           names the school and links both documents, and IT REACHES THE FULLY-PREFILLED PATH —
+           finding 1 above, where the old screen rendered nothing at all.
+
+PROPOSALS (1) and (3) are satisfied by the above: the school attests, and no parent-facing flow
+was introduced. PROPOSAL (4) — withdrawal must not route through the school — is untouched and
+still open; it is a staffing commitment, not code. The NEEDS-A-LAWYER paragraph stands unchanged
+and still constrains all of it. The FREE FLOW is unchanged and now has its own entry (:3158).
+The admin-facing half of the gate was not built (see the enrolment-gate UI entry).
+
+CORRECTION to the SEPARATE AND HARDER paragraph above, recorded rather than edited in place so
+the two readings can be compared: "Finding 3 already voids that tick on resume" is wrong.
+Assessment.tsx:505 sets `consentGiven: true` unconditionally when hydrating a cross-device
+resume, because there is nothing on the server to restore it from — it does not void a tick that
+was given, it FABRICATES one that was not. Read as "voids", it is a UX annoyance. Read
+correctly, it is a data-integrity defect about a minor's consent, and nothing in the system can
+distinguish a student who agreed from one who was resumed into agreement. The corrected
+mechanism is at :3158.
+
 ### Impersonation is a no-op that reports success — DELETED 2026-09-09  (was: HIGH)
 POST /api/superadmin/impersonate/:userId (superadmin.routes.ts:1806-1837) writes one thing:
 
