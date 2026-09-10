@@ -3588,3 +3588,71 @@ school-contributed questions bypass the bank entirely, so a future collision the
 caught by the bank-uniqueness test above.
 
 First flagged 2026-09-10.
+
+### An exact score tie is resolved by Postgres heap order, so the same student can get different reports  (severity: MEDIUM — non-determinism in a graded output)
+
+`generateRecommendations` picks the report's careers with `sort` then `slice`
+(`server/services/matching.ts:241-245`):
+
+```js
+return gated
+  .filter(match => match.overallScore >= 40)
+  .sort((a, b) => b.overallScore - a.overallScore)
+  .slice(0, limit); // 2 free / 5 premium
+```
+
+The comparator returns `0` for equal scores. `Array.prototype.sort` is stable (ES2019), so tied
+careers keep their **input** order — and the input is `storage.getAllCareers()`
+(`server/storage.ts:1032-1034`):
+
+```js
+async getAllCareers(): Promise<Career[]> {
+  return await db.select().from(careers);
+}
+```
+
+**No `ORDER BY`.** A SQL result set without one has no defined order. In practice it is heap order,
+which changes when a row is UPDATEd (the new tuple version is appended to the end of the heap),
+after `VACUUM FULL` or `CLUSTER`, after a dump/restore, and whenever the planner switches between a
+sequential, index-only or parallel scan. None of those events has anything to do with careers
+matching.
+
+**So the tie-break is real and it is arbitrary.** On a free report — two matches — a three-way tie
+at the top means one of three careers is silently dropped, chosen by storage layout. Two students
+who answered identically can receive different reports. The same student regenerating after an
+unrelated edit to a career row can receive a different report. Neither is detectable afterwards:
+`recommendations` stores the two careers that won and nothing about the ordering that produced
+them, and `scoring_provenance` records the algorithm, config hash, tier and date — none of which
+distinguishes the two outcomes. Both runs are "correct" by every check the system has.
+
+**Exact ties are not rare.** Two mechanisms manufacture them:
+
+1. **Vision saturation** (tracked separately, being fixed): 27 of 68 careers land on relevance 100,
+   collapsing into blocks of 5, 5, 4, 3, 3, 2, 2 that share a byte-identical vision score.
+2. **Rounding before the sort.** `matching.ts:827` stores `Math.round(overallScore * 10) / 10`, so
+   two careers 0.04 apart become exactly equal *and then* fall through to heap order. Measured over
+   4,000 simulated free reports, about 30% of the exact ties came from this alone — and after the
+   vision fix it is the source of **all** of them (residual exact-tie rate 1.6%, essentially all
+   rounding).
+
+So the vision fix reduces the frequency; it does not remove the mechanism. This is independent of
+that work and outlives it.
+
+**The read-back path is already deterministic and is not the problem.**
+`getRecommendationsByAssessment` orders by `desc(overallMatchScore), careerId`
+(`server/storage.ts:1180`). That orders the two rows that were already chosen and persisted; it has
+no say in which two survived the slice.
+
+**The fix is small and is not the diversity question.** Any total order will do, as long as it is
+derived from the data rather than from storage layout — a secondary comparator on `careerId` or
+`title` in the sort, or an `orderBy` on `getAllCareers()`. Deterministic-but-arbitrary is strictly
+better than arbitrary: it makes the output reproducible, testable, and honest about the fact that
+the scorer had no preference. It does NOT make the tie meaningful, and it must not be mistaken for
+a diversity rule — a diversity rule is a product decision about which careers to show; this is a
+correctness property about giving the same answer twice.
+
+**Worth deciding alongside it:** whether the report should say anything when the careers it shows
+were separated by less than the scorer can meaningfully resolve. A 71 and a 71 presented as a
+ranked list asserts an ordering the model does not have.
+
+First flagged 2026-09-10.
