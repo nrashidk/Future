@@ -4259,7 +4259,7 @@ caught by the bank-uniqueness test above.
 
 First flagged 2026-09-10.
 
-### LIMIT and OFFSET with no ORDER BY — paging that can repeat and skip rows  (severity: LOW — latent, but the endpoint advertises it)
+### LIMIT and OFFSET with no ORDER BY — paging that can repeat and skip rows — FIXED 2026-09-10 (fbc1475)  (was: LOW)
 Found by the sweep that closed the tie-break entry below, and filed rather than fixed because
 nothing first-party exercises it yet.
 
@@ -4296,6 +4296,35 @@ the ordering needs one. Doing this also fixes the review hazard, which is why it
 rather than two.
 
 First flagged 2026-09-10.
+
+FIXED 2026-09-10 in fbc1475: `ORDER BY subject, grade, topic, id` on both queries. `topic` was
+added to the shape proposed above because it puts near-duplicate questions adjacent, which is
+what a hand reviewer needs to see; `id` last is what makes the order total.
+
+`id` IS THE RIGHT FINAL KEY HERE AND WAS THE WRONG ONE FOR careers, and the two entries should
+not be read as inconsistent. The career sort had to reproduce ACROSS databases — the same
+catalogue is seeded into staging and prod — so a per-database `gen_random_uuid()` was
+disqualifying and it fell back to `title`. These rows live in exactly one database and nobody
+compares this list between environments; the requirement is that the order hold still WITHIN one,
+under edit. A uuid primary key is unique by CONSTRUCTION rather than by data, which is precisely
+the guarantee `careers.title` cannot give (see the entry below), and it is immutable under UPDATE
+so an edited question does not move. The uniqueness caveat therefore does NOT carry over.
+
+NO INDEX ADDED, and the number that decides it: 240 rows. A sort node over 240 rows is free, and
+`quiz_questions_country_grade_idx` already serves the filter. What would change the answer is a
+bank in the tens of thousands, at which point the index to add is `(subject, grade, topic, id)`
+matching the sort, not one per filter column.
+
+VERIFIED against the live table rather than reasoned about: zero duplicate sort keys across all
+240 rows, so the order is total; three `(subject, grade, topic)` groups actually needed `id` to
+break; and concatenating LIMIT/OFFSET pages reproduced the full ordered list exactly — 240 unique
+ids, no repeats and no skips.
+
+THE STUDENT PATH IS UNAFFECTED, checked rather than assumed, because this query also feeds the
+quiz pool. quiz.routes.ts draws through `shuffleQuestions`, a proper Fisher-Yates over
+`Math.random` (server/utils/quiz.ts:7). A uniform shuffle makes every permutation equally likely
+regardless of input order, so ordering the pool changes nothing about which questions a student
+receives. The unseeded draw itself is a separate entry and is untouched.
 
 
 ### careers.title is unique in practice and not by constraint  (severity: LOW — a total order resting on data, not schema)
