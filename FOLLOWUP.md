@@ -3240,6 +3240,56 @@ WHAT NEEDS DECIDING, in the order that makes the others answerable:
 First flagged 2026-09-10.
 
 
+### The enrolment gate has no UI — the admin meets it as an untranslated toast  (severity: MEDIUM)
+bbb1869 gates the three enrolment paths with `409` and a machine-readable `code:
+CONSENT_REQUIRED`, added so the client could tell a consent block apart from an authorization
+failure. Nothing reads it: `grep -rn "CONSENT_REQUIRED" client/src` returns nothing.
+
+What an org_admin actually sees when they add a student before attesting is the page's generic
+failure toast — title `t('superadmin.error')`, body `serverErrorMessage(error)`
+(AdminOrganizations.tsx:1860-1864) — carrying the server's hardcoded English sentence from
+consentGate.ts:35. Bulk upload has the same handler shape (:2088-2092).
+
+Three gaps, in the order they bite:
+
+1. **Not localized.** `CONSENT_REQUIRED_MESSAGE` is an English string literal in server code. An
+   Arabic-locale admin gets an English sentence in a red toast. Every other admin-facing failure
+   on this page renders a translated key with `serverErrorMessage` only as an override; this one
+   has no key to fall back to, so the override IS the message.
+
+2. **The string for it already exists, in both locales, and renders nowhere.** `consentBlocked` —
+   "Add students after recording consent above." / "أضِف الطلبة بعد تسجيل الموافقة أعلاه." —
+   shipped in aec29f7 (en/admin.json:383, ar/admin.json:383) and is referenced nowhere in
+   client/src. It was written for a pre-emptive state on the roster that was not built.
+
+3. **The hook for it is exported and unused.** `useOrganizationConsent`
+   (OrganizationConsentCard.tsx:56) carries the comment "Shared with the roster so 'has this
+   school consented' has one answer". The roster does not import it — AdminOrganizations.tsx
+   mounts the card and nothing else. The comment describes an intent, not the code.
+
+So the gate is discovered by failing. The admin opens the add-student form, types a minor's
+name, grade, gender and date of birth, submits, and is told in English that the school has not
+consented — with no pointer to the card that would unblock them, which is on the same page,
+above the roster, unread.
+
+NOT A SECURITY DEFECT. The gate holds, it holds server-side, and it fails closed; that is the
+half that matters and it is done. This is the half that decides whether a school meets the gate
+once and understands it, or meets it repeatedly and opens a support ticket.
+
+FIX SHAPE (described, not applied): have the roster read the hook that was exported for it; when
+consent is absent, render `consentBlocked` beside a disabled Add Student rather than letting the
+submit fail; and give `CONSENT_REQUIRED` a translated client key, keyed off the code the server
+already sends — the code exists for exactly this and nothing consumes it. Note the ordering
+constraint: the pre-emptive state must not become the enforcement. The server gate stays.
+
+ALSO: the CSV path (`POST /api/admin/organizations/:id/import-students`) is gated but has no
+client caller at all — `grep -rn "import-students" client/src` returns nothing. It is API-only
+today, so nobody meets its 409 through the UI, and its share of this entry is theoretical until
+someone builds the screen.
+
+First flagged 2026-09-10.
+
+
 ### DECISION — the consent record outlives the school, and keeps an ex-admin's contact details  (recorded decision, not a finding)
 Recorded here because until now it existed only as a comment in a migration header
 (server/migrations/022_organization_consents.sql:23-31, echoed in `COMMENT ON TABLE`). The next
