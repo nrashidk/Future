@@ -345,9 +345,9 @@ describe("calculateVisionScore — HYBRID (category gate + WEF skill modulation)
     // the SAME sector, scored on the same seeded scale and the same skill vector,
     // sharing a score means the model failed to say anything about them.
     //
-    // ONE DOCUMENTED EXCEPTION, and it is named rather than excluded because it
-    // is a DATA gap, not a scorer defect. Accountant and Actuary carry identical
-    // values on every skill the Financial Services vector asks about:
+    // ONE TIE IS CORRECT AND IS ASSERTED, NOT EXCUSED. Accountant and Actuary
+    // carry identical values on every skill the Financial Services vector asks
+    // about:
     //
     //     Financial Literacy  imp 95   Accountant 100  Actuary 100
     //     Numeracy            imp 90   Accountant 100  Actuary 100
@@ -355,13 +355,34 @@ describe("calculateVisionScore — HYBRID (category gate + WEF skill modulation)
     //     Leadership          imp 60   Accountant  65  Actuary  65
     //     Literacy            imp 55   Accountant  80  Actuary  80
     //
-    // They differ on 8 of the other 11 — including Critical Thinking 90 vs 100
-    // and Curiosity 70 vs 80, which is most of what separates an actuary from an
-    // accountant. The sector vector simply does not ask. The fix is to give
-    // Financial Services a discriminating skill (a seed change, with its own
-    // justification and its own commit); until then this pair is expected to tie
-    // and this test records why. If it stops tying, delete the exception.
-    const KNOWN_DATA_GAP = ["Accountant", "Actuary"];
+    // This used to be filed as a DATA GAP with a fix pending — "give Financial
+    // Services a discriminating skill". It is not a gap. The two jobs differ in
+    // the KIND of mathematics they do (an actuary prices uncertain future events
+    // with probability and stochastic models; an accountant records and reports
+    // realized transactions under a rule set), and CAREER_WEF_SKILL_AFFINITIES
+    // records IMPORTANCE, not kind or level. Numeracy — the column that would
+    // have to carry that difference — is 100 for both because numeracy is
+    // maximally important to both, which is true. WEF-16 is a competency
+    // framework and the difference here is domain knowledge, which it
+    // deliberately does not model. Equal importance on all five competencies the
+    // sector demands is the correct output, so the scorer emitting one number
+    // for both is the model working, not failing.
+    //
+    // They do differ on 8 of the other 11, including Critical Thinking 90 vs 100.
+    // Adding one of those to the sector vector WOULD split them — measured, all
+    // four candidates split them and none flips an attribution — but Critical
+    // Thinking was dropped from Space, Healthcare AND Financial Services under
+    // one written reason (sd 6.7, "weight without information"), so restoring it
+    // to one sector at a weight tuned to one pair selects a fact for its effect.
+    // That is a three-sector descriptive question, filed in FOLLOWUP, not a
+    // tie-break. Measured costs are recorded there too.
+    //
+    // ASSERTED POSITIVELY so it fails loudly in BOTH directions. The old form
+    // skipped a block matching this pair, which caught a third career joining
+    // them but passed silently if they ever stopped tying — leaving the comment
+    // to rot until a human noticed. If a seed change splits them, this test
+    // fails and tells you to re-read this comment, which is the point.
+    const ACCEPTED_TIE = { sector: "Financial Services", titles: ["Accountant", "Actuary"] };
 
     const ctx = makeContext();
     const bySector = new Map<string, Array<{ title: string; score: string }>>();
@@ -378,6 +399,7 @@ describe("calculateVisionScore — HYBRID (category gate + WEF skill modulation)
     }
 
     const collisions: string[] = [];
+    const accepted: string[][] = [];
     for (const [sector, careers] of bySector) {
       const byScore = new Map<string, string[]>();
       for (const { title, score } of careers) {
@@ -385,8 +407,9 @@ describe("calculateVisionScore — HYBRID (category gate + WEF skill modulation)
       }
       for (const [score, titles] of byScore) {
         if (titles.length < 2) continue;
-        if (titles.length === KNOWN_DATA_GAP.length && KNOWN_DATA_GAP.every(t => titles.includes(t))) {
-          continue; // the documented Financial Services skill-vector gap above
+        if (sector === ACCEPTED_TIE.sector) {
+          accepted.push([...titles].sort());
+          continue; // asserted below, not excused — see the comment above
         }
         collisions.push(`${sector} @ ${score}: ${titles.join(" | ")}`);
       }
@@ -394,6 +417,17 @@ describe("calculateVisionScore — HYBRID (category gate + WEF skill modulation)
 
     expect(collisions, `careers sharing a score inside one sector:\n  ${collisions.join("\n  ")}`)
       .toEqual([]);
+
+    // The accepted tie, asserted: exactly one tied block, inside Financial
+    // Services, containing exactly these two careers. A split fails here; a
+    // third career joining them fails here; the tie moving to another pair
+    // inside the same sector fails here.
+    expect(
+      accepted,
+      "the accepted Accountant/Actuary tie changed — re-read the comment above " +
+        "before editing this expectation: a split means a seed change gave " +
+        "Financial Services a discriminating skill, which is a decision, not a fix",
+    ).toEqual([[...ACCEPTED_TIE.titles].sort()]);
   });
 
   it("MEAN-CENTERING IS LOAD-BEARING — without it the modulation collapses", () => {
