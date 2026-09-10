@@ -13,6 +13,7 @@ import { splitCsvRow } from "@shared/csvRow";
 import { z } from "zod";
 import { isPremiumAssessment } from "../utils/assessmentTier";
 import * as fileStorage from "../services/fileStorage";
+import { requireOrganizationConsent } from "../utils/consentGate";
 
 // Nothing in this module touches local disk any more. Private data uploads go
 // to the private Spaces bucket; organization logos go to the public one. Both
@@ -681,6 +682,17 @@ export function registerAdminRoutes(app: Express) {
       const { username, fullName, grade, passwordComplexity = 'medium', studentId, studentName, studentGender, dateOfBirth } = req.body;
       const organizationId = req.params.id;
 
+      /**
+       * NO STUDENT IS ENROLLED WITHOUT THE SCHOOL'S RECORDED CONSENT.
+       * Placed after the authorization checks and before any write, so an
+       * unauthorized caller still gets 403 rather than learning the school's
+       * consent state. See server/utils/consentGate.ts.
+       */
+      const consentGate = await requireOrganizationConsent(storage, req.params.id);
+      if (!consentGate.allowed) {
+        return res.status(consentGate.status).json(consentGate.body);
+      }
+
       if (!fullName || !grade) {
         return res.status(400).json({ message: "Missing required fields: fullName, grade" });
       }
@@ -798,6 +810,17 @@ export function registerAdminRoutes(app: Express) {
       }
 
       const { members, passwordComplexity = 'medium' } = req.body;
+
+      /**
+       * NO STUDENT IS ENROLLED WITHOUT THE SCHOOL'S RECORDED CONSENT.
+       * Placed after the authorization checks and before any write, so an
+       * unauthorized caller still gets 403 rather than learning the school's
+       * consent state. See server/utils/consentGate.ts.
+       */
+      const consentGate = await requireOrganizationConsent(storage, req.params.id);
+      if (!consentGate.allowed) {
+        return res.status(consentGate.status).json(consentGate.body);
+      }
       const organizationId = req.params.id;
 
       // Validation: Check if members is an array
@@ -2105,7 +2128,19 @@ export function registerAdminRoutes(app: Express) {
       } else if (!isSuperadmin) {
         return res.status(403).json({ message: "Forbidden: Admin access required" });
       }
-      
+
+      /**
+       * NO STUDENT IS ENROLLED WITHOUT THE SCHOOL'S RECORDED CONSENT.
+       * Before the upload is read or persisted, not just before the inserts —
+       * a CSV of minors' names should not be parsed or written to object
+       * storage on behalf of a school that has not consented.
+       * See server/utils/consentGate.ts.
+       */
+      const consentGate = await requireOrganizationConsent(storage, req.params.id);
+      if (!consentGate.allowed) {
+        return res.status(consentGate.status).json(consentGate.body);
+      }
+
       const organization = await storage.getOrganizationById(req.params.id);
       if (!organization) {
         // memoryStorage: the upload is still only a buffer and nothing has been
