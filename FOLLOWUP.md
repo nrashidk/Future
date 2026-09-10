@@ -3240,6 +3240,46 @@ WHAT NEEDS DECIDING, in the order that makes the others answerable:
 First flagged 2026-09-10.
 
 
+### DECISION — the consent record outlives the school, and keeps an ex-admin's contact details  (recorded decision, not a finding)
+Recorded here because until now it existed only as a comment in a migration header
+(server/migrations/022_organization_consents.sql:23-31, echoed in `COMMENT ON TABLE`). The next
+person to read that comment is whoever is asking why a deleted school's data still exists, and
+that reader is entitled to find a decision rather than a rationale — a rationale in a code
+comment is something a later contributor "fixes".
+
+THE DECISION. `organization_consents` rows survive the deletion of both the organization and the
+admin who made them. Both foreign keys are `ON DELETE SET NULL` (022:35, :43) and
+`organization_name`, `performed_by_name` and `performed_by_email` are denormalised (022:36,
+:46-47) precisely so the row still says who attested for which school once the FKs have nulled.
+
+WHY. What the row evidences is that processing had a lawful basis, and that question is asked
+most sharply after the data it justified is gone. A consent record deleted along with the
+organization proves nothing at the only moment anyone needs it to.
+
+THE COST, STATED PLAINLY. A row for a school that no longer exists still carries a named
+individual's name and email address — an ex-admin of a defunct customer — retained with no
+expiry, after every other trace of that organization has been erased. This is the ONLY place in
+the schema that deliberately keeps personal data past an erasure. Two things make it defensible
+and neither makes it free: it is an adult's business contact data rather than a student's, and
+naming the attester IS the accountability the record exists to provide. It is still personal
+data under PDPL, and it is still kept without limit.
+
+WHAT WOULD CHANGE THE ANSWER: a written retention schedule — the migration comment already says
+"revisit it if a retention schedule is ever written", and this entry is that hook. The shape to
+reach for is a period after which the row keeps the attestation and drops or hashes the
+attester's contact details. Note that this is not a free trade: the name is the accountability,
+so a schedule has to say what stands in its place, not merely remove it. Related: the retention
+gap at :2451 — no cron, TTL or purge exists for student data either, so there is no schedule
+anywhere to attach this to yet.
+
+NOT A LICENCE TO "FIX" THIS. Reading `ON DELETE SET NULL` as an oversight and changing it to
+`CASCADE`, or dropping the denormalised name/email columns as redundant against the FKs,
+destroys the record at exactly the point it becomes load-bearing. Either change reopens this
+decision; neither is a migration someone writes on their own judgement.
+
+Recorded 2026-09-10.
+
+
 ### A student who erases their own account leaves the school's seat consumed  (severity: MEDIUM)
 `DELETE /api/users/me` (user.routes.ts:123) is the GDPR erasure path. Inside its transaction it
 deletes the `organization_members` row under the comment "GDPR: frees license slot and removes
