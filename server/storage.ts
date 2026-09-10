@@ -1348,6 +1348,43 @@ export class DatabaseStorage implements IStorage {
     if (conditions.length > 0) {
       query = query.where(and(...conditions)) as any;
     }
+
+    /**
+     * A TOTAL ORDER, BECAUSE THIS QUERY PAGES.
+     *
+     * LIMIT and OFFSET below were applied to a SELECT with no ORDER BY, and a
+     * result set without one has no defined order. That is worse than an
+     * arbitrary sort: LIMIT then decides WHICH ROWS COME BACK AT ALL, and OFFSET
+     * paging over an undefined order can return one row on two pages and never
+     * return another — with no error, and nothing in the response to notice it
+     * from. It has to be in the query rather than left to the caller: by the time
+     * the caller sees the rows, the ones LIMIT dropped are already gone.
+     *
+     * subject, then grade, then topic is the reviewer's mental model and the
+     * shape of the filters above; topic also puts near-duplicate questions
+     * adjacent, which is what someone checking a bank by hand needs to see.
+     *
+     * id LAST, and it is what makes the order TOTAL. All four columns are NOT
+     * NULL, so there is no NULLS FIRST/LAST question to get wrong.
+     *
+     * A uuid is the right final key HERE and was the wrong one for the career
+     * tie-break, for a reason worth keeping straight: that sort had to reproduce
+     * ACROSS databases, so a per-database gen_random_uuid() was disqualifying and
+     * it fell back to title. These rows live in exactly one database and nobody
+     * compares this list between environments; the requirement is that the order
+     * hold still WITHIN one, under edit. A uuid primary key is unique by
+     * construction rather than by data — which is the guarantee careers.title
+     * could not give — and immutable under UPDATE, so a question does not move
+     * when it is edited. That last property is the live half of the defect: an
+     * UPDATE appends a new tuple version to the end of the heap, so before this
+     * the list reshuffled as it was reviewed.
+     */
+    query = query.orderBy(
+      quizQuestions.subject,
+      quizQuestions.grade,
+      quizQuestions.topic,
+      quizQuestions.id,
+    ) as any;
     
     if (filters.limit) {
       query = query.limit(filters.limit) as any;
@@ -1394,6 +1431,16 @@ export class DatabaseStorage implements IStorage {
     if (conditions.length > 0) {
       query = query.where(and(...conditions)) as any;
     }
+
+    // Total order before LIMIT/OFFSET — same reasoning as
+    // getQuizQuestionsByFilters above, which this duplicates. Both feed the same
+    // admin list and export.
+    query = query.orderBy(
+      quizQuestions.subject,
+      quizQuestions.grade,
+      quizQuestions.topic,
+      quizQuestions.id,
+    ) as any;
     
     if (filters.limit) {
       query = query.limit(filters.limit) as any;
