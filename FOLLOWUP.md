@@ -3840,7 +3840,7 @@ English `badges` was vaguer.
 
 Recorded 2026-09-09.
 
-### Two quizzes can exist for one assessment, and readers pick arbitrarily  (severity: HIGH)
+### Two quizzes can exist for one assessment, and readers pick arbitrarily — FIXED (migration 019), entry closed 2026-09-10  (was: HIGH)
 `getAssessmentQuizByAssessmentId` (`storage.ts:1264-1270`) has no `ORDER BY`, no `LIMIT`, and
 `assessment_quizzes.assessment_id` carries no unique constraint. `POST /quiz/generate` guards
 against a second quiz by reading through that same unordered query (`quiz.routes.ts:197`), so two
@@ -3865,6 +3865,21 @@ quiz that was in fact submitted. After that fix such a student gets `{}` and sco
 alone rather than on a fabricated 0%, which is a smaller error but still not their result.
 
 First flagged 2026-09-09.
+
+FIXED by `server/migrations/019_assessment_quizzes_unique.sql`, and this entry simply was never
+closed — it has been reading as open at HIGH since the fix landed. Closed 2026-09-10 on review.
+
+The migration took the unique index this entry asked for, and took it WITHOUT a de-duplication
+step, deliberately: collapsing duplicates would mean deleting `quiz_responses` rows, which are a
+student's real answers, and no automatic rule can choose which of two quizzes a student keeps. It
+fails loudly instead and a human decides. Production was verified at zero duplicates first, with
+the query above.
+
+Note what the constraint bought beyond the duplicate: `getAssessmentQuizByAssessmentId` still has
+no ORDER BY and still takes the first row, and `POST /quiz/generate`'s duplicate guard is still a
+check-then-act. Both are now correct BECAUSE at most one row can exist. The schema comment at
+`shared/schema.ts` says so, because dropping the index would leave both quietly wrong again
+without either failing.
 
 ### assessments.subject_competencies is written, client-PATCHable, and read by nothing  (severity: MEDIUM)
 Three copies of one number exist. Submit writes two of them — `assessment_quizzes.subject_scores`
@@ -4327,7 +4342,82 @@ regardless of input order, so ordering the pool changes nothing about which ques
 receives. The unseeded draw itself is a separate entry and is untouched.
 
 
-### careers.title is unique in practice and not by constraint  (severity: LOW — a total order resting on data, not schema)
+### Natural keys that are unique in practice and not by constraint — the sweep, and what is left  (severity: LOW — two open instances)
+Written up after the third instance turned up, because the shape keeps recurring and each time it
+has been found by accident rather than looked for. A column that everything treats as an identity,
+that no constraint enforces, and whose failure mode is a silent wrong-row write rather than an
+error.
+
+All 38 tables in shared/schema.ts were checked: every column whose name suggests a natural key,
+against the table's actual constraints, against whether code looks rows up by it.
+
+ALREADY ENFORCED, and listed so the sweep does not get re-run: `users.email` and `.username`,
+`countries.code`, `subjects (country_id, curriculum, code)`, `wef_skills.name` (inline `.unique()`
+— which is what makes the two by-name lookups at storage.ts:2046 and :2080 sound),
+`assessment_components.key`, `scoring_tiers.key`, `llm_prompt_templates.key`,
+`api_credentials.provider`, `files.share_token`, `career_wef_skill_affinities (career_id,
+wef_skill_id)`, `career_component_affinities (career_id, component_id)` (migration 010),
+`assessment_quizzes.assessment_id` (migration 019), and now `careers.title` (migration 023).
+
+LEGITIMATELY NON-UNIQUE, so not candidates: `assessments.name`, `organization_members
+.student_name`, `organizations.name`, `organization_consents.organization_name` /
+`performed_by_name` / `performed_by_email` (denormalised BY DESIGN so the row outlives the org —
+see the retention decision), `system_announcements.title`, `wef_skills.name_ar`,
+`careers.title_ar`.
+
+TWO OPEN:
+
+**1. `careers.title` near-duplicates — the half migration 023 does not close.** A `UNIQUE`
+constraint is EXACT-match. `"Data Scientist"`, `"Data scientist"` and `"Data Scientist "` are three
+distinct values; Postgres accepts all three side by side. The four migrations that match on title
+(`career-arabic-content:559`, `career-related-subjects:61`, `career-values-profiles:436`,
+`career-growth-bands:505`) use exact `=`, so they would match ONE of the three and silently skip
+the others — the same failure the constraint was added to prevent, reached by a different route.
+Say it plainly: **023 closes the exact hole and leaves this one open.**
+
+Verified zero near-duplicates in production before 023 landed, so this is latent rather than
+live. Closing it means a unique index on `lower(btrim(title))`, and that is a real decision rather
+than a bigger version of the same one: it would REJECT two careers whose titles differ only in
+case or spacing, and nobody has established that the catalogue never legitimately wants that. It
+also would not help the migrations, which would still need their own `=` normalized to match. The
+honest fix is probably normalizing titles at the write boundary rather than a second index.
+
+**2. `quiz_questions (question, subject, grade)` — narrowed, never constrained.** The Arabic
+content migrations match on this triple, and it is unique in practice and enforced by nothing.
+
+The history matters, because this one has already caused a live student-facing failure. The
+migration originally matched on question text ALONE, and question text genuinely collides:
+`"Which sentence is grammatically correct?"` exists twice in the bank — once under English
+(subject-pronoun agreement) and once under Arabic (word order). Both content entries updated both
+rows, and the English row ended up carrying the Arabic question's stem, its four Arabic options
+and its explanation, above its own English options and scored against the English correct answer.
+An Arabic-reading student got an unanswerable question. Repaired by
+`021_repair_shared_stem_arabic_desync.sql`; the match key was narrowed to the triple in the same
+commit.
+
+**So the fix was match-key precision, not a constraint, and the correctness still rests on data.**
+Nothing stops a second row with the same `(question, subject, grade)` from being created today,
+and if one appeared the migrations would resume writing to whichever row the planner returned
+first — `LIMIT 1` with no `ORDER BY`.
+
+THE SAME PREREQUISITE APPLIES BEFORE ANY CONSTRAINT IS PROPOSED HERE, and it is the lesson from
+the careers work: **what does the import path do on a 23505?** The question bank is written by
+`POST /api/admin/questions`, the CSV/bulk import, and the school-contribution approval flow — three
+writers, versus careers' two. Each needs to answer a duplicate with something an admin can act on
+before a constraint starts raising them; a bulk import that dies on row 400 of 500 with an opaque
+500 is worse than the duplicate it prevents. That work is larger than the careers equivalent and
+has not been scoped.
+
+Also unresolved and smaller: `careers.onet_code` is unique across all 68 and non-null on every
+row, is documented as the identity for growth bands, and has no constraint. Nothing does
+`eq(careers.onetCode, …)` today so it is latent, and a partial unique index is not even needed
+since Postgres treats NULLs as distinct. It is blocked on one product question rather than any
+engineering: may two careers legitimately share an O*NET occupation?
+
+First flagged 2026-09-10.
+
+
+### careers.title is unique in practice and not by constraint — FIXED 2026-09-10 (4ceafcd, 08e9a30)  (was: LOW)
 The tie-break fixed below orders tied careers by `careers.title`, and that key is only a TOTAL
 order because the catalogue happens to contain no duplicate titles. Verified against the seed:
 all 68 careers have distinct titles, and distinct non-blank `onetCode`s. Neither is enforced.
@@ -4364,6 +4454,29 @@ ITS OWN SMALL PIECE OF WORK, and not a one-line migration:
     about whether two careers may legitimately share an O*NET occupation.
 
 First flagged 2026-09-10.
+
+FIXED 2026-09-10, in the order the second required:
+
+  4ceafcd  the 409 FIRST, before the constraint could raise anything. Both endpoints — a rename
+           onto an existing title violates the constraint exactly as a create does, and it is the
+           easier one to miss because the collision is with a career the admin is not looking at.
+           Without it a duplicate title reached the superadmin as `500 Failed to create career`:
+           no title named, no career named, and no way to converge. The decision is pure and
+           tested; no client change was needed, since SuperadminDashboard already renders
+           serverErrorMessage on both mutations.
+  08e9a30  `careers_title_unique_idx`, migration 023. Production verified at 0 duplicates on
+           both the exact and the near-duplicate query before it landed. No de-duplication step,
+           following 019 rather than 010: collapsing duplicate careers means deleting a row that
+           `recommendations.career_id` references, so a student's stored report would lose the
+           career it named.
+
+The scope question above resolved to `UNIQUE (title)` rather than `(country_id, title)`. Careers
+are not per-country today — `countryId` exists on the table and is null for all 68 — and a
+constraint scoped to a column nothing populates would be a unique index on `(NULL, title)`, which
+Postgres treats as always-distinct and which therefore enforces nothing at all. If careers ever
+become per-country the index has to be rebuilt then, with real data to reason about.
+
+`onetCode` is NOT done and stays open — see the sweep entry below.
 
 
 ### An exact score tie is resolved by Postgres heap order, so the same student can get different reports  (severity: MEDIUM — non-determinism in a graded output)
