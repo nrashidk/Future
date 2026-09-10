@@ -111,7 +111,17 @@ export interface ComponentScore {
  */
 export interface CareerMatch {
   career: Career;
-  overallScore: number; // 0-100
+  overallScore: number; // 0-100, rounded to 1 dp — the score that is displayed and stored
+  /**
+   * The SAME score before the 1-dp rounding, carried for ordering only.
+   *
+   * NOT PERSISTED and not displayed. recommendations.overallMatchScore stores
+   * overallScore above, and the report renders that; this exists so the sort can
+   * see a difference the rounding erased. Two careers 0.04 apart round to the
+   * same tenth and would otherwise reach the tie-break as equals, which resolves
+   * them alphabetically — discarding a preference the scorer actually had.
+   */
+  overallScoreRaw: number;
   componentScores: {
     key: string;
     displayName: string;
@@ -246,8 +256,22 @@ export async function generateRecommendations(
 /**
  * THE MATCH ORDER, INCLUDING WHAT HAPPENS WHEN TWO CAREERS SCORE THE SAME.
  *
- * Score descending, then TITLE ascending. The second key is the whole point of
- * this function existing.
+ * UNROUNDED score descending, then TITLE ascending.
+ *
+ * THE UNROUNDED SCORE IS THE FIRST KEY, and that is a deliberate second pass
+ * over this function. `overallScore` is rounded to 1 dp for display and storage,
+ * and reading it here made two careers 0.04 apart into an exact tie, which the
+ * title key then resolved ALPHABETICALLY — throwing away a preference the scorer
+ * actually had and replacing it with one it never expressed. Rounding was the
+ * source of most ties reaching the second key at all. `overallScoreRaw` is
+ * carried for exactly this and is neither displayed nor persisted; a report can
+ * therefore show two careers at 72.1 in an order the printed numbers do not
+ * explain, which is honest — they are not equal, they only print equal.
+ *
+ * THE TITLE KEY IS STILL LOAD-BEARING. Genuinely equal raw scores happen — two
+ * careers whose component scores are identical by construction — and without a
+ * second key those fall back to input order. What follows is why that is not
+ * acceptable.
  *
  * WHY IT IS NEEDED. `Array.prototype.sort` is stable, so a comparator returning
  * 0 leaves tied careers in INPUT order — and the input is
@@ -294,12 +318,27 @@ export async function generateRecommendations(
  * product decision, and it was closed separately with no change.
  */
 export function compareMatches(a: CareerMatch, b: CareerMatch): number {
-  const byScore = b.overallScore - a.overallScore;
+  const byScore = rawOrRounded(b) - rawOrRounded(a);
   if (byScore !== 0) return byScore;
 
   const aTitle = a.career.title;
   const bTitle = b.career.title;
   return aTitle < bTitle ? -1 : aTitle > bTitle ? 1 : 0;
+}
+
+/**
+ * The unrounded score where there is one, the rounded score otherwise.
+ *
+ * The fallback is for a CareerMatch assembled by hand rather than by
+ * calculateCareerMatch — a test double, or a future caller. Reading undefined
+ * straight into arithmetic would yield NaN, and a NaN comparator does not throw:
+ * it silently returns an arbitrary order, which is the exact failure this whole
+ * comparator exists to remove.
+ */
+function rawOrRounded(match: CareerMatch): number {
+  return typeof match.overallScoreRaw === "number" && Number.isFinite(match.overallScoreRaw)
+    ? match.overallScoreRaw
+    : match.overallScore;
 }
 
 /**
@@ -857,6 +896,7 @@ function calculateCareerMatch(
   return {
     career,
     overallScore: Math.round(overallScore * 10) / 10, // Round to 1 decimal
+    overallScoreRaw: overallScore, // ordering only — see CareerMatch
     componentScores,
     appliedConfigVersion,
     scoringProvenance: {

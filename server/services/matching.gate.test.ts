@@ -26,7 +26,7 @@ import { describe, it, expect, vi } from "vitest";
 
 vi.mock("../db", () => ({ db: {}, pool: {} }));
 
-const { generateRecommendations, MAX_MATCHES_FREE, MAX_MATCHES_PREMIUM } = await import("./matching");
+const { generateRecommendations, compareMatches, MAX_MATCHES_FREE, MAX_MATCHES_PREMIUM } = await import("./matching");
 
 import type { IStorage } from "../storage";
 
@@ -338,5 +338,54 @@ describe("tie-break in generateRecommendations", () => {
     );
 
     expect(results.map((r) => r.career.title)).toEqual(["Zoologist", "apiarist"]);
+  });
+});
+
+/**
+ * THE ORDERING KEY IS THE UNROUNDED SCORE — pinned directly on the comparator,
+ * because the difference it exists to see is smaller than the fixtures above can
+ * express. Two careers 0.04 apart both print 72.1, and no arrangement of
+ * relatedSubjects reliably lands two scored careers that close.
+ *
+ * These cases are the whole argument for carrying overallScoreRaw: without it
+ * the first case below resolves alphabetically, which reverses the scorer.
+ */
+describe("compareMatches orders on the unrounded score", () => {
+  const match = (title: string, rounded: number, raw?: number) =>
+    ({ career: { title }, overallScore: rounded, overallScoreRaw: raw } as any);
+
+  it("prefers the higher RAW score when both round to the same tenth", () => {
+    // Same printed 72.1. "Zoologist" sorts last alphabetically and must still
+    // win, because it actually scored higher.
+    const a = match("Architect", 72.1, 72.06);
+    const z = match("Zoologist", 72.1, 72.14);
+
+    expect([a, z].sort(compareMatches).map((m) => m.career.title)).toEqual(["Zoologist", "Architect"]);
+    expect([z, a].sort(compareMatches).map((m) => m.career.title)).toEqual(["Zoologist", "Architect"]);
+  });
+
+  it("falls back to the title only when the RAW scores are genuinely equal", () => {
+    const z = match("Zoologist", 72.1, 72.1);
+    const a = match("Architect", 72.1, 72.1);
+
+    expect([z, a].sort(compareMatches).map((m) => m.career.title)).toEqual(["Architect", "Zoologist"]);
+  });
+
+  it("uses the rounded score when no raw score is present, rather than NaN", () => {
+    // A CareerMatch built by hand — a test double, or a caller that predates the
+    // field. Reading undefined into arithmetic gives NaN, and a NaN comparator
+    // does not throw: it silently returns an arbitrary order, which is the exact
+    // failure this comparator exists to remove.
+    const high = match("Zoologist", 80);
+    const low = match("Architect", 60);
+
+    expect([low, high].sort(compareMatches).map((m) => m.career.title)).toEqual(["Zoologist", "Architect"]);
+  });
+
+  it("still ranks a real score gap above the title", () => {
+    const strong = match("Zoologist", 90, 90.4);
+    const weak = match("Architect", 60, 60.2);
+
+    expect([weak, strong].sort(compareMatches).map((m) => m.career.title)).toEqual(["Zoologist", "Architect"]);
   });
 });
