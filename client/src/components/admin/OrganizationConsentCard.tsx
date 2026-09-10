@@ -52,6 +52,15 @@ interface ConsentResponse {
 
 export const ORG_CONSENT_QUERY_KEY = ["/api/my-organization/consent"];
 
+/**
+ * The roster's blocked notice scrolls here. An id rather than a ref because the
+ * two live in different components on the same page and the notice only needs
+ * to point, not to reach in. Present in BOTH states below: an admin who follows
+ * the pointer after someone else attested should land on the record, not on
+ * nothing.
+ */
+export const ORG_CONSENT_ANCHOR_ID = "org-consent-card";
+
 /** Shared with the roster so "has this school consented" has one answer. */
 export function useOrganizationConsent(enabled: boolean) {
   return useQuery<ConsentResponse>({
@@ -127,7 +136,7 @@ export function OrganizationConsentCard({ schoolName }: { schoolName: string }) 
       ? new Date(consent.createdAt).toLocaleDateString(locale === "ar" ? "ar" : "en-GB")
       : "";
     return (
-      <Card data-testid="card-org-consent-recorded">
+      <Card id={ORG_CONSENT_ANCHOR_ID} data-testid="card-org-consent-recorded">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-primary" />
@@ -164,7 +173,7 @@ export function OrganizationConsentCard({ schoolName }: { schoolName: string }) 
   const bothAffirmed = processing && guardian;
 
   return (
-    <Card className="border-primary/40" data-testid="card-org-consent-form">
+    <Card id={ORG_CONSENT_ANCHOR_ID} className="border-primary/40" data-testid="card-org-consent-form">
       <CardHeader className="pb-3">
         <CardTitle className="text-lg flex items-center gap-2">
           <ShieldCheck className="w-5 h-5 text-primary" />

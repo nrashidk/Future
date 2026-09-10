@@ -23,11 +23,11 @@ import { Separator } from "@/components/ui/separator";
 import { 
   Home, Plus, Download, Upload, Edit, Trash2, GraduationCap, 
   Users, Building2, Key, RefreshCw, FileDown, Lock, LockOpen, User, LogOut, BarChart, Shield, FileQuestion, Gift,
-  Link as LinkIcon, X, ClipboardCheck
+  Link as LinkIcon, X, ClipboardCheck, AlertTriangle
 } from "lucide-react";
 import { StickyNote } from "@/components/StickyNote";
 import ContributeQuestions from "@/components/admin/ContributeQuestions";
-import { OrganizationConsentCard } from "@/components/admin/OrganizationConsentCard";
+import { OrganizationConsentCard, ORG_CONSENT_ANCHOR_ID, useOrganizationConsent } from "@/components/admin/OrganizationConsentCard";
 import { CONSENT_REQUIRED_CODE } from "@shared/consentRequired";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 import { useTranslation } from "react-i18next";
@@ -253,6 +253,34 @@ export default function AdminOrganizations() {
   const selectedOrgStudentCount = membersLoaded
     ? members.filter(m => m.role === 'student').length
     : undefined;
+
+  /**
+   * THE PRE-EMPTIVE HALF OF THE ENROLMENT GATE — the same argument as
+   * selectedOrgStudentCount above: the disable arriving before the work, rather
+   * than the refusal arriving after it. Without this an admin fills in a
+   * minor's name, grade, gender and date of birth, submits, and only then
+   * learns the school has not attested.
+   *
+   * NOT THE ENFORCEMENT, and must never become it. The gate is server-side on
+   * all three enrolment paths (server/utils/consentGate.ts) and stays there;
+   * this only stops the wasted typing.
+   *
+   * UNKNOWN IS NOT BLOCKED, and here that reverses the rule above rather than
+   * following it. /api/my-organization/consent is org_admin-only by design
+   * (3a7e48a: a superadmin must not attest for a school), so a superadmin
+   * viewing a school has no consent state to read and never will — treating
+   * unknown as blocked would permanently disable a control for them on a fact
+   * they cannot query. They keep the server's answer, which since e267331 is a
+   * translated one. For an org_admin unknown means only that the query is in
+   * flight, which resolves in a moment.
+   */
+  const isOrgAdmin = user?.accountType === 'org_admin';
+  const { data: consentState } = useOrganizationConsent(!!isOrgAdmin);
+  const enrolmentBlocked = !!isOrgAdmin && consentState !== undefined && consentState.consent === null;
+
+  const scrollToConsentCard = () => {
+    document.getElementById(ORG_CONSENT_ANCHOR_ID)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   // Auto-select first organization for org_admin when organizations load
   useEffect(() => {
@@ -847,7 +875,7 @@ export default function AdminOrganizations() {
                   </Dialog>
                   <Dialog open={isBulkUploadDialogOpen} onOpenChange={setIsBulkUploadDialogOpen}>
                     <DialogTrigger asChild>
-                      <Button variant="outline" size="sm" data-testid="button-bulk-upload">
+                      <Button variant="outline" size="sm" disabled={enrolmentBlocked} data-testid="button-bulk-upload">
                         <Upload className="w-4 h-4 me-2" />
                         {t('orgs.bulkUpload')}
                       </Button>
@@ -865,7 +893,7 @@ export default function AdminOrganizations() {
                   </Dialog>
                   <Dialog open={isCreateMemberDialogOpen} onOpenChange={setIsCreateMemberDialogOpen}>
                     <DialogTrigger asChild>
-                      <Button size="sm" data-testid="button-create-member">
+                      <Button size="sm" disabled={enrolmentBlocked} data-testid="button-create-member">
                         <Plus className="w-4 h-4 me-2" />
                         {t('orgs.addStudent')}
                       </Button>
@@ -882,6 +910,32 @@ export default function AdminOrganizations() {
                     </DialogContent>
                   </Dialog>
                 </div>
+                {/* WHY THE DISABLED BUTTONS ARE DISABLED. A disabled control with
+                    no reason beside it reads as a broken page; this is the
+                    reason, and it is next to the controls rather than in a
+                    tooltip because a disabled button swallows the hover that
+                    would open one. The link points at the card that unblocks
+                    it — it is directly above on this same page, which is what
+                    the string already says. */}
+                {enrolmentBlocked && (
+                  <div
+                    className="flex items-start gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-sm"
+                    data-testid="notice-enrolment-blocked"
+                  >
+                    <AlertTriangle className="w-4 h-4 mt-0.5 text-amber-600 shrink-0" />
+                    <p>
+                      {t('orgs.consentBlocked')}{" "}
+                      <button
+                        type="button"
+                        onClick={scrollToConsentCard}
+                        className="text-primary hover:underline font-semibold"
+                        data-testid="button-goto-consent"
+                      >
+                        {t('orgs.consentTitle')}
+                      </button>
+                    </p>
+                  </div>
+                )}
               </CardHeader>
               <CardContent>
                 {membersLoading ? (
