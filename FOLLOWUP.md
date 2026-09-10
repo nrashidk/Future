@@ -3358,6 +3358,89 @@ WHAT REMAINS OPEN, and neither is a defect in the above:
      Whoever builds that screen inherits both halves: the code branch and the disable.
 
 
+### STEP 6 BLOCKED — withdrawal has no channel, and the address the policy gives minors cannot receive mail  (severity: HIGH)
+Position (4) of the consent design — WITHDRAWAL MUST NOT ROUTE THROUGH THE SCHOOL, since the
+school is the party whose consent is being relied upon — is the one proposal from the ruling at
+:2499 that did not ship. It is BLOCKED rather than deferred, and the block is not in the
+codebase: the contact address the Privacy Policy gives cannot receive mail. Building the product
+surface first would hand a student a button that files a request nobody receives, which is worse
+than no button — it converts a missing channel into a channel that appears to work.
+
+WHAT EXISTS, AND IT IS MORE THAN EXPECTED. `DELETE /api/users/me` (user.routes.ts:123) is real,
+it works, and it is `isAuthenticated` only — no role check, no organization check, no admin
+approval. It reads `req.user.userId` and erases that user's own assessments, quiz responses, CVQ
+results, recommendations, organization membership and user row in one transaction, then destroys
+the session. So an org student CAN erase themselves without their school's involvement, which is
+exactly the property position (4) requires. The mechanism is not the gap.
+
+  BUT ERASURE IS NOT WITHDRAWAL, and the entry should not claim it is. This route is the maximal
+  form — everything goes. A student who wants to withdraw consent to processing while keeping
+  the report their school already acted on has no path at all, and neither does one who wants
+  their data out of analytics but their account intact. Position (4) needs a channel to a person
+  who can act, and that person needs options between "nothing happens" and "delete everything".
+
+WHAT IS MISSING. Nothing in the product reaches any of it. `grep -rn "users/me" client/src`
+returns exactly one hit — the language PATCH in LanguageContext.tsx:73. Three data-rights
+endpoints exist and are invisible:
+
+  GET    /api/users/me/export         (user.routes.ts:40)   — the PDPL/GDPR data export
+  GET    /api/users/me/data-summary   (user.routes.ts:196)  — what is held, for transparency
+  DELETE /api/users/me                (user.routes.ts:123)  — erasure
+
+They are reachable only by someone who reads the source or crafts the request. For the actual
+users — 13-18 year olds — they do not exist.
+
+THE ADDRESS IS DEAD, and this is the blocker. `privacy@futurepath.ae` appears twice per locale
+in the Privacy Policy (en/legal.json:20 and :32, ar/legal.json:20 and :32) — once as the way to
+request deletion and once as the general contact. VERIFIED 2026-09-10: `futurepath.ae` has NO MX
+records (`resolveMx` → ENODATA) against nameservers ns1-4.etisalatdomains.ae. It does have an A
+record (216.24.57.1, the Render edge).
+
+  THAT COMBINATION IS WORSE THAN NO DNS AT ALL. With no MX and an A record present, a sending
+  mail server falls back to the address record (RFC 5321 implicit MX) and tries to deliver to
+  the WEB SERVER on port 25, which does not answer SMTP. The sender then queues and retries for
+  days before giving up. So a student who writes to the address in the policy gets no
+  acknowledgement, no immediate rejection, and eventually a delayed bounce written in mail-server
+  language — days later, if their provider surfaces it at all. The failure looks, to a 13-year-
+  old, like being ignored.
+
+  IT IS NOT A CONFIG CHANGE. The registrar panel offers DNS records but no built-in forwarding,
+  so this needs an actual mail provider on the domain (Zoho's free tier or equivalent), MX
+  records pointed at it, and someone who reads the mailbox. The last of those is the real cost
+  and it is a staffing commitment, exactly as the ruling at :2499 said.
+
+  RELATED, AND THE SAME DOMAIN PROBLEM FROM THE OTHER SIDE: outbound mail does not use this
+  domain either. `EMAIL_FROM` defaults to `noreply@futurepathways.com` (email.ts:5) — a
+  different domain from the site — which is the open half of the password-reset entry at :2004.
+  Whoever sets up the mailbox should settle both directions at once rather than twice.
+
+THE SEQUENCE, and the order is the point:
+
+  1. THE MAILBOX. A mail provider on futurepath.ae, MX records, and a named person who reads
+     privacy@. Until this exists nothing downstream is worth building.
+  2. THE POLICY ADDRESS. Only once (1) is live: confirm the address in legal.json en/ar:20 and
+     :32 is the one that now receives, or change it to the one that does. Both locales, since
+     they drift independently.
+  3. THE PROFILE SURFACE. Then, and only then, expose the three endpoints — export, data
+     summary, delete — with the withdrawal contact beside them, in language a 13-18 year old
+     reads. This is the step that makes the rights real, and it is the step that must come last.
+
+  Doing (3) first is the specific failure to avoid. A student who clicks a delete button and a
+  student who writes to a dead address are in different positions only if someone is on the
+  other end; a request form with no recipient is a worse artifact than the current silence,
+  because it evidences a channel that was never there.
+
+CARRY THIS WITH IT: the licence-seat leak sits on this exact route. `DELETE /api/users/me`
+deletes the `organization_members` row and never decrements the school's `usedLicenses`, while
+the admin path does — see the entry above. Today that costs a seat per self-erasure and nobody
+notices because nothing in the product invites a student to self-erase. Step (3) is what turns
+it on at scale: the moment a Profile screen offers erasure to every student in a school, the
+school starts silently losing paid seats, and the entry above explains why the obvious `-1` is
+not the fix. FIX THE ACCOUNTING BEFORE SHIPPING THE SURFACE, not after.
+
+First flagged 2026-09-10. Blocked on the mailbox, which is not a code change.
+
+
 ### DECISION — the consent record outlives the school, and keeps an ex-admin's contact details  (recorded decision, not a finding)
 Recorded here because until now it existed only as a comment in a migration header
 (server/migrations/022_organization_consents.sql:23-31, echoed in `COMMENT ON TABLE`). The next
