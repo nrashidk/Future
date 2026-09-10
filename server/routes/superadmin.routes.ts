@@ -9,6 +9,7 @@ import { toPublicUser } from "@shared/userPublic";
 import type { User } from "@shared/schema";
 import { isOnetGrowthBand, growthOutlookFor, ONET_GROWTH_BANDS } from "@shared/growthBands";
 import * as fileStorage from "../services/fileStorage";
+import { isUniqueViolation } from "../utils/pgErrors";
 import Stripe from "stripe";
 
 // Initialize Stripe only if keys are configured
@@ -181,6 +182,53 @@ export async function classifyUnreconciledIntent(pi: Stripe.PaymentIntent): Prom
   //    local non-premium account (would upgrade). Same shape the Fix 2 webhook
   //    backstop already handles.
   return { ...base, ...resolved, class: "grantable_guest" };
+}
+
+/**
+ * A DUPLICATE CAREER TITLE IS A 409 THAT NAMES THE COLLISION.
+ *
+ * careers.title is UNIQUE (migration 020). Without this, a violation reaches the
+ * generic catch in the route and the superadmin gets `500 Failed to create
+ * career` — which does not say a title collided, does not say which career it
+ * collided with, and offers no way to converge: the same request retried
+ * produces the same 500 forever. That would turn a constraint fixing a data
+ * defect into a dead end in the UI, which is a bad trade.
+ *
+ * IT EXISTS BEFORE THE CONSTRAINT DOES, deliberately. Until migration 020 lands
+ * nothing can raise 23505 here, so this is inert on arrival — the same shape as
+ * the seed loop that caught 23505 against a table with no unique index
+ * (migration 010) and therefore caught nothing for every boot it ran. The
+ * difference is direction: that was a guard for a constraint that never came,
+ * this is a guard for one that lands next. The ordering is the point.
+ *
+ * `excludeId` is the rename path: PATCHing a career without changing its title
+ * re-writes the same value, and finding ITSELF is not a conflict.
+ *
+ * NO MACHINE-READABLE CODE, unlike the enrolment gate's CONSENT_REQUIRED. That
+ * one needed a code because the client had to recognise the case and render its
+ * own translated string; here the client already renders the server's message
+ * through serverErrorMessage and nothing branches. A code nothing reads is what
+ * the consent entry was filed about.
+ *
+ * Pure, and takes the catalogue rather than storage, so the decision can be
+ * pinned without a database.
+ */
+export function careerTitleConflict(
+  careers: Array<{ id: string; title: string }>,
+  title: unknown,
+  excludeId?: string,
+): { message: string; conflictingCareerId: string } | null {
+  if (typeof title !== "string" || !title.trim()) return null;
+
+  const existing = careers.find((c) => c.title === title && c.id !== excludeId);
+  if (!existing) return null;
+
+  return {
+    message:
+      `A career titled "${existing.title}" already exists. Career titles must be unique — ` +
+      `rename this one, or edit the existing career instead.`,
+    conflictingCareerId: existing.id,
+  };
 }
 
 export function registerSuperadminRoutes(app: Express) {
@@ -2007,6 +2055,10 @@ export function registerSuperadminRoutes(app: Express) {
       
       res.status(201).json(career);
     } catch (error) {
+      if (isUniqueViolation(error)) {
+        const conflict = careerTitleConflict(await storage.getAllCareers(), req.body?.title);
+        if (conflict) return res.status(409).json(conflict);
+      }
       console.error("Error creating career:", error);
       res.status(500).json({ message: "Failed to create career" });
     }
@@ -2052,6 +2104,18 @@ export function registerSuperadminRoutes(app: Express) {
       const updated = await storage.updateCareer(req.params.id, updates);
       res.json(updated);
     } catch (error) {
+      // A RENAME HITS THE CONSTRAINT THE SAME WAY A CREATE DOES, which is easy
+      // to miss: the collision is with a career the admin is not looking at.
+      // req.params.id is excluded so re-saving a career without touching its
+      // title cannot report a conflict with itself.
+      if (isUniqueViolation(error)) {
+        const conflict = careerTitleConflict(
+          await storage.getAllCareers(),
+          req.body?.title,
+          req.params.id,
+        );
+        if (conflict) return res.status(409).json(conflict);
+      }
       console.error("Error updating career:", error);
       res.status(500).json({ message: "Failed to update career" });
     }
