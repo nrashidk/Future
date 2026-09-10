@@ -3520,3 +3520,71 @@ Related: see the note appended to the GDPR-export entry above — fixing the enc
 the reversibility half of that decision's reasoning, without reopening it.
 
 First flagged 2026-09-09.
+
+### A match key loose enough to hit more than one row writes to whichever it hits last  (severity: HIGH — defect class, fixed twice in d279c3c)
+
+`quiz_questions` has no stable external ID, so both Arabic-content migrations matched on question
+text alone: `.where(eq(quizQuestions.question, item.question))`. Question text is not unique. When
+one key selects N rows, the loop writes to all N, and the last entry processed wins — silently, with
+no error, no mismatch, and no count that looks wrong. `alignArabicOptions` had the same defect one
+layer down: `new Map(bank.map(q => [q.question, q.options]))` let the later subject overwrite the
+earlier, so the source map answered lookups for a question it did not describe.
+
+**It produced two different failures in the same file, from the same cause.**
+
+**1. One corrupted row (found first, and the loud half).** "Which sentence is grammatically correct?"
+is two Grade 8 questions: English (subject-pronoun agreement, English options) and Arabic (word
+order, Arabic options). Both content entries updated both rows. The Arabic row survived by ordering
+luck — its own entry ran last. The English row ended up carrying the Arabic question's `options_ar`,
+`question_ar` and `explanation_ar` above its own English options, still scored against
+`correct_answer = "She and I went to the market."` An Arabic-reading student was shown a question
+about Arabic word order, four Arabic sentences, and an explanation for a different question: there
+was no path from what they could read to a correct answer. Unanswerable, not merely mislabelled.
+Repaired by `021_repair_shared_stem_arabic_desync.sql`.
+
+**2. One silently lost translation (found second, and the more instructive half).** The Grade 9–12
+content file carried TWO entries for "Which sentence correctly uses a compound sentence structure?"
+— one under Grade 9, one under Grade 10 — though the bank only has that question at English/Grade 9.
+Both were valid, competently written translations. Text-only matching pointed both at the same row,
+so the Grade 10 entry overwrote the Grade 9 one on every seed. Nothing was corrupted; a human's work
+was simply discarded, forever, with no trace.
+
+**Why the second one matters more.** The corrupted row was eventually visible — a reader could open
+it and see Arabic sentences under English options. The lost translation was invisible by
+construction: the surviving row looked entirely correct, because it WAS entirely correct, just not
+the version that was supposed to be there. Nothing in the DB, the logs, or the counts could
+distinguish "60 rows updated" from "60 rows updated, one of them twice." It surfaced only as a
+side effect of making the key precise — the new `(question, subject, grade)` key resolved the Grade
+10 entry to zero rows, which finally made the duplicate say something out loud. **A loose key does
+not just corrupt; it deletes, and the deletion is the quieter and less recoverable of the two.**
+
+Both had been live for months before anyone looked.
+
+**The general shape, for anything matching content to rows by a natural key:**
+- A match key that can select more than one row is a write-ordering bug waiting for a collision, not
+  merely an imprecise query. `.limit(1)` is worse than no limit, not better: it converts an
+  ambiguity into a silent arbitrary choice (this is what the Grade 9–12 apply function did).
+- The failure is invisible on the winning row. Only the losing row shows damage, and if both writes
+  are individually valid there is no damaged row at all.
+- Precision in the WHERE clause is the control. A downstream guard is not: gating the writes on
+  `aligned !== null` would have masked case 1 by coincidence — the wrong row also happened to fail
+  alignment — while still writing wrong content to any wrong row whose options DID align, and would
+  not have touched case 2 at all.
+- Ambiguity must be an outcome the code can report. Both apply functions now write NOTHING when a key
+  matches more than one row, and `alignArabicOptions` marks an ambiguous key `AMBIGUOUS` so it always
+  fails to align rather than resolving to whichever entry was flattened last.
+- Assert uniqueness in a test, not in review. `quizStoredOptions.test.ts` now checks that every one
+  of the 240 content entries resolves to exactly one bank question. That test is what would have
+  caught both of these on the day they were written, and it is the part worth copying to any other
+  content-to-row migration.
+
+Verified on prod 2026-09-10: the `(question, subject, grade)` sweep returns 0 collisions, so nothing
+reaches the new fail-closed branch and no row loses its Arabic content to it.
+
+**Still unaudited:** the other content migrations listed in `contentCoverage.ts` (careers, WEF
+skills, country sector categories, LLM narrative cache) match rows by their own natural keys. None
+has been checked for this. `source_type` on prod is currently 100% `system`, but LLM-generated and
+school-contributed questions bypass the bank entirely, so a future collision there would not be
+caught by the bank-uniqueness test above.
+
+First flagged 2026-09-10.
