@@ -2364,7 +2364,7 @@ traced.** Two instances, both corrected only when someone went and read the cons
   whose fallbacks each widen the scope rather than fail, so students silently sat a quiz drawn
   from the wrong bank and it was scored and stored as if correct. Worse than the entry said,
   and invisible in exactly the way the entry said would be noticed.
-- The job-market table (:2979). The entry said random numbers were a component of every match
+- The job-market table (:3003). The entry said random numbers were a component of every match
   score. They were a component of nothing — the consumer had been deleted ten months earlier
   in fc54470. Less bad than the entry said, and it named a line (matching.ts:315) that had
   never touched the data.
@@ -2974,6 +2974,30 @@ the mixed LTR/Arabic run described in bidi leak (2) above and should be eyeballe
 rendered Arabic landing page, not just read in the JSON.
 
 Recorded 2026-09-08.
+
+
+### Arabic unreviewed — the rewritten job-market feature card  (severity: low)
+The landing copy fix that closed the "real data" overclaim rewrote two Arabic strings,
+unreviewed:
+
+- `ar/landing.json` `features.marketTitle` — `نظرة النمو المهني`
+- `ar/landing.json` `features.marketDesc` — `مدى النمو المتوقع لكل مهنة، وفق توقعات مكتب
+  إحصاءات العمل الأمريكي (عبر O*NET)`
+
+The title deliberately reuses `ar/results.json` `growthOutlook` (`نظرة النمو`) so the landing
+card and the report name the same thing, and the description is built from that file's
+`growthSource` (`توقعات مكتب إحصاءات العمل الأمريكي 2024–2034 (عبر O*NET)`) with the vintage
+dropped, since a feature card is not the place to date a projection. So the vocabulary is
+borrowed from strings already in the product rather than invented — but the composition is new
+and nobody has read it.
+
+MIXED SCRIPT, same class as the instrument citations above: `O*NET` is kept in Latin because it
+is a source name to be looked up, and it carries the mixed LTR/Arabic run described in bidi
+leak (2). The asterisk inside `O*NET` sits adjacent to an RTL run, which the citation strings do
+not test — worth eyeballing in the rendered Arabic landing page specifically, not just read in
+the JSON.
+
+Recorded 2026-09-10.
 
 
 ### Job-market data feeding every match score is Math.random()  (severity: was HIGH, now LOW — the mechanism was wrong)
