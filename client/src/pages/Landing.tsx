@@ -196,9 +196,16 @@ export default function Landing() {
                 place and keeps the ordinal out of translatable content, where it
                 was never content.
 
-                <bdi> isolates the numeral from the surrounding bidi paragraph,
-                and me-2 is margin-inline-end, so the number sits before the
-                title in both directions.
+                <bdi> isolates the numeral from the surrounding bidi paragraph.
+                THE SPACING LIVES ON THE SPAN, NOT THE BDI, and that is not a
+                stylistic choice: margin-inline-end resolves against the
+                element's OWN direction, and a <bdi> holding only a digit
+                resolves to LTR (a digit is not a strong character). me-2 on the
+                bdi therefore computed to margin-RIGHT on an RTL page — the gap
+                landed on the outer edge and the numeral touched the title. The
+                span inherits the page direction, so its me-2 is the left margin
+                in Arabic and the right margin in English, which is the gap that
+                was wanted. Any logical property put on a bdi has this hazard.
 
                 THE PERIOD IS ENGLISH-ONLY, and that is not a rendering
                 workaround — see stepMark above. */}
@@ -208,7 +215,7 @@ export default function Landing() {
                   <BookOpen className="w-8 h-8 text-primary" />
                 </div>
                 <h3 className="text-2xl font-bold mb-3">
-                  <bdi className="text-primary me-2">{stepMark(1)}</bdi>
+                  <span className="text-primary me-2"><bdi>{stepMark(1)}</bdi></span>
                   {t("howItWorks.step1Title")}
                 </h3>
                 <p className="text-muted-foreground font-body">
@@ -223,7 +230,7 @@ export default function Landing() {
                   <Target className="w-8 h-8 text-primary" />
                 </div>
                 <h3 className="text-2xl font-bold mb-3">
-                  <bdi className="text-primary me-2">{stepMark(2)}</bdi>
+                  <span className="text-primary me-2"><bdi>{stepMark(2)}</bdi></span>
                   {t("howItWorks.step2Title")}
                 </h3>
                 <p className="text-muted-foreground font-body">
@@ -238,7 +245,7 @@ export default function Landing() {
                   <TrendingUp className="w-8 h-8 text-primary" />
                 </div>
                 <h3 className="text-2xl font-bold mb-3">
-                  <bdi className="text-primary me-2">{stepMark(3)}</bdi>
+                  <span className="text-primary me-2"><bdi>{stepMark(3)}</bdi></span>
                   {t("howItWorks.step3Title")}
                 </h3>
                 <p className="text-muted-foreground font-body">
