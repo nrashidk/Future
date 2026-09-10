@@ -804,8 +804,22 @@ export default function Profile() {
                       // ordered by createdAt, and a draft started in January but
                       // finished in March would print out of sequence against the
                       // row above it. This is when the student took it.
+                      //
+                      // WITH THE TIME, because the date alone does not separate
+                      // two retakes taken on one day: same grade, same date, same
+                      // buttons — two cards distinguishable only by which one
+                      // carries the Latest badge, and no way at all to tell the
+                      // second from the third. A sequence marker ("#2 of 3") was
+                      // the alternative and is worse: it invents an ordinal the
+                      // system does not store, it has to be recomputed whenever
+                      // the list is filtered, and it would compete with the
+                      // Latest badge for the same job. The timestamp is a fact
+                      // already on the row.
                       const takenOn = new Date(assessment.createdAt)
-                        .toLocaleDateString(language === 'ar' ? 'ar-AE' : 'en-US');
+                        .toLocaleString(language === 'ar' ? 'ar-AE' : 'en-US', {
+                          year: 'numeric', month: 'numeric', day: 'numeric',
+                          hour: 'numeric', minute: '2-digit',
+                        });
 
                       // THE SAME PREDICATE THE ASSESSMENT PAGE RESUMES ON, imported
                       // rather than restated — the old list-wide button gated on
