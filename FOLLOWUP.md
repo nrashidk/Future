@@ -4259,6 +4259,84 @@ caught by the bank-uniqueness test above.
 
 First flagged 2026-09-10.
 
+### LIMIT and OFFSET with no ORDER BY — paging that can repeat and skip rows  (severity: LOW — latent, but the endpoint advertises it)
+Found by the sweep that closed the tie-break entry below, and filed rather than fixed because
+nothing first-party exercises it yet.
+
+`getQuizQuestionsByFilters` (storage.ts:1352) and `getQuizQuestions` (storage.ts:1398) both apply
+`.limit()` and `.offset()` to a `SELECT` with **no `ORDER BY`**. That is a strictly worse shape
+than the tie-break defect below. A tie-break decides the order of rows you were going to get
+either way; `LIMIT` without `ORDER BY` decides WHICH ROWS YOU GET AT ALL, and `OFFSET` paging over
+an undefined order can return the same row on two pages and never return another — silently, with
+no error and no way to notice from the response.
+
+`GET /api/admin/questions` (admin.routes.ts:118-131) reads `limit` and `offset` straight from the
+query string and passes them through. So the endpoint advertises paging it cannot perform
+correctly.
+
+NOT LIVE, and that is the only reason this is LOW. No first-party caller pages: the admin UI
+(Admin.tsx:70-82) sets `countryId`, `curriculum`, `subject` and `grade` and never `limit` or
+`offset`, so it fetches the whole filtered set in one request. The defect is waiting for the first
+person who adds pagination to a growing question bank — which is exactly when it stops being
+noticeable, because a reviewer paging through a few hundred questions has no way to tell a
+repeated row from one they saw a page ago.
+
+THE REVIEW HAZARD IS LIVE, THOUGH, AND IS THE HALF WORTH ACTING ON SOONER. With no `ORDER BY` at
+all, the admin question list renders in whatever order Postgres returns — which moves when a
+question is edited, since an UPDATE appends a new tuple version to the end of the heap. So the
+list reshuffles as it is worked on: an admin reviewing a subject's questions cannot rely on
+position, cannot tell whether they have seen a row, and the question they just edited jumps
+somewhere else. For a question bank that is reviewed by hand, an arbitrary order is not a
+cosmetic complaint.
+
+FIX SHAPE (described, not applied): give both queries a deterministic `ORDER BY` before anyone
+pages them — subject, then grade, then id is the ordering a reviewer would want, and id alone is
+enough to make paging correct. `careers_onet_code_idx` is the precedent for adding an index if
+the ordering needs one. Doing this also fixes the review hazard, which is why it is one change
+rather than two.
+
+First flagged 2026-09-10.
+
+
+### careers.title is unique in practice and not by constraint  (severity: LOW — a total order resting on data, not schema)
+The tie-break fixed below orders tied careers by `careers.title`, and that key is only a TOTAL
+order because the catalogue happens to contain no duplicate titles. Verified against the seed:
+all 68 careers have distinct titles, and distinct non-blank `onetCode`s. Neither is enforced.
+
+`title` is `text().notNull()` with no unique constraint (shared/schema.ts:548), and
+`POST /api/superadmin/careers` (superadmin.routes.ts:1977) requires it to be non-empty and checks
+nothing else. So a superadmin can create a second "Data Scientist" today, and the moment they do,
+the tie-break has no second key and those two careers fall back to input order — which is
+`getAllCareers()`, which is heap order. The defect the tie-break closed would be reopened for
+exactly that pair, silently.
+
+WHY IT IS LOW AND NOT MEDIUM: the residual non-determinism is invisible. Two careers with the same
+title are indistinguishable in a report that shows the title, so a student could not perceive the
+swap even though it happened. And a duplicate title is a catalogue defect in its own right that
+someone would notice for other reasons.
+
+WHY IT IS WORTH CLOSING ANYWAY: a correctness property resting on "the data currently happens to
+be like this" is one insert away from being false, and nothing would announce it. A UNIQUE
+constraint turns the tie-break's total order into a guarantee of the schema rather than an
+accident of the seed.
+
+ITS OWN SMALL PIECE OF WORK, and not a one-line migration:
+  - Check production for existing duplicates first. The seed is clean; the live catalogue may have
+    acquired a duplicate through the superadmin create path, and `ADD CONSTRAINT` fails loudly on
+    an existing violation. That failure is the good outcome — but it should be discovered
+    deliberately rather than during a deploy.
+  - Decide the scope. `UNIQUE (title)` is the simple form. If careers are ever to be per-country —
+    `countryId` already exists on the table — the right constraint is `UNIQUE (country_id, title)`,
+    and getting that wrong means dropping and re-adding it later.
+  - The create endpoint should return a 409 naming the collision rather than surfacing a Postgres
+    constraint error, or a superadmin gets a raw driver message.
+  - `onetCode` deserves the same treatment where non-null (`UNIQUE` allows multiple NULLs in
+    Postgres, so a partial unique index is not even required), but that is a separate decision
+    about whether two careers may legitimately share an O*NET occupation.
+
+First flagged 2026-09-10.
+
+
 ### An exact score tie is resolved by Postgres heap order, so the same student can get different reports  (severity: MEDIUM — non-determinism in a graded output)
 
 `generateRecommendations` picks the report's careers with `sort` then `slice`
@@ -4326,6 +4404,52 @@ were separated by less than the scorer can meaningfully resolve. A 71 and a 71 p
 ranked list asserts an ordering the model does not have.
 
 First flagged 2026-09-10.
+
+FIXED 2026-09-10 in two commits, deliberately separable.
+
+  adb1c9c  the tie-break. `compareMatches` — score descending, then TITLE ascending, compared
+           BYTEWISE (`localeCompare` uses the runtime's default locale and ICU collation, which
+           would reintroduce the cross-environment instability the key exists to remove). In the
+           comparator rather than an ORDER BY on getAllCareers(), because matching.gate.test.ts
+           drives this through a fake storage returning a plain array — a query-level ordering
+           would be untested forever while five other callers paid for a guarantee only this one
+           needs. Title and not `career.id`, which is a per-database uuid that would tie
+           differently on staging and prod; not `onetCode`, which is stable and unique across all
+           68 careers but nullable at the column. The two SQL orderings with the same defect were
+           fixed alongside: storage.ts:3984 and :4195 both ordered by score alone and then
+           LIMITed, so heap order decided a student's Career Journey trajectory and the "top
+           career" a school sees.
+
+  194a22f  the cause of most of the ties. The sort read the 1-dp-rounded score, so two careers
+           0.04 apart arrived at the tie-break as equals and were resolved alphabetically —
+           discarding a real preference and substituting one the scorer never expressed. It now
+           orders on `overallScoreRaw`, carried for ordering only and neither displayed nor
+           persisted.
+
+MEASURED before committing the second, 4000 simulated assessments against the real catalogue and
+the real pipeline, the same seeded trials run through both comparators and diffed:
+
+| tier | report changed | different career | reordered only | top match moved |
+|---|---|---|---|---|
+| free (2000) | 2.40% | 1.00% | 1.40% | 1.40% |
+| premium (2000) | 13.40% | 2.00% | 11.40% | 1.00% |
+
+Free lands near the 1.6% prior from the vision work, which was measured on free reports. Premium
+does not, for a structural reason rather than an alarming one: five slots means four adjacent
+pairs instead of one, and premium scores over five components rather than three, so near-ties are
+much more common. Nearly all of it is resequencing within the same five careers. The simulation
+samples subjects and interests uniformly and real students do not, so the rates describe the
+mechanism rather than forecasting production.
+
+NO VERSION BUMP for either, per the rule at matching.ts:822 — ordering is on its DO NOT list, no
+score moved, and no golden fixture moved. Bumping would assert that scores changed and make every
+existing row read as stale against a new algorithm number, which is the false-staleness failure
+the provenance comment warns about.
+
+STILL OPEN, and now sharper rather than resolved: the report can show two careers at 72.1 in an
+order the printed numbers do not explain. They are not equal — they only print equal. That is
+the "worth deciding alongside it" question above, and ordering on the raw score has made it
+visible rather than answered it.
 
 ## DIVERSITY CONSTRAINT ON CAREER MATCHES — DECIDED 2026-09-10, NO CHANGE
 
