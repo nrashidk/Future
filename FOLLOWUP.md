@@ -2001,7 +2001,7 @@ Three checkable points:
 
 First flagged 2026-09-08.
 
-### Password reset is dead in production — RESEND_API_KEY unset, then FROM_EMAIL points off-domain  (severity: HIGH → MEDIUM, key set 2026-09-08, flow still unverified)
+### Password reset — VERIFIED WORKING IN PRODUCTION 2026-09-08; the code DEFAULT still points at a domain nobody owns  (severity: was HIGH, now MEDIUM — and the MEDIUM is about unconfigured environments, not production)
 Render boot log, 2026-09-08:
 
     ⚠️  Optional environment variables not set:
@@ -2079,6 +2079,42 @@ is on the way. This lasts until the sending domain is verified in Resend — it 
 watch for, it is the current behaviour if the domain is unverified. Verify the domain first,
 then send one real reset and confirm arrival; do not infer success from the absence of an
 error, because the absence of a visible error is exactly the symptom.
+
+CORRECTED 2026-09-10 — PRODUCTION IS NOT BROKEN. Everything from "STILL OPEN" onwards describes
+an environment, and it is not the deployed one.
+
+The flow was exercised end to end on 2026-09-08: a real reset arrived from
+`noreply@futurepath.ae`, was not spam-foldered, and its link completed the reset. So EMAIL_FROM
+IS set on Render, the sending domain IS verified in Resend, and password reset works. DNS
+confirms the sending setup independently (checked 2026-09-10): `resend._domainkey.futurepath.ae`
+carries a DKIM key, `_dmarc.futurepath.ae` is `v=DMARC1; p=none;`, and `send.futurepath.ae`
+holds Resend's SPF and its own bounce MX (`feedback.forge.rmta.net`).
+
+THREE CLAIMS ABOVE ARE SUPERSEDED. Named rather than deleted, because the reasoning is sound and
+only its target moved:
+
+  - "the sending domain is not verified in Resend" — false. It is verified.
+  - "a reset may still fail, now at the API rather than at construction" — false in production.
+  - "a locked-out org_admin today gets the worst of both: no email, and a screen telling them
+    one is on the way" — not the production behaviour. They get the email.
+
+WHAT REMAINS TRUE, AND IS A REAL DEFECT: the DEFAULT at email.ts:5 is still `Future Pathways
+<noreply@futurepathways.com>` — a domain nobody owns — and .env.example:90 documents it as the
+default. Production overrides it with an env var. Nothing else does. So any environment that
+does not set EMAIL_FROM sends from an unverified domain and Resend refuses it: a fresh deploy, a
+staging service, a new developer's local run.
+
+AND THE SILENT-FAILURE ANALYSIS ABOVE IS NOT WRONG, IT IS RE-AIMED. `isEmailConfigured()` is
+`!!resend`, so in exactly those unconfigured environments the gate passes, the send 403s, the
+route holds its response to keep enumeration closed, and the user is shown the green "Check Your
+Email" card for mail that was never accepted. That is what every environment inheriting the
+default does, and it is precisely why the default is worth fixing rather than tolerating — the
+failure it produces is invisible by construction.
+
+FIX AT THE DEFAULT: either require EMAIL_FROM with no fallback (env-validation.ts:44-53 already
+asserts SESSION_SECRET's length and DB_ENCRYPTION_KEY's format, so the pattern exists), or
+default it to the domain that is actually verified. A default nobody owns cannot be correct in
+any environment. The separate question of promoting RESEND_API_KEY to REQUIRED is unchanged.
 
 ### Nine .ts content migrations run at boot behind an unguarded prefix that can skip all of them  (severity: high)
 server/migrations/career-arabic-content.ts supplies Arabic titles, descriptions, required
@@ -3411,10 +3447,29 @@ record (216.24.57.1, the Render edge).
   records pointed at it, and someone who reads the mailbox. The last of those is the real cost
   and it is a staffing commitment, exactly as the ruling at :2499 said.
 
-  RELATED, AND THE SAME DOMAIN PROBLEM FROM THE OTHER SIDE: outbound mail does not use this
-  domain either. `EMAIL_FROM` defaults to `noreply@futurepathways.com` (email.ts:5) — a
-  different domain from the site — which is the open half of the password-reset entry at :2004.
-  Whoever sets up the mailbox should settle both directions at once rather than twice.
+  OUTBOUND IS FINE, AND THIS ENTRY FIRST CLAIMED OTHERWISE. As filed it said "outbound mail does
+  not use this domain either", and that was wrong in a way worth naming rather than quietly
+  editing: it read the code default at email.ts:5 and asserted a deployed behaviour from it,
+  without checking what Render sets. EMAIL_FROM is set in production and password reset works
+  end to end — verified 2026-09-08 by a real reset that arrived from `noreply@futurepath.ae`,
+  was not spam-foldered, and whose link completed. Corrected status at :2004.
+
+  WHAT IS TRUE IS THE ASYMMETRY, and it is the useful part for step (1) below. The domain is
+  configured for SENDING and not for RECEIVING, which is an ordinary state rather than a broken
+  one: `resend._domainkey.futurepath.ae` carries a DKIM key, `_dmarc.futurepath.ae` is
+  `v=DMARC1; p=none;`, and `send.futurepath.ae` holds Resend's SPF plus its own MX for bounce
+  feedback (`feedback.forge.rmta.net`). The APEX has no MX and no TXT at all. Verified
+  2026-09-10.
+
+  SO THE INBOUND WORK IS ADDITIVE, WITH TWO THINGS NOT TO DISTURB. The mailbox provider's MX
+  records go on the APEX, where there are none today. Do not touch `send.futurepath.ae` — that
+  MX is Resend's bounce path, not a mailbox — and do not disturb `resend._domainkey`. If the new
+  provider asks for an apex SPF record, note that the apex has none now and that Resend does not
+  depend on one (its Return-Path sits on `send.`), so an apex SPF would be added for the new
+  provider alone and should list only what that provider needs.
+
+  Pairing the two directions is still right — one person, one DNS panel, one afternoon — just
+  not because both are failing. Only inbound is.
 
 THE SEQUENCE, and the order is the point:
 
