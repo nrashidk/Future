@@ -92,8 +92,19 @@ describe("calculateVisionScore — floor", () => {
   });
 });
 
+// Every test below runs WITHOUT skill data (context() supplies no
+// sectorWefSkillMap), so alignment is null and the score is the category-only
+// one. At SCORING_ALGORITHM_VERSION 4 that means membershipBase(relevance), NOT
+// the raw seeded relevance: membership is rebased into [15, 85] so the ±15 skill
+// swing always has room (see membershipBase in matching.ts). Hence
+//
+//     score = 40 + 60 * (membershipBase(seeded) / 100) * rankFactor
+//     membershipBase(r) = 15 + 0.7r
+//
+// Seeded 50 is the fixed point (base 50), which is why the single-sector test
+// below is the one number in this file that did not move.
 describe("calculateVisionScore — relevance drives the score, rank modifies it", () => {
-  it("applies score = 40 + 60 * (relevance/100) * rankFactor", () => {
+  it("applies score = 40 + 60 * (rebased relevance/100) * rankFactor", () => {
     const map = buildSectorCategoryMap(
       [
         row({ ...TECH, careerCategory: "Technology", relevance: 100 }),
@@ -104,9 +115,13 @@ describe("calculateVisionScore — relevance drives the score, rank modifies it"
     );
 
     // rankFactor = 1 - 0.15 * (i / (n-1)) for n = 3 => 1.0, 0.925, 0.85
-    expect(calculateVisionScore(context(map), career("a", "Technology"), COMPONENT)!.score).toBe(100);
-    expect(calculateVisionScore(context(map), career("b", "Health"), COMPONENT)!.score).toBeCloseTo(95.5, 5);
-    expect(calculateVisionScore(context(map), career("c", "Hospitality"), COMPONENT)!.score).toBeCloseTo(91, 5);
+    // Seeded 100 => membershipBase 85, so the top-ranked sector gives
+    // 40 + 60*0.85*1.0 = 91, not 100. A score of 100 now requires maximal
+    // membership AND maximal skill alignment, which is the whole point of the
+    // rebase: the ceiling has to be earned twice over, not by membership alone.
+    expect(calculateVisionScore(context(map), career("a", "Technology"), COMPONENT)!.score).toBe(91);
+    expect(calculateVisionScore(context(map), career("b", "Health"), COMPONENT)!.score).toBeCloseTo(87.175, 5);
+    expect(calculateVisionScore(context(map), career("c", "Hospitality"), COMPONENT)!.score).toBeCloseTo(83.35, 5);
   });
 
   it("lets a strong lower-ranked sector beat a weak top-ranked one (rank is only +/-15%)", () => {
@@ -117,20 +132,26 @@ describe("calculateVisionScore — relevance drives the score, rank modifies it"
       ],
       COUNTRY,
     );
-    // Tourism is last-ranked but far more relevant: 40 + 60*0.9*0.85 = 85.9
+    // Tourism is last-ranked but far more relevant. Rebased: base(20) = 29 gives
+    // 0.29 * 1.00 = 0.290, base(90) = 78 gives 0.78 * 0.85 = 0.663, so Tourism
+    // still wins by a wide margin => 40 + 60*0.663 = 79.78.
     const result = calculateVisionScore(context(map), career("a", "Admin"), COMPONENT)!;
-    expect(result.score).toBeCloseTo(85.9, 5);
+    expect(result.score).toBeCloseTo(79.78, 5);
     expect(result.reasoning).toContain("Tourism");
   });
 
   it("gives a single-sector country rankFactor 1 (no divide-by-zero)", () => {
     const map = buildSectorCategoryMap([row({ ...TECH, careerCategory: "Technology", relevance: 50 })], COUNTRY);
+    // 50 is membershipBase's fixed point (15 + 0.7*50 = 50), so this expectation
+    // is unchanged across version 4. Deliberately left as the one anchor in this
+    // file that does not depend on the rebase.
     expect(calculateVisionScore(context(map), career("a", "Technology"), COMPONENT)!.score).toBe(70);
   });
 
   it("matches career.category case- and whitespace-insensitively", () => {
     const map = buildSectorCategoryMap([row({ ...TECH, careerCategory: "Technology", relevance: 80 })], COUNTRY);
-    expect(calculateVisionScore(context(map), career("a", "  technology "), COMPONENT)!.score).toBe(88);
+    // base(80) = 71 => 40 + 60*0.71 = 82.6
+    expect(calculateVisionScore(context(map), career("a", "  technology "), COMPONENT)!.score).toBe(82.6);
   });
 
   it("does not substring-match: biotechnology is not technology", () => {
@@ -152,18 +173,20 @@ describe("calculateVisionScore — OVERRIDE-EXCLUSIVE", () => {
     const map = buildSectorCategoryMap(rows, COUNTRY);
     const result = calculateVisionScore(context(map), career("legacy-it", "Technology"), COMPONENT)!;
 
-    // Override path: 40 + 60 * 0.30 * 0.85 (Healthcare, last of the 2 sectors present) = 55.3
-    expect(result.score).toBeCloseTo(55.3, 5);
+    // Override path: base(30) = 36, Healthcare is last of the 2 sectors present
+    // => 40 + 60 * 0.36 * 0.85 = 58.36
+    expect(result.score).toBeCloseTo(58.36, 5);
     expect(result.reasoning).toContain("Healthcare");
-    // The naive merge would have returned 100 via the Technology category rule.
-    expect(result.score).not.toBe(100);
+    // The naive merge would have returned the Technology category rule's 91.
+    expect(result.score).not.toBeCloseTo(91, 5);
     expect(result.reasoning).not.toContain("Advanced Technology");
   });
 
   it("still applies the category rule to other careers in the same category", () => {
     const map = buildSectorCategoryMap(rows, COUNTRY);
     const result = calculateVisionScore(context(map), career("ai-engineer", "Technology"), COMPONENT)!;
-    expect(result.score).toBe(100);
+    expect(result.score).toBe(91); // base(100) = 85, rankFactor 1
+
     expect(result.reasoning).toContain("Advanced Technology");
   });
 
@@ -175,8 +198,8 @@ describe("calculateVisionScore — OVERRIDE-EXCLUSIVE", () => {
       ],
       COUNTRY,
     );
-    // Healthcare 90 * 0.85 = 0.765 beats Technology 40 * 1.0
-    expect(calculateVisionScore(context(map), career("c1", "Anything"), COMPONENT)!.score).toBeCloseTo(85.9, 5);
+    // Healthcare base(90) = 78 * 0.85 = 0.663 beats Technology base(40) = 43 * 1.0
+    expect(calculateVisionScore(context(map), career("c1", "Anything"), COMPONENT)!.score).toBeCloseTo(79.78, 5);
   });
 
   it("falls back to the floor when every override row is zero-relevance", () => {
@@ -191,7 +214,7 @@ describe("calculateVisionScore — OVERRIDE-EXCLUSIVE", () => {
     // through to its category rule. Documented behaviour: use no row, not a 0 row,
     // to mean "not relevant"; use a low relevance to demote.
     expect(map.byCareer.has("c1")).toBe(false);
-    expect(calculateVisionScore(context(map), career("c1", "Technology"), COMPONENT)!.score).toBe(100);
+    expect(calculateVisionScore(context(map), career("c1", "Technology"), COMPONENT)!.score).toBe(91);
   });
 });
 

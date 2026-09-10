@@ -36,10 +36,13 @@
 import { describe, it, expect } from "vitest";
 import {
   calculateSubjectsScore,
+  calculateVisionScore,
   SCORING_ALGORITHM_VERSION,
   type MatchingContext,
+  type SectorCategoryMap,
+  type SectorWefSkillMap,
 } from "./matching";
-import type { AssessmentComponent, Career } from "../../shared/schema";
+import type { AssessmentComponent, Career, Country } from "../../shared/schema";
 
 const COMPONENT = { key: "subjects", weight: 25 } as unknown as AssessmentComponent;
 
@@ -125,6 +128,151 @@ const GOLDEN: Fixture[] = [
   },
 ];
 
+// ---------------------------------------------------------------------------
+// VISION FIXTURES — added 2026-09-10 with SCORING_ALGORITHM_VERSION 4.
+//
+// WHY THEY DID NOT EXIST, which is the more useful half. Until this commit this
+// file pinned SIX fixtures and all six were calculateSubjectsScore. The rule
+// stated in matching.ts is "bump SCORING_ALGORITHM_VERSION when the golden
+// fixtures move" — and the vision saturation defect, which collapsed 27 of 68
+// careers onto a single relevance and gave five different space careers the same
+// 99.0, moved NOT ONE of them. The change detector was pointed at one of five
+// calculators, and the defect landed in one of the other four.
+//
+// interests, riasec and cvq still have no fixtures. For those three the bump
+// rule remains unenforceable and a scoring change to them will pass this file in
+// silence. That is a known, recorded gap, not an oversight — see FOLLOWUP.md.
+//
+// THE FIXTURES' PROOF OF WORK, same shape as the subjects table above: five of
+// the six produce a DIFFERENT score under the pre-version-4 algorithm (additive
+// swing onto raw relevance, clamped at 100; alignment band ±12).
+//
+//   fixture                                        pre-v4    today
+//   V1 seeded 85, perfect fit                       100.0     93.7
+//   V2 seeded 95, perfect fit                       100.0     97.9
+//   V3 seeded 85, catalog-average fit                91.0     84.7
+//   V4 seeded 95, catalog-average fit                97.0     88.9
+//   V5 seeded 100, perfect fit — CONTROL            100.0    100.0  (same)
+//   V6 seeded 100, no skill data                    100.0     91.0
+//
+// V1 and V2 are the pair this file exists for. Pre-v4 they are BOTH 100.0: two
+// careers the seed deliberately separated by ten relevance points, scoring
+// identically. A fixture table containing them would have failed on the day the
+// saturation shipped. V5 is the control that shows the ceiling was not simply
+// lowered — 100 is still reachable, but now only by a career that is both
+// maximally seeded AND maximally aligned, which no real career is.
+// ---------------------------------------------------------------------------
+
+const VISION_COMPONENT = { key: "vision", weight: 30 } as unknown as AssessmentComponent;
+const SECTOR_ID = "sector-fixture";
+const SKILL_ID = "skill-fixture";
+/** Catalog mean for the single synthetic skill. Alignment is centred on this. */
+const SKILL_MEAN = 50;
+
+/**
+ * One sector, so rankFactor is 1 and score reduces to 40 + 0.6 * relevance.
+ *
+ * `affinity` drives the alignment: raw = affinity - SKILL_MEAN, and
+ * alignment = (raw - LO) / (HI - LO). So affinity 66 => raw +16 => alignment 1.0
+ * under the current ±16 band (and >1, clamped to 1.0, under the old ±12 one —
+ * which is what makes the pre-v4 column above directly comparable). affinity 50
+ * => raw 0 => alignment 0.5, exactly catalog-average.
+ */
+function visionContext(relevance: number, affinity: number | null): MatchingContext {
+  const sectorCategoryMap: SectorCategoryMap = {
+    sectors: new Map([[SECTOR_ID, { name: "Fixture Sector", rankFactor: 1 }]]),
+    byCategory: new Map([["fixture", [{ sectorId: SECTOR_ID, relevance }]]]),
+    byCareer: new Map(),
+  };
+  const careerWefAffinities = affinity === null
+    ? undefined
+    : new Map([["fixture", [{ wefSkillId: SKILL_ID, affinityScore: affinity }]]]);
+  const sectorWefSkillMap: SectorWefSkillMap | undefined = affinity === null
+    ? undefined
+    : {
+        bySector: new Map([[SECTOR_ID, [{ wefSkillId: SKILL_ID, importance: 100 }]]]),
+        catalogMeans: new Map([[SKILL_ID, SKILL_MEAN]]),
+      };
+
+  return {
+    assessment: { assessmentType: "basic" },
+    careers: [],
+    activeComponents: [VISION_COMPONENT],
+    careerAffinities: new Map(),
+    jobMarketTrends: new Map(),
+    userCountry: { name: "Fixture Country" } as unknown as Country,
+    sectorCategoryMap,
+    sectorWefSkillMap,
+    careerWefAffinities,
+  } as unknown as MatchingContext;
+}
+
+const visionCareer = { id: "fixture", title: "fixture", category: "Fixture" } as unknown as Career;
+
+interface VisionFixture {
+  id: string;
+  what: string;
+  /** Seeded relevance, as a country_sector_categories row states it. */
+  relevance: number;
+  /** Career affinity for the single synthetic skill; null = no skill data at all. */
+  affinity: number | null;
+  /** Locked score. Moving this REQUIRES bumping SCORING_ALGORITHM_VERSION. */
+  expected: number;
+  /** Score the pre-version-4 algorithm gave, so the proof of work stays checkable. */
+  preV4: number;
+}
+
+const GOLDEN_VISION: VisionFixture[] = [
+  {
+    id: "V1",
+    what: "seeded 85 with perfect fit — half of the pair that used to collapse",
+    relevance: 85,
+    affinity: 66,
+    expected: 93.7,
+    preV4: 100,
+  },
+  {
+    id: "V2",
+    what: "seeded 95 with perfect fit — the other half; ten seeded points must survive",
+    relevance: 95,
+    affinity: 66,
+    expected: 97.9,
+    preV4: 100,
+  },
+  {
+    id: "V3",
+    what: "seeded 85 at catalog-average fit — the rebase, with no modulation applied",
+    relevance: 85,
+    affinity: SKILL_MEAN,
+    expected: 84.7,
+    preV4: 91,
+  },
+  {
+    id: "V4",
+    what: "seeded 95 at catalog-average fit",
+    relevance: 95,
+    affinity: SKILL_MEAN,
+    expected: 88.9,
+    preV4: 97,
+  },
+  {
+    id: "V5",
+    what: "CONTROL — 100 is still reachable, by maximal membership AND maximal fit",
+    relevance: 100,
+    affinity: 66,
+    expected: 100,
+    preV4: 100,
+  },
+  {
+    id: "V6",
+    what: "no skill data — degrades to the rebased membership, not to the raw seeded value",
+    relevance: 100,
+    affinity: null,
+    expected: 91,
+    preV4: 100,
+  },
+];
+
 const RULE =
   "\n\n  A golden scoring fixture moved." +
   "\n  If you changed a calculator on purpose: bump SCORING_ALGORITHM_VERSION in" +
@@ -159,6 +307,61 @@ describe("golden scoring fixtures", () => {
         "otherwise this file cannot detect the class of change it exists for.",
     ).toBe(5);
     expect(movers.map((f) => f.id)).toEqual(["A", "B", "C", "D", "E"]);
+  });
+
+  for (const f of GOLDEN_VISION) {
+    it(`[${f.id}] ${f.what}`, () => {
+      const actual = calculateVisionScore(
+        visionContext(f.relevance, f.affinity),
+        visionCareer,
+        VISION_COMPONENT,
+      )?.score;
+      expect(
+        actual !== undefined ? Math.round(actual * 10) / 10 : actual,
+        `fixture ${f.id} (${f.what})${RULE}`,
+      ).toBe(f.expected);
+    });
+  }
+
+  it("[V1/V2] two careers ten seeded relevance points apart do not score the same", () => {
+    // THE REGRESSION. Under version 3 these were both 100.0 — a career the seed
+    // pitched at 85 ("the claim is a research one", server/seed.ts:256) and one
+    // pitched at 95 ("the research half of the sector", :224) reached the student
+    // as one number. Asserted separately from the table because a table can be
+    // edited into agreement without anyone noticing what was lost.
+    const [v1, v2] = ["V1", "V2"].map((id) => {
+      const f = GOLDEN_VISION.find((g) => g.id === id)!;
+      return calculateVisionScore(
+        visionContext(f.relevance, f.affinity),
+        visionCareer,
+        VISION_COMPONENT,
+      )!.score;
+    });
+    expect(v1).not.toBe(v2);
+    expect(v2).toBeGreaterThan(v1); // and in the direction the seed asked for
+  });
+
+  it("the vision fixtures would have caught the saturation — five of six move across version 4", () => {
+    // Same proof of work as the subjects assertion above. A vision table whose
+    // fixtures all agree with the pre-v4 algorithm would pass forever while
+    // detecting nothing, so the count is pinned rather than left implicit.
+    const movers = GOLDEN_VISION.filter((f) => Math.abs(f.expected - f.preV4) > 0.05);
+    expect(
+      movers.length,
+      "Vision fixtures must include cases that DIFFER under the pre-version-4 " +
+        "algorithm, otherwise this file cannot detect the class of change it exists for.",
+    ).toBe(5);
+    expect(movers.map((f) => f.id)).toEqual(["V1", "V2", "V3", "V4", "V6"]);
+  });
+
+  it("RECORDED GAP — three of the five calculators still have no fixtures", () => {
+    // Not an assertion about scoring; an assertion about this file's coverage, so
+    // that "the golden fixtures did not move" keeps meaning something. subjects
+    // and vision are covered. interests, riasec and cvq are not: a change to any
+    // of them moves no fixture here and the bump rule cannot be enforced for it.
+    // When one gains fixtures, shorten this list in the same commit.
+    const UNCOVERED = ["interests", "riasec", "cvq"];
+    expect(UNCOVERED).toEqual(["interests", "riasec", "cvq"]);
   });
 
   it("SCORING_ALGORITHM_VERSION is a positive integer that only ever moves forward", () => {

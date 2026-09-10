@@ -863,8 +863,25 @@ function calculateCareerMatch(
  *      and those versions are listed so a NULL row can be dated, not claimed.
  *   3  2026-09-08. First version actually recorded. No scoring change from 2 —
  *      the number moves because the recording starts, not because the maths did.
+ *   4  2026-09-10. VISION de-saturated. Two stacked ceilings were erasing the
+ *      seed's calibration: the alignment band clipped 15 of 154 career × sector
+ *      pairs to exactly 0 or 1, and the modulated relevance was then clamped at
+ *      100 for 27 of 68 careers. Fix: band widened to ±16, and membership
+ *      rebased into [15, 85] by membershipBase() so the ±15 fit swing always has
+ *      room. Every career's vision score moves (mean −5.61, range −8.47 to
+ *      −0.62); exact ties fall from 24 careers in 7 blocks to 2 in 1. No sector
+ *      attribution changes and no reasoning sentence changes. THIS is the bump
+ *      the fixture rule above could not have demanded — see the note below.
+ *
+ * A LIMIT OF THE RULE, found by the defect that produced version 4. "Bump when
+ * the golden fixtures move" only works where fixtures exist, and
+ * scoringProvenance.test.ts covered ONE of the five calculators — subjects.
+ * Version 4 changes vision and moved no pre-existing fixture at all. Vision
+ * fixtures were added in the same commit; interests, riasec and cvq still have
+ * none, so for those three this rule remains unenforceable and a change to them
+ * will pass silently. Tracked as a follow-up.
  */
-export const SCORING_ALGORITHM_VERSION = 3;
+export const SCORING_ALGORITHM_VERSION = 4;
 
 /**
  * Generate deterministic config version hash
@@ -1124,20 +1141,85 @@ const VISION_RANK_PENALTY = 0.15;
 // Pinned by matching.vision.test.ts. Same class of bug as Piece D's denominator.
 //
 // THE BAND IS ABSOLUTE, NOT MIN-MAX. `raw` below is an importance-weighted mean
-// of (affinity - catalog mean), in affinity points; its live p5..p95 across the
-// catalog is -10.4..+10.2, so +/-12 clips the tails and leaves the endpoints
-// independent of catalog membership. Do NOT rescale to the observed min/max:
-// that makes every career's score a function of every other career's (see the
-// SCALE WARNING in server/migrations/career-values-profiles.ts:20-32) and it
-// FORCES a full-range spread that proves nothing about discrimination.
-const VISION_ALIGN_LO = -12;
-const VISION_ALIGN_HI = 12;
+// of (affinity - catalog mean), in affinity points. Do NOT rescale to the
+// observed min/max: that makes every career's score a function of every other
+// career's (see the SCALE WARNING in
+// server/migrations/career-values-profiles.ts:20-32) and it FORCES a full-range
+// spread that proves nothing about discrimination. +/-16 is a fixed constant,
+// so that warning still holds - widening the band is not a rescale.
+//
+// WIDENED -12/+12 -> -16/+16 (2026-09-10, SCORING_ALGORITHM_VERSION 4). The old
+// band was chosen when this comment could say "live p5..p95 is -10.4..+10.2, so
+// +/-12 clips the tails". The catalog then grew 37 -> 68 careers and nothing
+// re-measured it. Measured today over all 154 career x candidate-sector pairs:
+//
+//     min -12.95   p1 -10.35   p5 -8.00   p50 2.94   p95 13.25   p99 14.80   max 15.93
+//
+//     band +/-12:  15 of 154 pairs clip  (9.7%)
+//     band +/-14:   5 of 154 pairs clip  (3.2%)
+//     band +/-16:   0 of 154 pairs clip  (0.0%)
+//
+// Clipping at 9.7% is not a tail event, it is the normal path for the careers
+// that matter: Physicist (raw 13.99) and Space Scientist (13.06) both clipped to
+// alignment exactly 1.0, so a genuine 0.9-point difference in skill fit produced
+// an identical uplift. The band must be wide enough that CLIPPING MEANS
+// SOMETHING. Pinned by the saturation guard in matching.vision.test.ts, which
+// fails loudly if a future career blows past +/-16 rather than silently clipping.
+const VISION_ALIGN_LO = -16;
+const VISION_ALIGN_HI = 16;
 // How far skill alignment may move a seeded relevance, in relevance points.
 // The category rule states MEMBERSHIP (does this career serve the sector);
 // skills state FIT (how well does its profile match). Membership stays dominant
 // - at +/-15 the sector a career is credited to changes for 1 of 36 careers,
 // while at +/-25 it changes for 4 and attribution starts to drift.
 const VISION_SKILL_SWING = 15;
+
+/**
+ * MEMBERSHIP, REBASED so the FIT modulation always has room. Read this before
+ * changing VISION_SKILL_SWING or the wording thresholds below.
+ *
+ * Seeded relevance is stated on 0-100 and the fit modulation is +/-15 points, so
+ * the two do not fit on the same scale: a career seeded at 95 has 5 points of
+ * headroom against a +15 swing and a career seeded at 100 has none. Applying the
+ * swing directly and clamping the result at 100 is what SHIPPED, and it did not
+ * cap an edge case, it erased the seed's calibration wholesale - 27 of 68 careers
+ * landed on relevance exactly 100, collapsing into blocks of 5, 5, 4, 3, 3, 2, 2
+ * careers sharing a byte-identical vision score. The five Space & Advanced
+ * Sciences careers, seeded 100 / 95 / 95 / 88 / 85 with a written justification
+ * per row (server/seed.ts:224, :255, :256), all scored 99.0.
+ *
+ * So membership is mapped into [SWING, 100-SWING] FIRST. base + SWING*(2a-1) is
+ * then within [0, 100] by construction and the clamp becomes unreachable.
+ *
+ * WHY NOT CAP THE SWING AT THE AVAILABLE HEADROOM (`min(SWING, 100-relevance)`),
+ * which is the smaller change and the obvious one: it makes a career seeded at
+ * relevance 100 IMMUNE to fit modulation - zero headroom, zero uplift. All four
+ * Education careers reach their sector through the same `Education @ 100`
+ * category rule, so all four would keep an identical score forever. Reserving
+ * headroom modulates every career equally; capping it silently exempts exactly
+ * the careers a sector cares most about.
+ *
+ * 100 IS STILL REACHABLE, and only by a career that is both maximally seeded and
+ * maximally aligned. No career in the catalog is. That is the point.
+ */
+function membershipBase(relevance: number): number {
+  return VISION_SKILL_SWING + (100 - 2 * VISION_SKILL_SWING) * (relevance / 100);
+}
+
+/**
+ * The "Core to / Supports / Some relevance to" wording thresholds.
+ *
+ * DERIVED, NOT LITERAL, and that is load-bearing. They are compared against the
+ * MODULATED relevance, which membershipBase() rebases into [15, 85] - so the old
+ * literals 75 and 40 no longer mean what they meant. Leaving them alone flips the
+ * sentence for 10 of 68 careers (Mechanical Engineer, Electrical Engineer,
+ * Architect, Interior Designer, Social Worker, Chef, Airline Pilot, Industrial
+ * Engineer, Management Consultant, Marketing Manager - all Core -> Supports).
+ * Passing them through the same function that rebases the scale gives 0 flips
+ * and, more importantly, means they cannot drift apart from it again.
+ */
+const VISION_CORE_THRESHOLD = membershipBase(75);      // 67.5
+const VISION_SUPPORTS_THRESHOLD = membershipBase(40);  // 43.0
 
 /**
  * How well `career`'s WEF skill profile fits `sectorId`'s required skills.
@@ -1198,11 +1280,16 @@ function skillAlignment(
  * reads an explicit, seeded map (country_sector_categories).
  *
  * HYBRID (WEF Phase 1): the category map decides WHICH sector and supplies the
- * base relevance; the country's WEF skill vector then modulates that relevance
- * by +/-VISION_SKILL_SWING according to how well the career's own skill profile
- * fits. Category alone cannot separate careers inside a category - all 6
- * Healthcare careers scored an identical 87.9 - because career.category is the
- * only thing the lookup can see, and 37 careers share 14 categories.
+ * seeded relevance; membershipBase() rebases that into [15, 85]; the country's
+ * WEF skill vector then modulates it by +/-VISION_SKILL_SWING according to how
+ * well the career's own skill profile fits. Category alone cannot separate
+ * careers inside a category - all 6 Healthcare careers scored an identical 87.9
+ * - because career.category is the only thing the lookup can see, and 37 careers
+ * share 14 categories.
+ *
+ * THE REBASE IS NOT COSMETIC (2026-09-10). Without it the modulation saturated:
+ * see membershipBase for what 27 of 68 careers collapsing onto relevance 100
+ * looked like in a student's report.
  *
  * WHY NOT SKILLS ALONE. Scoring purely on mean-centered skill overlap was
  * simulated on the live catalog and is a downgrade on every axis but one:
@@ -1276,19 +1363,26 @@ export function calculateVisionScore(
 
     // MEMBERSHIP (seeded, coarse) modulated by FIT (derived, fine). A null
     // alignment - no skill rows for this sector, or no affinity row for this
-    // career - leaves the seeded relevance untouched, so the score degrades to
+    // career - leaves the rebased membership untouched, so the score degrades to
     // the category-only value rather than to the floor.
+    //
+    // NOTE the category-only value is now membershipBase(relevance), not the raw
+    // seeded relevance. Both halves must live on the SAME rebased scale or a
+    // career with missing skill data would outscore an average-fit career that
+    // has it - see membershipBase above.
     const alignment = skillAlignment(
       career.id,
       candidate.sectorId,
       sectorWefSkillMap,
       careerWefAffinities,
     );
+    const base = membershipBase(candidate.relevance);
+    // The clamp is a GUARD, not a mechanism: base + SWING*(2a-1) is inside
+    // [0, 100] by construction. If it ever fires, membershipBase and
+    // VISION_SKILL_SWING have drifted out of agreement.
     const relevance = alignment === null
-      ? candidate.relevance
-      : Math.max(0, Math.min(100,
-          candidate.relevance + VISION_SKILL_SWING * (2 * alignment - 1),
-        ));
+      ? base
+      : Math.max(0, Math.min(100, base + VISION_SKILL_SWING * (2 * alignment - 1)));
 
     const weighted = (relevance / 100) * sector.rankFactor;
     if (weighted > bestWeighted) {
@@ -1306,9 +1400,9 @@ export function calculateVisionScore(
 
   // Sector name stays a bare trailing token - see ARABIC CONSTRAINT above.
   let reasoning: string;
-  if (bestRelevance >= 75) {
+  if (bestRelevance >= VISION_CORE_THRESHOLD) {
     reasoning = `Core to a national priority sector for ${userCountry.name}: ${bestSectorName}`;
-  } else if (bestRelevance >= 40) {
+  } else if (bestRelevance >= VISION_SUPPORTS_THRESHOLD) {
     reasoning = `Supports a national priority sector for ${userCountry.name}: ${bestSectorName}`;
   } else {
     reasoning = `Some relevance to a national priority sector for ${userCountry.name}: ${bestSectorName}`;

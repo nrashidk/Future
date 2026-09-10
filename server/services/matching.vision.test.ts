@@ -518,7 +518,11 @@ describe("calculateVisionScore — HYBRID (category gate + WEF skill modulation)
       .toHaveLength(1);
     // Relevance is byte-identical to the Engineering category rule it replaces,
     // so pinning it must not have changed the score.
-    expect(result.score).toBeCloseTo(87.55, 1);
+    // 87.55 -> 81.93 at SCORING_ALGORITHM_VERSION 4: membership is now rebased
+    // into [15, 85] before the skill swing (see membershipBase in matching.ts).
+    // The point of this assertion is unchanged — that the override did not move
+    // the score relative to the category rule it replaced.
+    expect(result.score).toBeCloseTo(81.93, 1);
   });
 
   it("the two re-homed careers moved off their old attribution", () => {
