@@ -3767,3 +3767,62 @@ ordering the model does not have. That is a presentation question and is open;
 it is noted against the tie-break entry above.
 
 Decided 2026-09-10.
+
+## CAREER JOURNEY PREMIUM GATING — DECIDED 2026-09-10, NO GATE
+
+**Decision: the Career Journey (`/progress`) is not put behind premium. It stays free for any
+authenticated student.** Closed, not deferred. The gate to reopen is stated below.
+
+Raised as item 3 of `docs/profile-recon.md` ("not a gating question"), and confirmed on
+production 2026-09-10 against a real account holding two completed assessments at ONE grade.
+After a9b33cc that account renders exactly what the recon predicted: one Grade 11 milestone,
+four Pending, and a Career Consistency panel listing two careers at 100% persistence computed
+against a denominator of one.
+
+### The decision, and the reason
+
+**Gating a mostly-blank timeline charges for an empty page.** The page has two panels and both
+are comparisons ACROSS grades — a persistence score and a grade-by-grade trend. A student with
+one grade has nothing to compare, so what a paywall would sell them is four Pending milestones
+and an arithmetic artefact. That is worse than not selling it: it takes money for the absence
+of data, and the buyer cannot tell the difference until after they have paid.
+
+The order is therefore: make the page worth having, then decide whether it is worth charging
+for. Free retakes (261b85f, capped at `FREE_ASSESSMENT_CAP`) are what will eventually put
+something behind the gate — but only retakes AT A LATER GRADE. a9b33cc collapses same-grade
+retakes to one row per grade, deliberately, so three Grade 11 attempts remain one milestone.
+The population that would get value from this page is students who take the assessment in more
+than one school year, and today that population is close to empty: org students get one lifetime
+allocation, and the free cap is a count, not a per-grade allowance.
+
+### What was done instead, in the same session
+
+Not a gate but an ENTRY CONDITION, which is a different thing — it withholds an empty page
+rather than charging for it:
+
+- the profile's "View Career Journey" button now requires more than one DISTINCT canonical
+  grade, not more than one completed assessment (the recon proposed `length > 1`, which the
+  collapse makes insufficient: three same-grade retakes are one milestone);
+- `/progress` reached directly, below that threshold, renders a stated one-grade state instead
+  of a trend built from one point.
+
+### What WOULD change the answer
+
+Reopen when, and only when, a material number of students hold assessments at TWO OR MORE
+distinct grades — which requires a retake policy that permits (and ideally prompts) a
+next-grade re-assessment, not merely a count of allowed attempts. At that point the page is
+showing a real trajectory and the question becomes a normal pricing one. Re-take it from the
+distribution of distinct grades per student, not from the number of assessments per student:
+the two numbers diverge by exactly the thing this page collapses.
+
+### What was explicitly NOT decided here
+
+- Whether a persistence percentage computed from a small denominator should be printed as a
+  percentage at all. That is a presentation defect independent of pricing, and it is open —
+  100% off one grade is arithmetically true and tells the student nothing, while a career that
+  genuinely appeared in every grade a student has taken IS 100% and must survive whatever is
+  done.
+- `/progress` is still unauthenticated in the router (`client/src/App.tsx`) and the endpoint
+  checks only `req.isAuthenticated()`. Unchanged, and noted in the earlier recon.
+
+Decided 2026-09-10.
