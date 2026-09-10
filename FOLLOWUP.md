@@ -2353,7 +2353,36 @@ fails. Concretely — does it report its own failure, or swallow it? Does the ev
 on actually exist (git status showing an ignored file did not)? And does it contain an instance
 of the very thing it detects? The third question is the one all three of these failed.
 
-First flagged 2026-09-08.
+A SECOND PROCESS PATTERN, recorded here because this is where process-severity findings live,
+though it is a different failure from the three above. Those were code written by someone who
+understood a failure mode and did not apply it to their own work. This one is in the WRITE-UPS,
+and it is mine: **an entry dictated from a symptom, with a mechanism inferred rather than
+traced.** Two instances, both corrected only when someone went and read the consumer:
+
+- The curriculum rename (GAP 1, :1790). The entry said the quiz pool was EMPTY and predicted a
+  400 and a complaint. The pool was not empty — quiz.routes.ts:292-328 is a four-step cascade
+  whose fallbacks each widen the scope rather than fail, so students silently sat a quiz drawn
+  from the wrong bank and it was scored and stored as if correct. Worse than the entry said,
+  and invisible in exactly the way the entry said would be noticed.
+- The job-market table (:2979). The entry said random numbers were a component of every match
+  score. They were a component of nothing — the consumer had been deleted ten months earlier
+  in fc54470. Less bad than the entry said, and it named a line (matching.ts:315) that had
+  never touched the data.
+
+The two errors point in opposite directions, which is the tell: neither was a considered
+estimate that came out wrong. Both were a plausible mechanism written down in the voice of a
+traced one. A reader cannot distinguish those two things after the fact, so the entry's
+confidence became evidence it did not earn — and in the job-market case the false mechanism
+sat in the file for a day being cited as a reason.
+
+The safeguard is cheap and specific, and it is not "be more careful": **before writing a
+mechanism into an entry, grep for the consumer and cite it by file:line, or write that you did
+not check.** Both instances would have been caught by one grep — `componentCalculators` in the
+first case, the four fallback branches in the second. An entry may absolutely record a symptom
+without a mechanism; what it may not do is supply a mechanism it did not look up. Where a claim
+is inferred, mark it inferred.
+
+First flagged 2026-09-08. Second pattern added 2026-09-10.
 
 
 ### The old picker offered a subject no career has ever been tagged with  (severity: low, closed by data)
@@ -2947,62 +2976,159 @@ rendered Arabic landing page, not just read in the JSON.
 Recorded 2026-09-08.
 
 
-### Job-market data feeding every match score is Math.random()  (severity: HIGH)
-Surfaced during the 2026-09-09 landing recon, but it is not a landing-page problem. The copy
-claim is downstream of it.
+### Job-market data feeding every match score is Math.random()  (severity: was HIGH, now LOW — the mechanism was wrong)
+**THIS ENTRY WAS WRONG, NOT MERELY STALE. Corrected 2026-09-10.** It was dictated from the
+2026-09-09 landing recon without tracing whether a consumer existed. One did not, and had not
+for ten months. The heading is kept verbatim — including the claim in it — so the entry is
+findable by what it used to assert; everything under it is the correction. Full trace:
+docs/job-market-random-recon.md.
 
-`job_market_trends` is populated once, in the seed, from a random number generator:
+WHAT SURVIVES, AND IT IS THE WHOLE CONCLUSION: `job_market_trends` is fabricated data. Every
+numeric column is `Math.random()`, the table has exactly one writer and no ingestion path, and
+`landing.json:31` sells it to students and schools as "real data". That was right when it was
+written and is right now. Only the mechanism connecting the two was invented.
 
-    server/seed.ts:2058   demandScore: 50 + Math.random() * 50,          // 50-100
-    server/seed.ts:2059   growthRate: Math.random() * 30,                // 0-30%
-    server/seed.ts:2065   openings: Math.floor(Math.random() * 1000) + 100,
+#### What this entry got wrong
 
-`nationalPriorityAlignment` (:2060-2064) is the one field with any signal in it — it checks
-`career.relatedSubjects` against `country.prioritySectors` — and then picks a random number
-inside whichever of two bands that check selects. There is no fourth field. Every number in the
-table is generated, and the row is written per career × per country, so the volume of it
-disguises how little is there.
+1. **"IT REACHES THE STUDENT … a component of every career match score every student has ever
+   received is a random number."** FALSE. It reaches nothing. `fc54470` (2025-11-11, "Add career
+   assessment scoring for CVQ values and remove market trends calculation") deleted
+   `calculateMarketScore` — the function that read the trends — and removed `market:
+   calculateMarketScore` from `componentCalculators`. `c735f7a` (2025-12-03) then removed the
+   component from `componentsToSeed`, from the seeded `tierComponentWeights` rows, and from
+   `TIER_WEIGHT_OVERRIDES`. The registry (matching.ts:177-183) holds five calculators —
+   subjects, interests, vision, riasec, cvq — and none reads `context.jobMarketTrends`.
+   Measured contribution to a 100-point match score: **0.0 points, in every tier**. Not "small":
+   structurally zero, because no code path reads the values.
 
-THE TABLE HAS EXACTLY ONE WRITER AND NO INGESTION PATH. `storage.createJobMarketTrend`
-(storage.ts:924) is the only insert, and the seed is its only caller — `grep` over `server/` for
-`jobMarketTrend` outside `seed.ts` returns the three storage readers (:931, :938, :951-958), the
-matching service, and three test fixtures that stub it as an empty Map. Nothing fetches, imports
-or refreshes this data. There is no admin surface for it, unlike careers, questions and
-curricula.
+   The corollary this entry drew — "no historical report can be reproduced" — is FALSE for the
+   same reason, and it is the more damaging of the two, because report reproducibility is
+   exactly what the provenance work at :3366 and :3420 is about. Nothing in this table has ever
+   contributed to a `configHash`, a stored score, or a drift bucket. `recommendations.
+   futureMarketDemand` is written as a literal `0` with the comment `// Deprecated, always 0`
+   (recommendations.routes.ts:186), which is the same fact recorded in the schema and missed
+   here.
 
-IT REACHES THE STUDENT. `matching.ts:315` groups the trends by career and hands them to the
-scorer, so a component of every career match score every student has ever received is a random
-number. It is not a random number held constant, either: it is regenerated on any seed run that
-finds the table empty, so the same student re-scored after a reset gets a different answer for
-reasons that have nothing to do with the student. That also means no historical report can be
-reproduced.
+2. **"`matching.ts:315` groups the trends by career and hands them to the scorer."** FALSE, and
+   not a drifted line number. matching.ts:315 is inside `resolveActiveComponents`, in the
+   tier-weight lookup (`effectiveWeight = (dbWeight?.isEnabled && dbWeight.weight > 0) ? …`). It
+   has never had anything to do with trends. The grouping is real but orphaned: the fetch at
+   :402, the grouping at :405, the assignment at :455, the context field at :93 — hydrated on
+   every generate, read by nothing.
 
-WHAT NEEDS DECIDING — the actual work, and it is a product decision, not a code fix:
+3. **"it is regenerated on any seed run that finds the table empty."** FALSE. The insert is not
+   gated on the trend table at all. It sits inside the new-career branch (seed.ts:2046-2071),
+   so the gate is `!existingCareerTitles.has(career.title)`. Truncate `job_market_trends` on a
+   seeded database and re-run the seed and **zero rows are written back**, because every career
+   title already exists. Existing rows are never touched — there is no upsert and no
+   `onConflict`. The values are frozen at the moment a career title first appears, which makes
+   them *more* stable than this entry claimed, not less. (There is also no unique constraint on
+   `(career_id, country_id, year)` — the `catch { /* Trend might exist */ }` at :2067 guards
+   against a violation that cannot occur — so a career deleted and re-seeded would silently
+   duplicate its trend rows.)
 
-  (a) REMOVE the component from scoring until there is a real source. Honest immediately, and
-      it changes every match score in the product, so it needs the weights redistributed
-      deliberately rather than the component silently zeroed. `tierComponentWeights` already
-      models an `isEnabled: false` component with a weight (seed.ts:3480 does exactly this for
-      cvq on the free tier), so the mechanism exists — but seed.ts:3185 warns that a disabled
-      component still HOLDING its weight contributes nothing while occupying it, which is the
-      trap to avoid here.
+4. **"the catalog spans 15 countries (seed.ts:2081-2095)."** FALSE. That citation is the
+   `countryData` lookup used by the quiz *template generator*; it seeds no countries. The
+   `countries` array actually seeded (seed.ts:782-833) has **one** entry, `uae`. A from-scratch
+   seed writes 68 careers × 1 country = **68 rows**, not the ~1000 implied. Countries created at
+   runtime by the LLM generator get zero trend rows, since nothing outside the seed calls
+   `createJobMarketTrend` — which is itself further evidence the table was orphaned.
 
-  (b) FIND a source. Real labour-market data per country is a procurement and licensing
-      question (UAE MOHRE, national statistics offices, or a commercial feed), not something to
-      be scraped into the seed, and it needs a refresh cadence, provenance and a per-country
-      coverage story — the catalog spans 15 countries (seed.ts:2081-2095), not just the UAE.
+5. **"`nationalPriorityAlignment` is the one field with any signal in it."** FALSE, and this one
+   flattered the data. The check tests whether a career's `relatedSubjects` is a **substring** of
+   a country's `prioritySectors` (seed.ts:2060-2062). `relatedSubjects` are school subjects;
+   `prioritySectors` are economic sectors. Evaluated over all 24 distinct subject values against
+   the 10 UAE sectors it yields exactly two matches, both accidents:
+   `"Art"` ⊂ `"**Art**ificial Intelligence"` and `"Science"` ⊂ `"Space & Advanced **Science**s"`.
+   16 of 68 careers land in the high band, 52 in the low, decided by whether a career happens to
+   list Art or Science. There is no domain signal in the field. All four numeric columns are
+   noise, not three.
 
-Whichever is chosen, the scoring change and the copy change are the same decision and should
-land in that order.
+#### What is actually still broken
 
-DO NOT FIX THE LANDING COPY IN A WAY THAT IMPLIES THIS IS HANDLED. `landing.json:31` currently
-claims "Get real data on career growth and opportunities in your country" (`ar:31` likewise,
-"بيانات حقيقية"). Softening the wording to something defensible is a legitimate separate
-commit and is NOT a fix for this entry — it removes the false claim from the page and leaves
-the random numbers in the score. This entry stays open until (a) or (b) happens. Anyone editing
-that string should link back here in the commit message so the two are not confused later.
+- **Dead code with a live cost.** Every recommendation generate issues
+  `getJobTrendsByCareerIds` (matching.ts:402) and builds a map nothing reads.
+  `getTrendsByCountry` and `getTrendByCareerAndCountry` (storage.ts:1047, :1054) have zero
+  callers at all.
+- **A fabricated table that looks like data.** 68 rows, one country, four generated columns, no
+  provenance columns (`source`/`fetchedAt`/`vintage`) of the kind every other sourced dataset
+  in this repo carries. The danger is not what it does — it does nothing — but that the next
+  reader will reasonably assume it is populated and wire it back up. That is precisely how this
+  entry came to be written.
+- **The landing copy, now the only user-visible consequence.** Unchanged from the original
+  entry and still correct: `landing.json:31` — "Get real data on career growth and
+  opportunities in your country"; `ar:31` — "بيانات حقيقية". The product ships US-national O*NET
+  growth bands (correctly caveated everywhere in code) and the vision component. It ships no
+  country-scoped market data. The copy overclaims both the source and the scope.
 
-First flagged 2026-09-09.
+#### What was decided, and why not the alternatives
+
+**REMOVE.** But note that the original entry's option (a) — "it changes every match score in
+the product, so it needs the weights redistributed deliberately rather than the component
+silently zeroed" — describes work that `fc54470` and `c735f7a` already did, correctly, ten
+months earlier. There is no weight to redistribute (`TIER_WEIGHT_OVERRIDES` has no `market`
+key), no `SCORING_ALGORITHM_VERSION` bump, and no score movement. The seed.ts:3185 warning that
+entry invoked — a disabled component still *holding* weight contributes nothing while occupying
+it — does not apply here for the same reason. What remained was dead-code removal.
+
+O*NET could NOT have filled it, and this was worth settling rather than leaving as an open
+option. `careers.onetGrowthBand` has no country axis, no demand score, no openings, and
+publishes a *band* ("Faster than average (5% to 6%)") rather than a rate — `growthBands.ts`
+exists precisely because the previous hand-authored percentages were unsourced and wrong on 22
+of 68 rows. Populating a country-scoped table from a US-national occupation band means
+replicating one number across every country and attaching a real source to it, which is worse
+than an obvious random number because it is harder to spot. The codebase already refuses this
+move twice in its own words: `growthBands.ts:12-17` ("Nothing may gate a career on this signal
+alone") and `futureReadiness.ts:22-26`, which names `job_market_trends` explicitly as the
+country-scoped class that readiness is NOT in. Real per-country data remains what the original
+entry said: procurement, with a refresh cadence, provenance and a coverage story.
+
+Sequencing, as executed:
+  1. Delete the orphaned read path and the seed writer. Tests stay at 312.
+  2. Fix landing.json:31 / ar:31 on its own merits — no longer blocked behind a scoring
+     decision, because there is no scoring decision.
+  3. `job_market_trends` and `recommendations.future_market_demand` left for a later schema
+     migration; both are inert once (1) lands.
+
+ONE CHECK BEFORE THIS CLOSES — not about scores, about provenance. `resolveActiveComponents`
+reads `assessment_components` from the DATABASE, not from the seed array, and `c735f7a` removed
+the `market` row from the seed without deleting it from any database that already had it. Such
+a row cannot move a score: `calculateCareerMatch` hits `if (!calculator) { continue; }`
+(matching.ts:791-796) BEFORE `totalAppliedWeight += component.weight`, so it is excluded from
+the denominator and the surviving components renormalise. But `generateConfigVersion` hashes
+`activeComponents`, so an active market row WOULD change the `configHash` stamped into
+`recommendations.scoring_provenance` — and therefore the drift buckets on the estate card
+(:3366). Run against prod:
+
+    -- Q1. Does a market component row still exist, and is it live?
+    SELECT id, key, name, is_active, weight, requires_premium, display_order
+    FROM assessment_components
+    WHERE key = 'market';
+
+    -- Q2. Does any tier still allocate weight to it? (join, so a row with no
+    -- weights at all is visibly distinct from one weighted zero everywhere)
+    SELECT t.key AS tier, w.weight, w.is_enabled
+    FROM assessment_components c
+    LEFT JOIN tier_component_weights w ON w.component_id = c.id
+    LEFT JOIN scoring_tiers t ON t.id = w.tier_id
+    WHERE c.key = 'market';
+
+    -- Q3. Would it actually enter activeComponents? This reproduces the filter in
+    -- resolveActiveComponents: is_active, then effective weight > 0. Any row
+    -- returned here is stamping configHash today.
+    SELECT c.key, c.is_active, c.weight AS db_weight
+    FROM assessment_components c
+    WHERE c.key = 'market' AND c.is_active = true AND c.weight > 0;
+
+Expected: Q1 returns one row with `is_active = false, weight = 0` (how c735f7a's predecessor
+seeded it) or no row at all; Q2 returns zero-weight/disabled rows or none; **Q3 returns nothing**.
+If Q3 returns a row, delete the component row (not just deactivate it — an inactive row is
+already excluded, so deactivating is enough for scoring but leaves the row to be re-enabled by
+someone reading the admin UI) and expect stored `configHash` values written since to differ from
+current for reasons that have nothing to do with weights. This is a data check, not a code
+change; nothing in the repo can answer it.
+
+First flagged 2026-09-09. Mechanism corrected and severity downgraded HIGH → LOW 2026-09-10.
 
 
 ### NEEDS HUMAN REVIEW — the landing page carries a fabricated named-minor testimonial  (severity: HIGH — legal)
