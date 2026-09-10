@@ -3155,6 +3155,96 @@ change; nothing in the repo can answer it.
 First flagged 2026-09-09. Mechanism corrected and severity downgraded HIGH → LOW 2026-09-10.
 
 
+### NEEDS HUMAN REVIEW — quiz question SELECTION is an unseeded random draw  (severity: MEDIUM)
+Surfaced by the `Math.random` sweep over `server/` that closed the job-market entry above
+(docs/job-market-random-recon.md §5). Filed separately and deliberately: **random sampling from
+a question bank is defensible test design; random values presented as market data are not.**
+The two look alike under grep and are not the same finding. Do not fold them together, and do
+not "fix" this one by analogy with that one.
+
+The sweep found eight `Math.random` call sites in `server/`. Four were the job-market seed
+writer (now deleted, 07383d5). Three are username-collision suffixes in storage.ts — identity,
+not scoring, no finding. The eighth is this.
+
+WHAT IT IS. `shuffleArray` (utils/quiz.ts:7-15) is an unseeded Fisher-Yates, used by
+`shuffleQuestions`, called three times in quiz.routes.ts:
+
+    :375   const shuffled = shuffleQuestions(questionsForSubject);
+           selectedQuestions.push(...shuffled.slice(0, available));   <- SELECTION
+    :388   const shuffled = shuffleQuestions(remaining);
+           selectedQuestions.push(...shuffled.slice(0, needed));      <- SELECTION
+    :409   const finalShuffledQuestions = shuffleQuestions(selectedQuestions);   <- order only
+
+The third call is presentation order and is fine. The file already documents why OPTION order,
+by contrast, must be deterministic — `transformQuizQuestionForFrontend` derives it from the
+quiz id via `seededPermutation` (quiz.ts:56-64) so that generate and the two re-read paths
+agree. That machinery exists, in this file, and is not used by the first two calls.
+
+The first two are not order. `shuffle(...).slice(0, n)` decides WHICH questions a student
+answers.
+
+WHY IT IS NOT NEGLIGIBLE — the numbers, because "it's just a shuffle" is the intuition to check:
+
+  - The draw is real, not a formality. The UAE bank holds 6-10 questions per (subject, grade)
+    — Mathematics, Science, English, Arabic, Social Studies, Computer Science, at 10/10/7/7/6
+    for grades 8/9/10/11/12. The target is 2-4 questions per subject on free
+    (`TIER_CONFIGS`, quiz.routes.ts:51-67) and 3-5 on premium/school. Choosing 2 of 10 is 45
+    distinct draws.
+  - Nothing balances the draw. `calculateQuizDistribution` (:69-90) allocates by SUBJECT only.
+    `difficulty` (easy/medium/hard) and `cognitiveLevel` are stored per question
+    (schema.ts:848) and consulted by NOTHING in the selection path.
+  - The sample is tiny, so the score is coarsely quantized. Competency per subject is
+    `round(correct / total * 100)` with total = 2-5 (:748-750). At n=2 the only attainable
+    values are 0, 50 and 100. One question different is a 50-point swing on that subject.
+  - And it is weighted. `calculateSubjectsScore` blends 40% preference + **60% quiz
+    competency** when quiz data exists (matching.ts:971-973), and `subjects` is worth 35% of a
+    free match score and 20% of premium. So quiz competency carries **21 of 100 points on
+    free**, 12 on premium. For a career matching on a single subject, the 50-point competency
+    swing above moves the overall match score by **10.5 points — decided by which two
+    questions were drawn.**
+
+WHAT IS *NOT* WRONG WITH IT, stated so the entry is not read as more alarming than it is:
+
+  - It is not fabricated data. Every question in the draw is real, authored, curriculum-scoped
+    content. This is sampling from a valid instrument, which is ordinary practice.
+  - The administered quiz IS persisted and recoverable. Migration 019 made `assessment_id`
+    unique and the race at :410+ converges rather than failing, so one quiz exists per
+    assessment and a student's actual questions and answers can always be read back. What is
+    not reproducible is the DRAW — you cannot re-derive which questions would have been picked
+    — which is a weaker property than it first sounds.
+  - `Math.random()` is not a security primitive here and does not need to be. Nothing in the
+    selection is secret; a student gaining foreknowledge of their own question set is not a
+    threat this product has. No CSPRNG finding.
+
+WHAT NEEDS DECIDING — psychometric, not technical, which is why this is NEEDS HUMAN REVIEW and
+not a fix:
+
+  (a) Should two students with the same ability get the same score? Today they do not, and the
+      variance comes from the instrument rather than from them. The counter-argument is real:
+      a fixed question set per (subject, grade) is memorisable and shareable between students
+      in the same class, which is a worse failure for a school product. Randomised draws exist
+      precisely to prevent that.
+  (b) If the draw stays random, should it at least be STRATIFIED — hold the easy/medium/hard
+      mix constant across draws, so what varies is which questions rather than how hard the
+      quiz was? This is the change that addresses the measurement problem without giving up
+      the anti-memorisation property, and it is the one worth costing first.
+  (c) Should the draw be REPRODUCIBLE per student — seeded on the assessment id via the
+      `seededPermutation` already in utils/quiz.ts? This is nearly free technically. Note it is
+      orthogonal to (b): a seeded draw is repeatable but still unstratified, so it fixes
+      auditability and fixes nothing about fairness between students.
+  (d) Is n=2 (free tier, non-priority subject) enough to call anything a "competency" at all,
+      given it can only ever return 0, 50 or 100 and then carries 21 points of the match score?
+      This is the question the other three are downstream of, and it may be that the honest
+      answer changes the WEIGHT rather than the draw.
+
+DO NOT change the draw before (a)-(d) are answered. Making it deterministic is a two-line
+change and would be the wrong two lines if the answer to (a) is that randomisation is load
+bearing. Any change here also moves stored scores and is a `SCORING_ALGORITHM_VERSION` bump
+(matching.ts:857, currently 4), not a tidy-up.
+
+First flagged 2026-09-10.
+
+
 ### NEEDS HUMAN REVIEW — the landing page carries a fabricated named-minor testimonial  (severity: HIGH — legal)
 `landing.json:44-45` renders an attributed quotation, styled as a testimonial with a graduation
 icon and an author line (Landing.tsx:271-283, the quote at :277-279 and the attribution at
