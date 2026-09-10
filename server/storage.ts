@@ -30,6 +30,7 @@ import {
   countrySectorCategories,
   files,
   organizationEvents,
+  organizationConsents,
   scoringTiers,
   tierComponentWeights,
   componentParameters,
@@ -96,7 +97,9 @@ import {
   type File,
   type InsertFile,
   type OrganizationEvent,
+  type OrganizationConsent,
   type InsertOrganizationEvent,
+  type InsertOrganizationConsent,
   type ScoringTier,
   type InsertScoringTier,
   type TierComponentWeight,
@@ -426,6 +429,9 @@ export interface IStorage {
 
   // Organization events (audit logging)
   createOrganizationEvent(event: InsertOrganizationEvent): Promise<OrganizationEvent>;
+  createOrganizationConsent(consent: InsertOrganizationConsent): Promise<OrganizationConsent>;
+  /** Most recent attestation for an organization, or undefined. See shared/schema.ts. */
+  getCurrentOrganizationConsent(organizationId: string): Promise<OrganizationConsent | undefined>;
   getOrganizationEvents(organizationId: string, limit?: number): Promise<OrganizationEvent[]>;
   getAllOrganizationEvents(limit?: number): Promise<OrganizationEvent[]>;
   getOrganizationEventsByType(organizationId: string, eventType: string): Promise<OrganizationEvent[]>;
@@ -3292,6 +3298,38 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Organization events (audit logging)
+  async createOrganizationConsent(consent: InsertOrganizationConsent): Promise<OrganizationConsent> {
+    const [created] = await db.insert(organizationConsents).values(consent).returning();
+    return created;
+  }
+
+  /**
+   * The current attestation is simply the MOST RECENT row. There is no "current"
+   * flag to keep in sync, because the table is append-only: re-attestation
+   * inserts, and the older row stays as the record of what covered the students
+   * enrolled before it.
+   *
+   * Filters on both claims being true so a row can never gate enrolment on a
+   * partial assertion. The POST route rejects partials outright, so this is
+   * defence in depth rather than the only guard — but it is the one that would
+   * hold if a row were ever written directly.
+   */
+  async getCurrentOrganizationConsent(organizationId: string): Promise<OrganizationConsent | undefined> {
+    const [consent] = await db
+      .select()
+      .from(organizationConsents)
+      .where(
+        and(
+          eq(organizationConsents.organizationId, organizationId),
+          eq(organizationConsents.consentsToProcessing, true),
+          eq(organizationConsents.attestsGuardianConsent, true)
+        )
+      )
+      .orderBy(desc(organizationConsents.createdAt))
+      .limit(1);
+    return consent;
+  }
+
   async createOrganizationEvent(event: InsertOrganizationEvent): Promise<OrganizationEvent> {
     const [created] = await db.insert(organizationEvents).values(event).returning();
     return created;
