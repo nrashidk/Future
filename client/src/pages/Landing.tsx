@@ -163,12 +163,33 @@ export default function Landing() {
           </p>
 
           <div className="grid md:grid-cols-3 gap-8">
+            {/* THE STEP ORDINALS ARE RENDERED HERE, NOT IN THE STRINGS.
+                They used to be baked into the English titles ("1. Share Your
+                Profile") while the Arabic carried none, so an English reader saw
+                three numbered cards and an Arabic reader saw three unnumbered
+                ones under a heading that promised three of something. Same
+                component, different structure — the sharpest en/ar divergence on
+                the page.
+
+                The fix is NOT pasting numerals into the Arabic strings. A
+                leading Latin digit followed by Arabic text is a bidi hazard, and
+                a translator has no reason to preserve a numbering scheme they
+                did not author. Rendering it here numbers both languages from one
+                place and keeps the ordinal out of translatable content, where it
+                was never content.
+
+                <bdi> isolates the numeral from the surrounding bidi paragraph,
+                and me-2 is margin-inline-end, so the number sits before the
+                title in both directions. */}
             <StickyNote color="yellow" rotation="-1" className="text-center">
               <div className="flex flex-col items-center">
                 <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
                   <BookOpen className="w-8 h-8 text-primary" />
                 </div>
-                <h3 className="text-2xl font-bold mb-3">{t("howItWorks.step1Title")}</h3>
+                <h3 className="text-2xl font-bold mb-3">
+                  <bdi className="text-primary me-2">1.</bdi>
+                  {t("howItWorks.step1Title")}
+                </h3>
                 <p className="text-muted-foreground font-body">
                   {t("howItWorks.step1Desc")}
                 </p>
@@ -180,7 +201,10 @@ export default function Landing() {
                 <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
                   <Target className="w-8 h-8 text-primary" />
                 </div>
-                <h3 className="text-2xl font-bold mb-3">{t("howItWorks.step2Title")}</h3>
+                <h3 className="text-2xl font-bold mb-3">
+                  <bdi className="text-primary me-2">2.</bdi>
+                  {t("howItWorks.step2Title")}
+                </h3>
                 <p className="text-muted-foreground font-body">
                   {t("howItWorks.step2Desc")}
                 </p>
@@ -192,7 +216,10 @@ export default function Landing() {
                 <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
                   <TrendingUp className="w-8 h-8 text-primary" />
                 </div>
-                <h3 className="text-2xl font-bold mb-3">{t("howItWorks.step3Title")}</h3>
+                <h3 className="text-2xl font-bold mb-3">
+                  <bdi className="text-primary me-2">3.</bdi>
+                  {t("howItWorks.step3Title")}
+                </h3>
                 <p className="text-muted-foreground font-body">
                   {t("howItWorks.step3Desc")}
                 </p>

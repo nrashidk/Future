@@ -4870,3 +4870,34 @@ the composition is new and nobody has read it rendered.
   UI entry above.
 
 Recorded 2026-09-10.
+
+
+### Arabic unreviewed — three landing feature and step strings  (severity: low)
+Filed with the three landing-claim fixes of 2026-09-10 (734c094, 85ef8cd, and the ordinal
+commit). Five Arabic strings changed across two blocks; none has been read rendered.
+
+`features.reportsDesc` — `حمّل تقريراً شاملاً بصيغة PDF يتضمن خارطة طريقك المهنية — متاح ضمن
+التقييم المدفوع`. The load-bearing clause is the last one: it is what stops the page promising a
+free download of a $10 feature, so a translation that softens `المدفوع` ("paid") reopens the
+claim this commit closed. Check also that the em-dash construction reads naturally in Arabic
+rather than as an English punctuation pattern carried over — a comma or `و` may be the native
+form.
+
+`features.matchDesc` — `مطابقات مهنية مرتّبة خصيصاً لك، بناءً على ما تخبرنا به عن نفسك`. Must name
+NO input. The whole point of the English rewrite is that no input is true for both tiers, so an
+Arabic version that helpfully restores "اهتماماتك" (your interests) — the word the previous
+string used and the obvious thing for a translator to reach for — puts back the false claim.
+`مطابقات` for "matches" is the term to check: it is used here in a product sense, not the
+statistical one.
+
+`howItWorks.subtitle` — `رحلتك نحو المهنة المثالية، على ثلاث مراحل`. `مراحل` (stages) rather than
+`خطوات` (steps) is deliberate and mirrors the English: `خطوات` is the word `pricing.json:11` uses
+for a literal 7-step count, and reusing it here would recreate the collision the change removes.
+
+`howItWorks.step1Title` / `step2Title` / `step3Title` — unchanged in Arabic, and that is the
+point: they never carried the ordinals. They are now NUMBERED for the first time, by the
+component, so they should be read with a leading "1." / "2." / "3." in front of them for the
+first time. Confirm the numeral does not fight the RTL layout in practice — `<bdi>` plus
+`margin-inline-end` is the correct construction, but it has been reasoned about, not seen.
+
+Recorded 2026-09-10.
