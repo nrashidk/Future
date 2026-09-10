@@ -3278,7 +3278,7 @@ WHAT NEEDS DECIDING, in the order that makes the others answerable:
 First flagged 2026-09-10.
 
 
-### The enrolment gate has no UI — the admin meets it as an untranslated toast  (severity: MEDIUM)
+### The enrolment gate has no UI — the admin meets it as an untranslated toast — RESOLVED 2026-09-10 (e267331, 3bab6c5, 148b027)  (was: MEDIUM)
 bbb1869 gates the three enrolment paths with `409` and a machine-readable `code:
 CONSENT_REQUIRED`, added so the client could tell a consent block apart from an authorization
 failure. Nothing reads it: `grep -rn "CONSENT_REQUIRED" client/src` returns nothing.
@@ -3326,6 +3326,36 @@ today, so nobody meets its 409 through the UI, and its share of this entry is th
 someone builds the screen.
 
 First flagged 2026-09-10.
+
+CLOSED 2026-09-10, all three gaps, in the order they were filed:
+
+  e267331  `serverErrorCode` beside `serverErrorMessage`, and the two enrolment handlers render
+           `consentBlocked` when the code is CONSENT_REQUIRED. The code itself moved to
+           shared/consentRequired.ts and the gate re-exports it: a client-side literal that
+           drifted would not throw and would not fail a test, it would silently restore the
+           English fallback, which is the least reviewable way for this to come back.
+  3bab6c5  the roster reads `useOrganizationConsent` — the hook whose comment already claimed
+           it did — and disables Add Student and Bulk upload with the reason beside them and a
+           link that scrolls to the attestation card.
+  148b027  six cases on the parser, one of which builds the gate's own 409 body from the
+           server's exported constants, so a drift between the two ends fails a test instead of
+           failing an admin.
+
+No new strings and no new unreviewed Arabic: `consentBlocked` and `consentTitle` are used as
+they shipped in aec29f7, which is what the Arabic-unreviewed entry already covers.
+
+WHAT REMAINS OPEN, and neither is a defect in the above:
+
+  1. THE SUPERADMIN HAS NO PRE-EMPTIVE STATE, structurally. GET /api/my-organization/consent is
+     org_admin-only (organization.routes.ts:87), by the same design that stops a superadmin
+     attesting for a school. So a superadmin viewing a school cannot read its consent state and
+     the disable never fires for them — they still meet the gate as a toast, now a translated
+     one. Treating unknown as blocked would permanently disable a control over a fact they
+     cannot query, so the code fails open on the affordance and closed on the gate, and says so.
+     Closing this properly means a superadmin-readable consent state, which is a new endpoint
+     and a decision about whether a superadmin should see which schools have attested.
+  2. THE CSV PATH STILL HAS NO CLIENT CALLER, so its share of this entry is still theoretical.
+     Whoever builds that screen inherits both halves: the code branch and the disable.
 
 
 ### DECISION — the consent record outlives the school, and keeps an ex-admin's contact details  (recorded decision, not a finding)
