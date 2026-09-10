@@ -135,3 +135,57 @@ describe('bucketing follows the same rules as the rest of the grade module', () 
     expect(ids([undated])).toEqual(['a-undated']);
   });
 });
+
+describe("the journey's entry condition is distinct grades", () => {
+  /**
+   * What the profile's "View Career Journey" button gates on, and what
+   * /progress restates for a student who arrives without the button.
+   *
+   * Rows here carry NO completedAt, because the profile's assessment list does
+   * not fetch one — the gate reads only the bucket count, never which row won a
+   * bucket. That difference is the reason this is asserted separately from the
+   * server-side collapse above rather than assumed from it.
+   */
+  const offersJourney = (rows: ReadonlyArray<{ grade: string | null; isCompleted: boolean }>) =>
+    collapseToLatestPerGrade(rows).length > 1;
+
+  const completedAt = { isCompleted: true };
+
+  it('does not offer a journey for two retakes at the same grade', () => {
+    // THE CASE THAT MADE `length > 1` INSUFFICIENT: two completed assessments,
+    // one milestone. The recon proposed counting assessments; the collapse is
+    // what turns that count into the wrong one.
+    expect(offersJourney([{ grade: 'grade11', ...completedAt }, { grade: 'grade11', ...completedAt }])).toBe(false);
+    expect(offersJourney([
+      { grade: 'grade11', ...completedAt },
+      { grade: 'grade11', ...completedAt },
+      { grade: 'grade11', ...completedAt },
+    ])).toBe(false);
+  });
+
+  it('offers a journey once a second grade exists', () => {
+    expect(offersJourney([{ grade: 'grade11', ...completedAt }, { grade: 'grade12', ...completedAt }])).toBe(true);
+  });
+
+  it('does not offer a journey for one assessment, or none', () => {
+    expect(offersJourney([{ grade: 'grade11', ...completedAt }])).toBe(false);
+    expect(offersJourney([])).toBe(false);
+  });
+
+  it('does not count a draft toward the threshold', () => {
+    // An in-progress row has no report behind it and no place on the timeline.
+    expect(offersJourney([
+      { grade: 'grade11', isCompleted: true },
+      { grade: 'grade12', isCompleted: false },
+    ])).toBe(false);
+  });
+
+  it('counts a legacy bare grade as the same grade it canonicalizes to', () => {
+    // A student whose older row was stored as '11' has one grade, not two.
+    expect(offersJourney([{ grade: '11', ...completedAt }, { grade: 'grade11', ...completedAt }])).toBe(false);
+  });
+
+  it('does not turn two ungraded assessments into two grades', () => {
+    expect(offersJourney([{ grade: null, ...completedAt }, { grade: null, ...completedAt }])).toBe(false);
+  });
+});

@@ -64,6 +64,27 @@ export default function StudentProgress() {
   }
 
   const hasData = evolution?.gradeDetails && evolution.gradeDetails.length > 0;
+
+  // THE SAME ENTRY CONDITION THE PROFILE'S BUTTON APPLIES, restated here because
+  // /progress is reachable without the button — a bookmark, a back button, a
+  // student who typed it.
+  //
+  // More than one DISTINCT grade, not more than one assessment. gradeDetails is
+  // already one entry per grade (the server collapses same-grade retakes), and
+  // totalGrades is that count; both are read so the page does not depend on
+  // which one a future response happens to change.
+  //
+  // Below the threshold there is no trajectory to draw. A single grade produces
+  // a timeline of one milestone and four Pending, and a Career Consistency panel
+  // in which every career scores 100% because the denominator is one — true, and
+  // it tells the student nothing. The one-grade state below says that instead of
+  // drawing it.
+  const gradeCount = evolution?.totalGrades ?? evolution?.gradeDetails?.length ?? 0;
+  const hasJourney = gradeCount > 1;
+  const soleGrade = hasData && !hasJourney ? evolution!.gradeDetails[0] : null;
+  // No grade param when the one assessment carries no grade: /results without one
+  // resolves to the latest report, which for this student is that assessment.
+  const soleGradeParam = soleGrade ? toCanonicalGrade(soleGrade.grade) : null;
   // Was ['9','10','11','12'] — grade 8 is offered by the assessment's Demographics
   // step but was missing here, so a grade-8 assessment never appeared on the
   // timeline at all. 'graduated' is likewise shown only when it has data, since
@@ -132,6 +153,21 @@ export default function StudentProgress() {
               </p>
               <Button asChild data-testid="button-start-assessment">
                 <Link href="/assessment">{t("progress.startAssessment")}</Link>
+              </Button>
+            </CardContent>
+          </Card>
+        ) : !hasJourney ? (
+          <Card className="text-center py-12" data-testid="card-one-grade">
+            <CardContent>
+              <Calendar className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+              <h2 className="text-xl font-semibold mb-2">{t("progress.oneGradeTitle")}</h2>
+              <p className="text-muted-foreground mb-6 max-w-xl mx-auto">
+                {t("progress.oneGradeDesc")}
+              </p>
+              <Button asChild data-testid="button-view-report">
+                <Link href={soleGradeParam ? `/results?grade=${soleGradeParam}` : "/results"}>
+                  {t("progress.viewResults")} <ChevronRight className="w-4 h-4 ms-1" />
+                </Link>
               </Button>
             </CardContent>
           </Card>
@@ -285,13 +321,14 @@ export default function StudentProgress() {
               </CardContent>
             </Card>
 
-            {/* "more than one grade", which is what this panel claims to
-                describe — interests evolving and direction clarifying ACROSS
-                grades. It reads that way only because gradeDetails is now one
-                entry per grade; with retakes counted separately it opened for a
-                student whose three assessments were all Grade 12, and narrated
+            {/* The whole branch is now gated on hasJourney, so this panel's
+                own more-than-one-grade condition is no longer what protects it —
+                it is named rather than repeated. The condition mattered because
+                the panel narrates interests evolving and direction clarifying
+                ACROSS grades: with retakes counted separately it opened for a
+                student whose three assessments were all Grade 12 and narrated
                 movement across a single year. */}
-            {evolution?.gradeDetails && evolution.gradeDetails.length > 1 && (
+            {hasJourney && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">

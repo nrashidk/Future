@@ -104,6 +104,8 @@
     "noProgressTitle": "No Progress Yet",
     "noProgressDesc": "Complete your first assessment to start tracking your career journey.",
     "startAssessment": "Start Assessment",
+    "oneGradeTitle": "One Grade Recorded So Far",
+    "oneGradeDesc": "Your Career Journey compares your results from one grade to the next. You have one grade recorded, so there is nothing to compare yet. Take the assessment again in a later grade and this page will show how your direction changes.",
     "consistencyTitle": "Career Consistency",
     "consistencyDesc": "Careers that appear consistently across your assessments",
     "appearedIn": "Appeared in: {{grades}}",

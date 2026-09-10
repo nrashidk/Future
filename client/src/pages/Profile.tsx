@@ -13,7 +13,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useTranslation } from "react-i18next";
 import { isPremiumAssessment } from "@shared/assessmentTier";
 import { SCHOOL_ALLOCATIONS_PER_STUDENT, FREE_ASSESSMENT_CAP } from "@shared/assessmentLimits";
-import { toCanonicalGrade } from "@shared/grade";
+import { collapseToLatestPerGrade, toCanonicalGrade } from "@shared/grade";
 import { isResumableDraft } from "@shared/assessmentFlow";
 
 /**
@@ -211,6 +211,19 @@ export default function Profile() {
   // `find`, not a sort: the list arrives ordered by createdAt desc, so the first
   // completed row IS the most recently completed one.
   const latestCompletedAssessmentId = assessments.find(a => a.isCompleted)?.id ?? null;
+
+  // HOW MANY GRADES THIS STUDENT HAS, which is what the Career Journey plots —
+  // not how many assessments they have taken. a9b33cc collapses same-grade
+  // retakes to one row per grade, so three Grade 11 attempts are one milestone
+  // and there is no trajectory to show.
+  //
+  // collapseToLatestPerGrade rather than a local Set over grades: it is the same
+  // function the evolution endpoint counts totalGrades with, so the button and
+  // the page it opens cannot disagree about how many grades exist. It drops
+  // drafts itself (isCompleted === false) and buckets every ungraded row
+  // together. Only the bucket COUNT is read here — these rows carry no
+  // completedAt, so which row wins a bucket is arbitrary and unused.
+  const journeyGradeCount = collapseToLatestPerGrade(assessments).length;
 
   // ONE grade label for the page. It was local to the merged profile block,
   // where it labelled a single value; the history list needs the same map and a
@@ -845,8 +858,19 @@ export default function Profile() {
                     })}
                   </div>
                   
-                  {/* View Progress Journey button - shows career evolution across grades */}
-                  {assessments.filter(a => a.isCompleted).length > 0 && (
+                  {/* MORE THAN ONE GRADE, not more than one completed assessment.
+                      The gate was `completed > 0`, which offered a "journey" to
+                      a student who had nothing to journey through: a timeline
+                      with one milestone and four Pending, and a consistency list
+                      scoring careers against a denominator of one. Two
+                      assessments do not fix that either — both may be retakes at
+                      the same grade, which the journey collapses into the single
+                      milestone it already was. The threshold is distinct grades.
+
+                      /progress states the same condition for a student who
+                      arrives without the button, since the route is reachable
+                      directly. */}
+                  {journeyGradeCount > 1 && (
                     <div className="mt-4 pt-4 border-t">
                       <Button asChild variant="outline" className="w-full" data-testid="button-view-progress">
                         <Link href="/progress">
