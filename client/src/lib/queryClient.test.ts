@@ -16,7 +16,8 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { serverErrorMessage } from "./queryClient";
+import { serverErrorMessage, serverErrorCode } from "./queryClient";
+import { CONSENT_REQUIRED_CODE, CONSENT_REQUIRED_MESSAGE } from "../../../server/utils/consentGate";
 
 describe("serverErrorMessage", () => {
   describe("extracts the server's message", () => {
@@ -123,5 +124,61 @@ describe("serverErrorMessage", () => {
     it("refuses an Error with an empty message", () => {
       expect(serverErrorMessage(new Error(""))).toBeNull();
     });
+  });
+});
+
+/**
+ * serverErrorCode — the same body, the field meant to be branched on.
+ *
+ * The case that matters is the last one: it builds the exact 409 body the
+ * enrolment gate returns and asserts the client's parser recovers the code the
+ * server put there. That is the pair the shared constant exists to keep honest,
+ * and a drift between the two ends is otherwise silent — the admin simply gets
+ * the untranslated English message again, which is what this whole path was
+ * written to remove.
+ */
+describe("serverErrorCode", () => {
+  it("reads `code` out of a JSON error body", () => {
+    const error = new Error('409: {"message":"Some English sentence.","code":"CONSENT_REQUIRED"}');
+    expect(serverErrorCode(error)).toBe("CONSENT_REQUIRED");
+  });
+
+  it("returns null when the body carries a message but no code", () => {
+    // The shape of almost every other error on the page: nothing to branch on,
+    // so the caller falls through to serverErrorMessage.
+    expect(serverErrorCode(new Error('400: {"message":"Student gender is required"}'))).toBeNull();
+  });
+
+  it("returns null for a non-JSON body", () => {
+    // A proxy's plain-text or HTML failure. serverErrorMessage may still show
+    // the short ones; there is never a code in them.
+    expect(serverErrorCode(new Error("502: Bad Gateway"))).toBeNull();
+    expect(serverErrorCode(new Error("502: <html><body>nginx</body></html>"))).toBeNull();
+  });
+
+  it("returns null for unparseable JSON, a blank code, and a non-string code", () => {
+    expect(serverErrorCode(new Error('409: {"code":'))).toBeNull();
+    expect(serverErrorCode(new Error('409: {"code":"   "}'))).toBeNull();
+    expect(serverErrorCode(new Error('409: {"code":42}'))).toBeNull();
+  });
+
+  it("returns null for a non-Error value and an empty message", () => {
+    expect(serverErrorCode("just a string")).toBeNull();
+    expect(serverErrorCode(null)).toBeNull();
+    expect(serverErrorCode(new Error(""))).toBeNull();
+  });
+
+  it("recovers the gate's code from the gate's own 409 body", () => {
+    // Built the way throwIfResNotOk sees it: status, colon, the JSON the route
+    // actually sends. Both ends are imported rather than retyped, so a change
+    // to either the code or the response shape breaks this.
+    const wire = new Error(
+      `409: ${JSON.stringify({ message: CONSENT_REQUIRED_MESSAGE, code: CONSENT_REQUIRED_CODE })}`,
+    );
+    expect(serverErrorCode(wire)).toBe(CONSENT_REQUIRED_CODE);
+
+    // And the message is still recoverable beside it — the code does not
+    // replace the fallback chain, it precedes it.
+    expect(serverErrorMessage(wire)).toBe(CONSENT_REQUIRED_MESSAGE);
   });
 });
