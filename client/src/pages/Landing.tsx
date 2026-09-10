@@ -36,6 +36,24 @@ export default function Landing() {
     queryKey: ['/api/public/organizations'],
   });
 
+  // "1." is a Latin list convention, not a universal one, and there is no
+  // bidi-safe way to render it in Arabic. The period is a bidi-neutral
+  // character with no direction of its own, so it takes the direction of
+  // whatever surrounds it: inside <bdi> (an isolate that resolves to LTR,
+  // because a digit is not a strong character) it lands to the RIGHT of the
+  // numeral, which in an RTL line means the reader meets the dot BEFORE the
+  // number. Forcing the isolate to RTL only moves the dot to the other side,
+  // where it presses against the title as a stray mark. Verified by rendering
+  // the page in Arabic, not by reasoning about the algorithm.
+  //
+  // Arabic ordered lists conventionally use a dash ("١- ") or no separator at
+  // all; the period is imported. A dash is a bidi-neutral too and misplaces
+  // the same way, so the answer is the one Arabic already offers: no
+  // separator. A bare digit has no neutral to strand, and in a card whose
+  // numeral is an isolated coloured badge the period was never carrying
+  // meaning anyway — it is list punctuation on something that is not a list.
+  const stepMark = (n: number) => (isAr ? `${n}` : `${n}.`);
+
   const studentCount = analytics?.totalStudents ?? 0;
   const displayCount = isLoading ? "..." : studentCount.toLocaleString();
   const isPlural = studentCount !== 1;
@@ -180,14 +198,17 @@ export default function Landing() {
 
                 <bdi> isolates the numeral from the surrounding bidi paragraph,
                 and me-2 is margin-inline-end, so the number sits before the
-                title in both directions. */}
+                title in both directions.
+
+                THE PERIOD IS ENGLISH-ONLY, and that is not a rendering
+                workaround — see stepMark above. */}
             <StickyNote color="yellow" rotation="-1" className="text-center">
               <div className="flex flex-col items-center">
                 <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
                   <BookOpen className="w-8 h-8 text-primary" />
                 </div>
                 <h3 className="text-2xl font-bold mb-3">
-                  <bdi className="text-primary me-2">1.</bdi>
+                  <bdi className="text-primary me-2">{stepMark(1)}</bdi>
                   {t("howItWorks.step1Title")}
                 </h3>
                 <p className="text-muted-foreground font-body">
@@ -202,7 +223,7 @@ export default function Landing() {
                   <Target className="w-8 h-8 text-primary" />
                 </div>
                 <h3 className="text-2xl font-bold mb-3">
-                  <bdi className="text-primary me-2">2.</bdi>
+                  <bdi className="text-primary me-2">{stepMark(2)}</bdi>
                   {t("howItWorks.step2Title")}
                 </h3>
                 <p className="text-muted-foreground font-body">
@@ -217,7 +238,7 @@ export default function Landing() {
                   <TrendingUp className="w-8 h-8 text-primary" />
                 </div>
                 <h3 className="text-2xl font-bold mb-3">
-                  <bdi className="text-primary me-2">3.</bdi>
+                  <bdi className="text-primary me-2">{stepMark(3)}</bdi>
                   {t("howItWorks.step3Title")}
                 </h3>
                 <p className="text-muted-foreground font-body">
