@@ -2741,7 +2741,9 @@ commits, in dependency order:
 
 PROPOSALS (1) and (3) are satisfied by the above: the school attests, and no parent-facing flow
 was introduced. PROPOSAL (4) — withdrawal must not route through the school — is untouched and
-still open; it is a staffing commitment, not code. The NEEDS-A-LAWYER paragraph stands unchanged
+still open, and now has its own entry: it is BLOCKED on a mailbox that can receive, not merely
+unbuilt, because the address the policy gives minors has no MX records. See "STEP 6 BLOCKED"
+below for what exists, what is missing, and the order the three steps have to happen in. The NEEDS-A-LAWYER paragraph stands unchanged
 and still constrains all of it. The FREE FLOW is unchanged and now has its own entry (:3158).
 The admin-facing half of the gate was not built (see the enrolment-gate UI entry).
 
