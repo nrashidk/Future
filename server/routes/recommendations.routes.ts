@@ -645,11 +645,31 @@ export function registerRecommendationsRoutes(app: Express) {
         return res.status(403).json({ message: "Unauthorized to access this report" });
       }
 
-      // Tier gate: the downloadable PDF report is a premium feature. Free-tier
-      // assessments have their per-student narrative withheld from
-      // GET /api/recommendations, so a rendered PDF would carry blank narrative
-      // sections — block it here instead. Mirrors the premium-feature 403
-      // returned by the career-reasoning / education-pathways endpoints below.
+      // TIER GATE: the downloadable PDF is a SOLD feature, and that is the whole
+      // reason. en/pricing.json tierSelection.individual.feature8 —
+      // "Downloadable PDF report" — lists it as feature 8 of the $10 individual
+      // tier, in both locales. Removing this gate deletes a priced feature; it
+      // is a pricing decision, not a cleanup.
+      //
+      // THE REASON THIS COMMENT USED TO GIVE IS DEAD, and is recorded here
+      // because it argued for the opposite conclusion. It said free-tier
+      // narrative was "withheld from GET /api/recommendations, so a rendered PDF
+      // would carry blank narrative sections". That stopped being true when the
+      // free narrative became formatted rather than withheld (:517-543,
+      // services/freeNarrative.ts): ResultsPrint reads the same endpoint and
+      // falls back to rec.reasoning, and every premium-only block is already
+      // gated individually, so a free PDF would render coherently today with
+      // blocks omitted rather than blank.
+      //
+      // So the technical justification dissolved while the gate stayed correct
+      // for a different reason. Anyone reading the old comment against the
+      // current code concluded the gate was unmotivated and should be removed —
+      // which would have quietly given away a paid feature. Do not restore a
+      // technical rationale here; if this gate is ever removed it should be
+      // because pricing changed.
+      //
+      // Mirrors the premium-feature 403 returned by the career-reasoning /
+      // education-pathways endpoints below.
       if (!isPremiumAssessment(assessment.assessmentType)) {
         return res.status(403).json({
           message: "PDF report is a premium feature",

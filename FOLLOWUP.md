@@ -2365,6 +2365,32 @@ the plan it would have been scoped from (docs/v2-rebuild-plan.md Phase 6) never 
 Recorded 2026-09-08.
 
 
+### A technical justification can outlive its technical constraint  (pattern, not a defect)
+Same shape as the safeguard entry below: a comment that reads as a complete account and is one
+layer out of date. Recorded for the pattern; the instance is only the example.
+
+The PDF 403 (`recommendations.routes.ts`) explained itself as "free-tier narrative is withheld, so
+a rendered PDF would carry blank sections". That was true when written. It stopped being true when
+the free narrative became formatted rather than withheld — a change made elsewhere, for its own
+reasons, that had no visible relationship to this gate. The gate remained correct throughout,
+because the PDF is a SOLD feature (`pricing.json` individual.feature8), but nothing in the code
+said so.
+
+**The failure mode is that the comment reads as complete.** It gives a reason, the reason is
+checkable, and checking it returns false — so a careful reader concludes the gate is unmotivated
+and should be removed. Being careful makes it worse, not better: the more seriously the stated
+reason is taken, the more confidently a paid feature gets deleted. This nearly happened
+2026-09-10; the correction was caught only because the claim was traced to `pricing.json` rather
+than stopping at "the stated reason is dead, so the gate is dead".
+
+WHAT TO DO WITH IT, generally: when a control has a commercial, legal or product reason, say THAT
+reason, not the technical symptom that made it convenient at the time. A technical rationale is
+falsifiable by unrelated work; a commercial one is falsified only by a pricing decision, which is
+the thing that should actually move the gate. Where both apply, the durable reason goes first.
+
+Recorded 2026-09-10.
+
+
 ### A safeguard that contains the failure mode it guards against  (severity: process, not code)
 Three instances in one session, which is why this is recorded as a pattern rather than filed
 against any one of them.
