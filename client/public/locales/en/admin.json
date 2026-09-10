@@ -365,7 +365,25 @@
     "credFileTitleAdmin": "Future Pathways - School Admin Credentials",
     "credFileSeparator": "============================================",
     "loginUrlLabel": "Login URL",
-    "credFileImportant": "IMPORTANT: Keep this file secure. The password cannot be recovered."
+    "credFileImportant": "IMPORTANT: Keep this file secure. The password cannot be recovered.",
+    "consentTitle": "Consent for the students you enrol",
+    "consentIntro": "Before you can add students, {{school}} needs to record its consent. This is a one-time act, recorded against your name and the date.",
+    "consentProcessing": "On behalf of {{school}}, I consent to Future Pathways processing the personal data of the students we enrol, as described in the Privacy Policy and Terms of Use.",
+    "consentGuardian": "I attest that {{school}} holds parent or guardian consent for each student it enrols on this platform.",
+    "consentGuardianHelp": "The students are aged 13-18. Future Pathways does not contact parents directly and relies on this attestation.",
+    "consentSubmit": "Record consent",
+    "consentSubmitting": "Recording…",
+    "consentBothRequired": "Both statements must be affirmed.",
+    "consentRecordedTitle": "Consent recorded",
+    "consentRecordedBy": "Recorded by {{name}} on {{date}}",
+    "consentPolicyRef": "Against policy version {{version}} ({{lastUpdated}})",
+    "consentDrift": "The Terms and Privacy Policy have changed since this was recorded. Your consent remains valid; you may record it again against the current documents.",
+    "consentReaffirm": "Record again",
+    "consentUnavailable": "The legal documents could not be loaded, so consent cannot be recorded right now. Please contact support.",
+    "consentBlocked": "Add students after recording consent above.",
+    "consentError": "Could not record consent. Please try again.",
+    "termsOfUse": "Terms of Use",
+    "privacyPolicy": "Privacy Policy"
   },
   "superadmin": {
     "title": "Super Admin Dashboard",
@@ -1304,7 +1322,6 @@
     "arabicSkillsLabel": "Required Skills (Arabic)",
     "arabicEducationLabel": "Education Level (Arabic)"
   },
-
   "pageTitles": {
     "analytics": "Analytics | Future Pathways",
     "superadmin": "Superadmin Dashboard | Future Pathways",

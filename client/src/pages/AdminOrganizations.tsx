@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { StickyNote } from "@/components/StickyNote";
 import ContributeQuestions from "@/components/admin/ContributeQuestions";
+import { OrganizationConsentCard } from "@/components/admin/OrganizationConsentCard";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 import { useTranslation } from "react-i18next";
 
@@ -585,6 +586,14 @@ export default function AdminOrganizations() {
           </Card>
         ) : (
           <>
+            {/* THE SCHOOL'S CONSENT ACT. org_admin only — a superadmin cannot
+                attest on a school's behalf, by design (see
+                server/routes/organization.routes.ts). Placed ABOVE the roster
+                because it is a precondition of enrolling anyone, not a setting. */}
+            {user?.accountType === 'org_admin' && selectedOrg && (
+              <OrganizationConsentCard schoolName={selectedOrg.name} />
+            )}
+
             {/* Organization Details - Centered */}
             <Card>
               <CardHeader>
