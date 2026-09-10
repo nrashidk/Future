@@ -3656,3 +3656,114 @@ were separated by less than the scorer can meaningfully resolve. A 71 and a 71 p
 ranked list asserts an ordering the model does not have.
 
 First flagged 2026-09-10.
+
+## DIVERSITY CONSTRAINT ON CAREER MATCHES — DECIDED 2026-09-10, NO CHANGE
+
+**Decision: the matcher gets no diversity rule. `generateRecommendations` stays
+`filter >= 40 -> sort -> slice(0, N)` (`server/services/matching.ts:241-245`).**
+Closed, not deferred. Reopen only against the numbers below.
+
+Raised by a free report that returned Physicist and Space Scientist
+(Astrophysicist) at 71% each — identical Subject 64 / Interest 53 / Vision 99,
+byte-identical reasoning, next steps differing only in the degree name. A free
+report shows exactly two matches, so the student effectively got one
+recommendation printed twice. Diagnosis in `docs/duplicate-career-matches-recon.md`.
+
+### The decision, and the reason
+
+Two matches from the same sector is a CORRECT answer when the student's subjects,
+interests and country priorities all point at that sector. Forcing the second
+match to differ would manufacture variety at the cost of accuracy: it would push
+a genuinely better-fitting career out in favour of a worse one, on a report that
+only shows two. There is no version of that trade that is good for the student.
+
+The tie half of the complaint was a real defect and WAS fixed, separately and on
+its own terms — see 85da778, vision saturation. The clustering half is not a
+defect.
+
+### The measured position, so anyone reopening starts from numbers
+
+Simulated free reports, 20,000 trials, scoring the real 68-career catalogue
+against the real seed data:
+
+|                                          | before 85da778 | after 85da778 |
+|------------------------------------------|----------------|---------------|
+| both matches from the same **sector**    | 41.2%          | 40.9%         |
+| both matches from the same **category**  | 47.8%          | 46.6%         |
+| exact score tie between the two          | 5.6%           | **1.6%**      |
+
+**85da778 did not move the clustering.** The before/after differences above are
+inside sampling noise (+/-0.7pp at 20,000 trials; an independent 4,000-trial run
+gave 41.8% / 41.8% and 47.0% / 48.6%). What it did move is the tie rate, and the
+1.6% that remains is almost entirely the one-decimal rounding at
+`matching.ts:827` rather than anything in the vision component — filed above as
+its own entry.
+
+Premium is the same shape, measured at 4,000 trials: >= 2 of 5 matches from one
+sector in ~90% of reports, >= 3 of 5 in ~41%. Five matches from one cluster is
+less obviously wrong to a reader than two, which makes it the less-reported form
+of the same arithmetic, not a milder one.
+
+**Method caveat, stated because it bounds what these numbers prove:** student
+profiles are drawn uniformly at random, which is not how real students
+distribute. They establish that the mechanism fires routinely. They are not a
+forecast of the production rate, and nobody should quote them as one.
+
+### Where the clustering actually comes from
+
+Not from the ranking. From two scorers that cannot distinguish the careers:
+
+1. **Subject scores are identical BY CONSTRUCTION** for careers whose tags
+   normalize to the same umbrella subjects. Physicist's
+   `[Physics, Mathematics, Computer Science]` and Space Scientist's
+   `[Physics, Mathematics, Astronomy, Computer Science]` both project to
+   `{Science, Mathematics, Computer Science}` — `Physics -> Science`
+   (`server/utils/subjectMap.ts:30`) and `Astronomy` has no umbrella-6 home so it
+   is dropped by design. Match set, denominator and reasoning string are then all
+   the same. No change to `calculateSubjectsScore` can separate these two: the
+   information is gone before the calculator runs.
+
+2. **Interest scores are identical on 14 of the 21 lexicon interests** for the
+   same pair.
+
+### What WOULD change the answer
+
+Two real defects, both in scorers, both separate from this decision. Neither is a
+diversity question:
+
+- **The interest lexicon's category channel is 60% of interest weight and is
+  keyed on `career.category`** (`INTEREST_MATCHING_WEIGHTS.categoryMatch = 0.6`,
+  `server/services/interestLexicon.ts:305-312`; applied at
+  `matching.ts:1030-1041`). It is binary: any keyword hit awards the full 0.6.
+  So two careers sharing a category are two-thirds identical on this component
+  before any other signal is read, and only the 0.3 description and 0.1 skill
+  channels can tell them apart. That is coarseness in a scorer, not a preference
+  about report composition.
+
+- **`findMatchingKeywords` uses `String.includes`** (`interestLexicon.ts:333`),
+  the loose-match class already recorded in 786b556. Two kinds of false positive,
+  both live on this pair:
+  - *substring inside a word* — the "Creative" keyword `art` matches inside
+    "beyond **Eart**h" in Space Scientist's description;
+  - *right word, wrong sense* — the "Helping" keyword `help` matches "**help**
+    plan the missions", which is not what the Helping interest means; `design`
+    matches "**design** the experiment" for both "Creative" and "Fashion &
+    Style".
+
+  These do not only create spurious agreement, they also create spurious
+  DIFFERENCE — several of the seven interests where this pair currently diverges
+  diverge only because of a match like these.
+
+**If either is fixed, the clustering numbers move on their own.** Re-measure the
+table above and re-take this decision from the new numbers. Do not re-argue it
+from the old ones, and do not treat a diversity rule as a substitute for fixing
+either.
+
+### What was explicitly NOT decided here
+
+Whether the report should say anything when the two careers it shows are
+genuinely near-identical — a 71 and a 71 presented as a ranked list asserts an
+ordering the model does not have. That is a presentation question and is open;
+it is noted against the tie-break entry above.
+
+Decided 2026-09-10.
