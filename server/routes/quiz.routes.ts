@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { storage } from "../storage";
-import { transformQuizQuestionForFrontend, shuffleQuestions, shuffleOptions } from "../utils/quiz";
+import { transformQuizQuestionForFrontend, shuffleQuestions } from "../utils/quiz";
 import { normalizeSubjectsAsync } from "../utils/subjects";
 import { printTokenAuthorizes } from "../utils/printToken";
 import { isUniqueViolation } from "../utils/pgErrors";
@@ -187,7 +187,7 @@ export async function buildExistingQuizPayload(quiz: { id: string; completedAt: 
   const allQuestions = await storage.getAllQuizQuestions();
   const questions = allQuestions
     .filter(q => questionIds.includes(q.id))
-    .map(q => applyLanguageToQuestion(transformQuizQuestionForFrontend(q), lang));
+    .map(q => applyLanguageToQuestion(transformQuizQuestionForFrontend(q, quiz.id), lang));
 
   return {
     quizId: quiz.id,
@@ -397,8 +397,16 @@ export function registerQuizRoutes(app: Express) {
         }
       }
       
+      /**
+       * Question ORDER is shuffled here; option order is not, and must not be.
+       * transformQuizQuestionForFrontend owns option order and derives it
+       * deterministically from the quiz id, so that generate and the two re-read
+       * paths agree. Shuffling options here as well would randomise the array
+       * this handler passes down, the transform would then permute on top of a
+       * different starting order, and generate would diverge from every later
+       * read again — the exact bug this replaces.
+       */
       const finalShuffledQuestions = shuffleQuestions(selectedQuestions);
-      const questionsWithShuffledOptions = finalShuffledQuestions.map(q => shuffleOptions(q));
       
       /**
        * THE RACE ENDS HERE, BY CONVERGING — not by failing.
@@ -429,7 +437,7 @@ export function registerQuizRoutes(app: Express) {
       try {
         quiz = await storage.createAssessmentQuiz({
           assessmentId,
-          questionsCount: questionsWithShuffledOptions.length,
+          questionsCount: finalShuffledQuestions.length,
           totalScore: 0,
           subjectScores: {}
         });
@@ -450,7 +458,7 @@ export function registerQuizRoutes(app: Express) {
         return res.json(await buildExistingQuizPayload(winner, getRequestLanguage(req)));
       }
       
-      for (const question of questionsWithShuffledOptions) {
+      for (const question of finalShuffledQuestions) {
         await storage.createQuizResponse({
           assessmentQuizId: quiz.id,
           questionId: question.id,
@@ -461,8 +469,8 @@ export function registerQuizRoutes(app: Express) {
       }
       
       const lang = getRequestLanguage(req);
-      const questionsForFrontend = questionsWithShuffledOptions
-        .map(q => applyLanguageToQuestion(transformQuizQuestionForFrontend(q), lang));
+      const questionsForFrontend = finalShuffledQuestions
+        .map(q => applyLanguageToQuestion(transformQuizQuestionForFrontend(q, quiz.id), lang));
       
       const distributionInfo = Object.fromEntries(
         Array.from(distribution).map(([subject, target]) => {
@@ -477,7 +485,7 @@ export function registerQuizRoutes(app: Express) {
         responses: [], 
         completed: false,
         distribution: distributionInfo,
-        totalQuestions: questionsWithShuffledOptions.length
+        totalQuestions: finalShuffledQuestions.length
       });
     } catch (error) {
       console.error("Error generating quiz:", error);
@@ -517,7 +525,7 @@ export function registerQuizRoutes(app: Express) {
       const allQuestions = await storage.getAllQuizQuestions();
       const questions = allQuestions
         .filter(q => questionIds.includes(q.id))
-        .map(q => applyLanguageToQuestion(transformQuizQuestionForFrontend(q), lang));
+        .map(q => applyLanguageToQuestion(transformQuizQuestionForFrontend(q, quiz.id), lang));
       
       res.json({ 
         quizId: quiz.id, 
