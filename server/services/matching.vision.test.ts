@@ -182,6 +182,220 @@ describe("calculateVisionScore — HYBRID (category gate + WEF skill modulation)
     expect(new Set(withSkills.map(s => s.toFixed(4))).size).toBe(7);
   });
 
+  // -------------------------------------------------------------------------
+  // WHY THE TEST ABOVE DID NOT CATCH THE SATURATION (fixed 2026-09-10,
+  // SCORING_ALGORITHM_VERSION 4). It is a correct test and it passed throughout.
+  // It runs on the Healthcare CATEGORY-RULE careers, every one of them seeded at
+  // relevance 85, where a +/-15 swing has 15 points of room. It never touches a
+  // per-career OVERRIDE career — and the override careers are seeded 88 to 100,
+  // which is to say they have LESS headroom than the swing. Every career that
+  // collapsed was an override career; the set above contains none of them.
+  //
+  // So the three cases below are not extra assurance on a covered path. They are
+  // the uncovered half: the same claim on override careers, the saturation
+  // property itself, and a catalogue-wide invariant.
+  // -------------------------------------------------------------------------
+
+  it("resolves careers that share a SECTOR through per-career overrides", () => {
+    // The override analogue of the test above, on the exact cluster that
+    // collapsed. All five reach Space & Advanced Sciences by an explicit
+    // override, seeded 100 / 95 / 95 / 88 / 85 with a written justification per
+    // row (server/seed.ts:224, :255, :256). Before version 4 all five scored
+    // 99.0 — and a free report shows TWO matches, so a student could be handed
+    // two of these with identical scores and identical reasoning.
+    const ctx = makeContext();
+    const SPACE_FIVE = [
+      "Aerospace Engineer",
+      "Space Scientist (Astrophysicist)",
+      "Satellite & Remote Sensing Scientist",
+      "Atmospheric & Space Scientist",
+      "Physicist",
+    ];
+
+    for (const title of SPACE_FIVE) {
+      expect(
+        UAE_SECTOR_CAREER_OVERRIDES.filter(o => o.careerTitle === title),
+        `${title} must reach its sector by override, not by a category rule`,
+      ).toHaveLength(1);
+      expect(scoreOf(ctx, title).reasoning.endsWith(": Space & Advanced Sciences")).toBe(true);
+    }
+
+    const scores = SPACE_FIVE.map(t => scoreOf(ctx, t).score);
+    expect(
+      new Set(scores.map(s => s.toFixed(4))).size,
+      `five careers, ${new Set(scores.map(s => s.toFixed(4))).size} distinct scores: ${SPACE_FIVE.map(
+        (t, i) => `${t} ${scores[i].toFixed(2)}`,
+      ).join(", ")}`,
+    ).toBe(5);
+
+    // The seed's top pick must still lead. Fit may reorder careers inside the
+    // sector — that is what the hybrid is for — but it must not unseat the
+    // career the seed says IS the sector.
+    expect(Math.max(...scores)).toBe(scoreOf(ctx, "Aerospace Engineer").score);
+  });
+
+  it("NEITHER SATURATION FIRES — no clipped alignment, no career pinned at the relevance ceiling", () => {
+    // THE PROPERTY THAT ACTUALLY BROKE, asserted directly rather than through a
+    // table of pinned scores. Pinned scores go stale as the catalogue grows;
+    // this does not. A future career whose skill profile blows past the +/-16
+    // band, or a future seed row high enough to re-saturate, makes this say so
+    // out loud instead of silently collapsing onto its neighbours.
+    //
+    // Before version 4: 15 of 154 pairs clipped (9.7%) and 27 of 68 careers sat
+    // at relevance exactly 100. Both must now be zero.
+    const skillMap = buildSectorWefSkillMap(skillRows(), affinityMap);
+    const catMap = buildSectorCategoryMap(categoryRows(), UAE);
+    const ALIGN_BAND = 16;  // VISION_ALIGN_HI; module-private, mirrored here
+    const SWING = 15;       // VISION_SKILL_SWING; ditto
+    const membershipBase = (r: number) => SWING + (100 - 2 * SWING) * (r / 100);
+
+    // THE MIRRORED CONSTANTS MUST BE THE SHIPPED ONES. Without this the loop
+    // below computes the maths this test WANTS rather than the maths the module
+    // does, and it would keep passing if someone put the ±12 band or the
+    // un-rebased membership back — which is precisely the regression it exists
+    // to prevent. VISION_ALIGN_HI and VISION_SKILL_SWING are module-private, so
+    // they are recovered from the calculator's own output on a synthetic
+    // single-sector map where rankFactor is 1 and score = 40 + 0.6 * relevance.
+    const probe = (relevance: number, affinity: number | null) => {
+      const mean = 50;
+      return calculateVisionScore(
+        {
+          assessment: { assessmentType: "basic" },
+          careers: [],
+          activeComponents: [VISION_COMPONENT],
+          userCountry: UAE,
+          sectorCategoryMap: {
+            sectors: new Map([["probe-sector", { name: "Probe", rankFactor: 1 }]]),
+            byCategory: new Map([["probe", [{ sectorId: "probe-sector", relevance }]]]),
+            byCareer: new Map(),
+          },
+          sectorWefSkillMap: affinity === null ? undefined : {
+            bySector: new Map([["probe-sector", [{ wefSkillId: "probe-skill", importance: 100 }]]]),
+            catalogMeans: new Map([["probe-skill", mean]]),
+          },
+          careerWefAffinities: affinity === null ? undefined
+            : new Map([["probe", [{ wefSkillId: "probe-skill", affinityScore: mean + affinity }]]]),
+        } as unknown as MatchingContext,
+        { id: "probe", title: "probe", category: "Probe" } as unknown as Career,
+        VISION_COMPONENT,
+      )!.score;
+    };
+    /** Invert score = 40 + 0.6 * relevance. */
+    const relevanceOf = (score: number) => (score - 40) / 0.6;
+
+    // Membership is rebased: with no skill data the calculator must return
+    // membershipBase(relevance), not the raw seeded relevance.
+    for (const seeded of [40, 85, 95, 100]) {
+      expect(
+        relevanceOf(probe(seeded, null)),
+        `membershipBase(${seeded}) drifted — the mirrored constants below are stale`,
+      ).toBeCloseTo(membershipBase(seeded), 6);
+    }
+    // A raw overlap exactly at the band edge yields alignment 1, i.e. the full
+    // +SWING. One just inside it must yield strictly less. Together these pin
+    // both the band width and the swing.
+    expect(relevanceOf(probe(85, ALIGN_BAND))).toBeCloseTo(membershipBase(85) + SWING, 6);
+    expect(relevanceOf(probe(85, ALIGN_BAND - 0.5))).toBeLessThan(membershipBase(85) + SWING);
+
+    const clipped: string[] = [];
+    const ceilinged: string[] = [];
+
+    for (const career of CAREERS) {
+      const candidates =
+        catMap.byCareer.get(career.id) ?? catMap.byCategory.get(career.category.trim().toLowerCase());
+      if (!candidates) continue;
+
+      for (const candidate of candidates) {
+        const sectorSkills = skillMap.bySector.get(candidate.sectorId);
+        const affinities = affinityMap.get(career.id);
+        if (!sectorSkills?.length || !affinities?.length) continue;
+
+        const vector = new Map(affinities.map(a => [a.wefSkillId, a.affinityScore]));
+        let num = 0;
+        let den = 0;
+        for (const { wefSkillId, importance } of sectorSkills) {
+          const affinity = vector.get(wefSkillId);
+          const mean = skillMap.catalogMeans.get(wefSkillId);
+          if (affinity === undefined || mean === undefined) continue;
+          num += (importance / 100) * (affinity - mean);
+          den += importance / 100;
+        }
+        if (den <= 0) continue;
+
+        const raw = num / den;
+        if (Math.abs(raw) >= ALIGN_BAND) {
+          clipped.push(`${career.title} x ${candidate.sectorId}: raw ${raw.toFixed(2)}`);
+        }
+
+        const alignment = Math.max(0, Math.min(1, (raw + ALIGN_BAND) / (2 * ALIGN_BAND)));
+        const relevance = membershipBase(candidate.relevance) + SWING * (2 * alignment - 1);
+        if (relevance >= 100 - 1e-9 || relevance <= 1e-9) {
+          ceilinged.push(`${career.title} x ${candidate.sectorId}: relevance ${relevance.toFixed(3)}`);
+        }
+      }
+    }
+
+    expect(clipped, `alignment clipped for:\n  ${clipped.join("\n  ")}`).toEqual([]);
+    expect(ceilinged, `relevance saturated for:\n  ${ceilinged.join("\n  ")}`).toEqual([]);
+  });
+
+  it("no two careers credited to the SAME sector share a vision score", () => {
+    // The catalogue-wide no-collapse invariant. Careers in different sectors may
+    // legitimately land on the same number; two careers the report attributes to
+    // the SAME sector, scored on the same seeded scale and the same skill vector,
+    // sharing a score means the model failed to say anything about them.
+    //
+    // ONE DOCUMENTED EXCEPTION, and it is named rather than excluded because it
+    // is a DATA gap, not a scorer defect. Accountant and Actuary carry identical
+    // values on every skill the Financial Services vector asks about:
+    //
+    //     Financial Literacy  imp 95   Accountant 100  Actuary 100
+    //     Numeracy            imp 90   Accountant 100  Actuary 100
+    //     ICT Literacy        imp 75   Accountant  85  Actuary  85
+    //     Leadership          imp 60   Accountant  65  Actuary  65
+    //     Literacy            imp 55   Accountant  80  Actuary  80
+    //
+    // They differ on 8 of the other 11 — including Critical Thinking 90 vs 100
+    // and Curiosity 70 vs 80, which is most of what separates an actuary from an
+    // accountant. The sector vector simply does not ask. The fix is to give
+    // Financial Services a discriminating skill (a seed change, with its own
+    // justification and its own commit); until then this pair is expected to tie
+    // and this test records why. If it stops tying, delete the exception.
+    const KNOWN_DATA_GAP = ["Accountant", "Actuary"];
+
+    const ctx = makeContext();
+    const bySector = new Map<string, Array<{ title: string; score: string }>>();
+    for (const career of CAREERS) {
+      const result = scoreOf(ctx, career.title);
+      if (result.score === 40) continue; // floor: no sector attributed
+      const sector = UAE_SECTOR_WEF_SKILLS.map(s => s.name).find(n =>
+        result.reasoning.endsWith(`: ${n}`),
+      );
+      if (!sector) continue;
+      const list = bySector.get(sector) ?? [];
+      list.push({ title: career.title, score: result.score.toFixed(4) });
+      bySector.set(sector, list);
+    }
+
+    const collisions: string[] = [];
+    for (const [sector, careers] of bySector) {
+      const byScore = new Map<string, string[]>();
+      for (const { title, score } of careers) {
+        byScore.set(score, [...(byScore.get(score) ?? []), title]);
+      }
+      for (const [score, titles] of byScore) {
+        if (titles.length < 2) continue;
+        if (titles.length === KNOWN_DATA_GAP.length && KNOWN_DATA_GAP.every(t => titles.includes(t))) {
+          continue; // the documented Financial Services skill-vector gap above
+        }
+        collisions.push(`${sector} @ ${score}: ${titles.join(" | ")}`);
+      }
+    }
+
+    expect(collisions, `careers sharing a score inside one sector:\n  ${collisions.join("\n  ")}`)
+      .toEqual([]);
+  });
+
   it("MEAN-CENTERING IS LOAD-BEARING — without it the modulation collapses", () => {
     // Uncentered alignment, computed the way the naive implementation would:
     // an importance-weighted mean of RAW affinities. Every career lands in a
@@ -306,8 +520,16 @@ describe("calculateVisionScore — HYBRID (category gate + WEF skill modulation)
     for (const career of CAREERS) {
       const hybrid = calculateVisionScore(ctx, career, VISION_COMPONENT)!.score;
       const categoryOnly = calculateVisionScore(noSkills, career, VISION_COMPONENT)!.score;
-      // 15 relevance points of swing, damped by rankFactor (<=1) and scaled by
-      // VISION_RANGE/100 = 0.6 => at most 9 score points either way.
+      // "The category-only score" means membershipBase(seeded relevance) since
+      // SCORING_ALGORITHM_VERSION 4 — the REBASED midpoint, not the raw seeded
+      // value. Both halves have to live on the same scale: if the null-alignment
+      // path returned the raw relevance, a career with NO skill data would
+      // outscore an identically-seeded career whose skills merely match the
+      // catalogue average. See membershipBase in matching.ts.
+      //
+      // The bound is structural, not observed: 15 relevance points of swing,
+      // damped by rankFactor (<=1) and scaled by VISION_RANGE/100 = 0.6 => at
+      // most 9 score points either way. Measured max today is 8.365.
       expect(Math.abs(hybrid - categoryOnly)).toBeLessThanOrEqual(9.001);
       expect(hybrid).toBeGreaterThanOrEqual(40);
     }
