@@ -4446,10 +4446,27 @@ score moved, and no golden fixture moved. Bumping would assert that scores chang
 existing row read as stale against a new algorithm number, which is the false-staleness failure
 the provenance comment warns about.
 
-STILL OPEN, and now sharper rather than resolved: the report can show two careers at 72.1 in an
-order the printed numbers do not explain. They are not equal — they only print equal. That is
-the "worth deciding alongside it" question above, and ordering on the raw score has made it
-visible rather than answered it.
+DECIDED 2026-09-10, NO DISPLAY CHANGE — the "worth deciding alongside it" question above is
+closed, not deferred. Recorded with the reason so it is not reopened later as a display defect by
+someone who notices two 72.1s in a ranked list.
+
+**Two careers printing the same score in an order the printed numbers do not explain is
+acceptable.** The list is ranked, the ranking is now correct on the raw score, and the printed
+value answers the student's question — "how good a match is this" — rather than documenting how
+the sort resolved. A report is not an audit trail of its own ordering.
+
+ADDING A DECIMAL IS THE FIX TO REFUSE, and it is the one that will be proposed. Printing 72.14
+and 72.06 would make the two lines explain themselves, and it would do so by asserting a
+precision the instrument does not have: the components feeding that number are seeded affinities,
+a normalized subject overlap and a keyword-match count, none of which supports a second decimal
+place. The report would look more exact and be no more true. The same argument rules out
+exposing the raw score anywhere else in the UI.
+
+WHAT WOULD REOPEN THIS: a change that makes the score meaningful at two decimal places, or a
+decision to show students the component breakdown as the primary ranking explanation rather than
+the overall number. Neither is on the table. "A user asked why two careers with the same score
+are in that order" is not sufficient — the answer to that is the ordering is correct and the
+score is rounded, which is a support answer, not a code change.
 
 ## DIVERSITY CONSTRAINT ON CAREER MATCHES — DECIDED 2026-09-10, NO CHANGE
 
