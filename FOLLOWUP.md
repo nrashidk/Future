@@ -3826,3 +3826,26 @@ the two numbers diverge by exactly the thing this page collapses.
   checks only `req.isAuthenticated()`. Unchanged, and noted in the earlier recon.
 
 Decided 2026-09-10.
+
+### Arabic unreviewed — the Career Journey's one-grade state  (severity: low)
+8b7fdf6 added two Arabic strings to `ar/profile.json` under `progress`, neither reviewed by an
+Arabic speaker. They are what a student sees when they reach `/progress` with one grade
+recorded — reachable by bookmark or by typing the URL, since the profile's button no longer
+offers it:
+
+- `oneGradeTitle` — `صف واحد مسجّل حتى الآن` ("one grade recorded so far")
+- `oneGradeDesc` — `تقارن رحلتك المهنية نتائجك من صف إلى الصف الذي يليه. لديك صف واحد مسجّل، لذا لا يوجد ما يُقارن بعد. أعد إجراء التقييم في صف لاحق وستُظهر هذه الصفحة كيف يتغيّر مسارك.`
+
+`oneGradeDesc` IS THE ONE TO CHECK. It is three sentences of explanation rather than a label,
+and two things in it are worth an Arabic speaker's eye: `من صف إلى الصف الذي يليه` ("from one
+grade to the grade that follows it") is a literal rendering of an English idiom and may be
+wordier than needed; and the closing clause promises a future behaviour
+(`وستُظهر هذه الصفحة كيف يتغيّر مسارك`) whose tense should match how the rest of this file
+addresses the student. `صف` is the word the file already uses for a school grade
+(`progress.grade`, `details.grade8`…), so that term at least is consistent.
+
+Both should also be read against `noProgressDesc` directly above them, which is the
+no-assessments state — the two sit next to each other in the file and a student sees one or the
+other, never both, so they should not read as if written by different hands.
+
+Recorded 2026-09-10.
