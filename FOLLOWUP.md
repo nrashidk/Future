@@ -3,6 +3,21 @@
 Non-blocking items surfaced during Phase 2 security work. **Not security findings.**
 Do not block deploy on these, but address before/around release.
 
+## ⚠️ STARTING THE APP IS A WRITE. Read this before `npm run dev`
+
+`index.ts:210-225` runs `runMigrations()` and then `seedDatabase()` on every boot, against
+whatever `DATABASE_URL` resolves to — `.env`'s string by default. So "start the dev server to
+look at a page" is not a read-only act: it applies migrations and re-runs every content seeder.
+A run on 2026-09-10 (to render the Arabic landing page) wrote to staging: 68 careers, 180 quiz
+questions, 34 sector rules. Harmless there. The same command with a prod string in scope would
+have done it to production.
+
+The `db.ts` endpoint guard stops a prod DSN **only while `ALLOW_PRODUCTION_DB` is unset** — and
+that is exactly the variable someone exports for one legitimate query and leaves set for the
+rest of the shell. Before starting the app: `printenv DATABASE_URL ALLOW_PRODUCTION_DB`. If you
+only need to SEE a page, that is still the dev server, so check first — there is no read-only
+way to boot this app today.
+
 ## PDF DOWNLOAD — FIXED 2026-09-03 (commit 8006a0e)
 Root cause: PUPPETEER_EXECUTABLE_PATH pinned Chrome 150 (gone); three-way drift (env 150, build
 chrome@stable 152, puppeteer wants 148); env pin suppressed puppeteer's managed download. Fix:
@@ -551,7 +566,8 @@ Rules of thumb worth carrying into the audit proper:
   direction and render on the other side of the numeral from the English. Never
   rendered/checked. Fold into this audit.
 
-**How to actually see it** (no Replit, no prod deploy needed): puppeteer is already a
+**How to actually see it** (no Replit, no prod deploy needed) — first check what the dev server
+will write to, see the boot-writes warning at the top of this file. Then: puppeteer is already a
 dependency, and headless Chrome runs here once its system libs are installed
 (`libatk1.0-0t64 libatk-bridge2.0-0t64 libcups2t64 libdrm2 libxkbcommon0
 libxcomposite1 libxdamage1 libxfixes3 libxrandr2 libgbm1 libasound2t64 libpango-1.0-0
@@ -1533,6 +1549,8 @@ The grade-branched "Next Steps" (explore/narrow/apply bands from generateEnhance
 storage.ts (~965–969): bare select().from().where(eq(assessmentId)) with no ORDER BY. Insertion is best-match-first, but Postgres doesn't guarantee row order without ORDER BY, and the PATCH re-run does delete→re-insert (recommendations.routes.ts:147), so heap reuse can reorder. Harmless TODAY because the only consumers relying on order (the hoisted Work Style / Strengths panels via .find()) read career-NEUTRAL fields, so which row wins doesn't matter. Becomes a real bug the moment anything relies on recommendations[0] being the top match, or .find() on a career-SPECIFIC field. Fix: add explicit ORDER BY (e.g. overallScore desc) to the query. Would need verification against a PATCH re-run.
 
 ### Local dev blocked — missing env secrets  (severity: low — dev ergonomics)
+**Before starting it at all, see the boot-writes warning at the top of this file — boot applies
+migrations and re-runs the seeders against whatever DATABASE_URL is in scope.**
 npm run dev fails: .env in Codespaces has only DATABASE_URL. Server validation also requires SESSION_SECRET, SUPERADMIN_EMAILS, DB_ENCRYPTION_KEY. SESSION_SECRET and SUPERADMIN_EMAILS can be dev-appropriate values; DB_ENCRYPTION_KEY MUST match the Render literal exactly or the app cannot decrypt api_credentials (do NOT generate a fresh one). Until populated, local render testing isn't possible — verification has to go through deploy-to-Render. Non-blocking but costs a deploy cycle per UI check.
 
 ### CSP blocks an inline event handler on report page — RESOLVED (fixed 2026-07-07 in b729bb7, closed 2026-09-05)
