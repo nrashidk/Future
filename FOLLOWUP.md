@@ -3155,6 +3155,91 @@ change; nothing in the repo can answer it.
 First flagged 2026-09-09. Mechanism corrected and severity downgraded HIGH → LOW 2026-09-10.
 
 
+### NEEDS HUMAN REVIEW — the free flow's consent is a checkbox that records nothing  (severity: MEDIUM)
+Surfaced while building the school-consent work (docs/consent-implementation-recon.md §e) and
+deliberately kept out of it. The school side is now decided and built: the school consents once
+at enrolment as a recorded act, and the student is told rather than asked. **None of that
+touches the free self-paid flow, which is where the remaining questions are — and they are
+product decisions, not defects to be patched.**
+
+DO NOT FIX THESE AS A GROUP, and in particular do not fix (2) by persisting `consentGiven`.
+That would create a free-flow consent record as a side effect of a school-consent design, and
+what a 13-year-old self-consenting should actually require is the undecided question underneath
+all four.
+
+**1. `consentGiven` is never persisted. Anywhere. For anyone.**
+It exists only as React state on `AssessmentData` (Assessment.tsx:65). There is no column on
+`assessments` (shared/schema.ts), and BOTH save payloads omit it — the debounced auto-save
+(Assessment.tsx:662) and the step-advance save that carries a step's own write (:851). The one
+occurrence of the identifier under `server/` is prose, not a reader: migration 022's header
+comment recording that it was never persisted (022_organization_consents.sql:5). Now that school
+students are shown a
+statement rather than a control (c647443), **this tick is the only consent UI left in the
+product — and it records nothing.** A free student's consent survives exactly as long as the tab
+is open.
+
+**2. On cross-device resume the tick is FABRICATED, not lost — and that distinction is the
+finding.**
+`Assessment.tsx:505` sets `consentGiven: true` in `hydratedData` unconditionally, because there
+is nothing on the server to restore it from. So a free student who never ticked the box can be
+resumed into a state that says they did.
+
+This was first written up as the resume "voiding" the tick. It is the opposite, and the two are
+materially different claims about the same line:
+
+  - "loses consent that was given" is a UX defect — the student is asked again, is mildly
+    annoyed, and the record (such as it is) stays truthful.
+  - "asserts consent that was never given" is a data-integrity defect about a minor's consent.
+    Nothing in the system can now distinguish a student who agreed from one who was resumed
+    into agreement.
+
+Only the second is worth escalating, and only the second describes the code. The sessionStorage
+path (Assessment.tsx ~:373) round-trips the real value and is not affected; this is the
+authenticated cross-device path only.
+
+**3. `under18Note` promises a mechanism that does not exist.**
+`assessment.json demographics.under18Note` — "Note: Users under 18 require parental or
+institutional consent" — is rendered to any self-paid student under 18, with no parental flow
+behind it and no institution. The school attestation now covers the institutional half, but
+school students never see this branch. The free age range is 13-25 (the age input's min/max), so
+under-18 self-consent is the common case here, not an edge.
+
+**4. A superadmin can mint an account with no consent record of any kind.**
+`POST /api/superadmin/students` (superadmin.routes.ts:2435) calls
+`storage.createStandaloneUser`, which writes a `users` row with `accountType: 'individual'` and
+no organization membership. It is deliberately NOT covered by the enrolment gate (bbb1869) and
+the exclusion is commented in consentGate.ts: it enrols nobody into a school, so there is no
+organization whose consent could gate it. That is correct as far as the school design goes, and
+it leaves a real hole on this side — an account created by an administrator, for a person who
+may be a minor, with no consent artifact anywhere.
+
+  CORRECTION, recorded because it was acted on: the pre-build report named this as the FOURTH
+  org enrolment path and it is not one. There are three, all sinking into
+  `storage.createUserWithCredentials`. The ruling taken from that report — "block superadmin
+  student-create under the same gate, no exception" — could not be implemented as stated,
+  because the premise was wrong rather than the intent. The part of that ruling that WAS
+  implementable is enforced: the attestation endpoint is org_admin-only, so a superadmin cannot
+  attest for a school (3a7e48a).
+
+WHAT NEEDS DECIDING, in the order that makes the others answerable:
+
+  (a) Is a 13-year-old ticking a box on their own behalf an acceptable basis at all? Everything
+      else is downstream. If the answer is no, the free flow needs a guardian mechanism or an
+      age floor, and (1)-(3) resolve themselves.
+  (b) If it is acceptable, the tick has to be recorded — the same fields the school act records
+      (timestamp, policy version, channel evidence), on the assessment or the user. At that
+      point (2) becomes a straightforward bug rather than a design question, because there is
+      something real to restore on resume.
+  (c) `under18Note` should either name a mechanism that exists or stop promising one. It is
+      the cheapest of the four and can be done independently of (a) — but softening the wording
+      is NOT a fix for (a), the same way softening the landing copy was not a fix for the
+      job-market entry (:3003).
+  (d) Whether superadmin-created individual accounts belong in the free flow's answer or need
+      their own, given the creator is not the subject.
+
+First flagged 2026-09-10.
+
+
 ### NEEDS HUMAN REVIEW — quiz question SELECTION is an unseeded random draw  (severity: MEDIUM)
 Surfaced by the `Math.random` sweep over `server/` that closed the job-market entry above
 (docs/job-market-random-recon.md §5). Filed separately and deliberately: **random sampling from
