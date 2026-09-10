@@ -92,6 +92,87 @@ export function flattenQuestionBank(bank: CountryQuestionBank): QuizQuestionSeed
   return questions;
 }
 
+/**
+ * Upper-tail chi-square critical values at p = 0.001, indexed by degrees of
+ * freedom. df = (number of option positions) - 1, so index 3 covers the
+ * four-option questions the banks actually use.
+ */
+const CHI2_CRITICAL_P001: Record<number, number> = {
+  1: 10.828, 2: 13.816, 3: 16.266, 4: 18.467, 5: 20.515,
+  6: 22.458, 7: 24.322, 8: 26.124, 9: 27.877,
+};
+
+/** Expected count per position must reach this before the test means anything. */
+const MIN_EXPECTED_PER_POSITION = 5;
+
+export interface CorrectAnswerSkew {
+  optionCount: number;
+  questions: number;
+  /** Count of questions whose correct answer sits at each index. */
+  positions: number[];
+  chiSquare: number;
+  critical: number;
+  /** True once the distribution is too uneven to be chance at p < 0.001. */
+  skewed: boolean;
+  /** False when the sample is too small to test; `skewed` is then always false. */
+  tested: boolean;
+}
+
+/**
+ * Measures how evenly the correct answer is distributed across option positions.
+ *
+ * WHY A STATISTICAL TEST AND NOT A PERCENTAGE CAP. A rule like "no position may
+ * hold more than 40%" false-positives constantly on small samples: with 20
+ * questions over 4 positions the expected count is 5 and ordinary variance
+ * reaches 9 or 10 without anything being wrong. Chi-square against uniform
+ * scales with the sample instead of ignoring it.
+ *
+ * THE THRESHOLD IS DELIBERATELY LOOSE. p < 0.001 (df=3 -> 16.266) false-fails
+ * one honest bank in a thousand, while the real defect is nowhere near the line:
+ * the UAE bank as authored is [239, 1, 0, 0] against an expectation of 60 each,
+ * which is chi-square ~712 — about 44x the critical value. A correctly permuted
+ * bank of the same size averages ~3. There is no need to tighten it.
+ *
+ * Questions are grouped by option count so that banks mixing 3- and 4-option
+ * questions are each tested against their own uniform expectation rather than a
+ * blended one that fits neither.
+ */
+export function measureCorrectAnswerSkew(questions: QuizQuestionSeed[]): CorrectAnswerSkew[] {
+  const byOptionCount = new Map<number, QuizQuestionSeed[]>();
+  for (const q of questions) {
+    if (!Array.isArray(q.options) || q.options.length < 2) continue;
+    if (!q.options.includes(q.correctAnswer)) continue; // a separate error already
+    const group = byOptionCount.get(q.options.length);
+    if (group) group.push(q);
+    else byOptionCount.set(q.options.length, [q]);
+  }
+
+  const results: CorrectAnswerSkew[] = [];
+  for (const [optionCount, group] of Array.from(byOptionCount.entries()).sort((a, b) => a[0] - b[0])) {
+    const positions = new Array(optionCount).fill(0);
+    for (const q of group) positions[q.options.indexOf(q.correctAnswer)]++;
+
+    const expected = group.length / optionCount;
+    const tested = expected >= MIN_EXPECTED_PER_POSITION;
+    const chiSquare = positions.reduce((acc, observed) => {
+      const diff = observed - expected;
+      return acc + (diff * diff) / expected;
+    }, 0);
+    const critical = CHI2_CRITICAL_P001[optionCount - 1] ?? Infinity;
+
+    results.push({
+      optionCount,
+      questions: group.length,
+      positions,
+      chiSquare: Math.round(chiSquare * 100) / 100,
+      critical,
+      skewed: tested && chiSquare > critical,
+      tested,
+    });
+  }
+  return results;
+}
+
 export function validateQuestionBank(bank: CountryQuestionBank): { valid: boolean; errors: string[]; warnings: string[] } {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -147,6 +228,32 @@ export function validateQuestionBank(bank: CountryQuestionBank): { valid: boolea
     });
   });
   
+  /**
+   * AUTHORED SKEW IS A WARNING, NOT AN ERROR — deliberately.
+   *
+   * Stored option order is randomised on the way into the database
+   * (storage.createQuizQuestion -> permuteOptionsForStorage), so the order in a
+   * source file is not what students ever see and cannot leak an answer key by
+   * itself. Failing the bank for it would reject the UAE bank as it stands today
+   * over a property that no longer has any effect.
+   *
+   * It is still worth saying out loud: a bank that is 239/240 correct-answer-first
+   * tells you the author was not varying position, and it means every safeguard
+   * between the file and the screen is load-bearing. The assertion that actually
+   * protects students is on the STORED distribution, which is where the test
+   * lives.
+   */
+  for (const skew of measureCorrectAnswerSkew(flattenQuestionBank(bank))) {
+    if (!skew.skewed) continue;
+    warnings.push(
+      `Bank "${bank.countryName}": the correct answer is unevenly placed across ` +
+      `${skew.optionCount}-option questions (positions ${skew.positions.join('/')} ` +
+      `of ${skew.questions}, chi-square ${skew.chiSquare} > ${skew.critical}). ` +
+      `Harmless on its own — stored order is randomised at insert — but vary the ` +
+      `position when authoring so the file is not itself an answer key.`
+    );
+  }
+
   return {
     valid: errors.length === 0,
     errors,

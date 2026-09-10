@@ -1,3 +1,5 @@
+import { randomInt } from "crypto";
+
 /**
  * Fisher-Yates shuffle algorithm for randomizing array order
  * Returns a new shuffled array without mutating the original
@@ -142,4 +144,55 @@ export function transformQuizQuestionForFrontend(question: any, presentationSeed
     // Hide correct answers for multiple choice questions
     correctAnswer: question.questionType === "rating" ? question.correctAnswer : undefined,
   };
+}
+
+/**
+ * Randomly permutes a question's stored option order, keeping `optionsAr` in
+ * step with `options` under the SAME permutation.
+ *
+ * WHY STORED ORDER IS RANDOMISED AT WRITE TIME. 239 of the bank's 240 questions
+ * were authored with the correct answer at options[0]. The runtime shuffle in
+ * transformQuizQuestionForFrontend hides that from the wire, but it derives its
+ * permutation from the quiz id, so anyone with the source and their own quiz id
+ * can recompute it — and if the DATABASE order is also derivable (either because
+ * it mirrors the source file, or because it were seeded from the question text),
+ * the correct answer is recoverable end to end. Randomising here and persisting
+ * the result is what breaks that chain: the stored order becomes the only record
+ * of itself, derivable from nothing.
+ *
+ * THIS IS WHY THE PERMUTATION MUST NOT BE SEEDED. A deterministic permutation
+ * over question text would be reproducible from the repo and would leave the
+ * exploit fully intact, which is the opposite of the point.
+ *
+ * It also removes the drift problem: source order stops being authoritative for
+ * anything, so a bank authored correct-answer-first is normalised on the way in
+ * and there are no two orders that have to be kept in agreement.
+ *
+ * Shape-agnostic: `options` may be plain strings or {id,text} objects. Objects
+ * carry their own id, so a permutation moves the id with its option and any
+ * correctAnswer that refers to an id keeps designating the same option.
+ */
+export function permuteOptionsForStorage(
+  options: unknown,
+  optionsAr: unknown,
+): { options: unknown; optionsAr: unknown } {
+  if (!Array.isArray(options) || options.length < 2) {
+    return { options, optionsAr };
+  }
+
+  const order = options.map((_, i) => i);
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = randomInt(i + 1);
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+
+  // Only reorder the Arabic array when it is genuinely parallel. A mismatched
+  // length means the two were never aligned; permuting it would invent a
+  // pairing rather than preserve one.
+  const permutedAr =
+    Array.isArray(optionsAr) && optionsAr.length === options.length
+      ? order.map((i) => optionsAr[i])
+      : optionsAr;
+
+  return { options: order.map((i) => options[i]), optionsAr: permutedAr };
 }

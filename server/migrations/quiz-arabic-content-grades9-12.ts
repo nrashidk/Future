@@ -7,6 +7,7 @@
 import { db } from '../db';
 import { quizQuestions } from '../../shared/schema';
 import { eq } from 'drizzle-orm';
+import { alignArabicOptions } from './alignArabicOptions';
 
 interface ArContent {
   question: string;
@@ -1204,10 +1205,11 @@ export async function applyGrades9to12ArabicContent(): Promise<void> {
   console.log('Applying Arabic content for Grades 9–12 quiz questions...');
   let updated = 0;
   let notFound = 0;
+  let unaligned = 0;
 
   for (const item of GRADES9_12_ARABIC_CONTENT) {
     const results = await db
-      .select({ id: quizQuestions.id })
+      .select({ id: quizQuestions.id, options: quizQuestions.options })
       .from(quizQuestions)
       .where(eq(quizQuestions.question, item.question))
       .limit(1);
@@ -1218,16 +1220,30 @@ export async function applyGrades9to12ArabicContent(): Promise<void> {
       continue;
     }
 
+    // optionsAr is positional against the BANK SOURCE order; the stored row is
+    // permuted. Realign before writing, and on failure write only the fields
+    // that carry no positional meaning.
+    const aligned = alignArabicOptions(item.question, results[0].options, item.optionsAr);
+    if (aligned === null) {
+      unaligned++;
+      console.warn(
+        `  \u26a0 Could not align Arabic options, leaving options_ar untouched: "${item.question.substring(0, 60)}"`,
+      );
+    }
+
     await db
       .update(quizQuestions)
       .set({
         questionAr: item.questionAr,
-        optionsAr: item.optionsAr,
+        ...(aligned !== null ? { optionsAr: aligned } : {}),
         explanationAr: item.explanationAr,
       })
       .where(eq(quizQuestions.id, results[0].id));
     updated++;
   }
 
-  console.log(`Grades 9–12 Arabic content: ${updated} updated, ${notFound} not found`);
+  console.log(
+    `Grades 9–12 Arabic content: ${updated} updated, ${notFound} not found` +
+      (unaligned > 0 ? `, ${unaligned} with options_ar left untouched (unalignable)` : ''),
+  );
 }

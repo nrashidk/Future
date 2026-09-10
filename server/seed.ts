@@ -2702,6 +2702,12 @@ export async function seedDatabase() {
     validation.errors.forEach(err => console.error(`  - ${err}`));
     throw new Error("Invalid question bank");
   }
+  // Warnings are advisory and must not fail the seed — but they were never
+  // printed, which made every warning validateQuestionBank produced inert.
+  if (validation.warnings.length > 0) {
+    console.warn("⚠️ UAE question bank warnings:");
+    validation.warnings.forEach(w => console.warn(`  - ${w}`));
+  }
   if (validation.warnings.length > 0) {
     console.warn("⚠️  UAE question bank warnings:");
     validation.warnings.forEach(w => console.warn(`  - ${w}`));

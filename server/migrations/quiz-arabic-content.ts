@@ -7,6 +7,7 @@
 import { db } from '../db';
 import { quizQuestions } from '../../shared/schema';
 import { eq } from 'drizzle-orm';
+import { alignArabicOptions } from './alignArabicOptions';
 
 interface ArContent {
   question: string;          // English question text (used as match key)
@@ -397,11 +398,12 @@ export async function applyGrade8ArabicContent(): Promise<void> {
   console.log('🌐 Applying Arabic translations to Grade 8 quiz questions...');
   let updated = 0;
   let skipped = 0;
+  let unaligned = 0;
 
   for (const item of GRADE8_ARABIC_CONTENT) {
     try {
       const rows = await db
-        .select({ id: quizQuestions.id })
+        .select({ id: quizQuestions.id, options: quizQuestions.options })
         .from(quizQuestions)
         .where(eq(quizQuestions.question, item.question));
 
@@ -411,11 +413,22 @@ export async function applyGrade8ArabicContent(): Promise<void> {
       }
 
       for (const row of rows) {
+        // optionsAr is positional against the BANK SOURCE order; the stored row
+        // is permuted. Realign before writing, and on failure write only the
+        // fields that carry no positional meaning.
+        const aligned = alignArabicOptions(item.question, row.options, item.optionsAr);
+        if (aligned === null) {
+          unaligned++;
+          console.warn(
+            `  \u26a0 Could not align Arabic options, leaving options_ar untouched: "${item.question.slice(0, 60)}"`,
+          );
+        }
+
         await db
           .update(quizQuestions)
           .set({
             questionAr: item.questionAr,
-            optionsAr: item.optionsAr as any,
+            ...(aligned !== null ? { optionsAr: aligned as any } : {}),
             explanationAr: item.explanationAr,
           })
           .where(eq(quizQuestions.id, row.id));
@@ -426,5 +439,8 @@ export async function applyGrade8ArabicContent(): Promise<void> {
     }
   }
 
-  console.log(`✓ Grade 8 Arabic quiz content: ${updated} updated, ${skipped} not found`);
+  console.log(
+    `✓ Grade 8 Arabic quiz content: ${updated} updated, ${skipped} not found` +
+      (unaligned > 0 ? `, ${unaligned} with options_ar left untouched (unalignable)` : ''),
+  );
 }

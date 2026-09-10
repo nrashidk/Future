@@ -3,6 +3,7 @@ import {
   deserializeAndDecrypt,
   isEncryptedFormat,
 } from "./utils/encryption";
+import { permuteOptionsForStorage } from "./utils/quiz";
 import {
   users,
   countries,
@@ -1277,8 +1278,28 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Quiz operations
+  /**
+   * THE ONE PLACE OPTION ORDER ENTERS THE BANK. Every insert path routes through
+   * here — the UAE seed (seed.ts:2741), contribution approval
+   * (contribution.routes.ts:509), AI-generated country banks
+   * (country.routes.ts:488) and admin create (admin.routes.ts:161, :238) — and
+   * each of them passes the author's or the model's ordering straight through.
+   * Authors and LLMs alike put the correct answer first; that is how 239 of the
+   * bank's 240 questions came to have it at options[0].
+   *
+   * Normalising here rather than at those five call sites means a sixth cannot
+   * reintroduce the bias, and means source files never have to be kept in
+   * agreement with the database — their order simply stops being authoritative.
+   */
   async createQuizQuestion(questionData: InsertQuizQuestion): Promise<QuizQuestion> {
-    const [question] = await db.insert(quizQuestions).values(questionData).returning();
+    const permuted = permuteOptionsForStorage(questionData.options, questionData.optionsAr);
+    const values: InsertQuizQuestion = { ...questionData, options: permuted.options as any };
+    // Only set optionsAr when the caller supplied it — several callers omit the
+    // key entirely and writing an explicit undefined would change that.
+    if (questionData.optionsAr !== undefined) {
+      values.optionsAr = permuted.optionsAr as any;
+    }
+    const [question] = await db.insert(quizQuestions).values(values).returning();
     return question;
   }
 
