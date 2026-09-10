@@ -211,8 +211,8 @@ export async function checkContentCoverage(): Promise<CoverageProblem[]> {
   const { CANONICAL_CAREER_TITLES } = await import("./career-arabic-content");
   const { CAREER_VALUES_PROFILES } = await import("./career-values-profiles");
   const { CAREER_GROWTH_BANDS } = await import("./career-growth-bands");
-  const { GRADE8_ARABIC_CONTENT } = await import("./quiz-arabic-content");
-  const { GRADES9_12_ARABIC_CONTENT } = await import("./quiz-arabic-content-grades9-12");
+  const { GRADE8_ARABIC_CONTENT } = await import("./quiz-arabic-content.data");
+  const { GRADES9_12_ARABIC_CONTENT } = await import("./quiz-arabic-content-grades9-12.data");
 
   const careerRows = await db
     .select({
