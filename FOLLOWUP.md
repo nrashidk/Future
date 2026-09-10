@@ -4311,3 +4311,45 @@ no-assessments state — the two sit next to each other in the file and a studen
 other, never both, so they should not read as if written by different hands.
 
 Recorded 2026-09-10.
+
+
+### Arabic unreviewed — the school consent notice and the attestation card  (severity: low, with one caveat that is not)
+Filed as promised by two commits that shipped without it: c647443 ("Arabic to be filed as
+unreviewed") and aec29f7 ("18 strings per locale. Arabic to be filed as unreviewed with the
+free-flow entry"). The free-flow entry (:3158) went in without them; this is that entry.
+
+TWO STUDENT-FACING STRINGS — ar/assessment.json:102-103. `consentOrgNotice` /
+`consentOrgNoticeGeneric`: "أعدّت {{school}} هذا التقييم لك ووافقت على الشروط نيابةً عنك.
+يمكنك الاطّلاع عليها هنا:". The reader is 13-18, which is the bar the English was written to
+and the bar this has to clear. `نيابةً عنك` ("on your behalf") is the load-bearing phrase — it
+is the part that tells the student they were not asked — so whether it reads as plain or as
+legalese to a school-age reader is the thing to check, not the accuracy of the rendering. The
+interpolated `{{school}}` is a school name that may itself be in English inside an Arabic
+sentence; the standing bidi-scrambling item for mixed LTR/Arabic runs applies to it. Note that
+the same commit REMOVED `consentOrg` from this file rather than rewording it, deliberately: it
+asserted the student agreed.
+
+EIGHTEEN ADMIN STRINGS — ar/admin.json:369-386. Composed from existing product vocabulary, but
+the composition is new and nobody has read it rendered.
+
+  THE CAVEAT, and it is what separates this from every other Arabic-unreviewed entry in this
+  file: `consentProcessing` and `consentGuardian` are the two attestation texts, and the card
+  posts the EXACT RENDERED WORDING back so `attestationTextHash` pins what the admin actually
+  saw (aec29f7). If the Arabic is wrong, the hash faithfully pins wrong Arabic — the record then
+  evidences that a named admin agreed to a sentence that does not say what the English says, and
+  it evidences it precisely. These are the two strings in the product whose translation carries
+  legal weight rather than polish.
+
+  `أُقرّ بأن {{school}} تملك موافقة وليّ الأمر لكل طالب تسجّله` has to read as an ATTESTATION
+  the admin is making, not as a statement of fact about the world; the English ("I attest
+  that…") is unambiguous and the Arabic must be too. `consentProcessing` names the processing
+  party as `مسارات المستقبل` where the English says "Future Pathways" — consistent with the
+  rest of ar/, but this is the one sentence where the name identifies a legal party, so it
+  should be confirmed against the Arabic legal documents rather than against the UI.
+
+  `consentGuardianHelp` carries the fact that makes the attestation matter — the students are
+  13-18 and Future Pathways never contacts parents — and is the sentence an admin is most
+  likely to skim. `consentBlocked` is in this set and renders nowhere; see the enrolment-gate
+  UI entry above.
+
+Recorded 2026-09-10.
