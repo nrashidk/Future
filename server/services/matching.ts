@@ -239,8 +239,67 @@ export async function generateRecommendations(
   const limit = maxMatchesForTier(context.assessment.assessmentType);
   return gated
     .filter(match => match.overallScore >= 40) // Filter low matches
-    .sort((a, b) => b.overallScore - a.overallScore)
+    .sort(compareMatches)
     .slice(0, limit); // 2 free / 5 premium — see maxMatchesForTier
+}
+
+/**
+ * THE MATCH ORDER, INCLUDING WHAT HAPPENS WHEN TWO CAREERS SCORE THE SAME.
+ *
+ * Score descending, then TITLE ascending. The second key is the whole point of
+ * this function existing.
+ *
+ * WHY IT IS NEEDED. `Array.prototype.sort` is stable, so a comparator returning
+ * 0 leaves tied careers in INPUT order — and the input is
+ * `storage.getAllCareers()`, a `SELECT` with no `ORDER BY`. A result set without
+ * one has no defined order: in practice it is heap order, which moves when a row
+ * is UPDATEd, after VACUUM FULL, CLUSTER, a dump/restore, or when the planner
+ * switches scan types. None of that has anything to do with careers matching, and
+ * on a free report — two matches — it decides which of three tied careers a
+ * student never sees. Two students who answered identically could get different
+ * reports, and nothing persisted could tell you which ordering produced either.
+ *
+ * IN THE COMPARATOR, NOT IN THE QUERY, deliberately. An `ORDER BY` on
+ * getAllCareers() would put the guarantee somewhere no test can reach it:
+ * matching.gate.test.ts drives this through a fake storage that returns a plain
+ * array, so a real-implementation ordering would be untested forever while five
+ * other callers paid for a guarantee only this one needs. It would also be
+ * silently load-bearing — the next person to add a limit, a cache or a second
+ * storage impl removes it with no signal. This comparator is exercised by every
+ * test that calls generateRecommendations.
+ *
+ * WHY TITLE, and not the two more obvious keys:
+ *   - `career.id` is a per-database gen_random_uuid(). It is a total order, but
+ *     staging and prod would tie DIFFERENTLY on the same catalogue, which is the
+ *     property this fix exists to provide. (It is the right key at
+ *     storage.ts:1137, where it orders rows that live in one database only.)
+ *   - `onetCode` is stable across databases and unique across all 68 seeded
+ *     careers, but the column is nullable and POST /api/superadmin/careers writes
+ *     `onetCode || null`, so it cannot be relied on to break anything.
+ *   - `title` is notNull and required by that same endpoint. It is unique across
+ *     the catalogue in practice but NOT by constraint, so this is a total order
+ *     on the data rather than on the schema — tracked in FOLLOWUP. The residual
+ *     case is two careers sharing a title, which is invisible in a report that
+ *     shows the title and is a catalogue defect in its own right.
+ *
+ * BYTEWISE, NOT localeCompare. `localeCompare` with no explicit locale uses the
+ * runtime's default and ICU collation, which can differ between Node builds and
+ * environments — it would reintroduce exactly the cross-environment instability
+ * the second key is here to remove.
+ *
+ * THIS IS NOT A DIVERSITY RULE and must not be read as one. Deterministic-but-
+ * arbitrary is strictly better than arbitrary: it makes the output reproducible,
+ * testable, and honest about the scorer having had no preference. It does not
+ * make the tie meaningful. Which careers to show when scores are close is a
+ * product decision, and it was closed separately with no change.
+ */
+export function compareMatches(a: CareerMatch, b: CareerMatch): number {
+  const byScore = b.overallScore - a.overallScore;
+  if (byScore !== 0) return byScore;
+
+  const aTitle = a.career.title;
+  const bTitle = b.career.title;
+  return aTitle < bTitle ? -1 : aTitle > bTitle ? 1 : 0;
 }
 
 /**

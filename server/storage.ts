@@ -3981,7 +3981,12 @@ export class DatabaseStorage implements IStorage {
         .select()
         .from(recommendations)
         .where(eq(recommendations.assessmentId, assessment.id))
-        .orderBy(desc(recommendations.overallMatchScore))
+        // careerId is the tie-break, matching getRecommendationsByAssessment
+        // (:1137). Score alone is not a total order, and this LIMITs — so an
+        // exact tie at the boundary silently picks by heap order, and the route
+        // then slices these five to three for the trajectory. Same rows, same
+        // order, every load.
+        .orderBy(desc(recommendations.overallMatchScore), recommendations.careerId)
         .limit(5);
 
       const careerIds = recs.map(r => r.careerId);
@@ -4192,7 +4197,10 @@ export class DatabaseStorage implements IStorage {
         .from(recommendations)
         .leftJoin(careers, eq(recommendations.careerId, careers.id))
         .where(eq(recommendations.assessmentId, assessment.id))
-        .orderBy(desc(recommendations.overallMatchScore))
+        // As above: LIMIT 1 on a score-only ordering means a tie at the top is
+        // resolved by heap order, so the school could be shown a different "top
+        // career" for the same student between loads.
+        .orderBy(desc(recommendations.overallMatchScore), recommendations.careerId)
         .limit(1);
 
       const student = studentProgressMap.get(assessment.userId);

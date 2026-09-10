@@ -15,6 +15,11 @@
  * The gate runs against real scored matches, so it also proves the placement:
  * filtering happens after calculateCareerMatch, so no career's score is
  * perturbed by which other careers are present.
+ *
+ * The file has since grown two more end-to-end properties of the same function,
+ * because they need this same fake storage: the per-tier match cap, and the
+ * tie-break that makes the order reproducible. Header widened rather than the
+ * harness duplicated.
  */
 
 import { describe, it, expect, vi } from "vitest";
@@ -230,5 +235,108 @@ describe("per-tier match cap in generateRecommendations", () => {
       "assessment-1",
     );
     expect(results).toHaveLength(1);
+  });
+});
+
+/**
+ * THE TIE-BREAK — the property that the same catalogue, in any order, produces
+ * the same report.
+ *
+ * These fixtures are the ideal instrument for it by accident: every career built
+ * by career() carries identical relatedSubjects, category and skills, so every
+ * one scores IDENTICALLY. The whole catalogue is one tie. Before the second sort
+ * key that meant the result was whatever order getAllCareers() happened to
+ * return — here the array literal, in production the heap.
+ *
+ * The shuffle cases are the point. A stable sort with no tie-break passes any
+ * single-order test trivially; only re-running the SAME careers in a DIFFERENT
+ * input order can tell the two implementations apart.
+ */
+describe("tie-break in generateRecommendations", () => {
+  // Deliberately not alphabetical, and deliberately not Math.random(): a test for
+  // determinism that is itself non-deterministic can only fail confusingly. These
+  // are fixed permutations of one catalogue.
+  const TIED = ["Zoologist", "Architect", "Marine Biologist", "Botanist", "Civil Engineer", "Astronomer"];
+  const EXPECTED_FREE = ["Architect", "Astronomer"];
+
+  const permutations = [
+    TIED,
+    [...TIED].reverse(),
+    [TIED[3], TIED[0], TIED[5], TIED[1], TIED[4], TIED[2]],
+    [TIED[2], TIED[4], TIED[1], TIED[5], TIED[0], TIED[3]],
+  ];
+
+  it("orders an all-tied catalogue by title, ascending", async () => {
+    const results = await generateRecommendations(
+      makeStorage(TIED.map((t) => career(t, "stable")), "premium"),
+      "assessment-1",
+    );
+
+    expect(results.map((r) => r.career.title)).toEqual(
+      ["Architect", "Astronomer", "Botanist", "Civil Engineer", "Marine Biologist"],
+    );
+  });
+
+  it("returns the SAME report for every input order of the same catalogue", async () => {
+    const runs: string[][] = [];
+    for (const order of permutations) {
+      const results = await generateRecommendations(
+        makeStorage(order.map((t) => career(t, "stable")), "premium"),
+        "assessment-1",
+      );
+      runs.push(results.map((r) => r.career.title));
+    }
+
+    // Every run identical — not merely the same SET, the same sequence. A set
+    // comparison would pass on a shuffled list and miss the whole defect.
+    for (const run of runs) {
+      expect(run).toEqual(runs[0]);
+    }
+    expect(runs[0]).toHaveLength(MAX_MATCHES_PREMIUM);
+  });
+
+  it("picks the same two careers for a FREE report regardless of input order", async () => {
+    // The sharpest form: the free tier shows two of six equal careers, so four
+    // are dropped by the tie-break alone. This is the case where heap order
+    // decided what a student never saw.
+    for (const order of permutations) {
+      const results = await generateRecommendations(
+        makeStorage(order.map((t) => career(t, "stable")), "basic"),
+        "assessment-1",
+      );
+      expect(results.map((r) => r.career.title)).toEqual(EXPECTED_FREE);
+    }
+  });
+
+  it("does NOT let the title outrank the score", async () => {
+    // The failure mode of a careless fix: comparing titles first, or comparing
+    // them when the scores differ. "Zoologist" sorts last alphabetically and
+    // must still come first on score.
+    const strong = career("Zoologist", "growing");
+    const weak = (title: string) => {
+      const c = career(title, "growing");
+      c.relatedSubjects = ["Art"]; // no overlap with the student's subjects
+      return c;
+    };
+    const results = await generateRecommendations(
+      makeStorage([weak("Architect"), strong, weak("Botanist")], "basic"),
+      "assessment-1",
+    );
+
+    expect(results[0].career.title).toBe("Zoologist");
+  });
+
+  it("compares bytewise, so ordering cannot follow the runtime locale", async () => {
+    // localeCompare would place "apiarist" before "Zoologist" under most ICU
+    // collations, and the point of the second key is that it cannot depend on
+    // which Node build or locale the server happens to run under. Uppercase
+    // sorts before lowercase in code-unit order; that is arbitrary, and being
+    // arbitrary-but-fixed is the entire property.
+    const results = await generateRecommendations(
+      makeStorage([career("apiarist", "stable"), career("Zoologist", "stable")], "basic"),
+      "assessment-1",
+    );
+
+    expect(results.map((r) => r.career.title)).toEqual(["Zoologist", "apiarist"]);
   });
 });
