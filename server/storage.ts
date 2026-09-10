@@ -10,7 +10,6 @@ import {
   subjects,
   skills,
   careers,
-  jobMarketTrends,
   assessments,
   recommendations,
   quizQuestions,
@@ -55,8 +54,6 @@ import {
   type InsertSkill,
   type Career,
   type InsertCareer,
-  type JobMarketTrend,
-  type InsertJobMarketTrend,
   type Assessment,
   type InsertAssessment,
   type Recommendation,
@@ -208,12 +205,6 @@ export interface IStorage {
   getCareerById(id: string): Promise<Career | undefined>;
   updateCareer(id: string, data: Partial<InsertCareer>): Promise<Career>;
   deleteCareer(id: string): Promise<boolean>;
-
-  // Job Market Trends operations
-  createJobMarketTrend(trend: InsertJobMarketTrend): Promise<JobMarketTrend>;
-  getTrendsByCountry(countryId: string): Promise<JobMarketTrend[]>;
-  getTrendByCareerAndCountry(careerId: string, countryId: string): Promise<JobMarketTrend | undefined>;
-  getJobTrendsByCareerIds(careerIds: string[], countryId?: string): Promise<JobMarketTrend[]>;
 
   // Assessment operations
   createAssessment(assessment: InsertAssessment): Promise<Assessment>;
@@ -1036,46 +1027,6 @@ export class DatabaseStorage implements IStorage {
   async getCareerById(id: string): Promise<Career | undefined> {
     const [career] = await db.select().from(careers).where(eq(careers.id, id));
     return career;
-  }
-
-  // Job Market Trends operations
-  async createJobMarketTrend(trendData: InsertJobMarketTrend): Promise<JobMarketTrend> {
-    const [trend] = await db.insert(jobMarketTrends).values(trendData).returning();
-    return trend;
-  }
-
-  async getTrendsByCountry(countryId: string): Promise<JobMarketTrend[]> {
-    return await db
-      .select()
-      .from(jobMarketTrends)
-      .where(eq(jobMarketTrends.countryId, countryId));
-  }
-
-  async getTrendByCareerAndCountry(careerId: string, countryId: string): Promise<JobMarketTrend | undefined> {
-    const [trend] = await db
-      .select()
-      .from(jobMarketTrends)
-      .where(
-        and(
-          eq(jobMarketTrends.careerId, careerId),
-          eq(jobMarketTrends.countryId, countryId)
-        )
-      );
-    return trend;
-  }
-
-  async getJobTrendsByCareerIds(careerIds: string[], countryId?: string): Promise<JobMarketTrend[]> {
-    if (careerIds.length === 0) return [];
-
-    const conditions = [inArray(jobMarketTrends.careerId, careerIds)];
-    if (countryId) {
-      conditions.push(eq(jobMarketTrends.countryId, countryId));
-    }
-
-    return await db
-      .select()
-      .from(jobMarketTrends)
-      .where(and(...conditions));
   }
 
   // Assessment operations

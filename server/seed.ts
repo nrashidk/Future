@@ -2046,28 +2046,8 @@ export async function seedDatabase() {
     for (const career of careers) {
       if (!existingCareerTitles.has(career.title)) {
         try {
-          const created = await storage.createCareer(career);
+          await storage.createCareer(career);
           console.log(`✓ Created career: ${career.title}`);
-        
-          // Create job market trends for each country
-          for (const country of countries) {
-            try {
-              await storage.createJobMarketTrend({
-                countryId: country.id,
-                careerId: created.id,
-                demandScore: 50 + Math.random() * 50, // 50-100
-                growthRate: Math.random() * 30, // 0-30%
-                nationalPriorityAlignment: career.relatedSubjects.some(s => 
-                  country.prioritySectors.some(sector => sector.toLowerCase().includes(s.toLowerCase()))
-                ) ? 70 + Math.random() * 30 : 40 + Math.random() * 40, // Higher if aligned
-                year: 2025,
-                averageSalaryLocal: career.averageSalary,
-                openings: Math.floor(Math.random() * 1000) + 100,
-              });
-            } catch (error) {
-              // Trend might exist
-            }
-          }
         } catch (error) {
           console.log(`Error creating career ${career.title}:`, error);
         }

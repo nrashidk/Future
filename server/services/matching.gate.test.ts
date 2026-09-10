@@ -103,7 +103,6 @@ function makeStorage(careers: any[], assessmentType: string = "premium"): IStora
     getAllScoringTiers: async () => [],
     getAllTierComponentWeights: async () => [],
     getCareerAffinitiesBulk: async () => [],
-    getJobTrendsByCareerIds: async () => [],
     getCountryById: async () => undefined,
     getSectorCategoryMap: async () => [],
   } as unknown as IStorage;

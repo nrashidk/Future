@@ -14,7 +14,6 @@ import type {
   Career, 
   AssessmentComponent,
   CareerComponentAffinity,
-  JobMarketTrend,
   Country
 } from "../../shared/schema";
 import { type AssessmentTier, getEffectiveWeight } from "./tierWeights";
@@ -90,7 +89,6 @@ export interface MatchingContext {
   careers: Career[];
   activeComponents: AssessmentComponent[];
   careerAffinities: Map<string, CareerComponentAffinity[]>; // careerId -> affinities
-  jobMarketTrends: Map<string, JobMarketTrend[]>; // careerId -> trends
   userCountry?: Country; // For vision alignment
   competencyScores?: Record<string, number>; // Subject competency scores from quiz (0-100)
   careerWefAffinities?: Map<string, Array<{ wefSkillId: string; affinityScore: number }>>; // careerId -> WEF affinities
@@ -398,12 +396,6 @@ async function hydrateMatchingContext(
   // Group affinities by careerId for efficient lookup
   const careerAffinities = groupAffinitiesByCareer(affinitiesArray);
 
-  // Bulk fetch job market trends for all careers (filtered by user's country if available)
-  const trendsArray = await storage.getJobTrendsByCareerIds(careerIds, assessment.countryId || undefined);
-  
-  // Group trends by careerId for efficient lookup
-  const jobMarketTrends = groupTrendsByCareer(trendsArray);
-
   // Fetch user's country for vision alignment
   let userCountry: Country | undefined;
   if (assessment.countryId) {
@@ -452,7 +444,6 @@ async function hydrateMatchingContext(
     careers,
     activeComponents,
     careerAffinities,
-    jobMarketTrends,
     userCountry,
     competencyScores,
     careerWefAffinities,
@@ -474,24 +465,6 @@ function groupAffinitiesByCareer(
       map.set(affinity.careerId, []);
     }
     map.get(affinity.careerId)!.push(affinity);
-  }
-  
-  return map;
-}
-
-/**
- * Helper: Group job market trends by careerId for efficient lookup
- */
-function groupTrendsByCareer(
-  trends: JobMarketTrend[]
-): Map<string, JobMarketTrend[]> {
-  const map = new Map<string, JobMarketTrend[]>();
-  
-  for (const trend of trends) {
-    if (!map.has(trend.careerId)) {
-      map.set(trend.careerId, []);
-    }
-    map.get(trend.careerId)!.push(trend);
   }
   
   return map;

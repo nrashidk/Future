@@ -59,7 +59,6 @@ function context(
     careers: [],
     activeComponents: [COMPONENT],
     careerAffinities: new Map(),
-    jobMarketTrends: new Map(),
     competencyScores,
   } as unknown as MatchingContext;
 }
@@ -199,7 +198,6 @@ function visionContext(relevance: number, affinity: number | null): MatchingCont
     careers: [],
     activeComponents: [VISION_COMPONENT],
     careerAffinities: new Map(),
-    jobMarketTrends: new Map(),
     userCountry: { name: "Fixture Country" } as unknown as Country,
     sectorCategoryMap,
     sectorWefSkillMap,

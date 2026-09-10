@@ -1014,7 +1014,7 @@ export const cvqResultsRelations = relations(cvqResults, ({ one }) => ({
 export const assessmentComponents = pgTable("assessment_components", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   name: text("name").notNull(), // "Subject Match", "Interest Match", etc.
-  key: text("key").notNull().unique(), // "subject", "interest", "vision", "market", "riasec", "cvq"
+  key: text("key").notNull().unique(), // "subjects", "interests", "vision", "riasec", "cvq"
   description: text("description"), // Explanation of what this component measures
   weight: real("weight").notNull().default(0), // Percentage weight (0-100)
   isActive: boolean("is_active").notNull().default(true),

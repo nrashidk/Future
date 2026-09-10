@@ -43,7 +43,6 @@ function context(
     careers: [],
     activeComponents: [COMPONENT],
     careerAffinities: new Map(),
-    jobMarketTrends: new Map(),
     userCountry: userCountry ?? undefined,
     sectorCategoryMap,
   } as unknown as MatchingContext;
