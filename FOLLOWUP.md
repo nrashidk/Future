@@ -577,6 +577,72 @@ fp_language=ar` before navigating, then screenshot AND measure: per-character
 screenshot alone is easy to misread, since the same defect can be described as the
 dot being on either side depending on whether you scan the line or read it.
 
+### Tie-break policy is bytewise by title, and that has a direction — product decision
+
+**STATUS: FILED 2026-09-10, not started. Product decision, not a bug.** Surfaced
+while closing the Accountant/Actuary tie as accepted (above).
+
+`compareMatches` (`server/services/matching.ts`) resolves an exact overall tie on
+`career.title`, bytewise, and its own comment states the reasoning: deterministic-
+but-arbitrary beats arbitrary, it does not make the tie meaningful, and which
+careers to show when scores are close is a product decision that was closed
+separately with no change. All of that still holds. What was not measured then is
+that the arbitrary key has a systematic direction.
+
+Measured on this pair: in a FREE report (subjects + interests + vision), **15 of
+63** subject selections give Accountant and Actuary an identical subjects score
+(the 8 containing {Mathematics, Social Studies, Computer Science} at 100, plus 7
+flat-20 sets), and **10 of 21** interests score them identically. When both land
+in those sets all three free components tie, the overall ties exactly, and the
+title comparator resolves it — roughly 2% of free students, for a 3-interest
+pick. "Accountant" precedes "Actuary" on the third letter, so those students
+always see Accountant (4% growth, $55–95k) and never Actuary (7% growth,
+$75–130k, O*NET Bright Outlook: YES), at `MAX_MATCHES_FREE = 2`.
+
+**Reopening this means arguing for a DOMAIN-AWARE tie-break, not for a different
+letter.** The current key is deliberately domain-free, and that is a real
+property: it is stable across databases and environments, which `career.id`
+(a per-database UUID) is not. A growth-outlook or salary key would be neither
+free nor obviously right — it would state a preference the scorer did not have,
+and `growthOutlook` is prose ("Good (4% growth)"), not a sortable field. Options
+if taken up: leave it (the evidence genuinely is tied — that is why the scores
+tie); add a documented domain key with its own justification; or surface tied
+matches as tied rather than ranked. NOT fixable by changing the vision score:
+splitting the pair there would move 8 careers and cost a version bump to reach
+~2% of free reports, which is the wrong lever.
+
+### Critical Thinking in the sector vectors — a three-sector descriptive question
+
+**STATUS: FILED 2026-09-10, not started. Descriptive question about the seed, not
+a defect.** The other half of the Accountant/Actuary closure.
+
+Critical Thinking and Problem Solving is dropped from Space & Advanced Sciences,
+Healthcare and Financial Services under one written reason, given three times in
+`server/seed.ts`: sd 6.7–6.9, present in most sectors, "weight without
+information" per the geometry note. The competing reading is that every one of
+those three sectors genuinely requires it, and a vector that says nothing about
+it is making a claim of its own.
+
+That question is open, and it is NOT the Accountant/Actuary tie-break. Adding CT
+@65 to Financial Services alone splits that pair by 0.776 and — measured — leaves
+`catalog max |r|` unchanged at 0.763 (the seed's own metric; the worst pair stays
+Renewable ↔ Food Security), moves only the 8 FS-attributed careers, flips no
+attribution and changes no reasoning sentence. It is the best-behaved candidate
+of the four tried. It was still refused, because a weight tuned to what it does
+to one pair is selecting a fact for its effect rather than describing the sector.
+
+**If taken up, it has to be argued as description across all three sectors at
+once**, with each weight justified by what the sector requires, and measured the
+way every other vector change in that file is: catalog max |r| before and after,
+careers moved, attribution flips, and the FS alignment spread it costs (CT @65
+narrows it 29.13 → 26.19 — the dilution the geometry note warns about, since the
+score is an importance-weighted mean). It moves scores, so it carries a
+`SCORING_ALGORITHM_VERSION` bump. Measurements for the other candidates, kept so
+nobody re-runs them: Curiosity @65 splits by 0.776, max |r| 0.763, spread 25.57;
+Scientific Literacy @50 splits by only 0.309 and raises max |r| to 0.765, making
+Renewable ↔ Financial Services the catalogue's worst pair — ruled out on the
+seed's own test.
+
 ### Individual-tier assessment lock — PARKED, needs product decisions before build
 
 **STATUS: PARKED / PRE-LAUNCH — documentation only, do not implement now.**
@@ -626,6 +692,22 @@ incremented per payment (`server/storage.ts:589-597`,
   the assessment row is upgraded, not replaced; no orphaning.
 - The scoring **math is faithful to spec.** Only the values-data (#1) and the
   report templates (#2) diverge.
+- **The Accountant/Actuary vision tie is CORRECT — closed as accepted 2026-09-10
+  (ea11fe5).** They score an identical 92.255 inside Financial Services and are
+  the only tied pair in the catalogue. `docs/vision-saturation-fix-plan.md` §3
+  filed this as a DATA GAP with a seed change pending ("give Financial Services a
+  discriminating skill", its commit 3); that commit is WITHDRAWN, not deferred.
+  WEF-16 records the IMPORTANCE of a competency, not its kind or level. What
+  separates an actuary from an accountant is the kind of mathematics — pricing
+  uncertain future events with stochastic models vs recording realized
+  transactions under a rule set — which is domain knowledge the framework
+  deliberately does not model. Numeracy is 100 for both because numeracy is
+  maximally important to both. Equal importance on the five competencies the
+  sector demands is a true statement, so one number for both is the model
+  working. `matching.vision.test.ts` now ASSERTS the tie (exactly one tied block,
+  exactly those two, in that sector) instead of skipping it, so a seed change that
+  splits them fails loudly. Do not re-open as a scoring defect; the open question
+  that remains is descriptive and is filed under Critical Thinking below.
 
 ## REDESIGN — Career report redesign for teen audience (13–15)
 
