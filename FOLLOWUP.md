@@ -3240,6 +3240,53 @@ WHAT NEEDS DECIDING, in the order that makes the others answerable:
 First flagged 2026-09-10.
 
 
+### A student who erases their own account leaves the school's seat consumed  (severity: MEDIUM)
+`DELETE /api/users/me` (user.routes.ts:123) is the GDPR erasure path. Inside its transaction it
+deletes the `organization_members` row under the comment "GDPR: frees license slot and removes
+PII" (user.routes.ts:161-163). It frees the row. It does not free the slot: nothing in that
+handler calls `updateOrganizationQuota`, so `organizations.usedLicenses` still counts a student
+who no longer exists.
+
+The admin path does both halves — `deleteOrganizationMember` then
+`updateOrganizationQuota(req.params.id, -1)` (admin.routes.ts:1157-1158) — and bulk delete does
+the same with `-deletedCount` (:1233). So the SAME ACT performed by the school and by the
+student leaves the school with different licence counts, and it is only the student's own
+erasure that leaks. The comment is the tell: someone knew the slot had to be freed and wrote
+that it was.
+
+WHAT IT COSTS. Each self-erasure permanently burns a paid seat. `usedLicenses` is a maintained
+counter with no reconciliation anywhere — nothing recomputes it from `organization_members` —
+so the drift is one-way and cumulative. And it eventually bites: `updateOrganizationQuota`
+refuses to exceed `totalLicenses` (storage.ts:2631, throwing "Quota exceeded"), so a school that
+has had N students erase themselves loses N seats and can be blocked from enrolling while its
+roster plainly shows capacity. The admin reading that error has no way to see why.
+
+THE SECOND HALF, AND DO NOT FIX THE FIRST WITHOUT IT. A seat is not always taken from the same
+pool. `consumeLicenseWithRewardPriority` (storage.ts:2703) spends a reward credit first
+(`rewardCreditsUsed` +1) and only falls back to a paid licence (`usedLicenses` +1) — it is what
+all three enrolment paths call (admin.routes.ts:761, :921, :2365). `organization_members`
+records nothing about which pool was spent (shared/schema.ts:150-195: no licence-type column).
+So the admin path's flat `-1` ALREADY refunds a paid licence for a member whose seat came from
+reward credits, understating `usedLicenses` and overstating capacity in the other direction.
+Copying that `-1` into the self-delete path would replicate the error rather than fix it. The
+shape that works is either recording the pool on the member row at enrolment, or deriving
+`usedLicenses` from the roster instead of maintaining a counter — and the second makes both
+defects impossible rather than corrected.
+
+SEVERITY IS NOT ESCALATED, deliberately. This is an accounting defect in the school's counter;
+no student data is exposed or retained by it. The minors'-data escalation rule does not reach
+it, and calling it CRITICAL would spend the word.
+
+ADJACENT, ON THE SAME HANDLER, NOT THE SAME DEFECT: the admin path refuses to delete a member
+with `isLocked` — a student who has completed an assessment (admin.routes.ts:1155). The
+self-erasure path has no such check, so a student can erase a locked row their own school admin
+cannot. That is probably correct — erasure is the student's right and not the school's — but the
+asymmetry is undocumented, and anyone reconciling these two paths will meet it before they meet
+the reason.
+
+First flagged 2026-09-10.
+
+
 ### NEEDS HUMAN REVIEW — quiz question SELECTION is an unseeded random draw  (severity: MEDIUM)
 Surfaced by the `Math.random` sweep over `server/` that closed the job-market entry above
 (docs/job-market-random-recon.md §5). Filed separately and deliberately: **random sampling from
