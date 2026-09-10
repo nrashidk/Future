@@ -91,7 +91,6 @@
     "male": "Male",
     "female": "Female",
     "beforeContinue": "Before You Continue",
-    "consentOrg": "Your school has provided institutional consent. You agree to the",
     "consentAgree": "I agree to the",
     "and": "and",
     "consentDisclaimer": "I understand this is an educational tool as described in the",
@@ -99,7 +98,9 @@
     "privacyPolicy": "Privacy Policy",
     "disclaimer": "Disclaimer",
     "under18Note": "Note: Users under 18 require parental or institutional consent.",
-    "schoolOwnedNote": "Your school filled in your details. Please check they're correct \u2014 if anything's wrong, ask your school administrator."
+    "schoolOwnedNote": "Your school filled in your details. Please check they're correct — if anything's wrong, ask your school administrator.",
+    "consentOrgNotice": "{{school}} set up this assessment for you and agreed to the terms on your behalf. You can read them here:",
+    "consentOrgNoticeGeneric": "Your school set up this assessment for you and agreed to the terms on your behalf. You can read them here:"
   },
   "subjects": {
     "title": "What Subjects Do You Love?",

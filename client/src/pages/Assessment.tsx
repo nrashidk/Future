@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { ProgressTracker } from "@/components/ProgressTracker";
 import { Button } from "@/components/ui/button";
 import { DemographicsStep } from "@/components/assessment/DemographicsStep";
+import { SchoolConsentNotice } from "@/components/assessment/SchoolConsentNotice";
 import { SubjectsStep } from "@/components/assessment/SubjectsStep";
 import { InterestsStep } from "@/components/assessment/InterestsStep";
 import RiasecStep, { type RiasecScores } from "@/components/RiasecStep";
@@ -297,6 +298,16 @@ export default function Assessment() {
   // This only wins when `user` is already resolved at mount (the common case —
   // useAuth reads a react-query cache). CountryStep also syncs on prop change,
   // which covers the slower path; the two together are what make it reliable.
+  /**
+   * Did the smart skip jump this student past step 1 entirely?
+   *
+   * Only used to decide where the school-consent notice is rendered. A
+   * fully-prefilled school student never sees DemographicsStep, so without this
+   * they would be told nothing at all — which is the one thing position 2 rules
+   * out. Not persisted: it only has to survive the current render pass.
+   */
+  const [demographicsSkipped, setDemographicsSkipped] = useState(false);
+
   const [assessmentData, setAssessmentData] = useState<AssessmentData>(() => ({
     name: "",
     age: null,
@@ -576,6 +587,10 @@ export default function Assessment() {
       predefinedGender;
 
     if (allFieldsPreFilled && !assessmentData.name) {
+      // Remembered because the consent notice has to reach a student who never
+      // sees step 1. The skip below jumps straight past DemographicsStep, which
+      // is where the notice otherwise lives.
+      setDemographicsSkipped(true);
       // Auto-populate demographics data
       setAssessmentData((prev) => ({
         ...prev,
@@ -583,7 +598,12 @@ export default function Assessment() {
         age: predefinedAge,
         grade: predefinedGrade,
         gender: predefinedGender,
-        consentGiven: true, // Institutional consent
+        // The `consentGiven: true // Institutional consent` that used to sit
+        // here is gone. It existed to satisfy a canProceed that required a tick
+        // from a student who was never asked for one; DemographicsStep no longer
+        // asks a school student, and consentGiven was never persisted anywhere,
+        // so nothing downstream reads it. The student is TOLD instead — see the
+        // SchoolConsentNotice rendered at step 2 when this skip fires.
       }));
 
       // Skip to step 2 — Country since the Country/Subjects swap — after the
@@ -1361,6 +1381,7 @@ export default function Assessment() {
             onUpdate={updateAssessmentData}
             onNext={handleNext}
             isOrgStudent={isOrgStudent}
+            organizationName={(user as any)?.organizationName}
             predefinedGrade={(user as any)?.predefinedGrade}
             predefinedName={(user as any)?.predefinedName}
             predefinedAge={(user as any)?.predefinedAge}
@@ -1373,6 +1394,18 @@ export default function Assessment() {
             chosen inside, and the quiz filters its question pool on
             {countryId, grade, curriculum}. (Country was step 3 until this swap,
             and premium-only before Phase 3.) */}
+        {/* THE SKIPPED-PAST STUDENT STILL GETS TOLD. A school student whose
+            details are all on file never sees DemographicsStep, so the notice
+            that normally lives there would never reach them. Rendered only when
+            the skip actually fired — a student who DID see step 1 has already
+            been shown it, and repeating it on the next screen is noise, not
+            transparency. */}
+        {currentStep === 2 && isOrgStudent === true && demographicsSkipped && (
+          <div className="mb-6">
+            <SchoolConsentNotice schoolName={(user as any)?.organizationName} />
+          </div>
+        )}
+
         {currentStep === 2 && (
           <CountryStep
             data={assessmentData}

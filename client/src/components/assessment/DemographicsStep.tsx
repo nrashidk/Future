@@ -8,6 +8,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { User, Cake, GraduationCap, Users2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { SchoolConsentNotice } from "./SchoolConsentNotice";
 
 interface DemographicsStepProps {
   data: any;
@@ -28,9 +29,11 @@ interface DemographicsStepProps {
    * the server is about to overwrite.
    */
   isOrgStudent?: boolean;
+  /** The school's name, for the consent notice. Undefined until auth resolves. */
+  organizationName?: string | null;
 }
 
-export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, predefinedName, predefinedAge, predefinedGender, isOrgStudent: isOrgStudentProp }: DemographicsStepProps) {
+export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, predefinedName, predefinedAge, predefinedGender, isOrgStudent: isOrgStudentProp, organizationName }: DemographicsStepProps) {
   const { t } = useTranslation('assessment');
 
   const [isMobile, setIsMobile] = useState(false);
@@ -49,13 +52,20 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
   // whether a value happens to be present is what this prop replaced.
   const schoolOwnsDemographics = isOrgStudentProp !== false;
 
-  // Consent goes the OTHER way on the same unknown, deliberately. Institutional
-  // consent is a legal artifact, not a UI state: it is granted because a school
-  // took responsibility for this student, so it needs a positive yes. Locking a
-  // field we may not own costs a moment of a disabled input; auto-accepting
-  // consent on behalf of someone who turns out not to be a school student is not
-  // recoverable by re-rendering. Both directions are the conservative one for
-  // what they protect.
+  // Consent goes the OTHER way on the same unknown, and it still must.
+  //
+  // The org branch no longer collects anything — the school consented, so the
+  // student is shown a statement rather than a control (SchoolConsentNotice).
+  // But the FREE branch still has a real self-tick, and `undefined` here means
+  // the auth request is in flight. Resolving unknown to "school student" would
+  // swap that student's live consent checkbox for a notice claiming a school
+  // consented for them, and drop consentGiven out of canProceed while it did so.
+  // Locking a field we may not own costs a moment of a disabled input; telling
+  // someone their school agreed on their behalf when no school did is not
+  // recoverable by re-rendering.
+  //
+  // So: `=== true`, never `!== false`, and never schoolOwnsDemographics — that
+  // one unlocks on unknown, which is right for locking fields and wrong here.
   const isOrgStudent = isOrgStudentProp === true;
   
   // Pre-fill all fields if predefined and not already set (only depend on predefined values to avoid redundant re-runs)
@@ -72,10 +82,10 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
     if (predefinedGender && !data.gender) {
       onUpdate("gender", predefinedGender);
     }
-    // Auto-check consent for organization students (institutional consent)
-    if (isOrgStudent && !data.consentGiven) {
-      onUpdate("consentGiven", true);
-    }
+    // The org auto-tick that used to live here is gone with the checkbox it fed.
+    // It set consentGiven=true so a disabled, pre-ticked box would satisfy
+    // canProceed; both the box and that dependence are removed below, and
+    // consentGiven was never persisted anywhere, so nothing else read it.
     // Only run when predefined values change (not data values) to prevent re-render loops
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [predefinedGrade, predefinedName, predefinedAge, predefinedGender]);
@@ -91,7 +101,26 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
     checkMobile();
   }, []);
 
-  const canProceed = data.name && data.age && data.grade && data.gender && data.consentGiven;
+  /**
+   * WHAT GATES PROGRESSION, AND FOR WHOM.
+   *
+   * Free: unchanged — the four demographics plus the student's own tick, which
+   * is a real choice they make.
+   *
+   * School: the four demographics only. There is no tick to wait for, because
+   * the school consented and the student is not being asked. All four are
+   * pre-filled from the organization and locked, so Continue is enabled on
+   * arrival — which is what it already did, except that it previously depended
+   * on an auto-ticked checkbox to get there.
+   *
+   * Nothing strands a school student here: a student whose school has no date of
+   * birth on record is stopped earlier, at the assessment entry point with an
+   * explanation (Assessment.tsx), rather than at a locked empty field with a
+   * dead Next button.
+   */
+  const canProceed = isOrgStudent
+    ? Boolean(data.name && data.age && data.grade && data.gender)
+    : Boolean(data.name && data.age && data.grade && data.gender && data.consentGiven);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -284,35 +313,29 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
         </StickyNote>
       </div>
 
-      {/* Consent Section */}
-      <div className="max-w-3xl mx-auto mt-8">
-        <StickyNote color="purple" rotation="0">
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold mb-3">{t('demographics.beforeContinue')}</h3>
-            
-            <div className="flex items-start gap-3">
-              <Checkbox
-                id="consent"
-                checked={data.consentGiven || false}
-                onCheckedChange={(checked) => onUpdate("consentGiven", checked)}
-                disabled={isOrgStudent}
-                className="mt-1"
-                data-testid="checkbox-consent"
-              />
-              <div className="flex-1">
-                {isOrgStudent ? (
-                  <Label htmlFor="consent" className="text-sm font-body leading-relaxed">
-                    {t('demographics.consentOrg')}{" "}
-                    <Link href="/terms" className="text-primary hover:underline font-semibold" data-testid="link-consent-terms">
-                      {t('demographics.termsOfUse')}
-                    </Link>
-                    {" "}{t('demographics.and')}{" "}
-                    <Link href="/privacy" className="text-primary hover:underline font-semibold" data-testid="link-consent-privacy">
-                      {t('demographics.privacyPolicy')}
-                    </Link>
-                    .
-                  </Label>
-                ) : (
+      {/* CONSENT SECTION — two different things, not two labels for one thing.
+          School: a statement. The school consented; the student is told, and
+          there is no control because they are not being asked.
+          Free: a real self-tick, unchanged. */}
+      {isOrgStudent ? (
+        <div className="max-w-3xl mx-auto mt-8">
+          <SchoolConsentNotice schoolName={organizationName} />
+        </div>
+      ) : (
+        <div className="max-w-3xl mx-auto mt-8">
+          <StickyNote color="purple" rotation="0">
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold mb-3">{t('demographics.beforeContinue')}</h3>
+
+              <div className="flex items-start gap-3">
+                <Checkbox
+                  id="consent"
+                  checked={data.consentGiven || false}
+                  onCheckedChange={(checked) => onUpdate("consentGiven", checked)}
+                  className="mt-1"
+                  data-testid="checkbox-consent"
+                />
+                <div className="flex-1">
                   <Label htmlFor="consent" className="text-sm font-body leading-relaxed cursor-pointer">
                     {t('demographics.consentAgree')}{" "}
                     <Link href="/terms" className="text-primary hover:underline font-semibold" data-testid="link-consent-terms">
@@ -328,18 +351,25 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
                     </Link>
                     .
                   </Label>
-                )}
+                </div>
               </div>
+
+              {/* UNCHANGED, AND STILL UNBACKED. This note promises parental or
+                  institutional consent for an under-18 self-paid student, and no
+                  parental mechanism exists behind it. The school attestation
+                  covers the institutional half for school students, who never
+                  see this branch. Tracked in FOLLOWUP.md as its own item; not
+                  fixed here, because what a 13-year-old self-consenting should
+                  actually require is undecided. */}
+              {data.age && data.age < 18 && (
+                <p className="text-xs text-muted-foreground font-body mt-2 ms-7">
+                  {t('demographics.under18Note')}
+                </p>
+              )}
             </div>
-            
-            {!isOrgStudent && data.age && data.age < 18 && (
-              <p className="text-xs text-muted-foreground font-body mt-2 ms-7">
-                {t('demographics.under18Note')}
-              </p>
-            )}
-          </div>
-        </StickyNote>
-      </div>
+          </StickyNote>
+        </div>
+      )}
 
       <div className="flex justify-center pt-8">
         <Button
