@@ -389,6 +389,7 @@
     "removalBucketWithoutReports": "{{n}} selected student(s) have no report — only their login account would be removed.",
     "removalDetachBtn": "Keep account & report",
     "removalEraseBtn": "Delete record permanently",
+    "removalEraseBulkBtn": "Delete selected records permanently",
     "removalHasReport": "This student has a completed report. Keeping the account leaves them their report and removes them from the school; deleting the record removes both permanently.",
     "removalNoReport": "This student has no completed report — their account holds only login credentials."
   },

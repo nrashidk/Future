@@ -847,7 +847,7 @@ export default function AdminOrganizations() {
                               languages. flex-col makes the stack follow DOM order, so erase is
                               last on a phone as it already is on desktop. sm:flex-row in the base
                               is untouched, so desktop is unchanged. */}
-                          <AlertDialogFooter className="flex-col">
+                          <AlertDialogFooter className="flex-col sm:flex-wrap">
                             <AlertDialogCancel>{t('orgs.cancel')}</AlertDialogCancel>
                             <AlertDialogAction
                               onClick={() => bulkDeleteMutation.mutate({ memberIds: selectedMemberIds, disposition: 'detach' })}
@@ -860,7 +860,13 @@ export default function AdminOrganizations() {
                               className="bg-destructive hover:bg-destructive/90"
                               data-testid="button-confirm-bulk-delete"
                             >
-                              {t('orgs.delete')}
+                              {/* Its own string, not orgs.removalEraseBtn. That one says
+                                  "the record", singular, which is the per-student dialog's
+                                  sentence; this button destroys a whole selection at once and
+                                  has to say so. The bare orgs.delete it used before was the
+                                  vaguest label in the pair, on the action with the larger
+                                  blast radius. */}
+                              {t('orgs.removalEraseBulkBtn')}
                             </AlertDialogAction>
                           </AlertDialogFooter>
                         </AlertDialogContent>
@@ -2715,7 +2721,7 @@ function MemberActions({ member, organizationId }: { member: OrganizationMember;
             </div>
             {/* flex-col — see the bulk dialog's footer. The base flex-col-reverse
                 stacked the destructive action first below 640px. */}
-            <AlertDialogFooter className="flex-col">
+            <AlertDialogFooter className="flex-col sm:flex-wrap">
               <AlertDialogCancel>{t('orgs.cancel')}</AlertDialogCancel>
               <AlertDialogAction
                 onClick={() => deleteMutation.mutate('detach')}
