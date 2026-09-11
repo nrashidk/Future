@@ -754,7 +754,16 @@ export default function SubjectManagement() {
               {t('subjects.deleteSubjectConfirm', { name: selectedSubject?.name })}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
+          {/* flex-col overrides DialogFooter's base flex-col-reverse, which below
+              640px stacks against DOM order and so put this dialog's DESTRUCTIVE
+              button at the TOP of the stack — the first control a thumb reaches,
+              above Cancel. Nothing else guards it: no typed confirmation, and it
+              is disabled only while the mutation is in flight. Same fix and same
+              reasoning as the disposition dialogs in 7d5c948. sm:flex-row in the
+              base is untouched, so desktop does not move. The other seventeen
+              DialogFooters are deliberately left alone — surveyed in FOLLOWUP.md;
+              they end in create/save/submit, where leading the stack is harmless. */}
+          <DialogFooter className="flex-col">
             <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
               {t('subjects.cancel')}
             </Button>
