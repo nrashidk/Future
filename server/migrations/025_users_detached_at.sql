@@ -1,0 +1,50 @@
+-- Migration: record that a school DETACHED a student rather than erasing them.
+--
+-- WHY. Removing a student from a school used to mean one thing: delete the
+-- organization_members row. Everything else — the account, the assessments, the
+-- WEF competency results, the recommendations — stayed, with working
+-- credentials and no school. Nobody chose that; it is what deleting one row
+-- happens to do. Removal now states its disposition explicitly, and one of the
+-- two dispositions is 'detach': the student keeps the report their school paid
+-- for, and the account becomes an ordinary personal one.
+--
+-- WHAT THIS COLUMN IS FOR, AND IT IS NARROWER THAN IT LOOKS. It is not a record
+-- of the detachment for its own sake — the school's audit trail already gets an
+-- organization_events row. It exists to REFUSE something.
+--
+-- Every READ path in the app already degrades correctly when a member row
+-- disappears: auth.routes.ts:48, assessment.routes.ts:228 and
+-- recommendations.routes.ts:98 all optional-chain the membership lookup, so a
+-- detached student keeps their existing report and simply stops being treated as
+-- a school student. The CREATE path degrades the wrong way. With no member row,
+-- the school licence guard stops applying and the free-tier cap takes over — so
+-- detaching would SILENTLY GRANT the ability to start fresh assessments.
+--
+-- That grant is precisely what detaching must not do. The school's consent is
+-- what made processing this minor lawful; it ends when the enrolment ends, and
+-- nothing has replaced it. What a 13-18 year old self-consenting should require
+-- is an open product question (FOLLOWUP: "the free flow's consent is a checkbox
+-- that records nothing"), and detaching a graduating cohort must not answer it by
+-- accident for several hundred students at once. assessment.routes.ts refuses
+-- creation while detached_at is set. The column is that refusal.
+--
+-- detached_from_organization_name is denormalised for the same reason
+-- organization_consents.organization_name is: after the membership row is gone,
+-- the account must still be able to say which school it left.
+--
+-- NO BACKFILL, AND NONE WOULD BE HONEST. Nothing has ever been detached — the
+-- disposition ships with this change. Existing orphaned accounts would be the
+-- population to consider, and there are none: the orphan queries run against
+-- production on 2026-09-11 returned 0 school-issued accounts with no membership
+-- row. Every existing user is correctly NULL here.
+--
+-- BOTH COLUMNS NULLABLE, NO CONSTRAINT. detached_from_organization_name is only
+-- meaningful when detached_at is set, but a CHECK tying them together would buy
+-- nothing: both are written in one UPDATE in
+-- services/accountErasure.ts:detachUserFromOrganization, and the failure mode a
+-- constraint would catch (one set without the other) is not reachable from that
+-- single writer. Revisit if a second writer ever appears.
+
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS detached_at timestamp,
+  ADD COLUMN IF NOT EXISTS detached_from_organization_name text;

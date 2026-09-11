@@ -27,7 +27,17 @@ has broken twice.
 
 ---
 
-## 1. The two attestations — legal weight, review these first
+## 1. Irreversible consequence — review these first
+
+Two groups. §1.1-1.4 are the consent attestations, whose translation carries legal
+weight. §1.5 is the student-removal dialog, added later and placed here for a
+different reason: a misreading destroys a minor's record and nothing recovers it.
+
+**They share the property that makes them first.** Everywhere else in this pack,
+wrong Arabic costs clarity — a confused reader who can ask, retry, or stop. In
+these two groups the confused reader's action is taken, recorded and final.
+
+### The attestations: legal weight
 
 These are the only two strings in the product whose translation carries legal
 weight rather than polish.
@@ -132,6 +142,90 @@ implying either that it has lapsed or that re-recording is optional busywork.
 
 ---
 
+### 1.5 The student-removal dialog — an admin disposing of a whole cohort's records
+
+**§1 weight, for a different reason than the attestations.** Nothing here is a
+legal instrument. What puts it in this section is that an administrator reads
+these strings while acting on a **whole cohort at once**, the options do opposite
+things to a minor's record, and one of them cannot be undone. A misread does not
+produce a confused admin who asks someone — it produces several hundred
+permanently deleted career reports belonging to 13-18 year olds, discovered later.
+
+**Where it appears:** *Manage Schools* → a school → the student roster. Two places,
+same vocabulary: the trash icon on a single student's row, and the **Delete
+Selected** button after tick-selecting students. Both open a confirmation dialog
+that now asks **what should happen to the record**, not merely whether to proceed.
+This replaced a single "Delete" button, so an Arabic-reading admin who knows the
+old dialog will meet new wording in a familiar place.
+
+**What the two options actually do**, because the strings have to carry this
+distinction and nothing else on the screen explains it:
+
+| Option | Effect |
+|---|---|
+| Keep account & report | The student leaves the school. Their login and their completed report survive, and they keep reading it. The school's seat is freed. **They cannot start a new assessment** — read access only. |
+| Delete record permanently | The student's account, assessments, quiz answers and report are erased. Irreversible. |
+
+| key | EN | AR |
+|---|---|---|
+| `orgs.removalDispositionIntro` | Choose what happens to each student's record. This cannot be undone. | اختر ما سيحدث لسجل كل طالب. لا يمكن التراجع عن هذا الإجراء. |
+| `orgs.removalBucketWithReports` | {{n}} selected student(s) have a completed report. Keeping the account preserves it; deleting the record removes it permanently. | {{n}} من الطلاب المحددين لديهم تقرير مكتمل. الاحتفاظ بالحساب يبقي التقرير، وحذف السجل يزيله نهائيًا. |
+| `orgs.removalBucketWithoutReports` | {{n}} selected student(s) have no report — only their login account would be removed. | {{n}} من الطلاب المحددين بلا تقرير — سيُزال حساب الدخول فقط. |
+| `orgs.removalDetachBtn` | Keep account & report | الاحتفاظ بالحساب والتقرير |
+| `orgs.removalEraseBtn` | Delete record permanently | حذف السجل نهائيًا |
+| `orgs.removalHasReport` | This student has a completed report. Keeping the account leaves them their report and removes them from the school; deleting the record removes both permanently. | لدى هذا الطالب تقرير مكتمل. الاحتفاظ بالحساب يترك له تقريره ويزيله من المدرسة، وحذف السجل يزيل الاثنين نهائيًا. |
+| `orgs.removalNoReport` | This student has no completed report — their account holds only login credentials. | ليس لدى هذا الطالب تقرير مكتمل — حسابه يحتوي على بيانات الدخول فقط. |
+
+#### The one decision already made for you, so you do not undo it
+
+**`الفصل` was considered for "detach" and deliberately rejected.** It is the
+obvious word, and a reviewer improving this copy will reach for it — so here is
+why it is not there.
+
+The English concept is *detach*: separate the student's account from the school
+while leaving the account and its report intact. `الفصل` is the natural
+translation of "separation", but in a school context addressed to a school
+administrator it also reads as **the classroom**, as **the academic term**, and —
+most dangerously — as **dismissal/expulsion of the student**. On a destructive
+confirmation dialog, a button reading "فصل الطالب" can be read as *expel this
+student*, which is a different act with different consequences, and the admin
+clicking it would believe they were doing something they are not.
+
+So the buttons name **the outcome, not the operation**: `الاحتفاظ بالحساب
+والتقرير` — keep the account and the report. Longer than a verb, and that is the
+trade accepted. **If you replace this with a single verb, the ambiguity comes
+back.** If a crisper construction exists that still names what survives rather
+than what is done to the student, it is welcome — but it must not be `فصل` alone,
+and it must not leave the reader guessing whether the student is being punished.
+
+#### What to check, specifically
+
+1. **Do the two buttons read as opposites?** They are adjacent and both are
+   confirm-style. If they read as two shades of "remove", the dialog has failed —
+   the whole point is that one preserves and one destroys.
+2. **Is `حذف السجل نهائيًا` unmistakably final?** It should not read as "remove
+   from the list". `نهائيًا` is carrying that, and it must not be dropped for
+   brevity.
+3. **Does "الاحتفاظ بالحساب" imply the student stays enrolled?** It must not.
+   They leave the school; what is kept is their account and report. If the Arabic
+   suggests the student remains a student of that school, the admin will think the
+   option did nothing.
+4. **`{{n}}` is a number inside an Arabic sentence**, at the start of both bucket
+   strings — a mixed-run candidate, and it leads the sentence rather than sitting
+   mid-clause. See §6; this has not been seen rendered.
+5. **Arabic plurals.** Both bucket strings use one form for all values of `{{n}}`,
+   including 1 and 2. Arabic has dual and several plural forms. Tell us if the
+   single form is unacceptable here rather than merely imperfect — the fix is an
+   i18next plural key set, which is a code change, not a string edit.
+6. **Does this read as routine administration or as punishment?** Clearing a
+   graduating cohort is ordinary, expected, end-of-year work. The tone should be
+   procedural. Nothing here should imply the students did anything wrong.
+
+**Not yet seen rendered in Arabic** — text only, like most of this pack. Both
+dialogs are RTL layouts with two adjacent confirm buttons, and button order in an
+RTL flex row is exactly the construction §6 records as having broken before.
+
+---
 ## 2. Student-facing — a 13-18 year old reads these mid-assessment, with nobody to ask
 
 Second in order because of who reads them and when. A student meets these alone, on
@@ -750,6 +844,8 @@ in the rendering and not the words:
 | all of `legal.json`'s numbered headings (§5) | never rendered at all, by anyone |
 | the em-dashes in `schoolOwnedNote` (§2.2), `reportsDesc` and `valuesDesc` (§4) | a dash between two RTL clauses can render ambiguously depending on the font |
 | the native date picker (§3.2) | not ours at all — the browser supplies month names and ordering |
+| `{{n}}` LEADING both bucket strings in the removal dialog (§1.5) | a digit at the START of an Arabic sentence, not mid-clause — an untested variant of the shape that failed on the step cards |
+| the two adjacent confirm buttons in the removal dialog (§1.5) | button ORDER in an RTL flex row. One preserves a record and one destroys it; if they swap visually, the destructive button sits where the safe one is expected. §1 weight, and rendering-only — the text cannot reveal it |
 
 **How to see them.** The app can be run locally and rendered in Arabic with headless
 Chrome — the recipe, including the system libraries and how to force the Arabic locale,

@@ -227,6 +227,32 @@ export function registerAssessmentRoutes(app: Express) {
         // accountType off it, then fetched the member row anyway.
         const orgMember = await storage.getOrganizationMemberByUserId(userId);
 
+        // DETACHED STUDENTS CANNOT START A NEW ASSESSMENT, and this check has to
+        // live here rather than fall out of the member lookup — because it does
+        // not. A detached student has NO member row, so every branch below is
+        // skipped, the school licence guard stops applying, and the free-tier cap
+        // takes over: without this, detaching would silently GRANT the ability to
+        // start fresh assessments to a cohort that just lost the consent basis
+        // making processing them lawful.
+        //
+        // Detaching preserves READ access to the report the school paid for. It
+        // is not a route to new processing, and the question of what a 13-18 year
+        // old self-consenting should require is open (FOLLOWUP: "the free flow's
+        // consent is a checkbox that records nothing"). Answering it by accident,
+        // several hundred students at a time, is the failure this prevents.
+        //
+        // Checked before the membership branch so a row left behind by a partial
+        // detach cannot route around it.
+        const account = await storage.getUser(userId);
+        if (account?.detachedAt) {
+          return res.status(403).json({
+            message: account.detachedFromOrganizationName
+              ? `This account was separated from ${account.detachedFromOrganizationName} and can still view its existing reports, but cannot start a new assessment.`
+              : "This account was separated from its school and can still view its existing reports, but cannot start a new assessment.",
+            code: "ACCOUNT_DETACHED",
+          });
+        }
+
         if (orgMember?.role === 'student') {
           // LICENSE GUARD (school students only): a school license grants a
           // student a limited number of assessment allocations. Block creation

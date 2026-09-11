@@ -14,6 +14,8 @@ import { z } from "zod";
 import { isPremiumAssessment } from "../utils/assessmentTier";
 import * as fileStorage from "../services/fileStorage";
 import { requireOrganizationConsent } from "../utils/consentGate";
+import { db } from "../db";
+import { eraseUserData, detachUserFromOrganization } from "../services/accountErasure";
 
 // Nothing in this module touches local disk any more. Private data uploads go
 // to the private Spaces bucket; organization logos go to the public one. Both
@@ -111,6 +113,104 @@ export function changedOrgCurriculumFields(
     changed(existing.countryId, proposed.countryId) ? "country" as const : null,
     changed(existing.curriculum, proposed.curriculum) ? "curriculum" as const : null,
   ].filter((f): f is "country" | "curriculum" => f !== null);
+}
+
+/**
+ * WHAT REMOVING A STUDENT MEANS — stated by the action, never implied.
+ *
+ * Removal used to mean one thing, and nobody chose it: delete the
+ * organization_members row. The account, the assessments, the WEF competency
+ * results and the recommendations all stayed behind, with working credentials
+ * and no school. A school admin clearing a graduating cohort was, without being
+ * told and without deciding, leaving several hundred minors' psychological
+ * profiles in the system with nobody responsible for them.
+ *
+ * The admin doing this is not making a data-protection decision and should not
+ * be asked to. So the ACTION carries the disposition instead: the endpoint
+ * refuses to guess, the UI preselects per student, and what happens to the
+ * record is visible before it happens.
+ *
+ *   'erase'  — the student's whole record goes. Same sequence as the student's
+ *              own right to erasure (services/accountErasure.ts), so the two
+ *              cannot drift apart. For a student who never completed an
+ *              assessment this is the sensible default: the account holds
+ *              nothing but working credentials.
+ *   'detach' — the student keeps their account and the report their school paid
+ *              for; the school lets go. For a student who HAS completed an
+ *              assessment, destroying the report because their enrolment ended
+ *              serves nobody.
+ */
+const DISPOSITIONS = ["erase", "detach"] as const;
+type Disposition = (typeof DISPOSITIONS)[number];
+
+const DISPOSITION_REQUIRED =
+  "A disposition is required: 'erase' permanently deletes the student's record, " +
+  "'detach' keeps their account and existing report. There is no default.";
+
+function parseDisposition(value: unknown): Disposition | null {
+  return DISPOSITIONS.includes(value as Disposition) ? (value as Disposition) : null;
+}
+
+/**
+ * The disposition an admin should be offered for a given student, and the reason
+ * the two endpoints do not simply default to it: this is a RECOMMENDATION the UI
+ * preselects and shows, not a fallback the server applies when the field is
+ * missing. A missing disposition is a 400. The difference matters — a default is
+ * a decision nobody saw.
+ */
+export function recommendedDisposition(member: { hasCompletedAssessment?: boolean | null }): Disposition {
+  return member.hasCompletedAssessment ? "detach" : "erase";
+}
+
+async function applyRemovalDisposition(
+  member: { id: string; userId: string; organizationId: string; studentName?: string | null },
+  organization: { id: string; name: string },
+  disposition: Disposition,
+  performedByUserId: string,
+  performedBySuperadmin: boolean,
+): Promise<void> {
+  const removedUser = await storage.getUser(member.userId);
+
+  await db.transaction(async (tx) => {
+    if (disposition === "erase") {
+      // eraseUserData deletes the membership row itself as part of the sequence.
+      await eraseUserData(tx, member.userId);
+    } else {
+      await detachUserFromOrganization(tx, member.userId, organization.name);
+    }
+
+    // The seat goes back either way, and by recompute rather than by a -1 — see
+    // storage.recomputeOrganizationLicenseUsage.
+    await storage.recomputeOrganizationLicenseUsage(organization.id, tx);
+  });
+
+  // AFTER the transaction, and deliberately NOT carrying affectedUserId.
+  //
+  // organization_events.affected_user_id is a NO ACTION FK to users, and
+  // services/accountErasure.ts treats a row pointing at someone as an ACTOR
+  // record that blocks their own erasure with a 409. Today no student ever has
+  // one — all four writers target admins — which is exactly why student erasure
+  // works. Naming a detached student here would hand them an audit row that
+  // blocks their own right to erasure later, quietly, as a side effect of their
+  // school tidying up. The student is named in the description instead, which is
+  // what the school's activity log actually needs to read.
+  //
+  // For 'erase' the user row is gone, so an FK here would not even be writable.
+  await storage.createOrganizationEvent({
+    organizationId: organization.id,
+    eventType: disposition === "erase" ? "student_erased" : "student_detached",
+    eventDescription:
+      disposition === "erase"
+        ? `Removed student ${member.studentName || removedUser?.username || member.userId} and permanently deleted their record`
+        : `Removed student ${member.studentName || removedUser?.username || member.userId}; their account and existing report were kept`,
+    performedBy: performedByUserId,
+    performedByRole: performedBySuperadmin ? "superadmin" : "org_admin",
+    previousValue: {
+      studentName: member.studentName ?? null,
+      username: removedUser?.username ?? null,
+    },
+    newValue: null,
+  });
 }
 
 export function registerAdminRoutes(app: Express) {
@@ -1153,19 +1253,34 @@ export function registerAdminRoutes(app: Express) {
         return res.status(403).json({ message: "Forbidden: Member does not belong to this organization" });
       }
 
-      if (member.isLocked) {
-        return res.status(400).json({ message: "Cannot delete member who has completed an assessment" });
+      // THE isLocked GUARD THAT WAS HERE IS GONE, and its removal is the point
+      // rather than a casualty. It read "Cannot delete member who has completed
+      // an assessment", and is_locked is never set to true anywhere —
+      // storage.lockOrganizationMember had zero callers — so it never fired. Two
+      // things follow. It was not protecting anyone, so nothing is being given
+      // up; and had it ever been wired it would have blocked removing a
+      // graduating cohort, which is the ordinary case this endpoint now handles
+      // explicitly. The disposition below replaces it: the question is no longer
+      // "may this student be removed" but "what happens to their record".
+      const disposition = parseDisposition(req.body?.disposition);
+      if (!disposition) {
+        return res.status(400).json({ message: DISPOSITION_REQUIRED, code: "DISPOSITION_REQUIRED" });
       }
 
-      await storage.deleteOrganizationMember(req.params.memberId);
-      // SET from the roster, not decremented by one. The flat -1 this replaces
-      // could not know which fund the removed student had spent — nothing
-      // recorded it — so it refunded a paid seat even for a reward-funded
-      // student, while the reward credit stayed spent. organization_members
-      // .license_source now records it and both counters derive from the roster.
-      await storage.recomputeOrganizationLicenseUsage(req.params.id);
+      const organization = await storage.getOrganizationById(req.params.id);
+      if (!organization) {
+        return res.status(404).json({ message: "School not found" });
+      }
 
-      res.json({ success: true, message: "Member deleted successfully" });
+      await applyRemovalDisposition(member, organization, disposition, userId, isSuperadmin);
+
+      res.json({
+        success: true,
+        disposition,
+        message: disposition === "erase"
+          ? "Student removed and their record permanently deleted"
+          : "Student removed; their account and existing report were kept",
+      });
     } catch (error: any) {
       console.error("Error deleting organization member:", error);
       if (error.message?.includes('Cannot decrement')) {
@@ -1223,30 +1338,49 @@ export function registerAdminRoutes(app: Express) {
         });
       }
 
-      const lockedMembers = members.filter((m, i) => m && m.isLocked).map((m, i) => memberIds[i]);
-      if (lockedMembers.length > 0) {
-        return res.status(400).json({ 
-          message: "Cannot delete members who have completed assessments",
-          lockedMembers 
-        });
+      // The isLocked guard that was here is gone for the reason given on the
+      // single-removal endpoint above: it tested a flag nothing writes, so it
+      // never fired, and wiring it would have blocked exactly the graduating
+      // cohort this endpoint exists to clear.
+      const disposition = parseDisposition(req.body?.disposition);
+      if (!disposition) {
+        return res.status(400).json({ message: DISPOSITION_REQUIRED, code: "DISPOSITION_REQUIRED" });
       }
 
-      const validMemberIds = members.filter(m => m !== undefined).map((m: any) => m.id);
-      
-      if (validMemberIds.length === 0) {
+      const validMembers = members.filter((m): m is NonNullable<typeof m> => m !== undefined);
+
+      if (validMembers.length === 0) {
         return res.status(404).json({ message: "No valid members found" });
       }
 
-      const deletedCount = await storage.bulkDeleteOrganizationMembers(validMemberIds);
-      // Recomputed from the roster rather than decremented by deletedCount, for
-      // the same reason as the single delete above — and this one could be wrong
-      // by more than one at a time.
-      await storage.recomputeOrganizationLicenseUsage(req.params.id);
+      const organization = await storage.getOrganizationById(req.params.id);
+      if (!organization) {
+        return res.status(404).json({ message: "School not found" });
+      }
 
-      res.json({ 
-        success: true, 
+      // ONE MEMBER AT A TIME, not one bulk DELETE. Each disposition is its own
+      // transaction — erase walks a whole dependent graph, detach rewrites the
+      // user row — and a single statement cannot express either. Sequential
+      // rather than Promise.all so the licence recompute inside each one is not
+      // racing itself over the same organization row.
+      const results: Array<{ memberId: string; success: boolean; error?: string }> = [];
+      for (const member of validMembers) {
+        try {
+          await applyRemovalDisposition(member, organization, disposition, userId, isSuperadmin);
+          results.push({ memberId: member.id, success: true });
+        } catch (error: any) {
+          results.push({ memberId: member.id, success: false, error: error?.message ?? "Unknown error" });
+        }
+      }
+
+      const deletedCount = results.filter(r => r.success).length;
+
+      res.json({
+        success: true,
+        disposition,
         deletedCount,
-        message: `Successfully deleted ${deletedCount} member(s)` 
+        failed: results.filter(r => !r.success),
+        message: `Successfully removed ${deletedCount} of ${validMembers.length} student(s)`,
       });
     } catch (error: any) {
       console.error("Error bulk deleting organization members:", error);

@@ -87,6 +87,8 @@ const fullRow = () => ({
   passwordHash: "$2b$10$abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG",
   accountType: "org_student",
   isOrgGenerated: true,
+  detachedAt: null,
+  detachedFromOrganizationName: null,
   isPremium: false,
   purchasedLicenses: 0,
   stripeCustomerId: "cus_ABC123",

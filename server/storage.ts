@@ -398,7 +398,6 @@ export interface IStorage {
   }>;
   updateOrganizationMember(id: string, data: Partial<InsertOrganizationMember>): Promise<OrganizationMember>;
   deleteOrganizationMember(id: string): Promise<boolean>;
-  lockOrganizationMember(id: string): Promise<OrganizationMember>;
 
   // Combined operations
   createUserWithCredentials(userData: {
@@ -2981,21 +2980,6 @@ export class DatabaseStorage implements IStorage {
     return result.rowCount ?? 0;
   }
 
-  async lockOrganizationMember(id: string): Promise<OrganizationMember> {
-    const [member] = await db
-      .update(organizationMembers)
-      .set({
-        isLocked: true,
-        hasCompletedAssessment: true,
-        assessmentCompletedAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .where(eq(organizationMembers.id, id))
-      .returning();
-    return member;
-  }
-
-  // Combined operations
   async createUserWithCredentials(userData: {
     organizationId: string;
     fullName: string;

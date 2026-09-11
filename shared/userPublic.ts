@@ -29,6 +29,14 @@ export const PUBLIC_USER_FIELDS = [
   "username",
   "accountType",
   "isOrgGenerated",
+  // Account STATUS, in the same family as the two above and decided on purpose
+  // when the columns were added rather than left to default. Neither is
+  // credential, billing or lockout material — the four categories the exclusion
+  // list is actually about. The client needs them to explain a detached account
+  // in its own UI instead of only discovering the state from a 403 when the
+  // student tries to start an assessment.
+  "detachedAt",
+  "detachedFromOrganizationName",
   "isPremium",
   "purchasedLicenses",
   "preferredLanguage",

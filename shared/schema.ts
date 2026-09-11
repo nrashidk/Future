@@ -48,6 +48,35 @@ export const users = pgTable("users", {
   passwordHash: varchar("password_hash"), // Hashed password (bcrypt/argon2)
   accountType: text("account_type").notNull().default("individual"), // 'individual', 'org_admin', 'org_student'
   isOrgGenerated: boolean("is_org_generated").notNull().default(false),
+
+  /**
+   * SET WHEN A SCHOOL DETACHED THIS STUDENT rather than erasing them, so they
+   * keep the report their school paid for. NULL for everyone else.
+   *
+   * THIS COLUMN IS A REFUSAL, NOT A RECORD. Every READ path already degrades
+   * correctly when a member row disappears — auth.routes.ts:48,
+   * assessment.routes.ts:228 and recommendations.routes.ts:98 all optional-chain
+   * the lookup, so a detached student keeps their existing report and simply
+   * stops being treated as a school student. The CREATE path degrades the wrong
+   * way: with no member row the school licence guard stops applying and the
+   * free-tier cap takes over, which silently GRANTS the ability to start fresh
+   * assessments.
+   *
+   * That grant is the thing detaching must not do. The school's consent is what
+   * made processing this minor lawful, it ends when the enrolment ends, and
+   * nothing has replaced it — what a 13-18 year old self-consenting should
+   * require is an open product question. Detaching a graduating cohort must not
+   * answer it by accident for several hundred students at once. So
+   * assessment.routes.ts refuses creation while this is set, and that refusal is
+   * the reason the column exists.
+   *
+   * Do not repurpose it as a general "inactive" flag: anything that reads it as
+   * a soft-delete will eventually be tempted to clear it in bulk.
+   */
+  detachedAt: timestamp("detached_at"),
+  /** Denormalised so the account can still say which school it left, after the
+   *  membership row is gone. Same reason as organization_consents.organizationName. */
+  detachedFromOrganizationName: text("detached_from_organization_name"),
   
   // Premium subscription
   isPremium: boolean("is_premium").notNull().default(false),

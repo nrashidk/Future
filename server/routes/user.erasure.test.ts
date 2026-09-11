@@ -83,8 +83,8 @@ vi.mock("../middleware/rateLimiter.middleware", () => ({
   dataExportLimiter: (_req: any, _res: any, next: any) => next(),
 }));
 
-const { eraseUserData, collectBlockingAuditRecords, registerUserRoutes } =
-  await import("./user.routes");
+const { eraseUserData, collectBlockingAuditRecords } = await import("../services/accountErasure");
+const { registerUserRoutes } = await import("./user.routes");
 
 // ---------------------------------------------------------------- fake db ---
 

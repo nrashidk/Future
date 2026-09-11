@@ -8,15 +8,22 @@
  * enrolled student's results describing a curriculum the school no longer has.
  *
  * changedOrgCurriculumFields is the whole decision — the handler only counts
- * students when it returns something — so it is what this pins. Storage is
- * mocked so importing admin.routes.ts does not pull in db.ts, which throws at
+ * students when it returns something — so it is what this pins. Storage AND db
+ * are mocked so importing admin.routes.ts does not pull in db.ts, which throws at
  * import when DATABASE_URL is unset (same pattern as
- * superadmin.reconciliation.test.ts).
+ * superadmin.reconciliation.test.ts, and as health.seedStatus.test.ts for the db
+ * half).
+ *
+ * The db mock was added when student removal gained its erase/detach
+ * disposition: applying one spans several tables, so admin.routes.ts now owns a
+ * transaction and imports db directly. Mocking storage alone stopped being
+ * enough to keep this file's import side-effect-free.
  */
 
 import { describe, it, expect, vi } from "vitest";
 
 vi.mock("../storage", () => ({ storage: {} }));
+vi.mock("../db", () => ({ db: {} }));
 
 const { changedOrgCurriculumFields, isClearedOrgField } = await import("./admin.routes");
 

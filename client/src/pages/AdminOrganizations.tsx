@@ -298,8 +298,8 @@ export default function AdminOrganizations() {
 
   // Bulk delete mutation
   const bulkDeleteMutation = useMutation({
-    mutationFn: async (memberIds: string[]) => {
-      return apiRequest('POST', `/api/admin/organizations/${selectedOrgId}/members/bulk-delete`, { memberIds });
+    mutationFn: async ({ memberIds, disposition }: { memberIds: string[]; disposition: 'erase' | 'detach' }) => {
+      return apiRequest('POST', `/api/admin/organizations/${selectedOrgId}/members/bulk-delete`, { memberIds, disposition });
     },
     onSuccess: () => {
       toast({ title: t('superadmin.success'), description: t('orgs.bulkDeleteSuccess') });
@@ -818,13 +818,39 @@ export default function AdminOrganizations() {
                           <AlertDialogHeader>
                             <AlertDialogTitle>{t('orgs.bulkDelete')}</AlertDialogTitle>
                             <AlertDialogDescription>
-                              {t('orgs.confirmDelete')}
+                              {t('orgs.removalDispositionIntro')}
                             </AlertDialogDescription>
                           </AlertDialogHeader>
+                          {/* THE BUCKET COUNTS, SHOWN BEFORE THE CHOICE. The admin
+                              doing this is not making a data-protection decision
+                              and should not be asked to; what they need is to see
+                              how many reports each option touches. withReports is
+                              what "detach" preserves and "erase" destroys. */}
+                          {(() => {
+                            const selected = members.filter(m => selectedMemberIds.includes(m.id));
+                            const withReports = selected.filter(m => m.hasCompletedAssessment).length;
+                            const withoutReports = selected.length - withReports;
+                            return (
+                              <div className="rounded-lg border bg-muted/40 p-3 text-sm space-y-1">
+                                <p data-testid="text-bucket-with-reports">
+                                  {t('orgs.removalBucketWithReports', { n: withReports })}
+                                </p>
+                                <p data-testid="text-bucket-without-reports">
+                                  {t('orgs.removalBucketWithoutReports', { n: withoutReports })}
+                                </p>
+                              </div>
+                            );
+                          })()}
                           <AlertDialogFooter>
                             <AlertDialogCancel>{t('orgs.cancel')}</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => bulkDeleteMutation.mutate({ memberIds: selectedMemberIds, disposition: 'detach' })}
+                              data-testid="button-confirm-bulk-detach"
+                            >
+                              {t('orgs.removalDetachBtn')}
+                            </AlertDialogAction>
                             <AlertDialogAction 
-                              onClick={() => bulkDeleteMutation.mutate(selectedMemberIds)}
+                              onClick={() => bulkDeleteMutation.mutate({ memberIds: selectedMemberIds, disposition: 'erase' })}
                               className="bg-destructive hover:bg-destructive/90"
                               data-testid="button-confirm-bulk-delete"
                             >
@@ -2507,8 +2533,8 @@ function MemberActions({ member, organizationId }: { member: OrganizationMember;
   const [newPassword, setNewPassword] = useState<string | null>(null);
 
   const deleteMutation = useMutation({
-    mutationFn: async () => {
-      return apiRequest('DELETE', `/api/admin/organizations/${organizationId}/members/${member.id}`);
+    mutationFn: async (disposition: 'erase' | 'detach') => {
+      return apiRequest('DELETE', `/api/admin/organizations/${organizationId}/members/${member.id}`, { disposition });
     },
     onSuccess: () => {
       toast({ title: t('superadmin.success'), description: t('orgs.studentDeletedSuccess') });
@@ -2659,7 +2685,6 @@ function MemberActions({ member, organizationId }: { member: OrganizationMember;
             <Button 
               variant="ghost" 
               size="icon"
-              disabled={member.isLocked}
               data-testid={`button-delete-member-${member.id}`}
             >
               <Trash2 className="w-4 h-4 text-destructive" />
@@ -2672,14 +2697,33 @@ function MemberActions({ member, organizationId }: { member: OrganizationMember;
                 {t('orgs.deleteStudentDesc', { name: memberDisplayName(member) })}
               </AlertDialogDescription>
             </AlertDialogHeader>
+            {/* WHICH OPTION IS RECOMMENDED IS DECIDED BY WHETHER A REPORT EXISTS,
+                mirroring recommendedDisposition() on the server. It is shown and
+                emphasised, never applied silently: the endpoint has no default and
+                400s without an explicit disposition, because a default is a
+                decision nobody saw. */}
+            <div className="rounded-lg border bg-muted/40 p-3 text-sm">
+              {member.hasCompletedAssessment
+                ? t('orgs.removalHasReport')
+                : t('orgs.removalNoReport')}
+            </div>
             <AlertDialogFooter>
               <AlertDialogCancel>{t('orgs.cancel')}</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => deleteMutation.mutate('detach')}
+                className={member.hasCompletedAssessment ? undefined : "bg-muted text-muted-foreground hover:bg-muted/80"}
+                data-testid={`button-confirm-detach-${member.id}`}
+              >
+                {t('orgs.removalDetachBtn')}
+              </AlertDialogAction>
               <AlertDialogAction 
-                onClick={() => deleteMutation.mutate()}
-                className="bg-destructive hover:bg-destructive/90"
+                onClick={() => deleteMutation.mutate('erase')}
+                className={member.hasCompletedAssessment
+                  ? "bg-muted text-muted-foreground hover:bg-muted/80"
+                  : "bg-destructive hover:bg-destructive/90"}
                 data-testid={`button-confirm-delete-${member.id}`}
               >
-                {t('orgs.delete')}
+                {t('orgs.removalEraseBtn')}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

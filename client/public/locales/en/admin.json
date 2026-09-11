@@ -383,7 +383,14 @@
     "consentBlocked": "Add students after recording consent above.",
     "consentError": "Could not record consent. Please try again.",
     "termsOfUse": "Terms of Use",
-    "privacyPolicy": "Privacy Policy"
+    "privacyPolicy": "Privacy Policy",
+    "removalDispositionIntro": "Choose what happens to each student's record. This cannot be undone.",
+    "removalBucketWithReports": "{{n}} selected student(s) have a completed report. Keeping the account preserves it; deleting the record removes it permanently.",
+    "removalBucketWithoutReports": "{{n}} selected student(s) have no report — only their login account would be removed.",
+    "removalDetachBtn": "Keep account & report",
+    "removalEraseBtn": "Delete record permanently",
+    "removalHasReport": "This student has a completed report. Keeping the account leaves them their report and removes them from the school; deleting the record removes both permanently.",
+    "removalNoReport": "This student has no completed report — their account holds only login credentials."
   },
   "superadmin": {
     "title": "Super Admin Dashboard",
