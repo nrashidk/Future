@@ -5110,3 +5110,64 @@ docs/consent-implementation-recon.md §(c) point 3. `DELETE /api/users/me` delet
 one of the school's seats.
 
 Recorded 2026-09-11.
+
+### `isLocked` was never wired: two dead guards, one unreachable button, one false recon claim  (severity: MEDIUM, one user-facing outage)
+`organization_members.is_locked` (shared/schema.ts:188) defaults to false and **nothing in the
+repository ever sets it to true**. The only writer is `storage.lockOrganizationMember`
+(storage.ts:3030-3036), which has exactly two occurrences in the whole codebase — its interface
+declaration at :396 and its own implementation. **Zero callers.** The flag that actually tracks
+completion is `hasCompletedAssessment`, written at recommendations.routes.ts:218 and read
+correctly by the licence guard at assessment.routes.ts:252. Four things were built on the other
+one, and all four are inert:
+
+1. **`DELETE /api/admin/organizations/:id/members/:memberId` guard (admin.routes.ts:1153)** —
+   *"Cannot delete member who has completed an assessment."* Never fires.
+2. **Bulk-delete guard (admin.routes.ts:1218)** — same sentence, plural. Never fires.
+3. **The "Locked" badge (AdminOrganizations.tsx:1019)** — never renders. Delete controls gated on
+   `member.isLocked` (:997, :2647) are never disabled, and `selectableMembers` (:366) always
+   includes every non-admin member.
+4. **USER-FACING OUTAGE: the "Export Reports" button is permanently disabled.**
+   AdminOrganizations.tsx:761 sets `disabled={members.filter(m => m.isLocked).length === 0}`.
+   That count is always 0, so the button is always disabled. **A school admin cannot export their
+   students' reports from this screen — ever, for any school.** Worth checking against a
+   complaint log before assuming nobody has noticed; it is the kind of thing an admin reports as
+   "the button doesn't work" and nobody reproduces because it looks conditional.
+
+So the net effect is the inverse of what the code appears to say. The server reads as though
+completed students are protected from deletion — they are not, every student is removable and
+removing one orphans their account and assessments — while the client silently withholds a
+feature that has nothing to do with protection.
+
+**NAME THE PATTERN, because this is the second time this session.** Both times a recon document
+asserted behaviour by reading the code that expresses a rule, without tracing whether the rule's
+input is ever produced:
+
+- `DELETE /api/users/me` was recorded as *"Works for an org student"* by reading the list of
+  tables it deletes, without asking whether that list was complete. It omitted
+  wef_competency_results and returned 500 for every school student. Fixed ef6d85f.
+- The same document recorded *"The admin path refuses to delete a member who has completed an
+  assessment"* by reading the guard, without asking whether `isLocked` is ever written. It is
+  not. And an argument was then built ON that premise — that self-delete bypassing the check is
+  correct for position 4, but that combined with the seat leak "the school silently loses both a
+  completed assessment and a seat". The premise is false, so the conclusion needs re-deriving.
+
+**The rule this generalises to.** CLAUDE.md already says it about `replit.md`: *"A claim is an
+allegation to confirm, never evidence that the control exists or works."* That discipline was
+being applied to the previous builder's document and not to our own. A guard, a branch or a
+delete list is a claim about behaviour in exactly the same way — and the confirming step is
+cheap and specific: **for every flag a guard tests, grep its write sites before believing the
+guard runs.** Zero write sites means the guard is decoration. For a delete list, the equivalent
+is deriving the dependent set from the FK graph rather than reading the list
+(docs/erasure-dependent-list.md shows the method).
+
+**Do not "fix" this by calling `lockOrganizationMember`.** Locking a student on assessment
+completion would make guards 1 and 2 start firing, which would block removing a graduating
+cohort — the ordinary case, and the one the student-removal disposition work exists to handle.
+The removal disposition replaces these guards rather than repairing them: once removal states
+whether it erases or detaches, a blanket refusal is both inert and wrong. Guards 1 and 2 and
+`lockOrganizationMember` are removed in that change. **Item 4 is independent and is the only
+part that is a plain bug** — the export button should be gated on something real
+(`hasCompletedAssessment`, which is what "there are reports to export" actually means) or on
+nothing at all. It can be fixed on its own, ahead of the disposition work.
+
+Found 2026-09-11 while verifying the licence-seat leak for the student-removal path.
