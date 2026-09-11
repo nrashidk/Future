@@ -5484,3 +5484,69 @@ is untouched: a catalogue subject outside the umbrella-6 is unservable in *eithe
 
 Until (2) exists, treat the invariant as **enforced at the seed source and at the contribution
 write, asserted nowhere over the column itself.**
+
+### RESOLVED 2026-09-11 — one vocabulary, enforced at the choke point
+
+The paragraph above proposed an integration project that would query the database. That was the
+wrong target and is **not being built**: it checks the deployment rather than the code, and it
+would pass against a clean database while the write paths stayed broken. The gap was never
+coverage; it was writers.
+
+Landed in three commits:
+
+- **`27c35e4`** — `country.routes.ts`. The caller's subject is resolved against the catalogue
+  before generation, that one name is written on every row, and `q.subject` is dropped from the
+  write entirely. A subject not in the catalogue is a 400 before any tokens are spent. The
+  auto-create block is unreachable and removed — **workflow change:** a superadmin generating for
+  a new subject must create it in the catalogue first. The per-question catch now reports index,
+  question preview and reason through the response and the toast, instead of console.error and a
+  number that did not match the one requested.
+- **`a1b6ed1`** — the choke point. `storage.resolveSubjectName` accepts either vocabulary plus
+  aliases and returns the name, wired into `createQuizQuestion` and `updateQuizQuestion`. Both
+  `getSubjectByCode` guards in `admin.routes.ts` are gone: the POST one never ran, and the bulk
+  one ran and was backwards. The admin 400 mappings are in the same commit, because a refusal
+  surfacing as a 500 is a worse contract than the silent wrong value it replaced.
+- **`7c5f95b`** — the table-driven writer test, holding the three admin routes to a passthrough
+  contract and the two computing writers to a resolved one.
+
+**Decisions worth keeping, because each was a fork:**
+
+- **Two scopes, two catalogues.** `subjects.countryId`/`.curriculum` are notNull;
+  `quiz_questions`' are nullable. A row with either unset has no addressable catalogue row, so the
+  catalogue invariant cannot be *stated* for it, not merely unmet. Such a row is global and
+  students only pick from the umbrella-6, so `SUBJECT_IDS` is the only vocabulary it can match
+  there — not a weaker fallback.
+- **Aliases in.** The reader already resolves through them; the writer not doing so was the
+  asymmetry that caused the original defect. Rewrites are logged when output differs from input.
+- **Not `getSubjectsByCurriculum`**, which filters `isActive`. A choke point stricter than the
+  handler that already approved a write would turn contribution approval's own 409-checked name
+  into a 500 the day a subject was deactivated. Whether a subject may still be *chosen* is a
+  submit-time question.
+- **Partial updates re-resolve on a scope move.** A payload carrying only `curriculum` moves the
+  row into a different catalogue under which its untouched subject may resolve to nothing — the
+  same defect one field along.
+
+**The coverage claim, restated honestly.** The invariant is now *enforced* at the one point all
+six writes pass through, and *asserted* at each handler's output and at the seed source. No
+assertion is made over the column itself, and none is planned. A row written before today that
+violates it is untouched — no migration was needed (prod holds 240 rows, all seeded, all
+name-form) but that is a fact about today's data, not a guarantee.
+
+### STILL OPEN, filed rather than sequenced
+
+- **`quiz_questions.countryId` and `.curriculum` should be notNull** (schema.ts:946-947). This is
+  the correct long-term fix for the two-scope split above: with both required, every row has an
+  addressable catalogue entry and the umbrella-6 branch disappears. Needs a migration and a
+  backfill decision for existing global rows. Deliberately not sequenced ahead of the choke point.
+- **The umbrella-6 membership divergence is untouched.** A catalogue subject outside the six —
+  which the superadmin subject UI can still create — is unservable however perfectly it is
+  spelled. Filing under the name is necessary, not sufficient.
+- **`DEFAULT_CANONICAL_SUBJECTS` (utils/subjectMap.ts:17) is a third hand-maintained copy of the
+  six**, alongside `SUBJECT_IDS` and whatever the DB holds. Nothing pins them equal. This is the
+  exact drift `shared/subjects.ts` was written to make impossible, one module further out.
+- **The subject-delete dependents check** (`superadmin.routes.ts:2417`) is now unblocked: with one
+  vocabulary in the column, the check tests one form against one column rather than
+  `WHERE subject IN (name, code)`.
+- **The LLM importer still trusts `q.grade` and `q.curriculum`**, the same echo-of-a-known-value
+  pattern that `q.subject` was. Neither is compared against the request. Not in scope for the
+  subject work.
