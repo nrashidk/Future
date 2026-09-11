@@ -86,7 +86,28 @@ export async function eraseUserData(tx: any, userId: string): Promise<void> {
   // llm_narrative_cache CASCADEs on assessments (schema.ts:1960), and
   // password_reset_tokens CASCADEs on users (:89). Nothing to write for either.
   await tx.delete(assessments).where(eq(assessments.userId, userId));
+
+  // CAPTURED BEFORE THE DELETE, because after it there is nothing left to say
+  // which school this student belonged to. Self-deletion used to remove the
+  // membership row and touch the school's licence counters not at all, so a
+  // student who erased their account permanently burned one of their school's
+  // seats — the leak recorded against position 4 in
+  // docs/consent-implementation-recon.md. The counters are now derived from the
+  // roster, so the fix is to recompute the roster this row just left rather than
+  // to add a matching decrement somewhere.
+  const memberships = await tx
+    .select({ organizationId: organizationMembers.organizationId })
+    .from(organizationMembers)
+    .where(eq(organizationMembers.userId, userId));
+
   await tx.delete(organizationMembers).where(eq(organizationMembers.userId, userId));
+
+  for (const { organizationId } of memberships) {
+    if (organizationId) {
+      await storage.recomputeOrganizationLicenseUsage(organizationId, tx);
+    }
+  }
+
   await tx.delete(users).where(eq(users.id, userId));
 }
 

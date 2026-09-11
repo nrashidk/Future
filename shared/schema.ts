@@ -182,6 +182,38 @@ export const organizationMembers = pgTable("organization_members", {
   role: text("role").notNull().default("student"), // 'student' or 'admin'
   isPrimaryAdmin: boolean("is_primary_admin").notNull().default(false), // True for the original admin created with the organization
   
+  /**
+   * WHICH FUND PAID FOR THIS ENROLMENT — 'paid' | 'reward', students only.
+   *
+   * The counters on organizations are DERIVED FROM THIS COLUMN, not incremented:
+   * used_licenses is COUNT(role='student' AND license_source='paid') and
+   * reward_credits_used is the same count for 'reward'
+   * (storage.recomputeOrganizationLicenseUsage). A counter that is SET from a
+   * COUNT cannot drift, which is the reason this column exists.
+   *
+   * IT EXISTS BECAUSE THE COUNT ALONE CANNOT ANSWER THE QUESTION. Enrolment
+   * spends a reward credit when the school has one and a paid licence otherwise,
+   * and those hit two different counters — but the roster looks identical either
+   * way. Before this column the removal paths did a flat -1 on used_licenses
+   * regardless, so removing a reward-funded student refunded a paid seat the
+   * school never spent while the reward credit stayed spent forever, and nothing
+   * could tell the two apart afterwards.
+   *
+   * WRITTEN IN THE SAME TRANSACTION AS THE ROW, and that is load-bearing rather
+   * than tidy: consumption used to run as a separate statement AFTER
+   * createUserWithCredentials had already committed, so a failure between them
+   * left a student enrolled against no licence. Choosing the fund inside the
+   * transaction, with the organization row locked, closes that and the
+   * check-then-act capacity race together.
+   *
+   * NULLABLE AT THE COLUMN, REQUIRED FOR STUDENTS AT THE TABLE — the same split,
+   * for the same reason, as date_of_birth above. School admins share this table
+   * and consume no licence (superadmin.routes.ts:501, :903), so a per-column
+   * .notNull() would be wrong. The requirement is student-only and lives in the
+   * role-scoped check() below.
+   */
+  licenseSource: text("license_source"),
+
   // Quota tracking
   hasCompletedAssessment: boolean("has_completed_assessment").notNull().default(false),
   assessmentCompletedAt: timestamp("assessment_completed_at"),
@@ -240,6 +272,27 @@ export const organizationMembers = pgTable("organization_members", {
   check(
     "organization_members_student_dob_check",
     sql`${table.role} <> 'student' OR ${table.dateOfBirth} IS NOT NULL`,
+  ),
+  // Student rows must record which fund paid for them; admin rows are exempt via
+  // the same `role <> 'student'` short-circuit as the two checks above, because
+  // admins consume no licence.
+  //
+  // A THIRD CONSTRAINT RATHER THAN A WIDER SECOND ONE, for the reason 016's
+  // header gives at length: widening means DROP + ADD on a constraint already
+  // applied and convalidated in production, and the DROP is the risky half. This
+  // is purely additive.
+  //
+  // The domain is checked here rather than as a pg enum so that adding a future
+  // fund type is an ALTER of one constraint, not a type migration. The counter
+  // that derives from it (storage.recomputeOrganizationLicenseUsage) reads these
+  // two literals, so a new value needs a change in both places — which is the
+  // point of keeping them this close together.
+  //
+  // Name matches server/migrations/024_organization_members_license_source.sql
+  // exactly, so db:push sees no drift.
+  check(
+    "organization_members_student_license_source_check",
+    sql`${table.role} <> 'student' OR ${table.licenseSource} IN ('paid', 'reward')`,
   ),
 ]);
 

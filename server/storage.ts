@@ -362,7 +362,12 @@ export interface IStorage {
   getOrganizationById(id: string): Promise<Organization | undefined>;
   getOrganizationByAdminUserId(adminUserId: string): Promise<Organization | undefined>;
   updateOrganization(id: string, data: Partial<InsertOrganization>): Promise<Organization>;
-  updateOrganizationQuota(id: string, increment: number): Promise<Organization>;
+  // Replaces updateOrganizationQuota and consumeLicenseWithRewardPriority. The
+  // licence counters are SET from the roster, never adjusted — see the impl.
+  recomputeOrganizationLicenseUsage(
+    organizationId: string,
+    tx?: any,
+  ): Promise<{ usedLicenses: number; rewardCreditsUsed: number }>;
   deleteOrganization(id: string): Promise<boolean>;
   deleteOrganizationEventsByOrgId(organizationId: string): Promise<number>;
   deleteFilesByOrganizationId(organizationId: string): Promise<number>;
@@ -411,6 +416,9 @@ export interface IStorage {
     user: User;
     member: OrganizationMember;
     password: string;
+    /** Which fund this enrolment spent. Decided and recorded inside the same
+     *  transaction as the member row; the routes report it to the admin. */
+    licenseSource: 'paid' | 'reward';
   }>;
 
   // File management operations
@@ -2675,111 +2683,57 @@ export class DatabaseStorage implements IStorage {
     return organization;
   }
 
-  async updateOrganizationQuota(id: string, increment: number): Promise<Organization> {
-    if (!Number.isInteger(increment)) {
-      throw new Error('Quota increment must be an integer');
-    }
-
-    // Check if organization has unlimited licenses
-    const org = await this.getOrganizationById(id);
-    if (!org) {
-      throw new Error(`Organization ${id} not found`);
-    }
-
-    // If unlimited licenses, just update the usedLicenses counter without checks
-    if (org.isUnlimitedLicenses) {
-      const [organization] = await db
-        .update(organizations)
-        .set({
-          usedLicenses: sql`${organizations.usedLicenses} + ${increment}`,
-          updatedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(organizations.id, id),
-            sql`${organizations.usedLicenses} + ${increment} >= 0` // Only check we don't go below 0
-          )
-        )
-        .returning();
-
-      if (!organization) {
-        const wouldBe = org.usedLicenses + increment;
-        if (wouldBe < 0) {
-          throw new Error(`Cannot decrement quota below 0 (current: ${org.usedLicenses}, increment: ${increment})`);
-        }
-        throw new Error('Quota update failed for unknown reason');
-      }
-      return organization;
-    }
-
-    // Regular quota enforcement for limited licenses
-    const [organization] = await db
-      .update(organizations)
-      .set({
-        usedLicenses: sql`${organizations.usedLicenses} + ${increment}`,
-        updatedAt: new Date(),
+  /**
+   * SET THE LICENCE COUNTERS FROM THE ROSTER. Never increment, never decrement.
+   *
+   * used_licenses and reward_credits_used describe a set — the school's current
+   * student enrolments, split by which fund paid for each. They were previously
+   * maintained by arithmetic, and four independent paths could move them out of
+   * agreement with that set: a reward-funded student's removal refunded a paid
+   * seat (the fund was not recorded, so the -1 could not know), enrolment
+   * committed before consumption ran, the capacity check was check-then-act, and
+   * self-delete decremented nothing. Correcting any one of them leaves the other
+   * three.
+   *
+   * A counter that is SET from a COUNT cannot drift, so this replaces
+   * updateOrganizationQuota and consumeLicenseWithRewardPriority outright rather
+   * than fixing their arithmetic. Both are gone; there is no longer any path that
+   * adds to or subtracts from these columns.
+   *
+   * Call it inside the caller's transaction whenever the roster changes. Passing
+   * `tx` is not optional in spirit: recomputing outside the transaction that
+   * changed the roster reintroduces exactly the enrolment-then-consumption gap
+   * this exists to close.
+   *
+   * role = 'student' because admin rows consume no licence
+   * (superadmin.routes.ts:501, :903).
+   */
+  async recomputeOrganizationLicenseUsage(
+    organizationId: string,
+    tx: any = db,
+  ): Promise<{ usedLicenses: number; rewardCreditsUsed: number }> {
+    const [counts] = await tx
+      .select({
+        paid: sql<number>`count(*) FILTER (WHERE ${organizationMembers.licenseSource} = 'paid')::int`,
+        reward: sql<number>`count(*) FILTER (WHERE ${organizationMembers.licenseSource} = 'reward')::int`,
       })
+      .from(organizationMembers)
       .where(
         and(
-          eq(organizations.id, id),
-          sql`${organizations.usedLicenses} + ${increment} >= 0`,
-          sql`${organizations.usedLicenses} + ${increment} <= ${organizations.totalLicenses}`
-        )
-      )
-      .returning();
+          eq(organizationMembers.organizationId, organizationId),
+          eq(organizationMembers.role, 'student'),
+        ),
+      );
 
-    if (!organization) {
-      const wouldBe = org.usedLicenses + increment;
-      if (wouldBe < 0) {
-        throw new Error(`Cannot decrement quota below 0 (current: ${org.usedLicenses}, increment: ${increment})`);
-      }
-      if (wouldBe > org.totalLicenses) {
-        throw new Error(`Quota exceeded: attempting to use ${wouldBe} licenses but only ${org.totalLicenses} available`);
-      }
-      throw new Error('Quota update failed for unknown reason');
-    }
+    const usedLicenses = counts?.paid ?? 0;
+    const rewardCreditsUsed = counts?.reward ?? 0;
 
-    return organization;
-  }
+    await tx
+      .update(organizations)
+      .set({ usedLicenses, rewardCreditsUsed, updatedAt: new Date() })
+      .where(eq(organizations.id, organizationId));
 
-  /**
-   * Consume a license for an organization with reward credits priority.
-   * First tries to use available reward credits, falls back to paid licenses.
-   * Returns which type of license was consumed.
-   */
-  async consumeLicenseWithRewardPriority(organizationId: string): Promise<{ type: 'reward' | 'paid'; organization: Organization }> {
-    const org = await this.getOrganizationById(organizationId);
-    if (!org) {
-      throw new Error(`Organization ${organizationId} not found`);
-    }
-
-    // Calculate available reward credits
-    const availableRewardCredits = (org.rewardCredits || 0) - (org.rewardCreditsUsed || 0);
-
-    // Try to use reward credit first
-    if (availableRewardCredits > 0) {
-      const [organization] = await db
-        .update(organizations)
-        .set({
-          rewardCreditsUsed: sql`COALESCE(${organizations.rewardCreditsUsed}, 0) + 1`,
-          updatedAt: new Date(),
-        })
-        .where(
-          and(
-            eq(organizations.id, organizationId),
-            sql`COALESCE(${organizations.rewardCredits}, 0) - COALESCE(${organizations.rewardCreditsUsed}, 0) >= 1`
-          )
-        )
-        .returning();
-
-      if (organization) {
-        return { type: 'reward', organization };
-      }
-    }
-
-    // Fall back to paid license
-    const organization = await this.updateOrganizationQuota(organizationId, 1);
-    return { type: 'paid', organization };
+    return { usedLicenses, rewardCreditsUsed };
   }
 
   /**
@@ -3074,6 +3028,7 @@ export class DatabaseStorage implements IStorage {
     user: User;
     member: OrganizationMember;
     password: string;
+    licenseSource: 'paid' | 'reward';
   }> {
     // Input guard, BEFORE any write and before the password hash. A rejection
     // here throws a ZodError out of this function having touched nothing — the
@@ -3161,7 +3116,63 @@ export class DatabaseStorage implements IStorage {
         // the next attempt starts clean. drizzle-orm/neon-serverless takes a
         // dedicated connection per transaction and releases it in a finally
         // (neon-serverless/session.js:179-193), so retrying does not leak one.
-        const { user, member } = await db.transaction(async (tx) => {
+        const { user, member, licenseSource } = await db.transaction(async (tx) => {
+          // LOCK THE SCHOOL ROW FIRST. Everything below reads the roster to
+          // decide whether this enrolment is reward- or paid-funded and whether
+          // it fits at all, and that decision must not be made on a snapshot two
+          // concurrent bulk imports can both see. The capacity check in
+          // admin.routes.ts is check-then-act and stays there as a fast 400; THIS
+          // is the authoritative one, and it is the one that cannot race.
+          const [orgRow] = await tx
+            .select()
+            .from(organizations)
+            .where(eq(organizations.id, userData.organizationId))
+            .for('update');
+
+          if (!orgRow) {
+            throw new Error(`Organization ${userData.organizationId} not found`);
+          }
+
+          // Counted from the roster rather than read from the counters, because
+          // the counters are DERIVED from the roster (see
+          // recomputeOrganizationLicenseUsage) and the roster is the thing under
+          // lock. Reading the columns here would reintroduce the possibility of
+          // deciding against a stale number.
+          const [enrolled] = await tx
+            .select({
+              paid: sql<number>`count(*) FILTER (WHERE ${organizationMembers.licenseSource} = 'paid')::int`,
+              reward: sql<number>`count(*) FILTER (WHERE ${organizationMembers.licenseSource} = 'reward')::int`,
+            })
+            .from(organizationMembers)
+            .where(
+              and(
+                eq(organizationMembers.organizationId, userData.organizationId),
+                eq(organizationMembers.role, 'student'),
+              ),
+            );
+
+          const paidUsed = enrolled?.paid ?? 0;
+          const rewardUsed = enrolled?.reward ?? 0;
+          const rewardAvailable = Math.max(0, (orgRow.rewardCredits || 0) - rewardUsed);
+          const paidAvailable = orgRow.isUnlimitedLicenses
+            ? Number.POSITIVE_INFINITY
+            : Math.max(0, orgRow.totalLicenses - paidUsed);
+
+          // Reward credits first, unchanged from consumeLicenseWithRewardPriority:
+          // a school that earned credits by contributing questions spends those
+          // before the seats it paid for.
+          const licenseSource: 'paid' | 'reward' = rewardAvailable > 0 ? 'reward' : 'paid';
+
+          if (licenseSource === 'paid' && paidAvailable < 1) {
+            // Prefixed to match the sentence the routes already map to a 400
+            // (admin.routes.ts:778) rather than a 500 — a full school is a
+            // client-fixable state, not a server fault.
+            throw new Error(
+              `Quota exceeded: ${orgRow.name} has no available capacity. ` +
+                `All ${orgRow.totalLicenses} licenses and any reward credits have been used.`,
+            );
+          }
+
           const [user] = await tx
             .insert(users)
             .values({
@@ -3187,13 +3198,24 @@ export class DatabaseStorage implements IStorage {
               studentGender: userData.studentGender,
               dateOfBirth: userData.dateOfBirth,
               role: 'student',
+              // THE FUND, RECORDED ON THE ROW THAT SPENDS IT, in the same
+              // transaction. Previously consumption ran as a separate statement
+              // after this function had already committed, and recorded which
+              // fund it used nowhere — so removal could only guess, and guessed
+              // 'paid' every time.
+              licenseSource,
             })
             .returning();
 
-          return { user, member };
+          // Inside the transaction and after the insert: the counters are a
+          // projection of the roster, so they are recomputed from the roster that
+          // now includes this student. Nothing adds or subtracts.
+          await this.recomputeOrganizationLicenseUsage(userData.organizationId, tx);
+
+          return { user, member, licenseSource };
         });
 
-        return { user, member, password };
+        return { user, member, password, licenseSource };
       } catch (error: any) {
         // Unchanged, deliberately. The rollback path rethrows the ORIGINAL pg
         // error (neon-serverless/session.js:186-189), so error.code still reads

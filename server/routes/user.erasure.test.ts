@@ -58,8 +58,19 @@ let store: Store;
 vi.mock("../db", () => ({
   db: { transaction: async (cb: any) => cb(makeTx(store)) },
 }));
+const recomputed: string[] = [];
 vi.mock("../storage", () => ({
-  storage: { getUser: async (id: string) => ({ id, email: null }) },
+  storage: {
+    getUser: async (id: string) => ({ id, email: null }),
+    // Self-deletion used to leave the school's licence counters untouched, so a
+    // student who erased their account burned one of their school's seats. The
+    // counters derive from the roster now, so erasure must recompute the roster
+    // the membership row just left.
+    recomputeOrganizationLicenseUsage: async (orgId: string) => {
+      recomputed.push(orgId);
+      return { usedLicenses: 0, rewardCreditsUsed: 0 };
+    },
+  },
 }));
 vi.mock("../auth", () => ({
   isAuthenticated: (req: any, _res: any, next: any) => {
@@ -214,6 +225,7 @@ const SUBJECT_TABLES = [
 beforeEach(() => {
   store = new Store();
   currentUserId = "u-student";
+  recomputed.length = 0;
 });
 
 describe("eraseUserData", () => {
@@ -262,6 +274,21 @@ describe("eraseUserData", () => {
     for (const table of SUBJECT_TABLES) {
       expect(store.rows(table), `${name(table)} should be empty`).toHaveLength(0);
     }
+  });
+
+  // The licence-seat leak: erasing an account frees the school's seat, because
+  // the counters are recomputed from the roster the membership row just left.
+  it("recomputes the school's licence usage after removing the membership", async () => {
+    seedPremiumStudent(store);
+    await eraseUserData(makeTx(store), "u-student");
+    expect(recomputed).toEqual(["org1"]);
+  });
+
+  it("recomputes nothing for a user who belongs to no school", async () => {
+    store.add(users, { id: "u-solo" });
+    store.add(assessments, { id: "a-solo", userId: "u-solo" });
+    await eraseUserData(makeTx(store), "u-solo");
+    expect(recomputed).toEqual([]);
   });
 
   it("does not touch another user's records", async () => {

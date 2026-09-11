@@ -757,13 +757,15 @@ export function registerAdminRoutes(app: Express) {
         organizationId,
       });
 
-      // Consume license with reward credits priority
-      const { type } = await storage.consumeLicenseWithRewardPriority(organizationId);
-
+      // The licence was chosen, recorded on the member row and reflected in the
+      // school's counters INSIDE createUserWithCredentials' transaction. There is
+      // no second statement to run here, and that is the point: consumption used
+      // to happen after that transaction had committed, so a failure between the
+      // two left a student enrolled against no licence.
       res.status(201).json({
         ...result,
         user: toPublicUser(result.user), // result.password stays: admin must hand it to the student
-        licenseType: type, // 'reward' or 'paid'
+        licenseType: result.licenseSource, // 'reward' or 'paid'
       });
     } catch (error: any) {
       console.error("Error creating organization member:", error);
@@ -917,8 +919,9 @@ export function registerAdminRoutes(app: Express) {
             organizationId,
           });
 
-          // Consume license with reward credits priority
-          const { type } = await storage.consumeLicenseWithRewardPriority(organizationId);
+          // Already consumed and recorded inside createUserWithCredentials'
+          // transaction; this only reports which fund it took.
+          const type = result.licenseSource;
           if (type === 'reward') {
             results.rewardCreditsUsed++;
           } else {
@@ -1155,7 +1158,12 @@ export function registerAdminRoutes(app: Express) {
       }
 
       await storage.deleteOrganizationMember(req.params.memberId);
-      await storage.updateOrganizationQuota(req.params.id, -1);
+      // SET from the roster, not decremented by one. The flat -1 this replaces
+      // could not know which fund the removed student had spent — nothing
+      // recorded it — so it refunded a paid seat even for a reward-funded
+      // student, while the reward credit stayed spent. organization_members
+      // .license_source now records it and both counters derive from the roster.
+      await storage.recomputeOrganizationLicenseUsage(req.params.id);
 
       res.json({ success: true, message: "Member deleted successfully" });
     } catch (error: any) {
@@ -1230,7 +1238,10 @@ export function registerAdminRoutes(app: Express) {
       }
 
       const deletedCount = await storage.bulkDeleteOrganizationMembers(validMemberIds);
-      await storage.updateOrganizationQuota(req.params.id, -deletedCount);
+      // Recomputed from the roster rather than decremented by deletedCount, for
+      // the same reason as the single delete above — and this one could be wrong
+      // by more than one at a time.
+      await storage.recomputeOrganizationLicenseUsage(req.params.id);
 
       res.json({ 
         success: true, 
@@ -2361,8 +2372,7 @@ export function registerAdminRoutes(app: Express) {
             passwordComplexity: organization.passwordComplexity as any,
           });
 
-          // Consume license with reward credits priority
-          await storage.consumeLicenseWithRewardPriority(organization.id);
+          // Consumed and recorded inside createUserWithCredentials' transaction.
 
           results.success++;
           results.credentials.push({
