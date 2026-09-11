@@ -5225,7 +5225,37 @@ the grep was: render it and measure positions, at more than one viewport, rather
 the JSX and believing the order.
 
 **Where else to look.** `DialogFooter` (`client/src/components/ui/dialog.tsx:76`) carries the
-identical class string and is used across seven files. Any of those dialogs with a destructive
-action has the same inversion below 640px. Not audited here — flagged, not fixed, because
-reordering a destructive control is a design call and should be made per dialog rather than
-swept.
+identical class string and is used across six files, in nineteen footers. Any of those dialogs
+with a destructive action has the same inversion below 640px.
+
+**Corrected count.** An earlier pass said "seven files", and commits 86e20fb and b54d9ab repeat
+it (b54d9ab also says "twenty footers"). Both numbers are wrong. They came from
+`grep -l "DialogFooter"`, which matches `AlertDialogFooter` as a substring and so counted
+`AdminOrganizations.tsx` as a consumer; that file uses `AlertDialogFooter` exclusively and
+contains no bare `DialogFooter`. Six files, nineteen footers.
+
+**Audited 2026-09-11** — the ordering half is surveyed below rather than swept, since reordering
+a destructive control is a design call. Of the nineteen, one (`ContributionReviewQueue.tsx:739`)
+already passes its own `flex-col` and so does not invert. Of the remaining eighteen, exactly two
+put a genuinely destructive action at the top of the mobile stack:
+
+- **`SubjectManagement.tsx:757`** — deletes a subject from the shared catalogue. No typed
+  confirmation, disabled only while the mutation is in flight, so a single tap on the top
+  control fires it. The endpoint (`superadmin.routes.ts:2410`) carries an explicit
+  `TODO: Check if there are any quiz questions using this subject before deleting` and deletes
+  unconditionally regardless. **This is the one worth moving.**
+- **`SuperadminDashboard.tsx:2401`** — deletes an organization. Mitigated twice over: the button
+  is disabled until the exact school name is typed (`deleteOrgConfirmName !== selectedOrg?.name`),
+  which no mis-tap can satisfy, and since 7ed9499 the endpoint refuses with 409 while any student
+  is enrolled. Position is wrong; blast radius is already bounded.
+
+Two further cases are consequential without being destructive, and are judgement calls rather
+than defects: `SuperadminDashboard.tsx:2454` (reset a user's password — locks them out until
+reissued, but destroys no record) and `CountryManagement.tsx:893` (curriculum rename, which
+cascades — see docs/curriculum-rename-cascade-recon.md). The other fourteen end in create, save,
+submit, clone or approve, where being first on a phone is harmless.
+
+**Nothing here touches a student's record.** The disposition dialogs fixed in 7d5c948 were the
+only footers in the app where the top-of-stack control erased a minor's assessment data. The two
+found here destroy catalogue and tenant rows — real, but a different weight, and neither is
+reachable by anyone below superadmin.
