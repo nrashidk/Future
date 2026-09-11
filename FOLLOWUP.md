@@ -5365,7 +5365,20 @@ reached a single student. This is the same signature as the loose-match-key clas
 and the substring class recorded above: **invisible on the winning side.** Every individual
 operation succeeds; only the composition of two of them is wrong.
 
-**A second divergence, structural rather than formal.** Contributions are validated against the
+**Two further symptoms of the same split, both on the write side, both latent for the same
+reason.**
+
+- **Duplicate detection never fires for contributions.** `contribution.routes.ts:349` calls
+  `getQuizQuestionsByCountryAndGrade(countryId, grade, subject)` with the code form, and that
+  query filters `eq(quizQuestions.subject, subject)` (`storage.ts:3765`) against a bank stored in
+  name form. It therefore matches nothing, every time. A school could submit a question already
+  in the bank verbatim and the duplicate check would pass it.
+- **Admin coverage stats would fragment.** `storage.ts:1469-1475` groups by
+  `quizQuestions.subject`, so `"mathematics"` and `"Mathematics"` would appear as two separate
+  subjects in any coverage view, each with a partial count, with nothing to indicate they are the
+  same subject.
+
+**A third divergence, structural rather than formal.** Contributions are validated against the
 `subjects` catalogue for a country/curriculum, but serving is constrained to the hardcoded
 umbrella-6. Today those agree in membership — the seeded UAE catalogue is exactly the six
 (`seed.ts:867-930`) — so only the *form* differs. But the superadmin subject UI can add arbitrary
