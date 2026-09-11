@@ -73,7 +73,14 @@ const DialogFooter = ({
 }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
     className={cn(
-      "flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2",
+      // gap-2, not space-x-2 — same defect and same reasoning as
+      // AlertDialogFooter (86e20fb). space-x-* emits a PHYSICAL margin-left on
+      // every child after the first, so under dir="rtl" the 8px lands on the far
+      // side of the button it is meant to separate: adjacent buttons abut at 0px
+      // and the gap hangs off the outer edge of the last one. gap is
+      // axis-relative and sits BETWEEN items, correct in both directions and
+      // pixel-identical to the old rule in LTR.
+      "flex flex-col-reverse sm:flex-row sm:justify-end sm:gap-2",
       className
     )}
     {...props}
