@@ -15,6 +15,10 @@
 import { describe, it, expect, vi } from "vitest";
 
 vi.mock("../storage", () => ({ storage: {}, CurriculumRenameError: class {} }));
+// db is mocked too: deleting a school now spans several tables in one
+// transaction, so superadmin.routes.ts imports db directly and mocking
+// storage alone no longer keeps this file's import side-effect-free.
+vi.mock("../db", () => ({ db: {} }));
 
 const { careerTitleConflict } = await import("./superadmin.routes");
 

@@ -11,6 +11,11 @@ import { isOnetGrowthBand, growthOutlookFor, ONET_GROWTH_BANDS } from "@shared/g
 import * as fileStorage from "../services/fileStorage";
 import { isUniqueViolation } from "../utils/pgErrors";
 import Stripe from "stripe";
+import { db } from "../db";
+import { eq } from "drizzle-orm";
+import {
+  organizations, organizationMembers, organizationEvents, files, quizQuestions,
+} from "@shared/schema";
 
 // Initialize Stripe only if keys are configured
 let stripe: Stripe | null = null;
@@ -1537,31 +1542,82 @@ export function registerSuperadminRoutes(app: Express) {
       }
       
       const orgId = req.params.id;
-      
-      // Delete organization members first (foreign key constraint)
+
+      // REFUSE WHILE STUDENTS ARE ENROLLED. Deleting a school and disposing of
+      // its students' records are different acts, and this endpoint must not
+      // perform the second as a side effect of the first.
+      //
+      // It used to. Removing the member rows here left every student's user
+      // account, assessments and results behind, with working credentials and no
+      // school — so one typed school name silently orphaned a whole roster of
+      // minors' records, with nobody having chosen what should happen to them.
+      //
+      // The removal endpoints now answer that question explicitly, per student,
+      // with 'erase' or 'detach' and the counts visible before confirming
+      // (admin.routes.ts). This 409 routes the superadmin there rather than
+      // guessing on their behalf: clear the roster deliberately, then delete the
+      // school that is left.
       const members = await storage.getOrganizationMembersByOrganizationId(orgId);
-      if (members.length > 0) {
-        for (const member of members) {
-          await storage.deleteOrganizationMember(member.id);
-        }
+      const students = members.filter(m => m.role === 'student');
+      if (students.length > 0) {
+        return res.status(409).json({
+          message:
+            `${org.name} still has ${students.length} enrolled student(s). Remove them from the ` +
+            `school first, choosing for each whether to keep their account and report or delete ` +
+            `their record — deleting the school cannot make that choice for them.`,
+          code: "ORGANIZATION_HAS_STUDENTS",
+          studentCount: students.length,
+        });
       }
-      
-      // Delete organization events (foreign key constraint - no cascade)
-      await storage.deleteOrganizationEventsByOrgId(orgId);
-      
-      // Delete files associated with this organization (foreign key constraint - no cascade)
-      await storage.deleteFilesByOrganizationId(orgId);
-      
-      // Now delete the organization
-      const deleted = await storage.deleteOrganization(orgId);
-      if (!deleted) {
-        return res.status(500).json({ message: "Failed to delete organization" });
-      }
-      
-      // Log deletion (not in database since org is deleted - just console log)
+
+      // ONE TRANSACTION. These were five separate statements in autocommit, so a
+      // failure part-way left the school half-dismantled: members gone, events
+      // gone, organization still there, and no way to tell from the row itself.
+      await db.transaction(async (tx) => {
+        // Admin membership rows only — the student check above already passed.
+        await tx.delete(organizationMembers).where(eq(organizationMembers.organizationId, orgId));
+        await tx.delete(organizationEvents).where(eq(organizationEvents.organizationId, orgId));
+        await tx.delete(files).where(eq(files.organizationId, orgId));
+
+        // CLEARED BY NEITHER PATH BEFORE THIS, and it is the FK that made schools
+        // permanently undeletable: quiz_questions.contributed_by_org_id is set
+        // when a superadmin approves a contributed question
+        // (contribution.routes.ts:523) and has no cascade, so one approved
+        // question held the organization open forever.
+        //
+        // SET NULL rather than DELETE. The questions are shared bank content
+        // served to every student regardless of school; removing them because the
+        // contributing school closed would silently shrink the question bank. The
+        // column has one writer and no readers anywhere, so nulling it changes no
+        // behaviour — it only drops provenance, which is left as an open
+        // question in docs/org-delete-student-disposition.md (sections 1 and 4.2) rather
+        // settled here: there is an unused index on the column, so attribution
+        // was plausibly meant to be reportable, and preserving it would mean
+        // denormalising the school name the way organization_consents does.
+        //
+        // contribution_submissions and contribution_rewards CASCADE on the
+        // organization, and organization_consents is ON DELETE SET NULL by
+        // design (schema.ts:1521-1541) so the consent record outlives the school
+        // it evidences. Nothing to write for either.
+        await tx.update(quizQuestions)
+          .set({ contributedByOrgId: null })
+          .where(eq(quizQuestions.contributedByOrgId, orgId));
+
+        await tx.delete(organizations).where(eq(organizations.id, orgId));
+      });
+
+      // Console, not a row. An organization_events row would FK to the
+      // organization that was just deleted and could not persist — the mistake
+      // the bulk endpoint still makes, where the INSERT fails AFTER the delete
+      // commits and the superadmin is told the deletion failed.
+      //
+      // KNOWN REMAINDER: the school's ADMIN user accounts survive this, as their
+      // membership rows are deleted but their users rows are not. They are adults
+      // with their own credentials rather than minors' records, so they are out of
+      // scope for the student disposition work, but nothing cleans them up.
       const currentUser = (req as any).currentUser;
       console.log(`[Superadmin] Organization "${org.name}" (${orgId}) deleted by user ${currentUser?.id}`);
-      
+
       res.json({ success: true, message: "Organization deleted successfully" });
     } catch (error) {
       console.error("Error deleting organization:", error);
