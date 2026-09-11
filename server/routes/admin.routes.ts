@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import multer from "multer";
 import path from "path";
-import { storage } from "../storage";
+import { storage, SubjectNotInCatalogueError } from "../storage";
 import { isAuthenticated } from "../auth";
 import { isAdmin, isOrgAdmin, getSuperadminEmails } from "../middleware/auth.middleware";
 import { dataExportLimiter } from "../middleware/rateLimiter.middleware";
@@ -239,29 +239,21 @@ export function registerAdminRoutes(app: Express) {
   app.post("/api/admin/questions", isAuthenticated, isAdmin, async (req, res) => {
     try {
       const validatedData = insertQuizQuestionSchema.parse(req.body);
-      
-      // Validate subject exists for the curriculum if both are provided
-      if (validatedData.countryId && validatedData.curriculum && validatedData.subject) {
-        const validSubject = await storage.getSubjectByCode(
-          validatedData.countryId, 
-          validatedData.curriculum, 
-          validatedData.subject
-        );
-        if (!validSubject) {
-          const availableSubjects = await storage.getSubjectsByCurriculum(
-            validatedData.countryId, 
-            validatedData.curriculum
-          );
-          const subjectList = availableSubjects.map(s => s.code).join(", ");
-          return res.status(400).json({ 
-            message: `Invalid subject '${validatedData.subject}' for ${validatedData.curriculum} curriculum.${subjectList ? ` Valid options: ${subjectList}` : " No subjects available for this curriculum."}`
-          });
-        }
-      }
-      
+
+      // The getSubjectByCode guard that stood here did nothing and would have
+      // done the wrong thing. It was conditional on countryId AND curriculum,
+      // both nullable columns and so optional in the insert schema, and this
+      // form carries no curriculum field at all — so it never ran. When it did
+      // run (a hand-built request), it matched the NAME this UI sends against
+      // subjects.code and rejected it. Subject validation now lives at the
+      // storage choke point, where it covers every writer and accepts either
+      // vocabulary.
       const question = await storage.createQuizQuestion(validatedData);
       res.status(201).json(question);
     } catch (error) {
+      if (error instanceof SubjectNotInCatalogueError) {
+        return res.status(error.status).json({ message: error.message });
+      }
       console.error("Error creating quiz question:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid question data", errors: error.errors });
@@ -279,6 +271,13 @@ export function registerAdminRoutes(app: Express) {
       }
       res.json(question);
     } catch (error) {
+      // This route had no subject validation at all — partial().parse then a bare
+      // .set() — which made it the least constrained of the six writers. The
+      // choke point covers it now, including the case where the payload moves the
+      // row to another curriculum without restating the subject.
+      if (error instanceof SubjectNotInCatalogueError) {
+        return res.status(error.status).json({ message: error.message });
+      }
       console.error("Error updating quiz question:", error);
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid question data", errors: error.errors });
@@ -318,24 +317,13 @@ export function registerAdminRoutes(app: Express) {
       for (const questionData of questions) {
         try {
           const validatedData = insertQuizQuestionSchema.parse(questionData);
-          
-          // Validate subject exists for the curriculum if both are provided
-          if (validatedData.countryId && validatedData.curriculum && validatedData.subject) {
-            const validSubject = await storage.getSubjectByCode(
-              validatedData.countryId, 
-              validatedData.curriculum, 
-              validatedData.subject
-            );
-            if (!validSubject) {
-              results.failed++;
-              results.errors.push({
-                question: questionData.question?.substring(0, 50) + "...",
-                error: `Invalid subject '${validatedData.subject}' for ${validatedData.curriculum} curriculum`,
-              });
-              continue;
-            }
-          }
-          
+
+          // Same dead-and-backwards guard as the POST above, with one extra
+          // consequence: the export this imports from emits full rows including
+          // curriculum, and every seeded row carries one, so a name-form subject
+          // DID satisfy the condition and DID get matched against subjects.code —
+          // making export-then-import of the shipped bank fail on every row. The
+          // choke point accepts either vocabulary, which repairs the round trip.
           await storage.createQuizQuestion(validatedData);
           results.success++;
         } catch (error) {

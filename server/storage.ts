@@ -1404,8 +1404,20 @@ export class DatabaseStorage implements IStorage {
    * agreement with the database — their order simply stops being authoritative.
    */
   async createQuizQuestion(questionData: InsertQuizQuestion): Promise<QuizQuestion> {
+    // THE CHOKE POINT. Every write to quiz_questions.subject passes through here
+    // or through updateQuizQuestion below — the four raw db.update(quizQuestions)
+    // callers elsewhere (the curriculum rename at :1048, superadmin's
+    // contributedByOrgId and questionAr writes, the two Arabic-content
+    // migrations) all set other columns. Enforcing the vocabulary here is what
+    // makes six writers agree by construction instead of by six guards that have
+    // to be kept in step, which is exactly what they were not.
+    const subject = await this.resolveSubjectName(
+      questionData.countryId,
+      questionData.curriculum,
+      questionData.subject,
+    );
     const permuted = permuteOptionsForStorage(questionData.options, questionData.optionsAr);
-    const values: InsertQuizQuestion = { ...questionData, options: permuted.options as any };
+    const values: InsertQuizQuestion = { ...questionData, subject, options: permuted.options as any };
     // Only set optionsAr when the caller supplied it — several callers omit the
     // key entirely and writing an explicit undefined would change that.
     if (questionData.optionsAr !== undefined) {
@@ -1626,9 +1638,31 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateQuizQuestion(id: string, data: Partial<InsertQuizQuestion>): Promise<QuizQuestion | undefined> {
+    // A PARTIAL UPDATE CAN BREAK THE INVARIANT WITHOUT NAMING THE FIELD. Sending
+    // only `curriculum` moves the row into a different catalogue, under which its
+    // untouched subject may resolve to nothing — the same defect one field along.
+    // So the scope is read from the existing row whenever the payload changes
+    // scope without restating the subject.
+    const touchesSubject = data.subject !== undefined;
+    const touchesScope = data.countryId !== undefined || data.curriculum !== undefined;
+
+    let values = data;
+    if (touchesSubject || touchesScope) {
+      const [existing] = touchesSubject && !touchesScope
+        ? [undefined]
+        : await db.select().from(quizQuestions).where(eq(quizQuestions.id, id));
+      if (touchesScope && !existing) return undefined; // 404, decided below by the caller
+
+      const countryId = data.countryId !== undefined ? data.countryId : existing?.countryId;
+      const curriculum = data.curriculum !== undefined ? data.curriculum : existing?.curriculum;
+      const input = touchesSubject ? data.subject : existing?.subject;
+
+      values = { ...data, subject: await this.resolveSubjectName(countryId, curriculum, input) };
+    }
+
     const [question] = await db
       .update(quizQuestions)
-      .set(data)
+      .set(values)
       .where(eq(quizQuestions.id, id))
       .returning();
     return question;
