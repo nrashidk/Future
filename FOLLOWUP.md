@@ -5321,7 +5321,7 @@ count, and the count was wrong. Had the survey never been asked for, six would s
 Related: the row-multiplicity half of this family is `786b556` ("a match key loose enough to hit
 more than one row writes to whichever it hits last"). Same failure signature, different operator.
 
-## THE CONTRIBUTION PATH HAS NEVER PRODUCED A SERVED QUESTION — latent, not live (2026-09-11)
+## THE CONTRIBUTION PATH HAS NEVER PRODUCED A SERVED QUESTION — WRITE PATH FIXED 2026-09-11 (a5927ac), the class is still open (2026-09-11)
 
 **Prod state, which is what makes this a defect rather than an incident:** 240 `quiz_questions`,
 all `source_type = 'system'`, all name-form. **Zero school-contributed questions exist.** No
@@ -5391,4 +5391,53 @@ divergences between the same two vocabularies.
 would have to test **both** vocabularies — `WHERE subject IN (name, code)`, scoped by
 `country_id` and `curriculum` — but only for as long as two vocabularies exist. Land the
 write-path fix first and the check tests one form against one column. Writing it now would bake
-the defect into a guard.
+the defect into a guard. (The TODO is at `superadmin.routes.ts:2417`, not :2410 — the line moved.)
+
+### What a5927ac fixed, and what it did not
+
+**Fixed:** contribution approval resolves `submission.subject` through `getSubjectByCode` and
+writes `.name`. Where the subject has been deleted from the catalogue between submission and
+review it returns **409 `SUBJECT_NOT_IN_CATALOGUE`** rather than falling back to the code — the
+fallback *is* the defect, and it reports success while producing nothing servable. The guard runs
+before any write, so a refusal leaves no partial state.
+
+**The hold above is NOT lifted.** Two writers still put the code form into the same column:
+`admin.routes.ts:262` (single create) and `:339` (bulk import), both validated against
+`subjects.code` in exactly the shape just fixed here; `country.routes.ts:494` writes whatever
+free-text subject the LLM returned. So the dependents check still has to test both vocabularies.
+One of three writers is corrected; the column still has two vocabularies in it.
+
+**Filing under the NAME is necessary, not sufficient.** The structural divergence recorded above
+is untouched: a catalogue subject outside the umbrella-6 is unservable in *either* form.
+
+### The coverage the new test actually buys — read before trusting it
+
+`server/routes/contribution.subjectVocabulary.test.ts`, 6 assertions in two groups.
+
+- **The write-site test is the load-bearing one.** Reverting the one-line write fails it. It pins
+  the write, which is where the defect was.
+- **The seeded-bank test is not a fixture, but it is not the database either.** It asserts over
+  `server/questionBanks/uae/*`, which is the literal source of all 240 prod rows — for the seeded
+  population it is exact, not a stand-in. But it can only see the seeded population. It reads the
+  *source* of the seed, never `quiz_questions`, so it cannot observe drift written by anything
+  other than the seeder — which is precisely the three writers listed above.
+- **So `shared/subjects.ts`'s warning is now enforceable at both ends of the seed path and at one
+  of four write paths, not across the column.** The comment says a drift "silently yields an empty
+  question pool for that subject, with no error anywhere"; the suite proves the seeder cannot
+  cause that drift and that contribution approval no longer can. It proves nothing about a row a
+  superadmin or the LLM importer put there.
+
+**Can it be run against real data?** Yes, but not in this suite, and not for free:
+
+1. The suite is DB-free by construction — `server/db.ts` throws at import without `DATABASE_URL`
+   (and refuses a production `DATABASE_URL` outright unless `APP_ENV=production` or
+   `ALLOW_PRODUCTION_DB=true`). This test mocks `../storage` for exactly that reason.
+2. A true column-wide invariant is one query — `SELECT DISTINCT subject FROM quiz_questions`
+   asserted against `SUBJECT_IDS` — but it needs a seeded database, so it belongs in an
+   integration project (`vitest --project integration`, skipped when `DATABASE_URL` is unset)
+   that does not exist yet. That is the missing piece, and it is cheap once the project exists.
+3. Against **prod** it would be read-only and safe, but it is a check on the deployment, not on
+   the code, so it wants to be an ops assertion (a startup or cron check), not a unit test.
+
+Until (2) exists, treat the invariant as **enforced at the seed source and at the contribution
+write, asserted nowhere over the column itself.**
