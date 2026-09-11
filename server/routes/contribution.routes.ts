@@ -501,6 +501,47 @@ router.post("/admin/:id/review", isAuthenticated, checkSuperadmin, async (req: R
       // Calculate credits (5 questions = 1 credit)
       creditsAwarded = Math.floor(approvedCount / QUESTIONS_PER_CREDIT);
 
+      // FILE THE QUESTIONS UNDER THE SUBJECT **NAME**, NOT THE CODE.
+      //
+      // quiz_questions.subject is free text with two writers that disagreed.
+      // The seeded bank stores the name ("Mathematics", questionBanks/uae/*);
+      // this path stored submission.subject, which is the CODE ("mathematics"),
+      // because the contribute UI submits s.code (ContributeQuestions.tsx:582)
+      // and validation matches subjects.code (:327 above) — so the code form is
+      // the only one that can reach here.
+      //
+      // The serving side never uses codes, and the one thing that could have
+      // bridged the two vocabularies is applied to the wrong side. A student's
+      // picks are run through normalizeSubjectsAsync (quiz.routes.ts:336), whose
+      // alias map does map a code to its canonical name (utils/subjects.ts:62).
+      // The stored row is normalized by nothing: the pool is built by an exact,
+      // case-sensitive compare of the raw row value against those already-
+      // normalized picks (quiz.routes.ts:346). So every question approved through
+      // here was unservable: present, correct, and invisible to students forever.
+      // Duplicate detection (:349) missed for the same reason.
+      //
+      // Latent rather than live when fixed — prod had 240 questions, all
+      // source_type 'system' and all name-form, and zero contributed rows, so
+      // there was nothing to migrate. See FOLLOWUP.md.
+      const approvedSubject = await storage.getSubjectByCode(
+        submission.countryId,
+        submission.curriculum,
+        submission.subject,
+      );
+      if (!approvedSubject) {
+        // The subject was removed from the catalogue between submission and
+        // review. REFUSE rather than fall back to submission.subject: writing
+        // the code is precisely the defect above, and it fails silently — the
+        // approval would report success and the questions would never serve.
+        return res.status(409).json({
+          error:
+            `Subject '${submission.subject}' no longer exists for the ${submission.curriculum} ` +
+            `curriculum, so these questions cannot be filed under a subject that students can be ` +
+            `served. Restore the subject and review again, or reject this submission.`,
+          code: "SUBJECT_NOT_IN_CATALOGUE",
+        });
+      }
+
       // Add approved questions to the quiz bank
       const academicYear = getCurrentAcademicYear();
       for (const idx of indicesToApprove) {
@@ -512,7 +553,7 @@ router.post("/admin/:id/review", isAuthenticated, checkSuperadmin, async (req: R
             options: q.options,
             correctAnswer: q.correctAnswer,
             explanation: q.explanation || null,
-            subject: submission.subject,
+            subject: approvedSubject.name,
             grade: submission.grade, // Individual grade (8-12) - primary field
             countryId: submission.countryId,
             curriculum: submission.curriculum,
