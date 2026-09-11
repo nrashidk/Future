@@ -1104,6 +1104,7 @@
     "refreshSuccess": "Country data refreshed with latest information",
     "questionsGenerated": "Questions Generated",
     "questionsGeneratedDesc": "Created {{n}} questions ({{tokens}} tokens used)",
+    "questionsPartial": "Created {{created}} of {{generated}} questions ({{tokens}} tokens used). {{failed}} could not be stored:",
     "curriculumRenamed": "Curriculum Renamed",
     "curriculumRenamedDesc": "Updated {{subjects}} subjects, {{questions}} questions and {{schools}} schools",
     "renameCurriculumTitle": "Rename Curriculum",

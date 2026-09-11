@@ -4,6 +4,10 @@ import {
   isEncryptedFormat,
 } from "./utils/encryption";
 import { permuteOptionsForStorage } from "./utils/quiz";
+// Storage-free by design (see the header of subjectMap.ts), so importing it here
+// cannot pull db into the DB-free consumers. utils/subjects.ts is the module that
+// must NOT be imported here: it imports storage, and the pair would cycle.
+import { DEFAULT_SUBJECT_MAP } from "./utils/subjectMap";
 import {
   users,
   countries,
@@ -118,6 +122,7 @@ import {
 import { db } from "./db";
 import { collapseToLatestPerGrade, gradeSortKey, mergeGradeCounts, toCanonicalGrade } from "@shared/grade";
 import { splitStudentName } from "@shared/studentName";
+import { SUBJECT_IDS } from "@shared/subjects";
 import { eq, ne, and, or, desc, count, avg, sql, inArray, notInArray, isNotNull, gte, type SQL } from "drizzle-orm";
 
 /**
@@ -196,6 +201,7 @@ export interface IStorage {
   updateSubject(id: string, data: Partial<InsertSubject>): Promise<Subject>;
   deleteSubject(id: string): Promise<boolean>;
   getSubjectByCode(countryId: string, curriculum: string, code: string): Promise<Subject | undefined>;
+  resolveSubjectName(countryId: string | null | undefined, curriculum: string | null | undefined, input: string | null | undefined): Promise<string>;
   renameCurriculum(countryId: string, oldName: string, newName: string): Promise<{ subjects: number; questions: number; organizations: number }>;
 
   // Skills operations
@@ -586,6 +592,55 @@ export class CurriculumRenameError extends Error {
   }
 }
 
+/**
+ * A subject string that names nothing storable.
+ *
+ * Carries `status` for the same reason CurriculumRenameError does: the handler
+ * maps it to a response rather than letting it reach the generic catch, which in
+ * every one of these routes means a 500. A choke point that refuses where a
+ * handler used to succeed is only an improvement if the refusal reaches the
+ * caller as a refusal.
+ */
+export class SubjectNotInCatalogueError extends Error {
+  constructor(
+    message: string,
+    public readonly status: number,
+    public readonly subject: string,
+  ) {
+    super(message);
+    this.name = "SubjectNotInCatalogueError";
+  }
+}
+
+/**
+ * Unscoped half of resolveSubjectName: a question with no country or curriculum
+ * has no catalogue row to match, so the umbrella-6 is the vocabulary.
+ *
+ * Accepts the canonical name, any casing of it, the code form the other writers
+ * produce ("social_studies"), and the static aliases the reader already honours
+ * (DEFAULT_SUBJECT_MAP). Aliases whose target is outside the six — Art, Music and
+ * Business self-map there — are REFUSED rather than stored, because a global
+ * question under a subject no student can pick is exactly the unservable row this
+ * whole change exists to prevent. normalizeCareerSubjects (utils/subjectMap.ts)
+ * drops them for the same reason.
+ */
+function resolveAgainstUmbrellaSix(raw: string, lower: string): string | undefined {
+  const exact = SUBJECT_IDS.find(id => id === raw);
+  if (exact) return exact;
+
+  const insensitive = SUBJECT_IDS.find(
+    id => id.toLowerCase() === lower || id.toLowerCase().replace(/\s+/g, "_") === lower,
+  );
+  if (insensitive) return insensitive;
+
+  const aliasKey = Object.keys(DEFAULT_SUBJECT_MAP).find(k => k.toLowerCase() === lower);
+  if (aliasKey) {
+    const target = DEFAULT_SUBJECT_MAP[aliasKey];
+    return SUBJECT_IDS.find(id => id === target);
+  }
+  return undefined;
+}
+
 export class DatabaseStorage implements IStorage {
   // User operations
   async getUser(id: string): Promise<User | undefined> {
@@ -893,6 +948,99 @@ export class DatabaseStorage implements IStorage {
         )
       );
     return subject;
+  }
+
+  /**
+   * The one place a subject string becomes a storable subject value.
+   *
+   * WHY THIS EXISTS. `quiz_questions.subject` is free text with six writers, and
+   * they did not agree. The seeded bank stored the NAME ("Mathematics"), the
+   * contribution path stored the CODE ("mathematics"), the admin path stores the
+   * name but validated it against `subjects.code` (a guard that only stayed
+   * quiet because the admin form sends no curriculum), and the LLM importer
+   * stored whatever the model echoed back. Serving compares the stored value
+   * exactly and case-sensitively, so anything but the name is invisible to
+   * students with no error anywhere. Resolving in ONE place is what makes the
+   * writers agree by construction rather than by four separate guards that have
+   * to be kept in step.
+   *
+   * TWO SCOPES, TWO CATALOGUES, and that is deliberate. `subjects.countryId` and
+   * `.curriculum` are notNull (schema.ts:387-388) while the same columns on
+   * `quiz_questions` are nullable (:946-947), so a question with either unset has
+   * no addressable catalogue row at all — the catalogue invariant is not merely
+   * unmet for it, it cannot be stated. Such a row is a GLOBAL question by the
+   * schema's own comment, servable to any student regardless of country, and
+   * students only ever pick from the umbrella-6 (SubjectsStep -> SUBJECT_IDS).
+   * So the six is not a weaker fallback here; it is the only vocabulary a global
+   * row can be matched against.
+   *
+   * ALIASES ARE ACCEPTED, so that the writer and the reader use one map. The
+   * reader already resolves through `subjects.aliases` (utils/subjects.ts:65-69);
+   * the writer not doing so is precisely the asymmetry that let the original
+   * defect through. A rewrite is logged whenever the stored value differs from
+   * what the caller passed, so it is traceable rather than silent.
+   *
+   * NOT getSubjectsByCurriculum, which filters isActive. The invariant is "names
+   * a real catalogue subject", not "names one currently on offer" — and a choke
+   * point stricter than the handler that already approved the write would turn
+   * contribution approval's own 409-checked name into a 500 the moment a subject
+   * were deactivated. Whether a subject may still be CHOSEN is a submit-time
+   * question, decided above this layer.
+   *
+   * @throws SubjectNotInCatalogueError when nothing resolves.
+   */
+  async resolveSubjectName(
+    countryId: string | null | undefined,
+    curriculum: string | null | undefined,
+    input: string | null | undefined,
+  ): Promise<string> {
+    const raw = (input ?? "").trim();
+    if (!raw) {
+      throw new SubjectNotInCatalogueError("A subject is required.", 400, "");
+    }
+    const lower = raw.toLowerCase();
+
+    const resolved = countryId && curriculum
+      ? await this.resolveAgainstCatalogue(countryId, curriculum, raw, lower)
+      : resolveAgainstUmbrellaSix(raw, lower);
+
+    if (!resolved) {
+      const where = countryId && curriculum
+        ? `the ${curriculum} catalogue for ${countryId}`
+        : `the global subject list (a question with no country or curriculum is served to any student, so it must name one of: ${SUBJECT_IDS.join(", ")})`;
+      throw new SubjectNotInCatalogueError(
+        `Subject '${raw}' does not match anything in ${where}.`,
+        400,
+        raw,
+      );
+    }
+
+    if (resolved !== raw) {
+      console.log(
+        `[subjects] resolved '${raw}' -> '${resolved}' (countryId=${countryId ?? "null"}, curriculum=${curriculum ?? "null"})`,
+      );
+    }
+    return resolved;
+  }
+
+  /** Scoped half of resolveSubjectName. Exact name, exact code, then case-insensitively, then aliases. */
+  private async resolveAgainstCatalogue(
+    countryId: string,
+    curriculum: string,
+    raw: string,
+    lower: string,
+  ): Promise<string | undefined> {
+    const rows = await db
+      .select()
+      .from(subjects)
+      .where(and(eq(subjects.countryId, countryId), eq(subjects.curriculum, curriculum)));
+
+    return (
+      rows.find(r => r.name === raw)?.name ??
+      rows.find(r => r.code === raw)?.name ??
+      rows.find(r => r.name.toLowerCase() === lower || r.code.toLowerCase() === lower)?.name ??
+      rows.find(r => (r.aliases ?? []).some(a => a.toLowerCase() === lower))?.name
+    );
   }
 
   /**

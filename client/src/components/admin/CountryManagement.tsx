@@ -174,6 +174,36 @@ export default function CountryManagement() {
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/questions'] });
       setIsGenerateQuestionsOpen(false);
+
+      // A shortfall used to be visible only as a number that did not match the
+      // one requested — the server logged which question failed and why, and the
+      // person who asked for them saw neither. Name them.
+      const failures: Array<{ index: number; reason: string }> = result.failures || [];
+      if (failures.length > 0) {
+        toast({
+          title: t('countries.questionsGenerated'),
+          description: (
+            <div className="space-y-1">
+              <p>
+                {t('countries.questionsPartial', {
+                  created: result.questionsCreated,
+                  generated: result.questionsGenerated,
+                  failed: failures.length,
+                  tokens: result.tokensUsed,
+                })}
+              </p>
+              <ul className="list-disc ps-4">
+                {failures.map(f => (
+                  <li key={f.index}>{`#${f.index + 1}: ${f.reason}`}</li>
+                ))}
+              </ul>
+            </div>
+          ),
+          variant: "destructive",
+        });
+        return;
+      }
+
       toast({ 
         title: t('countries.questionsGenerated'), 
         description: t('countries.questionsGeneratedDesc', { n: result.questionsCreated, tokens: result.tokensUsed })

@@ -1104,6 +1104,7 @@
     "refreshSuccess": "تم تحديث بيانات الدولة بأحدث المعلومات",
     "questionsGenerated": "تم توليد الأسئلة",
     "questionsGeneratedDesc": "تم إنشاء {{n}} سؤال (استُخدمت {{tokens}} رمز)",
+    "questionsPartial": "تم إنشاء {{created}} من {{generated}} سؤالاً (استُخدمت {{tokens}} رمز). تعذّر حفظ {{failed}}:",
     "curriculumRenamed": "تمت إعادة تسمية المنهج",
     "curriculumRenamedDesc": "تم تحديث {{subjects}} مادة و{{questions}} سؤال و{{schools}} مدرسة",
     "renameCurriculumTitle": "إعادة تسمية المنهج",

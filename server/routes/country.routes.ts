@@ -6,7 +6,7 @@
 
 import type { Express } from "express";
 import { z } from "zod";
-import { storage } from "../storage";
+import { storage, SubjectNotInCatalogueError } from "../storage";
 import { isAuthenticated } from "../auth";
 import {
   researchCountryData,
@@ -466,15 +466,37 @@ export function registerCountryRoutes(app: Express) {
         return res.status(404).json({ message: "Country not found" });
       }
 
-      console.log(`[Country] Generating ${count} questions for ${country.name} - ${subject} Grade ${grade}`);
+      // RESOLVE THE SUBJECT THE CALLER NAMED, BEFORE GENERATING ANYTHING.
+      //
+      // This endpoint used to store `q.subject` — the model's echo of the string
+      // interpolated into its own prompt (llmCountryService.ts:403). Nothing
+      // enforced the echo: safeParseJSON is JSON.parse plus an `as T` cast, and
+      // GeneratedQuestion is an interface, erased at runtime. A drift as small as
+      // "Math" for "Mathematics" produced a row no student's quiz could ever
+      // contain, with no error on any path.
+      //
+      // The model has no business naming the subject: the caller already did. So
+      // the caller's string is resolved against the catalogue here, and that one
+      // resolved name is written on every row below.
+      let subjectName: string;
+      try {
+        subjectName = await storage.resolveSubjectName(id, curriculum, subject);
+      } catch (e) {
+        if (e instanceof SubjectNotInCatalogueError) {
+          return res.status(e.status).json({ message: e.message });
+        }
+        throw e;
+      }
+
+      console.log(`[Country] Generating ${count} questions for ${country.name} - ${subjectName} Grade ${grade}`);
 
       const result = await generateCountryQuizQuestions(
         storage,
         id,
         country.name,
-        subject,
+        subjectName,
         grade,
-        curriculum || "National",
+        curriculum,
         count
       );
 
@@ -482,8 +504,14 @@ export function registerCountryRoutes(app: Express) {
         return res.status(500).json({ message: result.error || "Failed to generate questions" });
       }
 
+      // A caller who asked for 10 and got 7 must be able to see WHICH three and
+      // WHY. This loop used to console.error and move on, so the only signal was
+      // a number that did not match the one requested.
       let created = 0;
-      for (const q of result.questions || []) {
+      const failures: Array<{ index: number; question: string; reason: string }> = [];
+      const generated = result.questions || [];
+
+      for (const [index, q] of generated.entries()) {
         try {
           await storage.createQuizQuestion({
             question: q.question,
@@ -491,7 +519,7 @@ export function registerCountryRoutes(app: Express) {
             options: q.options,
             correctAnswer: q.correctAnswer,
             explanation: q.explanation,
-            subject: q.subject,
+            subject: subjectName, // NOT q.subject — see the resolve above
             grade: q.grade, // Individual grade (8-12) - primary field
             countryId: id,
             curriculum: q.curriculum,
@@ -503,42 +531,36 @@ export function registerCountryRoutes(app: Express) {
           });
           created++;
         } catch (e) {
-          console.error("Error creating question:", e);
+          const reason = e instanceof Error ? e.message : String(e);
+          const preview = typeof q?.question === "string" && q.question.trim()
+            ? q.question.slice(0, 80)
+            : "(no question text returned)";
+          console.error(`[Country] Question ${index} not stored: ${reason}`, e);
+          failures.push({ index, question: preview, reason });
         }
       }
 
-      console.log(`[Country] Created ${created}/${result.questions?.length || 0} questions for ${country.name}`);
+      console.log(`[Country] Created ${created}/${generated.length} questions for ${country.name}`);
 
-      // Auto-create subject entry if it doesn't exist yet
-      const existingSubject = await storage.getSubjectByCode(id, curriculum, subject.toLowerCase().replace(/\s+/g, "_"));
-      if (!existingSubject && created > 0) {
-        try {
-          const subjectCode = subject.toLowerCase().replace(/\s+/g, "_");
-          const displayName = subject
-            .split(/[\s_]+/)
-            .map((w: string) => w.charAt(0).toUpperCase() + w.slice(1))
-            .join(" ");
-          await storage.createSubject({
-            name: displayName,
-            code: subjectCode,
-            countryId: id,
-            curriculum: curriculum || "National",
-            isActive: true,
-            displayOrder: 0,
-          });
-          console.log(`[Country] Auto-created subject "${displayName}" for ${country.name}`);
-        } catch (subjectError: any) {
-          // If duplicate, that's fine — another request may have created it
-          if (!subjectError?.message?.includes("unique") && !subjectError?.cause?.code?.includes("23505")) {
-            console.warn(`[Country] Could not auto-create subject: ${subjectError.message}`);
-          }
-        }
-      }
+      // THE AUTO-CREATE BLOCK THAT STOOD HERE IS GONE, and its removal is the
+      // point rather than a side effect. It manufactured a catalogue row AFTER
+      // the writes, deriving code and name from the REQUEST string while the rows
+      // carried the MODEL's string — two values that need not agree — so a drift
+      // left every row pointing at a subject that still did not exist. Resolving
+      // up front means a subject that is not in the catalogue is now a 400 before
+      // any tokens are spent, and this block could never fire again.
+      //
+      // WORKFLOW CHANGE, deliberate: a superadmin generating for a brand-new
+      // subject must create it in the subject catalogue first. Previously the
+      // catalogue bent to whatever was typed, which is how the second vocabulary
+      // got into quiz_questions.subject in the first place.
 
       res.json({
         success: true,
-        questionsGenerated: result.questions?.length || 0,
+        subject: subjectName,
+        questionsGenerated: generated.length,
         questionsCreated: created,
+        failures,
         tokensUsed: result.tokensUsed,
       });
     } catch (error) {
