@@ -27,13 +27,22 @@
  * exact. But it can only see the seeded population. Test 2 is what would have
  * caught this defect, because it pins the write site itself.
  *
- * STILL UNPINNED, and deliberately out of scope here: admin.routes.ts:262 and
- * :339 write the code form in the same shape as the bug fixed here, and
- * country.routes.ts:494 writes whatever free-text subject the LLM returned.
- * Reported, not fixed. Separately, filing under the catalogue NAME is necessary
- * but not sufficient — a catalogue subject outside the umbrella-6 is unservable
- * in either form, which is a different divergence between the same two
- * vocabularies (FOLLOWUP.md).
+ * STILL UNPINNED, and deliberately out of scope here: four other writers reach
+ * quiz_questions.subject, none of them constrained to one vocabulary —
+ * admin.routes.ts:262 (POST, guard present but never runs because the admin form
+ * sends no curriculum), :276 (PATCH, no guard at all), :339 (bulk, guard runs and
+ * rejects correct name-form rows), and country.routes.ts:494 (the model's echo of
+ * a free-text request).
+ *
+ * An earlier version of this comment said :262 and :339 "write the code form in
+ * the same shape as the bug fixed here". That was wrong: Admin.tsx:45 is
+ * `const SUBJECTS = SUBJECT_IDS`, so the admin UI submits NAMES. The mistake was
+ * reading a validator (getSubjectByCode) and inferring its caller. Noting it
+ * because the same inference is what makes this whole class hard to see.
+ *
+ * Separately, filing under the catalogue NAME is necessary but not sufficient —
+ * a catalogue subject outside the umbrella-6 is unservable in either form, which
+ * is a different divergence between the same two vocabularies (FOLLOWUP.md).
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";

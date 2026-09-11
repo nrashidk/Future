@@ -5401,11 +5401,54 @@ review it returns **409 `SUBJECT_NOT_IN_CATALOGUE`** rather than falling back to
 fallback *is* the defect, and it reports success while producing nothing servable. The guard runs
 before any write, so a refusal leaves no partial state.
 
-**The hold above is NOT lifted.** Two writers still put the code form into the same column:
-`admin.routes.ts:262` (single create) and `:339` (bulk import), both validated against
-`subjects.code` in exactly the shape just fixed here; `country.routes.ts:494` writes whatever
-free-text subject the LLM returned. So the dependents check still has to test both vocabularies.
-One of three writers is corrected; the column still has two vocabularies in it.
+**The hold above is NOT lifted**, but not for the reason first recorded here.
+
+> **CORRECTION (2026-09-11).** The sentence that stood here said `admin.routes.ts:262` and `:339`
+> "write the code form in exactly the shape just fixed". **That is wrong, and it was wrong when
+> written.** It was inferred from the server guard (`getSubjectByCode`) on the assumption that the
+> admin client speaks codes like the contribution client does. It does not: `Admin.tsx:45` is
+> `const SUBJECTS = SUBJECT_IDS`, so the admin UI submits **names**. The claim then propagated
+> into the brief for the follow-up work. Recorded rather than replaced, because the error was the
+> method — reading a validator and inferring its caller — not the line number.
+
+A census of every caller of `createQuizQuestion`/`updateQuizQuestion` outside `storage.ts` finds
+**six call sites, five of them non-seed** — not three:
+
+| # | writer | what reaches `subject` | guard |
+|---|---|---|---|
+| 1 | `seed.ts:2727` | name, from `questionBanks/uae/*` | n/a, correct by construction |
+| 2 | `contribution.routes.ts:550` | name | fixed here |
+| 3 | `admin.routes.ts:262` POST | **name** (`SUBJECT_IDS`) | present but **never runs** |
+| 4 | `admin.routes.ts:276` PATCH | **anything** | **none at all** |
+| 5 | `admin.routes.ts:339` bulk | anything in the uploaded file | runs, and **rejects correct names** |
+| 6 | `country.routes.ts:488` LLM | the model's echo of a free-text request | none |
+
+Writer 4 was missed entirely by the original note, and it is the least constrained of all of them.
+
+**Why the admin guard is inert.** It is conditional —
+`if (validatedData.countryId && validatedData.curriculum && validatedData.subject)` — and both
+`countryId` and `curriculum` are nullable columns (`shared/schema.ts:946-947`), hence optional in
+`insertQuizQuestionSchema`. The admin create/edit form has **no `curriculum` field at all**
+(`Admin.tsx:510-521`), so the condition is never true from the product, nothing is validated, and
+the `SUBJECT_IDS` name is written verbatim. Writer 3 is producing correct, servable rows today —
+by accident, because its validator never fires. Applying the contribution fix there would break a
+path that works.
+
+**Why the bulk guard is backwards.** `handleImport` (`Admin.tsx:131`) posts an arbitrary JSON
+file. A row carrying `curriculum` does satisfy the condition, and `getSubjectByCode` is then asked
+to match a name-form subject against `subjects.code` — no match, `400 Invalid subject
+'Mathematics'`. The export it round-trips with emits full rows including `curriculum`
+(`admin.routes.ts:1560`), and all 240 seeded rows carry `countryId: "uae"`,
+`curriculum: "MOE National"` and a name subject. **Export-then-import of the shipped bank is
+rejected on every row.** Composed from source, not run against a live DB.
+
+**So the root is not "writers that store codes."** It is that `getSubjectByCode` is used as *the*
+subject validator everywhere, while only one of the three UIs speaks codes. The contribution fix
+was right for contribution precisely because its UI does. The general fix is a resolver that
+accepts either form and returns the name — see the choke-point entry below.
+
+The dependents check still has to test both vocabularies, for a different reason than recorded:
+not two disciplined writers disagreeing, but four unconstrained ones.
 
 **Filing under the NAME is necessary, not sufficient.** The structural divergence recorded above
 is untouched: a catalogue subject outside the umbrella-6 is unservable in *either* form.
