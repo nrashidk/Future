@@ -5171,3 +5171,61 @@ part that is a plain bug** — the export button should be gated on something re
 nothing at all. It can be fixed on its own, ahead of the disposition work.
 
 Found 2026-09-11 while verifying the licence-seat leak for the student-removal path.
+
+## A LAYOUT CLASS REVERSED THE DISPOSITION BUTTONS ON MOBILE (found 2026-09-11)
+
+Fixed in 7d5c948. Recorded because the *class* of defect is the interesting part, not the fix.
+
+**What it was.** Both student-removal disposition dialogs put their destructive control
+("delete the record permanently") at the TOP of the button stack on any viewport below 640px —
+the first control the admin meets, sitting above "keep the account and report".
+`AlertDialogFooter`'s base class string is `flex flex-col-reverse sm:flex-row ...`
+(`client/src/components/ui/alert-dialog.tsx:66`), and `flex-col-reverse` stacks children against
+DOM order. The markup has always read cancel → detach → erase, in that order, deliberately.
+The rendered stack read erase → detach → cancel.
+
+**Why it hid.** Three things at once, and each one defeats a different way of looking:
+
+- **Invisible in the DOM.** Reading the JSX shows the correct order. Nothing in
+  `AdminOrganizations.tsx` is wrong; the inversion is contributed entirely by a shared
+  component's class string, one file away.
+- **Invisible at desktop width.** `sm:flex-row` takes over at ≥640px and the row is correct
+  there. Anyone checking the dialog on a laptop — which is everyone, most of the time — sees
+  the intended order.
+- **Invisible to a screenshot read at a single width.** It only exists below the breakpoint.
+
+It was found by rendering the dialog in Arabic and measuring per-element geometry, at two
+viewport widths, as a check on something else entirely.
+
+**It is NOT an RTL bug.** This matters for where the lesson gets filed. `flex-col-reverse`
+inverts along the block axis, which is independent of writing direction, so it reproduces
+identically in English. The RTL check found it; RTL is not the cause. Filing it as
+"an Arabic layout issue" would put it in the wrong drawer and leave the English case
+unexamined. The genuinely RTL-specific defect found in the same pass was separate and much
+smaller — a physical `margin-left` from `space-x-2` landing on the outer edge of the wrong
+button, fixed in 86e20fb.
+
+**It answers the friction question from the other end.** `docs/org-delete-recon.md` §6 asked
+which destructive admin actions deserve confirmation friction, and concluded the friction was
+misallocated — heavy on the bulk path, which is a no-op, and thin on the single path, which
+actually destroys. This is a third answer neither the question nor that analysis anticipated:
+**the friction was not missing here, and it was not thin. It was reversed.** The affordance that
+makes a destructive action harder to reach by accident — being last, being the one you must pass
+the safe option to get to — had been turned around by a layout class, so the control that
+destroys was the easiest one to hit. A confirmation step counted as present would have counted
+this dialog as protected.
+
+**The generalisation, and it rhymes with the one already recorded above about `isLocked`.**
+That entry's rule was: for every flag a guard tests, grep its write sites before believing the
+guard runs — a guard is a claim, not evidence. The same applies one layer out, to layout:
+**source order is a claim about presentation, not evidence of it.** A deliberate ordering of
+controls — which is a safety property when one of them is destructive — is only real if it
+survives the CSS, at every width the UI actually renders at. The confirming step is as cheap as
+the grep was: render it and measure positions, at more than one viewport, rather than reading
+the JSX and believing the order.
+
+**Where else to look.** `DialogFooter` (`client/src/components/ui/dialog.tsx:76`) carries the
+identical class string and is used across seven files. Any of those dialogs with a destructive
+action has the same inversion below 640px. Not audited here — flagged, not fixed, because
+reordering a destructive control is a design call and should be made per dialog rather than
+swept.
