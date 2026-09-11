@@ -2086,6 +2086,30 @@ student_name, student_gender, grade and student_id — everything their school r
 them. Users are minors, so this is a live GDPR/PDPL subject-access gap, not a nicety. Adding
 date_of_birth to that table (Phase 4 step 4) makes it worse. First flagged 2026-09-07.
 
+EXTENDED 2026-09-11 — a SECOND omission, found while fixing the erasure endpoint beside it.
+The export also never reads **wef_competency_results**. That table holds the student's
+normalized WEF competency scores and their top five competencies (schema.ts:399-420) — a
+derived psychological profile of a minor, and exactly the kind of inference a subject-access
+request is for. It is written for every premium assessment
+(recommendations.routes.ts:137 -> wefOrchestrator.ts:57) and org students are forced premium
+(auth.routes.ts:53), so it exists for essentially every school student and is returned to none
+of them.
+
+WHY THE TWO BELONG TOGETHER, and why this is worth reading as one finding rather than two
+bullets. Both halves are the SAME BUG CLASS as the erasure 500 fixed on 2026-09-11
+(docs/erasure-dependent-list.md): a hand-maintained list of tables that fell behind the schema.
+Erasure's short list threw 23503 and was loud. Export's short list returns 200 and is silent —
+it hands the student a JSON file that looks complete. The erasure gap was found because
+Postgres refused; nothing will ever refuse this one. That asymmetry is the reason to fix export
+by deriving the list the same way, rather than by appending the two tables now known to be
+missing and leaving the next addition to drift again.
+
+It also sits on the same surface as the erasure route: the same student, on the same
+Profile.tsx screen that position 4 (docs/consent-implementation-recon.md, suggested order step
+6) would add, chooses between a download that under-returns and a delete that now works. Fixing
+export is not required for step 6 to be safe, but shipping step 6 without it means the first
+thing a student exercising their rights receives is incomplete.
+
 ### Brand name is authored independently in five layers  (severity: low, but blocks a rename)
 "Future Pathways" appears 58 times across 21 files with no canonical definition: i18n locales
 (31, of which 11 are in legal.json), hardcoded JSX bypassing i18n (Footer.tsx x2,
@@ -5037,3 +5061,52 @@ first time. Confirm the numeral does not fight the RTL layout in practice — `<
 `margin-inline-end` is the correct construction, but it has been reasoned about, not seen.
 
 Recorded 2026-09-10.
+
+### Position 4's erasure route was broken for every school student — FIXED 2026-09-11
+Correcting a claim this file's companion recon made rather than leaving it standing.
+`docs/consent-implementation-recon.md` §(c) listed `DELETE /api/users/me` under "What exists
+today" and said it **"Works for an org student."** It did not, and that was wrong when written
+rather than made wrong since.
+
+The route's delete sequence omitted `wef_competency_results`, which is `NOT NULL` ->
+`assessments` with `NO ACTION` (shared/schema.ts:401). Nothing deleted it, so
+`delete(assessments)` raised 23503, the transaction rolled back whole, and the endpoint returned
+**500**. The row is written for every premium assessment (recommendations.routes.ts:137 ->
+wefOrchestrator.ts:57) and org students are forced premium (auth.routes.ts:53) — so the failure
+covered every school student who had completed an assessment. A second, narrower case: the old
+loop deleted `cvq_results` by `assessment_id`, but that column is nullable while its `user_id`
+is `NOT NULL` (:994-995), so a row written without an assessment survived and blocked the
+`users` delete instead.
+
+WHAT THIS CHANGES ABOUT STEP 6. The suggested order's step 6 is "Position 4: expose
+export/delete in `Profile.tsx`". The recon framed position 4 as "the route exists; the door does
+not" — a UI gap in front of working machinery. That framing was too kind. **The door was missing
+AND the route behind it was broken for the students it exists for**, so step 6 as written would
+have routed a 13-year-old exercising their erasure right to a 500. The step is now genuinely a
+UI step; it was not before. Its export half still under-returns — see "Subject-access export
+omits everything the school recorded" above, extended the same day.
+
+The fix enumerates the dependent list mechanically from the FK graph rather than by hand
+(docs/erasure-dependent-list.md) and deletes by owner rather than by parent id, so the list is
+complete by construction. Org admins and superadmins now get an explicit 409 naming the audit
+records that block them — rows where they are the ACTOR in someone else's record, not the
+subject — instead of the same 23503-shaped 500 from a different table. Making admin erasure
+actually work needs a schema change (`organizations.admin_user_id` and
+`organization_events.performed_by` are both NOT NULL with NO ACTION) and is a separate decision.
+
+STILL TRUE AFTER THE FIX, and the response string now says so rather than overclaiming:
+erasure does NOT remove `organization_consents.performed_by_name` / `performed_by_email`, which
+are NOT NULL and retained deliberately (schema.ts:1553-1558) so an attestation does not dissolve
+when its author leaves the school. Empty for students, who never attest; real for an org admin.
+The old message — "Account and all associated data have been permanently deleted" — was untrue
+for anyone who had attested, and has been replaced by an enumeration of what was actually
+deleted.
+
+NOT FIXED HERE, carried to the student-removal work: the licence-seat leak recorded in
+docs/consent-implementation-recon.md §(c) point 3. `DELETE /api/users/me` deletes the
+`organization_members` row without decrementing the school's quota, which the admin paths do
+(admin.routes.ts:1158 `-1`, :1233 `-deletedCount`). Re-verified 2026-09-11 — that recon's
+`:1136` has drifted to `:1158`, the claim holds. A student who erases their account still burns
+one of the school's seats.
+
+Recorded 2026-09-11.
