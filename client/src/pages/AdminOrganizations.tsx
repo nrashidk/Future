@@ -758,7 +758,22 @@ export default function AdminOrganizations() {
                         description: t('orgs.exportReportsSummaryHintDesc'),
                       });
                     }}
-                    disabled={members.filter(m => m.isLocked).length === 0}
+                    // MIRRORS THE SERVER'S OWN PREDICATE, which is what this
+                    // button was always meant to say. The endpoint builds the zip
+                    // from members.filter(m => m.hasCompletedAssessment) and 404s
+                    // with "No completed assessments found" when that is empty
+                    // (admin.routes.ts:1503-1507), so this is the same question
+                    // asked one layer up.
+                    //
+                    // It previously read `m.isLocked`, and is_locked is never set
+                    // to true anywhere: storage.lockOrganizationMember has zero
+                    // callers, so the column sits at its false default forever.
+                    // The count was therefore always 0 and the button was
+                    // PERMANENTLY DISABLED — no school admin could export their
+                    // students' reports from this screen, for any school, since it
+                    // shipped. Do not re-gate this on is_locked without first
+                    // giving that flag a writer.
+                    disabled={members.filter(m => m.hasCompletedAssessment).length === 0}
                   >
                     <FileDown className="w-4 h-4 me-2" />
                     {t('orgs.exportReports')}
