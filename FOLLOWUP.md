@@ -4883,7 +4883,8 @@ diversity question:
   the loose-match class already recorded in 786b556. Two kinds of false positive,
   both live on this pair:
   - *substring inside a word* — the "Creative" keyword `art` matches inside
-    "beyond **Eart**h" in Space Scientist's description;
+    "beyond **Eart**h" in Space Scientist's description (this is instance 2 of
+    the substring-match class; see the dedicated entry at the end of this file);
   - *right word, wrong sense* — the "Helping" keyword `help` matches "**help**
     plan the missions", which is not what the Helping interest means; `design`
     matches "**design** the experiment" for both "Creative" and "Fashion &
@@ -5259,3 +5260,63 @@ submit, clone or approve, where being first on a phone is harmless.
 only footers in the app where the top-of-stack control erased a minor's assessment data. The two
 found here destroy catalogue and tenant rows — real, but a different weight, and neither is
 reachable by anyone below superadmin.
+
+## SUBSTRING MATCHING WHERE TOKEN MATCHING WAS MEANT — third instance this week (2026-09-11)
+
+Recorded as a class because the third instance arrived in a *tool* rather than in product code,
+which is the variant that had not been written down.
+
+**The shape.** A matcher tests whether one string is *contained in* another, where the intent was
+whether it *is* the other, or is a whole token within it. Every instance is a silent false
+positive: the match succeeds, nothing errors, and the result is indistinguishable from a correct
+match at the point of use.
+
+**The three, in the order they were found:**
+
+1. **`seed.ts:2060-2062`, `nationalPriorityAlignment`.** Tests whether a career's
+   `relatedSubjects` is a substring of a country's `prioritySectors`. School subjects against
+   economic sectors — over 24 subject values and 10 UAE sectors it yields exactly two matches,
+   both accidents: `"Art"` ⊂ `"**Art**ificial Intelligence"` and `"Science"` ⊂
+   `"Space & Advanced **Science**s"`. 16 of 68 careers land in the high band decided by whether
+   they happen to list Art or Science. The field reads as the one column with domain signal in
+   it; it has none. Recorded above under the job-market-trends audit.
+
+2. **`interestLexicon.ts:333`, `findMatchingKeywords` via `String.includes`.** The "Creative"
+   keyword `art` matches inside "beyond **Eart**h" in Space Scientist's description. Recorded
+   above under the diversity-constraint decision, where it matters because it manufactures both
+   spurious *agreement* and spurious *difference* between two careers being compared.
+
+3. **`grep -l "DialogFooter"` (2026-09-11, this session).** Matched `AlertDialogFooter` as a
+   substring and counted `AdminOrganizations.tsx` as a `DialogFooter` consumer. That file uses
+   `AlertDialogFooter` exclusively and has no bare `DialogFooter`. The wrong number — seven files
+   instead of six — went into a report and then into two commit messages, `86e20fb`
+   ("seven files") and `b54d9ab` ("twenty footers across seven files"; the real figures are six
+   and nineteen). Corrected in the entry above; the commits stand as written.
+
+**Why the third one is worth recording.** The first two are defects in the product. The third is
+the same defect in the *instrument used to audit the product* — and an instrument's false
+positive is worse than a product's, because everything measured with it inherits the error
+silently. It also failed in exactly the way `786b556` describes for loose match keys: **invisible
+on the winning side.** A count that is too high looks precisely like a count that is right. There
+is no ragged edge, no error, nothing to notice.
+
+**What caught it, and it was luck rather than method.** The number only broke when a later task
+required *enumerating* the consumers one by one; the enumeration came up one file short of the
+count, and the count was wrong. Had the survey never been asked for, six would still be seven.
+
+**The control, in both registers:**
+- *In code.* Compare whole values or tokens, never `includes`, whenever the operands are names
+  drawn from a finite vocabulary — subjects, sectors, keywords, identifiers. If a keyword really
+  must match inside prose, anchor it to word boundaries (`\bart\b`), which would have killed
+  `Earth` and left `art` intact.
+- *In tooling.* Grep for code identifiers with a boundary, not bare text: `grep -w`, `\b`, or —
+  for a JSX component specifically — `<Name`, which matches usage sites and excludes every longer
+  component whose name ends in the same word. `grep -l "DialogFooter"` and
+  `grep -n "<DialogFooter"` disagree by exactly one file here, and the second is right.
+- *In reporting.* **Prefer the list to the count.** `| wc -l` discards the evidence that would
+  have shown the error; the enumerated list is self-checking, because a wrong entry in a list is
+  visible in a way that a wrong integer is not. Where a number is going into a commit message or
+  a report, derive it from an enumeration that was actually read.
+
+Related: the row-multiplicity half of this family is `786b556` ("a match key loose enough to hit
+more than one row writes to whichever it hits last"). Same failure signature, different operator.
