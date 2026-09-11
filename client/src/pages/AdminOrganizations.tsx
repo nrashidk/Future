@@ -841,7 +841,13 @@ export default function AdminOrganizations() {
                               </div>
                             );
                           })()}
-                          <AlertDialogFooter>
+                          {/* flex-col, overriding the component's base flex-col-reverse: below
+                              640px the footer stacks, and col-reverse put the DESTRUCTIVE button
+                              at the top of the stack — the first control a reader meets, in both
+                              languages. flex-col makes the stack follow DOM order, so erase is
+                              last on a phone as it already is on desktop. sm:flex-row in the base
+                              is untouched, so desktop is unchanged. */}
+                          <AlertDialogFooter className="flex-col">
                             <AlertDialogCancel>{t('orgs.cancel')}</AlertDialogCancel>
                             <AlertDialogAction
                               onClick={() => bulkDeleteMutation.mutate({ memberIds: selectedMemberIds, disposition: 'detach' })}
@@ -2707,7 +2713,9 @@ function MemberActions({ member, organizationId }: { member: OrganizationMember;
                 ? t('orgs.removalHasReport')
                 : t('orgs.removalNoReport')}
             </div>
-            <AlertDialogFooter>
+            {/* flex-col — see the bulk dialog's footer. The base flex-col-reverse
+                stacked the destructive action first below 640px. */}
+            <AlertDialogFooter className="flex-col">
               <AlertDialogCancel>{t('orgs.cancel')}</AlertDialogCancel>
               <AlertDialogAction
                 onClick={() => deleteMutation.mutate('detach')}
