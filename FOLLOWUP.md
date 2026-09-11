@@ -5320,3 +5320,62 @@ count, and the count was wrong. Had the survey never been asked for, six would s
 
 Related: the row-multiplicity half of this family is `786b556` ("a match key loose enough to hit
 more than one row writes to whichever it hits last"). Same failure signature, different operator.
+
+## THE CONTRIBUTION PATH HAS NEVER PRODUCED A SERVED QUESTION — latent, not live (2026-09-11)
+
+**Prod state, which is what makes this a defect rather than an incident:** 240 `quiz_questions`,
+all `source_type = 'system'`, all name-form. **Zero school-contributed questions exist.** No
+school has lost a question, because no school has ever had one approved. The whole path is
+unexercised in production, and there is nothing to migrate.
+
+240 is the seeded UAE bank exactly — 40 questions × 6 subjects (`server/questionBanks/uae/*.ts`,
+one bank descriptor plus 40 entries per file).
+
+**The mechanism.** `quiz_questions.subject` has two writers, and they disagree about vocabulary:
+
+| writer | stores | example |
+|---|---|---|
+| seeded bank (`seed.ts:2736` ← `questionBanks/uae/*`) | subject **name** | `"Mathematics"` |
+| contribution approval (`contribution.routes.ts:512`) | subject **code** | `"mathematics"` |
+
+The contribution UI submits `value={s.code}` while displaying `{s.name}`
+(`ContributeQuestions.tsx:582`), and the submission is validated with `getSubjectByCode`
+(`contribution.routes.ts:327`), which matches `subjects.code` — so only the code form can pass
+validation. Approval then writes `subject: submission.subject`, i.e. the code, verbatim.
+
+The serving side never uses codes. A student picks from the hardcoded umbrella-6
+(`SubjectsStep.tsx:7` → `SUBJECT_IDS` in `shared/subjects.ts`; no API call), and the pool is
+built by `questionPool.filter(q => favoriteSubjects.includes(q.subject))`
+(`quiz.routes.ts:346`) — an exact, case-sensitive comparison against names. `"mathematics"` is
+not `"Mathematics"`, so an approved contributed question can never enter any student's quiz.
+
+**It would have been invisible on the day it first mattered, and that is the part worth keeping.**
+Every signal the contributing school receives says it worked:
+
+- the submission succeeds and is accepted;
+- the review queue displays it;
+- a superadmin approves it, and approval writes a real row to `quiz_questions`;
+- the row is present, correct, and queryable. Nothing is corrupt and nothing errors.
+
+The only place the failure exists is the **intersection** — the set of questions a student's quiz
+actually contains — and nobody is looking there. There is no screen that shows a school which of
+its contributed questions has ever been served, no count that would look wrong, and no error on
+any path. A school could contribute for a year, see every submission approved, and never have
+reached a single student. This is the same signature as the loose-match-key class in `786b556`
+and the substring class recorded above: **invisible on the winning side.** Every individual
+operation succeeds; only the composition of two of them is wrong.
+
+**A second divergence, structural rather than formal.** Contributions are validated against the
+`subjects` catalogue for a country/curriculum, but serving is constrained to the hardcoded
+umbrella-6. Today those agree in membership — the seeded UAE catalogue is exactly the six
+(`seed.ts:867-930`) — so only the *form* differs. But the superadmin subject UI can add arbitrary
+subjects, and a contribution for any subject outside the six would be unservable no matter which
+form it stored. Fixing the name/code mismatch does not fix this; they are two different
+divergences between the same two vocabularies.
+
+**Held pending this:** the `superadmin.routes.ts:2410` subject-delete dependents check
+(`TODO: Check if there are any quiz questions using this subject before deleting`). That check
+would have to test **both** vocabularies — `WHERE subject IN (name, code)`, scoped by
+`country_id` and `curriculum` — but only for as long as two vocabularies exist. Land the
+write-path fix first and the check tests one form against one column. Writing it now would bake
+the defect into a guard.
