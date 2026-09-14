@@ -8,7 +8,8 @@ import { eq } from "drizzle-orm";
 // student now runs the same one (admin.routes.ts). Two callers, one definition.
 import { eraseUserData, collectBlockingAuditRecords } from "../services/accountErasure";
 import { dataExportLimiter } from "../middleware/rateLimiter.middleware";
-import { toClientRecommendations } from "../utils/recommendationView";
+// Export and data-summary read ONE enumeration, so the file and its count agree.
+import { collectSubjectAccess, summarizeSubjectAccess } from "../services/subjectAccess";
 import { z } from "zod";
 
 export function registerUserRoutes(app: Express) {
@@ -36,76 +37,17 @@ export function registerUserRoutes(app: Express) {
 
   /**
    * GET /api/users/me/export
-   * GDPR Data Export: Returns all user data in a structured JSON format
-   * Allows users to download a copy of their personal data
+   * GDPR/PDPL subject access: what the system holds about this person, as JSON.
+   * The enumeration and what it withholds are in services/subjectAccess.ts; the
+   * file's heldButNotIncluded section names what exists but is not in it.
    * Rate limited to 5 requests per hour to prevent abuse
    */
   app.get("/api/users/me/export", isAuthenticated, dataExportLimiter, async (req: any, res) => {
     try {
-      const userId = req.user.userId;
-      
-      // Fetch user profile
-      const user = await storage.getUser(userId);
-      if (!user) {
+      const exportData = await collectSubjectAccess(db, req.user.userId);
+      if (!exportData) {
         return res.status(404).json({ message: "User not found" });
       }
-
-      // Fetch all user assessments
-      const userAssessments = await storage.getAssessmentsByUser(userId);
-
-      // Fetch recommendations for each assessment
-      const assessmentRecommendations: Record<string, any[]> = {};
-      for (const assessment of userAssessments) {
-        const recs = await storage.getRecommendationsByAssessment(assessment.id);
-        // The export is student-facing too, and the same bare `db.select()` feeds
-        // it. Withholding the scoring-regime identifiers does NOT narrow the
-        // subject-access right: they describe the algorithm that ran, not the
-        // person it ran on, and every score, reasoning and action step the row
-        // holds about the student is still exported in full.
-        assessmentRecommendations[assessment.id] = toClientRecommendations(recs);
-      }
-
-      // Fetch quiz data for each assessment
-      const assessmentQuizData: Record<string, any> = {};
-      for (const assessment of userAssessments) {
-        const quiz = await storage.getAssessmentQuizByAssessmentId(assessment.id);
-        if (quiz) {
-          const responses = await storage.getQuizResponsesByQuizId(quiz.id);
-          assessmentQuizData[assessment.id] = { quiz, responses };
-        }
-      }
-
-      // Fetch CVQ results for each assessment
-      const assessmentCvqResults: Record<string, any> = {};
-      for (const assessment of userAssessments) {
-        const cvqResult = await storage.getCvqResultByAssessmentId(assessment.id);
-        if (cvqResult) {
-          assessmentCvqResults[assessment.id] = cvqResult;
-        }
-      }
-
-      // Compile complete data export
-      const exportData = {
-        exportedAt: new Date().toISOString(),
-        exportVersion: "1.0",
-        user: {
-          id: user.id,
-          email: user.email,
-          username: user.username,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          role: user.role,
-          accountType: user.accountType,
-          isPremium: user.isPremium,
-          createdAt: user.createdAt,
-        },
-        assessments: userAssessments.map(assessment => ({
-          ...assessment,
-          recommendations: assessmentRecommendations[assessment.id] || [],
-          quizData: assessmentQuizData[assessment.id] || null,
-          cvqResult: assessmentCvqResults[assessment.id] || null,
-        })),
-      };
 
       // Set headers for file download
       res.setHeader("Content-Type", "application/json");
@@ -196,46 +138,14 @@ export function registerUserRoutes(app: Express) {
    */
   app.get("/api/users/me/data-summary", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.userId;
-      
-      const user = await storage.getUser(userId);
-      if (!user) {
+      // Counted FROM the export's own enumeration. The old count was a second
+      // hand-written list with a number on it — the same short list the export
+      // had, presented as a total.
+      const subject = await collectSubjectAccess(db, req.user.userId);
+      if (!subject) {
         return res.status(404).json({ message: "User not found" });
       }
-
-      const userAssessments = await storage.getAssessmentsByUser(userId);
-      
-      let totalRecommendations = 0;
-      let totalQuizResponses = 0;
-      let totalCvqResults = 0;
-
-      for (const assessment of userAssessments) {
-        const recs = await storage.getRecommendationsByAssessment(assessment.id);
-        totalRecommendations += recs.length;
-
-        const quiz = await storage.getAssessmentQuizByAssessmentId(assessment.id);
-        if (quiz) {
-          const responses = await storage.getQuizResponsesByQuizId(quiz.id);
-          totalQuizResponses += responses.length;
-        }
-
-        const cvqResult = await storage.getCvqResultByAssessmentId(assessment.id);
-        if (cvqResult) {
-          totalCvqResults++;
-        }
-      }
-
-      res.json({
-        accountCreated: user.createdAt,
-        dataCategories: {
-          profileData: true,
-          assessments: userAssessments.length,
-          careerRecommendations: totalRecommendations,
-          quizResponses: totalQuizResponses,
-          cvqResults: totalCvqResults,
-        },
-        totalRecords: 1 + userAssessments.length + totalRecommendations + totalQuizResponses + totalCvqResults,
-      });
+      res.json(summarizeSubjectAccess(subject));
     } catch (error) {
       console.error("Error fetching data summary:", error);
       res.status(500).json({ message: "Failed to fetch data summary" });
