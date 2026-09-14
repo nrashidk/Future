@@ -225,6 +225,52 @@ and it must not leave the reader guessing whether the student is being punished.
 dialogs are RTL layouts with two adjacent confirm buttons, and button order in an
 RTL flex row is exactly the construction §6 records as having broken before.
 
+### 1.6 "Your data" — a student downloading, then deleting, their own record — NOT YET WRITTEN
+
+**Status: booked, not written.** Added 2026-09-14, before any English or Arabic exists. The
+surface is designed but not built, and it is blocked on the privacy mailbox (FOLLOWUP.md, "STEP 6
+BLOCKED"). **Do not review anything here until the strings land;** this entry reserves the review
+at §1 weight so they are not slotted lower when they arrive.
+
+**Why §1.** After the attestations, this is the highest-consequence copy in the product: a
+13–18 year old confirming the irreversible deletion of their own record. The reader may be on a
+shared school computer, and there is nobody to ask. Every failure mode is one-way:
+- a softened "permanently" deletes a record the student thought was recoverable;
+- an unclear "download first" loses the only copy;
+- a line implying the school must approve tells the student a right is not theirs.
+
+**Where:** a "Your data" section at the bottom of *Profile*, and a separate step-by-step
+deletion page it links to. Keys are provisional.
+
+**The strings it will need, by purpose:**
+
+| group | purpose | notes for review |
+|---|---|---|
+| section | heading; one-sentence intro saying you can take a copy of everything we hold and delete your account | plain register, not legal |
+| section, school students only | that the school created the account, and that deleting it also removes the school's record of them; the school is not asked | must not say or imply the school approves, and must not promise the school is told |
+| export | what the file is: a complete copy, in a format made for other software rather than for reading | must not promise a readable document |
+| export | button; preparing; downloaded; too many downloads in the last hour, try later; failed | the rate-limit line replaces an English server message |
+| erase, step 1 | what will be deleted: seven items matching the server's list — account, assessments, quiz answers, recommendations and report, values results, competency results, school record | each item is its own string, and the list must match what the endpoint actually deletes |
+| erase, step 1 | what is not deleted, where that is true for this reader | depends on an open decision (below) |
+| erase, step 2 | take a copy first: once deleted it cannot be recovered or sent later; download button; an explicit "continue without a copy" | skipping must read as a choice, not as the default |
+| erase, step 3 | "this cannot be undone"; enter your password to confirm (or type your email, for accounts without a password); the final delete button; keep my account | the final button must be unmistakably final |
+| erase, after | signed out, account deleted; failure: nothing was deleted, try again | "nothing was deleted" is a factual claim; the transaction makes it true |
+| refusal, admin | you are the administrator of {{school}}; your account can be deleted after the school is removed; why | replaces an English server message that points to a dead address |
+| refusal, labels | ten labels for records that block erasure, now sent as codes | today English strings built on the server |
+
+**Rendering risks to check once written** (add them to §6 then):
+- `{{school}}` may be Latin script inside the admin refusal sentence.
+- The email and password fields must stay left-to-right inside an RTL page.
+- Counts of assessments and results need Arabic plural forms. This is the §1.5 plural question
+  again, with higher stakes.
+- The final delete button stands alone on its step, not beside the safe option. That has to be
+  verified rendered, below 640px and in Arabic, because the §1.5 dialogs broke exactly there.
+
+**The open decision that constrains the "not deleted" string.** When a detached student later
+deletes their account, their name stays in their former school's activity log (FOLLOWUP.md, "A
+school's activity log keeps an erased student's name"). Until that is decided, the honest string
+for a detached student has to say so.
+
 ---
 ## 2. Student-facing — a 13-18 year old reads these mid-assessment, with nobody to ask
 
