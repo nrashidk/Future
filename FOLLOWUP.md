@@ -3220,6 +3220,19 @@ nobody acts on them as established fact.
    TO VERIFY: attempt a bulk delete of one populated and one empty test school against a real
    database and read the per-org results. Do not do this against production.
 
+   RESOLVED 2026-09-14 — confirmed from the code and fixed without needing the database test.
+   - **54503a4** removed POST /api/admin/organizations, the only route that could produce an
+     empty school.
+   - **3fc4656** made the bulk and single deletes run one transactional sequence
+     (services/organizationDeletion.ts). A reported failure now means nothing was deleted, and
+     bulk results carry ORGANIZATION_HAS_STUDENTS.
+   - **02bf80e** records each deletion in organization_deletions, inside the same transaction.
+
+   The test fake enforces the organizations FKs, and replaying the old bulk body against it
+   reproduces both halves: 23503 for a populated school, and a deleted empty school reported as
+   failed. What stays open is filed under "SCHOOL CREATE/DELETE — WHAT STAYS OPEN", with
+   applyRemovalDisposition first.
+
 2. DELETING A SCHOOL MAY LEAVE ITS STUDENTS' ACCOUNTS AND ASSESSMENTS BEHIND.
    Single-org delete (superadmin.routes.ts:1431-1467) removes organization_members, events and
    files, then the org. It does not touch the users rows those member rows pointed at, or their
@@ -5698,3 +5711,101 @@ attester's name and email survive both the school and the attester.
 - **Revisit** alongside `organization_consents` if a retention schedule is ever written. Until
   then, do not add a cascade, null the name at erasure, or drop the email without a decision
   recorded here that supersedes this one.
+
+## SCHOOL CREATE/DELETE — WHAT STAYS OPEN after 54503a4, 3fc4656, 02bf80e (filed 2026-09-14)
+
+Ordered by severity. The first is above the others deliberately.
+
+### 1. applyRemovalDisposition writes its event AFTER the transaction  (severity: MEDIUM — first)
+`admin.routes.ts:165-212`. The erase or detach and the licence recompute commit together inside
+`db.transaction` (:174-185). `storage.createOrganizationEvent` then runs afterwards (:197), on its
+own connection. If that insert fails, the removal has committed with no event, and the route's
+catch reports a 500 for a removal that happened.
+
+**Same class as the bulk-delete misreport fixed in 3fc4656** — a committed act reported as
+failed, with its audit row lost — but on the path that runs routinely rather than never. It is
+behind every student removal: the single-member route (:1206) and the bulk member route (:1281).
+
+**It also undermines the premise 54503a4 relies on.** That commit argues the empty-school state
+is unreachable because every removal writes an event. This is the one place that premise can fail.
+A group-purchase school has no creation event (storage.createGroupPurchaseTransaction writes a
+member, not an event), so if its removal events are the ones that fail, the school ends with no
+events at all. It still has its admin member, so the bulk delete is not reachable through it —
+but the claim was "every removal writes an event", and here it does not.
+
+Fix shape, not applied: write the event inside the same transaction with `tx`, still without
+`affected_user_id`. That is safe for 'erase' too, since the row names the student in text and holds
+no FK to the deleted user. `storage.createOrganizationEvent` takes no transaction handle, so this
+needs a `tx` parameter or a direct `tx.insert(organizationEvents)`. Separate commit, with a test
+that fails the insert and asserts the removal rolled back.
+
+### 2. Schools created by the removed route are not repaired — run this before assuming none exist
+54503a4 stops new ones; it does nothing for rows the route already created. **`is_primary_admin` is
+not a signature for them on its own**: only create-with-admin sets it. Group purchase and the seed
+both create an admin member without it (`storage.ts` createGroupPurchaseTransaction; `seed.ts`), so
+a bare "no primary admin" query returns those schools too. The columns below separate them:
+
+```sql
+-- Schools with no primary-admin member, with the columns that tell their origin apart.
+-- create-with-admin always sets is_primary_admin, and nothing can remove a primary admin
+-- (superadmin admin removal refuses it; an admin cannot self-erase), so its schools never
+-- appear. What remains is group purchase, the seed, or the removed bare POST.
+SELECT
+  o.id,
+  o.name,
+  o.created_at,
+  o.admin_user_id,
+  (o.stripe_payment_id IS NOT NULL)                                            AS via_group_purchase,
+  EXISTS (SELECT 1 FROM organization_members m
+          WHERE m.organization_id = o.id AND m.user_id = o.admin_user_id)      AS registered_admin_is_member,
+  (SELECT count(*) FROM organization_members m
+     WHERE m.organization_id = o.id AND m.role = 'admin')                      AS admin_members,
+  (SELECT count(*) FROM organization_members m
+     WHERE m.organization_id = o.id AND m.role = 'student')                    AS students,
+  (SELECT count(*) FROM organization_events e WHERE e.organization_id = o.id)  AS events,
+  (SELECT min(e.created_at) FROM organization_events e
+     WHERE e.organization_id = o.id AND e.event_type = 'admin_added')          AS first_admin_added_at
+FROM organizations o
+WHERE NOT EXISTS (
+  SELECT 1 FROM organization_members m
+  WHERE m.organization_id = o.id AND m.is_primary_admin
+)
+ORDER BY o.created_at;
+```
+
+**Reading it:**
+- `via_group_purchase = true`: group purchase, which is expected.
+- The seeded "Test High School": the seed, which is expected.
+- **Anything else** is a bare-POST school. Such a school started with no member at all, so
+  `registered_admin_is_member = false` means it was never repaired. `true` with
+  `first_admin_added_at` well after `created_at` means someone added the admin later by hand.
+
+Not run: there is no database in this environment. Read-only, and safe against production.
+
+### 3. Four storage helpers have no callers  (severity: low)
+`storage.deleteOrganization`, `deleteOrganizationEventsByOrgId`, `deleteFilesByOrganizationId` and
+`bulkDeleteOrganizationMembers` (storage.ts, "Organization deletion" and member operations). The
+first is the bare `DELETE FROM organizations` the bulk route used to call. Leaving it on the
+`IStorage` interface invites the next caller to repeat that bug. Remove all four in one commit.
+
+### 4. The bulk-delete toast shows counts only  (severity: low)
+`SuperadminDashboard.tsx` bulkDeleteOrgsMutation renders "N succeeded, M failed". The per-school
+`error`, and now `code: "ORGANIZATION_HAS_STUDENTS"` with `studentCount`, never reach the operator,
+who is told a school failed but not that it still has students to remove first.
+
+### 5. Bulk delete runs up to 50 transactions concurrently  (severity: low, unmeasured)
+`Promise.all` over `orgIds` (max 50), and each `db.transaction` holds a dedicated connection until
+it commits. Before 3fc4656 these were single autocommit statements. Not observed to fail. Worth a
+sequential loop if a 50-school batch ever times out or starves the pool.
+
+### 6. Migration 026 has not been applied anywhere yet  (severity: process)
+Written and checked against `shared/schema.ts` by reading only — no database here. On the first
+deploy, confirm that `schema_migrations` lists `026_organization_deletions.sql` and that
+`drizzle-kit push` reports no drift for `organization_deletions`. Until it is applied, both delete
+endpoints fail inside the transaction, so no school is deleted and no misreport occurs.
+
+### 7. docs/org-delete-recon.md §3 is now stale on one point
+It says events are deleted "in exactly one place" via `deleteOrganizationEventsByOrgId`. The single
+delete had already moved to a direct `tx.delete`, and since 3fc4656 both paths delete events through
+services/organizationDeletion.ts. That helper has no callers (item 3). The recon is a dated
+snapshot, so it is corrected here rather than edited.
