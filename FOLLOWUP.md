@@ -5733,6 +5733,13 @@ member, not an event), so if its removal events are the ones that fail, the scho
 events at all. It still has its admin member, so the bulk delete is not reachable through it —
 but the claim was "every removal writes an event", and here it does not.
 
+**OBSERVED 2026-09-14, not only reasoned about.** Running the item 2 query against production
+returned one school, the seeded "Test High School": registered admin is a member, 1 admin, 6
+students, **0 events**. The seed writes a member and no creation event, so it is a live instance of
+a school with an admin member and no creation event. Its zero events also means any removal from
+it has been unrecorded since it was seeded — whether because none has happened or because an
+insert failed cannot be told from the row. That ambiguity is the defect.
+
 Fix shape, not applied: write the event inside the same transaction with `tx`, still without
 `affected_user_id`. That is safe for 'erase' too, since the row names the student in text and holds
 no FK to the deleted user. `storage.createOrganizationEvent` takes no transaction handle, so this
@@ -5780,7 +5787,11 @@ ORDER BY o.created_at;
   `registered_admin_is_member = false` means it was never repaired. `true` with
   `first_admin_added_at` well after `created_at` means someone added the admin later by hand.
 
-Not run: there is no database in this environment. Read-only, and safe against production.
+Not run from this environment, which has no database. Read-only, and safe against production.
+
+**RUN 2026-09-14 against production — nothing to repair.** One row: "Test High School", the seed.
+`registered_admin_is_member` true, 1 admin, 6 students, 0 events. No school was ever created
+through the removed bare POST. The row's zero events is recorded under item 1.
 
 ### 3. Four storage helpers have no callers  (severity: low)
 `storage.deleteOrganization`, `deleteOrganizationEventsByOrgId`, `deleteFilesByOrganizationId` and
