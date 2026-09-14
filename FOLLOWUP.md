@@ -2110,6 +2110,34 @@ Profile.tsx screen that position 4 (docs/consent-implementation-recon.md, sugges
 export is not required for step 6 to be safe, but shipping step 6 without it means the first
 thing a student exercising their rights receives is incomplete.
 
+RESOLVED 2026-09-14 (891c120). Export and data-summary now read one enumeration,
+server/services/subjectAccess.ts. What landed, and the forks that could have gone the other way:
+
+- **Derived, and guarded where nothing else guards.** SUBJECT_ACCESS_REGISTRY classifies every FK
+  that reaches a user's data as subject or actor. Its test walks the real FK graph with
+  drizzle's getTableConfig and fails on an unclassified column; removing the wef assessment_id
+  entry was confirmed to fail it by name. The actor half *is* BLOCKING_AUDIT_SOURCES, so the
+  erasure 409 and the export cannot list different audit records.
+- **More than erasure's subject set, for three stated reasons.** Erasure is a row operation that
+  Postgres partly enforces; export chooses rows *and* columns and nothing enforces either. So it
+  adds: the users columns erasure never had to think about (by exclusion — only passwordHash is
+  withheld); CASCADE rows erasure could ignore (llm_narrative_cache, password reset request
+  dates without the token values); and a source no FK reaches — 'student_detached' events that
+  name the student in free text, matched by username and required to post-date the account so a
+  reused username cannot return a previous holder's name.
+- **Actor rows are counted, not returned.** They carry other people's personal data (Art. 15(4)).
+  heldButNotIncluded lists each non-empty BLOCKING_AUDIT_SOURCES label with a count and the
+  privacy contact, beside the withheld credentials and sessions.
+- **organization_consents both ways.** An attester's own rows are returned in full — they carry
+  no one else's data and survive that person's erasure. A student gets the attestation that
+  covered their enrolment: the latest on or before organization_members.created_at, NOT
+  getCurrentOrganizationConsent. The response states its basis; when none predates enrolment it
+  says so rather than substituting a later one; the attester's name, email, IP and browser are
+  withheld and the note says why.
+- **data-summary is computed from the export**, so totalRecords counts the file and nothing else.
+
+NOT DONE HERE, filed below: rewiring erasure onto the same registry.
+
 ### Brand name is authored independently in five layers  (severity: low, but blocks a rename)
 "Future Pathways" appears 58 times across 21 files with no canonical definition: i18n locales
 (31, of which 11 are in legal.json), hardcoded JSX bypassing i18n (Footer.tsx x2,
@@ -5084,8 +5112,8 @@ export/delete in `Profile.tsx`". The recon framed position 4 as "the route exist
 not" — a UI gap in front of working machinery. That framing was too kind. **The door was missing
 AND the route behind it was broken for the students it exists for**, so step 6 as written would
 have routed a 13-year-old exercising their erasure right to a 500. The step is now genuinely a
-UI step; it was not before. Its export half still under-returns — see "Subject-access export
-omits everything the school recorded" above, extended the same day.
+UI step; it was not before. Its export half under-returned until 2026-09-14 — see "Subject-access
+export omits everything the school recorded" above, now resolved (891c120).
 
 The fix enumerates the dependent list mechanically from the FK graph rather than by hand
 (docs/erasure-dependent-list.md) and deletes by owner rather than by parent id, so the list is
@@ -5550,3 +5578,49 @@ name-form) but that is a fact about today's data, not a guarantee.
 - **The LLM importer still trusts `q.grade` and `q.curriculum`**, the same echo-of-a-known-value
   pattern that `q.subject` was. Neither is compared against the request. Not in scope for the
   subject work.
+
+### A school's activity log keeps an erased student's name  (severity: needs human decision)
+When a school removes a student with the 'erase' disposition, admin.routes.ts:199-210 writes a
+`student_erased` event whose description reads "Removed student <name> and **permanently deleted
+their record**", and whose `previous_value` holds `{studentName, username}`. The record is gone;
+the name is not, and the sentence recording the deletion is the thing that keeps it.
+
+A second path reaches the same state: a student who was *detached* (`student_detached`, same
+fields) and later erases their own account through `DELETE /api/users/me`. That response
+enumerates what it deleted and does not claim the log entry, so it is not untrue — but nothing
+tells the student their name remains in their former school's log.
+
+Both events deliberately omit `affected_user_id` (comment at admin.routes.ts:187-196), which is
+why no FK walk — erasure's or the export registry's — finds them. The subject-access export does
+return the detach event to a student who still has an account (891c120); nothing can return
+either event to someone already erased.
+
+The decision is not technical. Options, roughly: keep the name (the school's accountability for
+who it removed is the log's purpose); keep only the username or a school-issued student id; or
+replace the name at erasure time with a placeholder and keep the event. Whichever is chosen,
+the 'erase' description should stop saying "permanently deleted their record" beside the name it
+keeps. First flagged 2026-09-14.
+
+### Erasure should consume SUBJECT_ACCESS_REGISTRY  (severity: low today, and why it is not zero)
+Deliberately not done in 891c120: erasure works, and restructuring the correct half to fit the
+fixed one was a risk with no bug behind it. So there are now two classifications of the same FK
+graph — `eraseUserData`'s delete sequence and `SUBJECT_ACCESS_REGISTRY` — and only the second is
+pinned to the schema by a test.
+
+WHY IT IS NOT ZERO. Erasure's current defence is Postgres: a missed NOT NULL / NO ACTION child
+throws 23503. That defence is silent for exactly the shapes a new table is likely to have — a
+nullable user reference, `ON DELETE SET NULL`, or a user id stored without an FK. Such a row
+would survive erasure with no error, and the response's enumeration would not mention it. The
+export test would catch the table; erasure would not notice.
+
+What the change would be: drive the delete sequence's table list from the registry's subject
+entries (keeping delete-by-owner and the two-predicate cvq/wef rule), and add an erasure-side
+assertion that every subject entry has a delete. Keep BLOCKING_AUDIT_SOURCES as the actor list it
+already is. First flagged 2026-09-14.
+
+### CORRECTED 2026-09-14 — `files.uploaded_by` is not superadmin-only (635eb64)
+docs/erasure-dependent-list.md §1c and the accountErasure.ts comment said it was, checking only
+`POST /api/files/upload` (isAdmin). The student bulk import also writes `uploadedBy`
+(admin.routes.ts:2347) and admits an org admin. No behaviour change — neither writer admits a
+student, and such an admin is already refused by `organizations.admin_user_id` — but the claim
+was wrong when written, and is corrected in both places.
