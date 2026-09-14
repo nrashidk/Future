@@ -33,6 +33,7 @@ import TranslationManager from "@/components/admin/TranslationManager";
 import { CredentialsModal } from "@/components/CredentialsModal";
 import { useTranslation } from "react-i18next";
 import { ONET_GROWTH_BANDS, GROWTH_BAND_I18N } from "@shared/growthBands";
+import { summarizeBulkDelete } from "@/lib/bulkDeleteSummary";
 
 interface Metrics {
   totalSchools: number;
@@ -411,12 +412,16 @@ export default function SuperadminDashboard() {
       return res.json();
     },
     onSuccess: (data: any) => {
-      const successCount = data.results.filter((r: any) => r.success).length;
-      const failCount = data.results.filter((r: any) => !r.success).length;
-      toast({ 
+      // Each school's reason, not only a count — lib/bulkDeleteSummary.ts.
+      const summary = summarizeBulkDelete(data.results, (key, options) => t(key, options));
+      toast({
         title: t('superadmin.bulkDeleteComplete'),
-        description: t('superadmin.bulkDeleteResult', { success: successCount, fail: failCount }),
-        variant: failCount > 0 ? "destructive" : "default"
+        description: (
+          <div className="space-y-1">
+            {summary.lines.map((line, i) => <p key={i}>{line}</p>)}
+          </div>
+        ),
+        variant: summary.hasFailures ? "destructive" : "default"
       });
       setSelectedOrgIds(new Set());
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations'] });

@@ -1692,7 +1692,9 @@ export function registerSuperadminRoutes(app: Express) {
         try {
           const outcome = await deleteOrganizationWithDependents(db, orgId, performerFrom(currentUser));
           if (outcome.status === "not_found") {
-            return { orgId, name: null, success: false, error: "Organization not found" };
+            // A code, so the dashboard can say "no longer exists" without matching
+            // on English text — the catch below also returns name: null.
+            return { orgId, name: null, success: false, code: "ORGANIZATION_NOT_FOUND", error: "Organization not found" };
           }
           if (outcome.status === "has_students") {
             return {
@@ -1705,12 +1707,16 @@ export function registerSuperadminRoutes(app: Express) {
             };
           }
 
-          // Console, not a row — the same as the single delete, for the same reason.
+          // The record is the organization_deletions row the sequence wrote in the
+          // same transaction; this line is operational logging only.
           console.log(`[Superadmin] Organization "${outcome.organizationName}" (${orgId}) deleted by user ${currentUser?.id} (bulk)`);
           return { orgId, name: outcome.organizationName, success: true };
         } catch (error: any) {
           // The sequence runs in one transaction, so reaching here means nothing
-          // was deleted: a reported failure is now a true one.
+          // was deleted: a reported failure is now a true one. Logged because the
+          // dashboard deliberately does not show a raw error to the operator, so
+          // this is the only place it is seen.
+          console.error(`[Superadmin] Bulk delete of organization ${orgId} failed:`, error);
           return { orgId, name: null, success: false, error: error.message || "Unknown error" };
         }
       }));

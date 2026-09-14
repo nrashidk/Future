@@ -359,7 +359,7 @@ describe("both delete endpoints", () => {
       expect.objectContaining({
         orgId: "org-s", success: false, code: "ORGANIZATION_HAS_STUDENTS", studentCount: 1,
       }),
-      { orgId: "org-missing", name: null, success: false, error: "Organization not found" },
+      { orgId: "org-missing", name: null, success: false, code: "ORGANIZATION_NOT_FOUND", error: "Organization not found" },
     ]);
     expect(store.rows(organizations).map((o) => o.id)).toEqual(["org-s"]);
     expect(store.rows(organizationDeletions).map((d) => d.organizationId)).toEqual(["org-a"]);

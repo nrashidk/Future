@@ -643,6 +643,34 @@ four shape-mirrors on the edit-student form (`updateStudentBtn`, `updatingStuden
 Individually low-risk. Worth a **skim as a group** for house voice, since none of them
 was written as Arabic — they were written as copies of the Arabic next to them.
 
+### 3.7 The bulk school-delete result — why each school was not deleted
+
+**Where:** the toast after a superadmin selects several schools on the *Superadmin
+Dashboard* and deletes them. It replaced a bare "N deleted, M failed" count. Added
+2026-09-14; the Arabic below was drafted alongside the English and **has not been read by
+an Arabic speaker**.
+
+| key | EN | AR |
+|---|---|---|
+| `superadmin.bulkDeleteHasStudents` | {{school}} still has {{count}} enrolled student(s). Remove them from the school first. | لا يزال لدى {{school}} {{count}} من الطلبة المسجّلين. أزِلهم من المدرسة أولًا. |
+| `superadmin.bulkDeleteNotFound` | A selected school no longer exists. | إحدى المدارس المحددة لم تعد موجودة. |
+| `superadmin.bulkDeleteFailedUnexpected` | A school could not be deleted. Nothing was changed. | تعذّر حذف إحدى المدارس. لم يُغيَّر أي شيء. |
+| `superadmin.bulkDeleteMoreFailures` | …and {{count}} more not deleted. | …و{{count}} أخرى لم تُحذف. |
+
+**`bulkDeleteHasStudents` is the one that matters.** It is the only failure an operator can
+act on, and it tells them to go and remove students — the step that makes each student's
+erase-or-detach choice (§1.5). What to check:
+
+- **Rendering.** `{{school}}` and `{{count}}` sit next to each other with no Arabic word
+  between them, and a school name can be Latin script. Listed in §6.
+- **The term for students.** This uses الطلبة, matching §1.4's consent card. The removal
+  dialog in §1.5 uses الطلاب. Pick one for the admin screens.
+
+**`bulkDeleteFailedUnexpected` makes a factual claim, "nothing was changed".** It is true:
+each school is deleted in one transaction, so a failure leaves it exactly as it was. If the
+Arabic softens that to something like "may not have been deleted", it tells the operator the
+opposite of what happened.
+
 ---
 
 ## 4. Marketing and landing — lowest consequence, highest visibility
@@ -846,6 +874,8 @@ in the rendering and not the words:
 | the native date picker (§3.2) | not ours at all — the browser supplies month names and ordering |
 | `{{n}}` LEADING both bucket strings in the removal dialog (§1.5) | a digit at the START of an Arabic sentence, not mid-clause — an untested variant of the shape that failed on the step cards |
 | the two adjacent confirm buttons in the removal dialog (§1.5) | button ORDER in an RTL flex row. One preserves a record and one destroys it; if they swap visually, the destructive button sits where the safe one is expected. §1 weight, and rendering-only — the text cannot reveal it |
+| `{{school}} {{count}}` in `superadmin.bulkDeleteHasStudents` (§3.7) | a school name that may be Latin script IMMEDIATELY followed by a digit, with no Arabic word between them. The bidi algorithm can merge them into one left-to-right run, so the name and the number read as one token or swap order |
+| `…و{{count}}` in `superadmin.bulkDeleteMoreFailures` (§3.7) | a leading ellipsis, then the conjunction و joined directly to a digit |
 
 **How to see them.** The app can be run locally and rendered in Arabic with headless
 Chrome — the recipe, including the system libraries and how to force the Arabic locale,
