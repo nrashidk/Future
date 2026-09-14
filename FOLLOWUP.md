@@ -5808,13 +5808,43 @@ Not run from this environment, which has no database. Read-only, and safe agains
 `registered_admin_is_member` true, 1 admin, 6 students, 0 events. No school was ever created
 through the removed bare POST. The row's zero events is recorded under item 1.
 
-### 3. Four storage helpers have no callers  (severity: low)
+### 3. Four storage helpers have no callers — FIXED 2026-09-14 (9d5cad2)  (was: low)
+
+**RESOLVED.** All four removed, with their `IStorage` declarations. Callers were re-checked
+immediately before removal rather than taken from this entry. The only references each had were
+its own declaration and implementation. Afterwards, the one remaining word-match is the note left
+where `deleteOrganization` was declared, saying schools are deleted only by
+services/organizationDeletion.ts. Two `organization_consents` comments in shared/schema.ts that
+named `storage.deleteOrganization` were corrected in the same commit.
+
+The original entry follows.
+
 `storage.deleteOrganization`, `deleteOrganizationEventsByOrgId`, `deleteFilesByOrganizationId` and
 `bulkDeleteOrganizationMembers` (storage.ts, "Organization deletion" and member operations). The
 first is the bare `DELETE FROM organizations` the bulk route used to call. Leaving it on the
 `IStorage` interface invites the next caller to repeat that bug. Remove all four in one commit.
 
-### 4. The bulk-delete toast shows counts only  (severity: low)
+### 4. The bulk-delete toast shows counts only — FIXED 2026-09-14 (1cd39fa)  (was: low)
+
+**RESOLVED, except the Arabic review.** client/src/lib/bulkDeleteSummary.ts builds the toast:
+- the count, then up to three per-school reasons, then "and N more"
+- the three reasons: a school that still has students (with the count), a school that no longer
+  exists, and an unexpected failure. The unexpected-failure line never shows the raw server error
+  and says "Nothing was changed", which the per-school transaction makes true.
+
+Server side, bulk results for a missing school carry `ORGANIZATION_NOT_FOUND`, and the route's
+catch block logs the error. The toast component itself is not rendered in any test, because
+vitest is node-only here.
+
+**Still open: the four Arabic strings are drafts.** They are in docs/arabic-review-pack.md §3.7,
+with two rendering risks in §6. The helper's test checks that both locales carry the keys, not
+that the Arabic is right.
+
+**A stale comment was corrected in the same commit.** 02bf80e left the bulk route saying "Console,
+not a row — the same as the single delete". Both paths had been writing an organization_deletions
+row since that commit.
+
+The original entry follows.
 `SuperadminDashboard.tsx` bulkDeleteOrgsMutation renders "N succeeded, M failed". The per-school
 `error`, and now `code: "ORGANIZATION_HAS_STUDENTS"` with `studentCount`, never reach the operator,
 who is told a school failed but not that it still has students to remove first.
