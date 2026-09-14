@@ -12,10 +12,8 @@ import * as fileStorage from "../services/fileStorage";
 import { isUniqueViolation } from "../utils/pgErrors";
 import Stripe from "stripe";
 import { db } from "../db";
-import { eq } from "drizzle-orm";
-import {
-  organizations, organizationMembers, organizationEvents, files, quizQuestions,
-} from "@shared/schema";
+// Both school-delete endpoints run this one sequence.
+import { deleteOrganizationWithDependents, enrolledStudentsMessage } from "../services/organizationDeletion";
 
 // Initialize Stripe only if keys are configured
 let stripe: Stripe | null = null;
@@ -1536,87 +1534,32 @@ export function registerSuperadminRoutes(app: Express) {
   
   app.delete("/api/superadmin/organizations/:id", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
     try {
-      const org = await storage.getOrganizationById(req.params.id);
-      if (!org) {
-        return res.status(404).json({ message: "Organization not found" });
-      }
-      
       const orgId = req.params.id;
 
-      // REFUSE WHILE STUDENTS ARE ENROLLED. Deleting a school and disposing of
-      // its students' records are different acts, and this endpoint must not
-      // perform the second as a side effect of the first.
-      //
-      // It used to. Removing the member rows here left every student's user
-      // account, assessments and results behind, with working credentials and no
-      // school — so one typed school name silently orphaned a whole roster of
-      // minors' records, with nobody having chosen what should happen to them.
-      //
-      // The removal endpoints now answer that question explicitly, per student,
-      // with 'erase' or 'detach' and the counts visible before confirming
-      // (admin.routes.ts). This 409 routes the superadmin there rather than
-      // guessing on their behalf: clear the roster deliberately, then delete the
-      // school that is left.
-      const members = await storage.getOrganizationMembersByOrganizationId(orgId);
-      const students = members.filter(m => m.role === 'student');
-      if (students.length > 0) {
+      // The same sequence as the bulk endpoint — services/organizationDeletion.ts.
+      // It locks the school, refuses while students are enrolled, and clears
+      // what held the school open, all in one transaction.
+      const outcome = await deleteOrganizationWithDependents(db, orgId);
+      if (outcome.status === "not_found") {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+      if (outcome.status === "has_students") {
         return res.status(409).json({
-          message:
-            `${org.name} still has ${students.length} enrolled student(s). Remove them from the ` +
-            `school first, choosing for each whether to keep their account and report or delete ` +
-            `their record — deleting the school cannot make that choice for them.`,
+          message: enrolledStudentsMessage(outcome.organizationName, outcome.studentCount),
           code: "ORGANIZATION_HAS_STUDENTS",
-          studentCount: students.length,
+          studentCount: outcome.studentCount,
         });
       }
 
-      // ONE TRANSACTION. These were five separate statements in autocommit, so a
-      // failure part-way left the school half-dismantled: members gone, events
-      // gone, organization still there, and no way to tell from the row itself.
-      await db.transaction(async (tx) => {
-        // Admin membership rows only — the student check above already passed.
-        await tx.delete(organizationMembers).where(eq(organizationMembers.organizationId, orgId));
-        await tx.delete(organizationEvents).where(eq(organizationEvents.organizationId, orgId));
-        await tx.delete(files).where(eq(files.organizationId, orgId));
-
-        // CLEARED BY NEITHER PATH BEFORE THIS, and it is the FK that made schools
-        // permanently undeletable: quiz_questions.contributed_by_org_id is set
-        // when a superadmin approves a contributed question
-        // (contribution.routes.ts:523) and has no cascade, so one approved
-        // question held the organization open forever.
-        //
-        // SET NULL rather than DELETE. The questions are shared bank content
-        // served to every student regardless of school; removing them because the
-        // contributing school closed would silently shrink the question bank. The
-        // column has one writer and no readers anywhere, so nulling it changes no
-        // behaviour — it only drops provenance, which is left as an open
-        // question in docs/org-delete-student-disposition.md (sections 1 and 4.2) rather
-        // settled here: there is an unused index on the column, so attribution
-        // was plausibly meant to be reportable, and preserving it would mean
-        // denormalising the school name the way organization_consents does.
-        //
-        // contribution_submissions and contribution_rewards CASCADE on the
-        // organization, and organization_consents is ON DELETE SET NULL by
-        // design (schema.ts:1521-1541) so the consent record outlives the school
-        // it evidences. Nothing to write for either.
-        await tx.update(quizQuestions)
-          .set({ contributedByOrgId: null })
-          .where(eq(quizQuestions.contributedByOrgId, orgId));
-
-        await tx.delete(organizations).where(eq(organizations.id, orgId));
-      });
-
       // Console, not a row. An organization_events row would FK to the
-      // organization that was just deleted and could not persist — the mistake
-      // the bulk endpoint still makes, where the INSERT fails AFTER the delete
-      // commits and the superadmin is told the deletion failed.
+      // organization that was just deleted and could not persist.
       //
       // KNOWN REMAINDER: the school's ADMIN user accounts survive this, as their
       // membership rows are deleted but their users rows are not. They are adults
       // with their own credentials rather than minors' records, so they are out of
       // scope for the student disposition work, but nothing cleans them up.
       const currentUser = (req as any).currentUser;
-      console.log(`[Superadmin] Organization "${org.name}" (${orgId}) deleted by user ${currentUser?.id}`);
+      console.log(`[Superadmin] Organization "${outcome.organizationName}" (${orgId}) deleted by user ${currentUser?.id}`);
 
       res.json({ success: true, message: "Organization deleted successfully" });
     } catch (error) {
@@ -1736,30 +1679,36 @@ export function registerSuperadminRoutes(app: Express) {
       
       const currentUser = (req as any).currentUser;
       
+      // THE SAME SEQUENCE AS THE SINGLE DELETE, per school. This used to issue a
+      // bare DELETE FROM organizations, which 23503'd for every school with a
+      // member, event, file or contributed question, and for an empty school
+      // committed the delete and then inserted an organization_deleted event
+      // against the id it had just removed — so a deleted school was reported as
+      // failed. Two endpoints doing different things to the same destructive act
+      // was the defect; see services/organizationDeletion.ts.
       const results = await Promise.all(orgIds.map(async (orgId: string) => {
         try {
-          const org = await storage.getOrganizationById(orgId);
-          if (!org) {
+          const outcome = await deleteOrganizationWithDependents(db, orgId);
+          if (outcome.status === "not_found") {
             return { orgId, name: null, success: false, error: "Organization not found" };
           }
-          
-          const deleted = await storage.deleteOrganization(orgId);
-          if (!deleted) {
-            return { orgId, name: org.name, success: false, error: "Failed to delete" };
+          if (outcome.status === "has_students") {
+            return {
+              orgId,
+              name: outcome.organizationName,
+              success: false,
+              code: "ORGANIZATION_HAS_STUDENTS",
+              studentCount: outcome.studentCount,
+              error: enrolledStudentsMessage(outcome.organizationName, outcome.studentCount),
+            };
           }
-          
-          await storage.createOrganizationEvent({
-            organizationId: orgId,
-            eventType: "organization_deleted",
-            eventDescription: `Organization "${org.name}" was deleted (bulk operation)`,
-            performedBy: currentUser.id,
-            performedByRole: "superadmin",
-            previousValue: { name: org.name, totalLicenses: org.totalLicenses },
-            newValue: null,
-          });
-          
-          return { orgId, name: org.name, success: true };
+
+          // Console, not a row — the same as the single delete, for the same reason.
+          console.log(`[Superadmin] Organization "${outcome.organizationName}" (${orgId}) deleted by user ${currentUser?.id} (bulk)`);
+          return { orgId, name: outcome.organizationName, success: true };
         } catch (error: any) {
+          // The sequence runs in one transaction, so reaching here means nothing
+          // was deleted: a reported failure is now a true one.
           return { orgId, name: null, success: false, error: error.message || "Unknown error" };
         }
       }));
