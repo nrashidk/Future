@@ -1,5 +1,6 @@
 /**
- * Both school-delete endpoints must do the same thing, and report it truthfully.
+ * Both school-delete endpoints must do the same thing, report it truthfully,
+ * and leave a record exactly when the school is gone.
  *
  * THE DEFECT THIS PINS. DELETE /api/superadmin/organizations/:id ran a guarded,
  * transactional sequence. POST /api/superadmin/organizations/bulk/delete ran a
@@ -11,8 +12,9 @@
  *
  * WHY THE FAKE ENFORCES FOREIGN KEYS AND ROLLS BACK. A test that only checked
  * which statements ran would pass against a sequence that still strands a row,
- * and "failure means nothing happened" is only a claim if a failure mid-way
- * actually leaves the store as it was.
+ * and both "failure means nothing happened" and "a record exists iff the delete
+ * committed" are only claims if a failure mid-way actually leaves the store as
+ * it was.
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
@@ -20,6 +22,7 @@ import express from "express";
 import type { AddressInfo } from "net";
 import {
   organizations, organizationMembers, organizationEvents, files, quizQuestions,
+  organizationDeletions,
 } from "@shared/schema";
 
 vi.mock("drizzle-orm", async (importOriginal) => {
@@ -33,11 +36,15 @@ vi.mock("drizzle-orm", async (importOriginal) => {
 
 let store: Store;
 
+const SUPERADMIN = {
+  id: "u-super", firstName: "Sam", lastName: "Super", email: "sam@platform.example", role: "superadmin",
+};
+
 vi.mock("../db", () => ({
   db: { transaction: (cb: any) => makeDb(store).transaction(cb) },
 }));
 vi.mock("../storage", () => ({
-  storage: { getUser: async (id: string) => ({ id, email: null, role: "superadmin" }) },
+  storage: { getUser: async () => SUPERADMIN },
   CurriculumRenameError: class {},
 }));
 vi.mock("../auth", () => ({
@@ -47,13 +54,13 @@ vi.mock("../auth", () => ({
   },
 }));
 
-const { getTableColumns } = await import("drizzle-orm");
-const { deleteOrganizationWithDependents } = await import("./organizationDeletion");
+const { getTableColumns, eq } = await import("drizzle-orm");
+const { deleteOrganizationWithDependents, performerFrom } = await import("./organizationDeletion");
 const { registerSuperadminRoutes } = await import("../routes/superadmin.routes");
 
 // ---------------------------------------------------------------- fake db ---
 
-const TABLES = [organizations, organizationMembers, organizationEvents, files, quizQuestions];
+const TABLES = [organizations, organizationMembers, organizationEvents, files, quizQuestions, organizationDeletions];
 const COLS = new Map<any, string>();
 for (const t of TABLES) for (const [k, c] of Object.entries(getTableColumns(t))) COLS.set(c, k);
 const keyOf = (col: any) => COLS.get(col)!;
@@ -70,6 +77,7 @@ type Row = Record<string, any>;
 class Store {
   data = new Map<any, Row[]>();
   failOnUpdateOf: any = null;
+  failOnInsertOf: any = null;
   constructor() { for (const t of TABLES) this.data.set(t, []); }
   rows(t: any) { return this.data.get(t)!; }
   add(t: any, ...rows: Row[]) { this.rows(t).push(...rows); }
@@ -85,21 +93,29 @@ function match(cond: any, row: Row): boolean {
   throw new Error(`unsupported condition: ${cond.__k}`);
 }
 
+const project = (rows: Row[], shape: Record<string, any>) =>
+  rows.map((r) => Object.fromEntries(Object.entries(shape).map(([alias, col]) => [alias, r[keyOf(col)]])));
+
+/** A statement that has already run: awaitable, or `.returning(shape)`. */
+function done(affected: Row[]) {
+  return {
+    returning: (shape: Record<string, any>) => Promise.resolve(project(affected, shape)),
+    then: (ok: any, bad: any) => Promise.resolve(undefined).then(ok, bad),
+  };
+}
+
 function makeDb(s: Store) {
   const tx = {
     select(shape: Record<string, any>) {
       return {
         from(table: any) {
           let cond: any;
-          const run = () => s.rows(table).filter((r) => match(cond, r)).map((r) => {
-            const out: Row = {};
-            for (const [alias, col] of Object.entries(shape)) out[alias] = r[keyOf(col)];
-            return out;
-          });
           const chain: any = {
             where(c: any) { cond = c; return chain; },
             for(_mode: string) { return chain; },
-            then(ok: any, bad: any) { return Promise.resolve().then(run).then(ok, bad); },
+            then(ok: any, bad: any) {
+              return Promise.resolve().then(() => project(s.rows(table).filter((r) => match(cond, r)), shape)).then(ok, bad);
+            },
           };
           return chain;
         },
@@ -107,7 +123,7 @@ function makeDb(s: Store) {
     },
     delete(table: any) {
       return {
-        where: async (c: any) => {
+        where(c: any) {
           const victims = s.rows(table).filter((r) => match(c, r));
           if (table === organizations) {
             for (const child of CHILDREN) {
@@ -117,15 +133,18 @@ function makeDb(s: Store) {
             }
           }
           s.data.set(table, s.rows(table).filter((r) => !victims.includes(r)));
+          return done(victims);
         },
       };
     },
     update(table: any) {
       return {
         set: (values: Row) => ({
-          where: async (c: any) => {
+          where(c: any) {
             if (s.failOnUpdateOf === table) throw new Error("simulated failure mid-sequence");
-            for (const r of s.rows(table)) if (match(c, r)) Object.assign(r, values);
+            const hit = s.rows(table).filter((r) => match(c, r));
+            for (const r of hit) Object.assign(r, values);
+            return done(hit);
           },
         }),
       };
@@ -133,6 +152,7 @@ function makeDb(s: Store) {
     insert(table: any) {
       return {
         values: async (row: Row) => {
+          if (s.failOnInsertOf === table) throw new Error("simulated failure writing the record");
           if (table === organizationEvents && !s.rows(organizations).some((o) => o.id === row.organizationId)) {
             throw new Error(`23503 foreign_key_violation: insert on "organization_events" references a missing organization`);
           }
@@ -155,7 +175,7 @@ function makeDb(s: Store) {
   };
 }
 
-/** The bulk delete's per-org body before this commit, against the same fake. */
+/** The bulk delete's per-org body before this work, against the same fake. */
 async function legacyBulkDeleteOne(db: any, orgId: string) {
   try {
     const [org] = await db.select({ id: organizations.id, name: organizations.name })
@@ -170,7 +190,6 @@ async function legacyBulkDeleteOne(db: any, orgId: string) {
     return { success: false, error: error.message };
   }
 }
-const { eq } = await import("drizzle-orm");
 
 // ------------------------------------------------------------------ seeds ---
 
@@ -188,13 +207,15 @@ function seedOtherSchool(s: Store) {
   s.add(organizationMembers, { id: "m-other", organizationId: "org-other", role: "admin" });
 }
 
+const performer = performerFrom(SUPERADMIN);
+
 beforeEach(() => {
   store = new Store();
 });
 
 // -------------------------------------------------------------------- tests --
 
-describe("the bulk delete before this commit", () => {
+describe("the bulk delete before this work", () => {
   it("could not delete any school with a member", async () => {
     seedAdminOnlySchool(store);
     const result = await legacyBulkDeleteOne(makeDb(store), "org-a");
@@ -214,7 +235,7 @@ describe("deleteOrganizationWithDependents", () => {
   it("deletes a school and everything that held it open, and nothing else", async () => {
     seedAdminOnlySchool(store);
     seedOtherSchool(store);
-    const outcome = await deleteOrganizationWithDependents(makeDb(store), "org-a");
+    const outcome = await deleteOrganizationWithDependents(makeDb(store), "org-a", performer);
 
     expect(outcome).toEqual({ status: "deleted", organizationName: "School org-a" });
     expect(store.rows(organizations).map((o) => o.id)).toEqual(["org-other"]);
@@ -225,18 +246,37 @@ describe("deleteOrganizationWithDependents", () => {
     expect(store.rows(quizQuestions)).toEqual([{ id: "qq-org-a", contributedByOrgId: null }]);
   });
 
-  it("refuses while students are enrolled, and writes nothing", async () => {
+  it("records the deletion: which school, who, and what went with it", async () => {
+    seedAdminOnlySchool(store);
+    await deleteOrganizationWithDependents(makeDb(store), "org-a", performer);
+
+    expect(store.rows(organizationDeletions)).toEqual([{
+      organizationId: "org-a",
+      organizationName: "School org-a",
+      performedBy: "u-super",
+      performedByRole: "superadmin",
+      performedByName: "Sam Super",
+      performedByEmail: "sam@platform.example",
+      adminMembersRemoved: 1,
+      eventsRemoved: 1,
+      filesRemoved: 1,
+      questionsDetached: 1,
+    }]);
+  });
+
+  it("refuses while students are enrolled, and writes nothing — no record either", async () => {
     seedAdminOnlySchool(store);
     store.add(organizationMembers, { id: "m-stu", organizationId: "org-a", role: "student" });
     const before = store.dump();
 
-    const outcome = await deleteOrganizationWithDependents(makeDb(store), "org-a");
+    const outcome = await deleteOrganizationWithDependents(makeDb(store), "org-a", performer);
     expect(outcome).toEqual({ status: "has_students", organizationName: "School org-a", studentCount: 1 });
     expect(store.dump()).toBe(before);
   });
 
-  it("reports a missing school", async () => {
-    expect(await deleteOrganizationWithDependents(makeDb(store), "nope")).toEqual({ status: "not_found" });
+  it("reports a missing school and records nothing", async () => {
+    expect(await deleteOrganizationWithDependents(makeDb(store), "nope", performer)).toEqual({ status: "not_found" });
+    expect(store.rows(organizationDeletions)).toHaveLength(0);
   });
 
   // Failure means nothing happened — the property the old bulk path lacked.
@@ -245,8 +285,25 @@ describe("deleteOrganizationWithDependents", () => {
     const before = store.dump();
     store.failOnUpdateOf = quizQuestions;
 
-    await expect(deleteOrganizationWithDependents(makeDb(store), "org-a")).rejects.toThrow(/simulated/);
+    await expect(deleteOrganizationWithDependents(makeDb(store), "org-a", performer)).rejects.toThrow(/simulated/);
     expect(store.dump()).toBe(before);
+  });
+
+  // The record and the delete are one act: no record means no deletion.
+  it("does not delete the school if the record cannot be written", async () => {
+    seedAdminOnlySchool(store);
+    const before = store.dump();
+    store.failOnInsertOf = organizationDeletions;
+
+    await expect(deleteOrganizationWithDependents(makeDb(store), "org-a", performer)).rejects.toThrow(/record/);
+    expect(store.dump()).toBe(before);
+  });
+
+  it("names a performer with no name or email by username, then id", () => {
+    expect(performerFrom({ id: "u1", username: "ops1", email: null })).toEqual({
+      userId: "u1", role: "superadmin", name: "ops1", email: null,
+    });
+    expect(performerFrom({ id: "u2" }).name).toBe("u2");
   });
 });
 
@@ -270,8 +327,8 @@ describe("both delete endpoints", () => {
     }
   }
 
-  // The defect in one assertion: the same act, the same result.
-  it("leave identical state for the same school", async () => {
+  // The defect in one assertion: the same act, the same result — record included.
+  it("leave identical state for the same school, record included", async () => {
     seedAdminOnlySchool(store);
     seedOtherSchool(store);
     const single = await call("DELETE", "/api/superadmin/organizations/org-a");
@@ -284,6 +341,7 @@ describe("both delete endpoints", () => {
 
     expect(single.status).toBe(200);
     expect(bulk.body.results).toEqual([{ orgId: "org-a", name: "School org-a", success: true }]);
+    expect(store.rows(organizationDeletions)).toHaveLength(1);
     expect(store.dump()).toBe(afterSingle);
   });
 
@@ -304,9 +362,10 @@ describe("both delete endpoints", () => {
       { orgId: "org-missing", name: null, success: false, error: "Organization not found" },
     ]);
     expect(store.rows(organizations).map((o) => o.id)).toEqual(["org-s"]);
+    expect(store.rows(organizationDeletions).map((d) => d.organizationId)).toEqual(["org-a"]);
   });
 
-  // A reported failure now means the school is still there.
+  // A reported failure now means the school is still there, and unrecorded.
   it("bulk reports failure only when nothing was deleted", async () => {
     seedAdminOnlySchool(store);
     store.failOnUpdateOf = quizQuestions;
@@ -315,6 +374,7 @@ describe("both delete endpoints", () => {
     expect(body.results[0]).toMatchObject({ orgId: "org-a", success: false });
     expect(store.rows(organizations).map((o) => o.id)).toEqual(["org-a"]);
     expect(store.rows(organizationMembers)).toHaveLength(1);
+    expect(store.rows(organizationDeletions)).toHaveLength(0);
   });
 
   it("single delete keeps its 409 and 404", async () => {

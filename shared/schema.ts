@@ -1689,6 +1689,57 @@ export const insertOrganizationConsentSchema = createInsertSchema(organizationCo
 export type InsertOrganizationConsent = z.infer<typeof insertOrganizationConsentSchema>;
 
 // =============================================================================
+// ORGANIZATION DELETION — the record that a school was deleted
+// =============================================================================
+
+/**
+ * ONE ROW PER SCHOOL DELETION, written in the same transaction as the delete
+ * (server/services/organizationDeletion.ts), so it exists if and only if the
+ * deletion committed.
+ *
+ * NOT organization_events: that table's organization_id is NOT NULL with no
+ * cascade, so an event about a school cannot outlive the school — the bulk
+ * delete's attempt to write one after the delete is the bug this replaced.
+ *
+ * organization_id HAS NO FOREIGN KEY, deliberately: the organization is gone by
+ * definition. organization_name is denormalised for the same reason.
+ *
+ * performed_by is ON DELETE SET NULL with the performer's name and email
+ * denormalised, the organization_consents pattern. The performer's identity
+ * outlives their own erasure. That is a RECORDED DECISION — FOLLOWUP.md,
+ * "ORGANIZATION DELETION RECORD — DECIDED 2026-09-14" — not an oversight to tidy.
+ * performed_by_email is nullable because a superadmin can be identified by role
+ * alone and may have no email.
+ *
+ * Matches server/migrations/026_organization_deletions.sql exactly.
+ */
+export const organizationDeletions = pgTable("organization_deletions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+
+  organizationId: varchar("organization_id").notNull(),
+  organizationName: text("organization_name").notNull(),
+
+  performedBy: varchar("performed_by").references(() => users.id, { onDelete: "set null" }),
+  performedByRole: text("performed_by_role").notNull(),
+  performedByName: text("performed_by_name").notNull(),
+  performedByEmail: text("performed_by_email"),
+
+  // What the deletion took with it. Never students: the sequence refuses while
+  // any are enrolled.
+  adminMembersRemoved: integer("admin_members_removed").notNull(),
+  eventsRemoved: integer("events_removed").notNull(),
+  filesRemoved: integer("files_removed").notNull(),
+  questionsDetached: integer("questions_detached").notNull(),
+
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_org_deletions_organization").on(table.organizationId),
+  index("idx_org_deletions_created_at").on(table.createdAt),
+]);
+
+export type OrganizationDeletion = typeof organizationDeletions.$inferSelect;
+
+// =============================================================================
 // SCORING METHODOLOGY CONFIGURATION (Superadmin-managed)
 // =============================================================================
 

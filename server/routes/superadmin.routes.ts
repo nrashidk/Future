@@ -13,7 +13,9 @@ import { isUniqueViolation } from "../utils/pgErrors";
 import Stripe from "stripe";
 import { db } from "../db";
 // Both school-delete endpoints run this one sequence.
-import { deleteOrganizationWithDependents, enrolledStudentsMessage } from "../services/organizationDeletion";
+import {
+  deleteOrganizationWithDependents, enrolledStudentsMessage, performerFrom,
+} from "../services/organizationDeletion";
 
 // Initialize Stripe only if keys are configured
 let stripe: Stripe | null = null;
@@ -1539,7 +1541,8 @@ export function registerSuperadminRoutes(app: Express) {
       // The same sequence as the bulk endpoint — services/organizationDeletion.ts.
       // It locks the school, refuses while students are enrolled, and clears
       // what held the school open, all in one transaction.
-      const outcome = await deleteOrganizationWithDependents(db, orgId);
+      const currentUser = (req as any).currentUser;
+      const outcome = await deleteOrganizationWithDependents(db, orgId, performerFrom(currentUser));
       if (outcome.status === "not_found") {
         return res.status(404).json({ message: "Organization not found" });
       }
@@ -1551,14 +1554,13 @@ export function registerSuperadminRoutes(app: Express) {
         });
       }
 
-      // Console, not a row. An organization_events row would FK to the
-      // organization that was just deleted and could not persist.
+      // The record is the organization_deletions row the sequence wrote in the
+      // same transaction; this line is operational logging only.
       //
       // KNOWN REMAINDER: the school's ADMIN user accounts survive this, as their
       // membership rows are deleted but their users rows are not. They are adults
       // with their own credentials rather than minors' records, so they are out of
       // scope for the student disposition work, but nothing cleans them up.
-      const currentUser = (req as any).currentUser;
       console.log(`[Superadmin] Organization "${outcome.organizationName}" (${orgId}) deleted by user ${currentUser?.id}`);
 
       res.json({ success: true, message: "Organization deleted successfully" });
@@ -1688,7 +1690,7 @@ export function registerSuperadminRoutes(app: Express) {
       // was the defect; see services/organizationDeletion.ts.
       const results = await Promise.all(orgIds.map(async (orgId: string) => {
         try {
-          const outcome = await deleteOrganizationWithDependents(db, orgId);
+          const outcome = await deleteOrganizationWithDependents(db, orgId, performerFrom(currentUser));
           if (outcome.status === "not_found") {
             return { orgId, name: null, success: false, error: "Organization not found" };
           }

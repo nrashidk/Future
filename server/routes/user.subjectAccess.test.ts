@@ -30,7 +30,7 @@ import {
   cvqResults, wefCompetencyResults, llmNarrativeCache, organizationMembers,
   organizations, organizationConsents, organizationEvents, passwordResetTokens,
   files, contributionSubmissions, contributionRewards, scoringConfigChangeLog,
-  systemAnnouncements, systemConfig,
+  systemAnnouncements, systemConfig, organizationDeletions,
 } from "@shared/schema";
 
 // Only the predicate builders are replaced, so the fake can read them.
@@ -77,7 +77,7 @@ const TABLES = [
   cvqResults, wefCompetencyResults, llmNarrativeCache, organizationMembers,
   organizations, organizationConsents, organizationEvents, passwordResetTokens,
   files, contributionSubmissions, contributionRewards, scoringConfigChangeLog,
-  systemAnnouncements, systemConfig,
+  systemAnnouncements, systemConfig, organizationDeletions,
 ];
 
 const COLS = new Map<any, { table: any; key: string }>();
@@ -248,6 +248,13 @@ describe("SUBJECT_ACCESS_REGISTRY", () => {
   it("returns a seeded row for every subject entry", async () => {
     seedStudent(store);
     store.add(organizationConsents, consent("k-own", new Date("2026-01-15"), { performedBy: "u-student" }));
+    store.add(organizationDeletions, {
+      id: "d-own", organizationId: "org-gone", organizationName: "Closed School",
+      performedBy: "u-student", performedByRole: "superadmin",
+      performedByName: "Layla Hassan", performedByEmail: null,
+      adminMembersRemoved: 1, eventsRemoved: 2, filesRemoved: 0, questionsDetached: 0,
+      createdAt: new Date("2026-05-01"),
+    });
     const out: any = await collectSubjectAccess(makeDb(store), "u-student");
 
     const sectionOf: Record<string, (o: any) => any[]> = {
@@ -257,6 +264,7 @@ describe("SUBJECT_ACCESS_REGISTRY", () => {
       schoolEnrolment: (o) => (o.schoolEnrolment ? [o.schoolEnrolment] : []),
       passwordResetRequests: (o) => o.passwordResetRequests,
       consentAttestationsYouMade: (o) => o.consentAttestationsYouMade,
+      organizationDeletionsYouPerformed: (o) => o.organizationDeletionsYouPerformed,
     };
     for (const entry of SUBJECT_ACCESS_REGISTRY) {
       if (entry.kind !== "subject") continue;

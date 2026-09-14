@@ -5661,3 +5661,40 @@ docs/erasure-dependent-list.md §1c and the accountErasure.ts comment said it wa
 (admin.routes.ts:2347) and admits an org admin. No behaviour change — neither writer admits a
 student, and such an admin is already refused by `organizations.admin_user_id` — but the claim
 was wrong when written, and is corrected in both places.
+
+## ORGANIZATION DELETION RECORD — DECIDED 2026-09-14
+
+### The decision
+Deleting a school writes an `organization_deletions` row (server/migrations/026) inside the same
+transaction as the delete (services/organizationDeletion.ts), so a record exists if and only if the
+deletion committed. `performed_by` is `ON DELETE SET NULL` and `performed_by_name` /
+`performed_by_email` are denormalised. **The performer's name and email outlive their own
+erasure.** That is accepted, and this entry is where it is accepted — not a schema comment, so it
+is not later "fixed" by someone who reads it as an oversight.
+
+### The reason
+The row is accountability for a destructive act on a school's data: which school, who removed it,
+and how many admin memberships, events, files and question attributions went with it. A record
+that dissolves when its author's account is erased is not a record — the same argument, and the
+same accepted cost, as `organization_consents` (schema.ts, organizationConsents), where an
+attester's name and email survive both the school and the attester.
+
+### What was rejected, and why
+- **An `organization_events` row.** `organization_id` is NOT NULL REFERENCES organizations with no
+  cascade, so it cannot outlive the school; the bulk delete's attempt to write one after the delete
+  is the bug this replaced. Written before the delete, the delete removes it.
+- **Relaxing `organization_events.organization_id` to SET NULL.** Every event would then survive
+  its school by default — including `student_erased` / `student_detached` rows that name students,
+  whose retention is itself an open decision (see "A school's activity log keeps an erased
+  student's name"). It would also let any other event writer insert a row with no school.
+- **Console logging**, which both delete paths did in the interim — honest about being no record.
+
+### Consequences, stated
+- **No FK on `organization_id`.** The organization is gone by definition.
+- **Subject access.** `organization_deletions.performed_by` is classified **subject** in
+  SUBJECT_ACCESS_REGISTRY (section `organizationDeletionsYouPerformed`): the performer's own act,
+  carrying no one else's personal data. It is NOT in BLOCKING_AUDIT_SOURCES — SET NULL means it
+  cannot block erasure, and the registry test forced the classification the moment the FK existed.
+- **Revisit** alongside `organization_consents` if a retention schedule is ever written. Until
+  then, do not add a cascade, null the name at erasure, or drop the email without a decision
+  recorded here that supersedes this one.

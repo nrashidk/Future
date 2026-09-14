@@ -18,13 +18,15 @@
  * answer to "what does deleting a school do", in the same shape as
  * accountErasure.ts for users.
  *
- * NO AUDIT ROW HERE YET. An organization_events row FKs to the organization and
- * cannot outlive it. The routes log to the console, which is honest about being
- * no record at all.
+ * THE RECORD is an organization_deletions row, written inside the same
+ * transaction as the delete, so it exists if and only if the deletion committed.
+ * It cannot be an organization_events row: that table FKs to the organization
+ * and its rows are removed with it.
  */
 
 import {
   organizations, organizationMembers, organizationEvents, files, quizQuestions,
+  organizationDeletions,
 } from "@shared/schema";
 import { eq, and } from "drizzle-orm";
 
@@ -33,9 +35,26 @@ export type OrganizationDeletionOutcome =
   | { status: "not_found" }
   | { status: "has_students"; organizationName: string; studentCount: number };
 
+export type OrganizationDeletionPerformer = {
+  userId: string;
+  role: string;
+  name: string;
+  email: string | null;
+};
+
+/**
+ * Who is deleting, captured as values rather than only an id: the record keeps
+ * the name and email after the account is gone, as organization_consents does.
+ */
+export function performerFrom(user: any, role = "superadmin"): OrganizationDeletionPerformer {
+  const name = [user?.firstName, user?.lastName].filter(Boolean).join(" ") || user?.username || user?.id;
+  return { userId: user.id, role, name, email: user?.email ?? null };
+}
+
 export async function deleteOrganizationWithDependents(
   db: any,
   orgId: string,
+  performer: OrganizationDeletionPerformer,
 ): Promise<OrganizationDeletionOutcome> {
   // ONE TRANSACTION. The single delete's steps were once five autocommit
   // statements, so a failure part-way left a school half-dismantled; the bulk
@@ -73,9 +92,15 @@ export async function deleteOrganizationWithDependents(
     }
 
     // Admin membership rows only — the student check above already passed.
-    await tx.delete(organizationMembers).where(eq(organizationMembers.organizationId, orgId));
-    await tx.delete(organizationEvents).where(eq(organizationEvents.organizationId, orgId));
-    await tx.delete(files).where(eq(files.organizationId, orgId));
+    const members = await tx.delete(organizationMembers)
+      .where(eq(organizationMembers.organizationId, orgId))
+      .returning({ id: organizationMembers.id });
+    const events = await tx.delete(organizationEvents)
+      .where(eq(organizationEvents.organizationId, orgId))
+      .returning({ id: organizationEvents.id });
+    const removedFiles = await tx.delete(files)
+      .where(eq(files.organizationId, orgId))
+      .returning({ id: files.id });
 
     // quiz_questions.contributed_by_org_id is set when a superadmin approves a
     // contributed question (contribution.routes.ts) and has no cascade, so one
@@ -90,11 +115,30 @@ export async function deleteOrganizationWithDependents(
     // contribution_submissions and contribution_rewards CASCADE on the
     // organization, and organization_consents is ON DELETE SET NULL by design so
     // the consent record outlives the school it evidences. Nothing to write.
-    await tx.update(quizQuestions)
+    const questions = await tx.update(quizQuestions)
       .set({ contributedByOrgId: null })
-      .where(eq(quizQuestions.contributedByOrgId, orgId));
+      .where(eq(quizQuestions.contributedByOrgId, orgId))
+      .returning({ id: quizQuestions.id });
 
     await tx.delete(organizations).where(eq(organizations.id, orgId));
+
+    // Same transaction as the delete above: if this insert fails, the school is
+    // not deleted either. The performer's name and email outlive their own
+    // erasure by decision, not by accident — FOLLOWUP.md, "ORGANIZATION DELETION
+    // RECORD — DECIDED 2026-09-14".
+    await tx.insert(organizationDeletions).values({
+      organizationId: org.id,
+      organizationName: org.name,
+      performedBy: performer.userId,
+      performedByRole: performer.role,
+      performedByName: performer.name,
+      performedByEmail: performer.email,
+      adminMembersRemoved: members.length,
+      eventsRemoved: events.length,
+      filesRemoved: removedFiles.length,
+      questionsDetached: questions.length,
+    });
+
     return { status: "deleted", organizationName: org.name };
   });
 }

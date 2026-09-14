@@ -26,6 +26,7 @@ import {
   users, assessments, recommendations, assessmentQuizzes, quizResponses,
   cvqResults, wefCompetencyResults, llmNarrativeCache, organizationMembers,
   organizations, organizationConsents, organizationEvents, passwordResetTokens,
+  organizationDeletions,
 } from "@shared/schema";
 import { eq, or, and, inArray, lte, desc } from "drizzle-orm";
 import { BLOCKING_AUDIT_SOURCES } from "./accountErasure";
@@ -38,7 +39,8 @@ export type SubjectSection =
   | "wefCompetencyResults"
   | "schoolEnrolment"
   | "passwordResetRequests"
-  | "consentAttestationsYouMade";
+  | "consentAttestationsYouMade"
+  | "organizationDeletionsYouPerformed";
 
 /**
  * EVERY FOREIGN KEY THAT POINTS AT A USER, OR AT A ROW THAT IS ABOUT ONE.
@@ -74,6 +76,12 @@ export const SUBJECT_ACCESS_REGISTRY: Array<
   // are data the system holds about them and will not delete. Returned in full:
   // the row carries nobody else's personal data.
   { column: organizationConsents.performedBy, kind: "subject", section: "consentAttestationsYouMade" },
+  // A school deletion this person performed. The same shape as the attestation
+  // above: SET NULL, name and email kept past their own erasure by recorded
+  // decision (FOLLOWUP.md, "ORGANIZATION DELETION RECORD — DECIDED 2026-09-14"),
+  // and no one else's personal data in the row. NOT in BLOCKING_AUDIT_SOURCES:
+  // an ON DELETE SET NULL reference cannot block erasure.
+  { column: organizationDeletions.performedBy, kind: "subject", section: "organizationDeletionsYouPerformed" },
   ...BLOCKING_AUDIT_SOURCES.map((s) => ({ column: s.column, kind: "actor" as const })),
 ];
 
@@ -199,6 +207,10 @@ export async function collectSubjectAccess(db: any, userId: string) {
     schoolRemovalRecords,
     passwordResetRequests,
     consentAttestationsYouMade,
+    // Returned in full, like the attestations: the performer's own act, holding
+    // a school's name and counts but no one else's personal data.
+    organizationDeletionsYouPerformed: await db.select().from(organizationDeletions)
+      .where(eq(organizationDeletions.performedBy, userId)),
     heldButNotIncluded: await heldButNotIncluded(db, userId, {
       hasPassword: passwordHash != null,
       resetRequests: passwordResetRequests.length,
@@ -391,6 +403,7 @@ export function summarizeSubjectAccess(subject: NonNullable<Awaited<ReturnType<t
     schoolRemovalRecords: subject.schoolRemovalRecords.length,
     passwordResetRequests: subject.passwordResetRequests.length,
     consentAttestationsYouMade: subject.consentAttestationsYouMade.length,
+    organizationDeletionsYouPerformed: subject.organizationDeletionsYouPerformed.length,
   };
   return {
     accountCreated: subject.account.createdAt,
