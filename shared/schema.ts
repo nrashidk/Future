@@ -1586,7 +1586,7 @@ export type InsertOrganizationEvent = z.infer<typeof insertOrganizationEventSche
  * decided it. Its event_type is free text with no uniqueness, so "this school
  * has consented" is not a queryable, enforceable state — and this table IS the
  * enrolment gate. And its rows are deleted with the organization
- * (storage.deleteOrganization), which these are not; see the retention note
+ * (server/services/organizationDeletion.ts), which these are not; see the retention note
  * below. An organization_events row IS written alongside each attestation
  * ('consent_attested'), so the act appears in the activity log admins already
  * read. The event is the visible trace; this table is the record.
@@ -1607,7 +1607,7 @@ export const organizationConsents = pgTable("organization_consents", {
    * NULLABLE, AND ON DELETE SET NULL — this row OUTLIVES the organization.
    *
    * organization_events rows are deleted when an org is deleted; these are not,
-   * and deleteOrganization is deliberately NOT extended to remove them. What
+   * and server/services/organizationDeletion.ts deliberately does NOT remove them. What
    * this record evidences is that processing had a lawful basis, and that
    * question is asked most sharply AFTER the data is gone. A record that
    * evaporates with its subject cannot answer it.

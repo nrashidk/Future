@@ -374,9 +374,11 @@ export interface IStorage {
     organizationId: string,
     tx?: any,
   ): Promise<{ usedLicenses: number; rewardCreditsUsed: number }>;
-  deleteOrganization(id: string): Promise<boolean>;
-  deleteOrganizationEventsByOrgId(organizationId: string): Promise<number>;
-  deleteFilesByOrganizationId(organizationId: string): Promise<number>;
+  // NO deleteOrganization here, deliberately. A school is deleted only by
+  // services/organizationDeletion.ts, which refuses while students are enrolled
+  // and clears what holds the school open in one transaction. The bare DELETE
+  // that used to sit here is what the bulk endpoint called, and it failed for
+  // every real school and misreported the rest.
 
   // Organization Member operations
   createOrganizationMember(member: InsertOrganizationMember): Promise<OrganizationMember>;
@@ -396,7 +398,6 @@ export interface IStorage {
     },
   ): Promise<OrganizationMember>;
   deleteOrganizationMember(memberId: string): Promise<boolean>;
-  bulkDeleteOrganizationMembers(memberIds: string[]): Promise<number>;
   getOrganizationStats(organizationId: string): Promise<{
     totalMembers: number;
     completedAssessments: number;
@@ -3153,15 +3154,6 @@ export class DatabaseStorage implements IStorage {
     return (result.rowCount ?? 0) > 0;
   }
 
-  async bulkDeleteOrganizationMembers(memberIds: string[]): Promise<number> {
-    if (memberIds.length === 0) return 0;
-    
-    const result = await db
-      .delete(organizationMembers)
-      .where(inArray(organizationMembers.id, memberIds));
-    return result.rowCount ?? 0;
-  }
-
   async createUserWithCredentials(userData: {
     organizationId: string;
     fullName: string;
@@ -4029,31 +4021,6 @@ export class DatabaseStorage implements IStorage {
       .delete(careers)
       .where(eq(careers.id, id));
     return (result.rowCount ?? 0) > 0;
-  }
-
-  // ============================================
-  // Organization deletion
-  // ============================================
-
-  async deleteOrganization(id: string): Promise<boolean> {
-    const result = await db
-      .delete(organizations)
-      .where(eq(organizations.id, id));
-    return (result.rowCount ?? 0) > 0;
-  }
-
-  async deleteOrganizationEventsByOrgId(organizationId: string): Promise<number> {
-    const result = await db
-      .delete(organizationEvents)
-      .where(eq(organizationEvents.organizationId, organizationId));
-    return result.rowCount ?? 0;
-  }
-
-  async deleteFilesByOrganizationId(organizationId: string): Promise<number> {
-    const result = await db
-      .delete(files)
-      .where(eq(files.organizationId, organizationId));
-    return result.rowCount ?? 0;
   }
 
   // ============================================
