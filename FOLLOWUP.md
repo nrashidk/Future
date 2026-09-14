@@ -5860,8 +5860,108 @@ deploy, confirm that `schema_migrations` lists `026_organization_deletions.sql` 
 `drizzle-kit push` reports no drift for `organization_deletions`. Until it is applied, both delete
 endpoints fail inside the transaction, so no school is deleted and no misreport occurs.
 
-### 7. docs/org-delete-recon.md §3 is now stale on one point
+### 7. docs/org-delete-recon.md §3 is now stale on one point — CLOSED 2026-09-14
+
+**CLOSED, nothing further to do.** The correction is this entry. The recon is a dated snapshot and
+is deliberately left unedited.
+
 It says events are deleted "in exactly one place" via `deleteOrganizationEventsByOrgId`. The single
 delete had already moved to a direct `tx.delete`, and since 3fc4656 both paths delete events through
-services/organizationDeletion.ts. That helper has no callers (item 3). The recon is a dated
-snapshot, so it is corrected here rather than edited.
+services/organizationDeletion.ts. The helper itself was removed in 9d5cad2 (item 3).
+
+## SCHOOL ADMIN ACCOUNTS WHEN A SCHOOL IS DELETED — DECIDED 2026-09-14
+
+### The decision
+**A school admin's user account survives the deletion of their school.** The deletion sequence
+(services/organizationDeletion.ts) removes the admins' `organization_members` rows and leaves their
+`users` rows. That behaviour is now decided, not a known remainder waiting on someone.
+
+### The reason
+A school admin is an adult with their own account: their own email and credentials, and potentially
+their own purchase history (group purchase promotes an existing account to `org_admin`). Deleting a
+school is an operation on a tenant. Deleting an admin's account as a side effect of it would destroy
+a person's account for a reason that is not about them.
+
+**The route for an admin who wants their account gone is their own erasure.** While the school
+exists, `organizations.admin_user_id` refuses it with the 409 in services/accountErasure.ts, as does
+every `organization_events` row naming them. Deleting the school removes all of those. The school's
+deletion is therefore exactly the moment self-erasure becomes available to them.
+
+### The asymmetry with students is deliberate
+Students get a stated disposition, erase or detach, chosen per student before a school can be
+deleted (applyRemovalDisposition; the sequence refuses while any student is enrolled). The reason is
+that a school-issued student account has no independent existence. The school created it, issued its
+username and password, and is the party whose consent made processing that minor lawful. When the
+enrolment ends, somebody has to decide what happens to the record, and it must not be decided by
+accident.
+
+An admin account does have an independent existence, so there is nothing to dispose of on the
+person's behalf. Survival is the default because it is the one outcome that does not act on
+someone for a reason that is not theirs.
+
+### What this leaves: an admin with no school — observed in the code, 2026-09-14
+After the deletion, the account has `accountType: 'org_admin'`, no `organization_members` row, no
+school with their `admin_user_id`, and working credentials.
+
+**Unlike a detached student, nothing marks the account.** detachUserFromOrganization sets
+`accountType` to `'individual'`, `detachedAt` and `detachedFromOrganizationName`. Nothing sets
+anything for an admin, so every surface still treats them as a school admin of a school that is gone.
+
+**Nothing in the product handles this state.** They do not land on a crash; they land on screens
+that describe the wrong situation.
+
+- **Login.** Username and password (`/login/student`) sends an `org_admin` to `/admin/organizations`
+  (StudentLogin.tsx:60). OAuth sends a non-superadmin to `/` or `/results` (AuthCallback.tsx:89-94).
+- **The admin page.** `GET /api/admin/organizations` returns `[]` for them (admin.routes.ts). The left
+  panel shows "No schools yet" (`orgs.noSchoolsYet`, AdminOrganizations.tsx:514-519). The right panel
+  shows "Select a school above to view details" (`orgs.selectSchoolHint`, :621-630) with nothing to
+  select. The header still shows the "School Admin" badge, plus Admin and Analytics links. The copy
+  reads as a new, empty account, not a school that was removed.
+- **Profile.** `/api/my-organization` and `/api/my-organization/stats` both 404
+  (organization.routes.ts). The organization field is omitted. The page shows "Failed to load
+  organization statistics. Please try again later." (`premium.statsError`, Profile.tsx:655-660), and
+  retrying cannot succeed. The "Organization Management → Go to Admin Dashboard" card (:904-922) links
+  to the dead end above.
+- **Analytics.** The server returns 403 (analytics.routes.ts:39-41). The client's query functions
+  throw, and the page has no error branch, so the stat tiles render 0 and 0% (Analytics.tsx:356-380).
+  That reads as a school with no students, not as no school.
+- **Assessments.** With no member row and no `detachedAt`, the create path skips both the detach
+  refusal and the school-licence branch (assessment.routes.ts), which leaves the individual free-tier
+  path. Read from the code, not exercised end to end.
+
+**Nothing exposes another school's data**, which was the thing to rule out:
+- `/api/my-organization/*` returns 404.
+- Every `/api/admin/organizations/:id/*` route checks the caller's own school against `:id`, and they
+  have none.
+- `GET /api/files` returns `[]` (files.routes.ts:150-156).
+- The analytics endpoints return 403.
+- Contributions return 403 "Organization not found for admin" (contribution.routes.ts:183-196).
+
+**Their self-erasure is available through the API and has no UI.** Once the school is gone, none of
+BLOCKING_AUDIT_SOURCES should hold a row for them:
+- the `organizations` row is deleted;
+- their `organization_events` rows, as performer or as affected user, go with the school;
+- import files carry the school's `organization_id` and are deleted with it;
+- `contribution_submissions` cascade;
+- the remaining sources are superadmin-only.
+
+So `DELETE /api/users/me` should run. That is reasoned from the code, not run against a database.
+**But no client code calls `DELETE /api/users/me` at all**, so the route this decision points them to
+exists only as an API. It is the same gap as the export/erasure door in consent position 4, step 6.
+
+**Observed in passing, not decided here.** A group purchase's payment reference lives on the
+organization row (`stripe_payment_id`, `amount_paid`). It is deleted with the school, and
+`organization_deletions` does not record it. The user row keeps `purchasedLicenses` and
+`paymentDate`, and Stripe retains the payment itself. Whether the platform needs its own copy after a
+school is deleted is a separate question.
+
+### Not decided here — open, in order of consequence
+1. **A self-erasure door for admins.** Without UI, the route this decision points to is unreachable
+   for anyone who does not use the API. It should ship with, or alongside, consent position 4.
+2. **A no-school state for an `org_admin`.** Today they get "No schools yet", a stats error that
+   invites a pointless retry, and a zero-filled analytics page. The options are an explicit screen
+   saying the school was removed, or marking the account at deletion time the way detach marks a
+   student. The second changes `accountType`, which several gates read, so it needs its own recon.
+3. **Whether an orphaned admin should reach the individual free-tier assessment path.** It is an
+   adult taking an instrument built for 13–18 year olds. It is probably harmless, but it has not been
+   chosen.
