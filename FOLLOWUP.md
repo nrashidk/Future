@@ -1697,6 +1697,43 @@ clusters are breaking, both are their own scheduled work, neither is on a studen
   attacker-controlled isBuffer). Fix = express 4 -> 5 (major). Not yet scheduled; needs its own recon
   session before anyone touches it.
 
+**ADVISORY BASELINE 2026-09-14 — ranges, not counts.** Recorded because the reconciliation above
+stored counts without ranges, so the 2026-09-14 re-run could only conclude "nothing moved" from
+GitHub's `updated_at` dates, not by comparison. A stored range is what would have caught multer the
+day its advisory widened to `<=2.2.0`, rather than a fortnight later.
+
+Taken from `npm audit --json` (6 packages, 4 high / 2 moderate; `--omit=dev` identical) and
+GitHub's public advisory API. Installed at the time: extract-zip 2.0.1, qs 6.15.3 (express's edge)
+and 6.16.0 (nested under body-parser), puppeteer 24.43.1, express 4.22.2, multer 2.3.0 (not
+flagged). No change to package.json or package-lock.json since ae317d8.
+
+| Advisory | Package | Severity | Affected range | Patched | Published | Last updated |
+|---|---|---|---|---|---|---|
+| GHSA-jmr9-qjv8-65gv | extract-zip | high | `<= 2.0.1` | none | 2026-06-26 | 2026-08-12 |
+| GHSA-7pqw-9j4j-h8q3 | extract-zip | high | `<= 2.0.1` | none | 2026-08-17 | 2026-09-08 |
+| GHSA-x5fp-wj9c-mxmx | qs | moderate | `>= 6.14.2, <= 6.15.3` | 6.16.0 | 2026-09-02 | 2026-09-02 |
+| GHSA-4mjr-xmp4-gh2g | qs | moderate | `>= 2.2.5, < 6.16.0` | 6.16.0 | 2026-09-02 | 2026-09-02 |
+
+puppeteer, puppeteer-core and @puppeteer/browsers carry no advisory of their own; npm flags them via
+extract-zip, which is why 4 advisories are 6 packages.
+
+**The check this table enables:** compare each installed version against its stored range. A range
+that has grown to cover a version previously outside it is the multer case.
+
+**The safe path is exhausted — a change of state from ae317d8.** `npm audit fix --dry-run` on
+2026-09-14 proposed no changes and left all 6, with package.json, package-lock.json and
+node_modules/.package-lock.json checksums identical before and after. At ae317d8 the same
+non-breaking fix still took the count from 14 to 6. Everything remaining now needs one of the two
+breaking upgrades: puppeteer 24 -> 25 (npm's fix target is now 25.10.0; the plan of record above
+names 25.8.0, which is newer releases, not an advisory change), or express 4 -> 5 (fix target
+5.2.1).
+
+**UNEXPLAINED, not resolved: Dependabot went from 5 to 4.** The four advisories above match
+Dependabot's current 4 and its 2 high / 2 moderate split. But the previous five were never recorded,
+none of these four closed, and this session's token gets 403 on the Dependabot alerts API. Which
+alert closed, and why, can be read from the repository's closed Dependabot alerts in the GitHub UI.
+Until someone with that access looks, it stays open.
+
 ### Career-reasoning prompt contradicts quiz results  (severity: medium-high — credibility)
 Confirmed in a live prod PDF (assessment 23f6008e, 2026-09-05). The subject-strengths block shows Mathematics 0% (0 of 4 correct), while the LLM "Why This Career?" narratives praise Mathematics as a strength on three of five careers: Product Manager ("your love of Mathematics supports the analytical side"), Journalist ("Mathematics sharpens the analytical thinking needed to fact-check data"), Marketing Manager ("Mathematics connects to analytics and budgeting"). Cause: the career_reasoning prompt is fed favoriteSubjects (student-declared) with no quiz competency scores, so a failed subject is treated as an asset. Reader can falsify the claim from the same page. Fix: pass per-subject quiz scores into the prompt and instruct the model to frame low-scoring subjects as growth areas, not strengths. Needs a real PDF to verify. First flagged 2026-09-05.
 
