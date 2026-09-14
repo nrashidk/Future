@@ -64,7 +64,7 @@ trail because a person left.
 | `organizations.admin_user_id` | NOT NULL | NO ACTION | org admin | :107 |
 | `organization_events.performed_by` | NOT NULL | NO ACTION | admin / superadmin | :1449 |
 | `organization_events.affected_user_id` | nullable | NO ACTION | **admins only** (4 sites) | :1455 |
-| `files.uploaded_by` | NOT NULL | NO ACTION | superadmin only | :1392 |
+| `files.uploaded_by` | NOT NULL | NO ACTION | **org admin or superadmin** (corrected 2026-09-14, see below) | :1392 |
 | `contribution_submissions.submitted_by_user_id` | NOT NULL | NO ACTION | org admin only | :1780 |
 | `contribution_submissions.reviewed_by_user_id` | nullable | NO ACTION | superadmin | :1800 |
 | `contribution_rewards.awarded_by_user_id` | NOT NULL | NO ACTION | superadmin | :1848 |
@@ -82,8 +82,18 @@ rather than silently broken. Verified per row, not assumed:
 - `contribution_submissions` — gated by `checkOrgAdmin`
   (`contribution.routes.ts:165-200`), which 403s anything that is not an org
   admin. Students cannot contribute.
-- `files.uploaded_by` — `POST /api/files/upload` is gated by `isAdmin`
-  (`files.routes.ts:79`), which is **superadmin**, not org admin.
+- `files.uploaded_by` — **CORRECTED 2026-09-14. The claim here was "superadmin
+  only", and it was wrong when written.** It checked one writer and stopped.
+  `POST /api/files/upload` is gated by `isAdmin` (`files.routes.ts:79`), which is
+  superadmin — that part holds. But `POST /api/admin/organizations/:id/import-students`
+  also writes a `files` row with `uploadedBy: userId` (`admin.routes.ts:2347`),
+  and that route admits an **org admin** for their own school
+  (`admin.routes.ts:2257-2260`). So an org admin who has run a bulk import holds
+  this row too. The conclusion this list exists for is unaffected — neither
+  writer admits a student — and so is erasure's behaviour: such an admin is
+  already refused by `organizations.admin_user_id`. What changes is that the 409
+  can name "files you uploaded" to an org admin, which this table said it could
+  not.
 - The remaining five are superadmin-only surfaces.
 
 ---

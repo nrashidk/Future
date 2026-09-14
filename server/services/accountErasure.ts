@@ -130,7 +130,9 @@ export async function eraseUserData(tx: any, userId: string): Promise<void> {
  * NO STUDENT CAN ACCUMULATE ANY OF THESE, verified per row in
  * docs/erasure-dependent-list.md §1c: organization_events.affected_user_id has
  * four write sites and all four target an admin; contributions are gated by
- * checkOrgAdmin; file upload is gated by isAdmin, which is superadmin. So
+ * checkOrgAdmin; files are written by POST /api/files/upload (isAdmin, which is
+ * superadmin) and by the student bulk import (admin.routes.ts, org admin or
+ * superadmin) — never by a student. So
  * student and ordinary-account erasure runs the full sequence above and this
  * list comes back empty — which is the case the endpoint exists for.
  *
