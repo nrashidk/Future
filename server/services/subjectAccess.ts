@@ -147,10 +147,17 @@ export async function collectSubjectAccess(db: any, userId: string) {
     .where(eq(organizationMembers.userId, userId));
   let schoolEnrolment: any = null;
   let schoolConsentCoveringYou: any = null;
+  let resetByStaff = false;
   if (member) {
     const [org] = await db.select({ name: organizations.name }).from(organizations)
       .where(eq(organizations.id, member.organizationId));
-    schoolEnrolment = { ...member, organizationName: org?.name ?? null };
+    // WHICH STAFF MEMBER reset this student's password is data about that staff
+    // member. An id is only not-a-name until someone correlates it, and an export
+    // is the artifact that makes correlation possible. passwordLastResetAt stays:
+    // that it happened, and when, is about the student.
+    const { passwordLastResetBy, ...enrolment } = member;
+    schoolEnrolment = { ...enrolment, organizationName: org?.name ?? null };
+    resetByStaff = passwordLastResetBy != null;
     if (member.role === "student") {
       schoolConsentCoveringYou = await coveringAttestation(db, member);
     }
@@ -195,6 +202,7 @@ export async function collectSubjectAccess(db: any, userId: string) {
     heldButNotIncluded: await heldButNotIncluded(db, userId, {
       hasPassword: passwordHash != null,
       resetRequests: passwordResetRequests.length,
+      resetByStaff,
     }),
   };
 }
@@ -323,7 +331,7 @@ async function removalRecords(db: any, user: any) {
 async function heldButNotIncluded(
   db: any,
   userId: string,
-  { hasPassword, resetRequests }: { hasPassword: boolean; resetRequests: number },
+  { hasPassword, resetRequests, resetByStaff }: { hasPassword: boolean; resetRequests: number; resetByStaff: boolean },
 ) {
   const held: Array<{ category: string; count?: number; reason: string }> = [];
   if (hasPassword) {
@@ -337,6 +345,12 @@ async function heldButNotIncluded(
       category: "password reset link codes",
       count: resetRequests,
       reason: "The dates of each request are included above; the codes themselves are credentials and are withheld.",
+    });
+  }
+  if (resetByStaff) {
+    held.push({
+      category: "which school staff member last reset your password",
+      reason: "When it was last reset is included in your school enrolment record; who did it is that staff member's data.",
     });
   }
   held.push({

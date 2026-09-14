@@ -176,6 +176,7 @@ function seedStudent(s: Store) {
     id: "m1", userId: "u-student", organizationId: "org1", role: "student",
     studentName: "Layla Hassan", dateOfBirth: "2011-05-04", grade: "grade9",
     studentId: "S-0042", studentGender: "female", createdAt: ENROLLED,
+    passwordLastResetBy: "u-admin", passwordLastResetAt: new Date("2026-04-02T00:00:00Z"),
   });
   s.add(passwordResetTokens, {
     id: "t1", userId: "u-student", token: "reset-token-secret",
@@ -290,6 +291,16 @@ describe("collectSubjectAccess", () => {
     expect(Object.keys(out.account).sort()).toEqual(expected.sort());
   });
 
+  // Which staff member reset the password is data about them; that it was reset,
+  // and when, is about the student.
+  it("withholds who reset the student's password but keeps when", async () => {
+    seedStudent(store);
+    const out: any = await collectSubjectAccess(makeDb(store), "u-student");
+    expect(out.schoolEnrolment).not.toHaveProperty("passwordLastResetBy");
+    expect(out.schoolEnrolment.passwordLastResetAt).toEqual(new Date("2026-04-02T00:00:00Z"));
+    expect(JSON.stringify(out.schoolEnrolment)).not.toContain("u-admin");
+  });
+
   it("never puts a credential in the file", async () => {
     seedStudent(store);
     const text = JSON.stringify(await collectSubjectAccess(makeDb(store), "u-student"));
@@ -398,7 +409,8 @@ describe("collectSubjectAccess", () => {
       seedStudent(store);
       const { heldButNotIncluded: held }: any = await collectSubjectAccess(makeDb(store), "u-student");
       expect(held.map((h: any) => h.category)).toEqual([
-        "your password", "password reset link codes", "any active login sessions",
+        "your password", "password reset link codes",
+        "which school staff member last reset your password", "any active login sessions",
       ]);
     });
 
