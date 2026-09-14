@@ -162,7 +162,8 @@ export function recommendedDisposition(member: { hasCompletedAssessment?: boolea
   return member.hasCompletedAssessment ? "detach" : "erase";
 }
 
-async function applyRemovalDisposition(
+// Exported for its test (admin.removalEventAtomic.test.ts), not for other callers.
+export async function applyRemovalDisposition(
   member: { id: string; userId: string; organizationId: string; studentName?: string | null },
   organization: { id: string; name: string },
   disposition: Disposition,
@@ -182,34 +183,37 @@ async function applyRemovalDisposition(
     // The seat goes back either way, and by recompute rather than by a -1 — see
     // storage.recomputeOrganizationLicenseUsage.
     await storage.recomputeOrganizationLicenseUsage(organization.id, tx);
-  });
 
-  // AFTER the transaction, and deliberately NOT carrying affectedUserId.
-  //
-  // organization_events.affected_user_id is a NO ACTION FK to users, and
-  // services/accountErasure.ts treats a row pointing at someone as an ACTOR
-  // record that blocks their own erasure with a 409. Today no student ever has
-  // one — all four writers target admins — which is exactly why student erasure
-  // works. Naming a detached student here would hand them an audit row that
-  // blocks their own right to erasure later, quietly, as a side effect of their
-  // school tidying up. The student is named in the description instead, which is
-  // what the school's activity log actually needs to read.
-  //
-  // For 'erase' the user row is gone, so an FK here would not even be writable.
-  await storage.createOrganizationEvent({
-    organizationId: organization.id,
-    eventType: disposition === "erase" ? "student_erased" : "student_detached",
-    eventDescription:
-      disposition === "erase"
-        ? `Removed student ${member.studentName || removedUser?.username || member.userId} and permanently deleted their record`
-        : `Removed student ${member.studentName || removedUser?.username || member.userId}; their account and existing report were kept`,
-    performedBy: performedByUserId,
-    performedByRole: performedBySuperadmin ? "superadmin" : "org_admin",
-    previousValue: {
-      studentName: member.studentName ?? null,
-      username: removedUser?.username ?? null,
-    },
-    newValue: null,
+    // INSIDE the transaction. It used to run after the commit, on its own
+    // connection, so a failed insert left the removal committed with no event
+    // and the route reporting a 500 for a removal that had happened — the same
+    // class as the bulk school-delete misreport fixed in 3fc4656, on the path
+    // every student removal takes. Here, the removal and its record commit
+    // together or not at all.
+    //
+    // Deliberately NOT carrying affectedUserId. organization_events
+    // .affected_user_id is a NO ACTION FK to users, and services/accountErasure.ts
+    // treats a row pointing at someone as an ACTOR record that blocks their own
+    // erasure with a 409. Naming a detached student there would hand them an
+    // audit row that blocks their right to erasure later, as a side effect of
+    // their school tidying up. The student is named in the description instead.
+    // With no FK to the user, the row is writable inside the same transaction
+    // that deletes them for 'erase'.
+    await storage.createOrganizationEvent({
+      organizationId: organization.id,
+      eventType: disposition === "erase" ? "student_erased" : "student_detached",
+      eventDescription:
+        disposition === "erase"
+          ? `Removed student ${member.studentName || removedUser?.username || member.userId} and permanently deleted their record`
+          : `Removed student ${member.studentName || removedUser?.username || member.userId}; their account and existing report were kept`,
+      performedBy: performedByUserId,
+      performedByRole: performedBySuperadmin ? "superadmin" : "org_admin",
+      previousValue: {
+        studentName: member.studentName ?? null,
+        username: removedUser?.username ?? null,
+      },
+      newValue: null,
+    }, tx);
   });
 }
 

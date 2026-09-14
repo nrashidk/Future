@@ -441,7 +441,7 @@ export interface IStorage {
   incrementDownloadCount(id: string): Promise<File>;
 
   // Organization events (audit logging)
-  createOrganizationEvent(event: InsertOrganizationEvent): Promise<OrganizationEvent>;
+  createOrganizationEvent(event: InsertOrganizationEvent, tx?: any): Promise<OrganizationEvent>;
   createOrganizationConsent(consent: InsertOrganizationConsent): Promise<OrganizationConsent>;
   /** Most recent attestation for an organization, or undefined. See shared/schema.ts. */
   getCurrentOrganizationConsent(organizationId: string): Promise<OrganizationConsent | undefined>;
@@ -3565,8 +3565,8 @@ export class DatabaseStorage implements IStorage {
     return consent;
   }
 
-  async createOrganizationEvent(event: InsertOrganizationEvent): Promise<OrganizationEvent> {
-    const [created] = await db.insert(organizationEvents).values(event).returning();
+  async createOrganizationEvent(event: InsertOrganizationEvent, tx: any = db): Promise<OrganizationEvent> {
+    const [created] = await tx.insert(organizationEvents).values(event).returning();
     return created;
   }
 
