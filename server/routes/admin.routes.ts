@@ -385,28 +385,14 @@ export function registerAdminRoutes(app: Express) {
     }
   });
 
-  app.post("/api/admin/organizations", isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      const { name, adminUserId, totalLicenses, isUnlimitedLicenses = false } = req.body;
-      
-      if (!name || !adminUserId || (!totalLicenses && !isUnlimitedLicenses)) {
-        return res.status(400).json({ message: "Missing required fields: name, adminUserId, and either totalLicenses or isUnlimitedLicenses" });
-      }
-
-      const organization = await storage.createOrganization({
-        name,
-        adminUserId,
-        totalLicenses: isUnlimitedLicenses ? 0 : parseInt(totalLicenses),
-        usedLicenses: 0,
-        isUnlimitedLicenses: Boolean(isUnlimitedLicenses),
-      });
-
-      res.status(201).json(organization);
-    } catch (error) {
-      console.error("Error creating organization:", error);
-      res.status(500).json({ message: "Failed to create school" });
-    }
-  });
+  // NO POST /api/admin/organizations, deliberately. It existed, and created an
+  // organization row and nothing else — no primary admin member, no creation
+  // event — with no client caller. That made it the sole producer of a school
+  // with no members and no events: the only state in which the bulk delete's
+  // bare DELETE could succeed and then misreport itself. Schools are created by
+  // POST /api/superadmin/organizations/create-with-admin (member + event), group
+  // purchase (member) and the seed (member). Do not reintroduce a create path
+  // that writes the organization alone.
 
   app.get("/api/admin/organizations/:id", isAuthenticated, isAdmin, async (req, res) => {
     try {
