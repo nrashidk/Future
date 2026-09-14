@@ -5716,7 +5716,22 @@ attester's name and email survive both the school and the attester.
 
 Ordered by severity. The first is above the others deliberately.
 
-### 1. applyRemovalDisposition writes its event AFTER the transaction  (severity: MEDIUM — first)
+### 1. applyRemovalDisposition writes its event AFTER the transaction — FIXED 2026-09-14 (7f64246)  (was: MEDIUM — first)
+
+**RESOLVED.** The event is now written with `tx` inside the removal's transaction, so the removal
+and its record commit together or not at all. `storage.createOrganizationEvent` takes an optional
+`tx` defaulting to `db`, the same pattern as `recomputeOrganizationLicenseUsage`; its other eight
+callers are unchanged. The event still carries no `affected_user_id`.
+
+server/routes/admin.removalEventAtomic.test.ts fails the insert for both detach and erase and
+asserts nothing happened: the student is still enrolled, the account still exists, and no event was
+written. Its rollback and handle tests fail against the previous function with only `export` added.
+
+**What this does not fix: existing rows.** The seeded school's zero events (below) still cannot
+distinguish "no removal ever happened" from "an insert failed". Removals from now on are recorded
+or do not happen; removals before 7f64246 are unrecoverable from the data.
+
+The original entry follows, unchanged.
 `admin.routes.ts:165-212`. The erase or detach and the licence recompute commit together inside
 `db.transaction` (:174-185). `storage.createOrganizationEvent` then runs afterwards (:197), on its
 own connection. If that insert fails, the removal has committed with no event, and the route's
