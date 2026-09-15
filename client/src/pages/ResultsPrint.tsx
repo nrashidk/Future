@@ -30,6 +30,7 @@ import i18n from "@/i18n/config";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { COMPONENT_BREAKDOWN_META, findComponentWeight, weightSentence, type ComponentBreakdownEntry } from "@/lib/componentBreakdown";
+import { formatLocalizedDate } from "@/lib/formatDate";
 import type { Recommendation, Career } from "@shared/schema";
 import { CVQ_DOMAINS } from "@shared/schema";
 
@@ -1158,7 +1159,7 @@ export default function ResultsPrint() {
       {/* Single report footer — rendered once at the very end (was previously
           duplicated as a per-page block on every career/values/personality page). */}
       <div className="mt-4 text-xs text-center text-muted-foreground">
-        {t('generatedOn', { date: new Date().toLocaleDateString() })} | {t('footerBrandLine')}<br />
+        {t('generatedOn', { date: formatLocalizedDate(new Date(), language) })} | {t('footerBrandLine')}<br />
         {t('footerVisitLine')}
       </div>
     </div>

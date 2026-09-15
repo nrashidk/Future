@@ -16,6 +16,7 @@ import { isPremiumAssessment } from "@shared/assessmentTier";
 import { SCHOOL_ALLOCATIONS_PER_STUDENT, FREE_ASSESSMENT_CAP } from "@shared/assessmentLimits";
 import { collapseToLatestPerGrade, toCanonicalGrade } from "@shared/grade";
 import { isResumableDraft } from "@shared/assessmentFlow";
+import { localeForLanguage } from "@/lib/formatDate";
 
 /**
  * One field of the merged profile block, as a sticky-note card.
@@ -506,7 +507,7 @@ export default function Profile() {
                   {(user as any).lastLoginAt && (
                     <ProfileNote icon={Clock} label={t("account.lastLogin")} color="pink" rotation="-1" testId="text-last-login">
                       <span className="text-base">
-                        {new Date((user as any).lastLoginAt).toLocaleString(language === 'ar' ? 'ar-AE' : 'en-US')}
+                        {new Date((user as any).lastLoginAt).toLocaleString(localeForLanguage(language))}
                       </span>
                     </ProfileNote>
                   )}
@@ -817,8 +818,8 @@ export default function Profile() {
                       // Latest badge for the same job. The timestamp is a fact
                       // already on the row.
                       const takenOn = new Date(assessment.createdAt)
-                        .toLocaleString(language === 'ar' ? 'ar-AE' : 'en-US', {
-                          year: 'numeric', month: 'numeric', day: 'numeric',
+                        .toLocaleString(localeForLanguage(language), {
+                          year: 'numeric', month: '2-digit', day: '2-digit',
                           hour: 'numeric', minute: '2-digit',
                         });
 
