@@ -6059,3 +6059,41 @@ comment. So this entry is the first written record.
 a Postgres-backed store avoids adding Redis. The login lockout shows the pattern already works
 here. This is one change across 12 limiters, and it needs a decision about the store table's
 cleanup.
+
+## Deleting a passwordless account checks intent, not identity: re-authenticate with the provider  (severity: medium, recorded 2026-09-15)
+DELETE /api/users/me asks an account with a password for the password
+(services/erasureConfirmation.ts). An account without one, created by Google or Microsoft
+sign-in, is asked to type its email address. Anyone at an open session can find that address: it
+is in /api/auth/user on every page load and printed in full on Profile. So on a shared computer
+someone else can delete the account. The deletion page now prints only a hint (`l•••@domain`,
+maskEmail in client/src/lib/dataRights.ts). That is hygiene, not a control: the page no longer
+prints the answer next to the question, and the address is still one link away.
+
+**Where masking cannot help.** A school address shaped firstname.lastname@school can be rebuilt
+from the hint's first letter and domain by any classmate who knows the student's name. Nothing
+done to the hint fixes that.
+
+**Who this actually affects, so the entry does not read as worse than it is.** School students do
+not use this path. Every school student account is created with a generated password, in the same
+transaction as its membership (storage.ts:3244-3348, the only place a student member row is
+written). No code writes a null password hash, and linking a Google or Microsoft sign-in by
+email (auth.ts upsertOAuthUser) leaves an existing hash in place. So a school student is always
+asked for their password, which the person at the keyboard does not have. The email path serves:
+- individual accounts that signed up with Google or Microsoft, who may still be 13-18;
+- a passwordless account promoted to school admin by buying a school
+  (createOrganizationWithAdmin, storage.ts:2780). Erasure refuses it while the school exists.
+
+**The fix, not applied.** For a passwordless account, the confirm step sends the reader to the
+provider with a forced fresh sign-in (`prompt=login`). The server accepts the erasure only if:
+- the callback's provider user ID matches the account's stored `oauthProvider`/`oauthProviderId`
+  (shared/schema.ts:43-44, already stored);
+- the sign-in happened within the last few minutes;
+- a short-lived, single-use grant ties that sign-in to this session and this user.
+The typed email then goes away.
+
+Two constraints on doing it:
+- It touches the OAuth strategies in server/auth.ts, which CLAUDE.md marks DO NOT TOUCH without an
+  explicit ask.
+- It inherits the open finding that upsertOAuthUser links accounts by email without checking the
+  provider verified that email. A fresh sign-in proves control of whichever provider account got
+  linked, and that link may have been made through an unverified address.
