@@ -53,44 +53,76 @@ describe("resolveQuizTier — BUG #3", () => {
   });
 });
 
-describe("quiz distribution consequences of the fix", () => {
+describe("quiz distribution — fixed 15 total, identical across tiers", () => {
   // The umbrella-6 minimum selection: 3 subjects, all 3 marked priority.
   const subjects = ["Mathematics", "Science", "English"];
 
-  it("school tier yields 5 questions per priority subject, free tier only 4", () => {
-    const school = calculateQuizDistribution(subjects, subjects, "school");
-    const free = calculateQuizDistribution(subjects, subjects, "free");
+  it("is a fixed 15 questions split by subject count, priority subjects first, the same for every tier", () => {
+    // TIER_CONFIGS is gone; calculateQuizDistribution no longer takes a tier
+    // argument at all — there is nothing left for a tier to change.
+    const threeSubj = calculateQuizDistribution(subjects, subjects);
+    for (const s of subjects) expect(threeSubj.get(s)).toBe(5);
+    expect(total(threeSubj)).toBe(15);
 
-    for (const s of subjects) {
-      expect(school.get(s)).toBe(5);
-      expect(free.get(s)).toBe(4);
-    }
-    // This 15-vs-12 gap is what a school student was losing.
-    expect(total(school)).toBe(15);
-    expect(total(free)).toBe(12);
+    const fourSubj = ["Mathematics", "Science", "English", "Arabic"];
+    const fourDist = calculateQuizDistribution(fourSubj, subjects);
+    expect(fourDist.get("Mathematics")).toBe(4);
+    expect(fourDist.get("Science")).toBe(4);
+    expect(fourDist.get("English")).toBe(4);
+    expect(fourDist.get("Arabic")).toBe(3); // the one non-priority subject
+    expect(total(fourDist)).toBe(15);
+
+    const fiveSubj = [...fourSubj, "Social Studies"];
+    const fiveDist = calculateQuizDistribution(fiveSubj, subjects);
+    for (const s of fiveSubj) expect(fiveDist.get(s)).toBe(3);
+    expect(total(fiveDist)).toBe(15);
   });
 
-  it("school and premium distributions are identical (TIER_CONFIGS parity)", () => {
-    // Guards the claim that 'school' vs 'premium' is presentational today: if
-    // these ever diverge, the fix above starts changing self-payer behaviour too.
-    const school = calculateQuizDistribution(subjects, subjects, "school");
-    const premium = calculateQuizDistribution(subjects, subjects, "premium");
-    expect([...school.entries()]).toEqual([...premium.entries()]);
+  it("puts priority subjects first regardless of where they sit in favoriteSubjects", () => {
+    // Arabic is the sole non-priority subject but listed FIRST — the 3-only-3
+    // count still has to land on it, not on whichever subject happens to be
+    // first in the array.
+    const fourSubj = ["Arabic", "Mathematics", "Science", "English"];
+    const priorities = ["Mathematics", "Science", "English"];
+    const dist = calculateQuizDistribution(fourSubj, priorities);
+    expect(dist.get("Arabic")).toBe(3);
+    expect(dist.get("Mathematics")).toBe(4);
+    expect(dist.get("Science")).toBe(4);
+    expect(dist.get("English")).toBe(4);
+  });
+
+  it("no longer distinguishes tiers — there is no third argument to pass one", () => {
+    // Guards the claim that free/premium/school are now identical. Before this
+    // fix, school vs premium being identical was the thing worth pinning
+    // (TIER_CONFIGS parity); now all three are the same function call.
+    expect(calculateQuizDistribution.length).toBe(2);
   });
 
   it("never asks for more questions per subject than the thinnest bank cell holds", () => {
-    // Staging bank depth is 10/10/7/7/6 per subject for grades 8/9/10/11/12, so
-    // the thinnest subject-grade cell is 6 (grade 12). The fix raises the ask from
-    // 4 to 5 per priority subject; 5 <= 6, so it introduces no shortfall. If a
-    // future tier config raises the cap past 6 this test fails before students do.
+    // Live bank depth (checked against staging, not just the seed source) is
+    // 10/10/7/7/6 per subject for grades 8/9/10/11/12, so the thinnest
+    // subject-grade cell is 6 (grade 12). The widest ask in the table is 5 (the
+    // 3-subject row); 5 <= 6, so it introduces no shortfall, with one to spare.
+    // If a future distribution raises any row past 6 this test fails before
+    // students do.
     const THINNEST_BANK_CELL = 6;
     // 5 subjects = the max selectable, 3 of them priority (the widest spread).
     const wide = ["Mathematics", "Science", "English", "Arabic", "Social Studies"];
     const priorities = wide.slice(0, 3);
-    for (const tier of ["free", "premium", "school"] as const) {
-      for (const [, count] of calculateQuizDistribution(wide, priorities, tier)) {
-        expect(count).toBeLessThanOrEqual(THINNEST_BANK_CELL);
-      }
+    for (const [, count] of calculateQuizDistribution(wide, priorities)) {
+      expect(count).toBeLessThanOrEqual(THINNEST_BANK_CELL);
     }
+  });
+
+  it("returns nothing for a subject count outside the 3-5 table (pre-umbrella-6 legacy rows)", () => {
+    // MIN/MAX_FAVORITE_SUBJECTS (assessmentValidation.ts) keep every new
+    // assessment inside 3-5, and a row from before that cap already has a
+    // quiz — it never reaches this function again (the existingQuiz
+    // short-circuit in quiz.routes.ts). An empty distribution here is exactly
+    // what falls through to the route's existing MIN_QUESTIONS backfill
+    // rather than a crash or an invented number.
+    expect(calculateQuizDistribution(["Mathematics"], []).size).toBe(0);
+    const seven = ["Mathematics", "Science", "English", "Arabic", "Social Studies", "Computer Science", "Mathematics2"];
+    expect(calculateQuizDistribution(seven, []).size).toBe(0);
   });
 });

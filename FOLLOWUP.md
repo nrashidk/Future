@@ -1380,6 +1380,25 @@ Assessment quiz-enablement progress:
   of tags match umbrella-6, 10 careers score a flat 20 for everyone). Already broken today. Can proceed
   without verified questions.
 
+### BUILT 2026-09-15 — as 15 flat, not the 18 sketched above; ships WITHOUT the verified-question top-up
+The bank-thinness blocker above does not apply to what actually shipped, and this note exists so a
+reader of the PAUSED bullet doesn't assume it still does. The distribution built is 5/5/5 at 3
+subjects, 4/4/4/3 at 4, 3/3/3/3/3 at 5 — 15 total, priority subjects first, identical for every tier.
+Checked against the live bank (still 10/10/7/7/6 per subject for grades 8/9/10/11/12, unchanged since
+this entry was written): the widest ask is 5, the thinnest cell is 6, so it clears with a question to
+spare at the tightest point — the 18-question design's 6/6/6 ask at grade 12 had none. No AI-generated
+or otherwise-unverified questions were added to reach this; the bank that blocked the 18-question
+version is the same bank this one runs on.
+
+Against the "When Rule B IS built" checklist two bullets up: the tier param and TIER_CONFIGS were
+dropped as described. `MIN_QUESTIONS = 6` was NOT replaced with a target-aware total — it stays as an
+independent absolute floor, unrelated to the distribution table, for the shortfall case the table
+itself doesn't cover (see quiz.routes.ts's own comment on why). No new "priorities must equal 3" guard
+was added; the distribution function tolerates any priority count by construction (priority subjects
+sort first, whatever their number, and the rest fill the remaining slots), so one was not needed.
+Shortfall handling (log-and-continue, then the MIN_QUESTIONS backfill, then a 400 only if that also
+comes up short) is the same mechanism that already existed, not a new one.
+
 ## SCORING MODEL — verified findings + direction (2026-09-01)
 
 Provenance: "VERIFIED FACTS" + "WEF SECTOR MODEL" + fixes 1-3 verified this session against staging DB + code. "DONE + LIVE IN PROD" items were verified earlier via the Neon prod SQL editor (prod not re-checked this session). The llmCountryService dead-code / llm_populated=false claim is from the prior country-gen-recon (not re-verified this session).

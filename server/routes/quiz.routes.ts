@@ -23,69 +23,67 @@ function applyLanguageToQuestion(question: any, lang: string): any {
 }
 
 /**
- * PER-SUBJECT AND ADDITIVE — there is no total, and no budget being divided.
- * Each chosen subject independently draws
- *   min(base + (isPriority ? priorityBonus : 0), maxQuestionsPerSubject)
- * so the quiz LENGTH GROWS with each subject the student adds:
+ * FIXED AT 15 QUESTIONS TOTAL, identical for every tier — TIER_CONFIGS (base +
+ * priority bonus, capped per subject) is gone, and so is the per-tier gap it
+ * produced. That gap — free 12/14/16, premium and school 15/18/21 across
+ * 3/4/5 subjects — was the ONLY reason premium's subject scores measured more
+ * reliably than free's (test-retest r 0.40 vs 0.36, SD 2.4 vs 4.7 on a
+ * one-subject career): more questions per subject, nothing else. Removing it
+ * is deliberate. Premium's value is RIASEC + CVQ + the fuller report now, not
+ * a longer quiz — a premium student already answers 30 RIASEC + 15 CVQ items,
+ * and the old premium/school total of 21 quiz questions would have put them
+ * at 66 items in one sitting.
  *
- *              3 subj   4 subj   5 subj      (priority subjects = min(n, 3))
- *     free        12       14       16       priority 4 each, others 2 each
- *     premium     15       18       21       priority 5 each, others 3 each
- *     school      15       18       21
+ * The 15 are split by how many subjects were chosen, priority subjects first:
  *
- * Nothing here varies by grade. `school` and `premium` are identical configs and
- * quiz.tier.test.ts pins that, so a divergence has to be deliberate.
+ *   3 subjects: 5, 5, 5
+ *   4 subjects: 4, 4, 4, 3
+ *   5 subjects: 3, 3, 3, 3, 3
  *
- * There was a fourth field, `tierMultiplier` (1 / 1.2 / 1.2), removed because it
- * was never read — the premium/school gap comes entirely from the higher `base`.
- * A config value that looks like it scales the quiz and does not is worse than
- * no value at all: it invites a reader to reason about a 20% uplift that has
- * never existed.
+ * Checked against the live bank, not just the seed source: 240 rows, 6
+ * subjects × grades 8-12, "uae"/"MOE National" — the only bucket that exists.
+ * The thinnest cell is grade 12 at 6 per subject; the widest ask above is 5.
+ * Clears with a question to spare even there.
+ *
+ * NOT the abandoned 18-question "Rule B" design (FOLLOWUP.md, "QUIZ (Rule
+ * B)"), which needed 6/6/6 at 3 subjects and was paused for exactly this
+ * reason — grade 12's 6-question cell left it zero room. This ships without
+ * the verified-question bank top-up that design was blocked on; a reader of
+ * that FOLLOWUP entry should not assume the same blocker applies here.
+ *
+ * ONLY 3-5 SUBJECTS ARE COVERED, matching MIN/MAX_FAVORITE_SUBJECTS
+ * (assessmentValidation.ts). A row from before the umbrella-6 picker
+ * (2026-08-27) can hold more — assessmentValidation.ts documents one with
+ * eight — but such a row already has a quiz (this route generates once per
+ * assessment; see the existingQuiz short-circuit below), so it never reaches
+ * this function again. The only way a length outside 3-5 gets here is a
+ * pre-cap assessment that was never quizzed and is resumed today; the table
+ * lookup below returns nothing for it and the caller's existing MIN_QUESTIONS
+ * backfill (unweighted, but functional) is what serves it — not a new gap,
+ * the same fallback that already exists for any shortfall.
  */
-interface QuizDistributionConfig {
-  baseQuestionsPerSubject: number;
-  priorityBonus: number;
-  maxQuestionsPerSubject: number;
-}
-
-const TIER_CONFIGS: Record<string, QuizDistributionConfig> = {
-  free: {
-    baseQuestionsPerSubject: 2,
-    priorityBonus: 2,
-    maxQuestionsPerSubject: 4,
-  },
-  premium: {
-    baseQuestionsPerSubject: 3,
-    priorityBonus: 2,
-    maxQuestionsPerSubject: 5,
-  },
-  school: {
-    baseQuestionsPerSubject: 3,
-    priorityBonus: 2,
-    maxQuestionsPerSubject: 5,
-  },
+const QUIZ_DISTRIBUTION_BY_SUBJECT_COUNT: Record<number, readonly number[]> = {
+  3: [5, 5, 5],
+  4: [4, 4, 4, 3],
+  5: [3, 3, 3, 3, 3],
 };
 
 export function calculateQuizDistribution(
   favoriteSubjects: string[],
   prioritySubjects: string[],
-  tier: 'free' | 'premium' | 'school'
 ): Map<string, number> {
-  const config = TIER_CONFIGS[tier];
   const distribution = new Map<string, number>();
-  
-  for (const subject of favoriteSubjects) {
-    const isPriority = prioritySubjects.includes(subject);
-    let questionsForSubject = config.baseQuestionsPerSubject;
-    
-    if (isPriority) {
-      questionsForSubject += config.priorityBonus;
-    }
-    
-    questionsForSubject = Math.min(questionsForSubject, config.maxQuestionsPerSubject);
-    distribution.set(subject, questionsForSubject);
-  }
-  
+  const counts = QUIZ_DISTRIBUTION_BY_SUBJECT_COUNT[favoriteSubjects.length];
+  if (!counts) return distribution;
+
+  // Priority subjects first, in the order the student ranked them; the rest
+  // keep the order they were chosen in.
+  const ordered = [
+    ...favoriteSubjects.filter((s) => prioritySubjects.includes(s)),
+    ...favoriteSubjects.filter((s) => !prioritySubjects.includes(s)),
+  ];
+  ordered.forEach((subject, i) => distribution.set(subject, counts[i]));
+
   return distribution;
 }
 
@@ -360,12 +358,14 @@ export function registerQuizRoutes(app: Express) {
           isSchoolUser = !!orgMember;
         }
       }
+      // Resolved and logged for diagnostics only now — the distribution below
+      // no longer varies by tier, so `tier` feeds nothing downstream of this.
       const tier: QuizTier = resolveQuizTier(isSchoolUser, user?.isPremium);
 
-      const distribution = calculateQuizDistribution(favoriteSubjects, prioritySubjects, tier);
+      const distribution = calculateQuizDistribution(favoriteSubjects, prioritySubjects);
       const targetTotal = getTotalQuestionsFromDistribution(distribution);
-      
-      console.log(`Quiz distribution for ${tier} tier:`, Object.fromEntries(distribution));
+
+      console.log(`Quiz distribution for ${tier} tier (same for all tiers):`, Object.fromEntries(distribution));
       console.log(`Target total questions: ${targetTotal}`);
       
       const selectedQuestions: any[] = [];

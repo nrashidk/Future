@@ -16,21 +16,24 @@ import { normalizeSubjects, getAllowedSubjectSet } from "./subjects";
 // still scores, and must keep doing both. Existing rows are grandfathered by
 // construction rather than by an exemption someone has to remember to write.
 //
-// WHAT THE SUBJECT COUNT ACTUALLY CONTROLS, since a wrong version of this has
-// been copied around: the quiz is NOT a fixed budget split across the chosen
-// subjects. calculateQuizDistribution (server/routes/quiz.routes.ts) is
-// per-subject and additive — each subject independently draws
-// base + (priority ? bonus : 0), capped — so the total GROWS with each subject
-// added. The real totals, by tier and subject count:
+// WHAT THE SUBJECT COUNT ACTUALLY CONTROLS, since a wrong version of this was
+// copied into two places (this file and SubjectsStep.tsx — check both if you
+// change it again): calculateQuizDistribution (server/routes/quiz.routes.ts)
+// IS a fixed budget split across the chosen subjects now, priority ones
+// first, the same for every tier — but the number is 15, not 18:
 //
-//              3 subj   4 subj   5 subj        (priority subjects: min(n, 3))
-//     free        12       14       16         priority 4 each, others 2 each
-//     premium     15       18       21         priority 5 each, others 3 each
-//     school      15       18       21         (identical config to premium)
+//              3 subj      4 subj       5 subj      (all totals: 15)
+//     all tiers   5,5,5    4,4,4,3    3,3,3,3,3
 //
-// So 18 is not "the total" — it is one of six cells, and a free student at 5
-// subjects sits at 16. The cap exists to bound the quiz LENGTH and the prompt
-// injection surface, not to protect an arithmetic identity that never held.
+// This used to be per-subject and additive instead — each subject drawing
+// base + (priority ? bonus : 0), capped, so the total GREW with each subject
+// added, and premium/school (15/18/21) ran ahead of free (12/14/16) by
+// design. That gap is gone along with the arithmetic that produced it: it was
+// the only reason premium's subject scores measured more reliably than
+// free's, and premium's value is RIASEC + CVQ + the fuller report now, not a
+// longer quiz. The cap below still exists to bound quiz length and the
+// prompt injection surface, and now also bounds the table above — the
+// distribution has no row past 5 subjects.
 export const MIN_FAVORITE_SUBJECTS = 3;    // matches SubjectsStep's MIN_SUBJECTS; create-path only, see below
 export const MAX_FAVORITE_SUBJECTS = 5;    // Rule B cap: 6 umbrella tiles, pick at most 5
 export const MAX_PRIORITY_SUBJECTS = 3;    // matches SubjectsStep's MAX_PRIORITY_SUBJECTS

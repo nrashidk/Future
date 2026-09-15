@@ -29,20 +29,23 @@ const MAX_PRIORITY_SUBJECTS = 3;
 // MAX_PRIORITY_SUBJECTS on purpose: at exactly this count the selection IS the
 // priority set, above it the student must rank an explicit top three.
 const MIN_SUBJECTS = 3;
-// Hard ceiling on the selection, and NOT because of a fixed quiz budget — an
-// earlier version of this comment claimed the quiz is "a fixed 18 questions
-// split across the chosen subjects", which is wrong in both halves.
-// calculateQuizDistribution (server/routes/quiz.routes.ts) is per-subject and
-// additive, so the quiz gets LONGER with each subject rather than thinner:
+// Hard ceiling on the selection. An earlier version of this comment claimed
+// the quiz is "a fixed 18 questions split across the chosen subjects", which
+// was wrong in both halves at the time — the quiz was per-subject and
+// additive, growing LONGER with each subject rather than staying fixed, and
+// 18 was one of six free/premium/3-5-subject cells, not a total.
+//
+// That claim is true now, except the number: calculateQuizDistribution
+// (server/routes/quiz.routes.ts) is a fixed 15 questions split across the
+// chosen subjects, priority ones first, the same for every tier —
 //
 //              3 subj   4 subj   5 subj
-//     free        12       14       16
-//     premium     15       18       21
+//     all tiers    5,5,5   4,4,4,3   3,3,3,3,3      (all total 15)
 //
-// 18 is one of six cells, not the total. The cap bounds how long the quiz can
-// get — a 6th subject would take a free student to 18 and a premium one to 24 —
-// and it is mirrored server-side by MAX_FAVORITE_SUBJECTS, which is what makes
-// it real against a direct API call.
+// This cap is WHY the table stops at 5: calculateQuizDistribution only has a
+// row for 3-5 subjects, matching this constant and its server-side mirror,
+// MAX_FAVORITE_SUBJECTS — which is what makes the cap real against a direct
+// API call rather than just this picker.
 const MAX_SUBJECTS = 5;
 
 export function SubjectsStep({ data, onUpdate, onNext, onBack }: SubjectsStepProps) {
