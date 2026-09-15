@@ -34,6 +34,13 @@ export const RATE_LIMITS = {
     MAX_REQUESTS: 5,
     MESSAGE: "Too many export requests. Please try again later.",
   },
+  // The password or email re-entry that confirms DELETE /api/users/me. Counts
+  // failures only (see erasureConfirmationLimiter), per account.
+  ERASURE_CONFIRMATION: {
+    WINDOW_MS: 15 * 60 * 1000, // 15 minutes
+    MAX_REQUESTS: 5,
+    MESSAGE: "Too many attempts to confirm deleting this account. Please try again later.",
+  },
   ORG_CREATION: {
     WINDOW_MS: 60 * 60 * 1000, // 1 hour
     MAX_REQUESTS: 10,

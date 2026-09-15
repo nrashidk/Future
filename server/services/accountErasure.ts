@@ -18,6 +18,7 @@ import {
   files, scoringConfigChangeLog, systemAnnouncements, systemConfig,
 } from "@shared/schema";
 import { eq, or, inArray } from "drizzle-orm";
+import type { ErasureBlockCode } from "@shared/dataRights";
 import { storage } from "../storage";
 
 /**
@@ -139,29 +140,36 @@ export async function eraseUserData(tx: any, userId: string): Promise<void> {
  * Making admin erasure work is a separate decision with a schema change behind
  * it: organizations.admin_user_id and organization_events.performed_by are both
  * NOT NULL with NO ACTION and cannot be nulled as they stand.
+ *
+ * TWO NAMES PER SOURCE, FOR TWO READERS. `code` is what the erasure 409 and
+ * data-summary send, and what the client branches on and translates — the
+ * person refused may be reading Arabic. The codes are defined in
+ * shared/dataRights.ts so the client reads the same list. `label` is the
+ * English the export file uses, which is JSON for software and is not
+ * translated.
  */
-export const BLOCKING_AUDIT_SOURCES: Array<{ table: any; column: any; label: string }> = [
-  { table: organizations, column: organizations.adminUserId, label: "school records naming you as the registered administrator" },
-  { table: organizationEvents, column: organizationEvents.performedBy, label: "school activity-log entries recording actions you performed" },
-  { table: organizationEvents, column: organizationEvents.affectedUserId, label: "school activity-log entries recording actions taken on your admin account" },
-  { table: files, column: files.uploadedBy, label: "files you uploaded" },
-  { table: contributionSubmissions, column: contributionSubmissions.submittedByUserId, label: "question contributions you submitted" },
-  { table: contributionSubmissions, column: contributionSubmissions.reviewedByUserId, label: "question contributions you reviewed" },
-  { table: contributionRewards, column: contributionRewards.awardedByUserId, label: "contribution rewards you awarded" },
-  { table: scoringConfigChangeLog, column: scoringConfigChangeLog.changedBy, label: "scoring-configuration changes you made" },
-  { table: systemAnnouncements, column: systemAnnouncements.createdByUserId, label: "system announcements you created" },
-  { table: systemConfig, column: systemConfig.updatedByUserId, label: "system settings you updated" },
+export const BLOCKING_AUDIT_SOURCES: Array<{ table: any; column: any; code: ErasureBlockCode; label: string }> = [
+  { table: organizations, column: organizations.adminUserId, code: "school_administrator", label: "school records naming you as the registered administrator" },
+  { table: organizationEvents, column: organizationEvents.performedBy, code: "school_activity_performed", label: "school activity-log entries recording actions you performed" },
+  { table: organizationEvents, column: organizationEvents.affectedUserId, code: "school_activity_affected", label: "school activity-log entries recording actions taken on your admin account" },
+  { table: files, column: files.uploadedBy, code: "files_uploaded", label: "files you uploaded" },
+  { table: contributionSubmissions, column: contributionSubmissions.submittedByUserId, code: "contributions_submitted", label: "question contributions you submitted" },
+  { table: contributionSubmissions, column: contributionSubmissions.reviewedByUserId, code: "contributions_reviewed", label: "question contributions you reviewed" },
+  { table: contributionRewards, column: contributionRewards.awardedByUserId, code: "contribution_rewards_awarded", label: "contribution rewards you awarded" },
+  { table: scoringConfigChangeLog, column: scoringConfigChangeLog.changedBy, code: "scoring_config_changes", label: "scoring-configuration changes you made" },
+  { table: systemAnnouncements, column: systemAnnouncements.createdByUserId, code: "system_announcements", label: "system announcements you created" },
+  { table: systemConfig, column: systemConfig.updatedByUserId, code: "system_settings", label: "system settings you updated" },
 ];
 
-export async function collectBlockingAuditRecords(tx: any, userId: string): Promise<string[]> {
-  const blocking: string[] = [];
+export async function collectBlockingAuditRecords(tx: any, userId: string): Promise<ErasureBlockCode[]> {
+  const blocking: ErasureBlockCode[] = [];
   for (const source of BLOCKING_AUDIT_SOURCES) {
     const rows = await tx
       .select({ id: source.column })
       .from(source.table)
       .where(eq(source.column, userId))
       .limit(1);
-    if (rows.length > 0) blocking.push(source.label);
+    if (rows.length > 0) blocking.push(source.code);
   }
   return blocking;
 }

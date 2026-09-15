@@ -29,7 +29,9 @@ import {
   organizationDeletions,
 } from "@shared/schema";
 import { eq, or, and, inArray, lte, desc } from "drizzle-orm";
-import { BLOCKING_AUDIT_SOURCES } from "./accountErasure";
+import { BLOCKING_AUDIT_SOURCES, collectBlockingAuditRecords } from "./accountErasure";
+import { erasureConfirmationMethod } from "./erasureConfirmation";
+import type { ErasureKeptCode, ErasureStatus } from "@shared/dataRights";
 import { toClientRecommendations } from "../utils/recommendationView";
 
 export type SubjectSection =
@@ -412,5 +414,64 @@ export function summarizeSubjectAccess(subject: NonNullable<Awaited<ReturnType<t
     // says what else exists and why it is not in the file.
     totalRecords: 1 + Object.values(dataCategories).reduce((n, c) => n + c, 0),
     heldButNotIncluded: subject.heldButNotIncluded,
+  };
+}
+
+/**
+ * WHETHER ERASURE WOULD RUN NOW, AND WHAT OUTLIVES IT — for data-summary.
+ *
+ * ON THE SUMMARY, NOT A SECOND ENDPOINT. The Profile screen needs the counts and
+ * the answer to "can I delete this" together. Two endpoints reporting on the
+ * same account can disagree, and then the screen has to pick one. So it is one
+ * fetch.
+ *
+ * NOT A PROMISE. DELETE /api/users/me decides for itself, inside its
+ * transaction. This runs the same check — collectBlockingAuditRecords and
+ * erasureConfirmationMethod, not copies of them — so it is what that route would
+ * decide at the moment of reading.
+ *
+ * keptAfterErasure is what a truthful deletion screen has to say is NOT deleted,
+ * for this reader only:
+ *   school_removal_record  the 'student_detached' event that names a detached
+ *                          student (FOLLOWUP.md, "A school's activity log keeps
+ *                          an erased student's name" — undecided, so it is said)
+ *   consent_attestation    an attester's name and email (decided, 2026-09-10)
+ *   school_deletion_record a school deleter's name and email (decided, 2026-09-14)
+ * Read from the subject's own sections, so it lists exactly the records the
+ * export returned and nothing inferred from account flags. A detached student
+ * whose school has since been deleted has no event left, and is told nothing.
+ */
+export async function summarizeErasure(
+  db: any,
+  userId: string,
+  subject: NonNullable<Awaited<ReturnType<typeof collectSubjectAccess>>>,
+): Promise<ErasureStatus> {
+  const blockingRecords = await collectBlockingAuditRecords(db, userId);
+
+  // The schools named in the refusal. Only the registered administrator is told
+  // which school, because that is the one block the school's deletion resolves.
+  const administeredSchools: string[] = blockingRecords.includes("school_administrator")
+    ? (await db.select({ name: organizations.name }).from(organizations)
+        .where(eq(organizations.adminUserId, userId))).map((o: any) => o.name)
+    : [];
+
+  const [credentials] = await db
+    .select({ passwordHash: users.passwordHash, email: users.email })
+    .from(users)
+    .where(eq(users.id, userId));
+
+  const kept = new Map<string, { code: ErasureKeptCode; organizationName: string | null }>();
+  const keep = (code: ErasureKeptCode, organizationName: string | null | undefined) =>
+    kept.set(`${code}:${organizationName ?? ""}`, { code, organizationName: organizationName ?? null });
+  for (const r of subject.schoolRemovalRecords) keep("school_removal_record", r.organizationName);
+  for (const c of subject.consentAttestationsYouMade) keep("consent_attestation", c.organizationName);
+  for (const d of subject.organizationDeletionsYouPerformed) keep("school_deletion_record", d.organizationName);
+
+  return {
+    blocked: blockingRecords.length > 0,
+    blockingRecords,
+    administeredSchools,
+    confirmWith: credentials ? erasureConfirmationMethod(credentials) : null,
+    keptAfterErasure: Array.from(kept.values()),
   };
 }

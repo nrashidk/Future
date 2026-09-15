@@ -147,6 +147,37 @@ export const dataExportLimiter = rateLimit({
 });
 
 /**
+ * The password or email re-entry on DELETE /api/users/me.
+ *
+ * KEYED ON THE ACCOUNT, NOT THE IP. Whoever this slows already holds the
+ * session, so the account is what is being guessed against. And a school
+ * computer lab sends a whole class through one address, where an IP key would
+ * let one student's typos lock the room out. Mounted after isAuthenticated,
+ * which is what puts req.user there.
+ *
+ * ONLY FAILURES COUNT. A success deletes the account; there is nothing left to
+ * count it against.
+ *
+ * Separate from the login lockout in auth.ts, deliberately: a failed
+ * confirmation here does not lock the account's sign-in.
+ */
+export const erasureConfirmationLimiter = rateLimit({
+  windowMs: RATE_LIMITS.ERASURE_CONFIRMATION.WINDOW_MS,
+  max: RATE_LIMITS.ERASURE_CONFIRMATION.MAX_REQUESTS,
+  message: RATE_LIMITS.ERASURE_CONFIRMATION.MESSAGE,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  keyGenerator: (req: Request) => {
+    const userId = (req as any).user?.userId;
+    return userId ? `user:${userId}` : ipKeyGenerator(req.ip ?? "unknown");
+  },
+  // Logged: a throttled confirmation is someone guessing a password from inside
+  // a session, and without this it would leave no trace.
+  handler: makeLoggingHandler("erasureConfirmation", RATE_LIMITS.ERASURE_CONFIRMATION.MESSAGE),
+});
+
+/**
  * Rate limiting for organization creation
  * Prevents spam organization creation
  */

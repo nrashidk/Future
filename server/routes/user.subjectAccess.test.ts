@@ -62,10 +62,11 @@ vi.mock("../auth", () => ({
 }));
 vi.mock("../middleware/rateLimiter.middleware", () => ({
   dataExportLimiter: (_req: any, _res: any, next: any) => next(),
+  erasureConfirmationLimiter: (_req: any, _res: any, next: any) => next(),
 }));
 
 const { getTableColumns } = await import("drizzle-orm");
-const { BLOCKING_AUDIT_SOURCES } = await import("../services/accountErasure");
+const { BLOCKING_AUDIT_SOURCES, collectBlockingAuditRecords } = await import("../services/accountErasure");
 const { SUBJECT_ACCESS_REGISTRY, collectSubjectAccess, summarizeSubjectAccess } =
   await import("../services/subjectAccess");
 const { registerUserRoutes } = await import("./user.routes");
@@ -475,7 +476,8 @@ describe("GET /api/users/me/export and /data-summary", () => {
     const summary = await get("/api/users/me/data-summary");
     expect(summary.status).toBe(200);
     expect(summary.body.dataCategories).toMatchObject({ wefCompetencyResults: 1, schoolEnrolment: 1 });
-    expect(summary.body).toEqual(JSON.parse(JSON.stringify(summarizeSubjectAccess(exported.body))));
+    const { erasure, ...counts } = summary.body;
+    expect(counts).toEqual(JSON.parse(JSON.stringify(summarizeSubjectAccess(exported.body))));
     // account, a1, rec1, q1, r1, n1, c1, w1, m1, t1 — ten records seeded.
     expect(summary.body.totalRecords).toBe(10);
   });
@@ -484,5 +486,68 @@ describe("GET /api/users/me/export and /data-summary", () => {
     currentUserId = "u-missing";
     expect((await get("/api/users/me/export")).status).toBe(404);
     expect((await get("/api/users/me/data-summary")).status).toBe(404);
+  });
+
+  // One fetch answers both "what do you hold" and "can I delete it", so the two
+  // cannot disagree on screen.
+  describe("the erasure status on data-summary", () => {
+    it("says a school student's erasure would run, confirmed by password, and nothing outlives it", async () => {
+      seedStudent(store);
+      const { body } = await get("/api/users/me/data-summary");
+      expect(body.erasure).toEqual({
+        blocked: false,
+        blockingRecords: [],
+        administeredSchools: [],
+        confirmWith: "password",
+        keptAfterErasure: [],
+      });
+    });
+
+    it("refuses an admin with the same codes the DELETE route's check returns, and names the school", async () => {
+      currentUserId = "u-admin";
+      store.add(users, fullUserRow("u-admin", { accountType: "org_admin" }));
+      store.add(organizations, { id: "org1", name: "Al Noor School", adminUserId: "u-admin" });
+      store.add(organizationEvents, { id: "e1", organizationId: "org1", performedBy: "u-admin" });
+      store.add(organizationConsents, consent("k1", new Date("2026-01-15")));
+
+      const { body } = await get("/api/users/me/data-summary");
+      expect(body.erasure.blocked).toBe(true);
+      expect(body.erasure.blockingRecords).toEqual(await collectBlockingAuditRecords(makeDb(store), "u-admin"));
+      expect(body.erasure.blockingRecords).toEqual(["school_administrator", "school_activity_performed"]);
+      expect(body.erasure.administeredSchools).toEqual(["Al Noor School"]);
+      // Their attestation keeps their name and email past erasure, by decision.
+      expect(body.erasure.keptAfterErasure).toEqual([
+        { code: "consent_attestation", organizationName: "Al Noor School" },
+      ]);
+    });
+
+    // The open decision: a detached student's name stays in the school's log.
+    it("tells a detached student their former school's log keeps their name", async () => {
+      currentUserId = "u-detached";
+      store.add(users, fullUserRow("u-detached", {
+        username: "stu7", passwordHash: null, email: "stu7@example.com",
+        createdAt: new Date("2026-01-01"), detachedAt: new Date("2026-06-01"),
+      }));
+      store.add(organizations, { id: "org1", name: "Al Noor School", adminUserId: "u-admin" });
+      store.add(organizationEvents, {
+        id: "e1", organizationId: "org1", eventType: "student_detached",
+        eventDescription: "Removed student stu7", performedBy: "u-admin", performedByRole: "org_admin",
+        previousValue: { studentName: "Sara", username: "stu7" }, createdAt: new Date("2026-06-01"),
+      });
+
+      const { body } = await get("/api/users/me/data-summary");
+      expect(body.erasure.blocked).toBe(false);
+      expect(body.erasure.confirmWith).toBe("email");
+      expect(body.erasure.keptAfterErasure).toEqual([
+        { code: "school_removal_record", organizationName: "Al Noor School" },
+      ]);
+    });
+
+    it("says an account with neither a password nor an email cannot be confirmed", async () => {
+      currentUserId = "u-bare";
+      store.add(users, fullUserRow("u-bare", { passwordHash: null, email: null }));
+      const { body } = await get("/api/users/me/data-summary");
+      expect(body.erasure.confirmWith).toBeNull();
+    });
   });
 });

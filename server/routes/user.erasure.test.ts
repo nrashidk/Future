@@ -37,6 +37,7 @@ import {
   organizations, organizationEvents, files, contributionSubmissions,
   contributionRewards, scoringConfigChangeLog, systemAnnouncements, systemConfig,
 } from "@shared/schema";
+import { ERASURE_BLOCK_CODES } from "@shared/dataRights";
 
 // Only the three predicate builders are replaced, so the fake can read them.
 // pgTable/sql/relations stay real — @shared/schema is built with them.
@@ -61,7 +62,9 @@ vi.mock("../db", () => ({
 const recomputed: string[] = [];
 vi.mock("../storage", () => ({
   storage: {
-    getUser: async (id: string) => ({ id, email: null }),
+    // The seeded row, so the route's confirmation reads the account's real
+    // passwordHash and email.
+    getUser: async (id: string) => store.rows(users).find((r) => r.id === id),
     // Self-deletion used to leave the school's licence counters untouched, so a
     // student who erased their account burned one of their school's seats. The
     // counters derive from the roster now, so erasure must recompute the roster
@@ -81,10 +84,16 @@ vi.mock("../auth", () => ({
 }));
 vi.mock("../middleware/rateLimiter.middleware", () => ({
   dataExportLimiter: (_req: any, _res: any, next: any) => next(),
+  erasureConfirmationLimiter: (_req: any, _res: any, next: any) => next(),
 }));
 
 const { eraseUserData, collectBlockingAuditRecords } = await import("../services/accountErasure");
 const { registerUserRoutes } = await import("./user.routes");
+const { hashPassword } = await import("../utils/passwordHash");
+
+// A real bcrypt hash, so the route's confirmation runs the real compare.
+const PASSWORD = "Correct-horse-9";
+const PASSWORD_HASH = await hashPassword(PASSWORD);
 
 // ---------------------------------------------------------------- fake db ---
 
@@ -205,7 +214,7 @@ async function legacyEraseUserData(tx: any, userId: string, assessmentIds: strin
 
 /** A school student who completed one premium assessment. */
 function seedPremiumStudent(s: Store) {
-  s.add(users, { id: "u-student", accountType: "org_student" });
+  s.add(users, { id: "u-student", accountType: "org_student", passwordHash: PASSWORD_HASH, email: null });
   s.add(assessments, { id: "a1", userId: "u-student", assessmentType: "premium" });
   s.add(assessmentQuizzes, { id: "q1", assessmentId: "a1" });
   s.add(quizResponses, { id: "r1", assessmentQuizId: "q1", questionId: "qq1" });
@@ -305,6 +314,13 @@ describe("eraseUserData", () => {
 });
 
 describe("collectBlockingAuditRecords", () => {
+  // The client translates these codes from the shared list, so a source with a
+  // code outside it, or two sources sharing one, reaches a reader as no sentence.
+  it("gives every blocking source its own code from the shared list", async () => {
+    const { BLOCKING_AUDIT_SOURCES } = await import("../services/accountErasure");
+    expect(BLOCKING_AUDIT_SOURCES.map((s) => s.code)).toEqual([...ERASURE_BLOCK_CODES]);
+  });
+
   it("is empty for a student, so their erasure runs", async () => {
     seedPremiumStudent(store);
     expect(await collectBlockingAuditRecords(makeTx(store), "u-student")).toEqual([]);
@@ -315,48 +331,34 @@ describe("collectBlockingAuditRecords", () => {
     store.add(organizations, { id: "org1", adminUserId: "u-admin" });
     store.add(organizationEvents, { id: "e1", organizationId: "org1", performedBy: "u-admin" });
 
+    // Codes, not English: the client translates them for a refused reader.
     const blocking = await collectBlockingAuditRecords(makeTx(store), "u-admin");
-    expect(blocking).toHaveLength(2);
-    expect(blocking[0]).toMatch(/registered administrator/);
-    expect(blocking[1]).toMatch(/activity-log entries recording actions you performed/);
+    expect(blocking).toEqual(["school_administrator", "school_activity_performed"]);
   });
 });
 
 // 4. The route, end to end: an org admin must get a 409 that names what blocks
 //    it, not the 23503-shaped 500 the same rows would otherwise produce.
 describe("DELETE /api/users/me", () => {
-  async function del(): Promise<{ status: number; body: any }> {
-    const app = express();
-    app.use(express.json());
-    registerUserRoutes(app);
-    const server = app.listen(0);
-    await new Promise((r) => server.once("listening", r));
-    const { port } = server.address() as AddressInfo;
-    try {
-      const res = await fetch(`http://127.0.0.1:${port}/api/users/me`, { method: "DELETE" });
-      return { status: res.status, body: await res.json() };
-    } finally {
-      server.close();
-    }
-  }
-
   it("refuses an org admin with 409 and names the blocking records", async () => {
     currentUserId = "u-admin";
-    store.add(users, { id: "u-admin", accountType: "org_admin" });
+    store.add(users, { id: "u-admin", accountType: "org_admin", passwordHash: PASSWORD_HASH });
     store.add(organizations, { id: "org1", adminUserId: "u-admin" });
     store.add(organizationEvents, { id: "e1", organizationId: "org1", performedBy: "u-admin" });
 
-    const { status, body } = await del();
+    const { status, body } = await del({ password: PASSWORD });
     expect(status).toBe(409);
     expect(body.code).toBe("ERASURE_BLOCKED_BY_AUDIT_RECORDS");
-    expect(body.blockingRecords).toHaveLength(2);
+    expect(body.blockingRecords).toEqual(["school_administrator", "school_activity_performed"]);
+    // The address it used to name has no MX records.
+    expect(body.message).not.toMatch(/@/);
     // Refusing must not delete: the admin's own user row is still there.
     expect(store.rows(users)).toHaveLength(1);
   });
 
   it("erases a premium student and reports what it deleted, without claiming more", async () => {
     seedPremiumStudent(store);
-    const { status, body } = await del();
+    const { status, body } = await del({ password: PASSWORD });
     expect(status).toBe(200);
     expect(body.success).toBe(true);
     expect(body.deleted).toContain("WEF competency results");
@@ -366,3 +368,109 @@ describe("DELETE /api/users/me", () => {
     expect(store.rows(users)).toHaveLength(0);
   });
 });
+
+// 5. A session proves a browser, not a person. The route asks again, and every
+//    refusal must leave the account and its records exactly as they were.
+describe("DELETE /api/users/me — confirmation", () => {
+  const untouched = () => {
+    expect(store.rows(users).length).toBeGreaterThan(0);
+    expect(store.rows(assessments)).toHaveLength(1);
+    expect(store.rows(wefCompetencyResults)).toHaveLength(1);
+  };
+
+  /** An account with no password, as Google or Microsoft sign-in creates. */
+  function seedOAuthOnly(s: Store, email: string | null) {
+    currentUserId = "u-oauth";
+    s.add(users, { id: "u-oauth", accountType: "individual", passwordHash: null, email });
+    s.add(assessments, { id: "a-o", userId: "u-oauth", assessmentType: "premium" });
+    s.add(wefCompetencyResults, { id: "w-o", assessmentId: "a-o", userId: "u-oauth" });
+  }
+
+  it("refuses a password account that sends no password", async () => {
+    seedPremiumStudent(store);
+    const { status, body } = await del();
+    expect(status).toBe(400);
+    expect(body.code).toBe("ERASURE_PASSWORD_REQUIRED");
+    untouched();
+  });
+
+  it("refuses a wrong password", async () => {
+    seedPremiumStudent(store);
+    const { status, body } = await del({ password: "Wrong-horse-9" });
+    expect(status).toBe(403);
+    expect(body.code).toBe("ERASURE_PASSWORD_INCORRECT");
+    untouched();
+  });
+
+  // The weaker check exists only for accounts with nothing stronger.
+  it("does not let a password account confirm with its email instead", async () => {
+    seedPremiumStudent(store);
+    store.rows(users)[0].email = "layla@example.com";
+    const { status, body } = await del({ confirmEmail: "layla@example.com" });
+    expect(status).toBe(400);
+    expect(body.code).toBe("ERASURE_PASSWORD_REQUIRED");
+    untouched();
+  });
+
+  it("erases an account without a password when its email is typed, ignoring case and spaces", async () => {
+    seedOAuthOnly(store, "sam@example.com");
+    const { status } = await del({ confirmEmail: "  Sam@Example.com " });
+    expect(status).toBe(200);
+    expect(store.rows(users)).toHaveLength(0);
+  });
+
+  it("refuses an account without a password when the typed email does not match", async () => {
+    seedOAuthOnly(store, "sam@example.com");
+    const { status, body } = await del({ confirmEmail: "someone@example.com" });
+    expect(status).toBe(403);
+    expect(body.code).toBe("ERASURE_EMAIL_MISMATCH");
+    untouched();
+  });
+
+  it("refuses an account without a password when no email is typed", async () => {
+    seedOAuthOnly(store, "sam@example.com");
+    const { status, body } = await del({ confirmEmail: "   " });
+    expect(status).toBe(400);
+    expect(body.code).toBe("ERASURE_EMAIL_REQUIRED");
+    untouched();
+  });
+
+  // upsertOAuthUser creates the user with no email when the provider sends none.
+  // Nothing to confirm with must not read as confirmed.
+  it("refuses an account with neither a password nor an email", async () => {
+    seedOAuthOnly(store, null);
+    const { status, body } = await del({ confirmEmail: "" });
+    expect(status).toBe(409);
+    expect(body.code).toBe("ERASURE_CONFIRMATION_UNAVAILABLE");
+    untouched();
+  });
+
+  it("checks the confirmation before the audit-record block", async () => {
+    currentUserId = "u-admin";
+    store.add(users, { id: "u-admin", accountType: "org_admin", passwordHash: PASSWORD_HASH });
+    store.add(organizations, { id: "org1", adminUserId: "u-admin" });
+    const { status, body } = await del({ password: "Wrong-horse-9" });
+    expect(status).toBe(403);
+    expect(body.code).toBe("ERASURE_PASSWORD_INCORRECT");
+  });
+});
+
+async function del(body?: unknown): Promise<{ status: number; body: any }> {
+  const app = express();
+  app.use(express.json());
+  registerUserRoutes(app);
+  const server = app.listen(0);
+  await new Promise((r) => server.once("listening", r));
+  const { port } = server.address() as AddressInfo;
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}/api/users/me`, {
+      method: "DELETE",
+      ...(body === undefined
+        ? {}
+        : { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }),
+    });
+    return { status: res.status, body: await res.json() };
+  } finally {
+    server.close();
+  }
+}

@@ -7,9 +7,10 @@ import { eq } from "drizzle-orm";
 // The erasure sequence lives in services/ because a school admin removing a
 // student now runs the same one (admin.routes.ts). Two callers, one definition.
 import { eraseUserData, collectBlockingAuditRecords } from "../services/accountErasure";
-import { dataExportLimiter } from "../middleware/rateLimiter.middleware";
+import { dataExportLimiter, erasureConfirmationLimiter } from "../middleware/rateLimiter.middleware";
+import { refuseErasureConfirmation } from "../services/erasureConfirmation";
 // Export and data-summary read ONE enumeration, so the file and its count agree.
-import { collectSubjectAccess, summarizeSubjectAccess } from "../services/subjectAccess";
+import { collectSubjectAccess, summarizeSubjectAccess, summarizeErasure } from "../services/subjectAccess";
 import { z } from "zod";
 
 export function registerUserRoutes(app: Express) {
@@ -64,15 +65,25 @@ export function registerUserRoutes(app: Express) {
    * DELETE /api/users/me
    * GDPR Right to Erasure: Deletes all user data and account
    * This is a destructive, irreversible operation
+   * Body: { password } for an account with one, otherwise { confirmEmail }.
    */
-  app.delete("/api/users/me", isAuthenticated, async (req: any, res) => {
+  app.delete("/api/users/me", isAuthenticated, erasureConfirmationLimiter, async (req: any, res) => {
     try {
       const userId = req.user.userId;
-      
+
       // Verify user exists
       const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
+      }
+
+      // ASKED AGAIN, FIRST. A session proves a browser, not the person — see
+      // services/erasureConfirmation.ts for the two checks and why they differ
+      // in strength. First, so a refused confirmation never opens the
+      // transaction below.
+      const refusal = await refuseErasureConfirmation(user, req.body);
+      if (refusal) {
+        return res.status(refusal.status).json({ message: refusal.message, code: refusal.code });
       }
 
       // The blocking check runs INSIDE the transaction, on the same snapshot the
@@ -86,8 +97,12 @@ export function registerUserRoutes(app: Express) {
       });
 
       if (blocking.length > 0) {
+        // Codes, which the client translates. No contact address: the one this
+        // message used to give cannot receive mail (FOLLOWUP.md, "STEP 6
+        // BLOCKED"), and a refusal that points at a dead address reads as a way
+        // forward that is not there.
         return res.status(409).json({
-          message: "Your account holds records of actions you performed on other people's data, which cannot be deleted without destroying their audit trail. Contact privacy@futurepath.ae to have this handled individually.",
+          message: "Your account holds records of actions you performed on other people's data, which cannot be deleted without destroying their audit trail.",
           code: "ERASURE_BLOCKED_BY_AUDIT_RECORDS",
           blockingRecords: blocking,
         });
@@ -145,7 +160,12 @@ export function registerUserRoutes(app: Express) {
       if (!subject) {
         return res.status(404).json({ message: "User not found" });
       }
-      res.json(summarizeSubjectAccess(subject));
+      res.json({
+        ...summarizeSubjectAccess(subject),
+        // Whether erasure would run, on the same response as the counts. See
+        // summarizeErasure for why this is not its own endpoint.
+        erasure: await summarizeErasure(db, req.user.userId, subject),
+      });
     } catch (error) {
       console.error("Error fetching data summary:", error);
       res.status(500).json({ message: "Failed to fetch data summary" });
