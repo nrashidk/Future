@@ -6135,7 +6135,7 @@ Two constraints on doing it:
   provider verified that email. A fresh sign-in proves control of whichever provider account got
   linked, and that link may have been made through an unverified address.
 
-## Dates render US month-first almost everywhere, in both languages — three sites fixed, six catalogued and left open  (severity: MEDIUM, recorded 2026-09-15, updated 2026-09-15)
+## Dates render US month-first almost everywhere, in both languages — five sites fixed (the full student/parent-facing set), four admin-only sites left open deliberately  (severity: MEDIUM, recorded 2026-09-15, updated 2026-09-15)
 The guest deadline banner (Results.tsx) originally called
 `.toLocaleDateString()` with no locale argument, which renders whatever the
 *viewer's browser* is set to — 9/18/2026 (US month-first) on a US-configured
@@ -6151,7 +6151,9 @@ uses Chrome's): both locales resolved exactly (`resolvedOptions().locale`
 came back `en-AE`/`ar-AE`, no fallback) and rendered identically to the
 Node-side check.
 
-**FIXED, three sites, all now on `formatLocalizedDate`/`localeForLanguage`:**
+**FIXED, five sites, all now on `formatLocalizedDate`/`localeForLanguage` —
+this is every student- and parent-facing site the earlier pass catalogued,
+not a partial pass:**
 - `Results.tsx` — the guest deadline banner (the one that surfaced this).
 - `ResultsPrint.tsx:1161` (`generatedOn`, PDF footer) — was bare
   `.toLocaleDateString()`, no locale at all. This was the highest-priority
@@ -6161,31 +6163,31 @@ Node-side check.
   retake timestamp) — both were `language === 'ar' ? 'ar-AE' : 'en-US'`,
   correct for Arabic, wrong for English. `:820` also zero-pads month now
   (`month: '2-digit'`, was un-padded `'numeric'`).
+- `StudentProgress.tsx:104` — `/progress`, a student's own multi-grade
+  history, self-service, no admin role required. Was
+  `language === 'ar' ? 'ar-AE' : 'en-US'`, now `formatLocalizedDate`.
+- `AnnouncementBanner.tsx:110` — mounted in `PageLayout`
+  (`components/layout/PageLayout.tsx:23`), which wraps `Results.tsx` and
+  `Assessment.tsx` directly, so this is in front of every student and
+  parent. Was hardcoded `'en-US'` regardless of page language, now
+  `formatLocalizedDate`.
 
-**Six left catalogued, not fixed — reporting who reads each, since that is
-what decides priority, not the count:**
+**Four left catalogued, left open deliberately — all admin-only, not an
+oversight:**
 
 | Site | Who reads it | Verdict |
 |---|---|---|
-| `StudentProgress.tsx:104` | **Student-facing.** `/progress`, backed by `GET /api/students/me/career-evolution` — a student's own multi-grade history, self-service, no admin role required. | wrong for English (`en-US` branch), though not numeric-ambiguous here (`month: 'short'` is a name) |
-| `AnnouncementBanner.tsx:110` | **Student- and parent-facing.** Mounted in `PageLayout` (`components/layout/PageLayout.tsx:23`), which wraps `Results.tsx` and `Assessment.tsx` directly — the same pages this whole project has been working on. Any platform announcement's date renders in hardcoded `en-US` regardless of the page's language. | wrong — not the numeric MM/DD confusion (`month: 'short'`), but an English month name inside an otherwise-Arabic message |
 | `SuperadminDashboard.tsx` ×8 (1204, 1459, 1530, 1594, 1665, 1667, 1668, 2211) | Superadmin only (`/superadmin`). | wrong (no locale at all), but admin-facing |
 | `ContributionReviewQueue.tsx:539` | Org admin / superadmin only — mounted in `SuperadminDashboard.tsx` and `AdminOrganizations.tsx` (`/admin/organizations`); server-side gated by `checkOrgAdmin` (`docs/erasure-dependent-list.md` §1c, verified there: students cannot reach this). | wrong (no locale), admin-facing |
 | `ContributeQuestions.tsx:937` | Same gate as above — org admin / superadmin only. | wrong (no locale), admin-facing |
 | `OrganizationConsentCard.tsx:136` | Org admin only (the school's own consent record). | **already correct** (`en-GB`/`ar`) — kept in this table as the reference that got it right, not as an open item |
 
-**So: two of the six remaining are on student- or parent-facing surfaces**
-(`StudentProgress.tsx`, `AnnouncementBanner.tsx`) — the same population this
-whole project protects — and four are admin-only. `StudentProgress.tsx` and
-`AnnouncementBanner.tsx` should be the next two fixed, not the Superadmin or
-contribution sites, if this gets picked up incrementally rather than all at
-once.
-
-**Candidate fix, not built here for the remaining six.**
-`client/src/lib/formatDate.ts` is the reference — migrating each remaining
-site is mechanical and low-risk per site, but six files is more than one
-commit's worth of unrelated surface area for the PDF-footer-plus-Profile fix
-that shipped alongside this entry.
+**Why these four stay open rather than getting swept in:** an admin
+misreading a date on their own dashboard is a nuisance; the risk this entry
+exists to close — a student or parent misreading their own date — no longer
+has any open instance. Migrating the admin sites is still mechanical and
+low-risk per site (`client/src/lib/formatDate.ts` is the reference), just
+not urgent enough to bundle into the student-facing fix.
 
 ## Option C only closes the exposure for finished reports — an abandoned guest draft is never deleted, and abandonment is the likely outcome  (severity: HIGH, recorded 2026-09-15)
 server/services/guestAssessmentExpiry.ts deletes a completed, unclaimed guest assessment

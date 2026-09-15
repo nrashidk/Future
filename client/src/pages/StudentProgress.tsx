@@ -10,6 +10,7 @@ import { StickyNote } from "@/components/StickyNote";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { CANONICAL_GRADES, gradeToNumber, toCanonicalGrade } from "@shared/grade";
+import { formatLocalizedDate } from "@/lib/formatDate";
 
 interface CareerEvolutionData {
   grade: string;
@@ -101,10 +102,7 @@ export default function StudentProgress() {
 
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return t("progress.notCompletedDate");
-    return new Date(dateStr).toLocaleDateString(language === 'ar' ? 'ar-AE' : 'en-US', { 
-      month: 'short', 
-      year: 'numeric' 
-    });
+    return formatLocalizedDate(dateStr, language, { month: 'short', year: 'numeric' });
   };
 
   const getGradeData = (grade: string) => {

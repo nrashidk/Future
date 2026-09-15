@@ -3,6 +3,7 @@ import { AlertTriangle, Info, CheckCircle, XCircle, X, Pin } from "lucide-react"
 import { useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTranslation } from "react-i18next";
+import { formatLocalizedDate } from "@/lib/formatDate";
 
 interface Announcement {
   id: string;
@@ -107,11 +108,7 @@ export function AnnouncementBanner() {
                   {language === "ar" && announcement.contentAr ? announcement.contentAr : announcement.content}
                 </p>
                 <p className="text-xs mt-2 opacity-50" data-testid="announcement-date">
-                  {new Date(announcement.createdAt).toLocaleDateString('en-US', { 
-                    year: 'numeric', 
-                    month: 'short', 
-                    day: 'numeric' 
-                  })}
+                  {formatLocalizedDate(announcement.createdAt, language, { year: 'numeric', month: 'short', day: 'numeric' })}
                 </p>
               </div>
               {!announcement.isPinned && (
