@@ -6135,6 +6135,41 @@ Two constraints on doing it:
   provider verified that email. A fresh sign-in proves control of whichever provider account got
   linked, and that link may have been made through an unverified address.
 
+## Option C only closes the exposure for finished reports — an abandoned guest draft is never deleted, and abandonment is the likely outcome  (severity: HIGH, recorded 2026-09-15)
+server/services/guestAssessmentExpiry.ts deletes a completed, unclaimed guest assessment
+72 hours after it was completed (`completedAt IS NOT NULL AND completedAt < now() - 72h`). That
+`completedAt IS NOT NULL` is deliberate — see the file's own comment and
+docs/guest-ttl-option-c-recon.md §2 — but it means an **unfinished** guest assessment has no
+expiry under this mechanism at all. Its `completedAt` stays null forever, so it never matches the
+sweep's WHERE clause, so it is never selected, so it is never deleted. Not a bug in what was
+built; a boundary of what was built.
+
+**Why this is the bigger half, not a footnote.** A guest assessment starts collecting real data —
+name, age, grade, gender, free-text career-dream text — on the very first `POST
+/api/assessments`, before the quiz or any score exists
+(docs/guest-no-persistence-recon.md §1, row 1). The population this whole project exists to
+protect is a 13-18 year old exploring a career-guidance site alone, often for the first time,
+often without finishing in one sitting. Abandoning partway — closing the tab, losing interest,
+being interrupted — is not an edge case for that population, it is the modal outcome for a
+browser-based multi-step flow with no login required to start. So Option C, as shipped, closes
+the exposure for the minority who finish and never register, and leaves it fully open for
+whichever majority does not finish. A child's name, age, grade and gender sitting in the database
+forever because they clicked away after step 3 is exactly the harm this project was scoped to
+remove, and it is still there.
+
+**Candidate fix, not built here.** A second, independent sweep condition keyed on `updated_at`
+instead of `completed_at`, with its own (longer) window — something like: guest, unclaimed,
+`completed_at IS NULL`, `updated_at < now() - N days`. Longer than 72h on purpose: "abandoned" and
+"still deciding across a few days" look identical from a timestamp alone, and this path has no
+finished report as a signal that the taker was ever done — false-positive deleting a draft someone
+returns to next week is a worse failure than the slow leak this is meant to close, so the window
+needs real margin, not the same 72h as a finished report.
+
+Two things this candidate fix has to answer that this session did not scope: what "abandoned"
+means for a quiz mid-flight (assessment_quizzes/quiz_responses without a completedAt on the quiz
+itself), and whether the same request-triggered throttle (system_config, 30-minute floor,
+server/services/guestAssessmentExpiry.ts) can carry a second condition cheaply or needs its own.
+
 ## The documented LLM provider and billing model are both wrong: Anthropic, one global key, not OpenAI, not customer-provided  (severity: low, recorded 2026-09-15)
 The stack description says "OpenAI (customer-provided API key, stored encrypted)." Verified
 directly against the code: `server/services/llmNarrativeService.ts` calls
