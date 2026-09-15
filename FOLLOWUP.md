@@ -6020,3 +6020,42 @@ Arabic, off the left.
 So a phone user can scroll the page sideways, and Logout sits off-screen until they do. Not caused by
 the data-rights work: the header is untouched, and /profile/delete-account and /privacy both measure
 exactly 390px. Not fixed here: which controls collapse, and into what, is a design call.
+
+## Every rate limiter counts in process memory: it resets on restart and multiplies by instance count  (severity: medium, recorded 2026-09-15)
+No limiter in the server passes a `store`, and package.json has no store package (no
+rate-limit-redis, no Postgres store), so every one runs on express-rate-limit's default
+MemoryStore. That store is a Map inside one Node process. Two consequences, for all of them:
+- **A restart or deploy empties it.** Every window starts over at zero.
+- **Instances don't share it.** On N instances behind a load balancer, each keeps its own count,
+  so the effective limit is up to N times the configured one, depending on how requests spread.
+
+Affected: all eight in `server/middleware/rateLimiter.middleware.ts` (paymentLimiter,
+stampBuyerLimiter, recommendationsLimiter, printableRecommendationsLimiter, pdfLimiter,
+dataExportLimiter, erasureConfirmationLimiter, orgCreationLimiter), and four defined elsewhere:
+authLimiter (`server/auth.ts:17`), resetRequestLimiter and resetActionLimiter
+(`server/routes/password-reset.routes.ts:17`, `:26`), llmLimiter (`server/routes/country.routes.ts:71`).
+
+**Where it matters most, and why unevenly:**
+- **erasureConfirmationLimiter** is the only brake on guessing a password from inside a session
+  (5 failures per 15 minutes per account). Nothing backs it up in the database. On N instances it
+  is up to 5N, and each deploy resets it.
+- **authLimiter** is partly backed: the account lockout in auth.ts (`failedLoginAttempts`,
+  `lockedUntil`) is stored on the user row, so it survives restarts and is shared. The IP limit in
+  front of it is not.
+- **The LLM and PDF limiters** exist to cap cost and Chrome processes, and a multiplied limit
+  multiplies the spend.
+
+**Not known:** how many instances production runs today. Not checked. The PDF diagnosis near the
+top of this file says "the Render instance", but that is a guess about a crash, not a record of
+how production is deployed. On a single instance the multiplication does not apply, but the
+restart reset still does.
+
+**Where the earlier finding went.** This was reportedly found during the rate-limiter work and not
+closed. It is not written down in the repo: not in this file, not in docs/, not in cf6b00e (the
+rate-limit commit) or any other commit touching rateLimiter.middleware.ts, and not in a code
+comment. So this entry is the first written record.
+
+**Fix, not applied:** one shared store for every limiter. The app already runs on Postgres, so
+a Postgres-backed store avoids adding Redis. The login lockout shows the pattern already works
+here. This is one change across 12 limiters, and it needs a decision about the store table's
+cleanup.
