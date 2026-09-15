@@ -102,8 +102,6 @@ export const NON_FK_SUBJECT_SOURCES = ["schoolRemovalRecords"] as const;
 /** The only users column withheld. Everything else is exported by default. */
 const WITHHELD_USER_COLUMN = "passwordHash";
 
-const PRIVACY_CONTACT = "privacy@futurepath.ae";
-
 export async function collectSubjectAccess(db: any, userId: string) {
   const [user] = await db.select().from(users).where(eq(users.id, userId));
   if (!user) return null;
@@ -277,7 +275,7 @@ async function coveringAttestation(db: any, member: any) {
     return {
       basis: "no_attestation_on_or_before_enrolment",
       note: "Your school has no consent record dated on or before your enrolment. " +
-        `Contact ${PRIVACY_CONTACT} to ask on what basis your data was processed.`,
+        "We don't yet have a working contact channel for this kind of question. We're setting one up, and this note will be updated once it exists.",
       attestation: null,
     };
   }
@@ -379,7 +377,7 @@ async function heldButNotIncluded(
       held.push({
         category: source.label,
         count: rows.length,
-        reason: `These records also contain other people's personal data. Contact ${PRIVACY_CONTACT} for a copy with that data removed.`,
+        reason: "These records also contain other people's personal data. A subject-access request covers your own data, not anyone else's, so the parts naming someone else are withheld here rather than promised for later.",
       });
     }
   }

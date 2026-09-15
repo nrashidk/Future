@@ -17,7 +17,7 @@
     "s3li2": "To enhance user experience and system performance.",
     "s3li3": "To provide anonymized insights for institutional reporting.",
     "s4Title": "4. Data Retention & Deletion",
-    "s4Body": "User data is securely stored and retained only as long as needed for educational purposes. Users or institutions may request deletion of data by contacting privacy@futurepath.ae.",
+    "s4Body": "User data is securely stored and retained only as long as needed for educational purposes. Signed-in users can delete their own data at any time from their profile. For anything else, we are setting up a dedicated privacy contact; this policy will be updated once it is available.",
     "s5Title": "5. Children's Privacy",
     "s5Body": "Future Pathways is designed for students aged 10+. Parental or institutional consent is required for minors under 18, in compliance with COPPA and UAE PDPL.",
     "s6Title": "6. Data Security",
@@ -29,7 +29,7 @@
     "s8li1": "Access their stored information.",
     "s8li2": "Request correction or deletion.",
     "s8li3": "Withdraw consent at any time.",
-    "s8Contact": "Contact: privacy@futurepath.ae"
+    "s8Contact": "Contact: Signed-in users can download their own data or delete their account at any time from their profile — no need to contact anyone for that. For anything else, we are setting up a dedicated privacy contact; this section will be updated once it is available."
   },
   "terms": {
     "pageTitle": "Terms of Use",

@@ -313,10 +313,48 @@ The bidi and colon placements below were not re-checked on 2026-09-15.
   `refusal.adminOf` (joined by `Intl.ListFormat`); and the Profile page header, which overflows
   390px in both languages and predates this surface.
 
-**The open decision that constrains the "not deleted" string.** When a detached student later
-deletes their account, their name stays in their former school's activity log (FOLLOWUP.md, "A
-school's activity log keeps an erased student's name"). The string that says so is
-`delete.kept.school_removal_record`. If the decision removes the name, the string goes with it.
+**DECIDED 2026-09-15 — the "not deleted" string is now settled, not open.** When a detached
+student later deletes their account, their name stays in their former school's activity log
+(FOLLOWUP.md, "A school's activity log keeps an erased student's name"). The decision keeps the
+name: the log is the school's administrative record of who was removed, and a name-less entry
+would not serve that purpose. `delete.kept.school_removal_record` was checked against the
+decision and needs no change — it only ever said the name stays, never that the record was
+deleted.
+
+### 1.7 The Privacy Policy — `s4Body` and `s8Contact`, written without a mailbox
+
+**Status: written 2026-09-15, not reviewed by a speaker.** `privacy.s4Body` and `privacy.s8Contact`
+in `legal.json`, English and Arabic. **The Arabic is the builder's draft, not a speaker's**, same
+caveat as §1.6.
+
+**Why §1, and why the direction reverses here.** This is the Privacy Policy itself — the text a
+regulator or a parent reads, not a UI label — so where the two locales disagree, **the Arabic
+prevails**, not the English. Everywhere else in this pack English is the source Arabic is
+checked against; here that is reversed, and whoever reviews this section should resolve any
+inconsistency by changing the English to match the Arabic, not the other way round.
+
+**Why these two strings changed.** Both named `privacy@futurepath.ae`, which has no MX records
+(FOLLOWUP.md, "THE ADDRESS IS DEAD"). A school-admin fallback was considered as an interim
+stand-in and rejected: it does not exist for a detached student (no admin, by definition) or an
+individually-registered one (never had one), and for an enrolled student it routes the request
+through the party whose consent is being relied on — the one thing consent withdrawal must not
+do (FOLLOWUP.md, "THIS IS A GAP, NOT JUST A WORDING PROBLEM"). So neither string names a channel.
+Instead, each states what is real: `s8Contact` (the policy's "Your Rights" contact line) says a
+signed-in user can already download their own data or delete their account from their profile,
+with no need to contact anyone, and that a dedicated privacy contact for anything else is being
+set up. `s4Body` (retention & deletion) says the same for deletion specifically, since that is
+what the section is about. A contact line offering no way to make contact was judged worse than
+a dead address — a dead address at least tells a reader what to attempt — so neither string is
+content-free the way an unqualified "we are setting up a contact" would be.
+
+**What must NOT happen when the mailbox ships.** Adding `privacy@futurepath.ae` (or whatever
+address replaces it) back into these two strings *instead of* the self-service sentence would
+regress `s8Contact` to content-free again — reintroducing the defect this rewrite exists to fix.
+The address goes in alongside the self-service sentence, not in place of it.
+
+**Not yet rendered.** Unlike §1.6, these have not been seen in a browser in either language.
+Legal pages have not historically been checked at phone width in this pack; check 360-390px
+before this ships. Neither string uses `{{}}` interpolation.
 
 ---
 ## 2. Student-facing — a 13-18 year old reads these mid-assessment, with nobody to ask
