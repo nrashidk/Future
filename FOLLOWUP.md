@@ -6135,6 +6135,53 @@ Two constraints on doing it:
   provider verified that email. A fresh sign-in proves control of whichever provider account got
   linked, and that link may have been made through an unverified address.
 
+## Dates render US month-first almost everywhere, in both languages — the Profile history rows are wrong, the org consent record is not  (severity: MEDIUM, recorded 2026-09-15)
+The guest deadline banner (Results.tsx, this session) originally called
+`.toLocaleDateString()` with no locale argument, which renders whatever the
+*viewer's browser* is set to — 9/18/2026 (US month-first) on a US-configured
+environment, regardless of which language the page itself is in. Fixed
+(`client/src/lib/formatDate.ts`, `formatLocalizedDate`): `'en-AE'`/`'ar-AE'`
+both render day-month-year — `18/09/2026` in English, `18‏/09‏/2026` in
+Arabic, both zero-padded, verified directly with `Intl.DateTimeFormat`. That
+distinction matters beyond style: an Arabic-reading student can read `9/18`
+as day 9 of month 18 — i.e. September the 9th — three days before the date
+actually meant, for a banner whose entire job is telling them a deadline.
+
+**Asked to check two specific places — they diverge.**
+- **Profile history rows are wrong.** `Profile.tsx:820` (`takenOn`, the
+  per-assessment retake timestamp) and `:509` (`lastLoginAt`) both do
+  `toLocaleString(language === 'ar' ? 'ar-AE' : 'en-US', ...)` — Arabic
+  correct, **English wrong**, same bug as the banner. `:820` additionally
+  passes `month: 'numeric'` un-padded, so English readers see exactly the
+  ambiguous `9/18/2026` shape the banner did.
+- **The org consent record already does it right.**
+  `OrganizationConsentCard.tsx:136` (`recordedOn`) uses
+  `locale === "ar" ? "ar" : "en-GB"` — `en-GB` and bare `ar` both render
+  day-month-year, verified. Whoever wrote this one got it right; it just
+  didn't use the same locale strings this fix does (`en-GB`/`ar` vs
+  `en-AE`/`ar-AE`), which happen to produce identical output but aren't the
+  same reference to point future code at.
+
+**The rest of the audit, not fixed here — scope was one banner:**
+
+| Site | Locale used | Numeric & ambiguous? | Verdict |
+|---|---|---|---|
+| `ResultsPrint.tsx:1161` (`generatedOn`, PDF footer) | none (bare `.toLocaleDateString()`) | yes | **wrong** — same bug, and it is printed onto every downloaded PDF in both languages today, not a future risk |
+| `Profile.tsx:509` (`lastLoginAt`) | `en-US`/`ar-AE` | yes (default numeric) | **wrong** for English |
+| `Profile.tsx:820` (`takenOn`) | `en-US`/`ar-AE` | yes (`month: 'numeric'`) | **wrong** for English |
+| `StudentProgress.tsx:104` | `en-US`/`ar-AE` | no (`month: 'short'` — a name, not a number) | inconsistent, not ambiguous |
+| `SuperadminDashboard.tsx` ×8 (1204, 1459, 1530, 1594, 1665, 1667, 1668, 2211) | none | yes (most) | **wrong**, severity depends on each admin's own browser locale — unverifiable statically, same bug class regardless |
+| `AnnouncementBanner.tsx:110` | hardcoded `en-US` | no (`month: 'short'`) | different defect: title/content localize to Arabic, the date never does — an English month name inside an Arabic message |
+| `ContributionReviewQueue.tsx:539`, `ContributeQuestions.tsx:937` | none | yes | **wrong**, admin-only surfaces |
+| `OrganizationConsentCard.tsx:136` | `en-GB`/`ar` | — | already correct |
+
+**Candidate fix, not built here.** `client/src/lib/formatDate.ts` now exists
+and is the correct reference (`formatLocalizedDate`, `'en-AE'`/`'ar-AE'`,
+zero-padded by default) — migrating the eight-plus sites above to it is a
+mechanical, low-risk change per site, but it touches Profile, Superadmin,
+ResultsPrint and two admin components, which is more than one commit's
+worth of unrelated surface area to bundle into the fix that found it.
+
 ## Option C only closes the exposure for finished reports — an abandoned guest draft is never deleted, and abandonment is the likely outcome  (severity: HIGH, recorded 2026-09-15)
 server/services/guestAssessmentExpiry.ts deletes a completed, unclaimed guest assessment
 72 hours after it was completed (`completedAt IS NOT NULL AND completedAt < now() - 72h`). That
