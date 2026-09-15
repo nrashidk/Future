@@ -116,6 +116,7 @@
   "downloadFailedDesc": "تعذّر إنشاء تقريرك. يرجى المحاولة مرة أخرى.",
   "saveResultsTitle": "احفظ نتائجك!",
   "saveResultsDesc": "أنشئ حساباً لحفظ توصياتك المهنية وتتبع تقدمك",
+  "guestExpiryNotice": "سيتم حذف هذا التقرير في {{date}} ما لم تُنشئ حساباً لحفظه.",
   "createAccount": "إنشاء حساب مجاني",
   "resultsSavedTitle": "نتائجك محفوظة!",
   "resultsSavedDesc": "عد في أي وقت لمراجعة توصياتك المهنية وتتبع تقدمك",

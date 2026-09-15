@@ -31,12 +31,41 @@ export function registerPublicRoutes(app: Express) {
   app.get("/health", async (req, res) => {
     const { getSeedStatus } = await import("../seedStatus");
     const seed = getSeedStatus().state;
+
+    // guestSweep answers "has the sweep stopped running" (docs/
+    // guest-ttl-option-c-recon.md §3) — it is request-triggered, not on a
+    // fixed schedule, so silence here is the only signal something is
+    // wrong: either no guest traffic has hit the trigger route in a long
+    // time (fine) or the sweep has been failing every attempt (not fine —
+    // check lastError). Read from system_config, not in-process memory, so
+    // it reflects every instance's last attempt, not just this one's.
+    let guestSweep: Record<string, unknown> = { state: "unavailable" };
+    try {
+      const { readSweepStatus } = await import("../services/guestAssessmentExpiry");
+      const status = await readSweepStatus();
+      guestSweep = {
+        lastRunAt: status.lastRunAt,
+        lastSuccessAt: status.lastSuccessAt,
+        lastDeletedCount: status.lastDeletedCount,
+        // Presence only, not the message — this route stays non-disclosing,
+        // same reasoning as the seed failure message above.
+        lastAttemptFailed: status.lastError !== null,
+      };
+    } catch {
+      // Reading the status is best-effort for this endpoint; its own
+      // failure must not make /health itself report unhealthy.
+    }
+
     try {
       await db.execute(sql`SELECT 1`);
-      res.json({ status: seed === "failed" || seed === "incomplete" ? "degraded" : "ok", seed });
+      res.json({
+        status: seed === "failed" || seed === "incomplete" ? "degraded" : "ok",
+        seed,
+        guestSweep,
+      });
     } catch (error) {
       console.error("Health check failed:", error);
-      res.status(503).json({ status: "unhealthy", seed });
+      res.status(503).json({ status: "unhealthy", seed, guestSweep });
     }
   });
 

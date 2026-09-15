@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { MasonryGrid, MasonryItem } from "@/components/MasonryGrid";
 import { isPremiumAssessment } from "@shared/assessmentTier";
 import { GROWTH_BAND_I18N, isOnetGrowthBand } from "@shared/growthBands";
+import { guestAssessmentExpiresAt } from "@shared/guestAssessmentExpiry";
 import { 
   GraduationCap, 
   Target, 
@@ -1315,6 +1316,21 @@ export default function Results() {
               <p className="text-sm font-body mb-4 text-muted-foreground">
                 {t('saveResultsDesc')}
               </p>
+              {/* A computed date, not "temporary" — the deadline the server
+                  will actually hold to (server/services/guestAssessmentExpiry.ts),
+                  not a vague warning. completedAt is null while the report
+                  is still being generated on first load; the notice appears
+                  once it's set, same moment the report itself is ready. */}
+              {assessment?.completedAt && (
+                <p
+                  className="text-sm font-body mb-4 font-semibold text-destructive"
+                  data-testid="text-guest-expiry-notice"
+                >
+                  {t('guestExpiryNotice', {
+                    date: guestAssessmentExpiresAt(assessment.completedAt).toLocaleDateString(),
+                  })}
+                </p>
+              )}
               <Button
                 size="lg"
                 onClick={handleSignUp}

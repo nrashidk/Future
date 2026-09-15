@@ -61,7 +61,11 @@ describe("/health reports boot seed status", () => {
     markSeedOk();
     const { status, body } = await getHealth();
     expect(status).toBe(200);
-    expect(body).toEqual({ status: "ok", seed: "ok" });
+    // toMatchObject, not toEqual: this file pins SEED status; the response
+    // also carries an unrelated guestSweep field
+    // (server/services/guestAssessmentExpiry.test.ts covers it), which this
+    // test should not need to know the shape of.
+    expect(body).toMatchObject({ status: "ok", seed: "ok" });
   });
 
   it("reports degraded when the seed aborted", async () => {
@@ -91,7 +95,7 @@ describe("/health reports boot seed status", () => {
     markSeedIncomplete(["MISSING_CONTENT career-arabic-content.ts: 68 careers"]);
     const { status, body } = await getHealth();
     expect(status).toBe(200);
-    expect(body).toEqual({ status: "degraded", seed: "incomplete" });
+    expect(body).toMatchObject({ status: "degraded", seed: "incomplete" });
   });
 
   it("markSeedOk does not erase a gap the coverage gate already reported", async () => {

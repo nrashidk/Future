@@ -11,6 +11,7 @@ import { sanitizeRequestBody } from "../utils/sanitize";
 import { printTokenAuthorizes } from "../utils/printToken";
 import { ageOnDate, toDateOnlyString } from "@shared/dateOfBirth";
 import { FREE_ASSESSMENT_CAP, isFreeTierCapReached } from "@shared/assessmentLimits";
+import { sweepExpiredGuestAssessmentsIfDue } from "../services/guestAssessmentExpiry";
 
 /**
  * Normalize assessment payload before validation
@@ -447,6 +448,16 @@ export function registerAssessmentRoutes(app: Express) {
 
       // Return assessment without exposing guest token in response body
       res.json(assessment);
+
+      // Fire-and-forget, AFTER the response so no caller pays latency for
+      // it. Never awaited and never rejects (every branch inside is its own
+      // try/catch — see the function) — this is deliberately the one
+      // guest-facing touchpoint chosen to carry Option C's sweep (docs/
+      // guest-ttl-option-c-recon.md §3): every guest assessment creation
+      // hits it, so cleanup frequency tracks actual guest traffic instead
+      // of deploy cadence (a boot-time sweep) or infrastructure this repo
+      // does not have (an external cron).
+      void sweepExpiredGuestAssessmentsIfDue();
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid data", errors: error.errors });

@@ -116,6 +116,7 @@
   "downloadFailedDesc": "We couldn't generate your report. Please try again.",
   "saveResultsTitle": "Save Your Results!",
   "saveResultsDesc": "Create an account to save your career recommendations and track your progress",
+  "guestExpiryNotice": "This report will be deleted on {{date}} unless you create an account to save it.",
   "createAccount": "Create Free Account",
   "resultsSavedTitle": "Your Results are Saved!",
   "resultsSavedDesc": "Come back anytime to review your career recommendations and track your progress",
