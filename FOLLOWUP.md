@@ -6135,52 +6135,57 @@ Two constraints on doing it:
   provider verified that email. A fresh sign-in proves control of whichever provider account got
   linked, and that link may have been made through an unverified address.
 
-## Dates render US month-first almost everywhere, in both languages — the Profile history rows are wrong, the org consent record is not  (severity: MEDIUM, recorded 2026-09-15)
-The guest deadline banner (Results.tsx, this session) originally called
+## Dates render US month-first almost everywhere, in both languages — three sites fixed, six catalogued and left open  (severity: MEDIUM, recorded 2026-09-15, updated 2026-09-15)
+The guest deadline banner (Results.tsx) originally called
 `.toLocaleDateString()` with no locale argument, which renders whatever the
 *viewer's browser* is set to — 9/18/2026 (US month-first) on a US-configured
-environment, regardless of which language the page itself is in. Fixed
-(`client/src/lib/formatDate.ts`, `formatLocalizedDate`): `'en-AE'`/`'ar-AE'`
+environment, regardless of which language the page itself is in. An
+Arabic-reading student can read `9/18` as day 9 of month 18 — September the
+9th — three days before the date actually meant. `client/src/lib/formatDate.ts`
+(`formatLocalizedDate`, `localeForLanguage`) is the fix: `'en-AE'`/`'ar-AE'`
 both render day-month-year — `18/09/2026` in English, `18‏/09‏/2026` in
-Arabic, both zero-padded, verified directly with `Intl.DateTimeFormat`. That
-distinction matters beyond style: an Arabic-reading student can read `9/18`
-as day 9 of month 18 — i.e. September the 9th — three days before the date
-actually meant, for a banner whose entire job is telling them a deadline.
+Arabic — verified against real `Intl.DateTimeFormat`, including inside the
+actual pinned Puppeteer Chrome build (148.0.7778.97, via `page.evaluate`,
+not just Node's own V8/ICU — the two are different runtimes and the PDF
+uses Chrome's): both locales resolved exactly (`resolvedOptions().locale`
+came back `en-AE`/`ar-AE`, no fallback) and rendered identically to the
+Node-side check.
 
-**Asked to check two specific places — they diverge.**
-- **Profile history rows are wrong.** `Profile.tsx:820` (`takenOn`, the
-  per-assessment retake timestamp) and `:509` (`lastLoginAt`) both do
-  `toLocaleString(language === 'ar' ? 'ar-AE' : 'en-US', ...)` — Arabic
-  correct, **English wrong**, same bug as the banner. `:820` additionally
-  passes `month: 'numeric'` un-padded, so English readers see exactly the
-  ambiguous `9/18/2026` shape the banner did.
-- **The org consent record already does it right.**
-  `OrganizationConsentCard.tsx:136` (`recordedOn`) uses
-  `locale === "ar" ? "ar" : "en-GB"` — `en-GB` and bare `ar` both render
-  day-month-year, verified. Whoever wrote this one got it right; it just
-  didn't use the same locale strings this fix does (`en-GB`/`ar` vs
-  `en-AE`/`ar-AE`), which happen to produce identical output but aren't the
-  same reference to point future code at.
+**FIXED, three sites, all now on `formatLocalizedDate`/`localeForLanguage`:**
+- `Results.tsx` — the guest deadline banner (the one that surfaced this).
+- `ResultsPrint.tsx:1161` (`generatedOn`, PDF footer) — was bare
+  `.toLocaleDateString()`, no locale at all. This was the highest-priority
+  of the three: it prints on **every downloaded PDF, in both languages,
+  today** — not a future risk. The PDF is the artefact a parent keeps.
+- `Profile.tsx:509` (`lastLoginAt`) and `:820` (`takenOn`, per-assessment
+  retake timestamp) — both were `language === 'ar' ? 'ar-AE' : 'en-US'`,
+  correct for Arabic, wrong for English. `:820` also zero-pads month now
+  (`month: '2-digit'`, was un-padded `'numeric'`).
 
-**The rest of the audit, not fixed here — scope was one banner:**
+**Six left catalogued, not fixed — reporting who reads each, since that is
+what decides priority, not the count:**
 
-| Site | Locale used | Numeric & ambiguous? | Verdict |
-|---|---|---|---|
-| `ResultsPrint.tsx:1161` (`generatedOn`, PDF footer) | none (bare `.toLocaleDateString()`) | yes | **wrong** — same bug, and it is printed onto every downloaded PDF in both languages today, not a future risk |
-| `Profile.tsx:509` (`lastLoginAt`) | `en-US`/`ar-AE` | yes (default numeric) | **wrong** for English |
-| `Profile.tsx:820` (`takenOn`) | `en-US`/`ar-AE` | yes (`month: 'numeric'`) | **wrong** for English |
-| `StudentProgress.tsx:104` | `en-US`/`ar-AE` | no (`month: 'short'` — a name, not a number) | inconsistent, not ambiguous |
-| `SuperadminDashboard.tsx` ×8 (1204, 1459, 1530, 1594, 1665, 1667, 1668, 2211) | none | yes (most) | **wrong**, severity depends on each admin's own browser locale — unverifiable statically, same bug class regardless |
-| `AnnouncementBanner.tsx:110` | hardcoded `en-US` | no (`month: 'short'`) | different defect: title/content localize to Arabic, the date never does — an English month name inside an Arabic message |
-| `ContributionReviewQueue.tsx:539`, `ContributeQuestions.tsx:937` | none | yes | **wrong**, admin-only surfaces |
-| `OrganizationConsentCard.tsx:136` | `en-GB`/`ar` | — | already correct |
+| Site | Who reads it | Verdict |
+|---|---|---|
+| `StudentProgress.tsx:104` | **Student-facing.** `/progress`, backed by `GET /api/students/me/career-evolution` — a student's own multi-grade history, self-service, no admin role required. | wrong for English (`en-US` branch), though not numeric-ambiguous here (`month: 'short'` is a name) |
+| `AnnouncementBanner.tsx:110` | **Student- and parent-facing.** Mounted in `PageLayout` (`components/layout/PageLayout.tsx:23`), which wraps `Results.tsx` and `Assessment.tsx` directly — the same pages this whole project has been working on. Any platform announcement's date renders in hardcoded `en-US` regardless of the page's language. | wrong — not the numeric MM/DD confusion (`month: 'short'`), but an English month name inside an otherwise-Arabic message |
+| `SuperadminDashboard.tsx` ×8 (1204, 1459, 1530, 1594, 1665, 1667, 1668, 2211) | Superadmin only (`/superadmin`). | wrong (no locale at all), but admin-facing |
+| `ContributionReviewQueue.tsx:539` | Org admin / superadmin only — mounted in `SuperadminDashboard.tsx` and `AdminOrganizations.tsx` (`/admin/organizations`); server-side gated by `checkOrgAdmin` (`docs/erasure-dependent-list.md` §1c, verified there: students cannot reach this). | wrong (no locale), admin-facing |
+| `ContributeQuestions.tsx:937` | Same gate as above — org admin / superadmin only. | wrong (no locale), admin-facing |
+| `OrganizationConsentCard.tsx:136` | Org admin only (the school's own consent record). | **already correct** (`en-GB`/`ar`) — kept in this table as the reference that got it right, not as an open item |
 
-**Candidate fix, not built here.** `client/src/lib/formatDate.ts` now exists
-and is the correct reference (`formatLocalizedDate`, `'en-AE'`/`'ar-AE'`,
-zero-padded by default) — migrating the eight-plus sites above to it is a
-mechanical, low-risk change per site, but it touches Profile, Superadmin,
-ResultsPrint and two admin components, which is more than one commit's
-worth of unrelated surface area to bundle into the fix that found it.
+**So: two of the six remaining are on student- or parent-facing surfaces**
+(`StudentProgress.tsx`, `AnnouncementBanner.tsx`) — the same population this
+whole project protects — and four are admin-only. `StudentProgress.tsx` and
+`AnnouncementBanner.tsx` should be the next two fixed, not the Superadmin or
+contribution sites, if this gets picked up incrementally rather than all at
+once.
+
+**Candidate fix, not built here for the remaining six.**
+`client/src/lib/formatDate.ts` is the reference — migrating each remaining
+site is mechanical and low-risk per site, but six files is more than one
+commit's worth of unrelated surface area for the PDF-footer-plus-Profile fix
+that shipped alongside this entry.
 
 ## Option C only closes the exposure for finished reports — an abandoned guest draft is never deleted, and abandonment is the likely outcome  (severity: HIGH, recorded 2026-09-15)
 server/services/guestAssessmentExpiry.ts deletes a completed, unclaimed guest assessment
