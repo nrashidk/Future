@@ -3792,6 +3792,17 @@ STILL OPEN, AND NOT FIXED BY THIS:
 - The export file names the same address in two notes (services/subjectAccess.ts: the
   no-covering-consent note, and each withheld actor record). Unchanged: the export is English
   JSON for software and was out of scope.
+- THIS IS A GAP, NOT JUST A WORDING PROBLEM (raised 2026-09-15): "route the request through the
+  school admin" was considered as an interim stand-in for the dead address and rejected, because
+  it does not exist for two of the three populations who might send one and is self-defeating for
+  the third. A detached student has no school administrator — that is what detached means. An
+  individually-registered student never had one. An enrolled student has one, but routing a
+  privacy request through them routes it through the party whose consent is being relied on,
+  which is exactly what consent position (4) above says withdrawal must not do. So until the
+  mailbox in step (1) exists, there is no working route for a detached or individual user to
+  reach anyone about their data, full stop — not a bad address to fix, an absent one. The
+  Privacy Policy and export-note copy should say a contact channel is being established without
+  naming one, rather than naming a channel (dead address or school admin) that does not work.
 - Withdrawal short of erasure still has no path. ERASURE IS NOT WITHDRAWAL, above, stands.
 - The licence-seat paragraph above is no longer current: eraseUserData recomputes the school's
   counters from the roster (accountErasure.ts, pinned in user.erasure.test.ts).
