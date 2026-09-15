@@ -6009,3 +6009,14 @@ school is deleted is a separate question.
 3. **Whether an orphaned admin should reach the individual free-tier assessment path.** It is an
    adult taking an instrument built for 13–18 year olds. It is probably harmless, but it has not been
    chosen.
+
+## Profile's header overflows a phone screen, in both languages  (severity: low, measured 2026-09-14)
+Found while rendering the data-rights section. At a 390px viewport, /profile's scroll width is 570px
+in English and 589px in Arabic. The overflow is the header's button row (`flex gap-2`, Profile.tsx
+header), which does not wrap. A student account shows four buttons: Assessment, Profile, the
+language toggle and Logout. An admin shows more. In English the row runs off the right edge; in
+Arabic, off the left.
+
+So a phone user can scroll the page sideways, and Logout sits off-screen until they do. Not caused by
+the data-rights work: the header is untouched, and /profile/delete-account and /privacy both measure
+exactly 390px. Not fixed here: which controls collapse, and into what, is a design call.
