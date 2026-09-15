@@ -3761,6 +3761,41 @@ not the fix. FIX THE ACCOUNTING BEFORE SHIPPING THE SURFACE, not after.
 
 First flagged 2026-09-10. Blocked on the mailbox, which is not a code change.
 
+SHIPPED 2026-09-14 WITHOUT THE MAILBOX, BY DECISION. The sequence above was overruled on purpose,
+not forgotten: step (3) went first. The reasoning that overruled it is that the mailbox blocks
+only one reader, a school admin refused erasure, and that reader now gets a real route instead of
+a dead address. Waiting would have left export and erasure unreachable for every student.
+
+  1. DELETE /api/users/me asks again: the password, or the typed email for an account without
+     one (services/erasureConfirmation.ts). The email check proves intent, not identity: the
+     address is shown on Profile. Failures are rate limited per account and do not feed the
+     login lockout.
+  2. data-summary carries `erasure`: whether erasure would run, the blocking records as codes,
+     the schools an admin is registered for, and what survives erasure for this reader. The
+     page reads one response. The 409 sends the same codes and no longer names the dead address.
+  3. /profile/delete-account: what is deleted and what is not, take a copy, confirm.
+  4. Profile's "Your data": translated counts, the export, and the deletion link or the refusal.
+
+NO STRING GIVES A CONTACT ADDRESS. A refused admin whose every block goes with their school is
+told their account can be deleted after the school is removed. Anyone else refused is told what
+blocks it and nothing more.
+
+RENDERED, NOT READ. Headless Chrome against a mocked API, English and Arabic, at 390px and
+1024px. In all eight renders of the confirm step, the final delete button is below "Keep my
+account" and shares its row with no other control. Details in docs/arabic-review-pack.md §1.6.
+Re-measured 2026-09-15 after the Codespace closed with nothing of that run left: 60 renders, both
+languages, 360/390/639/640/1024px, password and email accounts, each empty, typed and after a
+refused attempt. Same result every time.
+
+STILL OPEN, AND NOT FIXED BY THIS:
+- Steps (1) and (2) above. The Privacy Policy's address still has no MX records.
+- The export file names the same address in two notes (services/subjectAccess.ts: the
+  no-covering-consent note, and each withheld actor record). Unchanged: the export is English
+  JSON for software and was out of scope.
+- Withdrawal short of erasure still has no path. ERASURE IS NOT WITHDRAWAL, above, stands.
+- The licence-seat paragraph above is no longer current: eraseUserData recomputes the school's
+  counters from the roster (accountErasure.ts, pinned in user.erasure.test.ts).
+
 
 ### DECISION — the consent record outlives the school, and keeps an ex-admin's contact details  (recorded decision, not a finding)
 Recorded here because until now it existed only as a comment in a migration header
@@ -5651,6 +5686,11 @@ replace the name at erasure time with a placeholder and keep the event. Whicheve
 the 'erase' description should stop saying "permanently deleted their record" beside the name it
 keeps. First flagged 2026-09-14.
 
+Until this is decided, the deletion page tells a detached student that their name stays in their
+former school's log (`dataRights.delete.kept.school_removal_record`, driven by
+data-summary's `erasure.keptAfterErasure`). If the decision removes the name, that string and the
+`school_removal_record` code go with it.
+
 ### Erasure should consume SUBJECT_ACCESS_REGISTRY  (severity: low today, and why it is not zero)
 Deliberately not done in 891c120: erasure works, and restructuring the correct half to fit the
 fixed one was a risk with no bug behind it. So there are now two classifications of the same FK
@@ -5958,6 +5998,10 @@ school is deleted is a separate question.
 ### Not decided here — open, in order of consequence
 1. **A self-erasure door for admins.** Without UI, the route this decision points to is unreachable
    for anyone who does not use the API. It should ship with, or alongside, consent position 4.
+   **BUILT 2026-09-14** with position 4 (see "STEP 6 BLOCKED", then "SHIPPED"). While the school
+   exists, the admin sees the refusal on Profile and on /profile/delete-account, telling them the
+   account can be deleted after the school is removed. Once it is removed, the same page offers
+   the deletion. That second half is reasoned from the code, not run against a database.
 2. **A no-school state for an `org_admin`.** Today they get "No schools yet", a stats error that
    invites a pointless retry, and a zero-filled analytics page. The options are an explicit screen
    saying the school was removed, or marking the account at deletion time the way detach marks a

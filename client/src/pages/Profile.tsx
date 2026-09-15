@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { GraduationCap, Crown, Users, ClipboardCheck, Home, User, LogOut, BarChart, Shield, Building2, FileQuestion, TrendingUp, ClipboardList, Cake, Users2, FileText, Mail, Clock } from "lucide-react";
 import { StickyNote } from "@/components/StickyNote";
+import { YourDataSection } from "@/components/YourDataSection";
 import type { LucideIcon } from "lucide-react";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -922,6 +923,10 @@ export default function Profile() {
               </CardContent>
             </StickyNote>
           )}
+
+          {/* Last on the page, for every account: the rights are the reader's
+              own, not a school's or a plan's, so nothing above gates them. */}
+          <YourDataSection isOrgStudent={isOrgStudent} />
         </div>
       </div>
     </main>

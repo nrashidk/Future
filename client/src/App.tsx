@@ -28,6 +28,7 @@ const PrivacyPolicy = lazy(() => import("@/pages/PrivacyPolicy"));
 const TermsOfUse = lazy(() => import("@/pages/TermsOfUse"));
 const Disclaimer = lazy(() => import("@/pages/Disclaimer"));
 const Profile = lazy(() => import("@/pages/Profile"));
+const DeleteAccount = lazy(() => import("@/pages/DeleteAccount"));
 const StudentProgress = lazy(() => import("@/pages/StudentProgress"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 
@@ -136,6 +137,7 @@ function Router() {
         <Route path="/print/results" component={ResultsPrint} />
         <Route path="/analytics" component={Analytics} />
         <Route path="/profile" component={Profile} />
+        <Route path="/profile/delete-account" component={DeleteAccount} />
         <Route path="/progress" component={StudentProgress} />
         <Route path="/admin" component={Admin} />
         <Route path="/admin/organizations" component={AdminOrganizations} />

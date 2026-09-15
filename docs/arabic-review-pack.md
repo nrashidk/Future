@@ -225,12 +225,13 @@ and it must not leave the reader guessing whether the student is being punished.
 dialogs are RTL layouts with two adjacent confirm buttons, and button order in an
 RTL flex row is exactly the construction §6 records as having broken before.
 
-### 1.6 "Your data" — a student downloading, then deleting, their own record — NOT YET WRITTEN
+### 1.6 "Your data" — a student downloading, then deleting, their own record — WRITTEN, NOT REVIEWED
 
-**Status: booked, not written.** Added 2026-09-14, before any English or Arabic exists. The
-surface is designed but not built, and it is blocked on the privacy mailbox (FOLLOWUP.md, "STEP 6
-BLOCKED"). **Do not review anything here until the strings land;** this entry reserves the review
-at §1 weight so they are not slotted lower when they arrive.
+**Status: written 2026-09-14, not reviewed.** Booked earlier the same day, before the strings
+existed. They are now in `profile.json` under `dataRights`, in English and Arabic. **The Arabic is
+the builder's draft, not a speaker's.** The surface shipped without the privacy mailbox, by
+decision (FOLLOWUP.md, "STEP 6 BLOCKED", then "SHIPPED 2026-09-14"), so no string gives a contact
+address.
 
 **Why §1.** After the attestations, this is the highest-consequence copy in the product: a
 13–18 year old confirming the irreversible deletion of their own record. The reader may be on a
@@ -239,10 +240,11 @@ shared school computer, and there is nobody to ask. Every failure mode is one-wa
 - an unclear "download first" loses the only copy;
 - a line implying the school must approve tells the student a right is not theirs.
 
-**Where:** a "Your data" section at the bottom of *Profile*, and a separate step-by-step
-deletion page it links to. Keys are provisional.
+**Where:** a "Your data" section at the bottom of *Profile* (`dataRights.section.*`), and
+*/profile/delete-account*, three steps (`dataRights.delete.*`). Both use `dataRights.schoolNote`,
+`dataRights.export.*` and `dataRights.refusal.*`.
 
-**The strings it will need, by purpose:**
+**The strings, by purpose** (as booked before they existed; the differences follow the table):
 
 | group | purpose | notes for review |
 |---|---|---|
@@ -258,18 +260,59 @@ deletion page it links to. Keys are provisional.
 | refusal, admin | you are the administrator of {{school}}; your account can be deleted after the school is removed; why | replaces an English server message that points to a dead address |
 | refusal, labels | ten labels for records that block erasure, now sent as codes | today English strings built on the server |
 
-**Rendering risks to check once written** (add them to §6 then):
-- `{{school}}` may be Latin script inside the admin refusal sentence.
-- The email and password fields must stay left-to-right inside an RTL page.
-- Counts of assessments and results need Arabic plural forms. This is the §1.5 plural question
-  again, with higher stakes.
-- The final delete button stands alone on its step, not beside the safe option. That has to be
-  verified rendered, below 640px and in Arabic, because the §1.5 dialogs broke exactly there.
+**What landed differently from the booking — check these first:**
+- **"downloaded" became "started"** (`export.started`). The page can see that the browser was
+  handed the file, not that the file was saved.
+- **No count sits inside a sentence.** Step 1 and Profile show a label and a number in separate
+  cells, so the §1.5 plural question does not arise here. Do not rewrite a label into
+  "{{n}} assessments".
+- **Step 3 shows the account's email** (`delete.emailIs`) above the field, for accounts confirmed
+  by typing it. It checks intent, not identity.
+- **A third failure line** (`delete.errors.unreachable`): we cannot tell whether your account was
+  deleted. "Nothing was deleted" is true only when the server answered. A dropped connection gets
+  this line instead, and it must not be softened into "nothing was deleted".
+- **"What is not deleted" is three strings, not one** (`delete.kept.*`): a detached student's
+  name in their school's log, an attester's name and email on a consent record, and a school
+  deleter's on the deletion record. Each is shown only to a reader it is true for.
+- **The admin refusal is two sentences** (`refusal.adminOf`, `refusal.afterSchoolRemoval`). The
+  second is shown only when every block goes away with the school; otherwise the reader gets
+  `refusal.intro` and the labels.
+- **`refusal.adminOf` in Arabic ends on the school name, with no full stop,** so no period sits
+  beside a Latin name. Keep it that way.
+
+**Seen rendered 2026-09-14.** Headless Chrome against a mocked API, English and Arabic, at 390px
+and 1024px. Positions were measured per element and per character.
+
+**Re-measured 2026-09-15, the delete button only.** 360, 390, 639, 640 and 1024px; English and
+Arabic; password and email accounts; each with the field empty, typed and after a refused
+attempt, 60 renders. In every one, delete sits 12px below keep, at the same x and width, inside
+the viewport; no other control overlaps its row; it is the last focusable control; the page's
+scroll width equals the viewport. At 360–639px, `elementFromPoint` at the centre of each button
+returns that button. Two traps for whoever measures this next:
+- **A full-page Puppeteer screenshot of an RTL page is shifted**: the card appears cut off at the
+  right edge while the geometry says x=41. A viewport screenshot shows it correctly. Trust the
+  numbers, and take viewport screenshots.
+- **The email field is `type="email"`**, so text that is not shaped like an address is stopped by
+  the browser's own validation, in the browser's language, and never reaches the server. A script
+  that types a wrong non-address sees no error line.
+The bidi and colon placements below were not re-checked on 2026-09-15.
+- **The final delete button** is below "Keep my account" with a 12px gap, and no other control
+  shares its row, in all eight confirm-step renders. At 1024px in Arabic, step 1's two
+  non-destructive buttons read keep, then continue, from the right.
+- **`{{school}}` inside Arabic** is wrapped in bidi isolates. The Arabic comma after
+  "Al Noor School" renders to its left, which is after it in reading order, at both widths. The
+  admin refusal's colon renders to the right of the name.
+- **The email line in Arabic:** the colon falls between the label and the address at both widths.
+  The password and email fields compute `direction: ltr`.
+- **Counts** sit at the inline end: on the left in Arabic, on the right in English.
+- **Not checked:** the wording; a school name in Arabic script; more than one school in
+  `refusal.adminOf` (joined by `Intl.ListFormat`); and the Profile page header, which overflows
+  390px in both languages and predates this surface.
 
 **The open decision that constrains the "not deleted" string.** When a detached student later
 deletes their account, their name stays in their former school's activity log (FOLLOWUP.md, "A
-school's activity log keeps an erased student's name"). Until that is decided, the honest string
-for a detached student has to say so.
+school's activity log keeps an erased student's name"). The string that says so is
+`delete.kept.school_removal_record`. If the decision removes the name, the string goes with it.
 
 ---
 ## 2. Student-facing — a 13-18 year old reads these mid-assessment, with nobody to ask
@@ -899,6 +942,9 @@ to clear it.** The text can be perfect and the screen still wrong.
   labels render Arabic and the report is not falling back to English.
 - **Parts of the Arabic report body** — Work Style Fit, Strengths, Action Steps and
   Education Path were confirmed Arabic in a real generated PDF.
+- **The data-rights surface** (§1.6) — Profile's "Your data" and the deletion page, rendered in
+  Arabic and English at 390px and 1024px with positions measured. Nothing was misplaced. The
+  wording is still unreviewed.
 
 ### NOT seen rendered — text-only review is insufficient
 

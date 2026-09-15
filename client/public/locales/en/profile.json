@@ -96,6 +96,109 @@
     "profile": "Profile",
     "logout": "Logout"
   },
+  "dataRights": {
+    "schoolNote": "Your school created this account. Deleting it also deletes your school's record of you. Your school is not asked to approve it.",
+    "section": {
+      "title": "Your data",
+      "intro": "You can download a copy of the information we hold about you, and you can delete your account.",
+      "heldTitle": "What we hold about you",
+      "summaryFailed": "We could not load a summary of your data.",
+      "categories": {
+        "account": "Your account details",
+        "assessments": "Assessments",
+        "careerRecommendations": "Career recommendations",
+        "careerNarratives": "Written explanations of your career matches",
+        "quizzes": "Quizzes",
+        "quizResponses": "Quiz answers",
+        "cvqResults": "Career values results",
+        "wefCompetencyResults": "Competency results",
+        "schoolEnrolment": "Your school's record of you",
+        "schoolConsentCoveringYou": "Your school's consent record",
+        "schoolRemovalRecords": "Records of leaving a school",
+        "passwordResetRequests": "Password reset requests",
+        "consentAttestationsYouMade": "Consent records you made",
+        "organizationDeletionsYouPerformed": "Records of schools you deleted"
+      },
+      "exportTitle": "Download your data",
+      "deleteTitle": "Delete your account",
+      "deleteBody": "Deleting your account is permanent. Before anything is deleted, you will see what will be deleted and be asked to confirm.",
+      "deleteLink": "Delete my account"
+    },
+    "export": {
+      "what": "The file holds the information we have about you. It is a data file made for other software, not a document to read, and it is in English.",
+      "button": "Download my data",
+      "preparing": "Preparing your file…",
+      "started": "Your download has started.",
+      "rateLimited": "You have downloaded your data too many times in the last hour. Try again later.",
+      "failed": "The download did not work. Try again."
+    },
+    "refusal": {
+      "title": "Your account cannot be deleted here",
+      "adminOf": "You are the registered administrator of {{schools}}.",
+      "afterSchoolRemoval": "Your account can be deleted after the school is removed from Future Pathways. Until then, the school's records name you as the person responsible for it, and deleting your account would destroy them.",
+      "intro": "Your account holds records of things you did that are also part of other people's records. Deleting your account would destroy them:",
+      "unconfirmable": "This account has no password or email address to confirm with, so it cannot be deleted here.",
+      "labels": {
+        "school_administrator": "School records naming you as the registered administrator",
+        "school_activity_performed": "School activity-log entries recording actions you performed",
+        "school_activity_affected": "School activity-log entries recording actions taken on your admin account",
+        "files_uploaded": "Files you uploaded",
+        "contributions_submitted": "Question contributions you submitted",
+        "contributions_reviewed": "Question contributions you reviewed",
+        "contribution_rewards_awarded": "Contribution rewards you awarded",
+        "scoring_config_changes": "Scoring-configuration changes you made",
+        "system_announcements": "System announcements you created",
+        "system_settings": "System settings you updated"
+      }
+    },
+    "delete": {
+      "pageTitle": "Delete your account",
+      "backToProfile": "Back to profile",
+      "loading": "Loading…",
+      "loadFailed": "We could not check your account. Nothing has been deleted. Reload the page to try again.",
+      "whatTitle": "What will be deleted",
+      "whatIntro": "Deleting your account permanently deletes:",
+      "items": {
+        "account": "Your account and sign-in details",
+        "assessments": "Your assessments",
+        "quizResponses": "Your quiz answers",
+        "recommendations": "Your career recommendations and report",
+        "values": "Your career values results",
+        "competencies": "Your competency results",
+        "school": "Your school's record of you"
+      },
+      "keptTitle": "What is not deleted",
+      "kept": {
+        "school_removal_record": "Your name stays in the activity log of {{school}}, the school you left. That entry records that you were removed from the school, and deleting your account does not remove it.",
+        "consent_attestation": "Your name and email address stay on the consent record you made for {{school}}. It is kept as evidence that consent was given.",
+        "school_deletion_record": "Your name and email address stay on the record that you deleted {{school}}."
+      },
+      "unnamedSchool": "a school",
+      "keepAccount": "Keep my account",
+      "continue": "Continue",
+      "copyTitle": "Take a copy first",
+      "copyBody": "Once your account is deleted, it cannot be recovered, and we cannot send you a copy later.",
+      "continueWithoutCopy": "Continue without a copy",
+      "confirmTitle": "This cannot be undone",
+      "confirmBody": "Everything listed earlier will be deleted permanently, straight away.",
+      "passwordLabel": "Enter your password to confirm",
+      "emailLabel": "Type this account's email address to confirm",
+      "emailIs": "This account's email address:",
+      "deleteButton": "Delete my account permanently",
+      "deleting": "Deleting…",
+      "errors": {
+        "passwordIncorrect": "That password is not right. Nothing was deleted.",
+        "emailMismatch": "That email address does not match this account. Nothing was deleted.",
+        "tooManyAttempts": "Too many attempts. Try again later. Nothing was deleted.",
+        "notFound": "This account no longer exists.",
+        "unreachable": "We could not get an answer from the server, so we cannot tell whether your account was deleted. Reload this page to check.",
+        "failed": "Something went wrong, and nothing was deleted. Try again."
+      },
+      "doneTitle": "Your account has been deleted",
+      "doneBody": "You have been signed out. Your account and everything listed earlier have been deleted.",
+      "goHome": "Go to the home page"
+    }
+  },
   "progress": {
     "pageTitle": "My Career Journey",
     "title": "Your Career Journey",
