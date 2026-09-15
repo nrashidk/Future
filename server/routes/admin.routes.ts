@@ -202,9 +202,14 @@ export async function applyRemovalDisposition(
     await storage.createOrganizationEvent({
       organizationId: organization.id,
       eventType: disposition === "erase" ? "student_erased" : "student_detached",
+      // 'erase' says what actually goes, not "permanently deleted their record" —
+      // this row is why that claim was false. The row keeps the name (see the
+      // comment above), so the description next to it has to be true while
+      // the name still is: FOLLOWUP.md, "A school's activity log keeps an
+      // erased student's name" (decided 2026-09-15).
       eventDescription:
         disposition === "erase"
-          ? `Removed student ${member.studentName || removedUser?.username || member.userId} and permanently deleted their record`
+          ? `Removed student ${member.studentName || removedUser?.username || member.userId}; their account and assessment record were erased`
           : `Removed student ${member.studentName || removedUser?.username || member.userId}; their account and existing report were kept`,
       performedBy: performedByUserId,
       performedByRole: performedBySuperadmin ? "superadmin" : "org_admin",

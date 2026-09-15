@@ -434,7 +434,8 @@ export function summarizeSubjectAccess(subject: NonNullable<Awaited<ReturnType<t
  * for this reader only:
  *   school_removal_record  the 'student_detached' event that names a detached
  *                          student (FOLLOWUP.md, "A school's activity log keeps
- *                          an erased student's name" — undecided, so it is said)
+ *                          an erased student's name" — decided 2026-09-15: the
+ *                          name is kept, so it is said)
  *   consent_attestation    an attester's name and email (decided, 2026-09-10)
  *   school_deletion_record a school deleter's name and email (decided, 2026-09-14)
  * Read from the subject's own sections, so it lists exactly the records the

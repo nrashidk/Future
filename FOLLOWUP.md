@@ -5664,11 +5664,10 @@ name-form) but that is a fact about today's data, not a guarantee.
   pattern that `q.subject` was. Neither is compared against the request. Not in scope for the
   subject work.
 
-### A school's activity log keeps an erased student's name  (severity: needs human decision)
+### A school's activity log keeps an erased student's name  (DECIDED 2026-09-15)
 When a school removes a student with the 'erase' disposition, admin.routes.ts:199-210 writes a
-`student_erased` event whose description reads "Removed student <name> and **permanently deleted
-their record**", and whose `previous_value` holds `{studentName, username}`. The record is gone;
-the name is not, and the sentence recording the deletion is the thing that keeps it.
+`student_erased` event whose `previous_value` holds `{studentName, username}`. The record is
+gone; the name is not.
 
 A second path reaches the same state: a student who was *detached* (`student_detached`, same
 fields) and later erases their own account through `DELETE /api/users/me`. That response
@@ -5680,16 +5679,22 @@ why no FK walk — erasure's or the export registry's — finds them. The subjec
 return the detach event to a student who still has an account (891c120); nothing can return
 either event to someone already erased.
 
-The decision is not technical. Options, roughly: keep the name (the school's accountability for
-who it removed is the log's purpose); keep only the username or a school-issued student id; or
-replace the name at erasure time with a placeholder and keep the event. Whichever is chosen,
-the 'erase' description should stop saying "permanently deleted their record" beside the name it
-keeps. First flagged 2026-09-14.
+**The decision: keep the name.** The log is the school's record of an administrative act, and
+"a student was removed on this date by this admin" is meaningless without the name — the school
+has a legitimate interest in knowing who it removed. Rejected: keeping only the username or a
+school-issued id, or replacing the name with a placeholder at erasure time — both weaken the same
+accountability the row exists for, for no gain, since the row already can't be reached by the
+erased student's own FK walk. The defect was never the retention; it was the wording next to it.
 
-Until this is decided, the deletion page tells a detached student that their name stays in their
-former school's log (`dataRights.delete.kept.school_removal_record`, driven by
-data-summary's `erasure.keptAfterErasure`). If the decision removes the name, that string and the
-`school_removal_record` code go with it.
+So the description was the thing that had to change, not the row. It no longer claims
+"permanently deleted their record" beside the name it keeps — it says what the 'erase' disposition
+actually removes (the account and assessment record; admin.routes.ts:205-208, first flagged
+2026-09-14, worded 2026-09-15).
+
+The deletion page's string was checked against the new wording and needs no change: it never
+claimed the record was deleted, only that the name stays
+(`dataRights.delete.kept.school_removal_record` → client/public/locales/{en,ar}/profile.json:172,
+driven by data-summary's `erasure.keptAfterErasure`). Both remain accurate.
 
 ### Erasure should consume SUBJECT_ACCESS_REGISTRY  (severity: low today, and why it is not zero)
 Deliberately not done in 891c120: erasure works, and restructuring the correct half to fit the
@@ -5737,9 +5742,11 @@ attester's name and email survive both the school and the attester.
   cascade, so it cannot outlive the school; the bulk delete's attempt to write one after the delete
   is the bug this replaced. Written before the delete, the delete removes it.
 - **Relaxing `organization_events.organization_id` to SET NULL.** Every event would then survive
-  its school by default — including `student_erased` / `student_detached` rows that name students,
-  whose retention is itself an open decision (see "A school's activity log keeps an erased
-  student's name"). It would also let any other event writer insert a row with no school.
+  its school by default — including `student_erased` / `student_detached` rows that name students.
+  Retention of those rows is now decided (see "A school's activity log keeps an erased student's
+  name") but the decision was to keep the name because the row stays scoped to the school that
+  performed the removal, not to make every event outlive its school; SET NULL would still do the
+  latter, and would also let any other event writer insert a row with no school.
 - **Console logging**, which both delete paths did in the interim — honest about being no record.
 
 ### Consequences, stated
