@@ -6134,3 +6134,24 @@ Two constraints on doing it:
 - It inherits the open finding that upsertOAuthUser links accounts by email without checking the
   provider verified that email. A fresh sign-in proves control of whichever provider account got
   linked, and that link may have been made through an unverified address.
+
+## The documented LLM provider and billing model are both wrong: Anthropic, one global key, not OpenAI, not customer-provided  (severity: low, recorded 2026-09-15)
+The stack description says "OpenAI (customer-provided API key, stored encrypted)." Verified
+directly against the code: `server/services/llmNarrativeService.ts` calls
+`https://api.anthropic.com/v1/messages` (line 96) and resolves its key via
+`storage.getApiCredential("anthropic")` (lines 139, 369) against the `api_credentials` table
+(shared/schema.ts:1820-1829). That table has no `organizationId` or `userId` column at all —
+`provider` is `.unique()`, so there is exactly one row per provider for the entire platform, set
+once by a superadmin, not a key any customer/organization supplies or owns.
+
+Two separate corrections needed, not one:
+- **Provider**: Anthropic, not OpenAI. (The schema comment at shared/schema.ts:1820 says
+  `// 'openai', 'anthropic', etc.` — the table was built to support either, but narrative
+  generation only ever asks for `"anthropic"`.)
+- **Billing/key model**: one platform-wide credential, not per-customer. There is no "whose key"
+  question anywhere in the narrative-generation path — every organization's students share the
+  same Anthropic billing, which may or may not be the intended cost model.
+
+Not fixed here — this is a documentation correction plus a product question (is single
+platform-wide billing intended, or should there be an organization-scoped credential path that
+doesn't exist today), not a code change.
