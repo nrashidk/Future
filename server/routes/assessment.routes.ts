@@ -157,6 +157,34 @@ export function resolveSchoolOwnedFields(
   return { overrides, missing };
 }
 
+/**
+ * Whether userId is entitled to premium assessment data — RIASEC/CVQ scoring
+ * and assessmentType: 'premium'. Checked fresh from the DB on every call,
+ * never inferred from the request body's shape and never from the
+ * response-only `user.isPremium` decoration auth.routes.ts adds for school
+ * students (`:54`, never persisted to users.isPremium).
+ *
+ * isSchoolUser and isPremiumUser are checked INDEPENDENTLY, not one derived
+ * from the other. A school student's users.isPremium column is false —
+ * createUserWithCredentials never sets it — because school membership is its
+ * own entitlement (the school already paid); checking only users.isPremium
+ * would silently break every school student's RIASEC/CVQ save. This is the
+ * same bug class resolveQuizTier (quiz.routes.ts:120) already fixed once for
+ * the quiz distribution — reintroducing it here, one file over, is exactly
+ * the regression to avoid.
+ *
+ * A userId of null (a guest) is never entitled, by construction: there is no
+ * organizationMembers row and no users row to check.
+ */
+export async function isEntitledForPremiumAssessment(userId: string | null): Promise<boolean> {
+  if (!userId) return false;
+  const [orgMember, account] = await Promise.all([
+    storage.getOrganizationMemberByUserId(userId),
+    storage.getUser(userId),
+  ]);
+  return orgMember?.role === 'student' || !!account?.isPremium;
+}
+
 export function registerAssessmentRoutes(app: Express) {
   app.post("/api/assessments", async (req: any, res) => {
     try {
@@ -189,21 +217,44 @@ export function registerAssessmentRoutes(app: Express) {
       // For guest users, generate a cryptographically secure unique guest token
       const guestToken = isGuest ? `guest_${Date.now()}_${randomBytes(16).toString('hex')}` : null;
 
-      // Calculate RIASEC scores if responses provided (premium users)
+      // Calculate RIASEC scores if responses provided, but only for an
+      // entitled caller. This used to flip on payload shape alone — whether
+      // riasecResponses/cvqResponses were present — trusting the client to
+      // only send them when its own isPremiumFlow gate was true, with
+      // nothing checking that server-side. See isEntitledForPremiumAssessment
+      // above for why isSchoolUser and isPremiumUser must be checked
+      // independently, and why a guest can never be entitled.
       let riasecScores = null;
       let assessmentType = 'basic';
-      
-      if (validatedData.riasecResponses) {
-        try {
-          riasecScores = calculateRiasecScores(validatedData.riasecResponses);
-          assessmentType = 'premium';
-        } catch (error) {
-          console.error("Error calculating RIASEC scores:", error);
-        }
-      }
 
-      if (validatedData.cvqResponses) {
-        assessmentType = 'premium';
+      if (validatedData.riasecResponses || validatedData.cvqResponses) {
+        const isEntitled = await isEntitledForPremiumAssessment(userId);
+
+        if (isEntitled) {
+          if (validatedData.riasecResponses) {
+            try {
+              riasecScores = calculateRiasecScores(validatedData.riasecResponses);
+              assessmentType = 'premium';
+            } catch (error) {
+              console.error("Error calculating RIASEC scores:", error);
+            }
+          }
+
+          if (validatedData.cvqResponses) {
+            assessmentType = 'premium';
+          }
+        } else {
+          // Silently dropped to the caller, consistent with the
+          // mass-assignment defense on PATCH (:554-558 below) — but logged at
+          // error level with the userId, because a legitimate premium user
+          // whose session lapsed mid-assessment loses their RIASEC/CVQ
+          // answers here with no other signal, and that case should be
+          // observable rather than invisible. userId is null for a guest,
+          // who is never entitled by construction.
+          console.error(
+            `[assessment POST] dropped riasec/cvq responses from unentitled caller (userId=${userId ?? 'guest'})`
+          );
+        }
       }
 
       // School-owned fields, resolved from the school's own rows. Empty for
@@ -579,19 +630,40 @@ export function registerAssessmentRoutes(app: Express) {
       }
       const updateData = { ...normalizationResult.normalized };
 
-      // Calculate RIASEC scores if responses provided
-      if (updateData.riasecResponses) {
-        try {
-          updateData.riasecScores = calculateRiasecScores(updateData.riasecResponses);
-          updateData.assessmentType = 'premium';
-          console.log("RIASEC scores calculated on update:", updateData.riasecScores);
-        } catch (error) {
-          console.error("Error calculating RIASEC scores:", error);
-        }
-      }
+      // Calculate RIASEC scores if responses provided, but only for an
+      // entitled caller — same fix and same reasoning as POST above (see
+      // isEntitledForPremiumAssessment). Runs independently of the
+      // touchesSchoolOwned-gated lookup below: a RIASEC/CVQ-only save does
+      // not touch the school-owned fields, so that lookup cannot be reused
+      // here. existingAssessment.userId is null for a guest-owned row, which
+      // is never entitled by construction.
+      if (updateData.riasecResponses || updateData.cvqResponses) {
+        const isEntitled = await isEntitledForPremiumAssessment(existingAssessment.userId);
 
-      if (updateData.cvqResponses) {
-        updateData.assessmentType = 'premium';
+        if (isEntitled) {
+          if (updateData.riasecResponses) {
+            try {
+              updateData.riasecScores = calculateRiasecScores(updateData.riasecResponses);
+              updateData.assessmentType = 'premium';
+              console.log("RIASEC scores calculated on update:", updateData.riasecScores);
+            } catch (error) {
+              console.error("Error calculating RIASEC scores:", error);
+            }
+          }
+
+          if (updateData.cvqResponses) {
+            updateData.assessmentType = 'premium';
+          }
+        } else {
+          // Silently dropped, consistent with the mass-assignment defense
+          // above (:554-558) — but logged at error level with the userId, so
+          // a premium user whose session lapsed mid-assessment is observable
+          // instead of just losing their answers with no signal.
+          console.error(
+            `[assessment PATCH] dropped riasec/cvq responses from unentitled caller ` +
+              `(userId=${existingAssessment.userId ?? 'guest'}, assessment=${req.params.id})`
+          );
+        }
       }
 
       // SCHOOL-OWNED FIELDS. A school enrols its students and records their name,
