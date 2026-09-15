@@ -10,6 +10,7 @@ import { MasonryGrid, MasonryItem } from "@/components/MasonryGrid";
 import { isPremiumAssessment } from "@shared/assessmentTier";
 import { GROWTH_BAND_I18N, isOnetGrowthBand } from "@shared/growthBands";
 import { guestAssessmentExpiresAt } from "@shared/guestAssessmentExpiry";
+import { formatLocalizedDate } from "@/lib/formatDate";
 import { 
   GraduationCap, 
   Target, 
@@ -1327,7 +1328,7 @@ export default function Results() {
                   data-testid="text-guest-expiry-notice"
                 >
                   {t('guestExpiryNotice', {
-                    date: guestAssessmentExpiresAt(assessment.completedAt).toLocaleDateString(),
+                    date: formatLocalizedDate(guestAssessmentExpiresAt(assessment.completedAt), language),
                   })}
                 </p>
               )}
