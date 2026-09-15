@@ -74,3 +74,24 @@ export async function downloadDataExport(): Promise<ExportOutcome> {
  * docs/arabic-review-pack.md §6.
  */
 export const isolate = (value: string) => `\u2068${value}\u2069`;
+
+/**
+ * The account's email as a hint for the deletion page's typed-email check:
+ * the domain in full, the first character of the local part, then a fixed
+ * "\u2022\u2022\u2022" whatever the real length. A local part of one or two characters shows
+ * no letter, because one letter would be half of it.
+ *
+ * HYGIENE, NOT A CONTROL. The full address is on /api/auth/user for every page
+ * load and printed on Profile. This stops the page printing the answer beside
+ * the question it asks. It does not stop anyone who looks. The domain stays
+ * whole because it is what tells the owner which of their accounts this is.
+ */
+export function maskEmail(email: string): string {
+  const address = email.trim();
+  const at = address.lastIndexOf("@");
+  if (at <= 0) return "\u2022\u2022\u2022";
+  // Code points, so an address starting with an astral character is not split.
+  const local = Array.from(address.slice(0, at));
+  const head = local.length >= 3 ? local[0] : "";
+  return `${head}\u2022\u2022\u2022@${address.slice(at + 1)}`;
+}

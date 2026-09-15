@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/hooks/useAuth";
 import { apiRequest, serverErrorCode } from "@/lib/queryClient";
-import { DATA_SUMMARY_QUERY_KEY, isolate, type DataSummary } from "@/lib/dataRights";
+import { DATA_SUMMARY_QUERY_KEY, isolate, maskEmail, type DataSummary } from "@/lib/dataRights";
 import { DataExportButton } from "@/components/DataExportButton";
 import { ErasureRefusal } from "@/components/ErasureRefusal";
 
@@ -286,7 +286,7 @@ export default function DeleteAccount() {
             </Label>
             {byEmail && user.email && (
               <p className="text-sm text-muted-foreground" data-testid="text-account-email">
-                {t("dataRights.delete.emailIs")} <span dir="ltr" className="font-medium">{user.email}</span>
+                {t("dataRights.delete.emailIs")} <span dir="ltr" className="font-medium">{maskEmail(user.email)}</span>
               </p>
             )}
             {/* Left-to-right in an Arabic page too: a password or an address is
