@@ -295,6 +295,10 @@ returns that button. Two traps for whoever measures this next:
 - **The email field is `type="email"`**, so text that is not shaped like an address is stopped by
   the browser's own validation, in the browser's language, and never reaches the server. A script
   that types a wrong non-address sees no error line.
+  **No longer true as of the noValidate commit (2026-09-15).** That bubble was the English string
+  "Please include an '@' in the email address" over an Arabic form. The form now sets
+  `noValidate`: a non-address goes to the server and the reader gets
+  `delete.errors.emailMismatch` in their own language. Checked rendered in both languages.
 The bidi and colon placements below were not re-checked on 2026-09-15.
 - **The final delete button** is below "Keep my account" with a 12px gap, and no other control
   shares its row, in all eight confirm-step renders. At 1024px in Arabic, step 1's two

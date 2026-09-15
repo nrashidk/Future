@@ -265,8 +265,13 @@ export default function DeleteAccount() {
   return shell(
     <>
       {title}
+      {/* noValidate: the server's refusal is the check, and it reaches the reader
+          translated. The browser's own "include an @" bubble is in the browser's
+          language, not the page's, and on this screen that is an English
+          sentence over an Arabic form. */}
       <form
         className="space-y-6"
+        noValidate
         onSubmit={(e) => {
           e.preventDefault();
           if (ready && !erase.isPending) erase.mutate();
