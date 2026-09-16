@@ -159,6 +159,104 @@ export function resolveSchoolOwnedFields(
 }
 
 /**
+ * Decide what a parent-registers account's child_profiles row says about the
+ * fields this write is touching — the same rule as resolveSchoolOwnedFields,
+ * for a population with no organization to split the six fields across.
+ *
+ * A SEPARATE FUNCTION, NOT A REUSE OF resolveSchoolOwnedFields, even though
+ * the loop body is identical. The two populations' data lives in different
+ * shapes (organizationMembers + organizations, two rows; child_profiles, one
+ * row) and resolveSchoolOwnedFields is tested and load-bearing for schools
+ * today — changing its signature to accommodate a second source is a large
+ * diff for a six-line loop. If the two are ever unified, that is its own
+ * deliberate refactor, not a side effect of adding this population.
+ *
+ * FAILS CLOSED, identically: a field the child profile owns but has no usable
+ * value for is reported in `missing`, never left as the caller's own input.
+ */
+export function resolveChildOwnedFields(
+  updateData: Record<string, unknown>,
+  child: {
+    name?: string | null;
+    gender?: string | null;
+    grade?: string | null;
+    dateOfBirth?: string | null;
+    countryId?: string | null;
+    curriculum?: string | null;
+  },
+  asOf: string,
+): { overrides: Partial<Record<SchoolOwnedField, unknown>>; missing: SchoolOwnedField[] } {
+  const childValues: Record<SchoolOwnedField, unknown> = {
+    name: child.name,
+    grade: child.grade,
+    gender: child.gender,
+    // DERIVED, not copied — same reasoning as resolveSchoolOwnedFields: a
+    // birth date recorded once at registration, not a re-typed age.
+    age: ageOnDate(child.dateOfBirth, asOf),
+    countryId: child.countryId,
+    curriculum: child.curriculum,
+  };
+
+  const overrides: Partial<Record<SchoolOwnedField, unknown>> = {};
+  const missing: SchoolOwnedField[] = [];
+
+  for (const field of SCHOOL_OWNED_ASSESSMENT_FIELDS) {
+    if (updateData[field] === undefined) continue;
+    const value = childValues[field];
+    if (value === null || value === undefined || (typeof value === 'string' && value.trim() === '')) {
+      missing.push(field);
+    } else {
+      overrides[field] = value;
+    }
+  }
+
+  return { overrides, missing };
+}
+
+/**
+ * Whether an assessment created BEFORE a child profile existed on this
+ * account should still be treated as the account holder's own — the
+ * question raised scoping this: an account that had assessments as itself
+ * before ever registering a child must not have those assessments silently
+ * relabelled as the child's on their next PATCH.
+ *
+ * ANCHORED ON child_profiles.createdAt, NOT child_guardian_consents.createdAt.
+ * The question this answers is "did a child subject exist on this account
+ * when this assessment was created" — exactly what child_profiles.createdAt
+ * records. The consent row's timestamp answers a different question (when
+ * was consent attested or re-attested) that can diverge from it: a future
+ * re-consent flow (child_guardian_consents is append-only, mirroring
+ * organization_consents' re-attestation shape) could insert a new consent row
+ * well after the child profile itself was created, and anchoring on that
+ * would move the boundary for reasons that have nothing to do with who the
+ * subject is.
+ *
+ * INCLUSIVE (>=), not strict (>). This keeps one predicate true at both call
+ * sites: at CREATE, a brand-new assessment's timestamp is being minted "now"
+ * and the child profile — already committed, already read back by this same
+ * request — necessarily has a createdAt at or before it, so the override
+ * always applies; at PATCH, the identical predicate decides whether a
+ * pre-existing row falls before or after that boundary. A tie is not
+ * reachable in practice: registration and assessment creation are always
+ * separate, sequential HTTP requests, so an assessment's own INSERT cannot
+ * start before the child profile's INSERT has already committed and been
+ * read back by the request that creates it.
+ */
+export function assessmentIsChildOwned(
+  assessmentCreatedAt: Date | string | null | undefined,
+  childProfileCreatedAt: Date | string | null | undefined,
+): boolean {
+  // Absent on either side fails closed to "not child-owned" — a missing
+  // childProfileCreatedAt means there is no profile to own it, and a missing
+  // assessmentCreatedAt is handled by callers before this function is
+  // reached (a create supplies "now"), not by treating "unknown" as "after".
+  if (!assessmentCreatedAt || !childProfileCreatedAt) return false;
+  const assessmentTime = new Date(assessmentCreatedAt).getTime();
+  const childProfileTime = new Date(childProfileCreatedAt).getTime();
+  return assessmentTime >= childProfileTime;
+}
+
+/**
  * Whether userId is entitled to premium assessment data — RIASEC/CVQ scoring
  * and assessmentType: 'premium'. Checked fresh from the DB on every call,
  * never inferred from the request body's shape and never from the
@@ -258,10 +356,12 @@ export function registerAssessmentRoutes(app: Express) {
         }
       }
 
-      // School-owned fields, resolved from the school's own rows. Empty for
-      // everyone else, so the spread below is a no-op for a guest or a self-paid
-      // student.
-      let schoolOwnedValues: Partial<Record<string, unknown>> = {};
+      // Locked demographic overrides, resolved from whichever row owns this
+      // caller's identity — the school's (organizationMembers/organizations)
+      // or, for a parent-registers account, its child_profiles row. Empty for
+      // everyone else, so the spread below is a no-op for a guest or a
+      // self-paid individual with no child profile.
+      let lockedDemographicsValues: Partial<Record<string, unknown>> = {};
       
       if (userId) {
         // MEMBERSHIP COMES FROM THE MEMBER ROW, NOT users.accountType — the last
@@ -386,12 +486,53 @@ export function registerAssessmentRoutes(app: Express) {
           // because the assessment's own steps render these read-only for a
           // school student (e9f8d81) and a mismatch means a stale form or a
           // direct API call.
-          schoolOwnedValues = overrides;
+          lockedDemographicsValues = overrides;
         } else {
+          // A PARENT-REGISTERS ACCOUNT'S CHILD. Unconditional, unlike the PATCH
+          // side (see assessmentIsChildOwned): a brand-new row cannot predate
+          // the child profile that was already read back to reach this branch,
+          // so there is no timestamp to compare yet — this IS the moment the
+          // account's very first post-registration assessment gets created.
+          const childProfile = await storage.getChildProfileByGuardianUserId(userId);
+          if (childProfile) {
+            const requested: Record<string, unknown> = {};
+            for (const field of SCHOOL_OWNED_ASSESSMENT_FIELDS) {
+              requested[field] = (validatedData as Record<string, unknown>)[field] ?? null;
+            }
+            const { overrides, missing } = resolveChildOwnedFields(
+              requested,
+              childProfile,
+              toDateOnlyString(new Date()),
+            );
+
+            // FAILS CLOSED. Should not happen through the only creation path
+            // today — POST /api/register/parent requires all six fields — but
+            // countryId/curriculum stay nullable at the column (schema.ts,
+            // child_profiles), so a future write path bypassing that
+            // validation must not silently fall back to the caller's own
+            // input, the same invariant resolveSchoolOwnedFields enforces.
+            if (missing.length > 0) {
+              console.error(
+                `[assessment POST] child-owned field(s) unavailable for child profile ${childProfile.id}: ${missing.join(', ')}`
+              );
+              return res.status(400).json({
+                message: `Your account setup is incomplete: missing ${describeMissingFields(missing)}. Please contact support.`,
+              });
+            }
+
+            lockedDemographicsValues = overrides;
+          }
+
           // FREE-TIER CAP (authenticated, not a school student). A free account
           // may complete FREE_ASSESSMENT_CAP assessments; beyond that, creation
           // is refused here so the client gets a legible rejection rather than
           // discovering the limit at generation time.
+          //
+          // APPLIES TO A PARENT-REGISTERS ACCOUNT TOO, before payment. Having a
+          // child profile locks WHOSE data this is; it does not itself grant
+          // premium — that still comes from Stripe via /api/checkout/complete,
+          // same as it always has. A registered-but-not-yet-paid account is a
+          // free account with a child profile, nothing more, until it pays.
           //
           // SELF-PAYING PREMIUM USERS ARE EXCLUDED. Their bound is
           // users.purchasedLicenses, a different limit that this guard must not
@@ -424,10 +565,11 @@ export function registerAssessmentRoutes(app: Express) {
 
       const assessment = await storage.createAssessment({
         ...validatedData,
-        // After validatedData, so the school's values win over the client's. The
-        // cast is because the resolver is field-agnostic and returns unknown; the
-        // keys are SCHOOL_OWNED_ASSESSMENT_FIELDS, all of them columns here.
-        ...(schoolOwnedValues as Partial<InsertAssessment>),
+        // After validatedData, so the school's or child profile's values win
+        // over the client's. The cast is because the resolver is
+        // field-agnostic and returns unknown; the keys are
+        // SCHOOL_OWNED_ASSESSMENT_FIELDS, all of them columns here.
+        ...(lockedDemographicsValues as Partial<InsertAssessment>),
         userId,
         isGuest,
         guestSessionId: guestToken,
@@ -782,6 +924,48 @@ export function registerAssessmentRoutes(app: Express) {
           // a stale form or a direct API call — neither of which gives the student
           // anything to act on, and a 400 would strand a mid-assessment autosave.
           Object.assign(updateData, overrides);
+        } else {
+          const childProfile = await storage.getChildProfileByGuardianUserId(existingAssessment.userId);
+
+          // THE TIMESTAMP GATE. A row created before this account ever had a
+          // child profile is the account holder's OWN historical assessment —
+          // taken as themselves, before the decision this schema implements
+          // existed for their account — and must not be silently relabelled as
+          // the child's on this PATCH. See assessmentIsChildOwned: anchored on
+          // child_profiles.createdAt, inclusive, because a genuinely
+          // post-registration row cannot tie with it in practice and the
+          // create-time and update-time rule need to be the same predicate.
+          //
+          // WITHOUT THIS, a free user's pre-existing assessment would start
+          // being overwritten with a LATER-registered child's identity the
+          // moment they next autosaved it — fabricating history, not just
+          // conflating two subjects' Career Journeys (docs/
+          // parent-registers-scoping.md item 1's residual conflation, which
+          // this closes at the write side; Profile.tsx's read side is the
+          // next, separate commit).
+          if (childProfile && assessmentIsChildOwned(existingAssessment.createdAt, childProfile.createdAt)) {
+            const { overrides, missing } = resolveChildOwnedFields(
+              updateData,
+              childProfile,
+              // THE ASSESSMENT'S OWN CREATION DATE, matching the school branch
+              // above, for the same reason: age is a snapshot of who the child
+              // was when this row was created, re-derived idempotently rather
+              // than drifting with today's date on every autosave.
+              toDateOnlyString(existingAssessment.createdAt ?? new Date()),
+            );
+
+            if (missing.length > 0) {
+              console.error(
+                `[assessment PATCH] child-owned field(s) unavailable for child profile ${childProfile.id} ` +
+                  `(assessment ${req.params.id}): ${missing.join(', ')}`,
+              );
+              return res.status(400).json({
+                message: `Your account setup is incomplete: missing ${describeMissingFields(missing)}. Please contact support.`,
+              });
+            }
+
+            Object.assign(updateData, overrides);
+          }
         }
       }
 
