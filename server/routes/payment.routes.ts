@@ -301,13 +301,47 @@ export function registerPaymentRoutes(app: Express) {
         });
         username = user.username || user.email || 'user';
         isNewUser = false;
+      } else if (studentCount === 1) {
+        /**
+         * REFUSED, NOT RATE-LIMITED. This branch used to create a brand-new
+         * account here via grantIndividualPremium — the exact behaviour
+         * docs/parent-registers-scoping.md's decision replaces. It is no
+         * longer needed, not just discouraged: /api/create-payment-intent
+         * now refuses to create a PaymentIntent for studentCount === 1
+         * unless the caller was already authenticated, so a valid,
+         * succeeded intent with studentCount === 1 cannot exist unless this
+         * caller was logged in when it was created. Reaching here
+         * unauthenticated means the session that created it is gone —
+         * a deliberate logout mid-checkout, cleared cookies, or a switch of
+         * device — not a flow this product has, and creating (or silently
+         * upgrading) an account here would recreate the exact bypass this
+         * guard exists to close: an individual account with no child
+         * profile and no consent record, indistinguishable from the
+         * pre-decision self-pay path.
+         *
+         * The payment has very likely already succeeded by the time this
+         * runs (Stripe confirmation already happened client-side), so this
+         * is refused rather than silently retried as a new purchase: telling
+         * the caller to log back in is the honest next step for someone who
+         * is still that same authenticated party, and anyone who is not
+         * needs a human, not another silent account.
+         */
+        return res.status(401).json({
+          message: "Your session ended before this purchase could be completed. Please log in and try again; if you were charged, contact support with this payment reference.",
+          code: "SESSION_REQUIRED",
+          paymentIntentId,
+        });
       } else {
         // User not logged in - check if email already exists
         const existingUser = await storage.getUserByEmail(email);
-        
+
         if (!existingUser) {
           // New buyer - grant via the shared helper so this path and the webhook
-          // backstop create accounts identically
+          // backstop create accounts identically. studentCount > 1 only, now
+          // that studentCount === 1 is refused above — this is the
+          // institutional/group-purchase path (GroupPricing.tsx),
+          // unauthenticated by design and never part of the parent-registers
+          // decision's scope.
           const grant = await grantIndividualPremium({
             email,
             firstName,
@@ -332,11 +366,11 @@ export function registerPaymentRoutes(app: Express) {
           // Existing user - check if they're OAuth or local
           if (!existingUser.passwordHash) {
             // OAuth user - cannot use self-service checkout without login
-            return res.status(400).json({ 
-              message: "This email is already registered. Please login first, then purchase from your account dashboard." 
+            return res.status(400).json({
+              message: "This email is already registered. Please login first, then purchase from your account dashboard."
             });
           }
-          
+
           // Update existing local user (increment licenses)
           user = await storage.updateUserFields(existingUser.id, {
             phone,
