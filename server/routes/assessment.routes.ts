@@ -10,7 +10,7 @@ import { validatePromptInputFields } from "../utils/assessmentValidation";
 import { sanitizeRequestBody } from "../utils/sanitize";
 import { printTokenAuthorizes } from "../utils/printToken";
 import { ageOnDate, toDateOnlyString } from "@shared/dateOfBirth";
-import { FREE_ASSESSMENT_CAP, isFreeTierCapReached } from "@shared/assessmentLimits";
+import { FREE_ASSESSMENT_CAP, isFreeTierCapReached, requiresPaymentBeforeAssessment } from "@shared/assessmentLimits";
 import { assessmentIsChildOwned } from "@shared/childOwnership";
 import { sweepExpiredGuestAssessmentsIfDue } from "../services/guestAssessmentExpiry";
 
@@ -452,7 +452,45 @@ export function registerAssessmentRoutes(app: Express) {
           // so there is no timestamp to compare yet — this IS the moment the
           // account's very first post-registration assessment gets created.
           const childProfile = await storage.getChildProfileByGuardianUserId(userId);
+
+          // Fetched once here rather than separately by the payment gate and
+          // the free-tier cap below — both need it, and only one of the two
+          // ever runs for a given caller.
+          const account = await storage.getUser(userId);
+
           if (childProfile) {
+            /**
+             * PAYMENT REQUIRED BEFORE ANY ASSESSMENT — decided
+             * 2026-09-16, replacing the free-tier cap for this population.
+             *
+             * A registered-but-unpaid parent-registers account used to fall
+             * through to the free-tier cap below (up to FREE_ASSESSMENT_CAP,
+             * same as any free account). That was scoped and named as an
+             * open question when this population was built
+             * (docs/parent-registers-scoping.md item 5), and the answer is:
+             * zero. A guest already gets the identical free 2-match report
+             * with no registration at all, so a pre-payment allowance on a
+             * durable, identified account served no purpose the guest path
+             * does not already serve with less friction — keeping any
+             * number here would leave a free tier retitled rather than
+             * retired.
+             *
+             * CHECKED BEFORE resolveChildOwnedFields, not after: no reason
+             * to resolve locked fields for a request that is refused
+             * regardless of what they are.
+             *
+             * 402, not 403 — this is not a quota (FREE_ASSESSMENT_CAP_REACHED
+             * below), it is "you have not paid yet", which has its own HTTP
+             * status and its own code so the client can route to Checkout
+             * rather than to the free-cap screen's copy and remedy.
+             */
+            if (requiresPaymentBeforeAssessment(true, !!account?.isPremium)) {
+              return res.status(402).json({
+                message: "Please complete payment to start an assessment for your child.",
+                code: "PAYMENT_REQUIRED",
+              });
+            }
+
             const requested: Record<string, unknown> = {};
             for (const field of SCHOOL_OWNED_ASSESSMENT_FIELDS) {
               requested[field] = (validatedData as Record<string, unknown>)[field] ?? null;
@@ -481,16 +519,18 @@ export function registerAssessmentRoutes(app: Express) {
             lockedDemographicsValues = overrides;
           }
 
-          // FREE-TIER CAP (authenticated, not a school student). A free account
-          // may complete FREE_ASSESSMENT_CAP assessments; beyond that, creation
-          // is refused here so the client gets a legible rejection rather than
-          // discovering the limit at generation time.
+          // FREE-TIER CAP (authenticated, not a school student, NO child
+          // profile). A free account may complete FREE_ASSESSMENT_CAP
+          // assessments; beyond that, creation is refused here so the
+          // client gets a legible rejection rather than discovering the
+          // limit at generation time.
           //
-          // APPLIES TO A PARENT-REGISTERS ACCOUNT TOO, before payment. Having a
-          // child profile locks WHOSE data this is; it does not itself grant
-          // premium — that still comes from Stripe via /api/checkout/complete,
-          // same as it always has. A registered-but-not-yet-paid account is a
-          // free account with a child profile, nothing more, until it pays.
+          // DOES NOT APPLY TO A PARENT-REGISTERS ACCOUNT — the payment gate
+          // above already returned for one that has not paid, and one that
+          // has is excluded by `!account?.isPremium` below the same way any
+          // other premium account is. This comment used to say the opposite
+          // ("applies to a parent-registers account too, before payment");
+          // that was true until the payment gate above replaced it.
           //
           // SELF-PAYING PREMIUM USERS ARE EXCLUDED. Their bound is
           // users.purchasedLicenses, a different limit that this guard must not
@@ -505,7 +545,6 @@ export function registerAssessmentRoutes(app: Express) {
           // recommendations.routes.ts, which is where the authoritative check
           // lives. Two tabs opened at cap-1 both pass here; only that one keeps
           // the count exact.
-          const account = await storage.getUser(userId);
           if (!account?.isPremium) {
             const completedCount = await storage.countCompletedAssessmentsByUser(userId);
             // isSchoolStudent false: this is the else of `orgMember?.role === 'student'`.

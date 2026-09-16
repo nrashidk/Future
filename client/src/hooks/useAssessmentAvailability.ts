@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/useAuth";
 import type { Assessment } from "@shared/schema";
-import { assessmentLimitFor, isFreeTierCapReached } from "@shared/assessmentLimits";
+import { assessmentLimitFor, isFreeTierCapReached, requiresPaymentBeforeAssessment } from "@shared/assessmentLimits";
 
 /**
  * Single source of truth for a school student's remaining assessment allocation,
@@ -88,14 +88,37 @@ export function useAssessmentAvailability() {
     ? Infinity
     : Math.max(0, limit - completed.length);
 
+  // A REGISTERED-BUT-UNPAID PARENT-REGISTERS ACCOUNT — zero assessments
+  // allowed before payment (decided 2026-09-16, replacing the free-tier cap
+  // for this population; server-side authority is the 402/PAYMENT_REQUIRED
+  // in assessment.routes.ts and recommendations.routes.ts). Checked ahead of
+  // isFreeCapReached below: a legacy account with completions from before
+  // this rule shipped should still see "pay to continue", not the generic
+  // free-cap screen, once it has spent whatever it was allowed at the time.
+  //
+  // THREE-STATE like isOrgStudent/isPremiumUser, for the same reason:
+  // undefined while auth is unresolved must not resolve to false and offer
+  // an entry point the server is about to 402.
+  const hasChildProfile: boolean | undefined = authLoading ? undefined : !!user?.childProfileCreatedAt;
+  const requiresPaymentToStart =
+    hasChildProfile !== undefined &&
+    isPremiumUser !== undefined &&
+    requiresPaymentBeforeAssessment(hasChildProfile, isPremiumUser);
+
   return {
     isOrgStudent,
+    requiresPaymentToStart,
     // True only for a free account that has spent its cap. Distinguishes the
     // free ceiling from the school allocation lock, which the assessment page
     // renders as a different screen with different copy and a different remedy.
+    // EXCLUDES a parent-registers account (requiresPaymentToStart already
+    // covers it, with its own screen and remedy — Checkout, not the free-cap
+    // copy) — a legacy account with completions from before this rule
+    // shipped would otherwise satisfy both.
     isFreeCapReached:
       isOrgStudent === false &&
       isPremiumUser === false &&
+      !requiresPaymentToStart &&
       isFreeTierCapReached(false, false, completed.length),
     // Covers BOTH requests. The assessments query is disabled until membership
     // is known, and a disabled query does not report as loading, so without

@@ -107,6 +107,7 @@ export default function Assessment() {
     hasInProgress,
     completedReportId,
     isFreeCapReached,
+    requiresPaymentToStart,
   } = useAssessmentAvailability();
 
   // WHICH POPULATION OWNS THE LOCKED FIELDS — a second, narrower question
@@ -216,8 +217,17 @@ export default function Assessment() {
   // an in-flight assessment is never blocked by its own existence.
   const showsFreeCapReached =
     isOrgStudent === false && !availLoading && isFreeCapReached && !hasInProgress;
+  // A PARENT-REGISTERS ACCOUNT THAT HAS NOT PAID — decided 2026-09-16, zero
+  // assessments before payment. `!hasInProgress` for the same reason as the
+  // free-cap screen: an assessment already started under whatever rule
+  // applied when it was created can still be finished (the create guard in
+  // assessment.routes.ts only blocks NEW ones); this screen is only for a
+  // caller trying to start their first assessment with nothing paid yet.
+  const showsPaymentRequired =
+    !availLoading && requiresPaymentToStart && !hasInProgress;
   const isOnTerminalScreen =
-    showsPollingScreen || showsSchoolDataIncomplete || showsCompletionLock || showsFreeCapReached;
+    showsPollingScreen || showsSchoolDataIncomplete || showsCompletionLock ||
+    showsFreeCapReached || showsPaymentRequired;
 
   // True when the student has started filling in data and hasn't finished yet.
   //
@@ -1163,6 +1173,37 @@ export default function Assessment() {
                 <a href="/tier-selection">{t("freeCap.upgrade")}</a>
               </Button>
             </div>
+          </div>
+        </div>
+      </PageLayout>
+    );
+  }
+
+  if (showsPaymentRequired) {
+    return (
+      <PageLayout variant="gradient">
+        <div className="flex items-center justify-center px-4 py-12 min-h-[calc(100vh-12rem)]">
+          <div className="max-w-md w-full text-center space-y-6 rounded-xl p-8">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10">
+              <ClipboardCheck className="w-8 h-8 text-primary" />
+            </div>
+            <div className="space-y-2">
+              <h1 className="text-4xl md:text-5xl font-bold">{t("paymentRequired.title")}</h1>
+              <p className="text-lg text-muted-foreground">
+                {t("paymentRequired.body")}
+              </p>
+            </div>
+            {/* STRAIGHT TO CHECKOUT, NOT /tier-selection. This account already
+                exists and already has a child profile — sending it back through
+                /tier-selection would land on /register/parent again, which
+                refuses a second registration for the same email
+                (POST /api/register/parent, "An account with this email already
+                exists"). Checkout's own wasLoggedIn branch is exactly built for
+                an already-authenticated caller (docs/
+                parent-registers-scoping.md, Phase F). */}
+            <Button asChild size="lg" className="w-full text-lg px-8 py-6 rounded-full shadow-xl" data-testid="button-payment-required-checkout">
+              <a href="/checkout?students=1&total=10">{t("paymentRequired.completePayment")}</a>
+            </Button>
           </div>
         </div>
       </PageLayout>

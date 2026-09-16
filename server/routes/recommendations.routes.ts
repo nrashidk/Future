@@ -17,7 +17,7 @@ import {
   generateEnhancedActionSteps,
 } from "../services/premiumNarratives";
 import { isPremiumAssessment } from "../utils/assessmentTier";
-import { FREE_ASSESSMENT_CAP, isFreeTierCapReached } from "@shared/assessmentLimits";
+import { FREE_ASSESSMENT_CAP, isFreeTierCapReached, requiresPaymentBeforeAssessment } from "@shared/assessmentLimits";
 import { formatFreeReasoning, buildFreeActionSteps } from "../services/freeNarrative";
 import { collectMissingComponents } from "../utils/assessmentCompleteness";
 import { mintPrintToken, printTokenAuthorizes } from "../utils/printToken";
@@ -98,6 +98,30 @@ export function registerRecommendationsRoutes(app: Express) {
         const orgMember = await storage.getOrganizationMemberByUserId(assessment.userId);
         const isSchoolStudent = orgMember?.role === 'student';
         const isPremiumUser = !!account?.isPremium;
+
+        /**
+         * PAYMENT REQUIRED BEFORE ANY ASSESSMENT — the authoritative half,
+         * mirroring the create guard in assessment.routes.ts (same decision,
+         * 2026-09-16). AUTHORITATIVE HERE FOR THE SAME REASON THE FREE-TIER
+         * CAP BELOW IS: an assessment created before this rule shipped, under
+         * the old up-to-FREE_ASSESSMENT_CAP allowance, would otherwise still
+         * be completable by an unpaid parent-registers account today if only
+         * the create guard enforced the new rule. Checked before the
+         * free-tier cap and independently of it — a parent-registers account
+         * is never subject to that cap at all once it has paid (isPremiumUser
+         * true) or is refused here (not yet paid), so the two never both
+         * apply to the same request.
+         */
+        if (!isSchoolStudent && !isPremiumUser) {
+          const childProfile = await storage.getChildProfileByGuardianUserId(assessment.userId);
+          if (requiresPaymentBeforeAssessment(!!childProfile, isPremiumUser)) {
+            return res.status(402).json({
+              message: "Please complete payment to see this report.",
+              code: "PAYMENT_REQUIRED",
+            });
+          }
+        }
+
         if (!isSchoolStudent && !isPremiumUser) {
           const otherCompleted = await storage.countCompletedAssessmentsByUser(
             assessment.userId,

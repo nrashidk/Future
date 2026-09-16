@@ -18,6 +18,11 @@
     "viewReports": "View your reports",
     "upgrade": "Need another assessment? See your options"
   },
+  "paymentRequired": {
+    "title": "Complete payment to start",
+    "body": "Your account is registered. Complete payment to begin your child's assessment.",
+    "completePayment": "Complete payment"
+  },
   "resume": {
     "title": "Welcome back!",
     "subtitle": "You have an assessment in progress at step {{step}} of {{total}}.",

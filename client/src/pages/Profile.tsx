@@ -13,7 +13,7 @@ import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTranslation } from "react-i18next";
 import { isPremiumAssessment } from "@shared/assessmentTier";
-import { SCHOOL_ALLOCATIONS_PER_STUDENT, FREE_ASSESSMENT_CAP } from "@shared/assessmentLimits";
+import { SCHOOL_ALLOCATIONS_PER_STUDENT, FREE_ASSESSMENT_CAP, requiresPaymentBeforeAssessment } from "@shared/assessmentLimits";
 import { collapseToLatestPerGrade, toCanonicalGrade } from "@shared/grade";
 import { assessmentIsChildOwned } from "@shared/childOwnership";
 import { isResumableDraft } from "@shared/assessmentFlow";
@@ -147,6 +147,16 @@ export default function Profile() {
   // useAssessmentAvailability uses.
   const isOrgStudent = !!user?.isOrgStudent;
   const isSuperadmin = user?.accountType === 'superadmin';
+
+  // A REGISTERED-BUT-UNPAID PARENT-REGISTERS ACCOUNT — zero assessments
+  // allowed before payment (decided 2026-09-16; server-side authority is the
+  // 402/PAYMENT_REQUIRED in assessment.routes.ts and
+  // recommendations.routes.ts). Computed the same way
+  // useAssessmentAvailability.ts does, inline rather than via that hook: this
+  // page already fetches its own assessments query below and does not need
+  // the hook's separate one.
+  const requiresPaymentToStart =
+    !isOrgStudent && requiresPaymentBeforeAssessment(!!(user as any)?.childProfileCreatedAt, !!user?.isPremium);
 
   // For individual users and org students: fetch their own assessments
   const { data: assessments = [] } = useQuery<Assessment[]>({
@@ -745,9 +755,15 @@ export default function Profile() {
               <CardContent>
                 {/* "2 of 3" ONLY WHERE A CEILING EXISTS, and it is a different
                     ceiling per population — see shared/assessmentLimits.ts:
-                      org student  -> the school's allocation (SCHOOL_ALLOCATIONS_PER_STUDENT)
-                      free account -> the anti-abuse cap (FREE_ASSESSMENT_CAP)
-                      premium      -> NEITHER. Their bound is purchasedLicenses, a
+                      org student       -> the school's allocation (SCHOOL_ALLOCATIONS_PER_STUDENT)
+                      free account      -> the anti-abuse cap (FREE_ASSESSMENT_CAP)
+                      unpaid parent-registers -> NEITHER. Zero before payment is
+                                      not a ceiling to count against, and this
+                                      count is always 0 for this population by
+                                      construction (the create guard refuses the
+                                      first one) — a "0 of N" fraction would
+                                      imply a trial that does not exist.
+                      premium           -> NEITHER. Their bound is purchasedLicenses, a
                                       consumable already shown as purchased/used/
                                       remaining above. A denominator here would
                                       either duplicate that or contradict it, since
@@ -770,27 +786,37 @@ export default function Profile() {
                           completed: individualCompletedAssessments,
                           cap: SCHOOL_ALLOCATIONS_PER_STUDENT,
                         })
-                      : !user.isPremium
-                        ? t("assessment.completedOf", {
-                            completed: individualCompletedAssessments,
-                            cap: FREE_ASSESSMENT_CAP,
-                          })
-                        : individualCompletedAssessments}
+                      : requiresPaymentToStart
+                        ? individualCompletedAssessments
+                        : !user.isPremium
+                          ? t("assessment.completedOf", {
+                              completed: individualCompletedAssessments,
+                              cap: FREE_ASSESSMENT_CAP,
+                            })
+                          : individualCompletedAssessments}
                   </p>
                 </div>
                 {assessments.length === 0 ? (
                 <div className="text-center py-8">
-                  <p className="text-muted-foreground mb-4">{t("assessment.noAssessments")}</p>
+                  <p className="text-muted-foreground mb-4">
+                    {requiresPaymentToStart ? t("assessment.paymentRequiredNote") : t("assessment.noAssessments")}
+                  </p>
                   <Button asChild data-testid="button-start-first-assessment">
                     {/* Free accounts go to the assessment, not to pricing. They may
                         take it, capped at FREE_ASSESSMENT_CAP completions, and the
                         cap is shown as a terminal screen on that page rather than
                         as a redirect to buy. Sending them here to /tier-selection
                         while /assessment lets them start is the inconsistency this
-                        removes: told to buy in one place, allowed in the other. */}
-                    <Link href="/assessment">
+                        removes: told to buy in one place, allowed in the other.
+
+                        A REGISTERED-BUT-UNPAID PARENT-REGISTERS ACCOUNT IS THE
+                        EXCEPTION, straight to Checkout rather than /assessment:
+                        /assessment would only show the payment-required terminal
+                        screen anyway (assessment.routes.ts's 402), so this skips
+                        a round trip rather than adding a new gate. */}
+                    <Link href={requiresPaymentToStart ? "/checkout?students=1&total=10" : "/assessment"}>
                       <ClipboardCheck className="w-4 h-4 me-2" />
-                      {t("assessment.startFirst")}
+                      {requiresPaymentToStart ? t("assessment.completePayment") : t("assessment.startFirst")}
                     </Link>
                   </Button>
                 </div>

@@ -20,6 +20,7 @@ import {
   FREE_ASSESSMENT_CAP,
   assessmentLimitFor,
   isFreeTierCapReached,
+  requiresPaymentBeforeAssessment,
 } from "./assessmentLimits";
 
 describe("assessment limits", () => {
@@ -72,6 +73,30 @@ describe("assessment limits", () => {
 
     it("counts zero completions as not capped", () => {
       expect(isFreeTierCapReached(false, false, 0)).toBe(false);
+    });
+  });
+
+  describe("requiresPaymentBeforeAssessment", () => {
+    // Decided 2026-09-16: zero assessments before payment for a
+    // parent-registers account, replacing FREE_ASSESSMENT_CAP for this
+    // population. See the function's own doc comment for why it is not a
+    // third argument to isFreeTierCapReached.
+    it("refuses a parent-registers account that has not paid", () => {
+      expect(requiresPaymentBeforeAssessment(true, false)).toBe(true);
+    });
+
+    it("does not apply once the account is premium", () => {
+      expect(requiresPaymentBeforeAssessment(true, true)).toBe(false);
+    });
+
+    it("does not apply to an account with no child profile at all", () => {
+      // The plain free-tier population — untouched, still governed by
+      // isFreeTierCapReached/FREE_ASSESSMENT_CAP, not this function.
+      expect(requiresPaymentBeforeAssessment(false, false)).toBe(false);
+    });
+
+    it("is false for a premium account with no child profile too", () => {
+      expect(requiresPaymentBeforeAssessment(false, true)).toBe(false);
     });
   });
 });

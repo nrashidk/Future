@@ -82,3 +82,31 @@ export function isFreeTierCapReached(
   if (isSchoolStudent || isPremiumUser) return false;
   return completedCount >= FREE_ASSESSMENT_CAP;
 }
+
+/**
+ * Zero assessments before payment, for a parent-registers account — decided
+ * 2026-09-16, replacing FREE_ASSESSMENT_CAP for this population (that cap
+ * modelled the allowance on the free tier being retired; a guest already
+ * gets the identical free 2-match report with no registration at all, so a
+ * pre-payment allowance on a durable, identified account served no purpose
+ * the guest path does not already serve with less friction).
+ *
+ * A SEPARATE FUNCTION FROM isFreeTierCapReached, not a third argument to it:
+ * the two rules are unrelated in shape (a threshold vs. an outright refusal)
+ * and unrelated in what triggers them (a completed-assessment count vs. the
+ * mere existence of a child profile) — collapsing them would make one
+ * function answer two different questions.
+ *
+ * ONE FUNCTION, TWO CALL SITES — assessment.routes.ts's create guard and
+ * recommendations.routes.ts's generation guard, the same two places
+ * isFreeTierCapReached is checked, for the same reason: the create guard
+ * bounds what gets STARTED, the generation guard is authoritative for what
+ * gets COMPLETED, and an assessment created before this rule shipped must
+ * not become completable by a still-unpaid account once it has.
+ */
+export function requiresPaymentBeforeAssessment(
+  hasChildProfile: boolean,
+  isPremiumUser: boolean,
+): boolean {
+  return hasChildProfile && !isPremiumUser;
+}
