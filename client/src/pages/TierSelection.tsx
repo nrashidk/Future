@@ -12,8 +12,13 @@ export default function TierSelection() {
 
   const [, setLocation] = useLocation();
 
+  // The self-pay route is parent-registers-for-child now
+  // (docs/parent-registers-scoping.md): the account, the child's identity
+  // and consent all have to exist before Stripe is ever reached, so this
+  // points at registration, not at Checkout directly. RegisterParent
+  // forwards to /checkout?students=1 itself once the account exists.
   const handleIndividualTier = () => {
-    setLocation(`/checkout?students=1&total=10`);
+    setLocation(`/register/parent`);
   };
 
   const handleGroupTier = () => {

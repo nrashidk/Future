@@ -29,7 +29,27 @@ const getStripe = () => {
   return stripePromise;
 };
 
-function CheckoutForm({ amount, studentCount, clientSecret }: { amount: number | null; studentCount: number; clientSecret: string }) {
+function CheckoutForm({
+  amount,
+  studentCount,
+  clientSecret,
+  authenticatedUser,
+}: {
+  amount: number | null;
+  studentCount: number;
+  clientSecret: string;
+  /**
+   * Set only for studentCount === 1 when the caller is already authenticated
+   * — a parent who just came through /register/parent, or an existing
+   * account topping up. Their name/email were already collected; asking
+   * again here would be the redundant re-entry the parent-registers
+   * decision was partly meant to remove. Undefined for a guest checkout
+   * (should not normally be reachable for studentCount === 1 any more, see
+   * Checkout's own redirect) and for every group purchase, which keeps
+   * collecting buyer info here exactly as before.
+   */
+  authenticatedUser?: { firstName?: string | null; lastName?: string | null; email?: string | null };
+}) {
   const { t } = useTranslation("pricing");
   const stripe = useStripe();
   const elements = useElements();
@@ -37,9 +57,9 @@ function CheckoutForm({ amount, studentCount, clientSecret }: { amount: number |
   const [, setLocation] = useLocation();
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
+  const [firstName, setFirstName] = useState(authenticatedUser?.firstName || "");
+  const [lastName, setLastName] = useState(authenticatedUser?.lastName || "");
+  const [email, setEmail] = useState(authenticatedUser?.email || "");
   const [phone, setPhone] = useState("");
   const [organizationName, setOrganizationName] = useState("");
 
@@ -191,45 +211,59 @@ function CheckoutForm({ amount, studentCount, clientSecret }: { amount: number |
     <form onSubmit={handleSubmit} className="space-y-6">
       <div>
         <h3 className="text-lg font-semibold mb-4">{t("checkout.yourInfoTitle")}</h3>
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="firstName">{t("checkout.firstNameLabel")}</Label>
-            <Input
-              id="firstName"
-              type="text"
-              value={firstName}
-              onChange={(e) => setFirstName(e.target.value)}
-              required
-              data-testid="input-first-name"
-            />
-          </div>
-          <div>
-            <Label htmlFor="lastName">{t("checkout.lastNameLabel")}</Label>
-            <Input
-              id="lastName"
-              type="text"
-              value={lastName}
-              onChange={(e) => setLastName(e.target.value)}
-              required
-              data-testid="input-last-name"
-            />
-          </div>
-        </div>
-        <div className="mt-4">
-          <Label htmlFor="email">{t("checkout.emailLabel")}</Label>
-          <Input
-            id="email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder={t("checkout.emailPlaceholder")}
-            required
-            data-testid="input-email"
-          />
-          {validateEmail(email) && (
-            <p className="text-xs text-destructive mt-1">{t("checkout.invalidEmailDesc")}</p>
-          )}
-        </div>
+        {/* HIDDEN, NOT JUST PREFILLED, when authenticatedUser is set — this
+            is the registration screen's information, already collected and
+            already sent (state above is seeded from it). Re-showing an
+            editable copy here would let the payment step silently diverge
+            from the account it is charging. Phone is the one field
+            registration never asks for, so it stays visible either way. */}
+        {authenticatedUser ? (
+          <p className="text-sm text-muted-foreground mb-4" data-testid="text-checkout-signed-in-as">
+            {t("checkout.signedInAs", { name: `${authenticatedUser.firstName ?? ""} ${authenticatedUser.lastName ?? ""}`.trim() || authenticatedUser.email, email: authenticatedUser.email })}
+          </p>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="firstName">{t("checkout.firstNameLabel")}</Label>
+                <Input
+                  id="firstName"
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  required
+                  data-testid="input-first-name"
+                />
+              </div>
+              <div>
+                <Label htmlFor="lastName">{t("checkout.lastNameLabel")}</Label>
+                <Input
+                  id="lastName"
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  required
+                  data-testid="input-last-name"
+                />
+              </div>
+            </div>
+            <div className="mt-4">
+              <Label htmlFor="email">{t("checkout.emailLabel")}</Label>
+              <Input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder={t("checkout.emailPlaceholder")}
+                required
+                data-testid="input-email"
+              />
+              {validateEmail(email) && (
+                <p className="text-xs text-destructive mt-1">{t("checkout.invalidEmailDesc")}</p>
+              )}
+            </div>
+          </>
+        )}
         <div className="mt-4">
           <Label htmlFor="phone">{t("checkout.phoneLabel")}</Label>
           <Input
@@ -327,11 +361,37 @@ export default function Checkout() {
   const [clientSecret, setClientSecret] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [serverAmount, setServerAmount] = useState<number | null>(null);
+  const { user, isAuthenticated, isLoading: authLoading } = useAuth();
 
   const params = new URLSearchParams(window.location.search);
   const studentCount = parseInt(params.get("students") || "1");
 
+  // THE INDIVIDUAL SELF-PAY ROUTE IS PARENT-REGISTERS-ONLY NOW
+  // (docs/parent-registers-scoping.md). Reaching /checkout?students=1
+  // without an account — TierSelection no longer links here directly, but a
+  // saved bookmark or a typed URL still can — sends the visitor to register
+  // first, before this component ever calls /api/create-payment-intent.
+  //
+  // THIS IS UX, NOT THE SECURITY BOUNDARY. A direct API call bypasses this
+  // entirely; the actual enforcement is server-side, in
+  // /api/create-payment-intent refusing to create an intent for the same
+  // (studentCount === 1, unauthenticated) case, which runs before any Stripe
+  // charge exists — see payment.routes.ts.
+  //
+  // studentCount > 1 IS UNTOUCHED. That is the institutional/group-purchase
+  // path (GroupPricing.tsx), unauthenticated by design, and was never part
+  // of the parent-registers decision's scope.
   useEffect(() => {
+    if (authLoading) return;
+    if (studentCount === 1 && !isAuthenticated) {
+      setLocation("/register/parent");
+    }
+  }, [authLoading, isAuthenticated, studentCount, setLocation]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (studentCount === 1 && !isAuthenticated) return; // redirecting above
+
     if (!getStripe()) {
       console.error("Stripe not configured");
       setLoading(false);
@@ -363,9 +423,9 @@ export default function Checkout() {
     };
 
     createPaymentIntent();
-  }, [studentCount, setLocation]);
+  }, [authLoading, isAuthenticated, studentCount, setLocation]);
 
-  if (loading || !clientSecret) {
+  if (authLoading || loading || !clientSecret) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-pink-50 dark:from-gray-900 dark:via-purple-900 dark:to-gray-900 flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
@@ -408,7 +468,7 @@ export default function Checkout() {
                     locale: language === "ar" ? "ar" : "en",
                   }}
                 >
-                  <CheckoutForm amount={serverAmount} studentCount={studentCount} clientSecret={clientSecret} />
+                  <CheckoutForm amount={serverAmount} studentCount={studentCount} clientSecret={clientSecret} authenticatedUser={studentCount === 1 ? user : undefined} />
                 </Elements>
               ) : (
                 <div className="text-center py-8 text-red-600">

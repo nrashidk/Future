@@ -70,6 +70,7 @@
     "paymentNotConfigured": "نظام الدفع غير مُهيَّأ. يرجى التواصل مع الدعم.",
     "backToTiers": "← العودة إلى اختيار الخطة",
     "yourInfoTitle": "معلوماتك",
+    "signedInAs": "مسجّل الدخول باسم {{name}} ({{email}})",
     "firstNameLabel": "الاسم الأول *",
     "lastNameLabel": "اسم العائلة *",
     "emailLabel": "البريد الإلكتروني *",

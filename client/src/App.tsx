@@ -11,6 +11,7 @@ const Landing = lazy(() => import("@/pages/Landing"));
 const TierSelection = lazy(() => import("@/pages/TierSelection"));
 const GroupPricing = lazy(() => import("@/pages/GroupPricing"));
 const Checkout = lazy(() => import("@/pages/Checkout"));
+const RegisterParent = lazy(() => import("@/pages/RegisterParent"));
 const Assessment = lazy(() => import("@/pages/Assessment"));
 const Results = lazy(() => import("@/pages/Results"));
 const ResultsPrint = lazy(() => import("@/pages/ResultsPrint"));
@@ -132,6 +133,7 @@ function Router() {
         <Route path="/tier-selection" component={TierSelection} />
         <Route path="/group-pricing" component={GroupPricing} />
         <Route path="/checkout" component={Checkout} />
+        <Route path="/register/parent" component={RegisterParent} />
         <Route path="/assessment" component={Assessment} />
         <Route path="/results" component={Results} />
         <Route path="/print/results" component={ResultsPrint} />

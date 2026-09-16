@@ -878,6 +878,55 @@ opposite of what happened.
 
 ---
 
+### 3.8 RegisterParent's form — a parent fills it out, not a student alone
+
+**Where:** `/register/parent`, the individual self-pay route's new front door
+(docs/parent-registers-scoping.md). §3 weight, not §2: the reader here is the registering
+parent, an adult who can stop and ask someone if a sentence reads wrong — the same reasoning
+that puts the rest of this section below §1-2. **The two sentences that carry the consent
+claim are NOT here** — `registerParent.consentGuardian` and `registerParent.consentProcessing`
+are already tracked at §1.8, at legal weight, because `attestationTextHash` pins them. Nothing
+below carries that weight; it is ordinary form copy, written 2026-09-16, Arabic drafted
+alongside the English and not reviewed by a speaker.
+
+| key | EN | AR |
+|---|---|---|
+| `registerParent.pageTitle` / `title` | Register for Your Child's Assessment / Create Your Account | التسجيل لتقييم طفلك / إنشاء حسابك |
+| `registerParent.subtitle` | Register once to pay for your child's assessment and manage their results. | سجّل مرة واحدة لدفع رسوم تقييم طفلك وإدارة نتائجه. |
+| `registerParent.parentSectionTitle` | Your Details | بياناتك |
+| `registerParent.childSectionTitle` | Your Child's Details | بيانات طفلك |
+| `registerParent.consentSectionTitle` | Consent | الموافقة |
+| `registerParent.childName` / `childNamePlaceholder` | Child's Full Name / Enter your child's full name | الاسم الكامل للطفل / أدخل الاسم الكامل لطفلك |
+| `registerParent.childDateOfBirth` | Child's Date of Birth | تاريخ ميلاد الطفل |
+| `registerParent.childGender` / `selectGender` | Child's Gender / Select gender | جنس الطفل / اختر الجنس |
+| `registerParent.childGrade` / `selectGrade` | Child's Current Grade / Select grade | الصف الدراسي الحالي للطفل / اختر الصف الدراسي |
+| `registerParent.childCountry` / `chooseCountry` | Country / Choose a country | الدولة / اختر دولة |
+| `registerParent.childCurriculum` / `chooseCurriculum` | Curriculum / Choose a curriculum | المنهج / اختر منهجاً |
+| `registerParent.consentBothRequired` | Both statements must be affirmed. | يجب تأكيد كلا الإقرارين. |
+| `registerParent.submit` / `submitting` | Register and Continue to Payment / Registering… | التسجيل ومتابعة الدفع / جارٍ التسجيل… |
+
+**Duplication, named rather than hidden.** `male`/`female`, `grade8`-`grade12`/`graduated`,
+`termsOfUse`/`privacyPolicy` are re-declared under `registerParent` rather than referenced from
+`assessment.json`'s `demographics` namespace, which already has the same words — this codebase
+has no precedent for a cross-namespace `t()` call, and inventing one for this form risked a
+silent load failure rather than a wrong string. **Check these against the existing renderings**
+(`demographics.grade9`, `demographics.male`, `country.chooseCountry`, etc.) for consistency —
+a school student and a parent-registered child should read the same grade name, and a
+translator asked to update one copy has no way to know the other exists.
+
+**`signedInAs` is a different namespace (`pricing.checkout.signedInAs`), shown on the payment
+step right after this form, not on it** — "Signed in as {{name}} ({{email}})" —
+confirming to an authenticated parent why the name/email fields from this form do not
+reappear on Checkout. Same weight and same caveat as the table above.
+
+**What to check, specifically:** this is a real form an adult fills out under time pressure
+before paying, so tone matters more than for a screen a student reads alone — whether the six
+section labels read as one voice, and whether `consentBothRequired`'s wording (the same
+sentence `orgs.consentBothRequired`, §1.4, uses for a school admin) still fits a parent
+affirming for their own named child rather than an admin affirming for a cohort.
+
+---
+
 ## 4. Marketing and landing — lowest consequence, highest visibility
 
 Wrong Arabic here costs credibility with a visitor, not comprehension for a child.

@@ -70,6 +70,7 @@
     "paymentNotConfigured": "Payment system not configured. Please contact support.",
     "backToTiers": "← Back to Tier Selection",
     "yourInfoTitle": "Your Information",
+    "signedInAs": "Signed in as {{name}} ({{email}})",
     "firstNameLabel": "First Name *",
     "lastNameLabel": "Last Name *",
     "emailLabel": "Email *",

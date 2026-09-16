@@ -32,6 +32,33 @@ export function registerPaymentRoutes(app: Express) {
         return res.status(400).json({ message: "Invalid student count. Must be between 1 and 100,000" });
       }
 
+      /**
+       * THE ACTUAL ENFORCEMENT OF "the self-pay route is parent-registers-only"
+       * (docs/parent-registers-scoping.md) — HERE, not in /api/checkout/complete.
+       * That endpoint runs AFTER Stripe has already charged the card; refusing
+       * there would take a customer's money and hand back neither an account
+       * nor a refund. This runs BEFORE any charge exists, so refusing here
+       * costs nothing — no PaymentIntent is created, so there is nothing for
+       * /api/checkout/complete or the webhook backstop to ever complete.
+       *
+       * studentCount === 1 ONLY. studentCount > 1 is the institutional/
+       * group-purchase path (GroupPricing.tsx) — unauthenticated by design,
+       * and never part of this decision's scope; it still creates its
+       * account-then-organization the old way, unchanged.
+       *
+       * Client-side, Checkout.tsx redirects to /register/parent before ever
+       * reaching this call, for the normal navigation case. This guard is
+       * what makes that non-optional: a direct POST here, or a saved
+       * /checkout?students=1 bookmark from before this shipped, is refused
+       * identically.
+       */
+      if (studentCount === 1 && !req.isAuthenticated()) {
+        return res.status(401).json({
+          message: "Please register first to create your account before paying.",
+          code: "REGISTRATION_REQUIRED",
+        });
+      }
+
       // SERVER-SIDE PRICING CALCULATION
       const basePrice = 10.00; // $10 per student
       let discount = 0;
