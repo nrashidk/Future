@@ -11,6 +11,7 @@ import { sanitizeRequestBody } from "../utils/sanitize";
 import { printTokenAuthorizes } from "../utils/printToken";
 import { ageOnDate, toDateOnlyString } from "@shared/dateOfBirth";
 import { FREE_ASSESSMENT_CAP, isFreeTierCapReached } from "@shared/assessmentLimits";
+import { assessmentIsChildOwned } from "@shared/childOwnership";
 import { sweepExpiredGuestAssessmentsIfDue } from "../services/guestAssessmentExpiry";
 
 /**
@@ -211,49 +212,6 @@ export function resolveChildOwnedFields(
   }
 
   return { overrides, missing };
-}
-
-/**
- * Whether an assessment created BEFORE a child profile existed on this
- * account should still be treated as the account holder's own — the
- * question raised scoping this: an account that had assessments as itself
- * before ever registering a child must not have those assessments silently
- * relabelled as the child's on their next PATCH.
- *
- * ANCHORED ON child_profiles.createdAt, NOT child_guardian_consents.createdAt.
- * The question this answers is "did a child subject exist on this account
- * when this assessment was created" — exactly what child_profiles.createdAt
- * records. The consent row's timestamp answers a different question (when
- * was consent attested or re-attested) that can diverge from it: a future
- * re-consent flow (child_guardian_consents is append-only, mirroring
- * organization_consents' re-attestation shape) could insert a new consent row
- * well after the child profile itself was created, and anchoring on that
- * would move the boundary for reasons that have nothing to do with who the
- * subject is.
- *
- * INCLUSIVE (>=), not strict (>). This keeps one predicate true at both call
- * sites: at CREATE, a brand-new assessment's timestamp is being minted "now"
- * and the child profile — already committed, already read back by this same
- * request — necessarily has a createdAt at or before it, so the override
- * always applies; at PATCH, the identical predicate decides whether a
- * pre-existing row falls before or after that boundary. A tie is not
- * reachable in practice: registration and assessment creation are always
- * separate, sequential HTTP requests, so an assessment's own INSERT cannot
- * start before the child profile's INSERT has already committed and been
- * read back by the request that creates it.
- */
-export function assessmentIsChildOwned(
-  assessmentCreatedAt: Date | string | null | undefined,
-  childProfileCreatedAt: Date | string | null | undefined,
-): boolean {
-  // Absent on either side fails closed to "not child-owned" — a missing
-  // childProfileCreatedAt means there is no profile to own it, and a missing
-  // assessmentCreatedAt is handled by callers before this function is
-  // reached (a create supplies "now"), not by treating "unknown" as "after".
-  if (!assessmentCreatedAt || !childProfileCreatedAt) return false;
-  const assessmentTime = new Date(assessmentCreatedAt).getTime();
-  const childProfileTime = new Date(childProfileCreatedAt).getTime();
-  return assessmentTime >= childProfileTime;
 }
 
 /**

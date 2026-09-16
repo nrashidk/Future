@@ -15,6 +15,7 @@ import { useTranslation } from "react-i18next";
 import { isPremiumAssessment } from "@shared/assessmentTier";
 import { SCHOOL_ALLOCATIONS_PER_STUDENT, FREE_ASSESSMENT_CAP } from "@shared/assessmentLimits";
 import { collapseToLatestPerGrade, toCanonicalGrade } from "@shared/grade";
+import { assessmentIsChildOwned } from "@shared/childOwnership";
 import { isResumableDraft } from "@shared/assessmentFlow";
 import { localeForLanguage } from "@/lib/formatDate";
 
@@ -204,6 +205,28 @@ export default function Profile() {
   ).length;
   const individualRemainingLicenses = Math.max(0, individualAvailableLicenses - individualUsedLicenses);
 
+  // EXCLUDE A PARENT-REGISTERS ACCOUNT'S OWN PRE-REGISTRATION ASSESSMENTS
+  // from what "the Career Journey" and "the current report" mean, before
+  // either computation below sees them. Without this, an account that took
+  // an assessment as itself before ever registering a child would have that
+  // assessment folded into the CHILD's per-grade milestones and could even
+  // be marked as the child's "current report" — one taker's own attempt
+  // rendered as the child's. See shared/childOwnership.ts for the predicate
+  // and why it is anchored on the child profile's own createdAt.
+  //
+  // A NO-OP for every account without a child profile: childProfileCreatedAt
+  // is absent, and every assessment passes through unfiltered — see
+  // AuthUserChildFields (shared/userPublic.ts).
+  //
+  // THE SAME RULE AS server/storage.ts's getStudentCareerEvolution (the
+  // server-side per-grade collapse the Career Journey page actually reads)
+  // and assessment.routes.ts's write-side lock, applied independently a
+  // third time over a differently-shaped list. That duplication is recorded
+  // as a consolidation candidate in FOLLOWUP.md, not fixed here.
+  const childOwnedAssessments = user.childProfileCreatedAt
+    ? assessments.filter(a => assessmentIsChildOwned(a.createdAt, user.childProfileCreatedAt))
+    : assessments;
+
   // WHICH REPORT IS "THE" REPORT. With retakes every history row reads alike, and
   // the report a link without an id resolves to is the most recent completed one
   // — /api/recommendations answers with the latest assessment, and the Career
@@ -212,7 +235,7 @@ export default function Profile() {
   //
   // `find`, not a sort: the list arrives ordered by createdAt desc, so the first
   // completed row IS the most recently completed one.
-  const latestCompletedAssessmentId = assessments.find(a => a.isCompleted)?.id ?? null;
+  const latestCompletedAssessmentId = childOwnedAssessments.find(a => a.isCompleted)?.id ?? null;
 
   // HOW MANY GRADES THIS STUDENT HAS, which is what the Career Journey plots —
   // not how many assessments they have taken. a9b33cc collapses same-grade
@@ -225,7 +248,7 @@ export default function Profile() {
   // drafts itself (isCompleted === false) and buckets every ungraded row
   // together. Only the bucket COUNT is read here — these rows carry no
   // completedAt, so which row wins a bucket is arbitrary and unused.
-  const journeyGradeCount = collapseToLatestPerGrade(assessments).length;
+  const journeyGradeCount = collapseToLatestPerGrade(childOwnedAssessments).length;
 
   // ONE grade label for the page. It was local to the merged profile block,
   // where it labelled a single value; the history list needs the same map and a

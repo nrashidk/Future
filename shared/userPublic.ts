@@ -78,8 +78,27 @@ export interface AuthUserOrgFields {
   organizationCurriculum?: string | null;
 }
 
+/**
+ * A parent-registers account's child_profiles row, decorated the same way
+ * AuthUserOrgFields is for a school student — same absence-means-not-loaded
+ * caveat. Kept as its own interface rather than folded into
+ * AuthUserOrgFields: a parent-registers account is not an org student, and
+ * the two never both apply to one account.
+ *
+ * childProfileCreatedAt exists for one reader today: Profile.tsx excludes an
+ * account's own pre-registration assessments from the child's Career
+ * Journey (docs/parent-registers-scoping.md item 1's residual conflation) by
+ * comparing each assessment's createdAt against this. It is deliberately the
+ * child profile's own createdAt, not the consent record's — see
+ * assessmentIsChildOwned (shared/childOwnership.ts) for why the two are not
+ * interchangeable.
+ */
+export interface AuthUserChildFields {
+  childProfileCreatedAt?: string | null;
+}
+
 /** The user shape a client actually receives from GET /api/auth/user. */
-export type AuthUser = PublicUser & AuthUserOrgFields;
+export type AuthUser = PublicUser & AuthUserOrgFields & AuthUserChildFields;
 
 /**
  * Every column name on `users`, read from the table definition so it cannot

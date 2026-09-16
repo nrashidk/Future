@@ -127,6 +127,7 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { collapseToLatestPerGrade, gradeSortKey, mergeGradeCounts, toCanonicalGrade } from "@shared/grade";
+import { assessmentIsChildOwned } from "@shared/childOwnership";
 import { splitStudentName } from "@shared/studentName";
 import { SUBJECT_IDS } from "@shared/subjects";
 import { eq, ne, and, or, desc, count, avg, sql, inArray, notInArray, isNotNull, gte, type SQL } from "drizzle-orm";
@@ -4312,6 +4313,29 @@ export class DatabaseStorage implements IStorage {
   }>> {
     const progression = await this.getStudentAssessmentProgression(userId);
 
+    // EXCLUDE A PARENT-REGISTERS ACCOUNT'S OWN PRE-REGISTRATION ASSESSMENTS
+    // before the per-grade collapse below ever sees them. Without this, an
+    // account that took an assessment as itself before ever registering a
+    // child would have that assessment folded into the CHILD's Career
+    // Journey the moment a later, genuinely-the-child's assessment landed on
+    // the same grade — one taker's own attempt rendered as "the child retook
+    // this grade." See shared/childOwnership.ts for the predicate and why it
+    // is anchored on child_profiles.createdAt.
+    //
+    // A NO-OP FOR EVERY OTHER POPULATION. getChildProfileByGuardianUserId
+    // returns undefined for a school student, a free user or an org admin,
+    // and the ternary below returns `progression` unchanged.
+    //
+    // THE SAME RULE AS assessment.routes.ts's write-side lock, APPLIED
+    // INDEPENDENTLY. That duplication — two implementations of "is this
+    // record the child's," one filtering before a write and one before a
+    // read, with no shared code beyond the predicate itself — is recorded as
+    // a consolidation candidate in FOLLOWUP.md, not fixed here.
+    const childProfile = await this.getChildProfileByGuardianUserId(userId);
+    const eligible = childProfile
+      ? progression.filter(entry => assessmentIsChildOwned(entry.assessment.createdAt, childProfile.createdAt))
+      : progression;
+
     // ONE ENTRY PER GRADE, and the contract this method owes its callers.
     //
     // It used to be one entry per ASSESSMENT, which was the same thing only for
@@ -4344,7 +4368,7 @@ export class DatabaseStorage implements IStorage {
     // The three fields the collapse reads, lifted out explicitly so it is clear
     // what it decides on: which grade a row belongs to, and which row is latest.
     const perGrade = collapseToLatestPerGrade(
-      progression.map(entry => ({
+      eligible.map(entry => ({
         grade: entry.assessment.grade,
         completedAt: entry.assessment.completedAt,
         isCompleted: entry.assessment.isCompleted,

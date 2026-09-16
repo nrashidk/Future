@@ -121,8 +121,17 @@ export function registerAuthRoutes(app: Express) {
           // the value the server is going to store.
           (user as any).organizationCurriculum = organization.curriculum || null;
         }
+      } else if (!isSuperadmin) {
+        // A parent-registers account's child. Mirrors the org branch's own
+        // exemption for superadmins — never enrolled, never a guardian either
+        // through this flow. See AuthUserChildFields (shared/userPublic.ts)
+        // for the one reader this field exists for today.
+        const childProfile = await storage.getChildProfileByGuardianUserId(userId);
+        if (childProfile) {
+          (user as any).childProfileCreatedAt = childProfile.createdAt;
+        }
       }
-      
+
       // Strips passwordHash and other private columns; the decorations added
       // above (predefinedGrade, organizationName, …) are not `users` columns
       // and are preserved, as are the accountType/isPremium adjustments.

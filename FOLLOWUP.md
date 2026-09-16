@@ -6271,3 +6271,61 @@ Two separate corrections needed, not one:
 Not fixed here — this is a documentation correction plus a product question (is single
 platform-wide billing intended, or should there be an organization-scoped credential path that
 doesn't exist today), not a code change.
+
+
+## THE CAREER JOURNEY'S PER-GRADE COLLAPSE HAS TWO INDEPENDENT IMPLEMENTATIONS — CONSOLIDATION CANDIDATE, NOT A DEFECT  (filed 2026-09-16)
+
+`collapseToLatestPerGrade` (shared/grade.ts) is a single, shared function — that part was
+already unified. What is NOT shared is everything around it: `Profile.tsx` fetches
+`/api/assessments/my` and calls the collapse itself, client-side, for a summary count
+(`journeyGradeCount`) and to decide `latestCompletedAssessmentId`; `storage.ts`'s
+`getStudentCareerEvolution` fetches `getStudentAssessmentProgression` and calls the same
+function server-side, and THAT result — not Profile.tsx's — is what actually reaches the Career
+Journey detail page (`progress.routes.ts` → `StudentProgress.tsx`). Two call sites, two input
+shapes (a raw `Assessment[]` vs. progression entries carrying recommendations and career names),
+no code shared beyond the one function both happen to call.
+
+**Why this is being named now rather than earlier.** Adding parent-registers support
+(docs/parent-registers-scoping.md item 1) required excluding an account's own pre-registration
+assessments from "the child's" per-grade milestones — a real fix, not a refactor — and that
+exclusion had to be added at BOTH call sites, independently, because there is no shared place to
+put it. A third site (the write-side lock in `assessment.routes.ts`, deciding whether a PATCH
+gets its demographics overwritten) needed the identical timestamp comparison for an unrelated
+reason. All three now import one predicate, `assessmentIsChildOwned` (shared/childOwnership.ts)
+— that much was cheap to unify and is done. What is NOT unified is the surrounding logic at each
+site: fetching the child profile, shaping records into something filterable, and invoking
+`collapseToLatestPerGrade`. That is written three times, in two different shapes, by design of
+this fix, not by oversight.
+
+**The risk this leaves standing.** A future correction to the collapse rule — a new exclusion, a
+different tie-break, a fourth population needing the same treatment — has to be found and applied
+at both `Profile.tsx` and `getStudentCareerEvolution` by whoever makes the change remembering
+both exist. This is exactly the shape of drift `docs/parent-registers-scoping.md`'s own scoping
+conversation predicted would happen if the parent-registers fix had been applied to only one of
+the two: a correct fix to the site that does not render the Career Journey detail page, while the
+site that does stays wrong. Nothing forces the two to be checked together — no test, no shared
+module boundary, nothing but a reader noticing the second site exists.
+
+**What consolidating would cost, concretely, since a name for the risk is not a plan to fix it:**
+- **Move the Career Journey summary count server-side too.** `Profile.tsx`'s `journeyGradeCount`
+  and `latestCompletedAssessmentId` would read from a small new field on an existing response
+  (or a new light endpoint) computed by `getStudentCareerEvolution`'s own collapse, rather than
+  recomputing it client-side over a differently-shaped list. Cost: a new response field or
+  endpoint, a query Profile.tsx does not currently make (or a shape change to one it already
+  makes), and losing the one property client-side computation has today — the count renders from
+  data already in hand, with no extra round trip. For a profile page that already waits on other
+  queries this is likely a small real cost, not a blocking one, but it is a behavior change to a
+  live page, not a pure refactor.
+- **Alternative: keep both computations, share the input-shaping.** A single function taking
+  `{ createdAt, grade, isCompleted, completedAt }[]` (already the shape `collapseToLatestPerGrade`
+  itself wants) plus a child-profile lookup, callable from both a Node context and a browser
+  context (so it has to live in `shared/`, like `assessmentIsChildOwned` now does). This does not
+  remove the duplication of WHICH LIST each side builds (raw assessments vs. progression entries)
+  but does mean the exclusion rule and the collapse invocation are written once. Smaller cost than
+  the first option, smaller benefit — the two sites' idea of "the record" would still need mapping
+  into the shared shape independently, which is exactly the kind of seam a next required field
+  could fall through unnoticed.
+
+Neither is done here. This entry exists so the next person adding a rule to "how the Career
+Journey groups assessments" checks both sites on purpose, rather than finding the second one the
+way this fix did.

@@ -3,13 +3,9 @@
  * student's school owns — resolved from child_profiles instead of
  * organizationMembers/organizations. See docs/parent-registers-scoping.md.
  *
- * Two separate rules pinned here:
- *   resolveChildOwnedFields  — the same fail-closed override as
- *                              resolveSchoolOwnedFields, one row instead of two.
- *   assessmentIsChildOwned   — the timestamp gate: an assessment created
- *                              before the child profile existed on this
- *                              account is the account holder's own, and must
- *                              never be relabelled as the child's.
+ * The timestamp gate this resolver is combined with (assessmentIsChildOwned)
+ * is shared across three call sites and pinned in shared/childOwnership.test.ts,
+ * not here — see that file for why.
  *
  * Storage is mocked so importing assessment.routes.ts does not pull in
  * db.ts, which throws at import when DATABASE_URL is unset — same pattern
@@ -20,7 +16,7 @@ import { describe, it, expect, vi } from "vitest";
 
 vi.mock("../storage", () => ({ storage: {} }));
 
-const { resolveChildOwnedFields, assessmentIsChildOwned } = await import("./assessment.routes");
+const { resolveChildOwnedFields } = await import("./assessment.routes");
 
 const CHILD = {
   name: "Khaled Rashid",
@@ -99,43 +95,5 @@ describe("resolveChildOwnedFields", () => {
       ASOF,
     );
     expect(missing).toEqual(["countryId", "curriculum"]);
-  });
-});
-
-describe("assessmentIsChildOwned", () => {
-  const PROFILE_CREATED = "2026-09-10T12:00:00.000Z";
-
-  it("is true for an assessment created after the child profile existed", () => {
-    expect(assessmentIsChildOwned("2026-09-11T00:00:00.000Z", PROFILE_CREATED)).toBe(true);
-  });
-
-  it("is false for an assessment that predates the child profile — the account holder's own", () => {
-    // The case this exists for: a free user's assessment, taken before they
-    // ever registered a child, must not be silently relabelled as the
-    // child's on the next PATCH.
-    expect(assessmentIsChildOwned("2026-01-01T00:00:00.000Z", PROFILE_CREATED)).toBe(false);
-  });
-
-  // INCLUSIVE. Not reachable in practice — registration and assessment
-  // creation are always separate, sequential requests — but the predicate is
-  // defined to be the same one CREATE relies on unconditionally, where the
-  // child profile has necessarily already committed by the time a brand-new
-  // assessment's timestamp is minted.
-  it("is true at an exact tie", () => {
-    expect(assessmentIsChildOwned(PROFILE_CREATED, PROFILE_CREATED)).toBe(true);
-  });
-
-  it("is false when the account has no child profile at all", () => {
-    expect(assessmentIsChildOwned("2026-09-11T00:00:00.000Z", null)).toBe(false);
-    expect(assessmentIsChildOwned("2026-09-11T00:00:00.000Z", undefined)).toBe(false);
-  });
-
-  it("is false when the assessment's own createdAt is unknown", () => {
-    expect(assessmentIsChildOwned(null, PROFILE_CREATED)).toBe(false);
-  });
-
-  it("accepts Date objects and ISO strings interchangeably", () => {
-    expect(assessmentIsChildOwned(new Date("2026-09-11T00:00:00.000Z"), new Date(PROFILE_CREATED))).toBe(true);
-    expect(assessmentIsChildOwned(new Date("2026-09-11T00:00:00.000Z"), PROFILE_CREATED)).toBe(true);
   });
 });
