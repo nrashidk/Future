@@ -203,3 +203,30 @@ export const registerParentLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+/**
+ * POST /api/assessments/:id/send-recovery-email.
+ *
+ * KEYED PER ASSESSMENT, matching pdfLimiter's reasoning exactly: the guest
+ * who owns a report (verified by the route before this budget is even
+ * consulted) may be behind a shared school address, and the abuse this
+ * bounds — re-mailing one report on a loop — is a property of the report,
+ * not of the network it's requested from. Falls back to IP only if no
+ * assessment id is present (should not happen given the route shape, but
+ * matches pdfLimiter's own defensive fallback rather than throwing).
+ */
+export const recoveryEmailLimiter = rateLimit({
+  windowMs: RATE_LIMITS.RECOVERY_EMAIL.WINDOW_MS,
+  max: RATE_LIMITS.RECOVERY_EMAIL.MAX_REQUESTS,
+  message: RATE_LIMITS.RECOVERY_EMAIL.MESSAGE,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req: Request) => {
+    const assessmentId = req.params?.id;
+    if (assessmentId) {
+      return `assessment:${assessmentId}`;
+    }
+    return ipKeyGenerator(req.ip ?? "unknown");
+  },
+  handler: makeLoggingHandler("recoveryEmail", RATE_LIMITS.RECOVERY_EMAIL.MESSAGE),
+});

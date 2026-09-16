@@ -151,6 +151,188 @@ If you didn't request a password reset, you can safely ignore this email. Your p
 }
 
 /**
+ * Spelled-out month, day-then-month order, in the reader's own language —
+ * never a numeric slash format. This codebase has a specific, repeated
+ * history of US month-first dates reaching students and parents by accident
+ * (see the date-format fixes at the start of this repo's history); an email
+ * about when a link stops working is exactly the kind of date a wrong
+ * reading makes worse, not better.
+ */
+function formatRecoveryExpiry(expiresAt: Date, language: string): string {
+  const locale = language === "ar" ? "ar" : "en-GB";
+  return new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric", hour: "numeric", minute: "2-digit" }).format(expiresAt);
+}
+
+function buildGuestRecoveryHtmlEmail(resultsUrl: string, expiresAt: Date, language: string): string {
+  const isAr = language === "ar";
+  const fontFamily = isAr
+    ? "'Cairo', 'Segoe UI', Arial, sans-serif"
+    : "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
+  const expiry = formatRecoveryExpiry(expiresAt, language);
+
+  if (isAr) {
+    return `
+      <!DOCTYPE html>
+      <html dir="rtl" lang="ar">
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>رابط تقريرك</title>
+        <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
+      </head>
+      <body style="font-family: ${fontFamily}; direction: rtl; line-height: 1.8; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0;">
+          <h1 style="color: white; margin: 0; font-size: 24px; text-align: right;">مسارات المستقبل</h1>
+        </div>
+        <div style="background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
+          <h2 style="margin-top: 0; color: #1f2937; text-align: right;">رابط تقريرك</h2>
+          <p style="text-align: right;">هذا هو رابط تقرير التقييم المهني الذي أجريته:</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${resultsUrl}" style="background: #667eea; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600; font-family: ${fontFamily};">فتح التقرير</a>
+          </div>
+          <p style="color: #6b7280; font-size: 14px; text-align: right;">يعمل هذا الرابط حتى ${expiry}. بعد ذلك، لا يمكن استرجاع هذا التقرير، لذا افتحه مرة أخرى قريباً إذا كنت ترغب في الاحتفاظ به.</p>
+          <p style="color: #6b7280; font-size: 14px; text-align: right;">إذا لم تطلب هذا البريد، يمكنك تجاهله.</p>
+          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+          <p style="color: #9ca3af; font-size: 12px; margin-bottom: 0; text-align: right;">
+            إذا لم يعمل الزر، انسخ والصق هذا الرابط في متصفحك:<br>
+            <a href="${resultsUrl}" style="color: #667eea; word-break: break-all;">${resultsUrl}</a>
+          </p>
+        </div>
+        <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
+          <p>&copy; ${new Date().getFullYear()} مسارات المستقبل. جميع الحقوق محفوظة.</p>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
+  return `
+    <!DOCTYPE html>
+    <html dir="ltr" lang="en">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Your Report Link</title>
+    </head>
+    <body style="font-family: ${fontFamily}; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0;">
+        <h1 style="color: white; margin: 0; font-size: 24px;">Future Pathways</h1>
+      </div>
+      <div style="background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
+        <h2 style="margin-top: 0; color: #1f2937;">Your Report Link</h2>
+        <p>Here's the link to your career assessment report:</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${resultsUrl}" style="background: #667eea; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600;">Open your report</a>
+        </div>
+        <p style="color: #6b7280; font-size: 14px;">This link works until ${expiry}. After that, this report can no longer be recovered, so open it again soon if you'd like to keep it.</p>
+        <p style="color: #6b7280; font-size: 14px;">If you didn't request this, you can ignore this email.</p>
+        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+        <p style="color: #9ca3af; font-size: 12px; margin-bottom: 0;">
+          If the button doesn't work, copy and paste this link into your browser:<br>
+          <a href="${resultsUrl}" style="color: #667eea; word-break: break-all;">${resultsUrl}</a>
+        </p>
+      </div>
+      <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
+        <p>&copy; ${new Date().getFullYear()} Future Pathways. All rights reserved.</p>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
+function buildGuestRecoveryTextEmail(resultsUrl: string, expiresAt: Date, language: string): string {
+  const isAr = language === "ar";
+  const expiry = formatRecoveryExpiry(expiresAt, language);
+
+  if (isAr) {
+    return `
+رابط تقريرك - مسارات المستقبل
+
+هذا هو رابط تقرير التقييم المهني الذي أجريته:
+${resultsUrl}
+
+يعمل هذا الرابط حتى ${expiry}. بعد ذلك، لا يمكن استرجاع هذا التقرير، لذا افتحه مرة أخرى قريباً إذا كنت ترغب في الاحتفاظ به.
+
+إذا لم تطلب هذا البريد، يمكنك تجاهله.
+
+© ${new Date().getFullYear()} مسارات المستقبل. جميع الحقوق محفوظة.
+    `.trim();
+  }
+
+  return `
+Your Report Link - Future Pathways
+
+Here's the link to your career assessment report:
+${resultsUrl}
+
+This link works until ${expiry}. After that, this report can no longer be recovered, so open it again soon if you'd like to keep it.
+
+If you didn't request this, you can ignore this email.
+
+© ${new Date().getFullYear()} Future Pathways. All rights reserved.
+  `.trim();
+}
+
+/**
+ * Send a guest a link back to their own report — the whole point being that
+ * NOTHING about the guest or their email is stored anywhere as a result of
+ * this call. The link authorizes the read itself (a signed, assessment-
+ * scoped token in the URL — mintGuestRecoveryToken, server/utils/printToken.ts),
+ * not a cookie or a database row, so there is nothing here for this function
+ * to persist and nothing to clean up later.
+ *
+ * @param to - the address the requester typed in, used once and not kept
+ * @param resultsUrl - /results?assessmentId=...&recoveryToken=..., already built by the caller
+ * @param expiresAt - the SAME instant the token itself expires
+ *                     (shared/guestAssessmentExpiry.ts's guestAssessmentExpiresAt) —
+ *                     stated in the email so the reader knows the link is not permanent,
+ *                     not a separate promise this function could get out of sync with the token
+ * @param language - "en" or "ar"
+ */
+export async function sendGuestReportRecoveryEmail(
+  to: string,
+  resultsUrl: string,
+  expiresAt: Date,
+  language = "en",
+): Promise<EmailResult> {
+  if (!resend) {
+    if (!isLogOnlyMailEnvironment()) {
+      console.error("[Email] RESEND_API_KEY is not configured. Guest report recovery email NOT sent to:", to);
+      return { success: false, error: "Email service not configured. Please contact support." };
+    }
+    console.warn("[Email] Resend not configured. Recovery email would be sent to:", to);
+    return { success: true, messageId: "dev-mode-no-email" };
+  }
+
+  const isAr = language === "ar";
+  const subject = isAr
+    ? "رابط تقريرك - مسارات المستقبل"
+    : "Your Report Link - Future Pathways";
+
+  try {
+    const { data, error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: [to],
+      subject,
+      html: buildGuestRecoveryHtmlEmail(resultsUrl, expiresAt, language),
+      text: buildGuestRecoveryTextEmail(resultsUrl, expiresAt, language),
+    });
+
+    if (error) {
+      console.error("[Email] Failed to send guest report recovery email:", error);
+      return { success: false, error: error.message };
+    }
+
+    console.log("[Email] Guest report recovery email sent successfully:", data?.id);
+    return { success: true, messageId: data?.id };
+  } catch (err) {
+    const error = err as Error;
+    console.error("[Email] Error sending guest report recovery email:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Send a password reset email with a secure reset link
  * @param to - recipient email address
  * @param resetToken - secure reset token

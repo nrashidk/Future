@@ -508,8 +508,15 @@ export function registerQuizRoutes(app: Express) {
       const isGuestOwner = assessment.isGuest && guestToken && assessment.guestSessionId === guestToken;
       // Server-side PDF render: a print token scoped to THIS assessment
       // authorizes the read (headless browser carries no session cookie).
-      const isPrintTokenOwner = printTokenAuthorizes(req.query.printToken, assessmentId);
-      if (!isOwner && !isGuestOwner && !isPrintTokenOwner) {
+      //
+      // recoveryToken is a SEPARATE, distinctly-named query param — the guest
+      // report-recovery email link (mintGuestRecoveryToken) — checked through
+      // the same printTokenAuthorizes verifier but never folded into
+      // `printToken` itself; see that function's doc comment for why.
+      const isTokenAuthorized =
+        printTokenAuthorizes(req.query.printToken, assessmentId) ||
+        printTokenAuthorizes(req.query.recoveryToken, assessmentId);
+      if (!isOwner && !isGuestOwner && !isTokenAuthorized) {
         return res.status(403).json({ message: "Unauthorized to view this quiz" });
       }
       

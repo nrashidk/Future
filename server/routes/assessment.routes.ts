@@ -8,11 +8,14 @@ import { calculateRiasecScores } from "../questionBanks/riasec";
 import { normalizeSubjects } from "../utils/subjects";
 import { validatePromptInputFields } from "../utils/assessmentValidation";
 import { sanitizeRequestBody } from "../utils/sanitize";
-import { printTokenAuthorizes } from "../utils/printToken";
+import { printTokenAuthorizes, mintGuestRecoveryToken } from "../utils/printToken";
 import { ageOnDate, toDateOnlyString } from "@shared/dateOfBirth";
 import { FREE_ASSESSMENT_CAP, isFreeTierCapReached, requiresPaymentBeforeAssessment } from "@shared/assessmentLimits";
 import { assessmentIsChildOwned } from "@shared/childOwnership";
+import { guestAssessmentExpiresAt } from "@shared/guestAssessmentExpiry";
 import { sweepExpiredGuestAssessmentsIfDue } from "../services/guestAssessmentExpiry";
+import { sendGuestReportRecoveryEmail } from "../services/email";
+import { recoveryEmailLimiter } from "../middleware/rateLimiter.middleware";
 
 /**
  * Normalize assessment payload before validation
@@ -636,17 +639,24 @@ export function registerAssessmentRoutes(app: Express) {
       // guest token). Scoped to req.params.id exactly — a token minted for
       // assessment A can never read B (see printTokenAuthorizes). This route
       // supplies the basic-info fields the report needs, so it must accept it.
-      const isPrintTokenOwner = printTokenAuthorizes(req.query.printToken, req.params.id);
+      //
+      // recoveryToken is a SEPARATE, distinctly-named query param — the guest
+      // report-recovery email link (mintGuestRecoveryToken) — checked through
+      // the same printTokenAuthorizes verifier but never folded into
+      // `printToken` itself; see that function's doc comment for why.
+      const isTokenAuthorized =
+        printTokenAuthorizes(req.query.printToken, req.params.id) ||
+        printTokenAuthorizes(req.query.recoveryToken, req.params.id);
 
       // Ownership check: authenticated user must own it, or guest token must match
       if (assessment.userId) {
-        if (!isPrintTokenOwner && (!req.isAuthenticated() || req.user.userId !== assessment.userId)) {
+        if (!isTokenAuthorized && (!req.isAuthenticated() || req.user.userId !== assessment.userId)) {
           return res.status(403).json({ message: "Unauthorized to access this assessment" });
         }
       } else {
         // Guest assessment: verify via cookie or query param
         const guestToken = req.cookies?.guest_token || req.query.guestToken;
-        if (!isPrintTokenOwner && (!guestToken || guestToken !== assessment.guestSessionId)) {
+        if (!isTokenAuthorized && (!guestToken || guestToken !== assessment.guestSessionId)) {
           return res.status(403).json({ message: "Unauthorized to access this assessment" });
         }
       }
@@ -655,6 +665,119 @@ export function registerAssessmentRoutes(app: Express) {
     } catch (error) {
       console.error("Error fetching assessment:", error);
       res.status(500).json({ message: "Failed to fetch assessment" });
+    }
+  });
+
+  /**
+   * Email a guest a link back to their own report — see printToken.ts's
+   * mintGuestRecoveryToken and shared/guestAssessmentExpiry.ts. Exists to
+   * close the single-device gap in the guest flow (docs/
+   * free-tier-retirement-recon.md §5): a completed report is otherwise
+   * readable only from the browser that made it, for up to 72 hours, with
+   * no recovery if that device is lost, cleared or shared before the
+   * student registers.
+   *
+   * GUEST-ONLY, cookie-verified — identical ownership check to
+   * GET /api/assessments/:id's guest branch above. An authenticated user's
+   * report already has a durable account behind it and reaches this
+   * endpoint's 403 the same way an unowned id does (anti-enumeration,
+   * matching this file's existing shape).
+   *
+   * NOTHING IS PERSISTED. The email address is used once, to send, and then
+   * discarded — there is no email column on assessments and this route adds
+   * none. That is also why a send failure has no retry path but "type the
+   * address again": there is nothing stored to retry from, by design.
+   *
+   * ANTI-ENUMERATION DEVIATION FROM password-reset.routes.ts:135 — READ
+   * BEFORE "FIXING" THIS. That route always responds { success: true }
+   * regardless of whether the account exists, because the secret it
+   * protects is account existence itself. There is no equivalent secret
+   * here: the caller already proved ownership of this exact assessment via
+   * the guest_token cookie check above, BEFORE ever being asked for an
+   * email — unlike password reset, where the email/username IS the input
+   * being checked for existence. Reconciling the two patterns by making
+   * this route also always report success would silently swallow every
+   * Resend rejection, typo, and outage behind a green "sent" state for a
+   * population (13-18 year olds on shared devices) that has no other way to
+   * notice the link never arrives and no account to fall back to. That
+   * silent failure is the exact thing this endpoint exists to prevent.
+   */
+  app.post("/api/assessments/:id/send-recovery-email", recoveryEmailLimiter, async (req: any, res) => {
+    try {
+      const assessment = await storage.getAssessmentById(req.params.id);
+      if (!assessment) {
+        return res.status(403).json({ message: "Unauthorized to access this assessment" });
+      }
+
+      // Same shape as the "not found" branch above — an authenticated
+      // user's assessment and an id that doesn't exist must be
+      // indistinguishable to the caller.
+      if (assessment.userId) {
+        return res.status(403).json({ message: "Unauthorized to access this assessment" });
+      }
+
+      const guestToken = req.cookies?.guest_token;
+      if (!guestToken || guestToken !== assessment.guestSessionId) {
+        return res.status(403).json({ message: "Unauthorized to access this assessment" });
+      }
+
+      if (!assessment.completedAt) {
+        return res.status(400).json({
+          message: "This assessment isn't finished yet, so there's no report to send.",
+          code: "ASSESSMENT_NOT_COMPLETED",
+        });
+      }
+
+      const bodySchema = z.object({
+        email: z.string().email(),
+        language: z.enum(["en", "ar"]).optional(),
+      });
+      const parsed = bodySchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "A valid email address is required." });
+      }
+
+      // Anchored on the SAME function the server's own sweep uses, not a
+      // flat duration — the link can never claim to work past the moment
+      // the row it points to is deleted. If the sweep hasn't run yet but the
+      // deadline has already passed, refuse rather than mint a token that
+      // is dead on arrival with no signal to whoever sent it.
+      const expiresAt = guestAssessmentExpiresAt(assessment.completedAt);
+      if (expiresAt.getTime() <= Date.now()) {
+        return res.status(410).json({
+          message: "This report's recovery window has expired.",
+          code: "RECOVERY_WINDOW_EXPIRED",
+        });
+      }
+
+      const recoveryToken = mintGuestRecoveryToken(assessment.id, expiresAt);
+      const baseUrl = process.env.APP_URL || "https://futurepath.ae";
+      const resultsUrl = `${baseUrl}/results?assessmentId=${assessment.id}&recoveryToken=${encodeURIComponent(recoveryToken)}`;
+
+      const emailResult = await sendGuestReportRecoveryEmail(
+        parsed.data.email,
+        resultsUrl,
+        expiresAt,
+        parsed.data.language ?? "en",
+      );
+
+      if (!emailResult.success) {
+        // Surfaced to the caller — see this route's doc comment for why that
+        // is correct here and would not be correct on password-reset.
+        console.error(
+          `[Recovery Email] Failed to send for assessment ${assessment.id}:`,
+          emailResult.error,
+        );
+        return res.status(502).json({
+          message: "We couldn't send that email. Check the address and try again.",
+          code: "SEND_FAILED",
+        });
+      }
+
+      res.json({ success: true, message: "Sent. Check your inbox for the link." });
+    } catch (error) {
+      console.error("Error sending guest report recovery email:", error);
+      res.status(500).json({ message: "Failed to send recovery email" });
     }
   });
 

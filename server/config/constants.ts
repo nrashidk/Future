@@ -54,6 +54,16 @@ export const RATE_LIMITS = {
     MAX_REQUESTS: 5,
     MESSAGE: "Too many registration attempts. Please try again later.",
   },
+  // POST /api/assessments/:id/send-recovery-email. Keyed by assessment, not
+  // IP (see recoveryEmailLimiter) — the abuse this bounds is one guest
+  // report being re-mailed to an address in a loop, which an IP key would
+  // not catch from behind a shared address (a school network) and would
+  // wrongly catch a family taking several assessments from one connection.
+  RECOVERY_EMAIL: {
+    WINDOW_MS: 60 * 60 * 1000, // 1 hour
+    MAX_REQUESTS: 5,
+    MESSAGE: "Too many recovery email requests for this report. Please try again later.",
+  },
 } as const;
 
 export const ASSESSMENT_LIMITS = {

@@ -43,6 +43,31 @@ export function mintPrintToken(assessmentId: string): string {
 }
 
 /**
+ * Mint a token scoped to a single assessmentId, valid until the given
+ * expiry — the same signed token TYPE as mintPrintToken (identical payload
+ * shape, identical signing), not a second mechanism, but a distinct mint
+ * function because the caller supplies its OWN expiry rather than the fixed
+ * ~60s render window.
+ *
+ * BUILT FOR ONE CALLER: the guest report-recovery email
+ * (server/routes/assessment.routes.ts, POST /api/assessments/:id/
+ * send-recovery-email). Its token must live exactly as long as the report
+ * itself does, so callers pass shared/guestAssessmentExpiry.ts's
+ * guestAssessmentExpiresAt(assessment.completedAt) — never a flat duration —
+ * so the link can never claim to work past the moment the sweep deletes the
+ * row it points to.
+ *
+ * VERIFIED BY THE SAME printTokenAuthorizes AS A PRINT TOKEN. See that
+ * function's doc comment for why callers must still carry this under its
+ * own, distinctly-named query param rather than `printToken`.
+ */
+export function mintGuestRecoveryToken(assessmentId: string, expiresAt: Date): string {
+  const payload: PrintTokenPayload = { aid: assessmentId, exp: expiresAt.getTime() };
+  const body = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
+  return `${body}.${sign(body)}`;
+}
+
+/**
  * Verify a print token. Returns the embedded assessmentId on success, or null
  * if the token is malformed, tampered, or expired. Constant-time MAC compare.
  */
@@ -83,9 +108,20 @@ export function verifyPrintToken(token: unknown): { aid: string } | null {
 
 /**
  * The scoping primitive the data routes use: true iff `token` is a valid,
- * unexpired print token scoped to EXACTLY `assessmentId`. A token minted for
- * assessment A authorizes ONLY A — passing A's token while requesting B returns
- * false, so the PDF render can never read across assessments.
+ * unexpired token (print OR guest-recovery — see mintGuestRecoveryToken)
+ * scoped to EXACTLY `assessmentId`. A token minted for assessment A
+ * authorizes ONLY A — passing A's token while requesting B returns false, so
+ * neither the PDF render nor a recovery email link can ever read across
+ * assessments.
+ *
+ * ONE VERIFIER, TWO NAMED TOKENS AT THE CALL SITE — KEEP THEM SEPARATE.
+ * Every data route that checks this also checks it against a second,
+ * distinctly-named query param (`recoveryToken`, never folded into
+ * `printToken`), even though both go through this same function. A single
+ * param name serving both purposes — a ~60s server-only token and an
+ * up-to-72-hour, user-facing emailed one — is how the next reader concludes
+ * one of them IS the other, and starts reasoning about its TTL or its
+ * audience from the wrong one.
  */
 export function printTokenAuthorizes(token: unknown, assessmentId: string | undefined): boolean {
   if (!assessmentId) {

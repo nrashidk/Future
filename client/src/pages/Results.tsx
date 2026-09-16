@@ -30,9 +30,10 @@ import {
   Loader2,
   User
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, serverErrorMessage } from "@/lib/queryClient";
+import { Input } from "@/components/ui/input";
 import { COMPONENT_BREAKDOWN_META, findComponentWeight, weightSentence, type ComponentBreakdownEntry } from "@/lib/componentBreakdown";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
@@ -288,6 +289,18 @@ export default function Results() {
   const [assessmentId, setAssessmentId] = useState<string | null>(urlAssessmentId);
   const [isDownloading, setIsDownloading] = useState(false);
 
+  // A signed, single-assessment, URL-carried token from the guest report-
+  // recovery email link (server/utils/printToken.ts's mintGuestRecoveryToken).
+  // Mirrors ResultsPrint.tsx's printToken handling exactly, except this page
+  // never converts it into a cookie or any other standing credential — it is
+  // read from THIS load's URL and re-sent on every fetch below, same as
+  // ResultsPrint does for its own print-only token. A different, distinctly
+  // named param from `printToken` even though both verify through the same
+  // function; see printTokenAuthorizes's doc comment for why that separation
+  // matters.
+  const recoveryToken = urlParams.get("recoveryToken");
+  const recoveryTokenParam = recoveryToken ? `&recoveryToken=${encodeURIComponent(recoveryToken)}` : "";
+
   // Resolve ?grade= to one of the CALLER'S OWN assessments. /api/assessments/my
   // scopes to req.user.userId server-side and takes no id from the client, so
   // this cannot reach another student's report — no new endpoint, and no new
@@ -314,11 +327,13 @@ export default function Results() {
   // so this is the hand-typed-URL path.
   const resolvedAssessmentId = urlAssessmentId || gradeAssessmentId;
 
-  // Guest token is now sent via httpOnly cookie automatically
+  // Guest token is now sent via httpOnly cookie automatically. recoveryTokenParam
+  // is a no-op ("") for every non-recovery-link visit, so this is additive: the
+  // normal cookie-authorized guest path and the authenticated path are unchanged.
   const { data: recommendations = [], isLoading: recommendationsLoading, isError: isRecommendationsError } = useQuery<any[]>({
     queryKey: resolvedAssessmentId
-      ? [`/api/recommendations?assessmentId=${resolvedAssessmentId}&lang=${language}`]
-      : [`/api/recommendations?lang=${language}`],
+      ? [`/api/recommendations?assessmentId=${resolvedAssessmentId}&lang=${language}${recoveryTokenParam}`]
+      : [`/api/recommendations?lang=${language}${recoveryTokenParam}`],
     enabled: !gradeLookupPending,
   });
 
@@ -341,14 +356,40 @@ export default function Results() {
 
   // Fetch quiz data to get subject competency scores
   const { data: quizData } = useQuery<any>({
-    queryKey: [`/api/assessments/${activeAssessmentId}/quiz`],
+    queryKey: [`/api/assessments/${activeAssessmentId}/quiz${recoveryToken ? `?recoveryToken=${encodeURIComponent(recoveryToken)}` : ''}`],
     enabled: !!activeAssessmentId,
   });
 
   // Fetch assessment to get country data
   const { data: assessment } = useQuery<any>({
-    queryKey: [`/api/assessments/${activeAssessmentId}`],
+    queryKey: [`/api/assessments/${activeAssessmentId}${recoveryToken ? `?recoveryToken=${encodeURIComponent(recoveryToken)}` : ''}`],
     enabled: !!activeAssessmentId,
+  });
+
+  // Guest report-recovery email — see server/routes/assessment.routes.ts's
+  // POST /api/assessments/:id/send-recovery-email doc comment for the full
+  // design. Nothing here is persisted client-side either: recoveryEmail lives
+  // only in this input's state, sent once, never written to storage or a
+  // query cache key, matching the server's "nothing to retry from but typing
+  // it again" contract.
+  const [recoveryEmail, setRecoveryEmail] = useState("");
+  const [recoverySentAt, setRecoverySentAt] = useState<Date | null>(null);
+  const sendRecoveryEmailMutation = useMutation({
+    mutationFn: async (email: string) => {
+      const res = await apiRequest("POST", `/api/assessments/${activeAssessmentId}/send-recovery-email`, {
+        email,
+        language,
+      });
+      return res.json();
+    },
+    onSuccess: () => setRecoverySentAt(new Date()),
+    onError: (error) => {
+      toast({
+        title: t('recoveryEmailFailedTitle'),
+        description: serverErrorMessage(error) || t('recoveryEmailFailed'),
+        variant: "destructive",
+      });
+    },
   });
 
   // Which per-career blocks this report includes at all. Free omits the three
@@ -1340,6 +1381,65 @@ export default function Results() {
               >
                 {t('createAccount')}
               </Button>
+            </StickyNote>
+          </div>
+        )}
+
+        {/* Guest report-recovery email — a SEPARATE block from the account-
+            creation card above, deliberately: this is a student-initiated,
+            non-persisted utility (send myself a link), not a step toward an
+            account, and framing it inside the sign-up card would imply the
+            report needs permission the student already has by having taken
+            the assessment. Only shown once the report exists (completedAt
+            set) — sending a link to a report that isn't finished yet has
+            nothing to point at. */}
+        {!isAuthenticated && assessment?.completedAt && (
+          <div className="mt-6">
+            <StickyNote color="blue" rotation="-1" className="max-w-2xl mx-auto text-center p-6">
+              <h4 className="font-bold text-lg mb-2">{t('recoveryEmailTitle')}</h4>
+              {recoverySentAt ? (
+                <p
+                  className="text-sm font-body font-semibold text-primary"
+                  data-testid="text-recovery-email-sent"
+                >
+                  {t('recoveryEmailSentDesc', {
+                    date: formatLocalizedDate(guestAssessmentExpiresAt(assessment.completedAt), language),
+                  })}
+                </p>
+              ) : (
+                <>
+                  <p className="text-sm font-body mb-4 text-muted-foreground">
+                    {t('recoveryEmailDesc')}
+                  </p>
+                  <form
+                    className="flex flex-col sm:flex-row gap-2 justify-center items-center"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const trimmed = recoveryEmail.trim();
+                      if (!trimmed) return;
+                      sendRecoveryEmailMutation.mutate(trimmed);
+                    }}
+                  >
+                    <Input
+                      type="email"
+                      required
+                      value={recoveryEmail}
+                      onChange={(e) => setRecoveryEmail(e.target.value)}
+                      placeholder={t('recoveryEmailPlaceholder')}
+                      className="max-w-xs bg-background"
+                      data-testid="input-recovery-email"
+                    />
+                    <Button
+                      type="submit"
+                      disabled={sendRecoveryEmailMutation.isPending}
+                      className="rounded-full"
+                      data-testid="button-send-recovery-email"
+                    >
+                      {sendRecoveryEmailMutation.isPending ? t('recoveryEmailSending') : t('recoveryEmailButton')}
+                    </Button>
+                  </form>
+                </>
+              )}
             </StickyNote>
           </div>
         )}

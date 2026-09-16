@@ -311,7 +311,16 @@ export function registerRecommendationsRoutes(app: Express) {
         // authorizes the read. The headless browser carries no session cookie;
         // the token (minted only after an ownership check in the PDF route)
         // stands in as proof of ownership for this one assessmentId only.
-        if (!owns && printTokenAuthorizes(req.query.printToken, assessmentId)) {
+        //
+        // recoveryToken is a SEPARATE, distinctly-named query param — the
+        // guest report-recovery email link (mintGuestRecoveryToken) — checked
+        // through the same printTokenAuthorizes verifier but never folded
+        // into `printToken` itself; see that function's doc comment for why.
+        if (
+          !owns &&
+          (printTokenAuthorizes(req.query.printToken, assessmentId) ||
+            printTokenAuthorizes(req.query.recoveryToken, assessmentId))
+        ) {
           owns = true;
         }
       }
@@ -908,7 +917,16 @@ export function registerRecommendationsRoutes(app: Express) {
 
       // Server-side PDF render: a print token scoped to THIS assessment
       // authorizes the premium narrative read (headless browser has no cookie).
-      if (!isAuthorized && printTokenAuthorizes(req.query.printToken, assessmentId)) {
+      //
+      // recoveryToken is a SEPARATE, distinctly-named query param — the guest
+      // report-recovery email link (mintGuestRecoveryToken) — checked through
+      // the same printTokenAuthorizes verifier but never folded into
+      // `printToken` itself; see that function's doc comment for why.
+      if (
+        !isAuthorized &&
+        (printTokenAuthorizes(req.query.printToken, assessmentId) ||
+          printTokenAuthorizes(req.query.recoveryToken, assessmentId))
+      ) {
         isAuthorized = true;
       }
 
