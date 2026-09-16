@@ -70,26 +70,11 @@ async function upsertOAuthUser(
         profileImageUrl: profileImageUrl,
       });
       user = await storage.getUser(emailUser.id);
-    } else {
-      const superadminEmails = (process.env.SUPERADMIN_EMAILS || "")
-        .split(",")
-        .map(e => e.trim().toLowerCase())
-        .filter(e => e.length > 0);
-      
-      const role = normalizedEmail && superadminEmails.includes(normalizedEmail) ? "superadmin" : "user";
-      
-      const newUser = await storage.upsertUser({
-        email: normalizedEmail || undefined,
-        firstName: firstName,
-        lastName: lastName,
-        profileImageUrl: profileImageUrl,
-        role: role,
-        oauthProvider: provider,
-        oauthProviderId: providerId,
-      });
-      
-      user = newUser;
     }
+    // No matching account by provider ID or email: the free tier is
+    // retired, so OAuth no longer creates one (docs/free-tier-retirement-
+    // recon.md §2) — `user` stays unset, and the two verify callbacks below
+    // turn that into a distinct "no account" outcome rather than a login.
   }
   
   if (user) {
@@ -123,6 +108,9 @@ export async function setupAuth(app: Express) {
           profile.name?.familyName,
           profile.photos?.[0]?.value
         );
+        if (!user) {
+          return done(null, false, { code: "google_no_account" });
+        }
         // Additive only - existing fields and flow are unchanged.
         // emailVerified is strictly Google's own boolean: anything missing,
         // false, or non-true reads as false. This is the ONLY signal that the
@@ -160,6 +148,9 @@ export async function setupAuth(app: Express) {
           profile.name?.familyName,
           profile.photos?.[0]?.value
         );
+        if (!user) {
+          return done(null, false, { code: "microsoft_no_account" });
+        }
         return done(null, { userId: user?.id, provider: 'microsoft' });
       } catch (error) {
         return done(error as Error);
@@ -237,9 +228,27 @@ export async function setupAuth(app: Express) {
     );
 
     app.get("/api/auth/google/callback",
-      passport.authenticate("google", { failureRedirect: "/login?error=google_failed" }),
-      (req, res) => {
-        res.redirect("/auth/callback");
+      // Custom callback, not the passport.authenticate(strategy, { failureRedirect })
+      // shorthand: that shorthand's failureRedirect is one static string, and
+      // can't vary by which failure fired, but google_no_account (the verify
+      // callback above) needs a different destination message than a genuine
+      // OAuth failure. The shorthand also calls req.logIn for you on success —
+      // this form doesn't, so it's done explicitly below. Do not drop that call.
+      (req, res, next) => {
+        passport.authenticate("google", (err: any, user: any, info: any) => {
+          if (err) {
+            return next(err);
+          }
+          if (!user) {
+            return res.redirect(`/login?error=${info?.code || "google_failed"}`);
+          }
+          req.logIn(user, (loginErr) => {
+            if (loginErr) {
+              return next(loginErr);
+            }
+            res.redirect("/auth/callback");
+          });
+        })(req, res, next);
       }
     );
   }
@@ -250,9 +259,24 @@ export async function setupAuth(app: Express) {
     );
 
     app.get("/api/auth/microsoft/callback",
-      passport.authenticate("microsoft", { failureRedirect: "/login?error=microsoft_failed" }),
-      (req, res) => {
-        res.redirect("/auth/callback");
+      // Same reasoning as the Google callback above: custom callback so
+      // microsoft_no_account can redirect distinctly from a genuine failure,
+      // with req.logIn called explicitly since this form doesn't do it for you.
+      (req, res, next) => {
+        passport.authenticate("microsoft", (err: any, user: any, info: any) => {
+          if (err) {
+            return next(err);
+          }
+          if (!user) {
+            return res.redirect(`/login?error=${info?.code || "microsoft_failed"}`);
+          }
+          req.logIn(user, (loginErr) => {
+            if (loginErr) {
+              return next(loginErr);
+            }
+            res.redirect("/auth/callback");
+          });
+        })(req, res, next);
       }
     );
   }
