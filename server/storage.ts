@@ -35,6 +35,8 @@ import {
   files,
   organizationEvents,
   organizationConsents,
+  childProfiles,
+  childGuardianConsents,
   scoringTiers,
   tierComponentWeights,
   componentParameters,
@@ -104,6 +106,10 @@ import {
   type OrganizationConsent,
   type InsertOrganizationEvent,
   type InsertOrganizationConsent,
+  type ChildProfile,
+  type InsertChildProfile,
+  type ChildGuardianConsent,
+  type InsertChildGuardianConsent,
   type ScoringTier,
   type InsertScoringTier,
   type TierComponentWeight,
@@ -446,6 +452,11 @@ export interface IStorage {
   createOrganizationConsent(consent: InsertOrganizationConsent): Promise<OrganizationConsent>;
   /** Most recent attestation for an organization, or undefined. See shared/schema.ts. */
   getCurrentOrganizationConsent(organizationId: string): Promise<OrganizationConsent | undefined>;
+
+  // Child profile (parent-registers accounts) — see shared/schema.ts.
+  getChildProfileByGuardianUserId(userId: string): Promise<ChildProfile | undefined>;
+  createChildProfile(profile: InsertChildProfile, tx?: any): Promise<ChildProfile>;
+  createChildGuardianConsent(consent: InsertChildGuardianConsent, tx?: any): Promise<ChildGuardianConsent>;
   getOrganizationEvents(organizationId: string, limit?: number): Promise<OrganizationEvent[]>;
   getAllOrganizationEvents(limit?: number): Promise<OrganizationEvent[]>;
   getOrganizationEventsByType(organizationId: string, eventType: string): Promise<OrganizationEvent[]>;
@@ -3555,6 +3566,28 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(organizationConsents.createdAt))
       .limit(1);
     return consent;
+  }
+
+  // Child profile (parent-registers accounts)
+  async getChildProfileByGuardianUserId(userId: string): Promise<ChildProfile | undefined> {
+    const [profile] = await db
+      .select()
+      .from(childProfiles)
+      .where(eq(childProfiles.guardianUserId, userId));
+    return profile;
+  }
+
+  // tx defaults to db, matching createOrganizationEvent — the registration
+  // endpoint (POST /api/register/parent) inserts the user, this row and the
+  // consent row in one transaction so a failure partway leaves no account.
+  async createChildProfile(profile: InsertChildProfile, tx: any = db): Promise<ChildProfile> {
+    const [created] = await tx.insert(childProfiles).values(profile).returning();
+    return created;
+  }
+
+  async createChildGuardianConsent(consent: InsertChildGuardianConsent, tx: any = db): Promise<ChildGuardianConsent> {
+    const [created] = await tx.insert(childGuardianConsents).values(consent).returning();
+    return created;
   }
 
   async createOrganizationEvent(event: InsertOrganizationEvent, tx: any = db): Promise<OrganizationEvent> {
