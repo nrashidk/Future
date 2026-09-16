@@ -2659,6 +2659,33 @@ fails. Concretely — does it report its own failure, or swallow it? Does the ev
 on actually exist (git status showing an ignored file did not)? And does it contain an instance
 of the very thing it detects? The third question is the one all three of these failed.
 
+**A further instance, found 2026-09-16 adding child_profiles/child_guardian_consents
+(docs/parent-registers-scoping.md).** `server/routes/user.erasure.test.ts`'s `FKS` array
+(:114-127) is a hand-transcribed copy of the FK edges in `shared/schema.ts`, used to make its
+fake transaction throw a 23503 when a delete would orphan a row — the exact mechanism the
+file's own header credits with catching the original `wef_competency_results` gap. Adding
+`child_profiles.guardian_user_id` required a matching edit to `FKS` by hand; skipping that edit
+would not have failed a single assertion in the file, because the fake db only enforces edges
+someone remembered to list. This is the erasure-dependent-list.md bug (`:2156` above) again,
+now living inside the very test suite built to keep it from recurring — a hand-maintained list
+whose own upkeep is the failure mode it exists to catch, one file removed from the fix.
+
+Sitting immediately next to it, `user.subjectAccess.test.ts` solves the identical problem a
+different way: its FK-walk test (`:212`) calls `getTableConfig` on every export of
+`@shared/schema` at runtime and fails on any FK to `users` the registry hasn't classified — a
+new table is *discovered*, not remembered, and it failed loudly the moment `child_profiles` was
+added, before anyone had to type anything into it. Two files solving the same problem, a few
+lines of import apart, and only one of them can be trusted to notice its own gap; the other is a
+checklist someone has to remember to extend.
+
+Not fixed here, and possibly cheaper than it looks: `ForeignKey.onDelete`
+(`drizzle-orm/pg-core/foreign-keys.d.ts`) is a public field, so `FKS`'s ordering data — which
+edges are NO ACTION and therefore actually block a delete, versus CASCADE/SET NULL which do not
+— may be derivable from `getTableConfig(table).foreignKeys` the same way `SUBJECT_ACCESS_REGISTRY`'s
+test derives its edges, rather than transcribed by hand. Verified that the field exists; not
+verified that replacing `FKS` this way is a clean fit for `remove()`'s per-table structure. Filed
+as the pattern instance, not built.
+
 A SECOND PROCESS PATTERN, recorded here because this is where process-severity findings live,
 though it is a different failure from the three above. Those were code written by someone who
 understood a failure mode and did not apply it to their own work. This one is in the WRITE-UPS,
