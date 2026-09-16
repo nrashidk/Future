@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
+import { claimGuestAssessments } from "@/lib/claimGuestAssessments";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 import { GraduationCap } from "lucide-react";
@@ -36,59 +37,31 @@ export default function AuthCallback() {
         }
 
         // THE CLAIM. This is the only thing that binds a guest's completed
-        // assessment to the account they just made, and until now it had never
-        // run: the condition here also required
-        // `localStorage.getItem("guestSessionId")`, a key that NO code in this
-        // app has ever written. It was read here, tested here and removed here,
-        // and set nowhere — so the guard was permanently false, the POST was
-        // never sent, and the user was redirected to their report as though it
-        // had worked. The report still rendered, because the guest cookie was
-        // still in the browser and still authorized the read, so nothing looked
-        // wrong until the cookie expired seven days later and took the report
-        // with it.
+        // assessment to the account they just made. It used to live inline
+        // here, and until a fix landed it had never actually run: the guard
+        // also required `localStorage.getItem("guestSessionId")`, a key no
+        // code in this app has ever written, so it was permanently false, the
+        // POST was never sent, and the user was redirected to their report as
+        // though it had worked — the report still rendered because the guest
+        // cookie was still in the browser and still authorized the read, so
+        // nothing looked wrong until the cookie expired seven days later and
+        // took the report with it.
         //
-        // The session id is gone from this request entirely. The server reads
-        // the guest_token cookie, which the browser sends on its own and which
-        // this page could never have read — it is httpOnly by design.
-        const guestAssessmentIds = JSON.parse(localStorage.getItem("guestAssessments") || "[]");
-
-        // ITS OWN try/catch, and it is load-bearing now that the request is
-        // actually sent. apiRequest throws on any non-2xx, and this call CAN
-        // legitimately fail: a browser holding ids in localStorage but no
-        // guest_token cookie — the cookie lasts 7 days, localStorage does not
-        // expire — gets a 400. Without this, that throw would escape to the
-        // outer catch and redirect the user to "/" instead of their report,
-        // turning a failed claim into a lost report. The claim is best-effort;
-        // the redirect below is not.
-        if (guestAssessmentIds.length > 0) {
-          try {
-            const resultRes = await apiRequest("POST", "/api/assessments/migrate", {
-              guestAssessmentIds,
-            });
-            const result = await resultRes.json();
-
-            // Only clear the local id list when the server confirms a claim.
-            // Clearing it on any response would discard the ids after a failure,
-            // and they are the only record this browser keeps of what the guest
-            // did — losing them makes a retry impossible.
-            if (result?.migratedCount > 0) {
-              toast({
-                title: t("callback.migratedTitle"),
-                description: t("callback.migratedDesc"),
-              });
-              localStorage.removeItem("guestAssessments");
-            }
-          } catch (migrateError) {
-            // Deliberately silent to the user. They have just created an account
-            // and are on their way to their report; a failed claim does not stop
-            // either, and the ids are kept so a later attempt can still work.
-            console.error("Guest assessment claim failed:", migrateError);
-          }
+        // Extracted to claimGuestAssessments (client/src/lib) once a second
+        // call site (RegisterParent.tsx) needed the identical behavior — see
+        // that file for why copying this inline a second time was the risk
+        // being avoided, not tidiness.
+        const { hadCandidates, migratedCount } = await claimGuestAssessments();
+        if (migratedCount > 0) {
+          toast({
+            title: t("callback.migratedTitle"),
+            description: t("callback.migratedDesc"),
+          });
         }
 
         if (user?.role === "superadmin") {
           setLocation("/admin");
-        } else if (guestAssessmentIds.length > 0) {
+        } else if (hadCandidates) {
           setLocation("/results");
         } else {
           setLocation("/");

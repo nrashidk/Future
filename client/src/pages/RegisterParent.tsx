@@ -21,6 +21,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, serverErrorMessage } from "@/lib/queryClient";
+import { claimGuestAssessments } from "@/lib/claimGuestAssessments";
 import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -110,10 +111,36 @@ export default function RegisterParent() {
       });
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       // No credentials modal, unlike the old checkout-creates-account path:
       // the parent just set their own password and is already logged in
       // (req.logIn in the endpoint).
+      //
+      // THE CLAIM, BEFORE PAYMENT. A guest who completed the assessment,
+      // then registered here, must not lose that assessment to the 72-hour
+      // sweep just because this page used to navigate straight to Checkout
+      // without ever running AuthCallback.tsx's claim step — the only other
+      // place that call was made. See claimGuestAssessments
+      // (client/src/lib) for why this is a shared function and not a second
+      // copy of that logic: this is the first of at least two more call
+      // sites (Results.tsx's "Create Free Account", Assessment.tsx's guest
+      // banner) that will need the identical call once they are repointed at
+      // this page as part of retiring the free tier
+      // (docs/free-tier-retirement-recon.md §2) — call the helper there too,
+      // not localStorage/`/api/assessments/migrate` directly.
+      //
+      // Run before navigating to Checkout, not after payment: the account
+      // and consent already exist before payment (docs/
+      // parent-registers-scoping.md), so an abandoned checkout still leaves
+      // the guest's report claimed onto the new account rather than losing
+      // it a second way.
+      const { migratedCount } = await claimGuestAssessments();
+      if (migratedCount > 0) {
+        toast({
+          title: t("callback.migratedTitle"),
+          description: t("callback.migratedDesc"),
+        });
+      }
       setLocation("/checkout?students=1&total=10");
     },
     onError: (error: unknown) => {
