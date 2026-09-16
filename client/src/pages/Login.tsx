@@ -22,6 +22,13 @@ export default function Login() {
   const { language, setLanguage } = useLanguage();
   const [location] = useLocation();
   const [error, setError] = useState<string | null>(null);
+  // SEPARATE FROM `error` DELIBERATELY. "No account exists yet" is not a
+  // failure — the OAuth round-trip itself worked — so it gets its own state
+  // and its own block below rather than sharing the destructive-styled error
+  // banner, and it needs a real link (not prose), which that banner has no
+  // slot for. See server/auth.ts's upsertOAuthUser for the source of this
+  // code (docs/free-tier-retirement-recon.md §2 OAuth sign-up retirement).
+  const [noAccountProvider, setNoAccountProvider] = useState<"google" | "microsoft" | null>(null);
 
   useEffect(() => { document.title = `${t("login.pageTitle")} | ${t("appName")}`; }, [t]);
 
@@ -33,7 +40,20 @@ export default function Login() {
     const params = new URLSearchParams(window.location.search);
     const errorParam = params.get("error");
     if (errorParam) {
-      if (errorParam === "google_failed") {
+      // Checked before the generic failure branches below: a distinct code,
+      // not the shared "_failed" one, so it can never be caught by the
+      // generic fallback and mislabeled as something breaking. Not live yet
+      // — server/auth.ts does not emit these codes until the next commit.
+      // Left inert here first on purpose, not landed together with the
+      // server change: if the server shipped first, a real user could hit an
+      // unrecognized code in the window before the client understood it and
+      // fall through to login.errorGeneric ("Login failed"), which is
+      // exactly the false claim this two-step order exists to avoid.
+      if (errorParam === "google_no_account") {
+        setNoAccountProvider("google");
+      } else if (errorParam === "microsoft_no_account") {
+        setNoAccountProvider("microsoft");
+      } else if (errorParam === "google_failed") {
         setError(t("login.errorGoogle"));
       } else if (errorParam === "microsoft_failed") {
         setError(t("login.errorMicrosoft"));
@@ -82,7 +102,18 @@ export default function Login() {
               {error}
             </div>
           )}
-          
+
+          {noAccountProvider && (
+            <div className="p-3 rounded-md bg-accent text-accent-foreground text-sm text-center space-y-1" data-testid="text-no-account">
+              <p>
+                {noAccountProvider === "google" ? t("login.noAccountGoogle") : t("login.noAccountMicrosoft")}
+              </p>
+              <Link href="/register/parent" className="text-primary hover:underline font-medium" data-testid="link-register-parent-from-login">
+                {t("login.registerCta")}
+              </Link>
+            </div>
+          )}
+
           {isAuthConfigLoading && (
             <>
               <Skeleton className="w-full h-12 rounded-md" data-testid="skeleton-oauth" />
