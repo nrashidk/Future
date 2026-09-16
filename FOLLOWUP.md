@@ -6329,3 +6329,107 @@ module boundary, nothing but a reader noticing the second site exists.
 Neither is done here. This entry exists so the next person adding a rule to "how the Career
 Journey groups assessments" checks both sites on purpose, rather than finding the second one the
 way this fix did.
+
+
+## PARENT-REGISTERS GUEST-CLAIM DOOR — DECIDED 2026-09-16
+
+### The decision
+The guest-claim path (`POST /api/assessments/migrate`, assessment.routes.ts) is accepted as-is
+for parent-registered accounts, unchanged from every other account type. No additional
+guardian-consent gate is added at the claim step. Bounded by the 72-hour guest-assessment TTL
+(`shared/guestAssessmentExpiry.ts`, docs/guest-ttl-option-c-recon.md) already shipped before this
+decision.
+
+### The reason
+The parent already attests guardianship — first-person, at registration, recorded in
+`child_guardian_consents` — before the account exists at all. That attestation is the standard
+the entire parent-registers route is built on: every other action available under a
+parent-registered account (creating an assessment, purchasing, viewing the report) relies on
+nothing more than that one act having happened once. Requiring a second, narrower guardianship
+check specifically at the claim step would test claiming an assessment more strictly than it
+tests creating the account that consents to hold it — a stricter bar for absorbing three steps of
+a survey than for the whole account and everything after it.
+
+### What was considered, and rejected
+- **Gate the claim on a guardian-consent check specific to the claimed child.** Rejected: there
+  is no second child to check against — one child per account — so this would re-ask the question
+  registration already answered, at a point in the flow with less context (a background call, no
+  UI) to ask it well.
+- **Retire or restrict guest access for this population specifically.** Rejected as out of scope:
+  nothing about parent-registers makes an anonymous guest assessment more or less appropriate than
+  it already is for every other account type. If the guest flow's own guardianship gap is ever
+  addressed, it should be addressed once, for every account type, not specially for this one.
+
+### Consequences, stated
+A child can still complete a full assessment alone, anonymously, and have it claimed later by
+whoever registers holding the browser's `guest_token` cookie — parent or otherwise — with no check
+that the claimant is that child's guardian. This is the same door every account type has today,
+narrowed only by the 72-hour TTL, not newly opened or newly closed by this decision.
+
+
+## A PARENT-REGISTERS ACCOUNT'S EXPORT AND ERASURE — DECIDED 2026-09-16
+
+### The decision
+A parent's subject-access export (`GET /api/users/me/export`) includes the child's profile and
+consent record, and account erasure (`DELETE /api/users/me`) destroys the child's profile along
+with the account. This is not a gap to close — it is the necessary consequence of the
+no-child-login decision (the account is the parent's, the child is its subject) and is made TRUE
+IN CODE by `aa14a2a` (`feat(schema): add child_profiles and child_guardian_consents`, which wires
+both tables into `SUBJECT_ACCESS_REGISTRY` and `accountErasure.ts`'s explicit delete sequence),
+not merely documented here.
+
+### The reason
+With no child login, there is no second identity in the system to distinguish "the parent's own
+data" from "the child's" — every row a subject-access request can return is keyed to the one
+`userId` the account has. A parent cannot export or erase "just their own part" because they have
+no part that is not also, inescapably, the child's. This was true the moment the no-child-login
+decision was made; this entry states it plainly rather than leaving it to be discovered as a
+surprise when someone reads what `/api/users/me/export` actually returns for this population.
+
+### The standing asymmetry, stated plainly
+The child has no independent route to their own data while the no-child-login decision stands. A
+school student does: the school issues them their own credentials, so a detached or graduated
+student can still sign in and exercise their own export/erasure rights directly (`DELETE
+/api/users/me`, `GET /api/users/me/export`, both `isAuthenticated`-only). A parent-registered
+child never holds that login, so they can never make that request themselves — only the parent
+can, and only for the account as a whole. This is not a bug left unfixed; it is what
+no-child-login costs, named so it is not mistaken for an oversight later. Revisiting it requires
+revisiting that decision, not a smaller fix here.
+
+### Residual, named but not built: child_guardian_consents does not appear in `keptAfterErasure`
+When `aa14a2a` wired the two new tables into subject access, `child_guardian_consents.performed_by`
+was classified `subject` and given `ON DELETE SET NULL` — the same treatment as
+`organization_consents.performed_by` — specifically so the consent record outlives the parent's
+own erasure (docs/parent-registers-scoping.md §2). What that commit did NOT do is add it to
+`summarizeErasure`'s `keptAfterErasure` list, the mechanism that tells a user, before they delete
+their account, what survives.
+
+The reason is a real shape mismatch, not an oversight left for later: `ERASURE_KEPT_CODES`
+(shared/dataRights.ts) and its locale strings (`dataRights.locales.test.ts`) assert that every
+kept code's label contains `{{school}}` — every existing kept code (`school_removal_record`,
+`consent_attestation`, `school_deletion_record`) names a school, because every population that has
+ever reached `keptAfterErasure` before this one was school-shaped. A parent's consent record names
+a child, not a school, and forcing it through a `{{school}}`-shaped label would either be wrong
+(naming a school that does not exist) or dishonest (papering over the mismatch with placeholder
+text).
+
+**What generalizing this would cost**, so it is a scoped decision when someone picks it up rather
+than a guess:
+- A new kept code, e.g. `child_guardian_consent`, added to `ERASURE_KEPT_CODES`.
+- `dataRights.locales.test.ts`'s blanket assertion — every code's label contains `{{school}}` —
+  has to become code-aware: some codes interpolate `{{school}}`, this one would need `{{child}}`.
+  That test's own premise ("every kept code names a school") was only ever true because no
+  non-school code existed yet — the same "accurate only until a second population arrives" shape
+  the `isOrgStudent` boolean already needed fixing for.
+- `DeleteAccount.tsx`'s rendering (`t(\`dataRights.delete.kept.${code}\`, { school: ... })`)
+  hard-codes the `school` interpolation key for every code; it would need a per-code interpolation
+  value, not one hard-coded key.
+- New locale copy (en+ar) for the label itself, naming the child rather than a school — and, per
+  the pattern already flagged twice for the parent-registers consent strings
+  (docs/arabic-review-pack.md §1.8), a fresh Arabic gender-agreement question, since a child's name
+  rather than a school's sits in the sentence.
+
+Not built now. Left as a named gap: a parent who erases their account today is not told that a
+consent record naming them (and their child, denormalised) survives — the same information a
+school gets today via `consent_attestation`, withheld from this population only because the
+surrounding mechanism assumed only schools would ever need it.
