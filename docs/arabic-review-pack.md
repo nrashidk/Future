@@ -357,6 +357,80 @@ Legal pages have not historically been checked at phone width in this pack; chec
 before this ships. Neither string uses `{{}}` interpolation.
 
 ---
+
+### 1.8 The parent-registration consent attestation — a first-person claim about a named child
+
+**Status: written 2026-09-16, not reviewed by a speaker, and not yet assembled into a screen.**
+Same caveat as §1.6/1.7 — the Arabic is the builder's draft. This is a level below those two,
+and below §1.1-1.3: those strings have at least been read rendered on a live card
+(`OrganizationConsentCard`); these two exist only in the locale file so far. `POST
+/api/register/parent` (the endpoint that hashes and stores them) exists; the client card that
+composes and posts the exact rendered text — the parent-registration equivalent of
+`OrganizationConsentCard.tsx` — does not yet. Do not treat "written" as "seen"; §6's distinction
+applies here at one remove further than anywhere else in this pack.
+
+**Same weight as §1.1-1.3, appended here rather than renumbered in among them** — same reasoning
+as §1.5's placement: the order in this pack is consequence, not chronology, and inserting here
+by renumbering §1.4-1.7 was judged riskier than a note. `attestationTextHash` on
+`child_guardian_consents` pins the exact rendered wording exactly the way it does on
+`organization_consents` (schema.ts, shared/schema.ts) — the mechanism, and the stakes, are
+identical: **wrong Arabic here records a parent's agreement to a sentence that does not say what
+we believe it says**, for a named child rather than a cohort, which if anything raises the
+stakes over the school version rather than lowering them.
+
+**Where it will appear:** a parent registering to pay for one child's assessment
+(docs/parent-registers-scoping.md), before payment. Two checkboxes, mirroring
+`OrganizationConsentCard`'s shape: `consents_to_processing` and (renamed from the org table's
+`attests_guardian_consent`) `attests_guardian_relationship` — a first-person claim about who the
+parent is to this child, not a second-hand claim about someone else's consent.
+
+#### `registerParent.consentGuardian` — the guardian-relationship attestation
+
+> **EN:** I am {{child}}'s parent or legal guardian.
+>
+> **AR:** أُقرّ بأنني الوليّ الشرعي على {{child}}.
+
+**Must convey:** the same first-person-attestation force as §1.1's `orgs.consentGuardian` — but
+the claim itself is the opposite shape. The school's version attests that *someone else* (a
+parent, unnamed) has consented; this attests that *the person ticking the box* is the named
+child's own parent or guardian. A reading that lands as a description of fact rather than a
+personal undertaking has the same failure mode §1.1 already names.
+
+**Word choice, stated so a reviewer isn't left to guess why it isn't `والد`/`والدة`.** The draft
+uses `الوليّ` (guardian, a legal-role noun) rather than `الوالد`/`الوالدة` (father/mother)
+specifically because the product never asks the registering parent their own gender, and `الوليّ`
+is the term Arabic legal and official usage already reaches for when a parent's gender isn't
+in evidence. **Recorded check:** whether `الوليّ الشرعي` reads naturally in this register, or
+whether a different construction is preferred — and separately, whether it is even the right
+call to avoid gendering the parent this way rather than asking their gender and branching, which
+this draft does not do.
+
+#### `registerParent.consentProcessing` — the data-processing consent
+
+> **EN:** I consent to Future Pathways processing {{child}}'s personal data on {{child}}'s
+> behalf, as described in the Privacy Policy and Terms of Use.
+>
+> **AR:** أوافق، بصفتي الوليّ الشرعي على {{child}}، على قيام مسارات المستقبل بمعالجة بيانات
+> {{child}} الشخصية، وفق ما هو موضّح في سياسة الخصوصية وشروط الاستخدام.
+
+**Must convey:** consent given *by the guardian, on the named child's behalf*, bounded by the two
+named documents — the same shape as §1.2's `orgs.consentProcessing`, with one child in place of
+a cohort.
+
+**A second word-choice note, for the same reason as above.** The Arabic repeats `{{child}}`
+(`بيانات {{child}} الشخصية`, "{{child}}'s personal data") rather than using a possessive pronoun
+(`بياناته`/`بياناتها`, "his/her data"), because a pronoun would require knowing the child's
+gender — which `child_profiles.gender` does in fact record, so a gendered variant is possible if
+a reviewer prefers it over the repeated-name construction used here. **Recorded check:** whether
+the repeated `{{child}}` reads as natural Arabic or as avoidably stilted, and if the latter,
+whether templating two gendered variants from `child_profiles.gender` is worth the cost against
+reading naturally.
+
+**Also, mirroring §1.2's second check:** `مسارات المستقبل` names the processing party the same
+way the school version does; the same instruction applies — confirm against the Arabic legal
+documents, not against the rest of the UI, once this is reviewed alongside them.
+
+---
 ## 2. Student-facing — a 13-18 year old reads these mid-assessment, with nobody to ask
 
 Second in order because of who reads them and when. A student meets these alone, on

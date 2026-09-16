@@ -52,6 +52,7 @@ export function validateCsrf(req: Request, res: Response, next: NextFunction) {
   const exemptPaths = [
     "/api/callback",
     "/api/webhook", // Stripe webhooks use signature verification instead
+    "/api/register/parent", // Creates the session; no prior CSRF token to check, same as /api/register (setupAuth runs before this middleware)
   ];
   
   // Also exempt paths that match patterns for file uploads (multipart/form-data)

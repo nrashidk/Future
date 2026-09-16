@@ -46,6 +46,14 @@ export const RATE_LIMITS = {
     MAX_REQUESTS: 10,
     MESSAGE: "Too many organization creation requests. Please try again later.",
   },
+  // Same window/ceiling as LOGIN's authLimiter (server/auth.ts) — this is
+  // /api/register's sibling account-creation endpoint and should not be
+  // easier to hammer than the one it stands next to.
+  REGISTER_PARENT: {
+    WINDOW_MS: 15 * 60 * 1000, // 15 minutes
+    MAX_REQUESTS: 5,
+    MESSAGE: "Too many registration attempts. Please try again later.",
+  },
 } as const;
 
 export const ASSESSMENT_LIMITS = {

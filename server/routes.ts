@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { setupAuth } from "./auth";
 import { validateCsrf } from "./middleware/csrf.middleware";
 import { registerAuthRoutes } from "./routes/auth.routes";
+import { registerParentRegistrationRoutes } from "./routes/parentRegistration.routes";
 import { registerUserRoutes } from "./routes/user.routes";
 import { registerPasswordResetRoutes } from "./routes/password-reset.routes";
 import { registerCountriesRoutes } from "./routes/countries.routes";
@@ -33,6 +34,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register all route modules
   registerPublicRoutes(app); // Public routes (no auth required)
   registerAuthRoutes(app);
+  registerParentRegistrationRoutes(app); // Parent-registers-for-child account creation
   registerUserRoutes(app); // GDPR compliance: data export and deletion
   registerPasswordResetRoutes(app); // Password reset flow
   registerCountriesRoutes(app);

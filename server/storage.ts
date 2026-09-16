@@ -457,6 +457,15 @@ export interface IStorage {
   getChildProfileByGuardianUserId(userId: string): Promise<ChildProfile | undefined>;
   createChildProfile(profile: InsertChildProfile, tx?: any): Promise<ChildProfile>;
   createChildGuardianConsent(consent: InsertChildGuardianConsent, tx?: any): Promise<ChildGuardianConsent>;
+  createParentRegistration(params: {
+    email: string;
+    passwordHash: string;
+    firstName: string;
+    lastName: string;
+    role: string;
+    child: Omit<InsertChildProfile, "guardianUserId">;
+    consent: Omit<InsertChildGuardianConsent, "performedBy">;
+  }): Promise<{ user: User; childProfile: ChildProfile; consent: ChildGuardianConsent }>;
   getOrganizationEvents(organizationId: string, limit?: number): Promise<OrganizationEvent[]>;
   getAllOrganizationEvents(limit?: number): Promise<OrganizationEvent[]>;
   getOrganizationEventsByType(organizationId: string, eventType: string): Promise<OrganizationEvent[]>;
@@ -3588,6 +3597,52 @@ export class DatabaseStorage implements IStorage {
   async createChildGuardianConsent(consent: InsertChildGuardianConsent, tx: any = db): Promise<ChildGuardianConsent> {
     const [created] = await tx.insert(childGuardianConsents).values(consent).returning();
     return created;
+  }
+
+  /**
+   * The whole parent-registers act — account, child profile, consent — in one
+   * transaction, mirroring createGroupPurchaseTransaction's shape. A failure
+   * partway (a duplicate email slipping past the route's own check under
+   * concurrent requests, a DB constraint) must leave no account at all rather
+   * than a user row with no child profile or consent behind it.
+   *
+   * Plain insert, not upsertUser: the caller already checked the email is
+   * unique, this account is never an OAuth upgrade target, and there is no
+   * conflict target to upsert against.
+   */
+  async createParentRegistration(params: {
+    email: string;
+    passwordHash: string;
+    firstName: string;
+    lastName: string;
+    role: string;
+    child: Omit<InsertChildProfile, "guardianUserId">;
+    consent: Omit<InsertChildGuardianConsent, "performedBy">;
+  }): Promise<{ user: User; childProfile: ChildProfile; consent: ChildGuardianConsent }> {
+    return await db.transaction(async (tx) => {
+      const [user] = await tx
+        .insert(users)
+        .values({
+          email: params.email,
+          passwordHash: params.passwordHash,
+          firstName: params.firstName,
+          lastName: params.lastName,
+          role: params.role,
+          accountType: "public",
+        })
+        .returning();
+
+      const childProfile = await this.createChildProfile(
+        { ...params.child, guardianUserId: user.id },
+        tx,
+      );
+      const consent = await this.createChildGuardianConsent(
+        { ...params.consent, performedBy: user.id },
+        tx,
+      );
+
+      return { user, childProfile, consent };
+    });
   }
 
   async createOrganizationEvent(event: InsertOrganizationEvent, tx: any = db): Promise<OrganizationEvent> {

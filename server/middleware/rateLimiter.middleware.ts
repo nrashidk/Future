@@ -188,3 +188,18 @@ export const orgCreationLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 });
+
+/**
+ * POST /api/register/parent — /api/register's sibling. That endpoint's
+ * authLimiter lives inside server/auth.ts and is not exported (that file is
+ * the reviewed authentication core and this route does not touch it), so
+ * this is a separate limiter rather than a shared one, matching authLimiter's
+ * window and ceiling exactly.
+ */
+export const registerParentLimiter = rateLimit({
+  windowMs: RATE_LIMITS.REGISTER_PARENT.WINDOW_MS,
+  max: RATE_LIMITS.REGISTER_PARENT.MAX_REQUESTS,
+  message: RATE_LIMITS.REGISTER_PARENT.MESSAGE,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
