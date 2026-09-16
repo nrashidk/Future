@@ -1018,8 +1018,16 @@ export default function Assessment() {
     // currentStep — a third encoding of the step order, which Phase 3 would have
     // silently invalidated along with the other two. Progress is preserved by
     // DRAFT_KEY (sessionStorage) and by assessments.currentStep (the server),
-    // both of which survive this redirect.
-    window.location.href = "/api/login?returnTo=/assessment";
+    // both of which survive this navigation either way.
+    //
+    // /register/parent, not /api/login: the free tier is retired
+    // (docs/free-tier-retirement-recon.md §2), so "create an account" no
+    // longer means a plain sign-in/local-register page — it means the
+    // parent-registers flow. setLocation, not a full-page redirect: this is
+    // a client route, and RegisterParent.tsx's own onSuccess already calls
+    // claimGuestAssessments() before navigating to Checkout — nothing here
+    // needs to duplicate that call (see Results.tsx's handleSignUp).
+    setLocation("/register/parent");
   };
 
   if (isLoading) {

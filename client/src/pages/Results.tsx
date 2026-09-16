@@ -481,22 +481,20 @@ export default function Results() {
   };
 
   const handleSignUp = () => {
-    // STRAIGHT TO REGISTER. This button says "Create Free Account" and used to
-    // send the guest to `/api/login?returnTo=/results`, which auth.ts redirects
-    // to /login — a SIGN-IN page offering Google, Microsoft and a student login,
-    // with the register link buried at the bottom. Someone who has just been
-    // asked to create an account was being shown a form for people who already
-    // have one, and the returnTo was dropped on the way (nothing reads it).
-    //
-    // No returnTo needed for this flow: registering lands on /auth/callback,
-    // which claims the guest assessment and then routes back to /results
-    // precisely when there is a claimed assessment to show. The destination is
-    // already correct; it was the starting page that was wrong.
+    // /register/parent, not plain /register: the free tier (and plain local
+    // registration with it) is retired (docs/free-tier-retirement-recon.md
+    // §2) — the only account a guest can create now is a parent-registers
+    // account. RegisterParent.tsx's own onSuccess already calls
+    // claimGuestAssessments() before it navigates to Checkout, so nothing
+    // here needs to read localStorage or call /api/assessments/migrate
+    // itself; doing so would be a second, independently-maintained copy of
+    // that claim logic — see claimGuestAssessments (client/src/lib) for why
+    // that is exactly the bug class to avoid.
     //
     // setLocation, not window.location: an SPA navigation is enough here — the
     // guest_token cookie and the localStorage id list both survive either way,
     // and this avoids a full reload of an already-rendered report.
-    setLocation("/register");
+    setLocation("/register/parent");
   };
 
   if (isLoading) {

@@ -117,7 +117,7 @@
   "saveResultsTitle": "احفظ نتائجك!",
   "saveResultsDesc": "أنشئ حساباً لحفظ توصياتك المهنية وتتبع تقدمك",
   "guestExpiryNotice": "سيتم حذف هذا التقرير في {{date}} ما لم تُنشئ حساباً لحفظه.",
-  "createAccount": "إنشاء حساب مجاني",
+  "createAccount": "إنشاء حساب",
   "recoveryEmailTitle": "هل أنت على جهاز مشترك أو جهاز مدرسي؟",
   "recoveryEmailDesc": "أرسل لنفسك رابط هذا التقرير الآن حتى تتمكن من فتحه مرة أخرى لاحقاً.",
   "recoveryEmailPlaceholder": "بريدك الإلكتروني",
