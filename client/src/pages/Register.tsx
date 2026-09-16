@@ -1,93 +1,24 @@
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTranslation } from "react-i18next";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { useMutation } from "@tanstack/react-query";
-import { apiRequest, serverErrorMessage } from "@/lib/queryClient";
-import { useLocation, Link } from "wouter";
+import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
-import { GraduationCap, Loader2, ArrowLeft, Eye, EyeOff } from "lucide-react";
+import { GraduationCap, ArrowLeft } from "lucide-react";
 
+// INTERSTITIAL, NOT A FORM AND NOT A REDIRECT. /register used to create a
+// plain free account; the free tier is retired
+// (docs/free-tier-retirement-recon.md §2) and POST /api/register refuses
+// unconditionally now (server/auth.ts). A bare 404 here would treat a stale
+// bookmark or an old emailed link as the visitor's fault, and a silent
+// redirect to /register/parent — a form that asks for a child's details and
+// leads to payment — would be a bait-and-switch even though unintentional.
+// This says plainly what changed and links forward instead.
 export default function Register() {
   const { t } = useTranslation("auth");
   const { language, setLanguage } = useLanguage();
-  const [, setLocation] = useLocation();
-  const { toast } = useToast();
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   useEffect(() => { document.title = `${t("register.pageTitle")} | ${t("appName")}`; }, [t]);
-
-  const registerSchema = z.object({
-    email: z.string().email(t("register.validation.emailInvalid")),
-    password: z.string()
-      .min(8, t("register.validation.passwordMin"))
-      .regex(/[A-Z]/, t("resetPassword.validation.uppercase"))
-      .regex(/[a-z]/, t("resetPassword.validation.lowercase"))
-      .regex(/[0-9]/, t("resetPassword.validation.number")),
-    confirmPassword: z.string(),
-    firstName: z.string().min(1, t("register.validation.firstNameRequired")),
-    lastName: z.string().min(1, t("register.validation.lastNameRequired")),
-  }).refine(data => data.password === data.confirmPassword, {
-    message: t("register.validation.passwordsMismatch"),
-    path: ["confirmPassword"],
-  });
-
-  type RegisterForm = z.infer<typeof registerSchema>;
-
-  const form = useForm<RegisterForm>({
-    resolver: zodResolver(registerSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-      confirmPassword: "",
-      firstName: "",
-      lastName: "",
-    },
-  });
-
-  const registerMutation = useMutation({
-    mutationFn: async (data: RegisterForm) => {
-      const response = await apiRequest("POST", "/api/register", {
-        email: data.email,
-        password: data.password,
-        firstName: data.firstName,
-        lastName: data.lastName,
-      });
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: t("register.successTitle"),
-        description: t("register.successDesc"),
-      });
-      setLocation("/auth/callback");
-    },
-    onError: (error: unknown) => {
-      // serverErrorMessage, not error.message (0dd5408). Same shape, same dead
-      // fallback: throwIfResNotOk formats failures as `<status>: <raw body>`, so
-      // a registration rejected for a duplicate email or a weak password showed
-      // the status code and unparsed JSON instead of the reason.
-      //
-      // ?? not ||: error.message is always non-empty, so t("errorDesc") below
-      // was unreachable and a non-English visitor got English JSON.
-      toast({
-        title: t("register.errorTitle"),
-        description: serverErrorMessage(error) ?? t("register.errorDesc"),
-        variant: "destructive",
-      });
-    },
-  });
-
-  const onSubmit = (data: RegisterForm) => {
-    registerMutation.mutate(data);
-  };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/10 via-background to-accent/10">
@@ -109,141 +40,18 @@ export default function Register() {
               <GraduationCap className="h-12 w-12 text-primary" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold">{t("register.title")}</CardTitle>
-          <CardDescription>{t("register.subtitle")}</CardDescription>
+          <CardTitle className="text-2xl font-bold">{t("register.retiredTitle")}</CardTitle>
+          <CardDescription>{t("register.retiredBody")}</CardDescription>
         </CardHeader>
         <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="firstName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t("register.firstName")}</FormLabel>
-                      <FormControl>
-                        <Input placeholder={t("register.firstNamePlaceholder")} {...field} data-testid="input-first-name" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="lastName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t("register.lastName")}</FormLabel>
-                      <FormControl>
-                        <Input placeholder={t("register.lastNamePlaceholder")} {...field} data-testid="input-last-name" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t("register.email")}</FormLabel>
-                    <FormControl>
-                      <Input type="email" placeholder={t("register.emailPlaceholder")} {...field} data-testid="input-email" />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t("register.password")}</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Input
-                          type={showPassword ? "text" : "password"}
-                          placeholder={t("register.passwordPlaceholder")}
-                          className="pe-10"
-                          autoComplete="new-password"
-                          {...field}
-                          data-testid="input-password"
-                        />
-                        <button
-                          type="button"
-                          className="absolute inset-y-0 end-0 flex items-center justify-center w-10 text-muted-foreground hover:text-foreground transition-colors"
-                          onClick={() => setShowPassword(!showPassword)}
-                          aria-label={showPassword ? t("register.hidePassword") : t("register.showPassword")}
-                          data-testid="button-toggle-password"
-                        >
-                          {showPassword ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
-                        </button>
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="confirmPassword"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t("register.confirmPassword")}</FormLabel>
-                    <FormControl>
-                      <div className="relative">
-                        <Input
-                          type={showConfirmPassword ? "text" : "password"}
-                          placeholder={t("register.confirmPasswordPlaceholder")}
-                          className="pe-10"
-                          autoComplete="new-password"
-                          {...field}
-                          data-testid="input-confirm-password"
-                        />
-                        <button
-                          type="button"
-                          className="absolute inset-y-0 end-0 flex items-center justify-center w-10 text-muted-foreground hover:text-foreground transition-colors"
-                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          aria-label={showConfirmPassword ? t("register.hidePassword") : t("register.showPassword")}
-                          data-testid="button-toggle-confirm-password"
-                        >
-                          {showConfirmPassword ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
-                        </button>
-                      </div>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <Button
-                type="submit"
-                className="w-full min-h-[44px]"
-                disabled={registerMutation.isPending}
-                data-testid="button-register"
-              >
-                {registerMutation.isPending ? (
-                  <>
-                    <Loader2 className="w-4 h-4 me-2 animate-spin" />
-                    {t("register.creating")}
-                  </>
-                ) : (
-                  t("register.createAccount")
-                )}
-              </Button>
-            </form>
-          </Form>
+          <Button asChild className="w-full min-h-[44px]" data-testid="button-register-parent">
+            <Link href="/register/parent">{t("register.retiredCta")}</Link>
+          </Button>
         </CardContent>
         <CardFooter className="flex flex-col gap-4 text-center">
           <p className="text-sm text-muted-foreground">
             {t("register.alreadyHaveAccount")}{" "}
-            <Link href="/login" className="text-primary hover:underline">
+            <Link href="/login" className="text-primary hover:underline" data-testid="link-login">
               {t("register.signIn")}
             </Link>
           </p>

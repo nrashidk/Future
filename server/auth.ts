@@ -7,9 +7,8 @@ import type { Express, RequestHandler } from "express";
 import connectPg from "connect-pg-simple";
 import rateLimit from "express-rate-limit";
 import { storage } from "./storage";
-import { verifyPassword, hashPassword } from "./utils/passwordHash";
+import { verifyPassword } from "./utils/passwordHash";
 import { logger } from "./utils/logger";
-import { z } from "zod";
 
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
@@ -329,69 +328,17 @@ export async function setupAuth(app: Express) {
     });
   });
 
-  // OWASP #38-39: Enforce password complexity and length requirements
-  const registerSchema = z.object({
-    email: z.string().email("Invalid email address"),
-    password: z.string()
-      .min(8, "Password must be at least 8 characters")
-      .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-      .regex(/[a-z]/, "Password must contain at least one lowercase letter")
-      .regex(/[0-9]/, "Password must contain at least one number"),
-    firstName: z.string().min(1, "First name is required"),
-    lastName: z.string().min(1, "Last name is required"),
-  });
-
-  app.post("/api/register", authLimiter, async (req, res) => {
-    try {
-      const result = registerSchema.safeParse(req.body);
-      if (!result.success) {
-        return res.status(400).json({ 
-          message: result.error.errors[0]?.message || "Invalid input" 
-        });
-      }
-
-      const { email, password, firstName, lastName } = result.data;
-      
-      const normalizedEmail = email.toLowerCase();
-
-      const existingUser = await storage.getUserByEmail(normalizedEmail);
-      if (existingUser) {
-        return res.status(400).json({ message: "An account with this email already exists" });
-      }
-
-      const passwordHash = await hashPassword(password);
-      
-      const superadminEmails = (process.env.SUPERADMIN_EMAILS || "")
-        .split(",")
-        .map(e => e.trim().toLowerCase())
-        .filter(e => e.length > 0);
-      
-      const role = superadminEmails.includes(normalizedEmail) ? "superadmin" : "user";
-
-      const user = await storage.upsertUser({
-        email: normalizedEmail,
-        firstName,
-        lastName,
-        passwordHash,
-        role,
-        accountType: "public",
-      });
-
-      if (!user) {
-        return res.status(500).json({ message: "Failed to create account" });
-      }
-
-      req.logIn({ userId: user.id, isLocal: true }, (err) => {
-        if (err) {
-          return res.status(500).json({ message: "Account created but login failed" });
-        }
-        logger.auth("Registration success", user.id, { action: "register" });
-        return res.json({ success: true, user: { id: user.id, email: user.email } });
-      });
-    } catch (error) {
-      logger.error("Registration error", error instanceof Error ? error : undefined);
-      return res.status(500).json({ message: "Registration failed" });
-    }
+  // The free tier is retired (docs/free-tier-retirement-recon.md §2): this
+  // endpoint no longer creates an account. Kept registered rather than
+  // deleted or left to 404 — it's the server-side backstop against a direct
+  // call (a cached client bundle, curl) bypassing the /register interstitial,
+  // which is the only reason this route would see traffic now. Refuses
+  // before touching req.body; nothing here reads or validates input anymore.
+  app.post("/api/register", authLimiter, (req, res) => {
+    res.status(410).json({
+      code: "FREE_TIER_RETIRED",
+      message: "Free accounts are no longer available. Register as a parent at /register/parent.",
+    });
   });
 }
 
