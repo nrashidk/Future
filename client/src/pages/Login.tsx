@@ -176,12 +176,6 @@ export default function Login() {
         </CardContent>
         <CardFooter className="flex flex-col gap-4 text-center">
           <p className="text-sm text-muted-foreground">
-            {t("login.noAccount")}{" "}
-            <Link href="/register" className="text-primary hover:underline" data-testid="link-register">
-              {t("login.createOne")}
-            </Link>
-          </p>
-          <p className="text-sm text-muted-foreground">
             {t("login.haveCredentials")}
           </p>
           <Button variant="ghost" asChild data-testid="link-home">
