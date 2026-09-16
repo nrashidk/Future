@@ -5,6 +5,7 @@ import { ProgressTracker } from "@/components/ProgressTracker";
 import { Button } from "@/components/ui/button";
 import { DemographicsStep } from "@/components/assessment/DemographicsStep";
 import { SchoolConsentNotice } from "@/components/assessment/SchoolConsentNotice";
+import { ParentConsentNotice } from "@/components/assessment/ParentConsentNotice";
 import { SubjectsStep } from "@/components/assessment/SubjectsStep";
 import { InterestsStep } from "@/components/assessment/InterestsStep";
 import RiasecStep, { type RiasecScores } from "@/components/RiasecStep";
@@ -107,6 +108,29 @@ export default function Assessment() {
     completedReportId,
     isFreeCapReached,
   } = useAssessmentAvailability();
+
+  // WHICH POPULATION OWNS THE LOCKED FIELDS — a second, narrower question
+  // than isOrgStudent, which drives isPremiumFlow and the terminal screens
+  // above and stays exactly as it is for a parent-registers account (not an
+  // org student, correctly). This is passed to DemographicsStep/CountryStep
+  // only, for locking the six demographic fields and choosing the right
+  // consent notice (docs/parent-registers-scoping.md item 3).
+  //
+  // FOUR-STATE, mirroring isOrgStudent: undefined while auth is unresolved.
+  // isOrgStudent === false leaves open whether this is a parent-registers
+  // account or a genuinely free one; user.childProfileCreatedAt (present
+  // only once /api/auth/user has resolved — the same moment isOrgStudent
+  // does, since both come from the same useAuth() call) is what decides
+  // between them.
+  const subjectSource: 'org' | 'parentRegistered' | 'free' | undefined =
+    isOrgStudent === undefined
+      ? undefined
+      : isOrgStudent
+        ? 'org'
+        : (user as any)?.childProfileCreatedAt
+          ? 'parentRegistered'
+          : 'free';
+
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState(1);
   const [isGuest, setIsGuest] = useState(false);
@@ -319,8 +343,8 @@ export default function Assessment() {
     interests: [],
     riasecResponses: {},
     cvqResponses: {},
-    countryId: (user as any)?.organizationCountryId || "",
-    curriculum: (user as any)?.organizationCurriculum || "",
+    countryId: (user as any)?.organizationCountryId || (user as any)?.childCountryId || "",
+    curriculum: (user as any)?.organizationCurriculum || (user as any)?.childCurriculum || "",
     careerAspirations: [],
     strengths: [],
   }));
@@ -614,7 +638,8 @@ export default function Assessment() {
     }
   }, [user, currentStep, assessmentData.name]);
 
-  // Country/curriculum auto-populate: pre-fill from the org when it defines them.
+  // Country/curriculum auto-populate: pre-fill from the org, or a
+  // parent-registers account's child profile, when either defines them.
   // The lazy initialiser above already covers the case where `user` is resolved
   // at mount; this is the catch-up path for when it resolves later.
   // Only populates when not already set, so it respects a student's own override
@@ -622,8 +647,8 @@ export default function Assessment() {
   useEffect(() => {
     if (!user) return;
 
-    const predefinedCountryId = (user as any)?.organizationCountryId;
-    const predefinedCurriculum = (user as any)?.organizationCurriculum;
+    const predefinedCountryId = (user as any)?.organizationCountryId || (user as any)?.childCountryId;
+    const predefinedCurriculum = (user as any)?.organizationCurriculum || (user as any)?.childCurriculum;
 
     setAssessmentData((prev) => {
       const next = { ...prev };
@@ -1380,7 +1405,7 @@ export default function Assessment() {
             data={assessmentData}
             onUpdate={updateAssessmentData}
             onNext={handleNext}
-            isOrgStudent={isOrgStudent}
+            subjectSource={subjectSource}
             organizationName={(user as any)?.organizationName}
             predefinedGrade={(user as any)?.predefinedGrade}
             predefinedName={(user as any)?.predefinedName}
@@ -1394,15 +1419,21 @@ export default function Assessment() {
             chosen inside, and the quiz filters its question pool on
             {countryId, grade, curriculum}. (Country was step 3 until this swap,
             and premium-only before Phase 3.) */}
-        {/* THE SKIPPED-PAST STUDENT STILL GETS TOLD. A school student whose
-            details are all on file never sees DemographicsStep, so the notice
-            that normally lives there would never reach them. Rendered only when
-            the skip actually fired — a student who DID see step 1 has already
-            been shown it, and repeating it on the next screen is noise, not
+        {/* THE SKIPPED-PAST STUDENT STILL GETS TOLD. A school student, or a
+            parent-registers account's child, whose details are all on file
+            never sees DemographicsStep, so the notice that normally lives
+            there would never reach them. Rendered only when the skip
+            actually fired — a student who DID see step 1 has already been
+            shown it, and repeating it on the next screen is noise, not
             transparency. */}
-        {currentStep === 2 && isOrgStudent === true && demographicsSkipped && (
+        {currentStep === 2 && subjectSource === 'org' && demographicsSkipped && (
           <div className="mb-6">
             <SchoolConsentNotice schoolName={(user as any)?.organizationName} />
+          </div>
+        )}
+        {currentStep === 2 && subjectSource === 'parentRegistered' && demographicsSkipped && (
+          <div className="mb-6">
+            <ParentConsentNotice />
           </div>
         )}
 
@@ -1412,7 +1443,7 @@ export default function Assessment() {
             onUpdate={updateAssessmentData}
             onNext={handleNext}
             onBack={() => setCurrentStep(1)}
-            isOrgStudent={isOrgStudent}
+            subjectSource={subjectSource}
           />
         )}
         

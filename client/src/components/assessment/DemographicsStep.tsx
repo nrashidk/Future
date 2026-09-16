@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { User, Cake, GraduationCap, Users2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { SchoolConsentNotice } from "./SchoolConsentNotice";
+import { ParentConsentNotice } from "./ParentConsentNotice";
 
 interface DemographicsStepProps {
   data: any;
@@ -19,55 +20,66 @@ interface DemographicsStepProps {
   predefinedAge?: number | null;
   predefinedGender?: string | null;
   /**
-   * True when the viewer holds an organization_members row with role 'student'
-   * — the same test PATCH /api/assessments/:id uses to decide which fields the
-   * school owns (14459a4). Served by /api/auth/user.
-   *
-   * THREE-STATE, and the caller must keep it that way: true, false, or undefined
-   * for "not known yet". Do not coerce it on the way in — `!!value` turns an
-   * unresolved auth query into "not a school student" and unlocks five fields
-   * the server is about to overwrite.
+   * Which population owns these fields — served by /api/auth/user, derived
+   * from an organization_members row with role 'student' ('org') or a
+   * child_profiles row ('parentRegistered'). 'free' means neither, and the
+   * caller must resolve "auth still loading" to `undefined`, never to 'free':
+   * that would unlock five fields the server is about to overwrite the
+   * moment it turns out this account is one of the other two. Same rule
+   * 7aabc13 established for the boolean this replaced — THREE-STATE, now
+   * FOUR-STATE ('org' | 'parentRegistered' | 'free' | undefined), and the
+   * caller must keep it that way.
    */
-  isOrgStudent?: boolean;
+  subjectSource?: 'org' | 'parentRegistered' | 'free';
   /** The school's name, for the consent notice. Undefined until auth resolves. */
   organizationName?: string | null;
 }
 
-export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, predefinedName, predefinedAge, predefinedGender, isOrgStudent: isOrgStudentProp, organizationName }: DemographicsStepProps) {
+export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, predefinedName, predefinedAge, predefinedGender, subjectSource, organizationName }: DemographicsStepProps) {
   const { t } = useTranslation('assessment');
 
   const [isMobile, setIsMobile] = useState(false);
-  
-  // The three fields the school states on the student's behalf, and which the
-  // server overwrites with the school's values on every save
-  // (assessment.routes.ts, SCHOOL_OWNED_ASSESSMENT_FIELDS). Shown rather than
-  // hidden: this screen is the only place anyone sees what the school recorded,
-  // so it is the only chance to notice a wrong name, grade or gender.
+
+  // The fields a school or a parent-registers account's child profile states
+  // on the account's behalf, and which the server overwrites on every save
+  // (assessment.routes.ts, SCHOOL_OWNED_ASSESSMENT_FIELDS,
+  // resolveSchoolOwnedFields / resolveChildOwnedFields). Shown rather than
+  // hidden: this screen is the only place anyone sees what was recorded, so
+  // it is the only chance to notice a wrong name, grade or gender.
   //
-  // UNKNOWN LOCKS. `!== false` rather than a truthiness test: only a positive
-  // "not a school student" unlocks. undefined means the caller does not yet know
-  // — the auth request is in flight — and unlocking on that would offer an edit
-  // the server is about to discard. Same rule as 7aabc13. The old
-  // `?? !!predefinedGrade` fallback is gone with it: inferring membership from
-  // whether a value happens to be present is what this prop replaced.
-  const schoolOwnsDemographics = isOrgStudentProp !== false;
+  // UNKNOWN LOCKS. `!== 'free'` rather than a positive-match test: only a
+  // confirmed 'free' unlocks. undefined means the caller does not yet know —
+  // the auth request is in flight — and unlocking on that would offer an
+  // edit the server is about to discard, for either locked population. Same
+  // rule as 7aabc13, generalized from two states to three.
+  const fieldsAreLocked = subjectSource !== 'free';
 
   // Consent goes the OTHER way on the same unknown, and it still must.
   //
-  // The org branch no longer collects anything — the school consented, so the
-  // student is shown a statement rather than a control (SchoolConsentNotice).
-  // But the FREE branch still has a real self-tick, and `undefined` here means
-  // the auth request is in flight. Resolving unknown to "school student" would
-  // swap that student's live consent checkbox for a notice claiming a school
-  // consented for them, and drop consentGiven out of canProceed while it did so.
-  // Locking a field we may not own costs a moment of a disabled input; telling
-  // someone their school agreed on their behalf when no school did is not
+  // Both locked populations show a statement instead of a control (their
+  // consent already happened elsewhere — an org's attestation, a parent's at
+  // registration) — the student is not being asked. The FREE branch still
+  // has a real self-tick, and `undefined` here means the auth request is in
+  // flight. Resolving unknown to a locked population would swap a live
+  // consent checkbox for a notice claiming someone else consented, and drop
+  // consentGiven out of canProceed while it did so. Locking a field this
+  // account may not own costs a moment of a disabled input; telling someone
+  // a school or parent agreed on their behalf when neither did is not
   // recoverable by re-rendering.
   //
-  // So: `=== true`, never `!== false`, and never schoolOwnsDemographics — that
-  // one unlocks on unknown, which is right for locking fields and wrong here.
-  const isOrgStudent = isOrgStudentProp === true;
-  
+  // So: `=== 'org'` / `=== 'parentRegistered'`, never `!== 'free'` — that one
+  // unlocks on unknown, which is right for locking fields and wrong here.
+  const isOrgStudent = subjectSource === 'org';
+  const isParentRegistered = subjectSource === 'parentRegistered';
+
+  // ONE LABEL, PICKED BY POPULATION. Defaults to the school wording for the
+  // brief unknown window too (subjectSource undefined, fieldsAreLocked true,
+  // isParentRegistered false) — matching this screen's existing behaviour
+  // before a third population existed, rather than inventing a fourth label
+  // state for a window that resolves before a reader would notice it.
+  const lockedByLabel = isParentRegistered ? t('demographics.setByParent') : t('demographics.setBySchool');
+  const lockedNoteKey = isParentRegistered ? 'demographics.childOwnedNote' : 'demographics.schoolOwnedNote';
+
   // Pre-fill all fields if predefined and not already set (only depend on predefined values to avoid redundant re-runs)
   useEffect(() => {
     if (predefinedGrade && !data.grade) {
@@ -107,18 +119,20 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
    * Free: unchanged — the four demographics plus the student's own tick, which
    * is a real choice they make.
    *
-   * School: the four demographics only. There is no tick to wait for, because
-   * the school consented and the student is not being asked. All four are
-   * pre-filled from the organization and locked, so Continue is enabled on
-   * arrival — which is what it already did, except that it previously depended
-   * on an auto-ticked checkbox to get there.
+   * Locked (org or parentRegistered): the four demographics only. There is no
+   * tick to wait for, because consent already happened elsewhere — the
+   * school's attestation, or the parent's own at registration — and the
+   * student is not being asked. All four are pre-filled and locked, so
+   * Continue is enabled on arrival — which is what it already did for a
+   * school student, except that it previously depended on an auto-ticked
+   * checkbox to get there.
    *
-   * Nothing strands a school student here: a student whose school has no date of
-   * birth on record is stopped earlier, at the assessment entry point with an
-   * explanation (Assessment.tsx), rather than at a locked empty field with a
-   * dead Next button.
+   * Nothing strands either locked population here: a student whose account
+   * has no date of birth on record is stopped earlier, at the assessment
+   * entry point with an explanation (Assessment.tsx), rather than at a
+   * locked empty field with a dead Next button.
    */
-  const canProceed = isOrgStudent
+  const canProceed = fieldsAreLocked
     ? Boolean(data.name && data.age && data.grade && data.gender)
     : Boolean(data.name && data.age && data.grade && data.gender && data.consentGiven);
 
@@ -134,13 +148,13 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
       {/* Locked fields are shown, not hidden, so this line has to say why they
           cannot be edited and who can change them. A disabled input with no
           explanation reads as a broken form, and this screen is the only place
-          a student ever sees what their school recorded about them. */}
-      {schoolOwnsDemographics && (
+          a student ever sees what their school or parent recorded about them. */}
+      {fieldsAreLocked && (
         <p
           className="text-sm text-muted-foreground text-center max-w-2xl mx-auto -mt-4"
           data-testid="note-demographics-school-owned"
         >
-          {t('demographics.schoolOwnedNote')}
+          {t(lockedNoteKey)}
         </p>
       )}
 
@@ -152,7 +166,7 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
             </div>
             <div className="flex-1">
               <Label htmlFor="name" className="text-lg font-semibold">
-                {t('demographics.name')} {schoolOwnsDemographics && <span className="text-xs text-muted-foreground font-normal ms-2">({t('demographics.setBySchool')})</span>}
+                {t('demographics.name')} {fieldsAreLocked && <span className="text-xs text-muted-foreground font-normal ms-2">({lockedByLabel})</span>}
               </Label>
             </div>
           </div>
@@ -162,7 +176,7 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
             placeholder={t('demographics.namePlaceholder')}
             value={data.name}
             onChange={(e) => onUpdate("name", e.target.value)}
-            disabled={schoolOwnsDemographics}
+            disabled={fieldsAreLocked}
             className="bg-background/50 border-foreground/20"
             data-testid="input-name"
           />
@@ -182,7 +196,7 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
                     source for it. There is one now: the school records a date of
                     birth and the server derives this age from it, so the field
                     IS the school's and saying so is the honest label. */}
-                {t('demographics.age')} {schoolOwnsDemographics && <span className="text-xs text-muted-foreground font-normal ms-2">({t('demographics.setBySchool')})</span>}
+                {t('demographics.age')} {fieldsAreLocked && <span className="text-xs text-muted-foreground font-normal ms-2">({lockedByLabel})</span>}
               </Label>
             </div>
           </div>
@@ -196,14 +210,14 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
               a school value exists and the student is held to it, exactly as
               they are for name, grade and gender.
 
-              GATED ON schoolOwnsDemographics, NOT ON !!predefinedAge. The old
+              GATED ON fieldsAreLocked, NOT ON !!predefinedAge. The old
               block closed with a warning aimed squarely at this change: the
               field had once been disabled on `!!predefinedAge`, which "would
               have silently locked a field the server still lets the student
               edit the moment an age appeared". Keying on whether a value
-              happens to have arrived conflates "this student's school owns this
+              happens to have arrived conflates "this account owns this
               field" with "a value turned up", the same category error as
-              deriving isOrgStudent from `!!predefinedGrade`. The gate has to be
+              deriving subjectSource from `!!predefinedGrade`. The gate has to be
               about WHO THE STUDENT IS.
 
               A school student never sees this empty. One whose school has no
@@ -224,7 +238,7 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
             placeholder={t('demographics.agePlaceholder')}
             value={data.age || ""}
             onChange={(e) => onUpdate("age", parseInt(e.target.value) || null)}
-            disabled={schoolOwnsDemographics}
+            disabled={fieldsAreLocked}
             className="bg-background/50 border-foreground/20"
             data-testid="input-age"
           />
@@ -237,7 +251,7 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
             </div>
             <div className="flex-1">
               <Label htmlFor="grade" className="text-lg font-semibold">
-                {t('demographics.grade')} {schoolOwnsDemographics && <span className="text-xs text-muted-foreground font-normal ms-2">({t('demographics.setBySchool')})</span>}
+                {t('demographics.grade')} {fieldsAreLocked && <span className="text-xs text-muted-foreground font-normal ms-2">({lockedByLabel})</span>}
               </Label>
             </div>
           </div>
@@ -246,7 +260,7 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
               id="grade"
               value={data.grade || ""}
               onChange={(e) => onUpdate("grade", e.target.value)}
-              disabled={schoolOwnsDemographics}
+              disabled={fieldsAreLocked}
               className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background/50 border-foreground/20 px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               data-testid="select-grade"
             >
@@ -259,8 +273,8 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
               <option value="graduated">{t('demographics.graduated')}</option>
             </select>
           ) : (
-            <Select value={data.grade} onValueChange={(value) => onUpdate("grade", value)} disabled={schoolOwnsDemographics}>
-              <SelectTrigger className="bg-background/50 border-foreground/20" disabled={schoolOwnsDemographics} data-testid="select-grade">
+            <Select value={data.grade} onValueChange={(value) => onUpdate("grade", value)} disabled={fieldsAreLocked}>
+              <SelectTrigger className="bg-background/50 border-foreground/20" disabled={fieldsAreLocked} data-testid="select-grade">
                 <SelectValue placeholder={t('demographics.selectGrade')} />
               </SelectTrigger>
               <SelectContent position="popper" className="z-[9999]">
@@ -282,7 +296,7 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
             </div>
             <div className="flex-1">
               <Label htmlFor="gender" className="text-lg font-semibold">
-                {t('demographics.gender')} {schoolOwnsDemographics && <span className="text-xs text-muted-foreground font-normal ms-2">({t('demographics.setBySchool')})</span>}
+                {t('demographics.gender')} {fieldsAreLocked && <span className="text-xs text-muted-foreground font-normal ms-2">({lockedByLabel})</span>}
               </Label>
             </div>
           </div>
@@ -291,7 +305,7 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
               id="gender"
               value={data.gender || ""}
               onChange={(e) => onUpdate("gender", e.target.value)}
-              disabled={schoolOwnsDemographics}
+              disabled={fieldsAreLocked}
               className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-background/50 border-foreground/20 px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               data-testid="select-gender"
             >
@@ -300,8 +314,8 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
               <option value="female">{t('demographics.female')}</option>
             </select>
           ) : (
-            <Select value={data.gender} onValueChange={(value) => onUpdate("gender", value)} disabled={schoolOwnsDemographics}>
-              <SelectTrigger className="bg-background/50 border-foreground/20" disabled={schoolOwnsDemographics} data-testid="select-gender">
+            <Select value={data.gender} onValueChange={(value) => onUpdate("gender", value)} disabled={fieldsAreLocked}>
+              <SelectTrigger className="bg-background/50 border-foreground/20" disabled={fieldsAreLocked} data-testid="select-gender">
                 <SelectValue placeholder={t('demographics.selectGender')} />
               </SelectTrigger>
               <SelectContent position="popper" className="z-[9999]">
@@ -313,13 +327,22 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
         </StickyNote>
       </div>
 
-      {/* CONSENT SECTION — two different things, not two labels for one thing.
-          School: a statement. The school consented; the student is told, and
-          there is no control because they are not being asked.
-          Free: a real self-tick, unchanged. */}
+      {/* CONSENT SECTION — three different things, not three labels for one
+          thing. Org: a statement naming the school. ParentRegistered: a
+          statement naming no one in particular — a parent-registers account
+          has exactly one guardian, so there is nothing to name the way a
+          school name disambiguates. Free: a real self-tick, unchanged.
+          The first two are both "notified, not asked", but ParentConsentNotice
+          is a separate component, not SchoolConsentNotice reused: its wording
+          would be false for this population (docs/parent-registers-scoping.md
+          item 4). */}
       {isOrgStudent ? (
         <div className="max-w-3xl mx-auto mt-8">
           <SchoolConsentNotice schoolName={organizationName} />
+        </div>
+      ) : isParentRegistered ? (
+        <div className="max-w-3xl mx-auto mt-8">
+          <ParentConsentNotice />
         </div>
       ) : (
         <div className="max-w-3xl mx-auto mt-8">

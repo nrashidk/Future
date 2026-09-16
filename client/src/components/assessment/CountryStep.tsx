@@ -14,28 +14,39 @@ interface CountryStepProps {
   onNext: () => void;
   onBack?: () => void;
   /**
-   * True when the viewer holds an organization_members row with role 'student'
-   * — the same test PATCH /api/assessments/:id uses to decide which fields the
-   * school owns (14459a4). Country and curriculum are two of the five: the
-   * school picks them once for everyone it enrols, and the server overwrites
-   * whatever the student sends.
+   * Which population owns country/curriculum — the same test
+   * PATCH /api/assessments/:id uses (SCHOOL_OWNED_ASSESSMENT_FIELDS,
+   * resolveSchoolOwnedFields / resolveChildOwnedFields): an organization_members
+   * row with role 'student' ('org'), or a parent-registers account's
+   * child_profiles row ('parentRegistered'). Either way the account picks
+   * these once — the school for everyone it enrols, the parent at
+   * registration — and the server overwrites whatever this step sends.
    *
-   * THREE-STATE, and the caller must keep it that way: true, false, or undefined
-   * for "not known yet". Do not coerce it on the way in — `!!value` turns an
-   * unresolved auth query into "not a school student" and offers a choice the
-   * server is about to discard.
+   * FOUR-STATE ('org' | 'parentRegistered' | 'free' | undefined), and the
+   * caller must keep it that way. undefined means "not known yet" — the auth
+   * request is in flight — and must not be coerced to 'free' on the way in:
+   * that would offer a choice the server is about to discard for either
+   * locked population. Same rule as 7aabc13, generalized from two states to
+   * three.
    */
-  isOrgStudent?: boolean;
+  subjectSource?: 'org' | 'parentRegistered' | 'free';
 }
 
-export function CountryStep({ data, onUpdate, onNext, onBack, isOrgStudent: isOrgStudentProp }: CountryStepProps) {
-  // UNKNOWN LOCKS. `!== false` rather than a truthiness test: only a positive
-  // "not a school student" shows the editable controls. undefined means the
-  // caller does not yet know — the auth request is in flight — and offering the
-  // pickers on that would let a student choose a country the server is about to
-  // overwrite. Same rule as 7aabc13.
-  const isOrgStudent = isOrgStudentProp !== false;
+export function CountryStep({ data, onUpdate, onNext, onBack, subjectSource }: CountryStepProps) {
+  // UNKNOWN LOCKS. `!== 'free'` rather than a positive-match test: only a
+  // confirmed 'free' shows the editable controls. undefined means the caller
+  // does not yet know — the auth request is in flight — and offering the
+  // pickers on that would let a student choose a country the server is about
+  // to overwrite, for either locked population. Same rule as 7aabc13.
+  const fieldsAreLocked = subjectSource !== 'free';
+  const isParentRegistered = subjectSource === 'parentRegistered';
   const { t } = useTranslation('assessment');
+  // ONE TITLE/NOTE PAIR, PICKED BY POPULATION — same default-to-school
+  // reasoning as DemographicsStep's lockedByLabel for the brief unknown
+  // window (subjectSource undefined, fieldsAreLocked true, isParentRegistered
+  // false).
+  const lockedTitle = isParentRegistered ? t('country.setByParentTitle') : t('country.setBySchoolTitle');
+  const lockedNoteKey = isParentRegistered ? 'country.childOwnedNote' : 'country.schoolOwnedNote';
   const { language } = useLanguage();
   const isArabic = language === 'ar';
   const [selectedCountryId, setSelectedCountryId] = useState(data.countryId || "");
@@ -105,14 +116,17 @@ export function CountryStep({ data, onUpdate, onNext, onBack, isOrgStudent: isOr
 
   // Can proceed if country is selected AND (either no curricula available OR curriculum is selected)
   //
-  // For an org student the values come from the school, not from these controls,
-  // so availableCurricula must not gate them: that list is fetched from the
-  // country and can legitimately fail to contain the school's curriculum (see
-  // the rename-cascade note below). Gating on it would strand the student on a
-  // step with nothing to interact with. The school-side values are guaranteed
-  // present by the enrolment guard (549cd43), and the server 400s if they are
-  // not, so there is nothing left for this step to validate.
-  const canProceed = isOrgStudent
+  // For a locked account (org or parentRegistered) the values come from the
+  // school or the child profile, not from these controls, so availableCurricula
+  // must not gate them: that list is fetched from the country and can
+  // legitimately fail to contain the locked curriculum (see the rename-cascade
+  // note below, for the school case). Gating on it would strand the student on
+  // a step with nothing to interact with. The school-side values are
+  // guaranteed present by the enrolment guard (549cd43); the parent-registers
+  // equivalent is required at registration (POST /api/register/parent). Either
+  // way the server 400s if they are somehow unavailable, so there is nothing
+  // left for this step to validate.
+  const canProceed = fieldsAreLocked
     ? !!selectedCountryId && !!selectedCurriculum
     : !!selectedCountryId && (availableCurricula.length === 0 || !!selectedCurriculum);
 
@@ -179,13 +193,13 @@ export function CountryStep({ data, onUpdate, onNext, onBack, isOrgStudent: isOr
           (FOLLOWUP.md, aa1d13c), leaving schools holding a string the list no
           longer contains. A disabled Select would then show an empty box for a
           value the server is about to write. Text shows what is actually stored. */}
-      {isOrgStudent ? (
+      {fieldsAreLocked ? (
         <StickyNote color="blue" rotation="1" className="max-w-2xl mx-auto">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
               <Globe2 className="w-6 h-6 text-primary" />
             </div>
-            <h3 className="text-xl font-semibold">{t('country.setBySchoolTitle')}</h3>
+            <h3 className="text-xl font-semibold">{lockedTitle}</h3>
           </div>
 
           <div className="space-y-4">
@@ -209,7 +223,7 @@ export function CountryStep({ data, onUpdate, onNext, onBack, isOrgStudent: isOr
           </div>
 
           <p className="text-sm text-muted-foreground mt-4" data-testid="note-country-school-owned">
-            {t('country.schoolOwnedNote')}
+            {t(lockedNoteKey)}
           </p>
         </StickyNote>
       ) : (
@@ -254,7 +268,7 @@ export function CountryStep({ data, onUpdate, onNext, onBack, isOrgStudent: isOr
       </StickyNote>
       )}
 
-      {!isOrgStudent && selectedCountryId && availableCurricula.length > 0 && (
+      {!fieldsAreLocked && selectedCountryId && availableCurricula.length > 0 && (
         <StickyNote color="green" rotation="-1" className="max-w-2xl mx-auto animate-in fade-in duration-300">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">

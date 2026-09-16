@@ -76,6 +76,7 @@
     "name": "Your Name",
     "namePlaceholder": "Enter your full name",
     "setBySchool": "Set by your school",
+    "setByParent": "Set by your parent or guardian",
     "age": "Age",
     "agePlaceholder": "Your age",
     "grade": "Current Grade",
@@ -99,8 +100,10 @@
     "disclaimer": "Disclaimer",
     "under18Note": "Note: Users under 18 require parental or institutional consent.",
     "schoolOwnedNote": "Your school filled in your details. Please check they're correct — if anything's wrong, ask your school administrator.",
+    "childOwnedNote": "Your parent or guardian entered your details when they registered. Please check they're correct — if anything's wrong, ask them to update it.",
     "consentOrgNotice": "{{school}} set up this assessment for you and agreed to the terms on your behalf. You can read them here:",
-    "consentOrgNoticeGeneric": "Your school set up this assessment for you and agreed to the terms on your behalf. You can read them here:"
+    "consentOrgNoticeGeneric": "Your school set up this assessment for you and agreed to the terms on your behalf. You can read them here:",
+    "consentParentNotice": "A parent or legal guardian set up this assessment for you and agreed to the terms on your behalf. You can read them here:"
   },
   "subjects": {
     "title": "What Subjects Do You Love?",
@@ -193,7 +196,9 @@
     "categoryClimate": "Climate & Environment",
     "categoryEconomic": "Economy",
     "setBySchoolTitle": "Set by your school",
+    "setByParentTitle": "Set by your parent or guardian",
     "schoolOwnedNote": "Your school chose the country and curriculum for everyone it enrols, so these are not yours to change. Ask your school administrator if either looks wrong.",
+    "childOwnedNote": "Your parent or guardian chose your country and curriculum when they registered, so these are not yours to change. Ask them if either looks wrong.",
     "notSetBySchool": "Not set"
   },
   "aspirations": {

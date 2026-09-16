@@ -124,11 +124,36 @@ export function registerAuthRoutes(app: Express) {
       } else if (!isSuperadmin) {
         // A parent-registers account's child. Mirrors the org branch's own
         // exemption for superadmins — never enrolled, never a guardian either
-        // through this flow. See AuthUserChildFields (shared/userPublic.ts)
-        // for the one reader this field exists for today.
+        // through this flow.
+        //
+        // NOT user.isPremium = true, unlike the org branch. A school's licence
+        // already paid for its students; a parent-registers account's child
+        // profile only locks WHOSE data an assessment is — premium still
+        // comes from Stripe via /api/checkout/complete, same as it always
+        // has, and a registered-but-not-yet-paid account is a free account
+        // with a child profile until that happens (assessment.routes.ts).
         const childProfile = await storage.getChildProfileByGuardianUserId(userId);
         if (childProfile) {
           (user as any).childProfileCreatedAt = childProfile.createdAt;
+
+          // Pre-filled child info, the same shape as the org branch's
+          // predefinedX fields above — DemographicsStep/Assessment.tsx read
+          // these generically and do not care which population supplied
+          // them.
+          (user as any).predefinedName = childProfile.name;
+          (user as any).predefinedGrade = childProfile.grade;
+          (user as any).predefinedGender = childProfile.gender;
+
+          // DERIVED, never the date of birth itself — same rule as the org
+          // branch and for the same reason: this response reaches the
+          // child's own browser.
+          (user as any).predefinedAge = ageOnDate(childProfile.dateOfBirth, toDateOnlyString(new Date()));
+
+          // The parent-registers equivalent of organizationCountryId/
+          // organizationCurriculum — see AuthUserChildFields
+          // (shared/userPublic.ts).
+          (user as any).childCountryId = childProfile.countryId || null;
+          (user as any).childCurriculum = childProfile.curriculum || null;
         }
       }
 

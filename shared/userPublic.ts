@@ -92,9 +92,16 @@ export interface AuthUserOrgFields {
  * child profile's own createdAt, not the consent record's — see
  * assessmentIsChildOwned (shared/childOwnership.ts) for why the two are not
  * interchangeable.
+ *
+ * childCountryId/childCurriculum are the parent-registers equivalent of
+ * organizationCountryId/organizationCurriculum: Assessment.tsx pre-fills
+ * CountryStep from whichever pair is present, so a locked account's read-only
+ * display is never blank.
  */
 export interface AuthUserChildFields {
   childProfileCreatedAt?: string | null;
+  childCountryId?: string | null;
+  childCurriculum?: string | null;
 }
 
 /** The user shape a client actually receives from GET /api/auth/user. */
