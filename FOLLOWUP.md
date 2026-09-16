@@ -6433,3 +6433,42 @@ Not built now. Left as a named gap: a parent who erases their account today is n
 consent record naming them (and their child, denormalised) survives — the same information a
 school gets today via `consent_attestation`, withheld from this population only because the
 surrounding mechanism assumed only schools would ever need it.
+
+
+## FREE TIER RETIRED — DECIDED AND DONE 2026-09-16
+
+### The decision
+There are no free accounts, in code or in data. The free tier is now the guest assessment: full
+assessment, real report, 72-hour window, nothing durable (docs/free-tier-retirement-recon.md).
+Anyone who wants a durable account registers as a parent and pays. Shipped across five commits on
+`main` — `29bd71e` (both guest CTAs repointed to `/register/parent`), `9b15903` + `00d709b` (OAuth
+sign-*up* refused server-side, sign-*in* untouched, `server/auth.ts`), `a9ccc74` (Login.tsx's
+stale `/register` link removed), `5e58950` (`POST /api/register` refuses with 410
+`FREE_TIER_RETIRED`; `Register.tsx` is an interstitial, not a form). Prod data: the six accounts
+matching the free-tier definition (no org membership, no child profile, `is_premium = false`) were
+deleted, five test registrations among them.
+
+### The one row that stays, and why
+One account still matches the free-tier shape: the superadmin account (email literally
+`superadmin`). It stays. Not an oversight — it is referenced by five rows recording real
+administrative acts, not free-tier activity: two `organization_events.performed_by` rows (an
+admin added to a school) and three `scoring_config_change_log.changed_by` rows (scoring weights
+changed). Deleting the account would either cascade-destroy that provenance or orphan the
+`changed_by`/`performed_by` columns (both `NOT NULL`, no `ON DELETE` clause — the delete would
+simply fail, per the guarded transaction used for the other six). The `scoring_config_change_log`
+rows in particular are exactly what the scoring estate card (`SuperadminDashboard.tsx`,
+`scoring.estateTitle`/`scoring.estateDesc`, `GET /api/superadmin/scoring-estate`) exists to make
+traceable — deleting the actor of a scoring-weight change to tidy up an account-shape count would
+be destroying the audit trail the estate card is *for*.
+
+### The definition catches operator accounts — by coincidence, not by design
+"No org membership, no child profile, `is_premium = false`" matched the superadmin account only
+because superadmins are exempted from the organization-membership lookup (`auth.routes.ts:46-48`,
+"never enrolled") and never had a reason to be premium — not because anything about the query
+identifies them as operators. `account_type` does **not** reliably separate the two populations:
+this superadmin's own row does not have `account_type = 'superadmin'` set (its `role` and email
+match against `SUPERADMIN_EMAILS` are what mark it, computed at read time —
+`auth.routes.ts:19-26` — not stored on the column), so `... AND account_type NOT IN
+('superadmin')` would have silently kept this exact row in a "free accounts" count. **Any future
+query reusing this shape must exclude operator accounts by an explicit id list or by the same
+role/email check `auth.routes.ts` already uses, never by `account_type`.**
