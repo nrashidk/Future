@@ -31,6 +31,7 @@ import {
   organizations, organizationConsents, organizationEvents, passwordResetTokens,
   files, contributionSubmissions, contributionRewards, scoringConfigChangeLog,
   systemAnnouncements, systemConfig, organizationDeletions,
+  childProfiles, childGuardianConsents,
 } from "@shared/schema";
 
 // Only the predicate builders are replaced, so the fake can read them.
@@ -79,6 +80,7 @@ const TABLES = [
   organizations, organizationConsents, organizationEvents, passwordResetTokens,
   files, contributionSubmissions, contributionRewards, scoringConfigChangeLog,
   systemAnnouncements, systemConfig, organizationDeletions,
+  childProfiles, childGuardianConsents,
 ];
 
 const COLS = new Map<any, { table: any; key: string }>();
@@ -256,6 +258,16 @@ describe("SUBJECT_ACCESS_REGISTRY", () => {
       adminMembersRemoved: 1, eventsRemoved: 2, filesRemoved: 0, questionsDetached: 0,
       createdAt: new Date("2026-05-01"),
     });
+    // A school student cannot also be a parent-registers account's guardian
+    // in practice, but this test only needs one row per section to exist
+    // somewhere for u-student, not a realistic combined profile.
+    store.add(childProfiles, { id: "cp-own", guardianUserId: "u-student", name: "Khaled" });
+    store.add(childGuardianConsents, {
+      id: "cc-own", performedBy: "u-student", performedByName: "Layla Hassan", performedByEmail: "layla@example.com",
+      consentsToProcessing: true, attestsGuardianRelationship: true,
+      policyVersion: "pv-1", policyLastUpdated: "2026", policyLocale: "en",
+      attestationTextHash: "h", createdAt: new Date("2026-05-02"),
+    });
     const out: any = await collectSubjectAccess(makeDb(store), "u-student");
 
     const sectionOf: Record<string, (o: any) => any[]> = {
@@ -266,6 +278,8 @@ describe("SUBJECT_ACCESS_REGISTRY", () => {
       passwordResetRequests: (o) => o.passwordResetRequests,
       consentAttestationsYouMade: (o) => o.consentAttestationsYouMade,
       organizationDeletionsYouPerformed: (o) => o.organizationDeletionsYouPerformed,
+      childProfile: (o) => (o.childProfile ? [o.childProfile] : []),
+      consentYouGaveForYourChild: (o) => o.consentYouGaveForYourChild,
     };
     for (const entry of SUBJECT_ACCESS_REGISTRY) {
       if (entry.kind !== "subject") continue;

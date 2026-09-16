@@ -36,6 +36,7 @@ import {
   cvqResults, organizationMembers, wefCompetencyResults,
   organizations, organizationEvents, files, contributionSubmissions,
   contributionRewards, scoringConfigChangeLog, systemAnnouncements, systemConfig,
+  childProfiles,
 } from "@shared/schema";
 import { ERASURE_BLOCK_CODES } from "@shared/dataRights";
 
@@ -101,7 +102,7 @@ const TABLES = [
   users, assessments, recommendations, assessmentQuizzes, quizResponses,
   cvqResults, organizationMembers, wefCompetencyResults, organizations,
   organizationEvents, files, contributionSubmissions, contributionRewards,
-  scoringConfigChangeLog, systemAnnouncements, systemConfig,
+  scoringConfigChangeLog, systemAnnouncements, systemConfig, childProfiles,
 ];
 
 /** column object -> {table, key}, by reference, built from the real schema. */
@@ -123,6 +124,7 @@ const FKS: Array<{ child: any; childKey: string; parent: any; parentKey: string 
   { child: organizationMembers, childKey: "userId", parent: users, parentKey: "id" },
   { child: organizations, childKey: "adminUserId", parent: users, parentKey: "id" },
   { child: organizationEvents, childKey: "performedBy", parent: users, parentKey: "id" },
+  { child: childProfiles, childKey: "guardianUserId", parent: users, parentKey: "id" },
 ];
 
 type Row = Record<string, any>;
@@ -226,7 +228,7 @@ function seedPremiumStudent(s: Store) {
 
 const SUBJECT_TABLES = [
   users, assessments, recommendations, assessmentQuizzes, quizResponses,
-  cvqResults, wefCompetencyResults, organizationMembers,
+  cvqResults, wefCompetencyResults, organizationMembers, childProfiles,
 ];
 
 // -------------------------------------------------------------------- tests --
@@ -298,6 +300,18 @@ describe("eraseUserData", () => {
     store.add(assessments, { id: "a-solo", userId: "u-solo" });
     await eraseUserData(makeTx(store), "u-solo");
     expect(recomputed).toEqual([]);
+  });
+
+  // A parent-registers account's child profile has no ON DELETE CASCADE
+  // (server/migrations/027) — deleting the parent without this step would
+  // 23503 exactly like the wef_competency_results regression above.
+  it("erases a parent-registers account's child profile", async () => {
+    store.add(users, { id: "u-parent", accountType: "public", passwordHash: PASSWORD_HASH, email: null });
+    store.add(childProfiles, { id: "cp1", guardianUserId: "u-parent", name: "Khaled" });
+
+    await expect(eraseUserData(makeTx(store), "u-parent")).resolves.toBeUndefined();
+    expect(store.rows(childProfiles)).toHaveLength(0);
+    expect(store.rows(users)).toHaveLength(0);
   });
 
   it("does not touch another user's records", async () => {

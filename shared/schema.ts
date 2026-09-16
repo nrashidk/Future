@@ -2103,3 +2103,141 @@ export const llmNarrativeCache = pgTable("llm_narrative_cache", {
 ]);
 
 export type LlmNarrativeCache = typeof llmNarrativeCache.$inferSelect;
+
+// =============================================================================
+// CHILD PROFILE — the one child a parent-registers account holds
+// =============================================================================
+
+/**
+ * The self-pay route's individual buyer is now a parent registering FOR a
+ * child, not for themselves (docs/parent-registers-scoping.md). This is the
+ * child's identity, held once, independent of any single assessment row — the
+ * same reason organization_members.date_of_birth replaced a re-typed age
+ * (server/migrations/017_drop_student_age.sql): a name/DOB/grade typed fresh
+ * on every assessment drifts, a fact recorded once at registration does not.
+ *
+ * ONE ROW PER ACCOUNT, ENFORCED, NOT CONVENTIONAL. `guardianUserId` is
+ * `.unique()` — "a parent registers twice for two children" (the decision
+ * this table implements) is a schema-level invariant here, the same way
+ * `organizationMembers.userId` being `.unique()` is what proves "one school
+ * per student" rather than merely rendering that way.
+ *
+ * NO `ON DELETE CASCADE`. This codebase's established pattern for a user's
+ * dependent rows is explicit, ordered deletes inside the erasure transaction
+ * (server/services/accountErasure.ts, and — for the same problem one level
+ * removed — server/services/guestAssessmentExpiry.ts), not a database
+ * cascade: `organizationDeletion.ts` names exactly this trade-off and picks
+ * ordering over cascades. A bare FK here means `DELETE /api/users/me` must
+ * delete this row explicitly before deleting `users`, which
+ * accountErasure.ts now does — see the entry there.
+ *
+ * THE DATE OF BIRTH ITSELF NEVER REACHES THE CHILD'S OWN BROWSER. Same rule
+ * as `organizationMembers.dateOfBirth` (auth.routes.ts): age is derived fresh
+ * per assessment via `ageOnDate`, this column is not sent in that response.
+ *
+ * `countryId`/`curriculum` live here, not derived from an organization —
+ * there is no school to hold them for this population, so what
+ * `resolveSchoolOwnedFields` reads from `organizations` for a school student,
+ * the equivalent resolver for this population reads from this row instead.
+ */
+export const childProfiles = pgTable("child_profiles", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  guardianUserId: varchar("guardian_user_id").notNull().unique().references(() => users.id),
+
+  name: text("name").notNull(),
+  dateOfBirth: date("date_of_birth", { mode: "string" }).notNull(),
+  gender: text("gender").notNull(),
+  grade: text("grade").notNull(),
+  countryId: varchar("country_id").references(() => countries.id),
+  curriculum: text("curriculum"),
+
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+export const childProfilesRelations = relations(childProfiles, ({ one }) => ({
+  guardian: one(users, {
+    fields: [childProfiles.guardianUserId],
+    references: [users.id],
+  }),
+}));
+
+export type ChildProfile = typeof childProfiles.$inferSelect;
+export const insertChildProfileSchema = createInsertSchema(childProfiles).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertChildProfile = z.infer<typeof insertChildProfileSchema>;
+
+// =============================================================================
+// CHILD GUARDIAN CONSENT — the parent's own, first-person consent act
+// =============================================================================
+
+/**
+ * `organization_consents` exists because a SCHOOL attests, second-hand, that
+ * it holds guardian consent for a cohort it did not name. A parent registering
+ * their own child is the opposite shape on both axes that table was built
+ * around: exactly one named subject, never a cohort, and a FIRST-PERSON claim
+ * ("I am this child's guardian and I consent"), not an institution vouching
+ * for consent it says it separately obtained. One table cannot honestly serve
+ * both (docs/parent-registers-scoping.md §2) — this reuses the PATTERN, not
+ * the table.
+ *
+ * NO CHILD REFERENCE COLUMN. `organization_consents` needs `organizationId`
+ * because one school's attestation covers many students. This table never
+ * does: `child_profiles.guardian_user_id` is `.unique()`, so `performedBy`
+ * (the parent) already identifies the one account and the one subject it can
+ * ever hold. Adding a `childProfileId` column here would be a foreign key to
+ * a fact this table does not need to express.
+ *
+ * `attestsGuardianRelationship`, not `attestsGuardianConsent` — the org
+ * table's boolean names an institution's claim about consent it says it holds
+ * for someone else. This one is the parent's own claim about who they are to
+ * this child, paired with `consentsToProcessing` the same two-separable-claims
+ * way (never collapse them: an auditor asks which was asserted).
+ *
+ * `performedBy` IS ON DELETE SET NULL, with `performedByName`/`performedByEmail`
+ * denormalised — same reasoning and same accepted cost as
+ * `organizationConsents`: an attestation that dissolves when its author's
+ * account is erased is not a record, so this row deliberately outlives the
+ * parent's own erasure even though `child_profiles` does not (see the entry
+ * there). Recorded as a decision in FOLLOWUP.md, not left to be "discovered"
+ * as an inconsistency between the two tables.
+ */
+export const childGuardianConsents = pgTable("child_guardian_consents", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+
+  consentsToProcessing: boolean("consents_to_processing").notNull(),
+  attestsGuardianRelationship: boolean("attests_guardian_relationship").notNull(),
+
+  performedBy: varchar("performed_by").references(() => users.id, { onDelete: "set null" }),
+  performedByName: text("performed_by_name").notNull(),
+  performedByEmail: text("performed_by_email").notNull(),
+
+  policyVersion: text("policy_version").notNull(),
+  policyLastUpdated: text("policy_last_updated").notNull(),
+  policyLocale: text("policy_locale").notNull(),
+
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  attestationTextHash: text("attestation_text_hash").notNull(),
+
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("idx_child_guardian_consents_performed_by").on(table.performedBy),
+]);
+
+export const childGuardianConsentsRelations = relations(childGuardianConsents, ({ one }) => ({
+  performer: one(users, {
+    fields: [childGuardianConsents.performedBy],
+    references: [users.id],
+  }),
+}));
+
+export type ChildGuardianConsent = typeof childGuardianConsents.$inferSelect;
+export const insertChildGuardianConsentSchema = createInsertSchema(childGuardianConsents).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertChildGuardianConsent = z.infer<typeof insertChildGuardianConsentSchema>;

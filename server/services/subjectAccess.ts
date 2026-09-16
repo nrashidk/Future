@@ -26,7 +26,7 @@ import {
   users, assessments, recommendations, assessmentQuizzes, quizResponses,
   cvqResults, wefCompetencyResults, llmNarrativeCache, organizationMembers,
   organizations, organizationConsents, organizationEvents, passwordResetTokens,
-  organizationDeletions,
+  organizationDeletions, childProfiles, childGuardianConsents,
 } from "@shared/schema";
 import { eq, or, and, inArray, lte, desc } from "drizzle-orm";
 import { BLOCKING_AUDIT_SOURCES, collectBlockingAuditRecords } from "./accountErasure";
@@ -42,7 +42,9 @@ export type SubjectSection =
   | "schoolEnrolment"
   | "passwordResetRequests"
   | "consentAttestationsYouMade"
-  | "organizationDeletionsYouPerformed";
+  | "organizationDeletionsYouPerformed"
+  | "childProfile"
+  | "consentYouGaveForYourChild";
 
 /**
  * EVERY FOREIGN KEY THAT POINTS AT A USER, OR AT A ROW THAT IS ABOUT ONE.
@@ -84,6 +86,17 @@ export const SUBJECT_ACCESS_REGISTRY: Array<
   // and no one else's personal data in the row. NOT in BLOCKING_AUDIT_SOURCES:
   // an ON DELETE SET NULL reference cannot block erasure.
   { column: organizationDeletions.performedBy, kind: "subject", section: "organizationDeletionsYouPerformed" },
+  // A parent-registers account's one child (docs/parent-registers-scoping.md).
+  // "subject", not "actor": the child has no login of their own, so this row
+  // is about the account holder's own registration, not an act naming someone
+  // else's account. It is deleted, not kept, on erasure (accountErasure.ts) —
+  // unlike the consent row below.
+  { column: childProfiles.guardianUserId, kind: "subject", section: "childProfile" },
+  // The parent's own first-person attestation. Same classification and same
+  // reasoning as organizationConsents.performedBy above: it is the account
+  // holder's own act, and — decided in FOLLOWUP.md — it deliberately outlives
+  // their own erasure (ON DELETE SET NULL), so it stays exportable after.
+  { column: childGuardianConsents.performedBy, kind: "subject", section: "consentYouGaveForYourChild" },
   ...BLOCKING_AUDIT_SOURCES.map((s) => ({ column: s.column, kind: "actor" as const })),
 ];
 
@@ -186,6 +199,15 @@ export async function collectSubjectAccess(db: any, userId: string) {
   const consentAttestationsYouMade = await db.select().from(organizationConsents)
     .where(eq(organizationConsents.performedBy, userId));
 
+  // A parent-registers account's one child, and the parent's own consent act
+  // for them (docs/parent-registers-scoping.md). Both queries return nothing
+  // for every other account shape, so this costs two empty selects for a
+  // school student, a free user, or an org admin.
+  const [childProfile] = await db.select().from(childProfiles)
+    .where(eq(childProfiles.guardianUserId, userId));
+  const consentYouGaveForYourChild = await db.select().from(childGuardianConsents)
+    .where(eq(childGuardianConsents.performedBy, userId));
+
   return {
     exportedAt: new Date().toISOString(),
     exportVersion: "2.0",
@@ -207,6 +229,8 @@ export async function collectSubjectAccess(db: any, userId: string) {
     schoolRemovalRecords,
     passwordResetRequests,
     consentAttestationsYouMade,
+    childProfile: childProfile ?? null,
+    consentYouGaveForYourChild,
     // Returned in full, like the attestations: the performer's own act, holding
     // a school's name and counts but no one else's personal data.
     organizationDeletionsYouPerformed: await db.select().from(organizationDeletions)
@@ -404,6 +428,8 @@ export function summarizeSubjectAccess(subject: NonNullable<Awaited<ReturnType<t
     passwordResetRequests: subject.passwordResetRequests.length,
     consentAttestationsYouMade: subject.consentAttestationsYouMade.length,
     organizationDeletionsYouPerformed: subject.organizationDeletionsYouPerformed.length,
+    childProfile: subject.childProfile ? 1 : 0,
+    consentYouGaveForYourChild: subject.consentYouGaveForYourChild.length,
   };
   return {
     accountCreated: subject.account.createdAt,

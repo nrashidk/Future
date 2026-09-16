@@ -16,6 +16,7 @@ import {
   cvqResults, organizationMembers, wefCompetencyResults,
   organizations, organizationEvents, contributionSubmissions, contributionRewards,
   files, scoringConfigChangeLog, systemAnnouncements, systemConfig,
+  childProfiles,
 } from "@shared/schema";
 import { eq, or, inArray } from "drizzle-orm";
 import type { ErasureBlockCode } from "@shared/dataRights";
@@ -115,6 +116,15 @@ export async function eraseUserData(tx: any, userId: string): Promise<void> {
       await storage.recomputeOrganizationLicenseUsage(organizationId, tx);
     }
   }
+
+  // A parent-registers account's child profile. NO ON DELETE CASCADE on
+  // child_profiles.guardian_user_id (server/migrations/027) — explicit here,
+  // matching organization_members above, rather than a database cascade. This
+  // IS the child's data (docs/parent-registers-scoping.md), so unlike
+  // child_guardian_consents (ON DELETE SET NULL, an accountability record
+  // that deliberately outlives the parent's own erasure) it is deleted, not
+  // kept.
+  await tx.delete(childProfiles).where(eq(childProfiles.guardianUserId, userId));
 
   await tx.delete(users).where(eq(users.id, userId));
 }
