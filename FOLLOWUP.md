@@ -6238,18 +6238,38 @@ whichever majority does not finish. A child's name, age, grade and gender sittin
 forever because they clicked away after step 3 is exactly the harm this project was scoped to
 remove, and it is still there.
 
-**Candidate fix, not built here.** A second, independent sweep condition keyed on `updated_at`
-instead of `completed_at`, with its own (longer) window — something like: guest, unclaimed,
-`completed_at IS NULL`, `updated_at < now() - N days`. Longer than 72h on purpose: "abandoned" and
-"still deciding across a few days" look identical from a timestamp alone, and this path has no
-finished report as a signal that the taker was ever done — false-positive deleting a draft someone
-returns to next week is a worse failure than the slow leak this is meant to close, so the window
-needs real margin, not the same 72h as a finished report.
+**CLOSED 2026-09-17.** Built as a second, independent condition in the same query, OR'd against
+the existing one: guest, unclaimed, `completed_at IS NULL`, `updated_at < now() -
+GUEST_DRAFT_SWEEP_MS` (`shared/guestAssessmentExpiry.ts`, `server/services/
+guestAssessmentExpiry.ts`). The window is **not** an independently chosen "longer than 72h"
+number — before picking one, we checked how a guest actually resumes a draft across visits at all,
+since that determines whether a chosen window has any effect. Answer: the `guest_token` cookie
+(`server/routes/assessment.routes.ts`) is the *only* thing that lets an anonymous request be
+matched back to its draft (no login) and it is a fixed 7-day cookie, set once at creation and never
+refreshed — once it expires, the student has no path back to the draft at all, full stop, sweep or
+no sweep. So the real ceiling on "can this student still reach their own draft" is already 7 days,
+today, regardless of anything this fix does. `GUEST_DRAFT_SWEEP_MS` is therefore *derived* from
+`GUEST_COOKIE_MAX_AGE_MS` (the cookie's own constant) plus a one-hour buffer for the sweep's
+30-minute throttle and clock skew, not picked independently — a shorter window would delete drafts
+a student could still return to, a longer one (the "N days" this entry originally floated, before
+this was checked) would just keep a minor's PII around for days or weeks past the point anyone,
+including the student themselves, can ever reach it again. If the cookie's lifetime changes, this
+window changes with it, so the two can't drift apart silently.
 
-Two things this candidate fix has to answer that this session did not scope: what "abandoned"
-means for a quiz mid-flight (assessment_quizzes/quiz_responses without a completedAt on the quiz
-itself), and whether the same request-triggered throttle (system_config, 30-minute floor,
-server/services/guestAssessmentExpiry.ts) can carry a second condition cheaply or needs its own.
+The two things this entry left open, both resolved:
+- **A quiz mid-flight needs no separate treatment.** The delete cascade in
+  `deleteExpiredGuestAssessments` removes `assessment_quizzes`/`quiz_responses` by `assessmentId`,
+  not by the quiz's own completion state — it runs identically regardless of which of the two
+  conditions (completed-and-old, or draft-and-stale) selected the parent assessment row.
+- **The existing 30-minute throttle carries the second condition unchanged**, because both
+  conditions are OR'd into the one query the throttle already gates — there is still exactly one
+  transaction per sweep attempt, not two. The one caveat, not yet observed in production: if the
+  unfinished-draft population turns out to be much larger than the completed one (plausible, since
+  FOLLOWUP.md's own "bigger half" argument above expects most guests never to finish), a single
+  sweep could delete a much bigger batch than before, holding the transaction open longer against
+  the same connection pool that guest-facing requests share. Worth watching via the existing
+  `/health` sweep-status surface after this ships; not a reason to withhold the fix, since the
+  alternative — a minor's PII with no expiry at all — is strictly worse.
 
 ## The documented LLM provider and billing model are both wrong: Anthropic, one global key, not OpenAI, not customer-provided  (severity: low, recorded 2026-09-15)
 The stack description says "OpenAI (customer-provided API key, stored encrypted)." Verified

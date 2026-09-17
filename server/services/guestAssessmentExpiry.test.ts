@@ -89,14 +89,14 @@ beforeEach(() => {
 describe("deleteExpiredGuestAssessments", () => {
   it("deletes nothing, and issues no delete at all, when no assessment is expired", async () => {
     const tx = makeFakeTx({ expiredIds: [], quizIds: [] });
-    const result = await deleteExpiredGuestAssessments(tx, new Date());
+    const result = await deleteExpiredGuestAssessments(tx, new Date(), new Date());
     expect(result).toEqual({ deletedCount: 0, assessmentIds: [] });
     expect(tx.calls).toEqual(["select:assessments"]);
   });
 
   it("deletes children before the parent, in FK-safe order, when a quiz exists", async () => {
     const tx = makeFakeTx({ expiredIds: ["a1"], quizIds: ["q1"] });
-    const result = await deleteExpiredGuestAssessments(tx, new Date());
+    const result = await deleteExpiredGuestAssessments(tx, new Date(), new Date());
 
     expect(result).toEqual({ deletedCount: 1, assessmentIds: ["a1"] });
     expect(tx.calls).toEqual([
@@ -112,7 +112,7 @@ describe("deleteExpiredGuestAssessments", () => {
 
   it("skips the quiz_responses delete when the expired assessment never generated a quiz", async () => {
     const tx = makeFakeTx({ expiredIds: ["a1"], quizIds: [] });
-    await deleteExpiredGuestAssessments(tx, new Date());
+    await deleteExpiredGuestAssessments(tx, new Date(), new Date());
 
     expect(tx.calls).toEqual([
       "select:assessments",

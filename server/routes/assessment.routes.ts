@@ -12,7 +12,7 @@ import { printTokenAuthorizes, mintGuestRecoveryToken } from "../utils/printToke
 import { ageOnDate, toDateOnlyString } from "@shared/dateOfBirth";
 import { FREE_ASSESSMENT_CAP, isFreeTierCapReached, requiresPaymentBeforeAssessment } from "@shared/assessmentLimits";
 import { assessmentIsChildOwned } from "@shared/childOwnership";
-import { guestAssessmentExpiresAt } from "@shared/guestAssessmentExpiry";
+import { guestAssessmentExpiresAt, GUEST_COOKIE_MAX_AGE_MS } from "@shared/guestAssessmentExpiry";
 import { sweepExpiredGuestAssessmentsIfDue } from "../services/guestAssessmentExpiry";
 import { sendGuestReportRecoveryEmail } from "../services/email";
 import { recoveryEmailLimiter } from "../middleware/rateLimiter.middleware";
@@ -584,7 +584,9 @@ export function registerAssessmentRoutes(app: Express) {
           secure: process.env.NODE_ENV === "production",
           sameSite: "strict",
           path: "/",
-          maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+          // server/services/guestAssessmentExpiry.ts derives its unfinished-
+          // draft sweep window from this constant — change it there too.
+          maxAge: GUEST_COOKIE_MAX_AGE_MS,
         });
       }
 

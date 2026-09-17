@@ -3,9 +3,11 @@
  * no-persistence project (docs/guest-no-persistence-recon.md,
  * docs/guest-ttl-option-c-recon.md). A guest assessment that finished
  * (completedAt set) and was never claimed by an account is deleted
- * GUEST_ASSESSMENT_TTL_HOURS after it finished, so an unaccompanied minor's
- * name, age, grade, gender and career-personality profile do not sit in the
- * database indefinitely just because they never registered.
+ * GUEST_ASSESSMENT_TTL_HOURS after it finished; one that never finished is
+ * deleted GUEST_DRAFT_SWEEP_MS after its last edit — either way, an
+ * unaccompanied minor's name, age, grade, gender and career-personality
+ * profile do not sit in the database indefinitely just because they never
+ * registered, whether or not they ever finished the assessment.
  *
  * SAME SHAPE AS eraseUserData (accountErasure.ts) and
  * deleteOrganizationWithDependents (organizationDeletion.ts): explicit,
@@ -32,28 +34,43 @@
  * is structurally unreachable here, unlike in eraseUserData where the owner
  * already has a users row.
  *
- * ONLY COMPLETED ROWS ARE EVER SELECTED (completedAt IS NOT NULL). An
- * unfinished guest draft has no expiry under this function at all — see the
- * FOLLOWUP.md entry this ships with for why that is a real gap, not an
- * oversight, and what would close it.
+ * TWO INDEPENDENT CONDITIONS ARE SELECTED, OR'd together, because they
+ * anchor on different columns for different reasons:
+ *   - completedAt IS NOT NULL AND completedAt < completedCutoff — a
+ *     finished report, unclaimed GUEST_ASSESSMENT_TTL_HOURS after finishing.
+ *   - completedAt IS NULL AND updatedAt < draftCutoff — an unfinished
+ *     draft, abandoned. Anchored on updatedAt (bumped by every PATCH to the
+ *     draft, storage.ts updateAssessment) rather than createdAt, so a draft
+ *     still being actively edited is never swept out from under the person
+ *     editing it. draftCutoff (GUEST_DRAFT_SWEEP_MS, shared/
+ *     guestAssessmentExpiry.ts) is derived from the guest_token cookie's own
+ *     lifetime, not chosen independently — see that constant's comment for
+ *     why. See FOLLOWUP.md, "Option C only closes the exposure for finished
+ *     reports" for the incident this closes.
+ * Both conditions feed the SAME cascade below: it deletes by assessmentId,
+ * not by why the id was selected, so a mid-flight quiz's assessment_quizzes/
+ * quiz_responses rows are removed the same way regardless of which
+ * condition matched the parent assessment.
  */
 
 import {
   assessments, assessmentQuizzes, quizResponses, recommendations, wefCompetencyResults,
 } from "@shared/schema";
-import { and, eq, inArray, isNull, isNotNull, lt } from "drizzle-orm";
+import { and, eq, inArray, isNull, isNotNull, lt, or } from "drizzle-orm";
 import { storage } from "../storage";
-import { GUEST_ASSESSMENT_TTL_HOURS } from "@shared/guestAssessmentExpiry";
+import { GUEST_ASSESSMENT_TTL_HOURS, GUEST_DRAFT_SWEEP_MS } from "@shared/guestAssessmentExpiry";
 
 /**
- * Finds every completed, unclaimed guest assessment older than `cutoff` and
- * deletes it and everything hanging off it, in FK-safe order. Runs entirely
- * against `tx` so the caller controls the transaction boundary — mirrors
+ * Finds every expired, unclaimed guest assessment — completed and past
+ * `completedCutoff`, OR still a draft and past `draftCutoff` — and deletes
+ * it and everything hanging off it, in FK-safe order. Runs entirely against
+ * `tx` so the caller controls the transaction boundary — mirrors
  * eraseUserData's signature for the same reason.
  */
 export async function deleteExpiredGuestAssessments(
   tx: any,
-  cutoff: Date,
+  completedCutoff: Date,
+  draftCutoff: Date,
 ): Promise<{ deletedCount: number; assessmentIds: string[] }> {
   const expired = await tx
     .select({ id: assessments.id })
@@ -62,8 +79,10 @@ export async function deleteExpiredGuestAssessments(
       and(
         isNull(assessments.userId),
         eq(assessments.isGuest, true),
-        isNotNull(assessments.completedAt),
-        lt(assessments.completedAt, cutoff),
+        or(
+          and(isNotNull(assessments.completedAt), lt(assessments.completedAt, completedCutoff)),
+          and(isNull(assessments.completedAt), lt(assessments.updatedAt, draftCutoff)),
+        ),
       ),
     );
   const assessmentIds: string[] = expired.map((a: { id: string }) => a.id);
@@ -170,7 +189,8 @@ export async function sweepExpiredGuestAssessmentsIfDue(): Promise<void> {
     if (!shouldRunSweep(status.lastRunAt, new Date(), SWEEP_THROTTLE_MS)) return;
 
     const startedAt = new Date();
-    const cutoff = new Date(startedAt.getTime() - GUEST_ASSESSMENT_TTL_HOURS * 60 * 60 * 1000);
+    const completedCutoff = new Date(startedAt.getTime() - GUEST_ASSESSMENT_TTL_HOURS * 60 * 60 * 1000);
+    const draftCutoff = new Date(startedAt.getTime() - GUEST_DRAFT_SWEEP_MS);
 
     // Dynamic import, not a module-level one: db.ts throws at IMPORT TIME
     // when DATABASE_URL is unset (server/db.ts:9), so a static `import { db }
@@ -180,11 +200,13 @@ export async function sweepExpiredGuestAssessmentsIfDue(): Promise<void> {
     // /health dynamically imports readSweepStatus below and seedStatus.ts
     // above it.
     const { db } = await import("../db");
-    const { deletedCount } = await db.transaction((tx: any) => deleteExpiredGuestAssessments(tx, cutoff));
+    const { deletedCount } = await db.transaction((tx: any) =>
+      deleteExpiredGuestAssessments(tx, completedCutoff, draftCutoff),
+    );
 
     console.log(
       `[guestAssessmentSweep] ran: deleted ${deletedCount} expired guest assessment(s) ` +
-        `(older than ${GUEST_ASSESSMENT_TTL_HOURS}h, cutoff ${cutoff.toISOString()})`,
+        `(completed cutoff ${completedCutoff.toISOString()}, draft cutoff ${draftCutoff.toISOString()})`,
     );
     await writeSweepStatus({
       lastRunAt: startedAt.toISOString(),
