@@ -16,7 +16,7 @@ import * as fileStorage from "../services/fileStorage";
 import { requireOrganizationConsent } from "../utils/consentGate";
 import { db } from "../db";
 import { eraseUserData, detachUserFromOrganization } from "../services/accountErasure";
-import { mintPrintToken } from "../utils/printToken";
+import { mintPrintToken, PDF_GOTO_TIMEOUT_MS, PDF_WAIT_FOR_READY_TIMEOUT_MS } from "../utils/printToken";
 
 // Nothing in this module touches local disk any more. Private data uploads go
 // to the private Spaces bucket; organization logos go to the public one. Both
@@ -1754,11 +1754,11 @@ export function registerAdminRoutes(app: Express) {
 
           await page.goto(printUrl, {
             waitUntil: 'networkidle0',
-            timeout: 30000,
+            timeout: PDF_GOTO_TIMEOUT_MS,
           });
 
           await page.waitForFunction(() => (window as any).__REPORT_READY__ === true, {
-            timeout: 30000,
+            timeout: PDF_WAIT_FOR_READY_TIMEOUT_MS,
           });
 
           const pdfBuffer = await page.pdf({

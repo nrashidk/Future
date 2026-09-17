@@ -20,7 +20,12 @@ import { isPremiumAssessment } from "../utils/assessmentTier";
 import { FREE_ASSESSMENT_CAP, isFreeTierCapReached, requiresPaymentBeforeAssessment } from "@shared/assessmentLimits";
 import { formatFreeReasoning, buildFreeActionSteps } from "../services/freeNarrative";
 import { collectMissingComponents } from "../utils/assessmentCompleteness";
-import { mintPrintToken, printTokenAuthorizes } from "../utils/printToken";
+import {
+  mintPrintToken,
+  printTokenAuthorizes,
+  PDF_GOTO_TIMEOUT_MS,
+  PDF_WAIT_FOR_READY_TIMEOUT_MS,
+} from "../utils/printToken";
 import { toClientRecommendations, toClientCareerMatch } from "../utils/recommendationView";
 import type { Career } from "@shared/schema";
 
@@ -842,13 +847,13 @@ export function registerRecommendationsRoutes(app: Express) {
       // translations and report data have loaded (see waitForFunction below).
       await page.goto(printUrl, {
         waitUntil: 'domcontentloaded',
-        timeout: 30000,
+        timeout: PDF_GOTO_TIMEOUT_MS,
       });
 
       // Wait for report data to be fully loaded (set by the client once i18n
       // locale JSON is loaded and narratives have settled). 30s safety net.
       await page.waitForFunction(() => (window as any).__REPORT_READY__ === true, {
-        timeout: 30000,
+        timeout: PDF_WAIT_FOR_READY_TIMEOUT_MS,
       });
 
       // Generate PDF

@@ -15,7 +15,14 @@ import {
   mintGuestRecoveryToken,
   verifyPrintToken,
   printTokenAuthorizes,
+  PDF_GOTO_TIMEOUT_MS,
+  PDF_WAIT_FOR_READY_TIMEOUT_MS,
+  PRINT_TOKEN_MARGIN_MS,
 } from "./printToken";
+
+// Derived, not hardcoded, so this test tracks printToken.ts's own derivation
+// instead of asserting a magic number that could silently drift from it.
+const TOKEN_TTL_MS = PDF_GOTO_TIMEOUT_MS + PDF_WAIT_FOR_READY_TIMEOUT_MS + PRINT_TOKEN_MARGIN_MS;
 
 const SECRET = "test-session-secret-at-least-32-chars-long";
 
@@ -34,11 +41,19 @@ describe("mintPrintToken / verifyPrintToken", () => {
     expect(verifyPrintToken(token)).toEqual({ aid: "a-1" });
   });
 
-  it("expires after its ~60s window", () => {
+  it("is still valid just under its render-budget-derived window", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
     const token = mintPrintToken("a-1");
-    vi.setSystemTime(new Date("2026-01-01T00:01:01.000Z")); // +61s
+    vi.setSystemTime(new Date(Date.now() + TOKEN_TTL_MS - 1000));
+    expect(verifyPrintToken(token)).toEqual({ aid: "a-1" });
+  });
+
+  it("expires after its render-budget-derived window (goto + waitForFunction + margin)", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+    const token = mintPrintToken("a-1");
+    vi.setSystemTime(new Date(Date.now() + TOKEN_TTL_MS + 1000));
     expect(verifyPrintToken(token)).toBeNull();
   });
 });
@@ -50,12 +65,12 @@ describe("mintGuestRecoveryToken", () => {
     expect(verifyPrintToken(token)).toEqual({ aid: "a-2" });
   });
 
-  it("honors the CALLER-SUPPLIED expiry, not the ~60s print window", () => {
+  it("honors the CALLER-SUPPLIED expiry, not the render-budget-derived print window", () => {
     const farFuture = new Date(Date.now() + 71 * 60 * 60 * 1000); // ~71h, inside the 72h TTL
     const token = mintGuestRecoveryToken("a-2", farFuture);
-    // Still valid a minute later, well past when a print token would have expired.
+    // Still valid well past when a print token would have expired.
     vi.useFakeTimers();
-    vi.setSystemTime(new Date(Date.now() + 60_000));
+    vi.setSystemTime(new Date(Date.now() + TOKEN_TTL_MS + 1000));
     expect(verifyPrintToken(token)).toEqual({ aid: "a-2" });
   });
 

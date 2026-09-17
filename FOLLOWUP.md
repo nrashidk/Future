@@ -65,9 +65,17 @@ tightened these routes to require a token/session and never updated bulk export 
    `server/middleware/rateLimiter.middleware.ts`). Bulk export never sent the token the skip
    checks for, so it stayed fully exposed — same root cause as item 1, not a separate defect: no
    token means no skip. Closed by minting the token in item 1's fix.
-3. Print-token TTL is 60s (`server/utils/printToken.ts`, `TOKEN_TTL_MS`) and the render budget is
-   also 60s (`goto` 30s + `waitForFunction` 30s, sequential, `recommendations.routes.ts:843-852`) -
-   two independently-chosen constants that happen to coincide, with zero margin for a slow render.
+3. **FIXED 2026-09-17.** Print-token TTL was 60s (`server/utils/printToken.ts`, `TOKEN_TTL_MS`)
+   and the render budget was also 60s (`goto` 30s + `waitForFunction` 30s, sequential,
+   `recommendations.routes.ts:843-852`) - two independently-chosen constants that happened to
+   coincide, with zero margin for a slow render. Fix: TTL is now DERIVED —
+   `PDF_GOTO_TIMEOUT_MS + PDF_WAIT_FOR_READY_TIMEOUT_MS + PRINT_TOKEN_MARGIN_MS` (80s: 30+30+20) —
+   from the same two constants both PDF routes import for their own `page.goto`/
+   `page.waitForFunction` calls, so the two can't silently drift apart again. The 20s margin is
+   PROVISIONAL, chosen without real client-dispatch-timing telemetry; tighten once that data
+   exists. `printTokenAuthorizes` is checked once at request entry before any LLM call runs, so the
+   margin only needs to cover dispatch/network jitter for a late-fired narrative request, not full
+   LLM round-trip latency — see the new entry below on that call having no timeout of its own.
 
 NARRATIVE POLISH (minor, noticed in the first full prod PDF): LLM reasoning still says the student's
 subjects are "Business"/"Art" (pre-umbrella-6 phrasing); "Next Steps" says "Take Business further"
@@ -6544,3 +6552,11 @@ match against `SUPERADMIN_EMAILS` are what mark it, computed at read time —
 ('superadmin')` would have silently kept this exact row in a "free accounts" count. **Any future
 query reusing this shape must exclude operator accounts by an explicit id list or by the same
 role/email check `auth.routes.ts` already uses, never by `account_type`.**
+
+## The LLM narrative call has no timeout — a slow or hung Anthropic response can pin a request open indefinitely (severity: medium, recorded 2026-09-17)
+
+`callAnthropic` (`server/services/llmNarrativeService.ts:88-113`) calls `fetch("https://api.anthropic.com/v1/messages", ...)` with no `signal` (no `AbortController`) and no other timeout mechanism — confirmed by reading the full function, no timeout/AbortController/signal anywhere in the file. The call runs entirely at the mercy of Node's/undici's own defaults, which are not a bounded application-level timeout.
+
+Found while tracing the print-token TTL vs. render-budget race (the previous FOLLOWUP entry, "Print-token TTL is 60s..."): the good news for that specific race is that `printTokenAuthorizes` is checked at request entry, before `callAnthropic` ever runs, so an unbounded LLM call doesn't widen the token-expiry race itself. But it's a real, separate gap on its own terms — every one of `/api/recommendations`, `/career-reasoning/:careerId`, and `/education-pathways/:careerId` can generate a narrative via this path, and each such request holds an Express connection and (for the PDF render paths) blocks Puppeteer's client-side fetch for as long as Anthropic takes to respond, or hang forever if the socket is left open without Anthropic ever closing it. No per-request budget, no retry-with-shorter-timeout, nothing.
+
+Not fixed here. Candidate fix: an `AbortController` with a timeout sized to the actual latency this app can tolerate (the 28s client safety net and the 30s `waitForFunction` ceiling on the PDF paths are the tightest existing constraints in the codebase; a non-PDF caller of `/api/recommendations` has more slack but still shouldn't wait indefinitely), wired through `callAnthropic`'s `fetch` call, with the resulting `AbortError` treated the same as any other `generateNarrative` failure (falls through to `generateEnhancedReasoning` in the main recommendations handler; the dedicated `/career-reasoning` endpoint already returns an error status on failure — see the entry above on making that failure detectable rather than silent).

@@ -12,7 +12,44 @@ import crypto from 'crypto';
 // startup), so there is no new env var and no JWT dependency. The token is a
 // compact `base64url(payload).base64url(mac)` MAC, not a full JWT.
 
-const TOKEN_TTL_MS = 60_000; // ~60s — the render takes seconds; no reason to live longer
+/**
+ * The Puppeteer render budget this file's token TTL is derived from — the
+ * single source for both `page.goto` and `page.waitForFunction` timeouts on
+ * both PDF render paths (recommendations.routes.ts single-report,
+ * admin.routes.ts bulk export). Both routes import these two constants for
+ * their own calls rather than hardcoding 30000 a second and third time, so
+ * the token TTL below cannot silently drift out of sync with the render
+ * timeouts it exists to outlive — the exact failure this replaces: TTL and
+ * render budget were two independently-chosen 60s/60s constants that
+ * happened to coincide, with zero margin (see FOLLOWUP.md, "Print-token TTL
+ * is 60s but the render budget is also 60s").
+ */
+export const PDF_GOTO_TIMEOUT_MS = 30_000;
+export const PDF_WAIT_FOR_READY_TIMEOUT_MS = 30_000;
+
+/**
+ * Margin added on top of the render's own worst-case SEQUENTIAL timeout
+ * budget (goto then waitForFunction, not raced) before the token expires.
+ * printTokenAuthorizes is checked once, at request entry, before any LLM
+ * call runs (see server/services/llmNarrativeService.ts — that call has no
+ * timeout of its own, filed separately in FOLLOWUP.md), so this margin only
+ * needs to cover DISPATCH/network jitter for a narrative fetch sent late in
+ * a slow render, not the LLM round-trip itself.
+ *
+ * PROVISIONAL. Chosen without real client-dispatch-timing telemetry — there
+ * is currently no instrumentation recording when ResultsPrint.tsx actually
+ * fires its data fetches relative to page load, so this is a conservative
+ * placeholder, not a measured value. Tighten once that data exists; see
+ * FOLLOWUP.md for the same "measure, don't guess" note.
+ */
+export const PRINT_TOKEN_MARGIN_MS = 20_000;
+
+/**
+ * DERIVED, not a separately chosen number: render budget + margin. Renamed
+ * from a flat 60s so this can never again be "60s, coincidentally the same
+ * as the render timeout" — it is now provably >= the render's own ceiling.
+ */
+const TOKEN_TTL_MS = PDF_GOTO_TIMEOUT_MS + PDF_WAIT_FOR_READY_TIMEOUT_MS + PRINT_TOKEN_MARGIN_MS; // 80s
 
 interface PrintTokenPayload {
   aid: string; // the single assessment this token authorizes
