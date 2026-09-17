@@ -29,13 +29,45 @@ LOAD-BEARING: .cache/ is gitignored (also part of 8006a0e). Without it a `git ad
 commit ~377MB of managed Chrome - the build downloads it into the project-relative cache dir.
 
 REMAINING PDF DEFECTS (separate, not blocking - found during the recon, still open):
-1. Admin BULK EXPORT builds its print URL with NO printToken (admin.routes.ts:1242) - those PDFs
-   may render blank even now that Chrome launches. Single-report path is fine (has the token).
-2. RATE LIMITER throttles the headless browser: career-reasoning is recommendationsLimiter (20/hr),
-   keyed by IP; the headless browser hits the API from Render's single egress IP, so after ~4 PDFs/hr
-   the "Why This Career?" narratives get 429'd and SILENTLY dropped (retry:false). Real bug at scale.
-3. Print-token TTL is 60s but the render budget is also 60s (goto 30s + waitForFunction 30s) - on a
-   slow render the token can expire mid-render -> degraded/blank PDF.
+
+**RECLASSIFIED 2026-09-17 — item 1 is a live outage, not a defect, traced not inferred.** With no
+printToken, `GET /api/recommendations` returns `200 []` (recommendations.routes.ts:292-299,
+deliberately not 403, to avoid an assessment-ID enumeration oracle) and `GET /api/assessments/:id`
+returns `403` (assessment.routes.ts:635). `ResultsPrint.tsx`'s ready-effect
+(`ResultsPrint.tsx:342`) requires `recommendations.length > 0` before it will EVER set
+`__REPORT_READY__` — with an empty array that condition is permanently false, so the ONLY thing
+that ever marks the page ready is the unconditional 28-second safety-net timer
+(`ResultsPrint.tsx:315-327`). `recommendations.map(...)` over `[]` renders zero career cards (no
+"no results" fallback exists) and every `assessment?.x`-gated section (name/age/grade/gender,
+RIASEC, personality) renders nothing because the 403'd `assessment` query stays `undefined`. Net
+effect: every non-guest bulk-exported PDF (bulk export subjects are always org members, never
+guests) takes a **guaranteed** 28 seconds and captures a blank shell — headings and chrome, zero
+student content, zero careers. Not occasional; deterministic, every export, every student.
+
+**And the one thing that should have caught it has never worked.** Bulk export's own detector
+(`admin.routes.ts:1701,1730`) checks `msg.text().includes("[ResultsPrint] Safety-net timeout
+fired")`, but the client actually logs `` `[ResultsPrint] Safety-net fired at 28s — nsApplied=...,
+narratives may be incomplete.` `` (`ResultsPrint.tsx:323`) — a plain substring mismatch, "timeout
+fired" never appears in "fired at 28s". `safetyNetFired` is permanently `false`; every export
+result has been recorded `status: "ok"` regardless of what actually happened, including the
+guaranteed case above. This has been running silently since whichever ownership-hardening pass
+tightened these routes to require a token/session and never updated bulk export to send one.
+
+1. **FIXED 2026-09-17.** Admin BULK EXPORT built its print URL with NO printToken
+   (`admin.routes.ts:1739`, line moved since this was first filed at :1242) - confirmed blank PDFs
+   for every non-guest export, not "may render blank." Single-report path was fine (has the token,
+   `recommendations.routes.ts:746-768`). Fix: mint+attach a printToken in the bulk-export URL, same
+   pattern as the single-report path.
+2. **FIXED 2026-09-17, same commit as item 1.** RATE LIMITER: career-reasoning/education-pathways
+   are `recommendationsLimiter` (20/hr) keyed by IP for any caller the print-token skip doesn't
+   recognize. `cf6b00e` already fixed this for the single-report path
+   (`printableRecommendationsLimiter` + print-token skip,
+   `server/middleware/rateLimiter.middleware.ts`). Bulk export never sent the token the skip
+   checks for, so it stayed fully exposed — same root cause as item 1, not a separate defect: no
+   token means no skip. Closed by minting the token in item 1's fix.
+3. Print-token TTL is 60s (`server/utils/printToken.ts`, `TOKEN_TTL_MS`) and the render budget is
+   also 60s (`goto` 30s + `waitForFunction` 30s, sequential, `recommendations.routes.ts:843-852`) -
+   two independently-chosen constants that happen to coincide, with zero margin for a slow render.
 
 NARRATIVE POLISH (minor, noticed in the first full prod PDF): LLM reasoning still says the student's
 subjects are "Business"/"Art" (pre-umbrella-6 phrasing); "Next Steps" says "Take Business further"

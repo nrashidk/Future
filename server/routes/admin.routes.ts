@@ -16,6 +16,7 @@ import * as fileStorage from "../services/fileStorage";
 import { requireOrganizationConsent } from "../utils/consentGate";
 import { db } from "../db";
 import { eraseUserData, detachUserFromOrganization } from "../services/accountErasure";
+import { mintPrintToken } from "../utils/printToken";
 
 // Nothing in this module touches local disk any more. Private data uploads go
 // to the private Spaces bucket; organization logos go to the public one. Both
@@ -1736,8 +1737,18 @@ export function registerAdminRoutes(app: Express) {
           const ALLOWED_LANGS = ["en", "ar"] as const;
           const rawLang = memberUser.preferredLanguage || "en";
           const userLang: string = (ALLOWED_LANGS as readonly string[]).includes(rawLang) ? rawLang : "en";
-          const printUrl = `http://localhost:${process.env.PORT || 5000}/print/results?assessmentId=${completedAssessment.id}&lang=${userLang}`;
-          
+          // The headless page carries no session cookie and these are real org
+          // members, never guests — with no credential at all, every data fetch
+          // ResultsPrint.tsx makes (recommendations, assessment, quiz, cvq,
+          // career-reasoning) is unauthorized. Mint the same printToken the
+          // single-report path already uses (recommendations.routes.ts) so this
+          // render is authorized the same way. Ownership of `completedAssessment`
+          // was already established above via `member.userId`, so minting here is
+          // not granting anything new — it is carrying forward an authorization
+          // this loop already has.
+          const printToken = mintPrintToken(completedAssessment.id);
+          const printUrl = `http://localhost:${process.env.PORT || 5000}/print/results?assessmentId=${completedAssessment.id}&lang=${userLang}&printToken=${encodeURIComponent(printToken)}`;
+
           // Validate URL before navigation
           validatePdfUrl(printUrl);
 
