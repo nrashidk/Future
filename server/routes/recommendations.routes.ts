@@ -28,6 +28,7 @@ import {
 } from "../utils/printToken";
 import { toClientRecommendations, toClientCareerMatch } from "../utils/recommendationView";
 import type { Career } from "@shared/schema";
+import { isNarrativeDegradedMessage } from "@shared/pdfNarrativeDegradation";
 
 /** Escape regex metacharacters so user-supplied strings are treated as literals. */
 const escapeRegExp = (s: string): string => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -742,6 +743,20 @@ export function registerRecommendationsRoutes(app: Express) {
 
       const page = await browser.newPage();
 
+      // Listen for the console marker ResultsPrint.tsx emits when a career's
+      // narrative did not get real LLM content — either the 28s safety net
+      // fired (slow render) or a career-reasoning fetch failed fast
+      // (401/403/429/503/500) and settled well before that timeout. This
+      // route previously had no listener at all, so a degraded single-report
+      // PDF was indistinguishable from a good one except by reading the
+      // rendered text — see FOLLOWUP.md and shared/pdfNarrativeDegradation.ts.
+      let narrativeDegraded = false;
+      page.on('console', (msg: any) => {
+        if (msg.type() === 'warning' && isNarrativeDegradedMessage(msg.text())) {
+          narrativeDegraded = true;
+        }
+      });
+
       // Navigate to print-optimized page
       const baseUrl = process.env.NODE_ENV === 'production' 
         ? `https://${req.get('host')}`
@@ -876,6 +891,12 @@ export function registerRecommendationsRoutes(app: Express) {
       // Set response headers
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader("Content-Disposition", `attachment; filename="career-report-${assessment.id}.pdf"`);
+      // Machine-readable degradation signal — queryable/loggable without ever
+      // opening the PDF. See the console listener above for what sets this.
+      res.setHeader("X-Report-Narrative-Degraded", narrativeDegraded ? "true" : "false");
+      if (narrativeDegraded) {
+        console.warn(`[PDF] Narrative degraded for assessment ${assessment.id} — AI insights may be incomplete`);
+      }
 
       // Send PDF as binary buffer
       res.send(Buffer.from(pdfBuffer));

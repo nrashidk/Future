@@ -44,14 +44,29 @@ effect: every non-guest bulk-exported PDF (bulk export subjects are always org m
 guests) takes a **guaranteed** 28 seconds and captures a blank shell — headings and chrome, zero
 student content, zero careers. Not occasional; deterministic, every export, every student.
 
-**And the one thing that should have caught it has never worked.** Bulk export's own detector
-(`admin.routes.ts:1701,1730`) checks `msg.text().includes("[ResultsPrint] Safety-net timeout
-fired")`, but the client actually logs `` `[ResultsPrint] Safety-net fired at 28s — nsApplied=...,
-narratives may be incomplete.` `` (`ResultsPrint.tsx:323`) — a plain substring mismatch, "timeout
-fired" never appears in "fired at 28s". `safetyNetFired` is permanently `false`; every export
-result has been recorded `status: "ok"` regardless of what actually happened, including the
-guaranteed case above. This has been running silently since whichever ownership-hardening pass
-tightened these routes to require a token/session and never updated bulk export to send one.
+**And the one thing that should have caught it has never worked — FIXED 2026-09-17.** Bulk
+export's own detector (`admin.routes.ts:1701,1730`) checked `msg.text().includes("[ResultsPrint]
+Safety-net timeout fired")`, but the client actually logged `` `[ResultsPrint] Safety-net fired at
+28s — nsApplied=..., narratives may be incomplete.` `` (`ResultsPrint.tsx:323`) — a plain substring
+mismatch, "timeout fired" never appears in "fired at 28s". `safetyNetFired` was permanently
+`false`; every export result had been recorded `status: "ok"` regardless of what actually
+happened, including the guaranteed case above. This had been running silently since whichever
+ownership-hardening pass tightened these routes to require a token/session and never updated bulk
+export to send one.
+
+Fix, and the more important half of it: the old detector could ONLY ever have caught the 28s
+safety-net (slow-render) case, never a FAST failure — a 401/403/429/503/500 on
+`career-reasoning`/`education-pathways` that resolves in well under 28s and falls straight through
+to heuristic/raw fallback text just as silently. That's the case `cf6b00e` was actually about. New
+shared marker (`shared/pdfNarrativeDegradation.ts`, `NARRATIVE_DEGRADED_MARKER`), imported by both
+the client (`ResultsPrint.tsx`, emitted from BOTH the safety-net timeout AND a new check that
+every settled narrative query actually produced usable content) and both server listeners
+(`admin.routes.ts` bulk export, and `recommendations.routes.ts`'s single-report route, which
+previously had NO listener at all — a degraded single-report PDF was undetectable by anything
+short of reading the rendered text). Single-report now also sets an
+`X-Report-Narrative-Degraded` response header. One constant, imported everywhere, is the fix for
+the mismatch itself: it is now structurally impossible for the emitter and the two listeners to
+drift apart the way the old duplicated-literal version did.
 
 1. **FIXED 2026-09-17.** Admin BULK EXPORT built its print URL with NO printToken
    (`admin.routes.ts:1739`, line moved since this was first filed at :1242) - confirmed blank PDFs

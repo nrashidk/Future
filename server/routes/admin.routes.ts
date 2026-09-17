@@ -17,6 +17,7 @@ import { requireOrganizationConsent } from "../utils/consentGate";
 import { db } from "../db";
 import { eraseUserData, detachUserFromOrganization } from "../services/accountErasure";
 import { mintPrintToken, PDF_GOTO_TIMEOUT_MS, PDF_WAIT_FOR_READY_TIMEOUT_MS } from "../utils/printToken";
+import { isNarrativeDegradedMessage } from "@shared/pdfNarrativeDegradation";
 
 // Nothing in this module touches local disk any more. Private data uploads go
 // to the private Spaces bucket; organization logos go to the public one. Both
@@ -1699,7 +1700,6 @@ export function registerAdminRoutes(app: Express) {
       };
 
       // Track per-student export results for the summary file
-      const SAFETY_NET_WARNING = "[ResultsPrint] Safety-net timeout fired";
       interface StudentExportResult {
         fileName: string;
         displayName: string;
@@ -1725,11 +1725,20 @@ export function registerAdminRoutes(app: Express) {
 
           page = await browser.newPage();
 
-          // Listen for console messages to detect the AI-insights safety-net warning
-          let safetyNetFired = false;
+          // Listen for the console marker ResultsPrint.tsx emits for EITHER
+          // degradation cause: the 28s safety net (slow render) OR a fast
+          // failure on a career-reasoning fetch (401/403/429/503/500) that
+          // resolves well before 28s and would otherwise go completely
+          // undetected. One shared marker, imported from shared/
+          // pdfNarrativeDegradation.ts by both this listener and the client
+          // that emits it — see that file for why a duplicated literal is
+          // exactly how the previous version of this check went permanently
+          // silent (it looked for "Safety-net timeout fired"; the client
+          // logged "Safety-net fired at 28s" — never matched, not once).
+          let narrativeDegraded = false;
           page.on('console', (msg: any) => {
-            if (msg.type() === 'warning' && msg.text().includes(SAFETY_NET_WARNING)) {
-              safetyNetFired = true;
+            if (msg.type() === 'warning' && isNarrativeDegradedMessage(msg.text())) {
+              narrativeDegraded = true;
             }
           });
 
@@ -1776,13 +1785,13 @@ export function registerAdminRoutes(app: Express) {
             fileName: safeFileName,
             displayName,
             username: memberUser.username || member.id,
-            status: safetyNetFired ? "aiInsightsIncomplete" : "ok",
-            aiInsightsIncomplete: safetyNetFired,
-            ...(safetyNetFired ? { note: "AI insights may be partial — PDF was captured before all LLM content finished loading." } : {}),
+            status: narrativeDegraded ? "aiInsightsIncomplete" : "ok",
+            aiInsightsIncomplete: narrativeDegraded,
+            ...(narrativeDegraded ? { note: "AI insights may be partial or missing for one or more careers in this PDF." } : {}),
           });
 
-          if (safetyNetFired) {
-            console.warn(`[BulkExport] Safety-net fired for ${memberUser.username} (${safeFileName}) — AI insights may be incomplete`);
+          if (narrativeDegraded) {
+            console.warn(`[BulkExport] Narrative degraded for ${memberUser.username} (${safeFileName}) — AI insights may be incomplete`);
           } else {
             console.log(`Generated PDF for ${memberUser.username} (${safeFileName})`);
           }

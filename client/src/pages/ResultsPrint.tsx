@@ -33,6 +33,10 @@ import { COMPONENT_BREAKDOWN_META, findComponentWeight, weightSentence, type Com
 import { formatLocalizedDate } from "@/lib/formatDate";
 import type { Recommendation, Career } from "@shared/schema";
 import { CVQ_DOMAINS } from "@shared/schema";
+import {
+  narrativeDegradedSafetyNetMessage,
+  narrativeDegradedFetchFailureMessage,
+} from "@shared/pdfNarrativeDegradation";
 
 interface WefSkillTag {
   name: string;
@@ -319,10 +323,8 @@ export default function ResultsPrint() {
         // Best-effort observability only — never await/hang here; 28s is the
         // last resort. nsApplied tells us whether labels are Arabic at capture.
         const nsApplied = i18n.hasResourceBundle(safeLang, "results");
-        console.warn(
-          `[ResultsPrint] Safety-net fired at 28s — nsApplied=${nsApplied}, ` +
-          `narratives may be incomplete.`
-        );
+        (window as any).__NARRATIVE_DEGRADED__ = true;
+        console.warn(narrativeDegradedSafetyNetMessage(nsApplied));
         (window as any).__REPORT_READY__ = true;
       }
     }, 28000);
@@ -341,6 +343,25 @@ export default function ResultsPrint() {
   // two frames to flush the translation state update into the DOM.
   useEffect(() => {
     if (!isLoading && recommendations.length > 0 && allNarrativesSettled) {
+      // FAST-FAILURE CASE — the one the 28s safety net can never catch,
+      // because it only fires on a slow render. Every narrative query has
+      // already settled here (no timeout), but a query can settle with an
+      // ERROR (401/403/429/503/500 from career-reasoning, all real
+      // possibilities — see printableRecommendationsLimiter and the
+      // ownership checks it sits behind) and still leave allNarrativesSettled
+      // true. narrativeMap is built only from successful responses
+      // (careerReasoning present), so a career missing from it here means its
+      // narrative genuinely failed to load, not that it's still in flight.
+      if (isPremium) {
+        const missingCount = recommendations.filter(
+          (rec: EnrichedRecommendation) => !narrativeMap[rec.careerId],
+        ).length;
+        if (missingCount > 0) {
+          (window as any).__NARRATIVE_DEGRADED__ = true;
+          console.warn(narrativeDegradedFetchFailureMessage(missingCount, recommendations.length));
+        }
+      }
+
       const safeLang = langParam === "ar" ? "ar" : "en";
       i18n.changeLanguage(safeLang).then(() => {
         requestAnimationFrame(() => {
@@ -355,7 +376,7 @@ export default function ResultsPrint() {
         });
       });
     }
-  }, [isLoading, recommendations, langParam, allNarrativesSettled]);
+  }, [isLoading, recommendations, langParam, allNarrativesSettled, isPremium, narrativeMap]);
 
   if (isLoading) {
     return (
