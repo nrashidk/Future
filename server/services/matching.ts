@@ -944,16 +944,37 @@ function calculateCareerMatch(
  *      −0.62); exact ties fall from 24 careers in 7 blocks to 2 in 1. No sector
  *      attribution changes and no reasoning sentence changes. THIS is the bump
  *      the fixture rule above could not have demanded — see the note below.
+ *   5  2026-09-17. INTERESTS keyword matching fixed: findMatchingKeywords
+ *      (interestLexicon.ts) matched keywords as bare substrings, so a keyword
+ *      could fire from inside an unrelated word ("art" inside "beyond Earth",
+ *      "ai" inside "sustainable"). Fixed to whole-word matching, and
+ *      INTEREST_LEXICON's literal keyword lists expanded with the plural/
+ *      adjectival/compound forms (technology, websites, patients, ...) the
+ *      substring check used to catch by accident — full audit in
+ *      docs/interest-lexicon-wholeword.md. Measured on the real 68-career
+ *      catalog: 28 false-positive interest×career channel matches removed
+ *      (Technology×{Renewable Energy Engineer, Digital Marketing Specialist,
+ *      Civil Engineer, Dentist, Physical Therapist, Marketing Manager, Chef,
+ *      Aerospace Engineer, Airline Pilot, Film & TV Producer, Atmospheric &
+ *      Space Scientist}, Healthcare×{Content Creator, Cybersecurity Analyst},
+ *      {Arts & Design, Creative}×{Data Scientist, Financial Analyst,
+ *      Biomedical Engineer, Accountant, Space Scientist, Agricultural
+ *      Scientist}, Law & Government×Accountant, Engineering×Space Scientist
+ *      (skill channel), Fashion & Style×Interior Designer, Helping×Content
+ *      Creator, Physical×Video Game Designer), zero intended matches lost —
+ *      verified by re-running the fix against the full catalog and confirming
+ *      every remaining change traces to a named collision, none unexplained.
  *
  * A LIMIT OF THE RULE, found by the defect that produced version 4. "Bump when
  * the golden fixtures move" only works where fixtures exist, and
  * scoringProvenance.test.ts covered ONE of the five calculators — subjects.
  * Version 4 changes vision and moved no pre-existing fixture at all. Vision
- * fixtures were added in the same commit; interests, riasec and cvq still have
- * none, so for those three this rule remains unenforceable and a change to them
- * will pass silently. Tracked as a follow-up.
+ * fixtures were added in the same commit; version 5 adds fixtures for
+ * interests for the same reason. riasec and cvq still have none, so for those
+ * two this rule remains unenforceable and a change to them will pass silently.
+ * Tracked as a follow-up.
  */
-export const SCORING_ALGORITHM_VERSION = 4;
+export const SCORING_ALGORITHM_VERSION = 5;
 
 /**
  * Generate deterministic config version hash
@@ -1086,7 +1107,7 @@ export function calculateSubjectsScore(
   };
 }
 
-function calculateInterestsScore(
+export function calculateInterestsScore(
   context: MatchingContext,
   career: Career,
   component: AssessmentComponent

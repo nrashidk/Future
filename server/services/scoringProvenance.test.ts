@@ -37,11 +37,13 @@ import { describe, it, expect } from "vitest";
 import {
   calculateSubjectsScore,
   calculateVisionScore,
+  calculateInterestsScore,
   SCORING_ALGORITHM_VERSION,
   type MatchingContext,
   type SectorCategoryMap,
   type SectorWefSkillMap,
 } from "./matching";
+import { findMatchingKeywords, INTEREST_LEXICON } from "./interestLexicon";
 import type { AssessmentComponent, Career, Country } from "../../shared/schema";
 
 const COMPONENT = { key: "subjects", weight: 25 } as unknown as AssessmentComponent;
@@ -352,14 +354,141 @@ describe("golden scoring fixtures", () => {
     expect(movers.map((f) => f.id)).toEqual(["V1", "V2", "V3", "V4", "V6"]);
   });
 
-  it("RECORDED GAP — three of the five calculators still have no fixtures", () => {
+  // ---------------------------------------------------------------------------
+  // INTERESTS FIXTURES — added 2026-09-17 with SCORING_ALGORITHM_VERSION 5.
+  //
+  // THREE LAYERS, deliberately, because a fixture that only pins today's
+  // post-fix numbers is a correctness assertion, not a change detector — this
+  // project has already been caught by that distinction twice (Piece D, vision
+  // saturation, both above). A snapshot number would not fail if
+  // findMatchingKeywords reverted to substring matching UNLESS the specific
+  // fixture career happens to exercise the specific bug, and would not fail if
+  // an INTEREST_LEXICON addition were accidentally deleted, since a missing
+  // keyword just silently stops contributing rather than erroring.
+  //
+  // Layer 1 (below, "word-boundary canaries") targets the MECHANISM directly
+  // with synthetic strings built to distinguish substring matching from
+  // whole-word matching — these fail on a revert to `.includes()` regardless
+  // of what the real catalog's career text looks like at the time.
+  //
+  // Layer 2 (below, "real catalog: Physicist vs Space Scientist") uses the
+  // actual seeded description text for the exact pair the diversity-constraint
+  // decision (FOLLOWUP.md, 2026-09-10) measured as identical on 14 of 21
+  // lexicon interests — this is the fixture that would have caught the real
+  // production bug, at the calculator level, not just the matcher level.
+  //
+  // Layer 3 is the RECORDED GAP test below: `interests` moves from uncovered
+  // to covered, closing the exact gap version 4's own history entry named.
+  // ---------------------------------------------------------------------------
+
+  describe("interests fixtures — word-boundary canaries", () => {
+    // Each case is impossible to satisfy correctly under substring matching
+    // and impossible to satisfy correctly under an over-strict matcher that
+    // forgot the literal keyword additions. Both failure directions are
+    // covered, not just the substring one.
+    it("does not match a keyword embedded inside an unrelated word", () => {
+      // The exact production bug: "art" inside "beyond Earth" (Space
+      // Scientist's real description — see the real-catalog test below).
+      expect(findMatchingKeywords(["art"], "beyond Earth")).toEqual([]);
+      expect(findMatchingKeywords(["ai"], "the campaign will maintain momentum")).toEqual([]);
+      expect(findMatchingKeywords(["care"], "launch your career")).toEqual([]);
+    });
+
+    it("still matches an intended stem via its own added literal keyword, not a resurrected prefix match", () => {
+      // "artists" must match via the literal "artists" entry, not via "art"
+      // matching as a prefix — proves boundary matching isn't so strict it
+      // breaks the docs/interest-lexicon-wholeword.md lexicon additions.
+      expect(findMatchingKeywords(["art", "artists"], "future artists")).toEqual(["artists"]);
+      expect(findMatchingKeywords(["tech", "technology"], "cutting-edge technology")).toEqual(["technology"]);
+    });
+  });
+
+  describe("interests fixtures — real catalog: Physicist vs Space Scientist", () => {
+    // Real seeded description/skill text (server/seed.ts), not synthetic —
+    // this is the pair docs/interest-lexicon-wholeword.md audited and the
+    // exact pair the diversity-constraint decision measured.
+    const PHYSICIST = {
+      id: "fixture-physicist",
+      title: "Physicist",
+      category: "Science",
+      description:
+        "Ask how the universe actually works and then design the experiment that answers it. Work on quantum computers, lasers and materials that did not exist five years ago.",
+      requiredSkills: ["Theoretical Physics", "Experimental Design", "Mathematical Analysis", "Scientific Computing"],
+    } as unknown as Career;
+
+    const SPACE_SCIENTIST = {
+      id: "fixture-space-scientist",
+      title: "Space Scientist (Astrophysicist)",
+      category: "Science",
+      description:
+        "Study planets, stars and the physics of everything beyond Earth. Analyse data from telescopes and space probes to answer questions nobody has answered yet, and help plan the missions that go looking.",
+      requiredSkills: ["Astrophysics", "Data Analysis", "Scientific Modelling", "Research Writing"],
+    } as unknown as Career;
+
+    const INTERESTS_COMPONENT = { key: "interests", weight: 20 } as unknown as AssessmentComponent;
+
+    function interestsContext(interests: string[]): MatchingContext {
+      return {
+        assessment: { assessmentType: "premium", interests },
+        careers: [],
+        activeComponents: [INTERESTS_COMPONENT],
+        careerAffinities: new Map(),
+      } as unknown as MatchingContext;
+    }
+
+    it("Space Scientist's real description no longer credits Creative via 'art' inside 'Earth'", () => {
+      // The direct matcher-level proof, against real production data: this is
+      // the assertion that would have failed on the actual bug, using the
+      // actual lexicon and the actual seeded text — not a synthetic string.
+      const matches = findMatchingKeywords(
+        INTEREST_LEXICON["Creative"].descriptionKeywords,
+        SPACE_SCIENTIST.description as string,
+      );
+      expect(matches).not.toContain("art");
+      expect(matches).toEqual([]); // no other Creative description keyword collides with this text either
+    });
+
+    it("[proof of work] Space Scientist's Creative score moved 40.0 -> 10.0 — this fixture would have caught the fix", () => {
+      // 40.0 pre-fix: descriptionScore 0.3 (the "art"/"Earth" false positive)
+      // + skillScore 0.1 ("writing" inside "Research Writing", a real match) =
+      // 0.4 of 1.0 max -> 40. Measured by running the pre-fix substring
+      // matcher against this exact text, not estimated.
+      const score = calculateInterestsScore(
+        interestsContext(["Creative"]),
+        SPACE_SCIENTIST,
+        INTERESTS_COMPONENT,
+      )?.score;
+      expect(Math.round(score! * 10) / 10).toBe(10);
+      expect(score).not.toBe(40); // the pre-fix value — pinned so a regression back to it is visible, not just "some other number"
+    });
+
+    it("Physicist's Creative score is unaffected — its only Creative signal ('design') is a real, unrelated-to-the-bug match", () => {
+      const score = calculateInterestsScore(
+        interestsContext(["Creative"]),
+        PHYSICIST,
+        INTERESTS_COMPONENT,
+      )?.score;
+      expect(Math.round(score! * 10) / 10).toBe(30); // descriptionScore only, via "design the experiment"
+    });
+
+    it("both careers still score identically on Science and Research — the fix does not touch unrelated interests", () => {
+      for (const interest of ["Science", "Research"]) {
+        const p = calculateInterestsScore(interestsContext([interest]), PHYSICIST, INTERESTS_COMPONENT)?.score;
+        const s = calculateInterestsScore(interestsContext([interest]), SPACE_SCIENTIST, INTERESTS_COMPONENT)?.score;
+        expect(Math.round(p! * 10) / 10).toBe(100);
+        expect(Math.round(s! * 10) / 10).toBe(100);
+      }
+    });
+  });
+
+  it("RECORDED GAP — two of the five calculators still have no fixtures", () => {
     // Not an assertion about scoring; an assertion about this file's coverage, so
-    // that "the golden fixtures did not move" keeps meaning something. subjects
-    // and vision are covered. interests, riasec and cvq are not: a change to any
-    // of them moves no fixture here and the bump rule cannot be enforced for it.
+    // that "the golden fixtures did not move" keeps meaning something. subjects,
+    // vision and interests are covered. riasec and cvq are not: a change to
+    // either moves no fixture here and the bump rule cannot be enforced for it.
     // When one gains fixtures, shorten this list in the same commit.
-    const UNCOVERED = ["interests", "riasec", "cvq"];
-    expect(UNCOVERED).toEqual(["interests", "riasec", "cvq"]);
+    const UNCOVERED = ["riasec", "cvq"];
+    expect(UNCOVERED).toEqual(["riasec", "cvq"]);
   });
 
   it("SCORING_ALGORITHM_VERSION is a positive integer that only ever moves forward", () => {

@@ -1,13 +1,24 @@
 /**
  * Interest Lexicon for Career Matching
- * 
+ *
  * Structured synonym thesaurus that maps student interests to career-related keywords.
  * Used by the Interest Match scoring component to provide richer, more accurate matching.
- * 
+ *
  * Architecture:
- * - Each interest has: primary keywords (category matches), description keywords (found in career descriptions), 
+ * - Each interest has: primary keywords (category matches), description keywords (found in career descriptions),
  *   and skill keywords (found in required skills)
  * - Supports weighted multi-channel matching for better accuracy
+ *
+ * WORD FORMS ARE LISTED EXPLICITLY, NOT DERIVED. findMatchingKeywords matches whole words
+ * only (see its own comment) — it will not stem "tech" into "technology" on its own. Where a
+ * plural, adjectival, or compound form of a keyword is itself a real signal (technology/
+ * technologies/technical alongside tech, websites alongside web, patients alongside patient),
+ * that form is listed as its own literal entry below. Two forms of the same lemma were
+ * deliberately left OUT after a full-catalog audit because the found word was on-topic in name
+ * only: "hospitals" (fires only on a Cybersecurity Analyst description naming hospitals as one
+ * of several clients, not on a healthcare career) and "legally" (fires only on an Accountant
+ * describing tax compliance, not legal practice). Adding either would make that false positive
+ * deliberate rather than accidental. See docs/interest-lexicon-wholeword.md for the full audit.
  */
 
 export interface InterestMapping {
@@ -23,9 +34,11 @@ export const INTEREST_LEXICON: Record<string, InterestMapping> = {
   "Technology": {
     categories: ["Technology", "IT & Software", "Engineering"],
     descriptionKeywords: [
-      "tech", "digital", "computer", "coding", "programming", "software", 
+      "tech", "digital", "computer", "coding", "programming", "software",
       "apps", "innovation", "ai", "artificial intelligence", "machine learning",
-      "web", "mobile", "cloud", "data", "automation", "robotics", "cyber"
+      "web", "mobile", "cloud", "data", "automation", "robotics", "cyber",
+      "technical", "technology", "technologies", "computers", "websites",
+      "databases", "datasets"
     ],
     skillKeywords: [
       "programming", "coding", "python", "java", "javascript", "sql",
@@ -38,7 +51,8 @@ export const INTEREST_LEXICON: Record<string, InterestMapping> = {
     descriptionKeywords: [
       "health", "medical", "patient", "care", "hospital", "clinic", "treatment",
       "diagnosis", "therapy", "wellness", "medicine", "nursing", "doctor",
-      "healthcare", "healing", "recovery", "rehabilitation"
+      "healthcare", "healing", "recovery", "rehabilitation",
+      "healthy", "patients", "treatments", "doctors"
     ],
     skillKeywords: [
       "patient care", "medical knowledge", "clinical skills", "anatomy",
@@ -51,7 +65,8 @@ export const INTEREST_LEXICON: Record<string, InterestMapping> = {
     descriptionKeywords: [
       "creative", "design", "art", "visual", "aesthetic", "artistic", "beauty",
       "graphics", "illustration", "photography", "video", "animation",
-      "creative expression", "imagination", "style", "composition", "layout"
+      "creative expression", "imagination", "style", "composition", "layout",
+      "designs", "designers", "artists", "videos", "layouts"
     ],
     skillKeywords: [
       "creativity", "design thinking", "color theory", "typography",
@@ -64,7 +79,8 @@ export const INTEREST_LEXICON: Record<string, InterestMapping> = {
     descriptionKeywords: [
       "business", "management", "company", "organization", "strategy",
       "finance", "accounting", "economics", "marketing", "sales", "revenue",
-      "profit", "investment", "corporate", "entrepreneur", "startup", "trade"
+      "profit", "investment", "corporate", "entrepreneur", "startup", "trade",
+      "businesses", "organizations", "finances", "profitable"
     ],
     skillKeywords: [
       "leadership", "strategic thinking", "financial analysis", "budgeting",
@@ -77,7 +93,7 @@ export const INTEREST_LEXICON: Record<string, InterestMapping> = {
     descriptionKeywords: [
       "teach", "education", "learning", "instruction", "curriculum", "classroom",
       "student", "academic", "pedagogy", "training", "mentoring", "tutoring",
-      "knowledge transfer", "educational development", "school"
+      "knowledge transfer", "educational development", "school", "students"
     ],
     skillKeywords: [
       "teaching", "curriculum development", "classroom management",
@@ -90,7 +106,8 @@ export const INTEREST_LEXICON: Record<string, InterestMapping> = {
     descriptionKeywords: [
       "science", "research", "experiment", "discovery", "analysis", "laboratory",
       "scientific", "investigation", "study", "testing", "hypothesis",
-      "innovation", "breakthrough", "theory", "evidence", "data collection"
+      "innovation", "breakthrough", "theory", "evidence", "data collection",
+      "studying"
     ],
     skillKeywords: [
       "scientific method", "research methodology", "data analysis",
@@ -104,7 +121,8 @@ export const INTEREST_LEXICON: Record<string, InterestMapping> = {
     descriptionKeywords: [
       "sports", "athletic", "fitness", "exercise", "training", "competition",
       "physical", "performance", "coaching", "team", "game", "movement",
-      "recreation", "wellness", "conditioning", "strength"
+      "recreation", "wellness", "conditioning", "strength",
+      "exercises", "teams", "games"
     ],
     skillKeywords: [
       "athletic ability", "coaching", "physical fitness", "sports psychology",
@@ -117,7 +135,8 @@ export const INTEREST_LEXICON: Record<string, InterestMapping> = {
     descriptionKeywords: [
       "social", "community", "help", "support", "counseling", "advocacy",
       "service", "charity", "nonprofit", "welfare", "assistance", "outreach",
-      "empowerment", "social work", "humanitarian", "volunteer"
+      "empowerment", "social work", "humanitarian", "volunteer",
+      "helping", "helps", "supporting"
     ],
     skillKeywords: [
       "empathy", "active listening", "counseling", "case management",
@@ -130,7 +149,8 @@ export const INTEREST_LEXICON: Record<string, InterestMapping> = {
     descriptionKeywords: [
       "law", "legal", "government", "policy", "regulation", "justice", "court",
       "legislation", "public service", "civic", "political", "administration",
-      "governance", "compliance", "rights", "attorney", "lawyer"
+      "governance", "compliance", "rights", "attorney", "lawyer",
+      "courtrooms"
     ],
     skillKeywords: [
       "legal research", "critical thinking", "argumentation", "writing",
@@ -143,7 +163,8 @@ export const INTEREST_LEXICON: Record<string, InterestMapping> = {
     descriptionKeywords: [
       "environment", "sustainability", "conservation", "ecology", "nature",
       "green", "renewable", "climate", "ecosystem", "biodiversity", "pollution",
-      "environmental protection", "natural resources", "carbon", "sustainable"
+      "environmental protection", "natural resources", "carbon", "sustainable",
+      "environmental", "ecosystems"
     ],
     skillKeywords: [
       "environmental science", "sustainability", "ecology", "conservation",
@@ -152,7 +173,7 @@ export const INTEREST_LEXICON: Record<string, InterestMapping> = {
   },
 
   "Media & Communication": {
-    categories: ["Media", "Communication", "Journalism", "Broadcasting"],
+    categories: ["Media", "Communication", "Communications", "Journalism", "Broadcasting"],
     descriptionKeywords: [
       "media", "communication", "journalism", "news", "broadcasting", "writing",
       "reporting", "storytelling", "content", "digital media", "social media",
@@ -169,7 +190,8 @@ export const INTEREST_LEXICON: Record<string, InterestMapping> = {
     descriptionKeywords: [
       "engineering", "design", "build", "construct", "develop", "mechanical",
       "electrical", "civil", "structural", "systems", "technical", "prototype",
-      "manufacturing", "infrastructure", "architecture", "blueprint"
+      "manufacturing", "infrastructure", "architecture", "blueprint",
+      "designs", "designers", "buildings", "developing", "blueprints"
     ],
     skillKeywords: [
       "engineering design", "technical analysis", "problem solving", "CAD",
@@ -182,7 +204,8 @@ export const INTEREST_LEXICON: Record<string, InterestMapping> = {
     descriptionKeywords: [
       "food", "cooking", "culinary", "chef", "restaurant", "hospitality",
       "service", "cuisine", "menu", "recipe", "hotel", "tourism", "guest",
-      "catering", "dining", "kitchen", "meal preparation"
+      "catering", "dining", "kitchen", "meal preparation",
+      "restaurants", "menus", "hotels", "guests"
     ],
     skillKeywords: [
       "cooking", "food preparation", "culinary arts", "menu planning",
@@ -195,7 +218,8 @@ export const INTEREST_LEXICON: Record<string, InterestMapping> = {
     descriptionKeywords: [
       "fashion", "style", "clothing", "apparel", "design", "trends", "fabric",
       "garment", "textiles", "accessories", "runway", "boutique", "wardrobe",
-      "styling", "couture", "fashion industry"
+      "styling", "couture", "fashion industry",
+      "designs", "designers", "fabrics", "runways"
     ],
     skillKeywords: [
       "fashion design", "sewing", "pattern making", "textile knowledge",
@@ -221,7 +245,8 @@ export const INTEREST_LEXICON: Record<string, InterestMapping> = {
     descriptionKeywords: [
       "problem", "solve", "solution", "challenge", "troubleshoot", "debug",
       "analytical", "critical thinking", "optimization", "strategic", "resolve",
-      "technical challenges", "complex problems", "decision making", "innovation"
+      "technical challenges", "complex problems", "decision making", "innovation",
+      "problems", "solutions", "challenges"
     ],
     skillKeywords: [
       "problem solving", "critical thinking", "analytical skills", "troubleshooting",
@@ -234,7 +259,8 @@ export const INTEREST_LEXICON: Record<string, InterestMapping> = {
     descriptionKeywords: [
       "lead", "leadership", "manage", "direct", "guide", "coordinate", "supervise",
       "team", "organize", "motivate", "mentor", "decision making", "strategic planning",
-      "influence", "inspire", "delegation", "responsibility"
+      "influence", "inspire", "delegation", "responsibility",
+      "leaders", "management", "teams"
     ],
     skillKeywords: [
       "leadership", "team management", "strategic thinking", "decision making",
@@ -247,7 +273,8 @@ export const INTEREST_LEXICON: Record<string, InterestMapping> = {
     descriptionKeywords: [
       "help", "assist", "support", "care", "service", "aid", "benefit", "contribute",
       "volunteer", "community", "social impact", "patient care", "counseling",
-      "teaching", "mentoring", "empowerment", "wellbeing"
+      "teaching", "mentoring", "empowerment", "wellbeing",
+      "helping", "helps", "supporting"
     ],
     skillKeywords: [
       "empathy", "active listening", "patient care", "counseling", "teaching",
@@ -260,7 +287,8 @@ export const INTEREST_LEXICON: Record<string, InterestMapping> = {
     descriptionKeywords: [
       "physical", "movement", "exercise", "athletic", "sports", "fitness", "active",
       "training", "strength", "conditioning", "rehabilitation", "therapy", "wellness",
-      "health", "performance", "coordination", "endurance"
+      "health", "performance", "coordination", "endurance",
+      "exercises", "healthcare", "healthy"
     ],
     skillKeywords: [
       "physical fitness", "athletic ability", "physical therapy", "sports medicine",
@@ -274,7 +302,8 @@ export const INTEREST_LEXICON: Record<string, InterestMapping> = {
       "creative", "design", "art", "visual", "aesthetic", "artistic", "beauty",
       "graphics", "illustration", "photography", "video", "animation", "music",
       "creative expression", "imagination", "style", "composition", "layout",
-      "writing", "storytelling", "content creation"
+      "writing", "storytelling", "content creation",
+      "designs", "designers", "artists", "videos", "layouts"
     ],
     skillKeywords: [
       "creativity", "design thinking", "color theory", "typography",
@@ -289,7 +318,8 @@ export const INTEREST_LEXICON: Record<string, InterestMapping> = {
       "research", "science", "experiment", "discovery", "analysis", "laboratory",
       "scientific", "investigation", "study", "testing", "hypothesis",
       "innovation", "breakthrough", "theory", "evidence", "data collection",
-      "learning", "exploration", "inquiry", "academic"
+      "learning", "exploration", "inquiry", "academic",
+      "studying"
     ],
     skillKeywords: [
       "scientific method", "research methodology", "data analysis",
@@ -324,11 +354,28 @@ export function normalizeText(text: string): string {
     .trim();
 }
 
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/** Whole-word match: `candidate` must appear as a complete word in `text`, not merely as a substring. */
+function hasWholeWordMatch(candidate: string, text: string): boolean {
+  return new RegExp(`\\b${escapeRegExp(candidate)}\\b`).test(text);
+}
+
 /**
- * Check if any keywords from a list appear in the target text
- * Returns matching keywords found
+ * Check if any keywords from a list appear as WHOLE WORDS in the target text.
+ * Returns matching keywords found.
  * Handles compound keywords by checking both original and space-separated versions
  * (e.g., "ai/ml" matches both "ai/ml" and "ai ml")
+ *
+ * WHOLE-WORD, NOT SUBSTRING. A plain `String.includes` here lets a keyword match from
+ * inside an unrelated word — "art" inside "beyond Earth", "ai" inside "sustainable" —
+ * which is silent: nothing errors, the match looks identical to a real one at the point of
+ * use. See docs/interest-lexicon-wholeword.md for the full-catalog audit that replaced the
+ * substring check with this one and expanded INTEREST_LEXICON's literal keyword lists to
+ * cover the plural/adjectival/compound forms ("technology", "websites", "patients", ...)
+ * that the substring check used to catch by accident.
  */
 export function findMatchingKeywords(
   keywords: string[],
@@ -339,26 +386,25 @@ export function findMatchingKeywords(
 
   for (const keyword of keywords) {
     const normalizedKeyword = normalizeText(keyword);
-    
-    // Check exact match
-    if (normalized.includes(normalizedKeyword)) {
+
+    if (hasWholeWordMatch(normalizedKeyword, normalized)) {
       matches.push(keyword);
       continue;
     }
-    
+
     // Check space-separated version for compound keywords (ai/ml → ai ml)
     if (normalizedKeyword.includes('/') || normalizedKeyword.includes('-')) {
       const spaceSeparated = normalizedKeyword.replace(/[/-]/g, ' ');
-      if (normalized.includes(spaceSeparated)) {
+      if (hasWholeWordMatch(spaceSeparated, normalized)) {
         matches.push(keyword);
         continue;
       }
     }
-    
+
     // Check joined version (self-direction → selfdirection)
     if (normalizedKeyword.includes(' ')) {
       const joined = normalizedKeyword.replace(/\s+/g, '');
-      if (normalized.includes(joined)) {
+      if (hasWholeWordMatch(joined, normalized)) {
         matches.push(keyword);
       }
     }

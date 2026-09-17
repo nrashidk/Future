@@ -964,8 +964,8 @@ Escape hatch for sanctioned prod ops (the 3 scripts, intentional db:push): ALLOW
 Override the endpoint id via PRODUCTION_DB_ENDPOINT_ID if the branch is ever recreated.
 
 Remaining small follow-ups (not blocking):
-- ROTATE Neon credentials: the full connection string (with password) surfaced in terminal output several
-  times this session — it's in the transcript. Do when convenient.
+- DONE — Neon credentials rotated twice during this session (the full connection string, with
+  password, had surfaced in terminal output and was in the transcript). Closed.
 - DONE 2026-09-07: Neon endpoint hostnames scrubbed from this file. They appeared across several
   sections, not the single line this item used to cite — the prod endpoint in the rotation note, the
   env recipe, the staging/prod branch note and the migration-014 correction, plus the staging endpoint
@@ -1586,18 +1586,23 @@ DONE + live in prod:
   factsLocked/LOCKED_FOG; kept pdfLocked (real 403 gate). Reframed upsell in plain language ("Add Two More
   Signals"; the stale "24-question learning style" phantom removed).
 
-REMAINING v2 phases (reconned, ready):
-- Phase 4 (school locking) - RECON DONE. Recon preserved at docs/v2-phase4-recon.md (tracked).
-  Key finding: SECURITY GAP - a school student can override name/age/grade/gender/countryId via a direct
-  PATCH /api/assessments/:id (zero org-awareness). Country/curriculum live on the ORG and are OPTIONAL
-  everywhere; the student create form captures neither (nor studentName/studentAge). No edit-student form
-  exists. Needs: mandatory org country+curriculum (schema, staging-first), server-side PATCH lock enforcement
-  (prod-safe), build the missing edit form. Depends on the Country<->Subjects swap (now landed).
-- Phase 5 (guest->account claim + free access): guest->account migration is BROKEN (guest assessment not
-  claimed on registration). Free-account users blocked from assessments. Ties to the "does Create Free Account
-  save the free report?" question below.
+REMAINING v2 phases:
+- Phase 4 (school locking) - BUILT AND VERIFIED IN PROD. Four steps: the role-scoped CHECK on
+  organization_members (migration 014_require_student_demographics.sql — student_name/gender/grade
+  required for role='student', admin rows untouched); the edit-student form; server-side lock on the
+  assessment PATCH and POST across the five membership sites so a school student can no longer
+  override name/age/grade/gender/countryId; and DOB with a derived age (migrations
+  015_add_student_date_of_birth.sql, 016_require_student_date_of_birth.sql,
+  017_drop_student_age.sql — the old, uncollectible student_age column is gone in favor of computing
+  age from date_of_birth). Not "recon done" — this shipped.
+- Phase 5 (guest->account claim + free access): FIXED AND VERIFIED, not broken. 04b01d0 found the
+  claim had never run at all (gated on a localStorage key nothing ever wrote) and that the migrate
+  endpoint asked for guestSessionId in the body when the token is httpOnly and withheld from the
+  client on purpose; it now reads req.cookies.guest_token like every other guest-authorized route.
+  Confirmed end to end with a clear-cookies test. Resolves item 5 under "OPEN ITEMS from 2026-09-04
+  free-report review" below, which was blocked on this.
 - Phase 6 (license rework, the big one): consume-at-completion, unified self/school licensing,
-  repurchase-sells-licenses, needs a real license table.
+  repurchase-sells-licenses, needs a real license table. Still not built.
 
 ## OPEN ITEMS from 2026-09-04 free-report review (small polish + product decisions)
 
@@ -1617,9 +1622,10 @@ REMAINING v2 phases (reconned, ready):
    where a count line sits above rows each badged with a curriculum name; unverified. Needs a screenshot if seen again.
 4. Free PDF: currently free users CANNOT download a PDF (403, upsells to premium). DECISION PENDING - keep PDF
    premium-only (recommended - tangible premium perk) or give free users a PDF.
-5. Free account save: does "Create Free Account" actually save the free report? Unknown/untested. Ties to
-   Phase 5 guest->account claim (which the audit found BROKEN). A PDF copy is NOT saved (PDFs are generated
-   on-demand, not stored). Resolve in Phase 5.
+5. Free account save: does "Create Free Account" actually save the free report? RESOLVED via Phase 5
+   (04b01d0) — the guest->account claim now actually runs and was confirmed end to end, so registering
+   does claim the guest assessment. A PDF copy is still NOT saved (PDFs are generated on-demand, not
+   stored) — that part is unchanged and not a defect.
 6. Upsell copy still says "Holland Code (RIASEC)" and "values questionnaire" - it DEFINES them in plain
    language rather than assuming knowledge, reads OK, but owner may want "RIASEC" acronym removed entirely
    leaving just "career personality". Minor copy call.
@@ -5490,6 +5496,20 @@ count, and the count was wrong. Had the survey never been asked for, six would s
 
 Related: the row-multiplicity half of this family is `786b556` ("a match key loose enough to hit
 more than one row writes to whichever it hits last"). Same failure signature, different operator.
+
+**Instance 2 CLOSED 2026-09-17.** `findMatchingKeywords` switched to whole-word matching
+(`\bkeyword\b`), and `INTEREST_LEXICON` expanded with the plural/adjectival/compound forms the
+substring check used to catch by accident (technology/technologies/technical alongside tech,
+websites alongside web, patients alongside patient, and 42 more). Full audit — all 116 affected
+keyword-word pairs individually classified as intended stem or coincidental collision, not
+estimated — in `docs/interest-lexicon-wholeword.md`. Verified against the real 68-career catalog:
+28 false-positive interest×career matches removed, zero intended matches lost.
+`SCORING_ALGORITHM_VERSION` bumped to 5; `interests` gained a three-layer fixture in
+`scoringProvenance.test.ts` (word-boundary canaries, a real-catalog Physicist-vs-Space-Scientist
+assertion, and the coverage-gap test), closing the exact enforcement gap version 4's own history
+comment named. Instances 1 (`seed.ts` nationalPriorityAlignment) and 3 (the grep tooling lesson)
+are unchanged by this — instance 1 in particular is the same bug class in a different file and is
+still open.
 
 ## THE CONTRIBUTION PATH HAS NEVER PRODUCED A SERVED QUESTION — WRITE PATH FIXED 2026-09-11 (a5927ac), the class is still open (2026-09-11)
 
