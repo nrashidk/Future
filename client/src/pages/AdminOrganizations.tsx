@@ -48,16 +48,23 @@ function consentBlockedMessage(error: unknown, t: (key: string) => string): stri
   return serverErrorCode(error) === CONSENT_REQUIRED_CODE ? t('orgs.consentBlocked') : null;
 }
 
-async function downloadFile(url: string, defaultFilename: string, toast: any, t: (key: string) => string, setIsDownloading?: (v: boolean) => void): Promise<void> {
+// Returns whether the download actually succeeded. Callers that chain a
+// follow-up message (e.g. the bulk-export summary hint) must check this
+// before showing it — this function already swallows its own failures into a
+// toast, so an unchecked `await downloadFile(...)` looks like a completed
+// step to its caller on every path, success or failure alike. That gap is
+// what let the bulk-export "check the summary" toast fire even when nothing
+// downloaded, for as long as the button has existed.
+async function downloadFile(url: string, defaultFilename: string, toast: any, t: (key: string) => string, setIsDownloading?: (v: boolean) => void): Promise<boolean> {
   try {
     setIsDownloading?.(true);
     const response = await fetch(url, { credentials: 'include' });
-    
+
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ message: 'Download failed' }));
       throw new Error(errorData.message || `HTTP error ${response.status}`);
     }
-    
+
     const contentDisposition = response.headers.get('Content-Disposition');
     let filename = defaultFilename;
     if (contentDisposition) {
@@ -66,7 +73,7 @@ async function downloadFile(url: string, defaultFilename: string, toast: any, t:
         filename = match[1];
       }
     }
-    
+
     const blob = await response.blob();
     const downloadUrl = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -76,8 +83,9 @@ async function downloadFile(url: string, defaultFilename: string, toast: any, t:
     a.click();
     document.body.removeChild(a);
     window.URL.revokeObjectURL(downloadUrl);
-    
+
     toast({ title: t('orgs.downloadedTitle'), description: t('orgs.downloadStartedDesc') });
+    return true;
   } catch (error: unknown) {
     // serverErrorMessage, for consistency with the rest of this file (0dd5408)
     // and for the ?? — error.message is always a non-empty string, so under the
@@ -87,11 +95,12 @@ async function downloadFile(url: string, defaultFilename: string, toast: any, t:
     // Note this catch never sees throwIfResNotOk's "<status>: {json}" shape:
     // the throw above reads the PARSED body's own message field, so the helper
     // is here for its markup/length guard and the ??, not to strip a prefix.
-    toast({ 
-      title: t('orgs.downloadFailed'), 
-      description: serverErrorMessage(error) ?? t('orgs.downloadFailedDesc'), 
-      variant: "destructive" 
+    toast({
+      title: t('orgs.downloadFailed'),
+      description: serverErrorMessage(error) ?? t('orgs.downloadFailedDesc'),
+      variant: "destructive"
     });
+    return false;
   } finally {
     setIsDownloading?.(false);
   }
@@ -747,16 +756,21 @@ export default function AdminOrganizations() {
                     size="sm" 
                     data-testid="button-export-reports"
                     onClick={async () => {
-                      await downloadFile(
+                      const downloaded = await downloadFile(
                         `/api/admin/organizations/${selectedOrgId}/export/reports`,
                         'reports.zip',
                         toast,
                         t
                       );
-                      toast({
-                        title: t('orgs.exportReportsSummaryHintTitle'),
-                        description: t('orgs.exportReportsSummaryHintDesc'),
-                      });
+                      // Only worth telling the admin to check the in-zip summary
+                      // if a zip actually arrived — downloadFile already showed
+                      // its own failure toast otherwise.
+                      if (downloaded) {
+                        toast({
+                          title: t('orgs.exportReportsSummaryHintTitle'),
+                          description: t('orgs.exportReportsSummaryHintDesc'),
+                        });
+                      }
                     }}
                     // MIRRORS THE SERVER'S OWN PREDICATE, which is what this
                     // button was always meant to say. The endpoint builds the zip
