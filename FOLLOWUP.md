@@ -92,6 +92,66 @@ drift apart the way the old duplicated-literal version did.
    margin only needs to cover dispatch/network jitter for a late-fired narrative request, not full
    LLM round-trip latency — see the new entry below on that call having no timeout of its own.
 
+**BULK EXPORT DOES NOT DELIVER A FILE — traced 2026-09-18, unfixed. This was never a working
+feature regressing; it is an unfinished one, and the printToken fix above removed the last of four
+independent, non-overlapping blockers rather than breaking a working path.** Reported: org admin
+for Test High School clicks Export Reports, gets a toast telling them to check the export summary,
+no file arrives. Traced via git history (`admin.routes.ts`, `AdminOrganizations.tsx`,
+`Analytics.tsx`), not inferred — four blockers, each alone sufficient to prevent delivery, each
+fixed independently and at a different time:
+
+1. 2025-11-24 (`990dc1f`, ships) → 2025-12-12: server-side member filter was `m.isLocked`, a column
+   with zero writers anywhere in the repo (`storage.lockOrganizationMember` has no callers) — always
+   empty, every request 404'd before the zip was ever started.
+2. 2025-11-24 → 2026-09-11: the `AdminOrganizations.tsx` button was independently gated on the same
+   dead `m.isLocked` flag — permanently `disabled`, unclickable, for any school, the entire time
+   (`cc0a6f1`'s own title: "Export Reports has been disabled for every school since it shipped").
+   This was NOT fixed by item 1's 2025-12-12 server fix; the two gates were never in sync, so the
+   button stayed disabled for another 9 months after the server-side predicate was already correct.
+3. 2025-11-24 → 2026-09-17: even on the `Analytics.tsx` page, whose button had no disabled-gate and
+   was clickable the whole time, every PDF the loop produced was the blank-shell defect documented
+   above (no printToken) — so the one client path that COULD have triggered a real render the whole
+   time could only ever have produced content-free PDFs.
+4. Structural, still open: the loop is sequential Puppeteer, one page per student, up to
+   `PDF_GOTO_TIMEOUT_MS + PDF_WAIT_FOR_READY_TIMEOUT_MS` = 60s worst case per student
+   (`admin.routes.ts:1764-1771`), held inside ONE streamed HTTP response
+   (`archive.pipe(res)` at :1651, before the loop starts). A 30-student school is a worst-case
+   30-minute single response. Nothing in the loop checks whether `res` is still writable, there is
+   no `archive.on('error', ...)` listener anywhere in the file, and there is no process-level
+   `uncaughtException`/`unhandledRejection` handler in `server/` either — so a dropped connection
+   partway through (a proxy/platform timeout on a response this long is the leading suspect, not
+   confirmed without prod logs correlated to a specific request) fails silently server-side and
+   produces no file client-side, while the per-student `console.log`/`console.error` lines look
+   identical to a successful run either way.
+
+There is no point in this repository's history where all of (server builds a non-empty zip) AND
+(button is clickable) AND (PDFs contain real content) were simultaneously true — until yesterday
+(2026-09-17), which is also the day blocker 4 became the only thing standing between an admin and a
+real file, and the first day anyone would have been in a position to notice it. Not a regression.
+See also the separate client bug below: the "check the export summary" toast fired unconditionally
+regardless of whether anything downloaded, which is what let blocker 4 (and blockers 1-3 before it)
+go unreported for ten months — nothing in the UI ever distinguished success from failure.
+
+**FIXED 2026-09-18.** `downloadFile` (`AdminOrganizations.tsx`) swallows its own failures into a
+toast and never re-throws, so `await downloadFile(...)` always resolves cleanly and the caller had
+no way to tell success from failure. The Export Reports button's follow-up "check the summary"
+toast fired unconditionally right after that `await`, on every path. Fix: `downloadFile` now
+returns a boolean; the follow-up toast only fires when it returns `true`. Narrow fix, this bug only
+— does not touch blocker 4 (still open) or the `Analytics.tsx` `window.open` call site, which has
+no success/failure signal available to it at all (a `window.open` navigation gives the caller
+nothing to check) and is a separate, larger design question — see below.
+
+**BULK EXPORT DESIGN — open, not started.** Blocker 4 is a design problem, not a bug: synchronous,
+sequential, in-request PDF rendering does not scale to a real school's roster inside one HTTP
+response, regardless of timeout tuning. This codebase has no job runner/queue (the guest-draft
+sweep piggybacks on a request-triggered throttle for exactly this reason — same missing
+infrastructure, same workaround shape). Needs its own scoped design pass before implementing:
+smallest version that survives 30 students, whether that requires an async job + storage +
+notification (and what that costs to stand up with no existing job infra), or whether a smaller
+intermediate step (bounded concurrency + progress endpoint the client polls, still one eventual
+response) gets there without new infrastructure. Not fixed here; this entry exists so the option
+space is written down instead of re-discovered.
+
 NARRATIVE POLISH (minor, noticed in the first full prod PDF): LLM reasoning still says the student's
 subjects are "Business"/"Art" (pre-umbrella-6 phrasing); "Next Steps" says "Take Business further"
 even for non-business careers. Cosmetic, not broken.
