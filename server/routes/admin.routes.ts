@@ -1761,8 +1761,13 @@ export function registerAdminRoutes(app: Express) {
           // Validate URL before navigation
           validatePdfUrl(printUrl);
 
+          // Wait only for the HTML document, not network idle: the print page keeps
+          // fetching i18n locale JSON (and may poll LLM narratives) well past 30s, so
+          // 'networkidle0' is never satisfied and goto times out. The real readiness
+          // signal is window.__REPORT_READY__, which the print page sets only after
+          // translations and report data have loaded (see waitForFunction below).
           await page.goto(printUrl, {
-            waitUntil: 'networkidle0',
+            waitUntil: 'domcontentloaded',
             timeout: PDF_GOTO_TIMEOUT_MS,
           });
 
