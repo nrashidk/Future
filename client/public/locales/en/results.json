@@ -95,6 +95,8 @@
   "growthBandAverage": "Good \u2014 3\u20134% growth",
   "growthBandSlower": "Moderate \u2014 1\u20132% growth",
   "growthBandDecline": "Declining \u2014 projected decline",
+  "growthBandWatch": "Mixed signals",
+  "growthWatchNote": "One projection flags a decline; a second, independent check does not confirm it \u2014 not treated as declining here.",
   "growthSource": "US Bureau of Labor Statistics projection, 2024\u20132034 (via O*NET)",
   "avgSalary": "Average Salary",
   "typical": "Typical",

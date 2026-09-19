@@ -25,7 +25,7 @@ import { useQuery, useQueries } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef } from "react";
 import { isPremiumAssessment } from "@shared/assessmentTier";
 import { subjectLabelKey } from "@shared/subjects";
-import { GROWTH_BAND_I18N, isOnetGrowthBand } from "@shared/growthBands";
+import { GROWTH_BAND_I18N, GROWTH_OUTLOOK_WATCH_KEY, GROWTH_OUTLOOK_WATCH_NOTE_KEY, isOnetGrowthBand } from "@shared/growthBands";
 import i18n from "@/i18n/config";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -114,15 +114,44 @@ function getCountryDisplayName(
 // Verbatim twin of localizeGrowthBand in Results.tsx; both now read the same
 // shared lookup instead of each carrying a copy of a regex that could not
 // express decline. See shared/growthBands.ts.
+//
+// DECLINE IS THE ONLY BAND OVERRIDDEN BELOW, AND THAT IS DELIBERATE — full
+// reasoning in the twin of this comment in Results.tsx, restated briefly: a
+// career reaches this printed card only if it survived the future-readiness
+// gate (server/services/futureReadiness.ts), which excludes on decline only
+// when O*NET AND WEF Future of Jobs both agree. A career with
+// onetGrowthBand === "decline" that's still on this page has, by
+// construction, a single uncorroborated decline signal the gate explicitly
+// did not act on (readiness "watch") — printing the raw band states that one
+// U.S. projection as a settled verdict on a page recommending the career.
+// No other band has an equivalent gate to disagree with (there's no
+// don't-act-on-a-single-growth-signal mechanism), which is why only this one
+// band is overridden and the other five keep their O*NET magnitude wording.
+// Do not unify this into one vocabulary for all six bands without reading
+// that reasoning first — it would read as a cleanup and would throw away
+// real information (much_faster vs. faster vs. average vs. slower) that was
+// never the problem.
 function localizeGrowthBand(
   band: string | null | undefined,
   tFn: (key: string) => string,
 ): string {
+  if (band === "decline") return tFn(GROWTH_OUTLOOK_WATCH_KEY);
   const key = isOnetGrowthBand(band) ? GROWTH_BAND_I18N[band] : GROWTH_BAND_I18N.average;
   return tFn(key);
 }
 
-
+// Companion to localizeGrowthBand's override: the explanatory line shown
+// beneath the card ONLY when a career's band was overridden above. Unlike
+// Results.tsx (which already has a source-attribution caption to swap out),
+// this printed card previously had no caption at all — a bare "Mixed
+// signals" with no context would read worse in a static, printed report than
+// "Declining" did, so this line is additive here, not a replacement.
+function growthOutlookWatchNote(
+  band: string | null | undefined,
+  tFn: (key: string) => string,
+): string | null {
+  return band === "decline" ? tFn(GROWTH_OUTLOOK_WATCH_NOTE_KEY) : null;
+}
 
 // Map raw country.targets keys to results-namespace i18n keys for localized display
 const CATEGORY_I18N_KEY: Record<string, string> = {
@@ -1088,13 +1117,21 @@ export default function ResultsPrint() {
                       but the two renderers are kept in step so that if the PDF is
                       ever opened to free it ships the same block list, not a
                       fuller report than the screen. */}
-                  {isPremium && rec.career?.onetGrowthBand && (
-                    <div className="flex items-center gap-1.5 mt-1.5 p-1.5 bg-background/20 rounded-lg">
-                      <TrendingUp className="w-3 h-3 text-primary flex-shrink-0" />
-                      <span className="text-[10px] text-muted-foreground">{t('growthOutlook')}:</span>
-                      <span className="text-[10px] font-semibold">{localizeGrowthBand(rec.career.onetGrowthBand, t)}</span>
-                    </div>
-                  )}
+                  {isPremium && rec.career?.onetGrowthBand && (() => {
+                    const watchNote = growthOutlookWatchNote(rec.career.onetGrowthBand, t);
+                    return (
+                      <>
+                        <div className="flex items-center gap-1.5 mt-1.5 p-1.5 bg-background/20 rounded-lg">
+                          <TrendingUp className="w-3 h-3 text-primary flex-shrink-0" />
+                          <span className="text-[10px] text-muted-foreground">{t('growthOutlook')}:</span>
+                          <span className="text-[10px] font-semibold">{localizeGrowthBand(rec.career.onetGrowthBand, t)}</span>
+                        </div>
+                        {watchNote && (
+                          <p className="text-[9px] text-muted-foreground mt-0.5 ps-1.5">{watchNote}</p>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
 
                 {/* WEF Framework Skill Tags — PREMIUM ONLY. nameAr used when

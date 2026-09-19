@@ -95,6 +95,8 @@
   "growthBandAverage": "جيد — نمو 3–4%",
   "growthBandSlower": "متوسط — نمو 1–2%",
   "growthBandDecline": "متراجع — يُتوقع انخفاض",
+  "growthBandWatch": "إشارات متضاربة",
+  "growthWatchNote": "يشير أحد التوقعات إلى تراجع، لكن فحصًا مستقلاً آخر لا يؤكد ذلك — لذلك لا يُعتبر تراجعًا هنا.",
   "growthSource": "توقعات مكتب إحصاءات العمل الأمريكي 2024–2034 (عبر O*NET)",
   "avgSalary": "متوسط الراتب",
   "typical": "نموذجي",

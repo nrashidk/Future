@@ -18,6 +18,8 @@ import {
   ONET_GROWTH_BANDS,
   ONET_BAND_BY_LABEL,
   GROWTH_BAND_I18N,
+  GROWTH_OUTLOOK_WATCH_KEY,
+  GROWTH_OUTLOOK_WATCH_NOTE_KEY,
   growthOutlookFor,
   isOnetGrowthBand,
   type OnetGrowthBand,
@@ -133,5 +135,31 @@ describe("GROWTH_BAND_I18N", () => {
   it("ships the source attribution line in both locales", () => {
     expect(locale("en").growthSource).toBeTruthy();
     expect(locale("ar").growthSource).toBeTruthy();
+  });
+});
+
+describe("GROWTH_OUTLOOK_WATCH_KEY / GROWTH_OUTLOOK_WATCH_NOTE_KEY", () => {
+  // The render-site override (Results.tsx, ResultsPrint.tsx) that swaps
+  // GROWTH_BAND_I18N.decline for these two keys lives client-side and isn't
+  // covered by this project's test collection (vitest.config.ts only
+  // collects server/** and shared/**, per the file-header comment above) —
+  // this is the one place that can pin the keys the override depends on.
+
+  it("resolves in both en and ar — new copy at the same weight as the six bands", () => {
+    const en = locale("en");
+    const ar = locale("ar");
+    for (const key of [GROWTH_OUTLOOK_WATCH_KEY, GROWTH_OUTLOOK_WATCH_NOTE_KEY]) {
+      expect(en[key], `en.results.json is missing "${key}"`).toBeTruthy();
+      expect(ar[key], `ar.results.json is missing "${key}"`).toBeTruthy();
+    }
+  });
+
+  it("the watch value is genuinely Arabic, not an English fallback", () => {
+    const watchAr = locale("ar")[GROWTH_OUTLOOK_WATCH_KEY];
+    expect(watchAr).toMatch(/[؀-ۿ]/);
+  });
+
+  it("does not reuse GROWTH_BAND_I18N.decline's key — it must be a distinct override, not an alias", () => {
+    expect(GROWTH_OUTLOOK_WATCH_KEY).not.toBe(GROWTH_BAND_I18N.decline);
   });
 });

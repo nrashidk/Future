@@ -66,6 +66,27 @@ export const GROWTH_BAND_I18N: Record<OnetGrowthBand, string> = {
 };
 
 /**
+ * NOT part of GROWTH_BAND_I18N on purpose — this is what the two report
+ * renderers (Results.tsx, ResultsPrint.tsx) show INSTEAD OF
+ * GROWTH_BAND_I18N.decline, and only there. GROWTH_BAND_I18N.decline itself
+ * is untouched and must keep saying "Declining": growthOutlookFor still
+ * writes it to the deprecated careers.growthOutlook column, and
+ * growthBands.test.ts pins it against the en locale value.
+ *
+ * The override exists because a career can carry onetGrowthBand === "decline"
+ * and still reach a report: server/services/futureReadiness.ts only excludes
+ * a career when a SECOND source (WEF Future of Jobs) corroborates the O*NET
+ * decline signal. A single, uncorroborated O*NET decline is readiness
+ * "watch" — explicitly not acted on — yet the raw band label still reads as
+ * a settled verdict. The full reasoning for why only THIS band gets
+ * overridden (the other five have no equivalent gate to disagree with) is a
+ * comment at each render site, not repeated here — see localizeGrowthBand in
+ * both files.
+ */
+export const GROWTH_OUTLOOK_WATCH_KEY = "growthBandWatch";
+export const GROWTH_OUTLOOK_WATCH_NOTE_KEY = "growthWatchNote";
+
+/**
  * The DERIVED English display string persisted to careers.growthOutlook.
  *
  * This function is the ONLY writer of that column. The column is deprecated and

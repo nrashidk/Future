@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { MasonryGrid, MasonryItem } from "@/components/MasonryGrid";
 import { isPremiumAssessment } from "@shared/assessmentTier";
-import { GROWTH_BAND_I18N, isOnetGrowthBand } from "@shared/growthBands";
+import { GROWTH_BAND_I18N, GROWTH_OUTLOOK_WATCH_KEY, GROWTH_OUTLOOK_WATCH_NOTE_KEY, isOnetGrowthBand } from "@shared/growthBands";
 import { guestAssessmentExpiresAt } from "@shared/guestAssessmentExpiry";
 import { formatLocalizedDate } from "@/lib/formatDate";
 import { 
@@ -162,12 +162,51 @@ function getCountryDisplayName(
 // could not parse. That fallback is what silently censored "Declining" from
 // every Arabic report. An enum indexing a lookup has no unmatched-input path.
 // See shared/growthBands.ts.
+//
+// DECLINE IS THE ONLY BAND OVERRIDDEN BELOW, AND THAT IS DELIBERATE.
+//
+// A career reaches this card only if it survived the future-readiness gate
+// (server/services/futureReadiness.ts), which excludes a career outright
+// only when TWO independent sources — O*NET AND WEF Future of Jobs — agree
+// it is declining. So any recommendation rendered here with
+// onetGrowthBand === "decline" was, by construction, NOT excluded: the gate
+// saw one uncorroborated decline signal (readiness "watch") and explicitly
+// declined to act on it. Printing the raw band ("Declining — projected
+// decline") on a card the gate itself let through states that single U.S.
+// projection as a settled verdict, next to a score that recommends the
+// career, to a student who has no way to know the system already checked
+// and didn't believe it.
+//
+// No other band has an equivalent gate to disagree with. A career CAN reach
+// "growing" readiness off a single source too (O*NET alone, or WEF alone —
+// see deriveReadiness in futureReadiness.ts), but there is no exclusion path
+// a lone growth signal could have been overruled by, so a plain "Excellent —
+// 7%+ growth" label never contradicts anything the gate decided. That
+// asymmetry — a don't-act-on-a-single-decline mechanism with no growth
+// equivalent — is the entire justification for overriding one band out of
+// six instead of moving all six onto one vocabulary. Unifying this into
+// "just use readiness wording everywhere" is the natural-looking refactor
+// and would throw away real, uncontested information (much_faster vs.
+// faster vs. average vs. slower) for the five bands that were never the
+// problem. Don't, without re-deriving this reasoning first.
 function localizeGrowthBand(
   band: string | null | undefined,
   tFn: (key: string) => string,
 ): string {
+  if (band === "decline") return tFn(GROWTH_OUTLOOK_WATCH_KEY);
   const key = isOnetGrowthBand(band) ? GROWTH_BAND_I18N[band] : GROWTH_BAND_I18N.average;
   return tFn(key);
+}
+
+// Companion to localizeGrowthBand's override: the explanatory line shown
+// instead of the generic BLS-source caption when a career's band was
+// overridden above. Returns null for every other band, so callers fall back
+// to their normal caption unchanged.
+function growthOutlookWatchNote(
+  band: string | null | undefined,
+  tFn: (key: string) => string,
+): string | null {
+  return band === "decline" ? tFn(GROWTH_OUTLOOK_WATCH_NOTE_KEY) : null;
 }
 
 // Map raw country.targets keys to results-namespace i18n keys for localized display
@@ -1168,7 +1207,9 @@ export default function Results() {
                       <TrendingUp className="w-5 h-5 mx-auto mb-1 text-primary" />
                       <p className="text-xs text-muted-foreground mb-1">{t('growthOutlook')}</p>
                       <p className="font-bold text-sm">{localizeGrowthBand(rec.career?.onetGrowthBand, t)}</p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">{t('growthSource')}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        {growthOutlookWatchNote(rec.career?.onetGrowthBand, t) ?? t('growthSource')}
+                      </p>
                     </div>
                     {rec.career?.averageSalary && (
                       <div className="p-3 bg-background/30 rounded-lg text-center">
