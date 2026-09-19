@@ -22,7 +22,7 @@ import {
   MapPin,
 } from "lucide-react";
 import { useQuery, useQueries } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { isPremiumAssessment } from "@shared/assessmentTier";
 import { subjectLabelKey } from "@shared/subjects";
 import { GROWTH_BAND_I18N, isOnetGrowthBand } from "@shared/growthBands";
@@ -215,7 +215,14 @@ export default function ResultsPrint() {
     const safeLang = langParam === "ar" ? "ar" : "en";
     document.documentElement.lang = safeLang;
     document.documentElement.dir = safeLang === "ar" ? "rtl" : "ltr";
-    i18n.changeLanguage(safeLang);
+    // i18next emits 'languageChanged' unconditionally, even when already on
+    // safeLang — react-i18next's useTranslation forces a re-render on every
+    // emission. Guarded so this effect can never feed that loop, the same way
+    // the ready-effect below had to be guarded (see its comment for the case
+    // that actually happened).
+    if (i18n.language !== safeLang) {
+      i18n.changeLanguage(safeLang);
+    }
   }, [langParam]);
 
   const { data: recommendations = [], isLoading } = useQuery<any[]>({
@@ -269,7 +276,34 @@ export default function ResultsPrint() {
   // Fetch LLM "Why This Career?" narrative for every premium career card in
   // parallel. guestToken is passed as a query param — Puppeteer starts a fresh
   // browser with no cookies, so cookie-based auth is unavailable here.
-  const narrativeQueries = useQueries({
+  //
+  // `combine` is load-bearing, not an optimization: without it, useQueries
+  // hands back a brand-new array on every render (TanStack Query only applies
+  // its structural-sharing memoization — replaceEqualDeep — to a combine
+  // result, never to the raw per-query array). That fed a fresh `narrativeMap`
+  // object into the ready-effect's deps below on every render, which never
+  // stopped re-firing and called i18n.changeLanguage() in a tight loop,
+  // crashing every print render with "Maximum update depth exceeded" (React
+  // #185) — see FOLLOWUP.md. combine's output IS deep-compared, so map/
+  // allSettled only change reference when their actual content changes.
+  const combineNarratives = useCallback(
+    (results: { data?: unknown; isLoading: boolean; isFetching: boolean }[]) => ({
+      map: results.reduce<Record<string, string>>((map, q, i) => {
+        const careerId = recommendations[i]?.careerId;
+        const careerReasoning = (q.data as any)?.careerReasoning;
+        if (careerId && careerReasoning) {
+          map[careerId] = careerReasoning;
+        }
+        return map;
+      }, {}),
+      // True once every narrative query has either resolved or errored.
+      // Non-premium assessments have no narrative queries so this is immediately true.
+      allSettled: results.every((q) => !q.isLoading && !q.isFetching),
+    }),
+    [recommendations],
+  );
+
+  const { map: narrativeMap, allSettled: allNarrativesSettled } = useQueries({
     queries: (isPremium && assessmentId && recommendations.length > 0)
       ? recommendations.map((rec: EnrichedRecommendation) => {
           const params = new URLSearchParams();
@@ -285,23 +319,8 @@ export default function ResultsPrint() {
           };
         })
       : [],
+    combine: combineNarratives,
   });
-
-  // Build a fast careerId → narrative lookup for the render below.
-  const narrativeMap = useMemo(() => {
-    const map: Record<string, string> = {};
-    narrativeQueries.forEach((q, i) => {
-      const careerId = recommendations[i]?.careerId;
-      if (careerId && (q.data as any)?.careerReasoning) {
-        map[careerId] = (q.data as any).careerReasoning;
-      }
-    });
-    return map;
-  }, [narrativeQueries, recommendations]);
-
-  // True once every narrative query has either resolved or errored.
-  // Non-premium assessments have no narrative queries so this is immediately true.
-  const allNarrativesSettled = narrativeQueries.every(q => !q.isLoading && !q.isFetching);
 
   useEffect(() => { document.title = t('printDocTitle'); }, [t]);
 
@@ -363,7 +382,7 @@ export default function ResultsPrint() {
       }
 
       const safeLang = langParam === "ar" ? "ar" : "en";
-      i18n.changeLanguage(safeLang).then(() => {
+      const signalReady = () => {
         requestAnimationFrame(() => {
           requestAnimationFrame(() => {
             // Cancel the safety-net timer — we beat the deadline.
@@ -374,7 +393,20 @@ export default function ResultsPrint() {
             (window as any).__REPORT_READY__ = true;
           });
         });
-      });
+      };
+      // i18next's changeLanguage() emits 'languageChanged' unconditionally —
+      // even when already on safeLang — and react-i18next forces a re-render
+      // on every emission. This effect re-runs on data changes (recommendations,
+      // narrativeMap, etc.), so an unguarded call here is a second, independent
+      // way to turn any future unstable dependency into a self-sustaining
+      // render loop, not just a wasted one. Skipping the call when the
+      // language is already correct closes that off regardless of what feeds
+      // this effect's deps.
+      if (i18n.language === safeLang) {
+        signalReady();
+      } else {
+        i18n.changeLanguage(safeLang).then(signalReady);
+      }
     }
   }, [isLoading, recommendations, langParam, allNarrativesSettled, isPremium, narrativeMap]);
 
