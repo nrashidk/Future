@@ -257,20 +257,6 @@ export default function ResultsPrint() {
   });
 
 
-  // /api/auth/user enriches the payload with predefined* fields sourced
-  // from organizationMembers (studentName / grade / studentGender, and an age
-  // derived from dateOfBirth)
-  // for org_student users — this is the canonical source for school student demographics.
-  const { data: user } = useQuery<any>({
-    queryKey: ['/api/auth/user'],
-    enabled: true,
-  });
-
-  const { data: organizationInfo } = useQuery<any>({
-    queryKey: [`/api/organizations/${(user as any)?.organizationId}`],
-    enabled: !!(user as any)?.organizationId,
-  });
-
   const isPremium = isPremiumAssessment(assessment?.assessmentType);
 
   // Fetch LLM "Why This Career?" narrative for every premium career card in
@@ -595,10 +581,14 @@ export default function ResultsPrint() {
 
         {/* Student Info Section */}
         {(() => {
-          const displayName = assessment?.name || (user as any)?.predefinedName;
-          const displayAge = assessment?.age || (user as any)?.predefinedAge;
-          const displayGrade = assessment?.grade || (user as any)?.predefinedGrade;
-          const displayGender = assessment?.gender || (user as any)?.predefinedGender;
+          // assessment is the canonical source here — the print page has no
+          // session (authorized via printToken/guestToken instead), so
+          // /api/auth/user's predefined* fallback fields never had a user to
+          // read from and were dead weight, not a real fallback.
+          const displayName = assessment?.name;
+          const displayAge = assessment?.age;
+          const displayGrade = assessment?.grade;
+          const displayGender = assessment?.gender;
           const hasAnyField = displayName || displayAge || displayGrade || displayGender || country;
           if (!hasAnyField) return null;
           return (
