@@ -754,7 +754,24 @@ export function registerRecommendationsRoutes(app: Express) {
       page.on('console', (msg: any) => {
         if (msg.type() === 'warning' && isNarrativeDegradedMessage(msg.text())) {
           narrativeDegraded = true;
+        } else if (msg.type() === 'error') {
+          // componentDidCatch's own console.error was previously invisible here —
+          // this listener only ever checked for the one narrative-degraded warning
+          // string, so a crashed render logged nothing this route could see.
+          console.error(`[SingleReportExport] console.error during render for assessment ${assessment.id}:`, msg.text());
         }
+      });
+      // Catches an uncaught exception thrown during React render (e.g. the
+      // App.tsx ErrorBoundary tripping) that never reaches console.error, or
+      // reaches it as a page-level error rather than a React one. See the
+      // matching listener in admin.routes.ts's bulk export loop for why this was
+      // previously invisible: __REPORT_READY__ is a bare window global that is
+      // never reset to false, so a crash occurring after readiness was already
+      // signalled still satisfies the waitForFunction below, and Puppeteer
+      // proceeds to page.pdf() capturing the ErrorBoundary fallback instead of
+      // the report — with nothing in this route's log to say so.
+      page.on('pageerror', (err: Error) => {
+        console.error(`[SingleReportExport] uncaught render error for assessment ${assessment.id}:`, err.stack || err);
       });
 
       // Navigate to print-optimized page

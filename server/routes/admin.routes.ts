@@ -1739,7 +1739,30 @@ export function registerAdminRoutes(app: Express) {
           page.on('console', (msg: any) => {
             if (msg.type() === 'warning' && isNarrativeDegradedMessage(msg.text())) {
               narrativeDegraded = true;
+            } else if (msg.type() === 'error') {
+              // componentDidCatch's own console.error was previously invisible here —
+              // this listener only ever checked for the one narrative-degraded warning
+              // string, so a crashed render logged nothing this route could see.
+              console.error(`[BulkExport] console.error during render for assessment ${completedAssessment.id}:`, msg.text());
             }
+          });
+          // Catches an uncaught exception thrown during React render (e.g. the
+          // App.tsx ErrorBoundary tripping) that never reaches console.error, or
+          // reaches it as a page-level error rather than a React one. Without
+          // this, such a crash was silently invisible: __REPORT_READY__ is a bare
+          // window global that is never reset to false, so a crash occurring
+          // after readiness was already signalled (by the normal path or the 28s
+          // safety net) still satisfies the waitForFunction below, and Puppeteer
+          // proceeds to page.pdf() and captures whatever is on screen at that
+          // moment — the ErrorBoundary's "Something went wrong" fallback, not the
+          // report. That is also why f106801 (networkidle0 -> domcontentloaded)
+          // made this visible rather than causing it: under the old goto config,
+          // the print page's continuous i18n/narrative polling kept network from
+          // ever going idle, so goto itself timed out and threw before
+          // waitForFunction or page.pdf() were ever reached — a crashed render
+          // was recorded as a missing file (status: "failed"), never captured.
+          page.on('pageerror', (err: Error) => {
+            console.error(`[BulkExport] uncaught render error for assessment ${completedAssessment.id}:`, err.stack || err);
           });
 
           // Normalize language to the allowed set — never pass arbitrary DB values as URL params
