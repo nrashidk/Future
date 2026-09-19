@@ -280,9 +280,17 @@ export default function Analytics() {
 
         {isOrgAdmin && organization && (
           <div className="mb-8 flex justify-center gap-3">
-            <Button 
-              variant="outline" 
-              size="default" 
+            {/* DELIBERATELY the whole organization, always — this dashboard has
+                no student roster or selection UI to choose a subset from. The
+                org roster page (AdminOrganizations.tsx) hits this same GET
+                endpoint for its own "export everyone" case, but also has a
+                POST variant with a memberIds body for exporting a selection —
+                this button has no equivalent because it has nothing to select
+                from. Do not unify the two call sites; they mean different
+                things on purpose. */}
+            <Button
+              variant="outline"
+              size="default"
               data-testid="button-export-reports-analytics"
               onClick={() => {
                 window.open(`/api/admin/organizations/${organization.id}/export/reports`, '_blank');

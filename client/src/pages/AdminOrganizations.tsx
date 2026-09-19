@@ -29,6 +29,7 @@ import { StickyNote } from "@/components/StickyNote";
 import ContributeQuestions from "@/components/admin/ContributeQuestions";
 import { OrganizationConsentCard, ORG_CONSENT_ANCHOR_ID, useOrganizationConsent } from "@/components/admin/OrganizationConsentCard";
 import { CONSENT_REQUIRED_CODE } from "@shared/consentRequired";
+import { NO_COMPLETED_ASSESSMENTS_IN_SELECTION_CODE } from "@shared/bulkExportSelection";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 import { useTranslation } from "react-i18next";
 
@@ -55,15 +56,31 @@ function consentBlockedMessage(error: unknown, t: (key: string) => string): stri
 // step to its caller on every path, success or failure alike. That gap is
 // what let the bulk-export "check the summary" toast fire even when nothing
 // downloaded, for as long as the button has existed.
-async function downloadFile(url: string, defaultFilename: string, toast: any, t: (key: string) => string, setIsDownloading?: (v: boolean) => void): Promise<boolean> {
+async function downloadFile(
+  url: string,
+  defaultFilename: string,
+  toast: any,
+  t: (key: string, options?: any) => string,
+  setIsDownloading?: (v: boolean) => void,
+  options?: {
+    method?: string;
+    body?: unknown;
+    // Tried before the generic serverErrorMessage fallback, same as
+    // consentBlockedMessage is for the mutation onError handlers elsewhere in
+    // this file — lets one caller recognise a specific server error `code`
+    // and render its own sentence (e.g. naming its own selection count,
+    // which the server's message alone can't carry) without downloadFile
+    // itself knowing about that domain.
+    resolveErrorMessage?: (error: unknown) => string | null;
+  },
+): Promise<boolean> {
   try {
     setIsDownloading?.(true);
-    const response = await fetch(url, { credentials: 'include' });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: 'Download failed' }));
-      throw new Error(errorData.message || `HTTP error ${response.status}`);
-    }
+    // apiRequest (not a raw fetch) so a POST carries its CSRF token the same
+    // way every other state-changing request on this page does, and so a
+    // failure throws in the "<status>: {json}" shape serverErrorMessage/
+    // serverErrorCode below already know how to parse.
+    const response = await apiRequest(options?.method ?? "GET", url, options?.body);
 
     const contentDisposition = response.headers.get('Content-Disposition');
     let filename = defaultFilename;
@@ -92,12 +109,13 @@ async function downloadFile(url: string, defaultFilename: string, toast: any, t:
     // old || the localized fallback could never render and an untranslated
     // browser string ("Failed to fetch") reached a school admin in its place.
     //
-    // Note this catch never sees throwIfResNotOk's "<status>: {json}" shape:
-    // the throw above reads the PARSED body's own message field, so the helper
-    // is here for its markup/length guard and the ??, not to strip a prefix.
+    // Goes through apiRequest now, so this DOES see throwIfResNotOk's
+    // "<status>: {json}" shape — resolveErrorMessage/serverErrorMessage/
+    // serverErrorCode all parse that shape to read the server's `message`
+    // and `code` fields.
     toast({
       title: t('orgs.downloadFailed'),
-      description: serverErrorMessage(error) ?? t('orgs.downloadFailedDesc'),
+      description: options?.resolveErrorMessage?.(error) ?? serverErrorMessage(error) ?? t('orgs.downloadFailedDesc'),
       variant: "destructive"
     });
     return false;
@@ -751,16 +769,33 @@ export default function AdminOrganizations() {
                   </div>
                 </div>
                 <div className="flex gap-2 flex-wrap">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     data-testid="button-export-reports"
                     onClick={async () => {
+                      const hasSelection = selectedMemberIds.length > 0;
                       const downloaded = await downloadFile(
                         `/api/admin/organizations/${selectedOrgId}/export/reports`,
                         'reports.zip',
                         toast,
-                        t
+                        t,
+                        undefined,
+                        hasSelection
+                          ? {
+                              method: "POST",
+                              body: { memberIds: selectedMemberIds },
+                              // Names the admin's OWN selection count, sourced
+                              // from client state at click time — the server's
+                              // `code` alone can't carry that number, and
+                              // re-parsing it back out of English prose would
+                              // just be a second, fragile way to know it.
+                              resolveErrorMessage: (error) =>
+                                serverErrorCode(error) === NO_COMPLETED_ASSESSMENTS_IN_SELECTION_CODE
+                                  ? t('orgs.exportNoneSelectedCompleted', { count: selectedMemberIds.length })
+                                  : null,
+                            }
+                          : undefined,
                       );
                       // Only worth telling the admin to check the in-zip summary
                       // if a zip actually arrived — downloadFile already showed
@@ -779,6 +814,13 @@ export default function AdminOrganizations() {
                     // (admin.routes.ts:1503-1507), so this is the same question
                     // asked one layer up.
                     //
+                    // Deliberately NOT narrowed to the current selection: doing
+                    // so would disable the button exactly when the selection-
+                    // aware 404 (see resolveErrorMessage above) is most useful —
+                    // an admin who selected the wrong students should see that
+                    // named as their own mistake, not find the button grayed out
+                    // with no explanation.
+                    //
                     // It previously read `m.isLocked`, and is_locked is never set
                     // to true anywhere: storage.lockOrganizationMember has zero
                     // callers, so the column sits at its false default forever.
@@ -790,7 +832,9 @@ export default function AdminOrganizations() {
                     disabled={members.filter(m => m.hasCompletedAssessment).length === 0}
                   >
                     <FileDown className="w-4 h-4 me-2" />
-                    {t('orgs.exportReports')}
+                    {selectedMemberIds.length > 0
+                      ? t('orgs.exportSelectedReports', { count: selectedMemberIds.length })
+                      : t('orgs.exportAllReports')}
                   </Button>
                   <Button 
                     variant="outline" 

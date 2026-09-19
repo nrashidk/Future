@@ -18,6 +18,8 @@ import { db } from "../db";
 import { eraseUserData, detachUserFromOrganization } from "../services/accountErasure";
 import { mintPrintToken, PDF_GOTO_TIMEOUT_MS, PDF_WAIT_FOR_READY_TIMEOUT_MS } from "../utils/printToken";
 import { isNarrativeDegradedMessage } from "@shared/pdfNarrativeDegradation";
+import { NO_COMPLETED_ASSESSMENTS_IN_SELECTION_CODE } from "@shared/bulkExportSelection";
+import { resolveExportSelection } from "../utils/bulkExportSelection";
 
 // Nothing in this module touches local disk any more. Private data uploads go
 // to the private Spaces bucket; organization logos go to the public one. Both
@@ -1594,7 +1596,22 @@ export function registerAdminRoutes(app: Express) {
   });
 
   // Bulk Export: Student Reports (PDFs in ZIP)
-  app.get("/api/admin/organizations/:id/export/reports", isAuthenticated, dataExportLimiter, async (req, res) => {
+  //
+  // GET exports every completed-assessment member of the organization —
+  // used by Analytics.tsx (which has no selection UI at all — see the
+  // comment at its call site) and by the org roster page when the admin
+  // hasn't selected anyone. POST on the same path takes an optional
+  // memberIds list in its body so the roster page can export just the
+  // students the admin checked. A GET query string of UUIDs risks Node's
+  // default 16KB request-header limit for a large org's "select all" (no
+  // override is configured, and no org-size cap exists anywhere in this
+  // codebase); a POST body sits under the existing 512KB JSON limit instead,
+  // matching how bulk-reset-passwords and bulk-delete already pass memberIds.
+  const handleBulkExportReports = async (
+    req: any,
+    res: any,
+    requestedMemberIds: string[] | undefined,
+  ) => {
     let browser: any = null;
     try {
       const userId = (req.user as any).userId;
@@ -1629,11 +1646,26 @@ export function registerAdminRoutes(app: Express) {
         return res.status(404).json({ message: "School not found" });
       }
 
-      // Get all members with completed assessments
+      // Get all members with completed assessments, scoped to the requested
+      // selection when one was given. resolveExportSelection filters
+      // `members` — already scoped to this organizationId by the query below
+      // — rather than looking up requestedMemberIds directly, which is what
+      // keeps this cross-tenant safe: an id belonging to a different
+      // organization simply has no match here and is silently dropped, the
+      // same protection every other id-array filter in this file
+      // (bulk-reset-passwords, bulk-delete) relies on. That property is
+      // pinned in server/utils/bulkExportSelection.test.ts.
       const members = await storage.getOrganizationMembersByOrganizationId(organizationId);
-      const completedMembers = members.filter(m => m.hasCompletedAssessment);
+      const { selectionMode, completedMembers } = resolveExportSelection(members, requestedMemberIds);
+      const hasSelection = selectionMode === "selected";
 
       if (completedMembers.length === 0) {
+        if (hasSelection) {
+          return res.status(404).json({
+            message: `None of the ${requestedMemberIds!.length} selected students has a completed assessment`,
+            code: NO_COMPLETED_ASSESSMENTS_IN_SELECTION_CODE,
+          });
+        }
         return res.status(404).json({ message: "No completed assessments found" });
       }
 
@@ -1872,6 +1904,13 @@ export function registerAdminRoutes(app: Express) {
       const summary = {
         generatedAt: new Date().toISOString(),
         organization: organization.name,
+        selectionMode,
+        // Only meaningful in "selected" mode — how many ids the admin actually
+        // picked, before filtering to this org's members and to completed
+        // assessments. Lets the summary distinguish "you selected 50, 47 had
+        // completed assessments" from "you selected 47 and all did", which
+        // totalStudents alone (the exported count) cannot.
+        requestedMemberCount: hasSelection ? requestedMemberIds!.length : null,
         totalStudents: exportResults.length,
         generatedPdfCount,
         fullAiPdfs: exportResults.filter(r => r.status === "ok").length,
@@ -1900,6 +1939,19 @@ export function registerAdminRoutes(app: Express) {
       }
       res.status(500).json({ message: "Failed to generate bulk PDF reports" });
     }
+  };
+
+  app.get("/api/admin/organizations/:id/export/reports", isAuthenticated, dataExportLimiter, async (req, res) => {
+    await handleBulkExportReports(req, res, undefined);
+  });
+
+  app.post("/api/admin/organizations/:id/export/reports", isAuthenticated, dataExportLimiter, async (req, res) => {
+    const { memberIds } = (req.body ?? {}) as { memberIds?: unknown };
+    if (memberIds !== undefined && (!Array.isArray(memberIds) || !memberIds.every((id) => typeof id === "string"))) {
+      return res.status(400).json({ message: "memberIds must be an array of strings" });
+    }
+    const requestedMemberIds = Array.isArray(memberIds) && memberIds.length > 0 ? (memberIds as string[]) : undefined;
+    await handleBulkExportReports(req, res, requestedMemberIds);
   });
 
   // Bulk Export: Student Data (CSV)
