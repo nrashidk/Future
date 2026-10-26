@@ -1,5 +1,5 @@
 {
-  "appName": "Future Pathways",
+  "appName": "Future Path",
   "pageTitle": "My Profile",
   "loading": "Loading your profile...",
   "loadingProgress": "Loading your progress...",
@@ -137,7 +137,7 @@
     "refusal": {
       "title": "Your account cannot be deleted here",
       "adminOf": "You are the registered administrator of {{schools}}.",
-      "afterSchoolRemoval": "Your account can be deleted after the school is removed from Future Pathways. Until then, the school's records name you as the person responsible for it, and deleting your account would destroy them.",
+      "afterSchoolRemoval": "Your account can be deleted after the school is removed from Future Path. Until then, the school's records name you as the person responsible for it, and deleting your account would destroy them.",
       "intro": "Your account holds records of things you did that are also part of other people's records. Deleting your account would destroy them:",
       "unconfirmable": "This account has no password or email address to confirm with, so it cannot be deleted here.",
       "labels": {

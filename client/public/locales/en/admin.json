@@ -8,7 +8,7 @@
     "logout": "Logout",
     "admin": "Admin",
     "assessment": "Assessment",
-    "futurePathways": "Future Pathways"
+    "futurePathways": "Future Path"
   },
   "badges": {
     "superadmin": "Superadmin",
@@ -364,7 +364,7 @@
     "editDetails": "Edit Details",
     "resetPasswordTitle": "Reset Password",
     "resetPasswordDesc": "Choose password complexity for {{name}}",
-    "credFileTitleAdmin": "Future Pathways - School Admin Credentials",
+    "credFileTitleAdmin": "Future Path - School Admin Credentials",
     "credFileSeparator": "============================================",
     "loginUrlLabel": "Login URL",
     "credFileImportant": "IMPORTANT: Keep this file secure. The password cannot be recovered.",
@@ -372,7 +372,7 @@
     "consentIntro": "Before you can add students, {{school}} needs to record its consent. This is a one-time act, recorded against your name and the date.",
     "consentProcessing": "On behalf of {{school}}, I consent to Future Pathways processing the personal data of the students we enrol, as described in the Privacy Policy and Terms of Use.",
     "consentGuardian": "I attest that {{school}} holds parent or guardian consent for each student it enrols on this platform.",
-    "consentGuardianHelp": "The students are aged 13-18. Future Pathways does not contact parents directly and relies on this attestation.",
+    "consentGuardianHelp": "The students are aged 13-18. Future Path does not contact parents directly and relies on this attestation.",
     "consentSubmit": "Record consent",
     "consentSubmitting": "Recording…",
     "consentBothRequired": "Both statements must be affirmed.",
@@ -1338,9 +1338,9 @@
     "arabicEducationLabel": "Education Level (Arabic)"
   },
   "pageTitles": {
-    "analytics": "Analytics | Future Pathways",
-    "superadmin": "Superadmin Dashboard | Future Pathways",
-    "adminOrganizations": "Organization Management | Future Pathways",
-    "quizManager": "Quiz Manager | Future Pathways"
+    "analytics": "Analytics | Future Path",
+    "superadmin": "Superadmin Dashboard | Future Path",
+    "adminOrganizations": "Organization Management | Future Path",
+    "quizManager": "Quiz Manager | Future Path"
   }
 }

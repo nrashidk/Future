@@ -24,7 +24,7 @@ import { useTranslation } from "react-i18next";
 
 /**
  * Personal Values Assessment
- * Integrated into Future Pathways sticky notes design
+ * Integrated into Future Path sticky notes design
  * 21 questions across 7 value domains
  */
 

@@ -124,7 +124,7 @@ export default function StudentProgress() {
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 hover-elevate rounded-lg px-3 py-2" data-testid="link-home">
             <GraduationCap className="w-6 h-6 text-primary" />
-            <span className="font-bold text-lg">Future Pathways</span>
+            <span className="font-bold text-lg">Future Path</span>
           </Link>
           <Button variant="outline" asChild data-testid="button-back-profile">
             <Link href="/profile">

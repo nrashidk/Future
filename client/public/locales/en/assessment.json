@@ -1,5 +1,5 @@
 {
-  "appName": "Future Pathways",
+  "appName": "Future Path",
   "pageTitle": "Career Assessment",
   "leaveConfirm": "Your assessment is in progress. Are you sure you want to leave? Your answers are saved and you can resume later.",
   "loading": "Loading...",
@@ -58,7 +58,7 @@
     "pageOf": "Page {{page}} of {{total}}"
   },
   "page": {
-    "title": "Career Assessment | Future Pathways",
+    "title": "Career Assessment | Future Path",
     "loading": "Loading...",
     "guestBanner": "You're in guest mode. Create an account to save your progress!",
     "signUp": "Sign Up",

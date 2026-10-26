@@ -161,7 +161,7 @@
   "personalityTraitsTitle": "سمات شخصيتك",
   "personalityMatchDesc": "تُسهم شخصيتك واهتماماتك في درجات مطابقة مسارك المهني، مما يضمن توافق التوصيات مع طريقة تفكيرك الطبيعية وما يثير حماسك.",
   "generatedOn": "تم الإنشاء في {{date}}",
-  "footerBrandLine": "نظام التوجيه المهني - مسارات المستقبل",
+  "footerBrandLine": "نظام التوجيه المهني - مسار المستقبل",
   "footerVisitLine": "زورونا على futurepath.ae",
   "generatingInsights": "جارٍ توليد الرؤى بالذكاء الاصطناعي...",
 
@@ -171,8 +171,8 @@
   "genderOther": "آخر",
   "genderPreferNotToSay": "أفضل عدم الإفصاح",
 
-  "pageDocTitle": "نتائج مسارك المهني | مسارات المستقبل",
-  "printDocTitle": "تقرير المسار المهني | مسارات المستقبل",
+  "pageDocTitle": "نتائج مسارك المهني | مسار المستقبل",
+  "printDocTitle": "تقرير المسار المهني | مسار المستقبل",
   "migrateSuccessTitle": "تم بنجاح!",
   "migrateSuccessDesc": "تم حفظ تقييماتك كضيف في حسابك.",
   "recommendationsHeading": "التوصيات المهنية",

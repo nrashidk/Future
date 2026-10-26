@@ -110,7 +110,7 @@ export default function DeleteAccount() {
         <div className="mx-auto flex max-w-2xl items-center justify-between gap-4 px-4 py-4">
           <span className="flex items-center gap-2 font-bold">
             <GraduationCap className="h-6 w-6 text-primary" />
-            Future Pathways
+            Future Path
           </span>
           {!deleted && (
             <Link href="/profile" className="text-sm underline-offset-4 hover:underline" data-testid="link-back-to-profile">

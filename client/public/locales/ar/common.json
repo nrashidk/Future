@@ -1,6 +1,6 @@
 {
   "nav": {
-    "home": "مسارات المستقبل",
+    "home": "مسار المستقبل",
     "assessment": "التقييم",
     "profile": "الملف الشخصي",
     "logout": "تسجيل الخروج",
@@ -27,7 +27,7 @@
     "skipToMain": "تخطى إلى المحتوى الرئيسي"
   },
   "header": {
-    "brandName": "مسارات المستقبل",
+    "brandName": "مسار المستقبل",
     "badgeSuperadmin": "مشرف أعلى",
     "badgeSchoolAdmin": "مدير المدرسة"
   }

@@ -2,7 +2,7 @@
  * Research Sources Registry
  * 
  * Centralized registry of all research sources, frameworks, and methodologies
- * used in the Future Pathways career guidance system, particularly for the
+ * used in the Future Path career guidance system, particularly for the
  * WEF 16 Skills Framework integration.
  */
 

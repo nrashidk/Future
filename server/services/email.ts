@@ -9,11 +9,14 @@ const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KE
 // domain we actually control, so a missing EMAIL_FROM degrades to a wrong
 // display name rather than undeliverable mail.
 //
-// The display name here is not a branding decision — it tracks the domain. Three
-// names are live across the product (futurepath.ae, FuturePath, and "Future
-// Pathways" inside the hashed consent attestations); converging them is a
-// separate decision, and this line should follow whatever that settles on.
-const FROM_EMAIL = process.env.EMAIL_FROM || "FuturePath <noreply@futurepath.ae>";
+// The display name is "Future Path" everywhere the product speaks to a user.
+// The one deliberate exception is the consent attestation text, which still
+// reads "Future Pathways": that wording is hashed into attestationTextHash on
+// organization_consents and child_guardian_consents, and it has to change once
+// more anyway — to name the registered legal entity rather than any product
+// brand — so it is left alone until that name exists rather than rewritten
+// twice and sent for Arabic legal review twice.
+const FROM_EMAIL = process.env.EMAIL_FROM || "Future Path <noreply@futurepath.ae>";
 
 // Reply-To. Nothing set one before, so a reply went to the From address — a
 // noreply mailbox. Those replies currently reach a human only because the
@@ -98,7 +101,7 @@ function buildHtmlEmail(resetUrl: string, userName: string | undefined, language
     </head>
     <body style="font-family: ${fontFamily}; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
       <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0;">
-        <h1 style="color: white; margin: 0; font-size: 24px;">Future Pathways</h1>
+        <h1 style="color: white; margin: 0; font-size: 24px;">Future Path</h1>
       </div>
       
       <div style="background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
@@ -106,7 +109,7 @@ function buildHtmlEmail(resetUrl: string, userName: string | undefined, language
         
         <p>${greeting}</p>
         
-        <p>We received a request to reset your password for your Future Pathways account. Click the button below to create a new password:</p>
+        <p>We received a request to reset your password for your Future Path account. Click the button below to create a new password:</p>
         
         <div style="text-align: center; margin: 30px 0;">
           <a href="${resetUrl}" style="background: #667eea; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600;">Reset Password</a>
@@ -125,7 +128,7 @@ function buildHtmlEmail(resetUrl: string, userName: string | undefined, language
       </div>
       
       <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
-        <p>&copy; ${new Date().getFullYear()} Future Pathways. All rights reserved.</p>
+        <p>&copy; ${new Date().getFullYear()} Future Path. All rights reserved.</p>
       </div>
     </body>
     </html>
@@ -156,11 +159,11 @@ ${resetUrl}
 
   const greeting = userName ? `Hi ${userName},` : "Hi,";
   return `
-Reset Your Password - Future Pathways
+Reset Your Password - Future Path
 
 ${greeting}
 
-We received a request to reset your password for your Future Pathways account.
+We received a request to reset your password for your Future Path account.
 
 Click this link to reset your password:
 ${resetUrl}
@@ -169,7 +172,7 @@ This link will expire in 1 hour for security reasons.
 
 If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.
 
-© ${new Date().getFullYear()} Future Pathways. All rights reserved.
+© ${new Date().getFullYear()} Future Path. All rights reserved.
   `.trim();
 }
 
@@ -239,7 +242,7 @@ function buildGuestRecoveryHtmlEmail(resultsUrl: string, expiresAt: Date, langua
     </head>
     <body style="font-family: ${fontFamily}; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
       <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0;">
-        <h1 style="color: white; margin: 0; font-size: 24px;">Future Pathways</h1>
+        <h1 style="color: white; margin: 0; font-size: 24px;">Future Path</h1>
       </div>
       <div style="background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
         <h2 style="margin-top: 0; color: #1f2937;">Your Report Link</h2>
@@ -256,7 +259,7 @@ function buildGuestRecoveryHtmlEmail(resultsUrl: string, expiresAt: Date, langua
         </p>
       </div>
       <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
-        <p>&copy; ${new Date().getFullYear()} Future Pathways. All rights reserved.</p>
+        <p>&copy; ${new Date().getFullYear()} Future Path. All rights reserved.</p>
       </div>
     </body>
     </html>
@@ -283,7 +286,7 @@ ${resultsUrl}
   }
 
   return `
-Your Report Link - Future Pathways
+Your Report Link - Future Path
 
 Here's the link to your career assessment report:
 ${resultsUrl}
@@ -292,7 +295,7 @@ This link works until ${expiry}. After that, this report can no longer be recove
 
 If you didn't request this, you can ignore this email.
 
-© ${new Date().getFullYear()} Future Pathways. All rights reserved.
+© ${new Date().getFullYear()} Future Path. All rights reserved.
   `.trim();
 }
 
@@ -330,7 +333,7 @@ export async function sendGuestReportRecoveryEmail(
   const isAr = language === "ar";
   const subject = isAr
     ? "رابط تقريرك - مسارات المستقبل"
-    : "Your Report Link - Future Pathways";
+    : "Your Report Link - Future Path";
 
   try {
     const { data, error } = await resend.emails.send({
@@ -385,7 +388,7 @@ export async function sendPasswordResetEmail(
   const isAr = language === "ar";
   const subject = isAr
     ? "إعادة تعيين كلمة المرور - مسارات المستقبل"
-    : "Reset Your Password - Future Pathways";
+    : "Reset Your Password - Future Path";
 
   try {
     const { data, error } = await resend.emails.send({

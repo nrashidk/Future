@@ -1,6 +1,6 @@
 {
   "nav": {
-    "home": "Future Pathways",
+    "home": "Future Path",
     "assessment": "Assessment",
     "profile": "Profile",
     "logout": "Logout",
@@ -27,7 +27,7 @@
     "skipToMain": "Skip to main content"
   },
   "header": {
-    "brandName": "Future Pathways",
+    "brandName": "Future Path",
     "badgeSuperadmin": "Superadmin",
     "badgeSchoolAdmin": "School Admin"
   }

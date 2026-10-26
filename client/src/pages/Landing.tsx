@@ -451,7 +451,7 @@ export default function Landing() {
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center justify-center gap-2 mb-4">
             <GraduationCap className="w-6 h-6 text-primary" />
-            <span className="font-bold text-foreground">Future Pathways</span>
+            <span className="font-bold text-foreground">Future Path</span>
           </div>
           <p className="text-sm font-body mb-4">
             {t("footer.tagline")}

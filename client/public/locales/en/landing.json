@@ -1,5 +1,5 @@
 {
-  "pageTitle": "Future Pathways – Career Guidance for Students",
+  "pageTitle": "Future Path – Career Guidance for Students",
   "hero": {
     "title1": "Discover Your",
     "title2": "Future Path",
@@ -21,7 +21,7 @@
     "step3Desc": "Receive personalized career recommendations with action steps"
   },
   "features": {
-    "title": "Why Choose Future Pathways?",
+    "title": "Why Choose Future Path?",
     "subtitle": "Everything you need to plan your future career",
     "visionTitle": "Country Vision Alignment",
     "visionDesc": "Discover careers that contribute to your nation's development goals",
@@ -41,7 +41,7 @@
     "subtitle": "Join thousands of students who have discovered their perfect career match. Start your journey today!",
     "createAccount": "Create Account",
     "continueGuest": "Continue as Guest",
-    "testimonial": "\"Future Pathways helped me discover careers I never knew existed. Now I'm excited about my future!\"",
+    "testimonial": "\"Future Path helped me discover careers I never knew existed. Now I'm excited about my future!\"",
     "testimonialAuthor": "- Sarah, Grade 11"
   },
   "research": {
@@ -72,7 +72,7 @@
     "privacy": "Privacy Policy",
     "terms": "Terms of Use",
     "disclaimer": "Disclaimer",
-    "copyright": "© {{year}} Future Pathways. All Rights Reserved.",
+    "copyright": "© {{year}} Future Path. All Rights Reserved.",
     "poweredBy": "Research-based Career & Learning Platform | Powered by WEF and other validated frameworks"
   }
 }

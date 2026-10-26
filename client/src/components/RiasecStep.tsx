@@ -20,7 +20,7 @@ import { useTranslation } from "react-i18next";
 
 /**
  * Career Personality Assessment
- * Integrated into Future Pathways sticky notes design
+ * Integrated into Future Path sticky notes design
  * 30 questions across 6 vocational themes: R-I-A-S-E-C
  */
 

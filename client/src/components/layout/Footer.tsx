@@ -7,7 +7,7 @@ export function Footer() {
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-center gap-2 mb-4">
           <GraduationCap className="w-6 h-6 text-primary" />
-          <span className="font-bold text-foreground" data-testid="text-brand">Future Pathways</span>
+          <span className="font-bold text-foreground" data-testid="text-brand">Future Path</span>
         </div>
         <p className="text-sm font-body mb-4" data-testid="text-tagline">
           Empowering students to build meaningful careers that shape the future
@@ -28,7 +28,7 @@ export function Footer() {
         </div>
         
         <p className="text-xs">
-          © {new Date().getFullYear()} Future Pathways. All Rights Reserved.
+          © {new Date().getFullYear()} Future Path. All Rights Reserved.
         </p>
         <p className="text-xs mt-2">
           Advanced Career & Learning Platform | Built on research-based assessment methodologies

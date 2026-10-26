@@ -68,7 +68,7 @@ export function validateEnvironmentVariables(): void {
   // recipient's inbox.
   if (process.env.RESEND_API_KEY && !process.env.EMAIL_FROM) {
     console.warn("⚠️  EMAIL_FROM is not set while RESEND_API_KEY is configured.");
-    console.warn("   Outbound mail will be sent as \"FuturePath <noreply@futurepath.ae>\".");
+    console.warn("   Outbound mail will be sent as \"Future Path <noreply@futurepath.ae>\".");
     console.warn("   Set EMAIL_FROM to control the sender name and address.");
   }
 
