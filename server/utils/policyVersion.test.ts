@@ -7,7 +7,7 @@ import {
 } from "./policyVersion";
 
 const bundle = (over: Record<string, unknown> = {}) => ({
-  appName: "Future Pathways",
+  appName: "Future Path",
   backHome: "Back to home",
   lastUpdated: "Last updated: 6 April 2026",
   terms: { t1: "You may use this." },

@@ -55,7 +55,7 @@ const VALID_BODY = {
   },
   consentsToProcessing: true,
   attestsGuardianRelationship: true,
-  attestationText: "I am Khaled's parent or legal guardian.\nI consent to Future Pathways processing Khaled's personal data...",
+  attestationText: "I am Khaled's parent or legal guardian.\nI consent to Future Path processing Khaled's personal data...",
   locale: "en",
 };
 

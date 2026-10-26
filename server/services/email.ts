@@ -9,13 +9,10 @@ const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KE
 // domain we actually control, so a missing EMAIL_FROM degrades to a wrong
 // display name rather than undeliverable mail.
 //
-// The display name is "Future Path" everywhere the product speaks to a user.
-// The one deliberate exception is the consent attestation text, which still
-// reads "Future Pathways": that wording is hashed into attestationTextHash on
-// organization_consents and child_guardian_consents, and it has to change once
-// more anyway — to name the registered legal entity rather than any product
-// brand — so it is left alone until that name exists rather than rewritten
-// twice and sent for Arabic legal review twice.
+// The display name is "Future Path" everywhere, including the consent
+// attestation text that attestationTextHash pins. One name, no exceptions —
+// a stored consent, the policy it cites and the sender address that delivered
+// it should not name three different operators.
 const FROM_EMAIL = process.env.EMAIL_FROM || "Future Path <noreply@futurepath.ae>";
 
 // Reply-To. Nothing set one before, so a reply went to the From address — a
