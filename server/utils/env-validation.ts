@@ -60,6 +60,18 @@ export function validateEnvironmentVariables(): void {
     console.warn("   Set STRIPE_WEBHOOK_SECRET in your deployment secrets to enable webhook processing.");
   }
 
+  // Conditional validation: email is enabled but the sender address is unset.
+  // Mirrors the Stripe check above — a companion variable missing while the
+  // feature itself is switched on. Worth naming the fallback explicitly: mail
+  // still sends, but from a default display name that may not match the brand
+  // the recipient expects, and the only other place that surfaces is the
+  // recipient's inbox.
+  if (process.env.RESEND_API_KEY && !process.env.EMAIL_FROM) {
+    console.warn("⚠️  EMAIL_FROM is not set while RESEND_API_KEY is configured.");
+    console.warn("   Outbound mail will be sent as \"FuturePath <noreply@futurepath.ae>\".");
+    console.warn("   Set EMAIL_FROM to control the sender name and address.");
+  }
+
   // Success message
   console.log("✅ Environment variables validated successfully");
 }

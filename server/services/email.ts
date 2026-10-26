@@ -2,7 +2,18 @@ import { Resend } from "resend";
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
-const FROM_EMAIL = process.env.EMAIL_FROM || "Future Pathways <noreply@futurepathways.com>";
+// Fallback sender. The previous default addressed futurepathways.com — a domain
+// nobody owns — so an environment that forgot EMAIL_FROM sent every password
+// reset and consent notice from an unownable address: no DKIM, no SPF alignment,
+// bounced or spam-foldered, and silent either way. The fallback now addresses a
+// domain we actually control, so a missing EMAIL_FROM degrades to a wrong
+// display name rather than undeliverable mail.
+//
+// The display name here is not a branding decision — it tracks the domain. Three
+// names are live across the product (futurepath.ae, FuturePath, and "Future
+// Pathways" inside the hashed consent attestations); converging them is a
+// separate decision, and this line should follow whatever that settles on.
+const FROM_EMAIL = process.env.EMAIL_FROM || "FuturePath <noreply@futurepath.ae>";
 
 interface EmailResult {
   success: boolean;

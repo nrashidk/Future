@@ -112,6 +112,7 @@ export const ENV_VARS = {
     "VITE_STRIPE_PUBLIC_KEY", // Build-time Vite variable — must be set at build time for checkout to work
     "STRIPE_WEBHOOK_SECRET", // Required for secure webhook verification
     "RESEND_API_KEY", // Required for email delivery
+    "EMAIL_FROM", // Sender address. Falls back to noreply@futurepath.ae — listed here so an unset value appears in the boot log rather than being discovered from a bounced password reset.
     "APP_URL", // Used in email links
     "BASE_URL", // Required for OAuth callbacks (Google/Microsoft); falls back to Replit URL if absent
     "NODE_ENV",
