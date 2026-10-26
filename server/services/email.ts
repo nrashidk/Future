@@ -53,7 +53,7 @@ function buildHtmlEmail(resetUrl: string, userName: string | undefined, language
       </head>
       <body style="font-family: ${fontFamily}; direction: rtl; line-height: 1.8; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0;">
-          <h1 style="color: white; margin: 0; font-size: 24px; text-align: right;">مسارات المستقبل</h1>
+          <h1 style="color: white; margin: 0; font-size: 24px; text-align: right;">مسار المستقبل</h1>
         </div>
         
         <div style="background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
@@ -61,7 +61,7 @@ function buildHtmlEmail(resetUrl: string, userName: string | undefined, language
           
           <p style="text-align: right;">${greeting}</p>
           
-          <p style="text-align: right;">تلقينا طلباً لإعادة تعيين كلمة المرور لحسابك في مسارات المستقبل. انقر على الزر أدناه لإنشاء كلمة مرور جديدة:</p>
+          <p style="text-align: right;">تلقينا طلباً لإعادة تعيين كلمة المرور لحسابك في مسار المستقبل. انقر على الزر أدناه لإنشاء كلمة مرور جديدة:</p>
           
           <div style="text-align: center; margin: 30px 0;">
             <a href="${resetUrl}" style="background: #667eea; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600; font-family: ${fontFamily};">إعادة تعيين كلمة المرور</a>
@@ -80,7 +80,7 @@ function buildHtmlEmail(resetUrl: string, userName: string | undefined, language
         </div>
         
         <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
-          <p>&copy; ${new Date().getFullYear()} مسارات المستقبل. جميع الحقوق محفوظة.</p>
+          <p>&copy; ${new Date().getFullYear()} مسار المستقبل. جميع الحقوق محفوظة.</p>
         </div>
       </body>
       </html>
@@ -137,11 +137,11 @@ function buildTextEmail(resetUrl: string, userName: string | undefined, language
   if (isAr) {
     const greeting = userName ? `مرحباً ${userName}،` : "مرحباً،";
     return `
-إعادة تعيين كلمة المرور - مسارات المستقبل
+إعادة تعيين كلمة المرور - مسار المستقبل
 
 ${greeting}
 
-تلقينا طلباً لإعادة تعيين كلمة المرور لحسابك في مسارات المستقبل.
+تلقينا طلباً لإعادة تعيين كلمة المرور لحسابك في مسار المستقبل.
 
 انقر على هذا الرابط لإعادة تعيين كلمة مرورك:
 ${resetUrl}
@@ -150,7 +150,7 @@ ${resetUrl}
 
 إذا لم تطلب إعادة تعيين كلمة المرور، يمكنك تجاهل هذا البريد الإلكتروني. ستظل كلمة مرورك دون تغيير.
 
-© ${new Date().getFullYear()} مسارات المستقبل. جميع الحقوق محفوظة.
+© ${new Date().getFullYear()} مسار المستقبل. جميع الحقوق محفوظة.
     `.trim();
   }
 
@@ -205,7 +205,7 @@ function buildGuestRecoveryHtmlEmail(resultsUrl: string, expiresAt: Date, langua
       </head>
       <body style="font-family: ${fontFamily}; direction: rtl; line-height: 1.8; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0;">
-          <h1 style="color: white; margin: 0; font-size: 24px; text-align: right;">مسارات المستقبل</h1>
+          <h1 style="color: white; margin: 0; font-size: 24px; text-align: right;">مسار المستقبل</h1>
         </div>
         <div style="background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
           <h2 style="margin-top: 0; color: #1f2937; text-align: right;">رابط تقريرك</h2>
@@ -222,7 +222,7 @@ function buildGuestRecoveryHtmlEmail(resultsUrl: string, expiresAt: Date, langua
           </p>
         </div>
         <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
-          <p>&copy; ${new Date().getFullYear()} مسارات المستقبل. جميع الحقوق محفوظة.</p>
+          <p>&copy; ${new Date().getFullYear()} مسار المستقبل. جميع الحقوق محفوظة.</p>
         </div>
       </body>
       </html>
@@ -269,7 +269,7 @@ function buildGuestRecoveryTextEmail(resultsUrl: string, expiresAt: Date, langua
 
   if (isAr) {
     return `
-رابط تقريرك - مسارات المستقبل
+رابط تقريرك - مسار المستقبل
 
 هذا هو رابط تقرير التقييم المهني الذي أجريته:
 ${resultsUrl}
@@ -278,7 +278,7 @@ ${resultsUrl}
 
 إذا لم تطلب هذا البريد، يمكنك تجاهله.
 
-© ${new Date().getFullYear()} مسارات المستقبل. جميع الحقوق محفوظة.
+© ${new Date().getFullYear()} مسار المستقبل. جميع الحقوق محفوظة.
     `.trim();
   }
 
@@ -329,7 +329,7 @@ export async function sendGuestReportRecoveryEmail(
 
   const isAr = language === "ar";
   const subject = isAr
-    ? "رابط تقريرك - مسارات المستقبل"
+    ? "رابط تقريرك - مسار المستقبل"
     : "Your Report Link - Future Path";
 
   try {
@@ -384,7 +384,7 @@ export async function sendPasswordResetEmail(
 
   const isAr = language === "ar";
   const subject = isAr
-    ? "إعادة تعيين كلمة المرور - مسارات المستقبل"
+    ? "إعادة تعيين كلمة المرور - مسار المستقبل"
     : "Reset Your Password - Future Path";
 
   try {

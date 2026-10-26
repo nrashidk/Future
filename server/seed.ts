@@ -3293,7 +3293,7 @@ export async function seedDatabase() {
         .insert(users)
         .values({
           username: "schooladmin",
-          email: "admin@futurepathways.edu",
+          email: "admin@futurepath.ae",
           firstName: "School",
           lastName: "Administrator",
           passwordHash: adminPasswordHash,

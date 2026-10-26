@@ -185,7 +185,7 @@ export default function Analytics() {
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 hover-elevate rounded-lg px-3 py-2">
             <GraduationCap className="w-6 h-6 text-primary" />
-            <span className="font-bold text-lg">{t('nav.futurePathways')}</span>
+            <span className="font-bold text-lg">{t('nav.brand')}</span>
             {isSuperadmin && <Badge variant="secondary">{t('badges.superadmin')}</Badge>}
             {isOrgAdmin && <Badge variant="secondary">{t('badges.schoolAdmin')}</Badge>}
           </Link>

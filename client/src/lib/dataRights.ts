@@ -54,7 +54,7 @@ export async function downloadDataExport(): Promise<ExportOutcome> {
   const blob = await res.blob();
   const filename =
     /filename="([^"]+)"/.exec(res.headers.get("Content-Disposition") ?? "")?.[1] ??
-    "future-pathways-data.json";
+    "future-path-data.json";
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
