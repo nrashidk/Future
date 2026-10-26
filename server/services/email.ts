@@ -15,6 +15,18 @@ const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KE
 // separate decision, and this line should follow whatever that settles on.
 const FROM_EMAIL = process.env.EMAIL_FROM || "FuturePath <noreply@futurepath.ae>";
 
+// Reply-To. Nothing set one before, so a reply went to the From address — a
+// noreply mailbox. Those replies currently reach a human only because the
+// domain happens to carry a catch-all forwarding rule, which is a fact about
+// DNS config rather than anything this code arranges, and would stop being
+// true the moment someone tidied that rule away.
+//
+// Replies are a real path, not a hypothetical one: a guardian answering a
+// consent notice and a student answering a password-reset mail are both
+// people trying to reach a human about a minor's account. Naming the address
+// here makes that behaviour intentional and independent of the catch-all.
+const REPLY_TO_EMAIL = process.env.EMAIL_REPLY_TO || "support@futurepath.ae";
+
 interface EmailResult {
   success: boolean;
   messageId?: string;
@@ -324,6 +336,7 @@ export async function sendGuestReportRecoveryEmail(
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: [to],
+      replyTo: REPLY_TO_EMAIL,
       subject,
       html: buildGuestRecoveryHtmlEmail(resultsUrl, expiresAt, language),
       text: buildGuestRecoveryTextEmail(resultsUrl, expiresAt, language),
@@ -378,6 +391,7 @@ export async function sendPasswordResetEmail(
     const { data, error } = await resend.emails.send({
       from: FROM_EMAIL,
       to: [to],
+      replyTo: REPLY_TO_EMAIL,
       subject,
       html: buildHtmlEmail(resetUrl, userName, language),
       text: buildTextEmail(resetUrl, userName, language),

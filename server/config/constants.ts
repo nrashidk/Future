@@ -113,6 +113,7 @@ export const ENV_VARS = {
     "STRIPE_WEBHOOK_SECRET", // Required for secure webhook verification
     "RESEND_API_KEY", // Required for email delivery
     "EMAIL_FROM", // Sender address. Falls back to noreply@futurepath.ae — listed here so an unset value appears in the boot log rather than being discovered from a bounced password reset.
+    "EMAIL_REPLY_TO", // Where replies to outbound mail go. Falls back to support@futurepath.ae; the From address is a noreply mailbox, so without this a reply reaches nobody by design.
     "APP_URL", // Used in email links
     "BASE_URL", // Required for OAuth callbacks (Google/Microsoft); falls back to Replit URL if absent
     "NODE_ENV",
