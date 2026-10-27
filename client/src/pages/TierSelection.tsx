@@ -1,16 +1,23 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check, User, Users, BarChart3, TrendingUp, Settings } from "lucide-react";
+import { Check, User, Users, BarChart3, TrendingUp, Settings, ArrowLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { Link } from "wouter";
+import { readReturnTo, withReturnTo } from "@/lib/returnTo";
 
 export default function TierSelection() {
   const { t } = useTranslation("pricing");
   useEffect(() => { document.title = `${t("tierSelection.pageTitle")} | ${t("appName")}`; }, [t]);
 
   const [, setLocation] = useLocation();
+  // This page is reached from six places — the report (twice), Checkout,
+  // Profile, GroupPricing and the free-cap notice — so "back" cannot be a
+  // fixed destination. It had none at all before, which dead-ended anyone
+  // who opened it from their report and changed their mind.
+  const [returnTo] = useState(() => readReturnTo(window.location.search));
 
   // The self-pay route is parent-registers-for-child now
   // (docs/parent-registers-scoping.md): the account, the child's identity
@@ -18,16 +25,22 @@ export default function TierSelection() {
   // points at registration, not at Checkout directly. RegisterParent
   // forwards to /checkout?students=1 itself once the account exists.
   const handleIndividualTier = () => {
-    setLocation(`/register/parent`);
+    setLocation(withReturnTo('/register/parent', returnTo));
   };
 
   const handleGroupTier = () => {
-    setLocation('/group-pricing');
+    setLocation(withReturnTo('/group-pricing', returnTo));
   };
 
   return (
     <PageLayout variant="gradient">
       <div className="container mx-auto px-4 py-16">
+        <Button variant="ghost" asChild className="mb-6" data-testid="link-back">
+          <Link href={returnTo ?? "/"}>
+            <ArrowLeft className="w-4 h-4 me-2" />
+            {returnTo ? t("tierSelection.backToReport") : t("tierSelection.backHome")}
+          </Link>
+        </Button>
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-4">
             {t("tierSelection.heading")}

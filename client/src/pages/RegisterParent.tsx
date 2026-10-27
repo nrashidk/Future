@@ -16,6 +16,7 @@
 import { useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTranslation } from "react-i18next";
+import { readReturnTo, withReturnTo } from "@/lib/returnTo";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -38,6 +39,10 @@ export default function RegisterParent() {
   const { t } = useTranslation("auth");
   const { language, setLanguage } = useLanguage();
   const [, setLocation] = useLocation();
+  // Where the visitor entered the funnel from, usually their own report. Read
+  // once at mount: wouter's location does not include the query string, and
+  // the value must survive the re-renders this form does on every keystroke.
+  const [returnTo] = useState(() => readReturnTo(window.location.search));
   const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -149,7 +154,7 @@ export default function RegisterParent() {
           description: t("callback.migratedDesc"),
         });
       }
-      setLocation("/checkout?students=1&total=10");
+      setLocation(withReturnTo("/checkout?students=1&total=10", returnTo));
     },
     onError: (error: unknown) => {
       toast({
@@ -439,9 +444,9 @@ export default function RegisterParent() {
             </Link>
           </p>
           <Button variant="ghost" asChild data-testid="link-back">
-            <Link href="/">
+            <Link href={returnTo ?? "/"}>
               <ArrowLeft className="w-4 h-4 me-2" />
-              {t("registerParent.backHome")}
+              {returnTo ? t("registerParent.backToReport") : t("registerParent.backHome")}
             </Link>
           </Button>
         </CardFooter>

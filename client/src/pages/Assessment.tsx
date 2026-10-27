@@ -16,6 +16,7 @@ import { QuizStep } from "@/components/assessment/QuizStep";
 import { GraduationCap, LogIn, LogOut, User, ClipboardCheck, CalendarDays, Building2, BarChart, Shield, FileQuestion, RotateCcw, PlayCircle, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
+import { withReturnTo, currentPathWithQuery } from "@/lib/returnTo";
 import type { Assessment as AssessmentRecord } from "@shared/schema";
 import { useAssessmentAvailability } from "@/hooks/useAssessmentAvailability";
 import { PageLayout } from "@/components/layout/PageLayout";
@@ -1178,7 +1179,7 @@ export default function Assessment() {
                 </a>
               </Button>
               <Button asChild variant="ghost" size="sm" className="w-full" data-testid="link-free-cap-upgrade">
-                <a href="/tier-selection">{t("freeCap.upgrade")}</a>
+                <a href={withReturnTo("/tier-selection", currentPathWithQuery())}>{t("freeCap.upgrade")}</a>
               </Button>
             </div>
           </div>

@@ -39,6 +39,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useTranslation } from "react-i18next";
+import { withReturnTo, currentPathWithQuery } from "@/lib/returnTo";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAssessmentAvailability } from "@/hooks/useAssessmentAvailability";
 import type { RecommendationResponse, Career } from "@shared/schema";
@@ -595,7 +596,7 @@ export default function Results() {
                 variant="secondary"
                 className="rounded-full shadow-lg px-8"
                 data-testid="button-unlock-report"
-                onClick={() => setLocation('/tier-selection')}
+                onClick={() => setLocation(withReturnTo('/tier-selection', currentPathWithQuery()))}
               >
                 <Sparkles className="w-5 h-5 me-2" />
                 {t('btnGetPdf')}
@@ -1127,7 +1128,7 @@ export default function Results() {
               <Button
                 size="lg"
                 className="bg-primary hover:bg-primary/90 text-lg px-8"
-                onClick={() => setLocation('/tier-selection')}
+                onClick={() => setLocation(withReturnTo('/tier-selection', currentPathWithQuery()))}
                 data-testid="button-upgrade-premium"
               >
                 <Star className="w-5 h-5 me-2" />

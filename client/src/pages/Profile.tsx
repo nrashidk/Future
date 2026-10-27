@@ -12,6 +12,7 @@ import type { LucideIcon } from "lucide-react";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTranslation } from "react-i18next";
+import { withReturnTo, currentPathWithQuery } from "@/lib/returnTo";
 import { isPremiumAssessment } from "@shared/assessmentTier";
 import { SCHOOL_ALLOCATIONS_PER_STUDENT, FREE_ASSESSMENT_CAP, requiresPaymentBeforeAssessment } from "@shared/assessmentLimits";
 import { collapseToLatestPerGrade, toCanonicalGrade } from "@shared/grade";
@@ -656,7 +657,7 @@ export default function Profile() {
                         {t("premium.allUsed")}
                       </p>
                       <Button asChild variant="outline" className="w-full mt-2" data-testid="button-purchase-more">
-                        <Link href="/tier-selection">
+                        <Link href={withReturnTo("/tier-selection", currentPathWithQuery())}>
                           {t("premium.purchaseMore")}
                         </Link>
                       </Button>
@@ -732,7 +733,7 @@ export default function Profile() {
                     {t("premium.upgradePrompt")}
                   </p>
                   <Button asChild className="w-full" data-testid="button-upgrade-premium">
-                    <Link href="/tier-selection">
+                    <Link href={withReturnTo("/tier-selection", currentPathWithQuery())}>
                       <Crown className="w-4 h-4 me-2" />
                       {t("premium.upgrade")}
                     </Link>
