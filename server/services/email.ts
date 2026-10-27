@@ -144,11 +144,27 @@ function stickyLayout(opts: {
 </html>`;
 }
 
-/** Primary call to action. Padded anchor, not a styled table — renders everywhere. */
+/**
+ * The call to action, shaped as a small note rather than a pill.
+ *
+ * Landing.tsx uses StickyNote itself as an inline element for exactly this
+ * kind of thing (`<StickyNote color="pink" rotation="1" className="inline-block
+ * px-6 py-3">`), so a note-shaped action is the product's own vocabulary, not
+ * an invention: 8px radius and shadow-lg, same as the card.
+ *
+ * It keeps the primary fill rather than taking a pastel --sticky-* colour. A
+ * pale note with dark text reads as another piece of paper, and this is the
+ * one element in the message that has to read as pressable.
+ *
+ * The tilt runs OPPOSITE to the card's (+2deg against its -1.5deg) so the two
+ * are visibly separate notes rather than one shape with a misaligned child.
+ * Where transforms are dropped, both land upright and the result is simply the
+ * untilted version.
+ */
 function stickyButton(href: string, label: string, font: string): string {
-  return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0;">
-    <tr><td style="background-color:${PALETTE.primary};border-radius:999px;">
-      <a href="${href}" style="display:inline-block;padding:13px 30px;font-family:${font};font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;">${label}</a>
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0;transform:rotate(2deg);">
+    <tr><td style="background-color:${PALETTE.primary};border-radius:8px;box-shadow:${PALETTE.shadow};">
+      <a href="${href}" style="display:inline-block;padding:14px 28px;font-family:${font};font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;">${label}</a>
     </td></tr>
   </table>`;
 }
