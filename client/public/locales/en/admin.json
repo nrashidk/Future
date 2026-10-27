@@ -745,7 +745,8 @@
     "success": "Success",
     "bulkDeleteConfirm": "Are you sure you want to delete {{n}} school(s)? This action cannot be undone.",
     "announcementTitleArPlaceholder": "Announcement title in Arabic",
-    "announcementContentArPlaceholder": "Announcement content in Arabic"
+    "announcementContentArPlaceholder": "Announcement content in Arabic",
+    "errorTitle": "Error"
   },
   "scoring": {
     "title": "Scoring Configuration",

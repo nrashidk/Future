@@ -47,15 +47,15 @@ export default function RegisterParent() {
   const { data: countries = [] } = useQuery<any[]>({ queryKey: ["/api/countries"] });
 
   const registerParentSchema = z.object({
-    email: z.string().email(t("register.validation.emailInvalid")),
+    email: z.string().email(t("registerParent.validation.emailInvalid")),
     password: z.string()
-      .min(8, t("register.validation.passwordMin"))
+      .min(8, t("registerParent.validation.passwordMin"))
       .regex(/[A-Z]/, t("resetPassword.validation.uppercase"))
       .regex(/[a-z]/, t("resetPassword.validation.lowercase"))
       .regex(/[0-9]/, t("resetPassword.validation.number")),
     confirmPassword: z.string(),
-    firstName: z.string().min(1, t("register.validation.firstNameRequired")),
-    lastName: z.string().min(1, t("register.validation.lastNameRequired")),
+    firstName: z.string().min(1, t("registerParent.validation.firstNameRequired")),
+    lastName: z.string().min(1, t("registerParent.validation.lastNameRequired")),
     child: z.object({
       name: z.string().min(1),
       dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -65,7 +65,7 @@ export default function RegisterParent() {
       curriculum: z.string().min(1),
     }),
   }).refine(data => data.password === data.confirmPassword, {
-    message: t("register.validation.passwordsMismatch"),
+    message: t("registerParent.validation.passwordsMismatch"),
     path: ["confirmPassword"],
   });
 
@@ -79,7 +79,15 @@ export default function RegisterParent() {
     },
   });
 
-  const childName = form.watch("child.name") || t("register.firstName");
+  // Placeholder for the consent sentences before a child's name is typed. It
+  // must be a phrase that reads correctly in a first-person attestation ("I am
+  // my child's parent"), not a field label: the previous fallback was
+  // t("registerParent.firstName"), the label of the PARENT's own first-name input,
+  // which rendered "I am First Name's parent or legal guardian." The form
+  // cannot submit with an empty child name (zod: z.string().min(1)), so this
+  // text is never what gets hashed — but it is what a parent reads while
+  // deciding whether to tick the box.
+  const childName = form.watch("child.name") || t("registerParent.childFallback");
   const selectedCountryId = form.watch("child.countryId");
 
   const { data: countryDetails } = useQuery<any>({
@@ -190,14 +198,14 @@ export default function RegisterParent() {
                 <div className="grid grid-cols-2 gap-4">
                   <FormField control={form.control} name="firstName" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("register.firstName")}</FormLabel>
+                      <FormLabel>{t("registerParent.firstName")}</FormLabel>
                       <FormControl><Input {...field} data-testid="input-first-name" /></FormControl>
                       <FormMessage />
                     </FormItem>
                   )} />
                   <FormField control={form.control} name="lastName" render={({ field }) => (
                     <FormItem>
-                      <FormLabel>{t("register.lastName")}</FormLabel>
+                      <FormLabel>{t("registerParent.lastName")}</FormLabel>
                       <FormControl><Input {...field} data-testid="input-last-name" /></FormControl>
                       <FormMessage />
                     </FormItem>
@@ -205,14 +213,14 @@ export default function RegisterParent() {
                 </div>
                 <FormField control={form.control} name="email" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("register.email")}</FormLabel>
+                    <FormLabel>{t("registerParent.email")}</FormLabel>
                     <FormControl><Input type="email" {...field} data-testid="input-email" /></FormControl>
                     <FormMessage />
                   </FormItem>
                 )} />
                 <FormField control={form.control} name="password" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("register.password")}</FormLabel>
+                    <FormLabel>{t("registerParent.password")}</FormLabel>
                     <FormControl>
                       <div className="relative">
                         <Input
@@ -226,7 +234,7 @@ export default function RegisterParent() {
                           type="button"
                           className="absolute inset-y-0 end-0 flex items-center justify-center w-10 text-muted-foreground hover:text-foreground"
                           onClick={() => setShowPassword(!showPassword)}
-                          aria-label={showPassword ? t("register.hidePassword") : t("register.showPassword")}
+                          aria-label={showPassword ? t("registerParent.hidePassword") : t("registerParent.showPassword")}
                           data-testid="button-toggle-password"
                         >
                           {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -238,7 +246,7 @@ export default function RegisterParent() {
                 )} />
                 <FormField control={form.control} name="confirmPassword" render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("register.confirmPassword")}</FormLabel>
+                    <FormLabel>{t("registerParent.confirmPassword")}</FormLabel>
                     <FormControl>
                       <div className="relative">
                         <Input
@@ -252,7 +260,7 @@ export default function RegisterParent() {
                           type="button"
                           className="absolute inset-y-0 end-0 flex items-center justify-center w-10 text-muted-foreground hover:text-foreground"
                           onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          aria-label={showConfirmPassword ? t("register.hidePassword") : t("register.showPassword")}
+                          aria-label={showConfirmPassword ? t("registerParent.hidePassword") : t("registerParent.showPassword")}
                           data-testid="button-toggle-confirm-password"
                         >
                           {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}

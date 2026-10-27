@@ -745,7 +745,8 @@
     "success": "نجاح",
     "bulkDeleteConfirm": "هل أنت متأكد أنك تريد حذف {{n}} مدرسة؟ لا يمكن التراجع عن هذا الإجراء.",
     "announcementTitleArPlaceholder": "عنوان الإعلان بالعربية",
-    "announcementContentArPlaceholder": "محتوى الإعلان بالعربية"
+    "announcementContentArPlaceholder": "محتوى الإعلان بالعربية",
+    "errorTitle": "خطأ"
   },
   "scoring": {
     "title": "إعداد التقييم",
