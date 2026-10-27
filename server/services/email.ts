@@ -45,12 +45,21 @@ interface EmailResult {
  * --primary 260 65% 55% (#7342D7), --foreground 215 25% 18% (#222C39),
  * --muted-foreground 215 18% 35% (#495769) and the --sticky-* palette.
  *
- * Deliberately NOT a faithful copy of the on-screen component. StickyNote
- * applies rotate(-2deg..2deg); email clients do not agree about transforms
- * (the Word rendering engine behind Outlook ignores them outright), so a tilt
- * would land for some readers and not others. The note reads as a note through
- * the palette, the rounded corners and the soft edge instead — all of which
- * render everywhere. Layout is tables and inline styles for the same reason.
+ * Translated from client/src/components/StickyNote.tsx, which applies
+ * `relative p-6 rounded-lg shadow-lg` plus a rotation and a --sticky-* colour,
+ * and NO border. So: 24px padding, 8px radius, Tailwind's shadow-lg, and a
+ * tilt — a flat bordered card with a large radius is a card, not a note, and
+ * that is what a first attempt at this produced.
+ *
+ * The tilt is applied even though CSS transforms are unevenly supported
+ * (Apple Mail and iOS render it; Gmail and the Word engine behind Outlook
+ * drop it). Dropping it degrades to an upright note — which is exactly the
+ * result of not attempting it — so refusing the tilt for everyone to spare
+ * the clients that ignore it trades a better result for some readers against
+ * no gain for anyone. The wrapper carries vertical padding so a rotated note
+ * cannot clip against the cell above it.
+ *
+ * Layout is tables and inline styles because email clients require it.
  */
 const PALETTE = {
   primary: "#7342D7",
@@ -60,7 +69,8 @@ const PALETTE = {
   stickyYellow: "#FFF3C2",
   stickyBlue: "#E0F1FF",
   stickyPink: "#FFE5EE",
-  edge: "#00000014",
+  // Tailwind shadow-lg, which is what lifts the note off the page.
+  shadow: "0 10px 15px -3px rgba(0,0,0,0.10), 0 4px 6px -4px rgba(0,0,0,0.10)",
 } as const;
 
 type StickyColor = keyof Pick<typeof PALETTE, "stickyYellow" | "stickyBlue" | "stickyPink">;
@@ -106,7 +116,10 @@ function stickyLayout(opts: {
             </td>
           </tr>
           <tr>
-            <td style="background-color:${note};border-radius:16px;border:1px solid ${PALETTE.edge};padding:32px;" dir="${dir}">
+            <td style="padding:10px 0 18px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="transform:rotate(-1.5deg);">
+                <tr>
+            <td style="background-color:${note};border-radius:8px;box-shadow:${PALETTE.shadow};padding:24px;" dir="${dir}">
               <h1 style="margin:0 0 16px;font-family:${font};font-size:22px;line-height:1.35;font-weight:700;color:${PALETTE.ink};text-align:${align};">
                 ${opts.heading}
               </h1>
@@ -114,9 +127,12 @@ function stickyLayout(opts: {
                 ${opts.body}
               </div>
             </td>
+                </tr>
+              </table>
+            </td>
           </tr>
           <tr>
-            <td align="${align}" style="padding:20px 8px 0;font-family:${font};font-size:12px;line-height:1.6;color:${PALETTE.muted};" dir="${dir}">
+            <td align="${align}" style="padding:4px 8px 0;font-family:${font};font-size:12px;line-height:1.6;color:${PALETTE.muted};" dir="${dir}">
               &copy; ${year} ${brand}. ${rights}
             </td>
           </tr>
