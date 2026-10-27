@@ -6,6 +6,7 @@ import { clearSubjectCache } from "../utils/subjects";
 import { dataExportLimiter, orgCreationLimiter } from "../middleware/rateLimiter.middleware";
 import { getSuperadminEmails } from "../middleware/auth.middleware";
 import { evaluateEmailChange, normalizeEmail } from "../utils/emailChange";
+import { sendEmailChangeNotifications } from "../services/email";
 import { toPublicUser } from "@shared/userPublic";
 import type { User } from "@shared/schema";
 import { isOnetGrowthBand, growthOutlookFor, ONET_GROWTH_BANDS } from "@shared/growthBands";
@@ -687,6 +688,17 @@ export function registerSuperadminRoutes(app: Express) {
 
       const previousEmail = target.email ?? null;
       await storage.updateUserEmail(target.id, verdict.email);
+
+      // Courtesy notices, after the write and deliberately not awaited into the
+      // response path's success condition: the change is already committed, and
+      // a bounced notice must not be reported to the operator as a failed edit.
+      // The notice to the NEW address is also the only check that the address
+      // is real — the failure that made an account unrecoverable to begin with.
+      void sendEmailChangeNotifications({
+        newEmail: verdict.email,
+        previousEmail,
+        language: target.preferredLanguage ?? "en",
+      });
 
       // Audit where there is somewhere to write one. There is still no
       // system-level audit table for actions on a user who belongs to no

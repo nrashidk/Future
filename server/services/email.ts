@@ -33,105 +33,143 @@ interface EmailResult {
   error?: string;
 }
 
-function buildHtmlEmail(resetUrl: string, userName: string | undefined, language: string): string {
-  const isAr = language === "ar";
+/**
+ * Shared chrome for every outbound email, in the product's sticky-note style.
+ *
+ * Both HTML builders previously carried their own copy of the document head,
+ * the masthead and the footer, which is why the Arabic brand name survived in
+ * twelve places after a rename that reported itself finished. One layout, one
+ * place to change.
+ *
+ * Values are taken from client/src/index.css rather than picked by eye:
+ * --primary 260 65% 55% (#7342D7), --foreground 215 25% 18% (#222C39),
+ * --muted-foreground 215 18% 35% (#495769) and the --sticky-* palette.
+ *
+ * Deliberately NOT a faithful copy of the on-screen component. StickyNote
+ * applies rotate(-2deg..2deg); email clients do not agree about transforms
+ * (the Word rendering engine behind Outlook ignores them outright), so a tilt
+ * would land for some readers and not others. The note reads as a note through
+ * the palette, the rounded corners and the soft edge instead — all of which
+ * render everywhere. Layout is tables and inline styles for the same reason.
+ */
+const PALETTE = {
+  primary: "#7342D7",
+  ink: "#222C39",
+  muted: "#495769",
+  page: "#F6F5FB",
+  stickyYellow: "#FFF3C2",
+  stickyBlue: "#E0F1FF",
+  stickyPink: "#FFE5EE",
+  edge: "#00000014",
+} as const;
+
+type StickyColor = keyof Pick<typeof PALETTE, "stickyYellow" | "stickyBlue" | "stickyPink">;
+
+function stickyLayout(opts: {
+  language: string;
+  title: string;
+  heading: string;
+  /** Inner HTML: paragraphs, a button, whatever the message needs. */
+  body: string;
+  color?: StickyColor;
+}): string {
+  const isAr = opts.language === "ar";
   const dir = isAr ? "rtl" : "ltr";
-  const fontFamily = isAr
+  const align = isAr ? "right" : "left";
+  const font = isAr
     ? "'Cairo', 'Segoe UI', Arial, sans-serif"
-    : "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
+    : "'Poppins', 'Segoe UI', Helvetica, Arial, sans-serif";
+  const fontHref = isAr
+    ? "https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap"
+    : "https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap";
+  const note = PALETTE[opts.color ?? "stickyYellow"];
+  const year = new Date().getFullYear();
+  const brand = isAr ? "مسار المستقبل" : "Future Path";
+  const rights = isAr ? "جميع الحقوق محفوظة." : "All rights reserved.";
 
-  if (isAr) {
-    const greeting = userName ? `مرحباً ${userName}،` : "مرحباً،";
-    return `
-      <!DOCTYPE html>
-      <html dir="rtl" lang="ar">
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>إعادة تعيين كلمة المرور</title>
-        <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
-      </head>
-      <body style="font-family: ${fontFamily}; direction: rtl; line-height: 1.8; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0;">
-          <h1 style="color: white; margin: 0; font-size: 24px; text-align: right;">مسار المستقبل</h1>
-        </div>
-        
-        <div style="background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
-          <h2 style="margin-top: 0; color: #1f2937; text-align: right;">إعادة تعيين كلمة المرور</h2>
-          
-          <p style="text-align: right;">${greeting}</p>
-          
-          <p style="text-align: right;">تلقينا طلباً لإعادة تعيين كلمة المرور لحسابك في مسار المستقبل. انقر على الزر أدناه لإنشاء كلمة مرور جديدة:</p>
-          
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${resetUrl}" style="background: #667eea; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600; font-family: ${fontFamily};">إعادة تعيين كلمة المرور</a>
-          </div>
-          
-          <p style="color: #6b7280; font-size: 14px; text-align: right;">ستنتهي صلاحية هذا الرابط خلال ساعة واحدة لأسباب أمنية.</p>
-          
-          <p style="color: #6b7280; font-size: 14px; text-align: right;">إذا لم تطلب إعادة تعيين كلمة المرور، يمكنك تجاهل هذا البريد الإلكتروني. ستظل كلمة مرورك دون تغيير.</p>
-          
-          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
-          
-          <p style="color: #9ca3af; font-size: 12px; margin-bottom: 0; text-align: right;">
-            إذا لم يعمل الزر، انسخ والصق هذا الرابط في متصفحك:<br>
-            <a href="${resetUrl}" style="color: #667eea; word-break: break-all;">${resetUrl}</a>
-          </p>
-        </div>
-        
-        <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
-          <p>&copy; ${new Date().getFullYear()} مسار المستقبل. جميع الحقوق محفوظة.</p>
-        </div>
-      </body>
-      </html>
-    `;
-  }
-
-  const greeting = userName ? `Hi ${userName},` : "Hi,";
-  return `
-    <!DOCTYPE html>
-    <html dir="ltr" lang="en">
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Reset Your Password</title>
-    </head>
-    <body style="font-family: ${fontFamily}; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-      <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0;">
-        <h1 style="color: white; margin: 0; font-size: 24px;">Future Path</h1>
-      </div>
-      
-      <div style="background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
-        <h2 style="margin-top: 0; color: #1f2937;">Reset Your Password</h2>
-        
-        <p>${greeting}</p>
-        
-        <p>We received a request to reset your password for your Future Path account. Click the button below to create a new password:</p>
-        
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="${resetUrl}" style="background: #667eea; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600;">Reset Password</a>
-        </div>
-        
-        <p style="color: #6b7280; font-size: 14px;">This link will expire in 1 hour for security reasons.</p>
-        
-        <p style="color: #6b7280; font-size: 14px;">If you didn't request a password reset, you can safely ignore this email. Your password will remain unchanged.</p>
-        
-        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
-        
-        <p style="color: #9ca3af; font-size: 12px; margin-bottom: 0;">
-          If the button doesn't work, copy and paste this link into your browser:<br>
-          <a href="${resetUrl}" style="color: #667eea; word-break: break-all;">${resetUrl}</a>
-        </p>
-      </div>
-      
-      <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
-        <p>&copy; ${new Date().getFullYear()} Future Path. All rights reserved.</p>
-      </div>
-    </body>
-    </html>
-  `;
+  return `<!DOCTYPE html>
+<html dir="${dir}" lang="${isAr ? "ar" : "en"}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${opts.title}</title>
+  <link href="${fontHref}" rel="stylesheet">
+</head>
+<body style="margin:0;padding:0;background-color:${PALETTE.page};">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:${PALETTE.page};padding:32px 16px;">
+    <tr>
+      <td align="center" style="text-align:center;">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" align="center" style="max-width:560px;margin:0 auto;">
+          <tr>
+            <td align="${align}" style="padding:0 8px 20px;font-family:${font};font-size:20px;font-weight:700;color:${PALETTE.primary};" dir="${dir}">
+              ${brand}
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color:${note};border-radius:16px;border:1px solid ${PALETTE.edge};padding:32px;" dir="${dir}">
+              <h1 style="margin:0 0 16px;font-family:${font};font-size:22px;line-height:1.35;font-weight:700;color:${PALETTE.ink};text-align:${align};">
+                ${opts.heading}
+              </h1>
+              <div style="font-family:${font};font-size:15px;line-height:1.7;color:${PALETTE.ink};text-align:${align};">
+                ${opts.body}
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td align="${align}" style="padding:20px 8px 0;font-family:${font};font-size:12px;line-height:1.6;color:${PALETTE.muted};" dir="${dir}">
+              &copy; ${year} ${brand}. ${rights}
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
 }
 
+/** Primary call to action. Padded anchor, not a styled table — renders everywhere. */
+function stickyButton(href: string, label: string, font: string): string {
+  return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0;">
+    <tr><td style="background-color:${PALETTE.primary};border-radius:999px;">
+      <a href="${href}" style="display:inline-block;padding:13px 30px;font-family:${font};font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;">${label}</a>
+    </td></tr>
+  </table>`;
+}
+
+function emailFont(language: string): string {
+  return language === "ar"
+    ? "'Cairo', 'Segoe UI', Arial, sans-serif"
+    : "'Poppins', 'Segoe UI', Helvetica, Arial, sans-serif";
+}
+
+export function buildHtmlEmail(resetUrl: string, userName: string | undefined, language: string): string {
+  const isAr = language === "ar";
+  const font = emailFont(language);
+  const greeting = userName
+    ? (isAr ? `مرحباً ${userName}،` : `Hi ${userName},`)
+    : (isAr ? "مرحباً،" : "Hi,");
+
+  const body = isAr
+    ? `<p style="margin:0 0 12px;">${greeting}</p>
+       <p style="margin:0 0 12px;">تلقينا طلباً لإعادة تعيين كلمة المرور لحسابك في مسار المستقبل. اضغط على الزر أدناه لإنشاء كلمة مرور جديدة:</p>
+       ${stickyButton(resetUrl, "إعادة تعيين كلمة المرور", font)}
+       <p style="margin:0 0 12px;">تنتهي صلاحية هذا الرابط خلال ساعة واحدة.</p>
+       <p style="margin:0;color:${PALETTE.muted};font-size:13px;">إذا لم تطلب ذلك، يمكنك تجاهل هذه الرسالة؛ ولن تتغير كلمة المرور.</p>`
+    : `<p style="margin:0 0 12px;">${greeting}</p>
+       <p style="margin:0 0 12px;">We received a request to reset the password for your Future Path account. Use the button below to choose a new one:</p>
+       ${stickyButton(resetUrl, "Reset my password", font)}
+       <p style="margin:0 0 12px;">This link expires in one hour.</p>
+       <p style="margin:0;color:${PALETTE.muted};font-size:13px;">If you didn't ask for this, you can ignore this email and your password stays as it is.</p>`;
+
+  return stickyLayout({
+    language,
+    title: isAr ? "إعادة تعيين كلمة المرور" : "Reset Your Password",
+    heading: isAr ? "إعادة تعيين كلمة المرور" : "Reset your password",
+    body,
+    color: "stickyBlue",
+  });
+}
 function buildTextEmail(resetUrl: string, userName: string | undefined, language: string): string {
   const isAr = language === "ar";
   if (isAr) {
@@ -186,83 +224,29 @@ function formatRecoveryExpiry(expiresAt: Date, language: string): string {
   return new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric", hour: "numeric", minute: "2-digit" }).format(expiresAt);
 }
 
-function buildGuestRecoveryHtmlEmail(resultsUrl: string, expiresAt: Date, language: string): string {
+export function buildGuestRecoveryHtmlEmail(resultsUrl: string, expiresAt: Date, language: string): string {
   const isAr = language === "ar";
-  const fontFamily = isAr
-    ? "'Cairo', 'Segoe UI', Arial, sans-serif"
-    : "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
+  const font = emailFont(language);
   const expiry = formatRecoveryExpiry(expiresAt, language);
 
-  if (isAr) {
-    return `
-      <!DOCTYPE html>
-      <html dir="rtl" lang="ar">
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>رابط تقريرك</title>
-        <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
-      </head>
-      <body style="font-family: ${fontFamily}; direction: rtl; line-height: 1.8; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0;">
-          <h1 style="color: white; margin: 0; font-size: 24px; text-align: right;">مسار المستقبل</h1>
-        </div>
-        <div style="background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
-          <h2 style="margin-top: 0; color: #1f2937; text-align: right;">رابط تقريرك</h2>
-          <p style="text-align: right;">هذا هو رابط تقرير التقييم المهني الذي أجريته:</p>
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${resultsUrl}" style="background: #667eea; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600; font-family: ${fontFamily};">فتح التقرير</a>
-          </div>
-          <p style="color: #6b7280; font-size: 14px; text-align: right;">يعمل هذا الرابط حتى ${expiry}. بعد ذلك، لا يمكن استرجاع هذا التقرير، لذا افتحه مرة أخرى قريباً إذا كنت ترغب في الاحتفاظ به.</p>
-          <p style="color: #6b7280; font-size: 14px; text-align: right;">إذا لم تطلب هذا البريد، يمكنك تجاهله.</p>
-          <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
-          <p style="color: #9ca3af; font-size: 12px; margin-bottom: 0; text-align: right;">
-            إذا لم يعمل الزر، انسخ والصق هذا الرابط في متصفحك:<br>
-            <a href="${resultsUrl}" style="color: #667eea; word-break: break-all;">${resultsUrl}</a>
-          </p>
-        </div>
-        <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
-          <p>&copy; ${new Date().getFullYear()} مسار المستقبل. جميع الحقوق محفوظة.</p>
-        </div>
-      </body>
-      </html>
-    `;
-  }
+  const body = isAr
+    ? `<p style="margin:0 0 12px;">هذا هو رابط تقرير التقييم المهني الخاص بك:</p>
+       ${stickyButton(resultsUrl, "افتح تقريري", font)}
+       <p style="margin:0 0 12px;">يعمل هذا الرابط حتى ${expiry}. بعد ذلك لا يمكن استرجاع التقرير، لذا افتحه قريباً إذا رغبت في الاحتفاظ به.</p>
+       <p style="margin:0;color:${PALETTE.muted};font-size:13px;">إذا لم تطلب ذلك، يمكنك تجاهل هذه الرسالة.</p>`
+    : `<p style="margin:0 0 12px;">Here's the link to your career assessment report:</p>
+       ${stickyButton(resultsUrl, "Open my report", font)}
+       <p style="margin:0 0 12px;">This link works until ${expiry}. After that the report can't be recovered, so open it again soon if you'd like to keep it.</p>
+       <p style="margin:0;color:${PALETTE.muted};font-size:13px;">If you didn't request this, you can ignore this email.</p>`;
 
-  return `
-    <!DOCTYPE html>
-    <html dir="ltr" lang="en">
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>Your Report Link</title>
-    </head>
-    <body style="font-family: ${fontFamily}; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-      <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; border-radius: 10px 10px 0 0;">
-        <h1 style="color: white; margin: 0; font-size: 24px;">Future Path</h1>
-      </div>
-      <div style="background: #f9fafb; padding: 30px; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 10px 10px;">
-        <h2 style="margin-top: 0; color: #1f2937;">Your Report Link</h2>
-        <p>Here's the link to your career assessment report:</p>
-        <div style="text-align: center; margin: 30px 0;">
-          <a href="${resultsUrl}" style="background: #667eea; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: 600;">Open your report</a>
-        </div>
-        <p style="color: #6b7280; font-size: 14px;">This link works until ${expiry}. After that, this report can no longer be recovered, so open it again soon if you'd like to keep it.</p>
-        <p style="color: #6b7280; font-size: 14px;">If you didn't request this, you can ignore this email.</p>
-        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 30px 0;">
-        <p style="color: #9ca3af; font-size: 12px; margin-bottom: 0;">
-          If the button doesn't work, copy and paste this link into your browser:<br>
-          <a href="${resultsUrl}" style="color: #667eea; word-break: break-all;">${resultsUrl}</a>
-        </p>
-      </div>
-      <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
-        <p>&copy; ${new Date().getFullYear()} Future Path. All rights reserved.</p>
-      </div>
-    </body>
-    </html>
-  `;
+  return stickyLayout({
+    language,
+    title: isAr ? "رابط تقريرك" : "Your Report Link",
+    heading: isAr ? "رابط تقريرك" : "Your report link",
+    body,
+    color: "stickyYellow",
+  });
 }
-
 function buildGuestRecoveryTextEmail(resultsUrl: string, expiresAt: Date, language: string): string {
   const isAr = language === "ar";
   const expiry = formatRecoveryExpiry(expiresAt, language);
@@ -414,6 +398,103 @@ export async function sendPasswordResetEmail(
 /**
  * Check if email service is configured
  */
+/**
+ * Mask an address for the notice sent to the PREVIOUS one.
+ *
+ * The holder of the old address is usually the legitimate owner, but not
+ * always — a hostile change is exactly the case this notice exists to surface,
+ * and in that case the old mailbox may be the one the attacker still controls.
+ * A masked hint is enough for a real owner to recognise where their account
+ * went without handing a stranger the full address to go after next.
+ */
+function maskAddress(email: string): string {
+  const at = email.lastIndexOf("@");
+  if (at <= 0) return "•••";
+  const local = email.slice(0, at);
+  const domain = email.slice(at);
+  return `${local.length > 1 ? local[0] : ""}•••${domain}`;
+}
+
+/**
+ * Tell both sides that an account's email moved.
+ *
+ * NOT a confirmation step: this is sent AFTER the change, and nothing waits on
+ * it. Only a superadmin can make this change, and a superadmin can already
+ * reset any account's password outright, so gating the edit behind a clicked
+ * link would protect nothing that is not already granted — while leaving the
+ * account in limbo exactly when the old address is the dead one that caused
+ * the edit.
+ *
+ * What it does buy: a notice to the new address proves the address is real
+ * and reachable, which is the failure that made an account unrecoverable in
+ * the first place; and a notice to the old one means a change can never happen
+ * in silence.
+ *
+ * Both sends are independent and neither is allowed to fail the operation —
+ * the email has already been written to the database by the time this runs,
+ * and a bounced courtesy notice must not be reported as a failed change.
+ */
+export async function sendEmailChangeNotifications(args: {
+  newEmail: string;
+  previousEmail: string | null;
+  language?: string;
+}): Promise<void> {
+  const language = args.language === "ar" ? "ar" : "en";
+  const isAr = language === "ar";
+
+  const toNew = {
+    subject: isAr ? "تم تحديث بريدك الإلكتروني - مسار المستقبل" : "Your email address was updated - Future Path",
+    heading: isAr ? "تم تحديث بريدك الإلكتروني" : "Your email address was updated",
+    body: isAr
+      ? `<p style="margin:0 0 12px;">أصبح هذا العنوان هو البريد الإلكتروني المسجّل لحسابك في مسار المستقبل. ستصل إليه رسائل إعادة تعيين كلمة المرور من الآن فصاعداً.</p>
+         <p style="margin:0;color:${"#495769"};font-size:13px;">إذا لم تكن تتوقع هذا التغيير، يرجى مراسلتنا على support@futurepath.ae.</p>`
+      : `<p style="margin:0 0 12px;">This address is now the registered email for your Future Path account. Password reset messages will arrive here from now on.</p>
+         <p style="margin:0;color:${"#495769"};font-size:13px;">If you weren't expecting this change, please contact support@futurepath.ae.</p>`,
+    text: isAr
+      ? "أصبح هذا العنوان هو البريد الإلكتروني المسجّل لحسابك في مسار المستقبل.\n\nإذا لم تكن تتوقع هذا التغيير، يرجى مراسلتنا على support@futurepath.ae."
+      : "This address is now the registered email for your Future Path account.\n\nIf you weren't expecting this change, please contact support@futurepath.ae.",
+  };
+
+  const masked = maskAddress(args.newEmail);
+  const toOld = {
+    subject: isAr ? "تم تغيير البريد الإلكتروني لحسابك - مسار المستقبل" : "Your account email was changed - Future Path",
+    heading: isAr ? "تم تغيير البريد الإلكتروني لحسابك" : "Your account email was changed",
+    body: isAr
+      ? `<p style="margin:0 0 12px;">تم تغيير البريد الإلكتروني لحسابك في مسار المستقبل إلى ${masked}. لن تصل الرسائل إلى هذا العنوان بعد الآن.</p>
+         <p style="margin:0;color:${"#495769"};font-size:13px;">إذا لم تطلب هذا التغيير، يرجى مراسلتنا فوراً على support@futurepath.ae.</p>`
+      : `<p style="margin:0 0 12px;">The email address on your Future Path account was changed to ${masked}. Messages will no longer be sent to this address.</p>
+         <p style="margin:0;color:${"#495769"};font-size:13px;">If you didn't request this, please contact support@futurepath.ae straight away.</p>`,
+    text: isAr
+      ? `تم تغيير البريد الإلكتروني لحسابك في مسار المستقبل إلى ${masked}.\n\nإذا لم تطلب هذا التغيير، يرجى مراسلتنا فوراً على support@futurepath.ae.`
+      : `The email address on your Future Path account was changed to ${masked}.\n\nIf you didn't request this, please contact support@futurepath.ae straight away.`,
+  };
+
+  const targets: Array<{ to: string; m: typeof toNew }> = [{ to: args.newEmail, m: toNew }];
+  if (args.previousEmail && args.previousEmail.toLowerCase() !== args.newEmail.toLowerCase()) {
+    targets.push({ to: args.previousEmail, m: toOld });
+  }
+
+  for (const { to, m } of targets) {
+    if (!resend) {
+      console.warn("[Email] Resend not configured. Email-change notice would be sent to:", to);
+      continue;
+    }
+    try {
+      const { error } = await resend.emails.send({
+        from: FROM_EMAIL,
+        to: [to],
+        replyTo: REPLY_TO_EMAIL,
+        subject: m.subject,
+        html: stickyLayout({ language, title: m.subject, heading: m.heading, body: m.body, color: "stickyPink" }),
+        text: m.text,
+      });
+      if (error) console.error("[Email] Failed to send email-change notice to", to, error);
+    } catch (err) {
+      console.error("[Email] Threw while sending email-change notice to", to, err);
+    }
+  }
+}
+
 export function isEmailConfigured(): boolean {
   return !!resend;
 }
