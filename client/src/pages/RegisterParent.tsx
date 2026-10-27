@@ -17,6 +17,7 @@ import { useState } from "react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTranslation } from "react-i18next";
 import { readReturnTo, withReturnTo } from "@/lib/returnTo";
+import { PageLayout } from "@/components/layout/PageLayout";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -37,7 +38,7 @@ const GRADES = ["grade8", "grade9", "grade10", "grade11", "grade12", "graduated"
 
 export default function RegisterParent() {
   const { t } = useTranslation("auth");
-  const { language, setLanguage } = useLanguage();
+  const { language } = useLanguage();
   const [, setLocation] = useLocation();
   // Where the visitor entered the funnel from, usually their own report. Read
   // once at mount: wouter's location does not include the query string, and
@@ -173,19 +174,17 @@ export default function RegisterParent() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/10 via-background to-accent/10">
-      <div className="absolute top-4 end-4">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setLanguage(language === "en" ? "ar" : "en")}
-          data-testid="button-language-toggle-register-parent"
-          aria-label={language === "en" ? "Switch to Arabic" : "Switch to English"}
-        >
-          {language === "en" ? "العربية" : "English"}
-        </Button>
-      </div>
-      <Card className="w-full max-w-lg" data-testid="card-register-parent">
+    <PageLayout variant="gradient">
+      <div className="container mx-auto px-4 py-8 flex flex-col items-center">
+        <div className="w-full max-w-lg">
+          <Button variant="ghost" asChild className="mb-4" data-testid="link-back">
+            <Link href={returnTo ?? "/"}>
+              <ArrowLeft className="w-4 h-4 me-2" />
+              {returnTo ? t("registerParent.backToReport") : t("registerParent.backHome")}
+            </Link>
+          </Button>
+        </div>
+        <Card className="w-full max-w-lg" data-testid="card-register-parent">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">
             <div className="p-3 bg-primary/10 rounded-full">
@@ -443,14 +442,9 @@ export default function RegisterParent() {
               {t("registerParent.signIn")}
             </Link>
           </p>
-          <Button variant="ghost" asChild data-testid="link-back">
-            <Link href={returnTo ?? "/"}>
-              <ArrowLeft className="w-4 h-4 me-2" />
-              {returnTo ? t("registerParent.backToReport") : t("registerParent.backHome")}
-            </Link>
-          </Button>
         </CardFooter>
-      </Card>
-    </div>
+        </Card>
+      </div>
+    </PageLayout>
   );
 }
