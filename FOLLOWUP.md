@@ -6635,3 +6635,284 @@ role/email check `auth.routes.ts` already uses, never by `account_type`.**
 Found while tracing the print-token TTL vs. render-budget race (the previous FOLLOWUP entry, "Print-token TTL is 60s..."): the good news for that specific race is that `printTokenAuthorizes` is checked at request entry, before `callAnthropic` ever runs, so an unbounded LLM call doesn't widen the token-expiry race itself. But it's a real, separate gap on its own terms — every one of `/api/recommendations`, `/career-reasoning/:careerId`, and `/education-pathways/:careerId` can generate a narrative via this path, and each such request holds an Express connection and (for the PDF render paths) blocks Puppeteer's client-side fetch for as long as Anthropic takes to respond, or hang forever if the socket is left open without Anthropic ever closing it. No per-request budget, no retry-with-shorter-timeout, nothing.
 
 Not fixed here. Candidate fix: an `AbortController` with a timeout sized to the actual latency this app can tolerate (the 28s client safety net and the 30s `waitForFunction` ceiling on the PDF paths are the tightest existing constraints in the codebase; a non-PDF caller of `/api/recommendations` has more slack but still shouldn't wait indefinitely), wired through `callAnthropic`'s `fetch` call, with the resulting `AbortError` treated the same as any other `generateNarrative` failure (falls through to `generateEnhancedReasoning` in the main recommendations handler; the dedicated `/career-reasoning` endpoint already returns an error status on failure — see the entry above on making that failure detectable rather than silent).
+
+---
+
+# SESSION 2026-10-26/27 — brand convergence, email infrastructure, funnel repair
+
+Fifteen commits, `34ea6a4..65c5048`, after 37 days with none. Working method changed
+during this session: the repo is now cloned and edited directly from the chat
+assistant's own environment rather than relayed through a Codespace — reads, commits
+and pushes all happen there. Tests and `tsc` run; the app cannot be run against a
+database, and PDFs cannot be rendered against real data, so anything needing those is
+still a deploy-and-look.
+
+## SHIPPED DEFECT — `register.*` i18n keys deleted out from under RegisterParent (severity: high, found 2026-10-27)
+
+`5e58950` (free-tier retirement) removed the orphaned form keys under `auth.json`'s
+`register.*`, stating they were "confirmed unused outside Register.tsx before removal".
+They were not. `RegisterParent.tsx` — the only page through which a parent can pay —
+used **eleven** of them. From 2026-09-16 until 2026-10-27 its field labels rendered as
+`register.firstName`, `register.lastName`, `register.email`, `register.password`,
+`register.confirmPassword`, and a mistyped address produced
+`register.validation.emailInvalid`. Reported from a live screenshot, not by any test.
+
+**Nothing could have caught it.** `tsc` is blind here (`t()` returns `string` for any
+input), no test rendered the page, and the server was unaffected, so the whole estate
+stayed green while the paid signup form showed raw key names to every visitor.
+
+Fixed in `841bbd7`. The strings were recovered **verbatim from `5e58950^`** rather than
+retranslated, so the Arabic is the already-reviewed wording and this added nothing to
+the Arabic review backlog. They were restored under `registerParent.*`, NOT `register.*`
+— that namespace is now the retired-interstitial copy, and putting form keys back there
+would rebuild the exact coupling that broke.
+
+A second, independent defect lived in the same line:
+
+```ts
+const childName = form.watch("child.name") || t("register.firstName");
+```
+
+`register.firstName` is the label of the PARENT's own first-name input, so before a
+child's name was typed the consent read "I am **First Name**'s parent or legal
+guardian." The deletion did not cause that; it only made it loud. Replaced with
+`registerParent.childFallback` ("my child" / "طفلي").
+
+**Blast radius, stated precisely because the screenshot looks worse than the data is:**
+`child.name` is `z.string().min(1)`, so the form cannot submit while the fallback shows,
+and no stored `attestationTextHash` can ever have pinned it. The damage was confined to
+what a parent *read* while deciding whether to tick the box.
+
+**Guard added:** `shared/i18nKeys.test.ts` — every string-literal `t()` key in
+`client/src` must resolve in both locales. Deliberately whole-repo rather than scoped to
+the page that broke: the defect was in a *different* file's deletion, so a guard watching
+only the victim never fires, because the victim is not what moves. Confirmed it fails
+against the broken state. It strips comments first — without that, `ResetPassword.tsx`'s
+comment *about* `t("errorDesc")` scans as a call and fails a correct file. Its limits are
+in the file: literal keys only, and **a key that resolves is not a key that is right** —
+`register.firstName` resolved perfectly well for months while rendering the wrong
+sentence.
+
+The same scan independently found `superadmin.errorTitle` missing from `admin.json` in
+both locales, breaking the toast title on four `ScoringConfigEditor` error paths. Nobody
+had reported it.
+
+## Brand converged on "Future Path" — and the two sweeps that missed (recorded 2026-10-27)
+
+Three names were live simultaneously: `futurepath.ae` (domain), `FuturePath` (repo,
+product), and `Future Pathways` (every user-facing surface, the consent attestations, the
+email sender). A regulator reading the privacy policy, a stored consent record and the
+sender address of the email that delivered it saw three different operators.
+
+Converged in `c842ee8` → `b74e0f9` → `66f88e6`. The third commit exists because the first
+two both missed the same place.
+
+**THE GAP THAT MATTERED — Arabic inside server source.** `c842ee8` swept Latin text in
+`.ts`/`.tsx` and both scripts in the locale JSON. Neither pass covered Arabic *in server
+source*, and that is where the largest miss was: `server/services/email.ts` carried **12**
+occurrences of مسارات المستقبل in the Arabic branches of both mail templates — masthead,
+body, copyright line, plain-text alternative, and both Arabic subject lines. **Every Arabic
+email the product sent was still branded with the old name after a rename that reported
+itself complete.** The gap was structural, not careless: one pass grepped `.ts` for the
+English form, the other grepped locale files for the Arabic form, and a string that is
+Arabic AND in `.ts` fell between them. **This shape will recur the next time a bilingual
+string lives outside the locale bundles.**
+
+**SUBSTRING TRAP — 4th recorded instance.** `admin.nav.futurePathways` in Arabic read
+`المسارات المستقبلية`, which CONTAINS `مسارات المستقبل` as a substring; a blind replace
+produces the broken `المسار المستقبلية`. Joins Art/Artificial, art/Earth and
+DialogFooter/AlertDialogFooter. On inspection it was not a false positive either — that key
+renders the brand wordmark in the admin header (`Admin.tsx`, `Analytics.tsx`,
+`AdminOrganizations.tsx`, `SuperadminDashboard.tsx`), so Arabic admins had been shown a
+common noun where every other surface showed the brand. A translation error the rename
+happened to surface.
+
+**ARABIC IS NOT A FIND-AND-REPLACE.** مسارات is a broken plural taking feminine singular
+agreement; مسار is masculine singular. Seven strings carried agreement that became
+ungrammatical after a naive swap and were edited individually — `privacy.s5Body`
+(صُممت→صُمِّم), `privacy.s7Body` (تبيع/تتاجر/تؤجر→يبيع/يتاجر/يؤجر), `terms.s1Body`
+(استخدامها→استخدامه), `terms.s6Body` (تحتفظ→يحتفظ), `disclaimer.s2Body` (تسعى→يسعى),
+`disclaimer.s4Body` (غير مسؤولة→غير مسؤول), `cta.testimonial` (ساعدتني→ساعدني). Verbs near
+the brand agreeing with a *different* subject were correctly left alone
+(`landing.features.title`'s تختار agrees with the reader; `disclaimer.s3Body`'s مسؤولين
+agrees with المدارس والمعلمون). **Six of the seven sit inside the Privacy Policy and Terms.
+They are the builder's Arabic, not a speaker's, and are NOT in the review pack.**
+
+**POLICY HASH MOVED.** Six strings per locale sit inside the `privacy`/`terms` subtrees that
+`policyVersion.ts` hashes, so the policy id recorded against consent rows changed. Safe by
+design — that file states drift is recorded and never gated on — and every consent row is
+test data.
+
+**Also found, not a brand issue:** `server/seed.ts` seeded the schooladmin account with
+`admin@futurepathways.edu`, a domain nobody owns — same defect class as the EMAIL_FROM
+default below. Fixed in seed, but **seed.ts never resets an existing account, so the
+production row carried the dead address until corrected by hand on 2026-10-27**.
+
+Deliberately left on the old name: `FOLLOWUP.md`, `docs/arabic-review-pack.md`, `replit.md`,
+`threat_model.md`. A dated record edited to say what it did not say at the time stops being
+a record.
+
+## Email — sender, Reply-To, and a mailbox that finally receives (recorded 2026-10-27)
+
+**`EMAIL_FROM` defaulted to `Future Pathways <noreply@futurepathways.com>`** — a domain
+nobody owns. Any environment that did not set it sent every password reset, verification
+and consent notice from an unownable address: no DKIM, no SPF alignment, rejected or
+spam-foldered, silent at this end. Production was never affected (`EMAIL_FROM` is set in
+Render), and **that distinction matters — reading `email.ts:5` alone would have reported
+deployed behaviour that was never deployed.** What made it reachable is that `EMAIL_FROM`
+appeared in neither `ENV_VARS.REQUIRED` nor `ENV_VARS.OPTIONAL`, so an unset value produced
+no boot warning. Fixed in `e6c632b`: owned-domain fallback, added to `OPTIONAL`, plus a
+conditional warning mirroring the existing `STRIPE_WEBHOOK_SECRET` check.
+
+**No `Reply-To` was set anywhere** (`b2645da`). Replies went to the From address — a noreply
+mailbox — and reached a human only because `futurepath.ae` carries a catch-all forwarding
+rule, which is a property of DNS config, not of this code. `EMAIL_REPLY_TO`, defaulting to
+`support@futurepath.ae`, is now passed on both sends. `replyTo` (camelCase) was verified
+against `resend@6.5.2`'s own `.d.mts` — the SDK also carries a snake_case `reply_to` on its
+*response* type, and picking the wrong one would have type-checked into a field the payload
+ignores.
+
+**Mailbox, finally.** `privacy@futurepath.ae` had been dead since the policy named it
+(see "THE ADDRESS IS DEAD" above). Now live: ImprovMX free forwarding (MX only, no SPF record
+added — ImprovMX only receives, and the one they recommend would have authorised ImprovMX
+while excluding Resend, breaking SPF for real production mail), with Gmail send-as through
+Resend SMTP so replies go out as the address rather than a personal account. **`docs/
+arabic-review-pack.md` §1.7 records what must happen now that it exists: the address goes
+back into `privacy.s4Body` and `privacy.s8Contact` ALONGSIDE the self-service sentence, never
+in place of it. STILL NOT DONE.**
+
+**Templates restyled** (`3832301`, corrected by `30e022d` and `6e692a7`). Both HTML builders
+previously carried their own copy of the head, masthead and footer — which is *why* twelve
+Arabic brand strings survived in there. Now one shared `stickyLayout`. The first attempt
+produced a flat bordered 16px-radius card; checked against `StickyNote.tsx` it should be
+`p-6 rounded-lg shadow-lg` with no border and a rotation. The shadow was the substantive
+miss: a border makes a shape look drawn onto the page, a drop shadow makes it look laid on
+top of it.
+
+**PUPPETEER `fullPage` MISRENDERS RTL — record this, it will mislead again.** The Arabic
+captures appeared to show the card shoved off the right edge. `getBoundingClientRect`
+measured it at 170..730 in a 900px document — centred exactly. A viewport-sized capture
+renders correctly; `fullPage` mishandles the scroll origin in an RTL document. **The layout
+was never broken, and twenty minutes went into "fixing" it.** This matters beyond email: the
+bulk PDF export runs Puppeteer over Arabic report pages, so any future "the Arabic looks
+shifted" sourced from a screenshot must be measured before it is believed.
+
+## Superadmin can now correct an email — and why that is an escalation surface (recorded 2026-10-27)
+
+There was no way to change an email anywhere in the product — not for a parent, a school
+admin or a student. A typo at creation was permanent, and the only remedy was hand-written
+SQL. That is how a premium account became unreachable.
+
+**This is not profile editing.** Superadmin is not a column: it is recomputed on every
+privileged request by testing the account's email against `SUPERADMIN_EMAILS`
+(`auth.middleware.ts:7`). An endpoint that writes emails grants and revokes platform
+administration. Email is also an alternate login identifier (`auth.ts:166`) and the
+password-reset delivery address.
+
+`e33732e` adds `PATCH /api/superadmin/users/:id/email` with three guards, extracted to
+`server/utils/emailChange.ts` so the REFUSALS could be tested (same reason
+`bulkExportSelection.ts` was extracted):
+
+- `RESERVED_EMAIL` (403) — refuses any address in `SUPERADMIN_EMAILS`.
+- `SUPERADMIN_EMAIL_IMMUTABLE` (403) — refuses to move an address that is already reserved;
+  editing it silently revokes access on the next request, and the likeliest victim is the
+  operator doing the edit.
+- `EMAIL_TAKEN` (409) — two rows sharing an address makes `getUserByEmail` arbitrary.
+
+Both 403s are case-insensitive on **both** sides and pinned by test; confirmed the escalation
+test fails when the guard is removed. `storage.updateUserEmail` is a separate narrow method —
+email is deliberately NOT on `updateUser`/`updateUserFields`, so a field with those
+properties can never be set by a spread that happens to carry an `email` key.
+
+**Notifications, not confirmation** (`3832301`). A click-to-confirm flow was considered and
+rejected: only a superadmin can make this change, and a superadmin can already reset any
+password outright, so gating it protects nothing already withheld, while leaving the account
+in limbo exactly when the old address is the dead one that prompted the edit. Instead both
+sides are notified after the fact — the new address (which is the only check that it is real
+and reachable) and the old one (so a change cannot happen in silence). The new address is
+**masked** in the notice to the old one: a hostile change is the case that notice exists to
+surface, and then the old mailbox may be the attacker's.
+
+**AUDIT GAP, unchanged:** the change writes an `organization_event` when the user belongs to
+an org. For a self-paying parent, who belongs to none, there is still no system-level audit
+table (already recorded during the Fix 3 reconciliation work). The server log is the only
+trail and the code says so.
+
+## Upgrade funnel had no way back (recorded 2026-10-27)
+
+`TierSelection.tsx` had **no back control of any kind**, and `RegisterParent.tsx`'s went to
+the home page. A guest who opened the paid form from their own report and changed their mind
+had no route back to it except the recovery email — on the stretch immediately after deciding
+they want the full report.
+
+A fixed destination could never have been right: `/tier-selection` is entered from six places
+(Results ×2, Checkout, Profile, GroupPricing, Assessment's free-cap notice). `934a85b` carries
+the origin as a `from` query parameter through tier selection into registration and on into
+checkout.
+
+**Open-redirect guard** (`client/src/lib/returnTo.ts`): the value is attacker-supplied, travels
+in a query string, and sits behind a control labelled "back to your report" inside a payment
+flow. `safeReturnTo` admits same-origin absolute paths only. **The rejection that matters is
+`//evil.com`** — it keeps the leading slash, so the obvious `startsWith("/")` check passes it,
+and browsers then treat it as protocol-relative and navigate off-site. `/\evil.com` is the same
+attack through a backslash some browsers normalise. Both pinned by test.
+
+`6d9ccce` put `RegisterParent` on `PageLayout` (header, nav, language switcher, footer) instead
+of a bare centred card whose only exit was a link below the consent checkboxes, and removed its
+duplicate page-local EN/AR toggle. `useLanguage` is kept, narrowed to `language` — it is not
+decoration, line 124 records the locale the consent attestation was read in.
+
+## White paper revised to v2.0 (recorded 2026-10-27)
+
+`Future_Path_White_Paper_2026_v2_0.docx`, edited in place so the cover, callouts, table styling
+and figures survive. Every claim checked against code. Corrected: 36→68 careers; 576→1,088
+career–skill pairings (the first pass left "576 across 68", arithmetically impossible); CVQ 7
+domains/21 items → 5/15; 9 of 10 sector names; "three validated psychometric instruments" → two;
+the access model; `privacy.s4Body`-adjacent consent description, which described a flow that does
+not exist ("Registration for users under 18 includes consent acknowledgement" — students do not
+register); the CAA claim, softened from "sourced from" to "referencing programmes accredited by",
+since pathways are LLM-generated with CAA links supplied as reference.
+
+Added: the five-domain rationale (a reviewer will ask why not Schwartz's ten), and the **Child
+Digital Safety Law (Federal Decree-Law No. 26 of 2025)**, which the old version omitted entirely
+while citing only PDPL.
+
+**NOT FIXED — the three embedded figures still show "Future Pathways" branding and development
+data** ("test test", "Jill User", 12 schools / 8 students). Captions corrected; images need
+recapturing from the live site after the rename deploys.
+
+## OPEN AFTER THIS SESSION
+
+**Blocking launch (owner):**
+- Entity + licence. Upstream of everything: the attestations should name the registered data
+  controller, and a lawyer reviewing documents naming a non-existent party will say so.
+- Arabic review — now LARGER. The pack quotes the attestations on the old brand, does not cover
+  the seven grammar edits above, and does not cover this session's new strings
+  (`tierSelection.backToReport`, `registerParent.backToReport`, `registerParent.childFallback`,
+  the `superadmin.editEmail*` set, `superadmin.errorTitle`, and the Arabic in both email
+  templates plus the two new change notices).
+- Lawyer pass, scoped to a process review, after the entity exists.
+- Live Stripe keys — prod is still on test keys.
+
+**Small, decided-but-undone:**
+- `privacy.s4Body` / `privacy.s8Contact`: put the now-live address back alongside the
+  self-service sentence (pack §1.7). Note §1.7 reverses the usual rule — for the Privacy Policy
+  the **Arabic prevails** and the English is changed to match.
+- White paper figures need recapturing.
+- `docs/` holds `future-path-white-paper-2026-v1.1.docx` AND
+  `future-pathways-white-paper-2026-v1.1.docx` (different content, different sizes) plus
+  `future-pathways-white-paper.html`; `.agents/agent_assets_metadata.toml` points at
+  `future-pathways-white-paper-2026.docx`, which does not exist. Needs an owner decision on
+  which is authoritative.
+- Registration field labels still read "Child's Full Name" under a "Student Details" heading.
+
+**Engineering, unblocked but not done:**
+- **29 Dependabot alerts (10 high)**, up from 4 in August. Puppeteer cluster plus accumulation;
+  the bump still needs a staging deploy that can render a PDF.
+- **Intermittent "back to my report landed on home"**, observed 2026-10-27, not reproduced on a
+  second attempt. A race or resume-state issue; untouched by the deterministic funnel fix.
+- Email verification on registration (spec 8.5) — also the mechanism that would make
+  self-service email change safe.
+- v2 rebuild phases 4–6: school locking, guest→account claim, licence rework.
+- `CLAUDE.md` at the repo root is still the April security-audit brief, and governs every cc
+  session that reads it. It describes a Phase 1 audit that completed months ago.
