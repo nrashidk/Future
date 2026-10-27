@@ -746,7 +746,14 @@
     "bulkDeleteConfirm": "Are you sure you want to delete {{n}} school(s)? This action cannot be undone.",
     "announcementTitleArPlaceholder": "Announcement title in Arabic",
     "announcementContentArPlaceholder": "Announcement content in Arabic",
-    "errorTitle": "Error"
+    "errorTitle": "Error",
+    "editEmail": "Email",
+    "editEmailTitle": "Change email address",
+    "editEmailDesc": "Update the email for {{name}}. This address receives password resets and can be used to sign in.",
+    "emailUpdated": "Email updated",
+    "emailUpdatedDesc": "The account's email address has been changed.",
+    "failedToUpdateEmail": "Could not update the email address.",
+    "save": "Save"
   },
   "scoring": {
     "title": "Scoring Configuration",

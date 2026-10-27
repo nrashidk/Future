@@ -5,6 +5,7 @@ import { z } from "zod";
 import { clearSubjectCache } from "../utils/subjects";
 import { dataExportLimiter, orgCreationLimiter } from "../middleware/rateLimiter.middleware";
 import { getSuperadminEmails } from "../middleware/auth.middleware";
+import { evaluateEmailChange, normalizeEmail } from "../utils/emailChange";
 import { toPublicUser } from "@shared/userPublic";
 import type { User } from "@shared/schema";
 import { isOnetGrowthBand, growthOutlookFor, ONET_GROWTH_BANDS } from "@shared/growthBands";
@@ -632,6 +633,89 @@ export function registerSuperadminRoutes(app: Express) {
     } catch (error) {
       console.error("Error promoting admin:", error);
       res.status(500).json({ message: "Failed to promote admin" });
+    }
+  });
+
+  /**
+   * Correct a user's email address.
+   *
+   * There was no way to do this anywhere in the product — not for a parent,
+   * a school admin or a student — so a typo at account creation was permanent
+   * and the only remedy was hand-written SQL against production. That is how
+   * a premium account ended up unreachable: the address was wrong, so password
+   * reset delivered nowhere, and nothing in the UI could fix it.
+   *
+   * SUPERADMIN ONLY, and the reason is not merely that it is an admin action.
+   * Superadmin status is not a column — it is computed by testing the user's
+   * email against SUPERADMIN_EMAILS on every privileged request
+   * (auth.middleware.ts:7). An email field is therefore a privilege-escalation
+   * surface wearing a profile-editing costume: write the right string into any
+   * row and that account is superadmin from its next request onward. The two
+   * guards below exist for that reason and are the point of this endpoint, not
+   * decoration around it.
+   */
+  app.patch("/api/superadmin/users/:id/email", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const parsed = z.object({ email: z.string().trim().email() }).safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ code: "INVALID_EMAIL", message: "Enter a valid email address" });
+      }
+
+      const target = await storage.getUser(req.params.id);
+      if (!target) return res.status(404).json({ message: "User not found" });
+
+      // The decision lives in server/utils/emailChange.ts, where its refusals
+      // are pinned by test. The lookup runs first so the pure function stays
+      // free of I/O; an extra query on a request that is about to be refused
+      // costs nothing worth protecting.
+      const email = normalizeEmail(parsed.data.email);
+      const conflicting = await storage.getUserByEmail(email);
+      const verdict = evaluateEmailChange({
+        rawEmail: parsed.data.email,
+        targetId: target.id,
+        targetEmail: target.email ?? null,
+        superadminEmails: getSuperadminEmails(),
+        conflictingUserId: conflicting?.id ?? null,
+      });
+
+      if (!verdict.ok) {
+        return res.status(verdict.status).json({ code: verdict.code, message: verdict.message });
+      }
+      if (verdict.unchanged) {
+        return res.json({ success: true, unchanged: true, email: verdict.email });
+      }
+
+      const previousEmail = target.email ?? null;
+      await storage.updateUserEmail(target.id, verdict.email);
+
+      // Audit where there is somewhere to write one. There is still no
+      // system-level audit table for actions on a user who belongs to no
+      // organization (already recorded in FOLLOWUP.md as a gap for the
+      // reconciliation work); for those, the server log is the only trail, and
+      // saying so here is better than implying coverage that does not exist.
+      const currentUser = (req as any).currentUser;
+      const membership = await storage.getOrganizationMemberByUserId(target.id);
+      if (membership?.organizationId) {
+        await storage.createOrganizationEvent({
+          organizationId: membership.organizationId,
+          eventType: "user_email_changed",
+          eventDescription: `Changed account email for ${target.firstName || ""} ${target.lastName || ""}`.trim(),
+          performedBy: currentUser.id,
+          performedByRole: "superadmin",
+          affectedUserId: target.id,
+          previousValue: { email: previousEmail },
+          newValue: { email: verdict.email },
+        });
+      } else {
+        console.log(
+          `[superadmin] email changed for user ${target.id} by ${currentUser.id} (no organization; not audited to a table)`,
+        );
+      }
+
+      res.json({ success: true, email: verdict.email });
+    } catch (error) {
+      console.error("Error updating user email:", error);
+      res.status(500).json({ message: "Failed to update email" });
     }
   });
 

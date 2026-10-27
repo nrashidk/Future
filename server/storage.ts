@@ -191,6 +191,20 @@ export interface IStorage {
     stripeCustomerId?: string | null;
   }): Promise<User>;
   updateUser(userId: string, data: Partial<{ firstName: string; lastName: string; lastLoginAt: Date; profileImageUrl: string; oauthProvider: string; oauthProviderId: string; failedLoginAttempts: number; lockedUntil: Date | null; role: string }>): Promise<User>;
+  /**
+   * Email is deliberately NOT a field on updateUser or updateUserFields, and
+   * this method exists instead of widening either of them.
+   *
+   * Email is an authentication identity here, not a profile attribute: the
+   * local strategy falls back to it when a username does not match
+   * (auth.ts:166), password reset delivers to it, and superadmin status is
+   * decided by testing it against SUPERADMIN_EMAILS (auth.middleware.ts:7).
+   * A field with those three properties must never be settable by a spread
+   * that happens to carry an `email` key. Callers have to ask for it by name,
+   * and the one caller that does runs the escalation and uniqueness guards
+   * first.
+   */
+  updateUserEmail(userId: string, normalizedEmail: string): Promise<User>;
 
   // Country operations
   getAllCountries(): Promise<Country[]>;
@@ -743,6 +757,20 @@ export class DatabaseStorage implements IStorage {
     }).returning();
     
     return { user, username, password };
+  }
+
+  async updateUserEmail(userId: string, normalizedEmail: string): Promise<User> {
+    // Takes the email ALREADY normalized. Normalizing here instead would hide
+    // the fact that the caller's uniqueness and superadmin-escalation checks
+    // have to run against the same normalized form this row ends up storing —
+    // if the two ever diverged, a check could pass on one spelling while the
+    // row was written with another.
+    const [user] = await db
+      .update(users)
+      .set({ email: normalizedEmail, updatedAt: new Date() })
+      .where(eq(users.id, userId))
+      .returning();
+    return user;
   }
 
   async updateUserFields(userId: string, fields: {

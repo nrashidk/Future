@@ -506,6 +506,8 @@ export default function SuperadminDashboard() {
   const [isResetPasswordModalOpen, setIsResetPasswordModalOpen] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [resetPasswordResult, setResetPasswordResult] = useState<{ username: string; newPassword: string } | null>(null);
+  const [editingEmailUser, setEditingEmailUser] = useState<{ id: string; name: string; email: string | null } | null>(null);
+  const [emailDraft, setEmailDraft] = useState("");
   const [userSearchQuery, setUserSearchQuery] = useState("");
   const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState<SystemAnnouncement | null>(null);
@@ -601,6 +603,26 @@ export default function SuperadminDashboard() {
     },
     onError: (error: unknown) => {
       toast({ title: t('superadmin.error'), description: serverErrorMessage(error) ?? t('superadmin.failedToResetPassword'), variant: "destructive" });
+    },
+  });
+
+  // Correct a user's email. The server refuses reserved (SUPERADMIN_EMAILS)
+  // addresses and duplicates; those refusals arrive as 403/409 and are shown
+  // verbatim via serverErrorMessage rather than restated here, so the UI
+  // cannot drift into describing a rule the server does not enforce.
+  const updateEmailMutation = useMutation({
+    mutationFn: async ({ userId, email }: { userId: string; email: string }) => {
+      const res = await apiRequest('PATCH', `/api/superadmin/users/${userId}/email`, { email });
+      return res.json();
+    },
+    onSuccess: () => {
+      setEditingEmailUser(null);
+      toast({ title: t('superadmin.emailUpdated'), description: t('superadmin.emailUpdatedDesc') });
+      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/all-students'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations'] });
+    },
+    onError: (error: unknown) => {
+      toast({ title: t('superadmin.error'), description: serverErrorMessage(error) ?? t('superadmin.failedToUpdateEmail'), variant: "destructive" });
     },
   });
 
@@ -1462,6 +1484,21 @@ export default function SuperadminDashboard() {
                               </TableCell>
                               <TableCell>
                                 <div className="flex gap-1">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => {
+                                      setEditingEmailUser({
+                                        id: student.user.id,
+                                        name: `${student.user.firstName || ""} ${student.user.lastName || ""}`.trim() || student.user.username || student.user.id,
+                                        email: student.user.email ?? null,
+                                      });
+                                      setEmailDraft(student.user.email ?? "");
+                                    }}
+                                    data-testid={`button-edit-email-${student.user.id}`}
+                                  >
+                                    {t('superadmin.editEmail')}
+                                  </Button>
                                   <Button
                                     variant="ghost"
                                     size="icon"
@@ -2471,6 +2508,41 @@ export default function SuperadminDashboard() {
                 </Button>
               </>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit user email */}
+      <Dialog open={!!editingEmailUser} onOpenChange={(open) => !open && setEditingEmailUser(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('superadmin.editEmailTitle')}</DialogTitle>
+            <DialogDescription>
+              {t('superadmin.editEmailDesc', { name: editingEmailUser?.name ?? "" })}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="edit-email-input">{t('superadmin.emailLabel')}</Label>
+            <Input
+              id="edit-email-input"
+              type="email"
+              dir="ltr"
+              value={emailDraft}
+              onChange={(e) => setEmailDraft(e.target.value)}
+              data-testid="input-edit-email"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingEmailUser(null)} data-testid="button-cancel-edit-email">
+              {t('superadmin.cancel')}
+            </Button>
+            <Button
+              onClick={() => editingEmailUser && updateEmailMutation.mutate({ userId: editingEmailUser.id, email: emailDraft })}
+              disabled={updateEmailMutation.isPending || !emailDraft.trim()}
+              data-testid="button-save-edit-email"
+            >
+              {updateEmailMutation.isPending ? t('superadmin.saving') : t('superadmin.save')}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

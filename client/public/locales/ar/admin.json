@@ -746,7 +746,14 @@
     "bulkDeleteConfirm": "هل أنت متأكد أنك تريد حذف {{n}} مدرسة؟ لا يمكن التراجع عن هذا الإجراء.",
     "announcementTitleArPlaceholder": "عنوان الإعلان بالعربية",
     "announcementContentArPlaceholder": "محتوى الإعلان بالعربية",
-    "errorTitle": "خطأ"
+    "errorTitle": "خطأ",
+    "editEmail": "البريد الإلكتروني",
+    "editEmailTitle": "تغيير البريد الإلكتروني",
+    "editEmailDesc": "تحديث البريد الإلكتروني لـ {{name}}. يُستخدم هذا العنوان لاستعادة كلمة المرور ويمكن تسجيل الدخول به.",
+    "emailUpdated": "تم تحديث البريد الإلكتروني",
+    "emailUpdatedDesc": "تم تغيير البريد الإلكتروني للحساب.",
+    "failedToUpdateEmail": "تعذّر تحديث البريد الإلكتروني.",
+    "save": "حفظ"
   },
   "scoring": {
     "title": "إعداد التقييم",
