@@ -2887,10 +2887,40 @@ export function registerSuperadminRoutes(app: Express) {
       if (key.split(".").some((part: string) => FORBIDDEN_KEY_SEGMENTS.has(part))) {
         return res.status(400).json({ message: "Invalid translation key" });
       }
-      const existing = await readLocaleFile(lang, namespace);
-      const updated = setNestedKey(existing, key, value);
-      await writeLocaleFile(lang, namespace, updated);
-      res.json({ success: true, namespace, lang, key, value });
+      // DISABLED, DELIBERATELY. This endpoint reported success on every call
+      // and changed nothing a student could ever see. Three independent
+      // reasons, any one of them sufficient:
+      //
+      //   1. It wrote to client/public/locales. The server serves
+      //      dist/public/locales (the client requests /locales/{lng}/{ns}.json
+      //      via i18next-http-backend, client/src/i18n/config.ts:15). The
+      //      written file was never the file served.
+      //   2. Even at the right path, a redeploy re-clones the repo and the
+      //      edit is gone.
+      //   3. The UI echoed the saved value straight back, so it looked like it
+      //      had worked — which is why this went unnoticed long enough to be
+      //      found by an audit rather than by anyone using it.
+      //
+      // Returning 501 rather than quietly keeping the write: a superadmin
+      // editing a student-facing string and being told it worked is worse than
+      // being told it is unavailable. This is the same silent-success shape as
+      // the export toast that hid bulk export's non-delivery for ten months.
+      //
+      // The real fix is persistence in the DATABASE plus a /locales route that
+      // merges overrides over the built bundle — not a path change, which would
+      // fix (1) while leaving (2) to erase an admin's work on the next deploy,
+      // and would be harder to notice for it. Scoped separately; it needs a
+      // migration and a verified deploy.
+      //
+      // GET stays live and is accurate: readLocaleFile reads the source bundle,
+      // which is what the build copies to dist. Viewing strings works; only
+      // editing is refused.
+      void setNestedKey; void writeLocaleFile; // retained for the DB-backed implementation
+      return res.status(501).json({
+        code: "TRANSLATION_OVERRIDES_NOT_PERSISTED",
+        message:
+          "Editing UI strings is unavailable. Changes made here were never served to students and were lost on each deploy, so the endpoint now refuses rather than reporting a success it cannot deliver. Edit the locale files in the repository instead.",
+      });
     } catch (error) {
       console.error("Error updating translation:", error);
       res.status(500).json({ message: "Failed to update translation" });
