@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest, serverErrorMessage } from "@/lib/queryClient";
 import { useTranslation } from "react-i18next";
+import { ADD_BUTTON_CLASS } from "@/lib/adminActions";
 import { 
   Plus, Edit, Trash2, Search, GraduationCap, Copy, 
   BookOpen, Calculator, FlaskConical, Languages, Globe2, Code, AlertCircle
@@ -295,11 +296,11 @@ export default function SubjectManagement() {
               {t('subjects.cloneSubjects')}
             </Button>
             <Button 
-              size="sm" 
               onClick={() => {
                 resetForm();
                 setShowAddDialog(true);
               }}
+              className={ADD_BUTTON_CLASS}
               data-testid="button-add-subject"
             >
               <Plus className="w-4 h-4 me-2" />

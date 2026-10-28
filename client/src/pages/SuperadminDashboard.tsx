@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ADD_BUTTON_CLASS } from "@/lib/adminActions";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
@@ -1015,58 +1016,37 @@ export default function SuperadminDashboard() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <div className="flex flex-wrap items-center gap-3">
-          <TabsList className="flex-wrap flex-1">
+          <TabsList className="flex-1">
             <TabsTrigger value="organizations" data-testid="tab-schools">{t('superadmin.tabSchools')}</TabsTrigger>
             <TabsTrigger value="students" data-testid="tab-students">
-              <Users className="w-4 h-4 me-2" />
               {t('superadmin.tabStudents')}
             </TabsTrigger>
             <TabsTrigger value="activity" data-testid="tab-activity">{t('superadmin.tabActivity')}</TabsTrigger>
             <TabsTrigger value="files" data-testid="tab-files">
-              <FileText className="w-4 h-4 me-2" />
               {t('superadmin.tabFiles')}
             </TabsTrigger>
             <TabsTrigger value="announcements" data-testid="tab-announcements">
-              <Megaphone className="w-4 h-4 me-2" />
               {t('superadmin.tabAnnouncements')}
             </TabsTrigger>
             <TabsTrigger value="careers" data-testid="tab-careers">
-              <Briefcase className="w-4 h-4 me-2" />
               {t('superadmin.tabCareers')}
             </TabsTrigger>
             <TabsTrigger value="countries" data-testid="tab-countries">
-              <Globe className="w-4 h-4 me-2" />
               {t('superadmin.tabCountries')}
             </TabsTrigger>
             <TabsTrigger value="subjects" data-testid="tab-subjects">
-              <GraduationCap className="w-4 h-4 me-2" />
               {t('superadmin.tabSubjects')}
             </TabsTrigger>
             <TabsTrigger value="scoring" data-testid="tab-scoring">
-              <Settings className="w-4 h-4 me-2" />
               {t('superadmin.tabScoring')}
             </TabsTrigger>
             <TabsTrigger value="contributions" data-testid="tab-contributions">
-              <Gift className="w-4 h-4 me-2" />
               {t('superadmin.tabContributions')}
             </TabsTrigger>
             <TabsTrigger value="translations" data-testid="tab-translations">
-              <Languages className="w-4 h-4 me-2" />
               {t('superadmin.tabTranslations')}
             </TabsTrigger>
           </TabsList>
-          {activeTab === "organizations" && (
-            <Button onClick={() => setIsCreateOrgModalOpen(true)} data-testid="button-create-school">
-              <Plus className="w-4 h-4 me-2" />
-              {t('superadmin.addSchool')}
-            </Button>
-          )}
-          {activeTab === "students" && (
-            <Button onClick={() => setIsAddStudentOpen(true)} data-testid="button-add-student">
-              <Plus className="w-4 h-4 me-2" />
-              {t('superadmin.addStudent')}
-            </Button>
-          )}
           </div>
 
           <TabsContent value="organizations" className="space-y-4">
@@ -1105,6 +1085,10 @@ export default function SuperadminDashboard() {
                         <Download className="w-4 h-4 me-2" />
                         {t('superadmin.exportCSV')}
                       </a>
+                    </Button>
+                    <Button onClick={() => setIsCreateOrgModalOpen(true)} className={ADD_BUTTON_CLASS} data-testid="button-create-school">
+                      <Plus className="w-4 h-4 me-2" />
+                      {t('superadmin.addSchool')}
                     </Button>
                   </div>
                 </div>
@@ -1358,6 +1342,10 @@ export default function SuperadminDashboard() {
                         <Download className="w-4 h-4 me-2" />
                         {t('superadmin.exportCSV')}
                       </a>
+                    </Button>
+                    <Button onClick={() => setIsAddStudentOpen(true)} className={ADD_BUTTON_CLASS} data-testid="button-add-student">
+                      <Plus className="w-4 h-4 me-2" />
+                      {t('superadmin.addStudent')}
                     </Button>
                   </div>
                 </div>
@@ -1673,7 +1661,7 @@ export default function SuperadminDashboard() {
                     <CardTitle>{t('superadmin.announcementsTitle')}</CardTitle>
                     <CardDescription>{t('superadmin.announcementsDesc')}</CardDescription>
                   </div>
-                  <Button onClick={() => { resetAnnouncementForm(); setEditingAnnouncement(null); setIsAnnouncementModalOpen(true); }} data-testid="button-new-announcement">
+                  <Button onClick={() => { resetAnnouncementForm(); setEditingAnnouncement(null); setIsAnnouncementModalOpen(true); }} className={ADD_BUTTON_CLASS} data-testid="button-new-announcement">
                     <Plus className="w-4 h-4 me-2" />
                     {t('superadmin.newAnnouncement')}
                   </Button>
@@ -1734,7 +1722,7 @@ export default function SuperadminDashboard() {
                       <Languages className="w-4 h-4 me-2" />
                       {applyArabicTranslationsMutation.isPending ? t('superadmin.applyingArabic') : t('superadmin.applyArabicTranslations')}
                     </Button>
-                    <Button onClick={() => { resetCareerForm(); setEditingCareer(null); setIsCareerModalOpen(true); }} data-testid="button-new-career">
+                    <Button onClick={() => { resetCareerForm(); setEditingCareer(null); setIsCareerModalOpen(true); }} className={ADD_BUTTON_CLASS} data-testid="button-new-career">
                       <Plus className="w-4 h-4 me-2" />
                       {t('superadmin.addCareer')}
                     </Button>

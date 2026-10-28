@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest, serverErrorMessage } from "@/lib/queryClient";
 import { useTranslation } from "react-i18next";
+import { ADD_BUTTON_CLASS, CARD_ACTIONS_CLASS } from "@/lib/adminActions";
 import { 
   Globe, Plus, Edit, Trash2, Sparkles, BookOpen, 
   CheckCircle, Clock, RefreshCw, Loader2, ArrowRightLeft
@@ -275,34 +276,34 @@ export default function CountryManagement() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">{t('countries.title')}</h2>
-          <p className="text-muted-foreground">
-            {t('countries.subtitle')}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setIsRenameModalOpen(true)} data-testid="button-rename-curriculum">
-            <ArrowRightLeft className="w-4 h-4 me-2" />
-            {t('countries.renameCurriculum')}
-          </Button>
-          <Button onClick={() => setIsCreateModalOpen(true)} data-testid="button-add-country">
-            <Plus className="w-4 h-4 me-2" />
-            {t('countries.addCountry')}
-          </Button>
-        </div>
-      </div>
-
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Globe className="w-5 h-5" />
-            {t('countries.countriesTable', { n: countries.length })}
-          </CardTitle>
-          <CardDescription>
-            {t('countries.countriesDesc')}
-          </CardDescription>
+          {/* Title, description and actions in one row, as on every other
+              admin table. The page previously carried an <h2> page heading
+              AND its actions above this card, which then repeated its own
+              title — two headings for one table, with the Add button nowhere
+              near it. */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Globe className="w-5 h-5" />
+                {t('countries.countriesTable', { n: countries.length })}
+              </CardTitle>
+              <CardDescription>
+                {t('countries.subtitle')}
+              </CardDescription>
+            </div>
+            <div className={CARD_ACTIONS_CLASS}>
+              <Button variant="outline" size="sm" onClick={() => setIsRenameModalOpen(true)} data-testid="button-rename-curriculum">
+                <ArrowRightLeft className="w-4 h-4 me-2" />
+                {t('countries.renameCurriculum')}
+              </Button>
+              <Button onClick={() => setIsCreateModalOpen(true)} className={ADD_BUTTON_CLASS} data-testid="button-add-country">
+                <Plus className="w-4 h-4 me-2" />
+                {t('countries.addCountry')}
+              </Button>
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {countries.length === 0 ? (
