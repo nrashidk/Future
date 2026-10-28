@@ -3,6 +3,32 @@
 **For a native Emirati Arabic reader.** Work top to bottom; the order is what happens
 if the Arabic is wrong, not where the strings live in the code.
 
+> **Revised 28 October 2026.** The first version of this pack was written on
+> 2026-09-16. Since then the product renamed itself, rewrote its legal pages and
+> added fifty strings. What changed here:
+>
+> - **The brand.** Every quoted string naming the platform said **Future Pathways /
+>   `مسارات المستقبل`**. It now ships as **Future Path / `مسار المستقبل`**. All
+>   quotations in §1–§4 have been corrected against the files that ship today, so
+>   what you read here is what a user sees. **The rename changed the Arabic
+>   grammar**, not just the noun: `مسارات` is a broken plural taking feminine
+>   singular agreement, `مسار` is masculine singular, so the verbs and adjectives
+>   around it moved too (`تسعى`→`يسعى`, `غير مسؤولة`→`غير مسؤول`, `لا تبيع`→`لا
+>   يبيع`, `صُممت`→`صُمِّم`, `تحتفظ`→`يحتفظ`). **Those agreement changes are new
+>   Arabic and have not been reviewed by a speaker** — see §5.1.
+> - **The legal pages were rewritten**, not just rebranded: the age range, the
+>   consent model and the laws cited all changed. §5.1 is new and carries §1 weight.
+> - **Two form section titles changed** — §3.8's table now reads *Parent Details* /
+>   `بيانات ولي الأمر` and *Student Details* / `بيانات الطالب`.
+> - **§6 is new**: fifty strings added since this pack was written, grouped by
+>   weight. The old §6 (what has been seen rendered) is now §7.
+> - **Twenty-four `auth.register.*` strings were deleted** when free local
+>   registration was retired. They were never in this pack; nothing to review.
+>
+> **Every quotation in this document was regenerated from the locale files at
+> revision time**, so a difference between this pack and the product is a bug in
+> one of them, not drift to be assumed.
+
 Nothing here has been reviewed by an Arabic speaker. All of it ships today. Each
 entry gives you where the string appears, the English it was written from, the
 Arabic as it currently ships, and what it has to do — plus any check already
@@ -15,8 +41,8 @@ something *they* are asserting, whether a term matches what the same product cal
 the same thing on another screen. Where the recorded question is that specific, it
 is quoted.
 
-**Read §6 before you start.** Five strings this week were correct as text and wrong
-on screen. §6 says which of these have actually been seen rendered in Arabic and
+**Read §7 before you start.** Five strings this week were correct as text and wrong
+on screen. §7 says which of these have actually been seen rendered in Arabic and
 which have only been read as text — for the second group, reading the words is not
 enough to clear them.
 
@@ -76,20 +102,20 @@ attestation in the register a school administrator would recognise, or whether i
 reads as neutral reportage.
 
 **Also:** `{{school}}` is a school name that may itself be in Latin script inside
-this Arabic sentence — see §6 on mixed runs.
+this Arabic sentence — see §7 on mixed runs.
 
 ### 1.2 `orgs.consentProcessing` — the data-processing consent
 
-> **EN:** On behalf of {{school}}, I consent to Future Pathways processing the personal data of the students we enrol, as described in the Privacy Policy and Terms of Use.
+> **EN:** On behalf of {{school}}, I consent to Future Path processing the personal data of the students we enrol, as described in the Privacy Policy and Terms of Use.
 >
-> **AR:** نيابةً عن {{school}}، أوافق على قيام مسارات المستقبل بمعالجة البيانات الشخصية للطلبة الذين نسجّلهم، وفق ما هو موضّح في سياسة الخصوصية وشروط الاستخدام.
+> **AR:** نيابةً عن {{school}}، أوافق على قيام مسار المستقبل بمعالجة البيانات الشخصية للطلبة الذين نسجّلهم، وفق ما هو موضّح في سياسة الخصوصية وشروط الاستخدام.
 
 **Must convey:** consent given *on behalf of the school* by someone empowered to
 give it, covering processing of students' personal data, bounded by the two named
 documents.
 
 **Recorded check, and it is specific:** the Arabic names the processing party as
-`مسارات المستقبل` where the English says "Future Pathways". That is consistent with
+`مسار المستقبل` where the English says "Future Path". That is consistent with
 the rest of the Arabic UI, but **this is the one sentence in the product where the
 name identifies a legal party to an agreement.** It should be confirmed against the
 Arabic legal documents and against however the entity is actually named in its
@@ -102,9 +128,9 @@ school, i.e. binding the institution and not themselves personally.
 
 ### 1.3 `orgs.consentGuardianHelp` — the fact that makes the attestation matter
 
-> **EN:** The students are aged 13-18. Future Pathways does not contact parents directly and relies on this attestation.
+> **EN:** The students are aged 13-18. Future Path does not contact parents directly and relies on this attestation.
 >
-> **AR:** تتراوح أعمار الطلبة بين 13 و18 عاماً. لا تتواصل مسارات المستقبل مع أولياء الأمور مباشرةً، وتعتمد على هذا الإقرار.
+> **AR:** تتراوح أعمار الطلبة بين 13 و18 عاماً. لا تتواصل مسار المستقبل مع أولياء الأمور مباشرةً، وتعتمد على هذا الإقرار.
 
 **Must convey:** that no one else will check. There is no parent-facing flow
 anywhere in this product; this attestation is the entire consent chain for a minor's
@@ -137,7 +163,7 @@ read it rendered. Review as a block, for whether the card reads as one voice.
 
 Two notes on this block. `consentRecordedBy` and `consentPolicyRef` interpolate a
 person's name, a date and a version string into Arabic sentences — mixed-run
-candidates (§6). `consentDrift` has to say *your consent is still valid* without
+candidates (§7). `consentDrift` has to say *your consent is still valid* without
 implying either that it has lapsed or that re-recording is optional busywork.
 
 ---
@@ -212,7 +238,7 @@ and it must not leave the reader guessing whether the student is being punished.
    option did nothing.
 4. **`{{n}}` is a number inside an Arabic sentence**, at the start of both bucket
    strings — a mixed-run candidate, and it leads the sentence rather than sitting
-   mid-clause. See §6; this has not been seen rendered.
+   mid-clause. See §7; this has not been seen rendered.
 5. **Arabic plurals.** Both bucket strings use one form for all values of `{{n}}`,
    including 1 and 2. Arabic has dual and several plural forms. Tell us if the
    single form is unacceptable here rather than merely imperfect — the fix is an
@@ -223,7 +249,7 @@ and it must not leave the reader guessing whether the student is being punished.
 
 **Not yet seen rendered in Arabic** — text only, like most of this pack. Both
 dialogs are RTL layouts with two adjacent confirm buttons, and button order in an
-RTL flex row is exactly the construction §6 records as having broken before.
+RTL flex row is exactly the construction §7 records as having broken before.
 
 ### 1.6 "Your data" — a student downloading, then deleting, their own record — WRITTEN, NOT REVIEWED
 
@@ -327,6 +353,18 @@ deleted.
 in `legal.json`, English and Arabic. **The Arabic is the builder's draft, not a speaker's**, same
 caveat as §1.6.
 
+> **Superseded in part, 28 October.** These two strings were written around the
+> absence of a working mailbox, and both still tell the reader that a dedicated
+> privacy contact is *being set up*. **A mailbox now exists** —
+> `support@futurepath.ae`, receiving and sending. So the sentence is no longer
+> true in either language.
+>
+> **Do not translate these as they stand.** The English needs rewriting first, to
+> name the address or to say plainly how a reader reaches a human; the Arabic then
+> follows it. Reviewing the current Arabic would be reviewing a statement we
+> already know to be false. Everything below about *register* and *which locale
+> prevails* still applies to whatever replaces them.
+
 **Why §1, and why the direction reverses here.** This is the Privacy Policy itself — the text a
 regulator or a parent reads, not a UI label — so where the two locales disagree, **the Arabic
 prevails**, not the English. Everywhere else in this pack English is the source Arabic is
@@ -366,7 +404,7 @@ and below §1.1-1.3: those strings have at least been read rendered on a live ca
 (`OrganizationConsentCard`); these two exist only in the locale file so far. `POST
 /api/register/parent` (the endpoint that hashes and stores them) exists; the client card that
 composes and posts the exact rendered text — the parent-registration equivalent of
-`OrganizationConsentCard.tsx` — does not yet. Do not treat "written" as "seen"; §6's distinction
+`OrganizationConsentCard.tsx` — does not yet. Do not treat "written" as "seen"; §7's distinction
 applies here at one remove further than anywhere else in this pack.
 
 **Same weight as §1.1-1.3, appended here rather than renumbered in among them** — same reasoning
@@ -407,10 +445,10 @@ this draft does not do.
 
 #### `registerParent.consentProcessing` — the data-processing consent
 
-> **EN:** I consent to Future Pathways processing {{child}}'s personal data on {{child}}'s
+> **EN:** I consent to Future Path processing {{child}}'s personal data on {{child}}'s
 > behalf, as described in the Privacy Policy and Terms of Use.
 >
-> **AR:** أوافق، بصفتي الوليّ الشرعي على {{child}}، على قيام مسارات المستقبل بمعالجة بيانات
+> **AR:** أوافق، بصفتي الوليّ الشرعي على {{child}}، على قيام مسار المستقبل بمعالجة بيانات
 > {{child}} الشخصية، وفق ما هو موضّح في سياسة الخصوصية وشروط الاستخدام.
 
 **Must convey:** consent given *by the guardian, on the named child's behalf*, bounded by the two
@@ -426,7 +464,7 @@ the repeated `{{child}}` reads as natural Arabic or as avoidably stilted, and if
 whether templating two gendered variants from `child_profiles.gender` is worth the cost against
 reading naturally.
 
-**Also, mirroring §1.2's second check:** `مسارات المستقبل` names the processing party the same
+**Also, mirroring §1.2's second check:** `مسار المستقبل` names the processing party the same
 way the school version does; the same instruction applies — confirm against the Arabic legal
 documents, not against the rest of the UI, once this is reviewed alongside them.
 
@@ -469,7 +507,7 @@ than reworded, because it asserted that the *student* had agreed. Any Arabic
 rewording must not drift back toward implying the student consented.
 
 **Also:** `{{school}}` may be a Latin-script school name inside this Arabic sentence
-(§6).
+(§7).
 
 ### 2.2 The locked-fields notice — the only screen showing what the school recorded
 
@@ -594,7 +632,7 @@ school is grading them. It is a provenance note, not a judgement.
 
 **`{{completed}} من {{cap}}`** — `من` is doing "of" in a ratio, not "from". Confirm
 that reads as a count against a ceiling to a 13-year-old, and that the digits sit the
-right way round in RTL (§6 — this is exactly the shape that failed on the landing
+right way round in RTL (§7 — this is exactly the shape that failed on the landing
 cards).
 
 **`وصول عبر المدرسة` is the one to weigh.** It replaced a badge reading «مميز»
@@ -759,7 +797,7 @@ more than a wording one.** It contains the literal pattern `YYYY-MM-DD` and a
 Latin-numeral example, both of which **must stay in Latin script and in that order**
 inside an RTL sentence. If the Arabic renders the example as `14-03-2010`, or reorders
 the pattern, it is instructing schools to produce files the server will reject row by
-row. **Check it rendered, not just read** (§6). `csvMissingColumns` interpolates a
+row. **Check it rendered, not just read** (§7). `csvMissingColumns` interpolates a
 comma-separated list of Latin-script field names and has the same concern.
 
 ### 3.2 The date-of-birth field — why a school is asked for a minor's birth date
@@ -783,7 +821,7 @@ it still says *today*.
 
 Two rendering notes on the same key: `{{age}}` is a Latin numeral interpolated into an
 RTL sentence — confirm the digits land after the colon and do not reorder against the
-label (§6). And the number gets no plural forms, so `العمر اليوم: 2` is how it will
+label (§7). And the number gets no plural forms, so `العمر اليوم: 2` is how it will
 render — harmless in English, worth a second look in Arabic.
 
 **Also worth a native eye, and nothing in this codebase controls it:** the field
@@ -822,7 +860,7 @@ they have already handed to a child. If the promise does not read clearly in Ara
 the key has failed at its only job.
 
 `editStudentDesc` interpolates `{{username}}` — a Latin-script credential inside an
-RTL sentence. **Check it rendered, not just read** (§6).
+RTL sentence. **Check it rendered, not just read** (§7).
 
 ### 3.5 Roster columns, and one deliberate removal
 
@@ -867,7 +905,7 @@ act on, and it tells them to go and remove students — the step that makes each
 erase-or-detach choice (§1.5). What to check:
 
 - **Rendering.** `{{school}}` and `{{count}}` sit next to each other with no Arabic word
-  between them, and a school name can be Latin script. Listed in §6.
+  between them, and a school name can be Latin script. Listed in §7.
 - **The term for students.** This uses الطلبة, matching §1.4's consent card. The removal
   dialog in §1.5 uses الطلاب. Pick one for the admin screens.
 
@@ -893,8 +931,8 @@ alongside the English and not reviewed by a speaker.
 |---|---|---|
 | `registerParent.pageTitle` / `title` | Register for Your Child's Assessment / Create Your Account | التسجيل لتقييم طفلك / إنشاء حسابك |
 | `registerParent.subtitle` | Register once to pay for your child's assessment and manage their results. | سجّل مرة واحدة لدفع رسوم تقييم طفلك وإدارة نتائجه. |
-| `registerParent.parentSectionTitle` | Your Details | بياناتك |
-| `registerParent.childSectionTitle` | Your Child's Details | بيانات طفلك |
+| `registerParent.parentSectionTitle` | Parent Details | بيانات ولي الأمر |
+| `registerParent.childSectionTitle` | Student Details | بيانات الطالب |
 | `registerParent.consentSectionTitle` | Consent | الموافقة |
 | `registerParent.childName` / `childNamePlaceholder` | Child's Full Name / Enter your child's full name | الاسم الكامل للطفل / أدخل الاسم الكامل لطفلك |
 | `registerParent.childDateOfBirth` | Child's Date of Birth | تاريخ ميلاد الطفل |
@@ -973,7 +1011,7 @@ numeric collision that was deliberately removed. Please preserve the distinction
 
 **The three step titles are unchanged in Arabic — and that is the point.** They never
 carried ordinals. They are now **numbered for the first time**, by the component, so
-read them with a leading numeral in front of them for the first time. See §5 and §6:
+read them with a leading numeral in front of them for the first time. See §5 and §7:
 this construction was rendered and fixed twice this week, so the numerals themselves
 have now been seen — but whether `1 شارك ملفك الشخصي` reads naturally as a numbered
 card in Arabic is a judgement only you can make.
@@ -992,7 +1030,7 @@ same acronym was *removed*. The difference is audience, not consistency: a stude
 report explains, a citation is evidence for an evaluator, and a transliterated work
 title cannot be looked up. Please judge these as citations rather than as prose.
 
-**These are the pack's clearest mixed-run rendering risks** (§6). `O*NET` is the
+**These are the pack's clearest mixed-run rendering risks** (§7). `O*NET` is the
 sharpest: the asterisk sits adjacent to an RTL run, and a bare punctuation mark beside
 Arabic text is exactly the construction that failed on the step cards. **Eyeball these
 in the rendered Arabic landing page, not in the file.**
@@ -1084,9 +1122,256 @@ period should not be there in Arabic, say so** — that is a wording judgement a
 yours, not a rendering workaround. Note these are legal section numbers that may be
 cross-referenced, so the numbering itself must survive whatever the separator becomes.
 
+### 5.1 The bodies, rewritten on 28 October — NEW ARABIC, §1 weight
+
+**Read this with §1, not with §5.** The section above is about punctuation in
+headings. This is about sentences that state what the law is, who may use the
+product, and who consents — rewritten in both languages after a review found the
+originals factually wrong. **The Arabic below was drafted alongside the English
+and has not been read by a speaker.** It is the published privacy policy.
+
+**Three changes of substance**, all in both languages:
+
+> **`privacy.s5Body` — who the product is for, and who consents**
+>
+> **Was:** designed for students aged 10+; parental or institutional consent required under 18, per COPPA and UAE PDPL.
+>
+> **EN now:** Future Path is designed for students aged 13 to 18. Students do not register themselves. A parent or legal guardian registers on the student's behalf and gives consent, or the student's school gives consent for the students it enrols.
+>
+> **AR now:** صُمِّم مسار المستقبل للطلاب من عمر 13 إلى 18 عاماً. لا يسجّل الطلاب بأنفسهم؛ بل يسجّل ولي الأمر نيابةً عن الطالب ويمنح الموافقة، أو تمنحها مدرسة الطالب عن الطلبة الذين تسجّلهم.
+
+> **`terms.s2Body` — eligibility**
+>
+> **Was:** users must be 10 or older; under-18s need parental or institutional consent.
+>
+> **EN now:** Students must be between 13 and 18 years old. A parent or legal guardian, or the student's school, must give consent before a student takes an assessment.
+>
+> **AR now:** يجب أن تتراوح أعمار الطلاب بين 13 و18 عاماً. يجب الحصول على موافقة ولي الأمر أو مدرسة الطالب قبل أن يخوض الطالب التقييم.
+
+> **`privacy.s1Body` — the laws actually cited**
+>
+> **Was:** UAE PDPL, EU GDPR, and COPPA for minors.
+>
+> **EN now:** …in compliance with the UAE Personal Data Protection Law (Federal Decree-Law No. 45 of 2021) and the UAE Child Digital Safety Law (Federal Decree-Law No. 26 of 2025).
+>
+> **AR now:** …وفقاً لقانون حماية البيانات الشخصية الإماراتي (المرسوم بقانون اتحادي رقم 45 لسنة 2021) وقانون حماية الطفل في الفضاء الرقمي (المرسوم بقانون اتحادي رقم 26 لسنة 2025).
+
+And one list item widened, because the product collects more than it used to admit:
+
+> **`privacy.s2li1`** — was *name, age, school, country*; now **name, date of birth, gender, school, grade, country**.
+>
+> **AR now:** معلومات المستخدم الأساسية: الاسم وتاريخ الميلاد والجنس والمدرسة والصف الدراسي والدولة.
+
+**What to check, in order:**
+
+1. **The decree-law names.** `المرسوم بقانون اتحادي رقم 45 لسنة 2021` and `المرسوم
+   بقانون اتحادي رقم 26 لسنة 2025` must match how UAE federal legislation is
+   conventionally cited in Arabic, and the second must be the correct Arabic title
+   of the Child Digital Safety Law. **This is the one place in the pack where the
+   Arabic is checkable against an external authority rather than against taste** —
+   it either matches the official name or it does not. A wrong citation in a
+   published privacy policy for minors' data is worse than a clumsy one.
+2. **`لا يسجّل الطلاب بأنفسهم`** — "students do not register themselves" must read
+   as a statement of how the product works, not as a prohibition on students.
+3. **The agreement changes from the rename.** Six verbs and adjectives moved from
+   feminine to masculine singular when `مسارات المستقبل` became `مسار المستقبل`:
+   `يسعى` (disclaimer s2), `غير مسؤول` (disclaimer s4), `لا يبيع … أو يتاجر أو
+   يؤجر` (privacy s7), `صُمِّم` (privacy s5), `استخدامه` (terms s1), `يحتفظ` (terms
+   s6). **Each was changed mechanically alongside the noun.** Confirm every one
+   agrees, and that nothing was missed — a single stranded feminine verb is the
+   likeliest defect in this whole section.
+4. **Digits inside RTL sentences.** `13 إلى 18`, `بين 13 و18`, `رقم 45 لسنة 2021`,
+   `رقم 26 لسنة 2025` — four more instances of the construction §7 says has failed
+   repeatedly, now in the legal text. Never seen rendered.
+
+**Also note, and this is a content gap rather than a translation one:**
+`privacy.s4Body` and `privacy.s8Contact` still say a dedicated privacy contact is
+*being set up*. A mailbox now exists (`support@futurepath.ae`). The sentence is no
+longer true in either language and should be rewritten before the lawyer pass, not
+translated as it stands.
+
 ---
 
-## 6. What has actually been SEEN rendered — read this before trusting the text
+## 6. Added since this pack was first written — fifty strings, never reviewed
+
+All of the below shipped after 2026-09-16 and appear in no earlier section.
+Grouped by consequence, same rule as the rest of the pack: 6.1 and 6.2 sit at §2
+weight because a student or a paying parent meets them with nobody to ask; the
+rest are §3.
+
+### 6.1 The payment gate — what a registered parent sees before paying
+
+**Where:** a parent has registered and returns to start the assessment, but payment
+has not completed. Shown on the assessment entry and again in their profile.
+
+| key | EN | AR |
+|---|---|---|
+| `assessment.paymentRequired.title` | Complete payment to start | أكمل الدفع للبدء |
+| `assessment.paymentRequired.body` | Your account is registered. Complete payment to begin your child's assessment. | تم تسجيل حسابك. أكمل عملية الدفع لبدء تقييم طفلك. |
+| `assessment.paymentRequired.completePayment` | Complete payment | إتمام الدفع |
+| `profile.assessment.paymentRequiredNote` | Your account is registered. Complete payment to start your child's assessment. | تم تسجيل حسابك. أكمل عملية الدفع لبدء تقييم طفلك. |
+| `profile.assessment.completePayment` | Complete Payment | إتمام الدفع |
+
+**Must convey:** that the account is fine and nothing was lost — only the payment
+is outstanding. A parent who reads this as "your registration failed" will register
+again rather than pay. **`تم تسجيل حسابك` is the load-bearing clause**; it has to
+land as reassurance before the instruction that follows it.
+
+**Check:** `إتمام الدفع` versus `أكمل الدفع` — the same action is named two ways
+across these five strings (a noun phrase on the buttons, an imperative in the
+title). Decide whether that reads as deliberate or careless, and make it one voice.
+
+### 6.2 The guest recovery email — a student on a school device
+
+**Where:** the free guest report, offering to email the reader a link before they
+lose it. The only route back to a guest report.
+
+| key | EN | AR |
+|---|---|---|
+| `results.recoveryEmailTitle` | On a shared or school device? | هل أنت على جهاز مشترك أو جهاز مدرسي؟ |
+| `results.recoveryEmailDesc` | Send yourself a link to this report now, so you can open it again later. | أرسل لنفسك رابط هذا التقرير الآن حتى تتمكن من فتحه مرة أخرى لاحقاً. |
+| `results.recoveryEmailPlaceholder` | Your email address | بريدك الإلكتروني |
+| `results.recoveryEmailButton` | Send it now | أرسله الآن |
+| `results.recoveryEmailSending` | Sending… | جارٍ الإرسال… |
+| `results.recoveryEmailSentDesc` | Sent — check your inbox. The link works until {{date}}; if it doesn't arrive, double-check the address and send it again. | تم الإرسال — تحقق من بريدك الوارد. يعمل الرابط حتى {{date}}؛ إذا لم يصل، تأكد من صحة العنوان وأرسله مرة أخرى. |
+| `results.recoveryEmailFailedTitle` | Couldn't send that email | تعذر إرسال البريد الإلكتروني |
+| `results.recoveryEmailFailed` | We couldn't send that email. Check the address and try again. | لم نتمكن من إرسال هذا البريد الإلكتروني. تحقق من العنوان وحاول مرة أخرى. |
+
+**Must convey:** urgency without alarm. The report genuinely is unrecoverable once
+the session is gone, and the reader is a 13–18 year old who may be on a school
+machine they will not use again.
+
+**`{{date}}` is a §7 risk and a wording question at once.** It is an expiry date
+interpolated into an Arabic sentence, directly after `حتى` and immediately before a
+semicolon — a numeral between an Arabic preposition and bidi-neutral punctuation,
+which is the exact shape that has failed twice. **Never seen rendered.** Separately:
+decide whether an Arabic reader should see a Gregorian numeric date here at all, or
+a written-out form.
+
+### 6.3 The retired-registration interstitial — a dead end, by design
+
+**Where:** `/register`, which used to create a free account and now refuses.
+
+| key | EN | AR |
+|---|---|---|
+| `auth.register.retiredTitle` | Free accounts are no longer available | الحسابات المجانية لم تعد متوفرة |
+| `auth.register.retiredBody` | This page used to create a free account directly. That option has been retired — register as a parent to save your child's results and continue. | كانت هذه الصفحة تُستخدم لإنشاء حساب مجاني مباشرة. تم إلغاء هذا الخيار — سجّل كولي أمر لحفظ نتائج طفلك والمتابعة. |
+| `auth.register.retiredCta` | Register as a Parent | التسجيل كولي أمر |
+| `auth.login.noAccountGoogle` | No account found for that Google address. | لا يوجد حساب مرتبط بهذا البريد الإلكتروني في Google. |
+| `auth.login.noAccountMicrosoft` | No account found for that Microsoft address. | لا يوجد حساب مرتبط بهذا البريد الإلكتروني في Microsoft. |
+| `auth.login.registerCta` | Register to get started | سجّل للبدء |
+
+**Must convey:** a door that closed, and the door that is open instead — in one
+read. The reader arrived expecting to sign up.
+
+**Check:** whether `تم إلغاء هذا الخيار` reads as a decision the product made
+(correct) or as a fault (wrong). And the two OAuth lines put **`Google` and
+`Microsoft` in Latin script inside Arabic sentences** — §7 risk, never rendered.
+
+### 6.4 RegisterParent's remaining fields — extends §3.8
+
+These are the parent's own account fields and the form's validation messages,
+added after §3.8's table was written. Same weight and same caveat as that table.
+
+| key | EN | AR |
+|---|---|---|
+| `registerParent.firstName` | First Name | الاسم الأول |
+| `registerParent.lastName` | Last Name | اسم العائلة |
+| `registerParent.email` | Email | البريد الإلكتروني |
+| `registerParent.password` | Password | كلمة المرور |
+| `registerParent.confirmPassword` | Confirm Password | تأكيد كلمة المرور |
+| `registerParent.showPassword` / `hidePassword` | Show password / Hide password | إظهار كلمة المرور / إخفاء كلمة المرور |
+| `registerParent.childFallback` | my child | طفلي |
+| `registerParent.validation.firstNameRequired` | First name is required | الاسم الأول مطلوب |
+| `registerParent.validation.lastNameRequired` | Last name is required | اسم العائلة مطلوب |
+| `registerParent.validation.emailInvalid` | Please enter a valid email address | يرجى إدخال بريد إلكتروني صحيح |
+| `registerParent.validation.passwordMin` | Password must be at least 8 characters | يجب أن تحتوي كلمة المرور على 8 أحرف على الأقل |
+| `registerParent.validation.passwordsMismatch` | Passwords don't match | كلمتا المرور غير متطابقتين |
+
+**`childFallback` deserves one look of its own.** It is substituted into the
+consent attestation in place of the child's name while the name field is still
+empty, so the §1.8 sentence reads `أوافق، بصفتي الوليّ الشرعي على طفلي، …`. The form
+cannot be submitted in that state, so nothing wrong is ever recorded — but the
+attestation **is read** in that state, by a parent deciding whether to tick it.
+It has to be grammatical there.
+
+### 6.5 Back-navigation — three labels, one of them duplicated
+
+| key | EN | AR |
+|---|---|---|
+| `registerParent.backToReport` | Back to your report | العودة إلى تقريرك |
+| `pricing.tierSelection.backToReport` | Back to your report | العودة إلى تقريرك |
+| `pricing.tierSelection.backHome` | Back to Home | العودة للرئيسية |
+
+**Check the pair for consistency, then the preposition.** `العودة إلى تقريرك` uses
+`إلى`; `العودة للرئيسية` contracts to `لـ`. Both are defensible; sitting one screen
+apart in the same flow, they should probably match.
+
+### 6.6 The superadmin email-change dialog
+
+**Where:** superadmin only. Changes the address a password reset is sent to.
+
+| key | EN | AR |
+|---|---|---|
+| `superadmin.editEmailTitle` | Change email address | تغيير البريد الإلكتروني |
+| `superadmin.editEmailDesc` | Update the email for {{name}}. This address receives password resets and can be used to sign in. | تحديث البريد الإلكتروني لـ {{name}}. يُستخدم هذا العنوان لاستعادة كلمة المرور ويمكن تسجيل الدخول به. |
+| `superadmin.editEmail` | Email | البريد الإلكتروني |
+| `superadmin.save` | Save | حفظ |
+| `superadmin.emailUpdated` | Email updated | تم تحديث البريد الإلكتروني |
+| `superadmin.emailUpdatedDesc` | The account's email address has been changed. | تم تغيير البريد الإلكتروني للحساب. |
+| `superadmin.errorTitle` | Error | خطأ |
+| `superadmin.failedToUpdateEmail` | Could not update the email address. | تعذّر تحديث البريد الإلكتروني. |
+
+**`{{name}}` after `لـ` is a §7 risk** — a user's name, possibly Latin script,
+joined directly to an Arabic prefix with no space. Never rendered.
+
+### 6.7 Bulk report export — selection counts
+
+| key | EN | AR |
+|---|---|---|
+| `orgs.exportAllReports` | Export All Reports | تصدير كل التقارير |
+| `orgs.exportSelectedReports` | Export Selected ({{count}}) | تصدير المحددين ({{count}}) |
+| `orgs.exportNoneSelectedCompleted` | None of the {{count}} selected students has a completed assessment | لم يُكمل أي من الطلاب المحددين ({{count}}) التقييم |
+
+**Two §7 risks here, both unrendered.** `({{count}})` is a digit inside Latin
+parentheses inside an Arabic phrase — parentheses are bidi-mirrored, so the opening
+and closing brackets can swap. And the third string **moves the count** relative to
+the English: the Arabic puts `({{count}})` after `المحددين` rather than before
+`الطلاب`. That is a legitimate translation choice; confirm it is the natural one.
+
+### 6.8 The "mixed signals" growth band
+
+| key | EN | AR |
+|---|---|---|
+| `results.growthBandWatch` | Mixed signals | إشارات متضاربة |
+| `results.growthWatchNote` | One projection flags a decline; a second, independent check does not confirm it — not treated as declining here. | يشير أحد التوقعات إلى تراجع، لكن فحصًا مستقلاً آخر لا يؤكد ذلك — لذلك لا يُعتبر تراجعًا هنا. |
+
+**Must convey honest uncertainty**, not reassurance. A student reads this about a
+career they may be considering. It must not round to "this career is fine", and it
+must not round to "this career is declining" — the whole point is that the two
+checks disagree. **An em-dash between two RTL clauses** (§7).
+
+### 6.9 The landing claim that replaced a fabricated testimonial
+
+| key | EN | AR |
+|---|---|---|
+| `landing.cta.methodNote` | Every match comes with the reasoning behind it — the subjects, interests and values that placed it there. | يأتي كل اقتراح مهني مصحوباً بأسبابه: المواد الدراسية والاهتمامات والقيم التي قادت إليه. |
+| `admin.nav.brand` | Future Path | مسار المستقبل |
+
+**Context you need.** This string occupies the slot where an invented student
+review used to sit; it was removed because the product has no real users to quote.
+**It must stay a description of how the product works and must not drift back into
+a claim about results or popularity** — that is the whole reason it exists.
+
+Note the Arabic **replaces the em-dash with a colon** and reads `مصحوباً بأسبابه`
+("accompanied by its reasons") where the English says "comes with the reasoning
+behind it". Both are good Arabic; confirm the colon is the right register for a
+marketing line, and that `اقتراح مهني` ("career suggestion") is the same word the
+report itself uses for a match.
+
+---
+
+## 7. What has actually been SEEN rendered — read this before trusting the text
 
 **Five constructions this week were correct by reasoning and wrong on screen in
 Arabic**, and the ones that looked safest were the ones that failed: a bare digit, a
@@ -1133,6 +1418,12 @@ in the rendering and not the words:
 | the two adjacent confirm buttons in the removal dialog (§1.5) | button ORDER in an RTL flex row. One preserves a record and one destroys it; if they swap visually, the destructive button sits where the safe one is expected. §1 weight, and rendering-only — the text cannot reveal it |
 | `{{school}} {{count}}` in `superadmin.bulkDeleteHasStudents` (§3.7) | a school name that may be Latin script IMMEDIATELY followed by a digit, with no Arabic word between them. The bidi algorithm can merge them into one left-to-right run, so the name and the number read as one token or swap order |
 | `…و{{count}}` in `superadmin.bulkDeleteMoreFailures` (§3.7) | a leading ellipsis, then the conjunction و joined directly to a digit |
+| `{{date}}` in `recoveryEmailSentDesc` (§6.2) | an expiry date between the Arabic preposition `حتى` and a semicolon — a numeral with bidi-neutral punctuation on both sides |
+| `({{count}})` in `exportSelectedReports` and `exportNoneSelectedCompleted` (§6.7) | parentheses are bidi-MIRRORED: the opening and closing brackets can swap around the digit |
+| `لـ {{name}}` in `superadmin.editEmailDesc` (§6.6) | a possibly-Latin user name joined directly to an Arabic prefix with no space |
+| `Google` / `Microsoft` in `noAccountGoogle` / `noAccountMicrosoft` (§6.3) | a Latin brand name ending an Arabic sentence, immediately before the full stop |
+| `13 إلى 18`, `بين 13 و18`, `رقم 45 لسنة 2021`, `رقم 26 لسنة 2025` (§5.1) | four numerals inside the published legal text, two of them statute numbers that must not reorder |
+| the em-dash in `growthWatchNote` (§6.8) and the colon in `cta.methodNote` (§6.9) | a separator between two RTL clauses, which can render ambiguously depending on the font |
 
 **How to see them.** The app can be run locally and rendered in Arabic with headless
 Chrome — the recipe, including the system libraries and how to force the Arabic locale,
@@ -1151,8 +1442,16 @@ this document, so you are judging Arabic as a reader will meet it rather than as
 
 - **`premiumNarratives.ts`** — 106 hand-written Arabic literals (action-step and
   narrative templates), student-facing, never in any review path. Needs its own pass.
-- **`email.ts`** — a complete bilingual password-reset email, subject and body,
-  hardcoded. Never reviewed.
+- **`email.ts`** — **now four bilingual emails, not one**: password reset, guest
+  report recovery, and two email-change notices (to the old address and the new).
+  Subjects and bodies hardcoded in the server source, outside the locale files and
+  therefore outside every check that guards them. Never reviewed. **The Arabic in
+  this file survived two brand sweeps unchanged** — it was Arabic text inside a
+  `.ts` file, which one sweep searched for the English form and the other searched
+  only the locale JSON — so for twelve strings every Arabic email went out under
+  the old brand after the rename reported itself complete. Corrected since, but it
+  is the strongest argument in this document for reviewing `email.ts` as carefully
+  as the locale files.
 - **Content data** — the Arabic quiz banks and career content (career titles,
   descriptions, education levels) are a separate and much larger body, reviewed
   through their own migrations rather than here.
