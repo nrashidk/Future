@@ -1016,7 +1016,13 @@ export default function SuperadminDashboard() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <div className="flex flex-wrap items-center gap-3">
-          <TabsList className="flex-1">
+          {/* Triggers stretch to share the bar's spare width. Deliberately no
+              min-w-0: a flex item's default min-width is its content, so a long
+              label ("Announcements") keeps its own width and only the surplus is
+              divided. Forcing equal widths instead collides labels and clips the
+              last tab below ~1200px. Child selector rather than per-trigger so a
+              new tab inherits it without hardcoding the count. */}
+          <TabsList className="flex-1 [&>button]:flex-1">
             <TabsTrigger value="organizations" data-testid="tab-schools">{t('superadmin.tabSchools')}</TabsTrigger>
             <TabsTrigger value="students" data-testid="tab-students">
               {t('superadmin.tabStudents')}
