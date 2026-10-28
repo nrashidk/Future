@@ -6,8 +6,11 @@ import DOMPurify from "isomorphic-dompurify";
 import type { ContributionSubmission } from "@shared/schema";
 import { getCurrentAcademicYear } from "../utils/subjects";
 import { getSuperadminEmails } from "../middleware/auth.middleware";
+import { actingUserId } from "../utils/actingUser";
 
 const router = Router();
+
+
 
 // Check if user is superadmin (async - fetches user from DB to check role)
 async function isSuperadmin(req: Request): Promise<boolean> {
@@ -169,7 +172,13 @@ async function checkOrgAdmin(req: Request, res: Response, next: NextFunction) {
     return res.status(401).json({ error: "Not authenticated" });
   }
 
-  const userId = user.userId || user.id;
+  const userId = actingUserId(user);
+  if (!userId) {
+    // Unreachable behind isAuthenticated, but the type cannot know that, and
+    // the alternative is a cast — which is precisely what hid the undefined
+    // writes here in the first place.
+    return res.status(401).json({ error: "Not authenticated" });
+  }
 
   // First check organizationMembers table
   let member = await storage.getOrganizationMemberByUserId(userId);
@@ -288,7 +297,8 @@ router.post("/submit", isAuthenticated, checkOrgAdmin, async (req: Request, res:
   try {
     const member = (req as any).orgMember;
     const user = req.user as any;
-    const userId = user.userId || user.id;
+    const userId = actingUserId(user);
+    if (!userId) return res.status(401).json({ error: "Not authenticated" });
     
     // Organization-scoped rate limiting (3 submissions per day per org)
     const dailySubmissionCount = await storage.getOrganizationDailySubmissionCount(member.organizationId);
@@ -596,7 +606,7 @@ router.post("/admin/:id/review", isAuthenticated, checkSuperadmin, async (req: R
     // Update submission status
     await storage.updateContributionSubmission(submissionId, {
       status,
-      reviewedByUserId: user.id,
+      reviewedByUserId: actingUserId(user),
       reviewedAt: new Date(),
       reviewFeedback: feedback || null,
       approvedCount,
@@ -696,6 +706,8 @@ router.post("/admin/org/:orgId/allocate-reward", isAuthenticated, checkSuperadmi
   try {
     const { orgId } = req.params;
     const user = req.user as any;
+    const actorId = actingUserId(user);
+    if (!actorId) return res.status(401).json({ error: "Not authenticated" });
     
     const parsed = allocateRewardSchema.safeParse(req.body);
     if (!parsed.success) {
@@ -758,7 +770,7 @@ router.post("/admin/org/:orgId/allocate-reward", isAuthenticated, checkSuperadmi
         creditsAwarded: submission.creditsAwarded || 0,
         approvedQuestions: submission.approvedCount || 0,
         reason: `Manual allocation by superadmin - ${submission.approvedCount || 0} approved questions`,
-        awardedByUserId: user.id,
+        awardedByUserId: actorId,
       });
     }
     
@@ -809,7 +821,7 @@ router.post("/admin/settings", isAuthenticated, checkSuperadmin, async (req: Req
     await storage.upsertSystemConfig(
       CONFIG_MAX_YEARLY_CREDITS,
       String(maxYearlyCredits),
-      user.id
+      actingUserId(user)
     );
 
     res.json({
