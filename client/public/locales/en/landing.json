@@ -38,11 +38,10 @@
   },
   "cta": {
     "title": "Ready to Find Your Path?",
-    "subtitle": "Join thousands of students who have discovered their perfect career match. Start your journey today!",
+    "subtitle": "Discover career paths that fit your subjects, interests and values. Start your assessment today.",
     "createAccount": "Create Account",
     "continueGuest": "Continue as Guest",
-    "testimonial": "\"Future Path helped me discover careers I never knew existed. Now I'm excited about my future!\"",
-    "testimonialAuthor": "- Sarah, Grade 11"
+    "methodNote": "Every match comes with the reasoning behind it — the subjects, interests and values that placed it there."
   },
   "research": {
     "title": "Research-Backed Methodology",

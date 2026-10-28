@@ -329,10 +329,9 @@ export default function Landing() {
                   <GraduationCap className="w-7 h-7 text-primary" aria-hidden="true" />
                 </div>
                 <div>
-                  <p className="font-body italic text-foreground/80">
-                    {t("cta.testimonial")}
+                  <p className="font-body text-foreground/80">
+                    {t("cta.methodNote")}
                   </p>
-                  <p className="mt-2 font-semibold text-sm">{t("cta.testimonialAuthor")}</p>
                 </div>
               </div>
             </StickyNote>
