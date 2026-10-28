@@ -1015,14 +1015,21 @@ export default function SuperadminDashboard() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <div className="flex flex-wrap items-center gap-3">
           {/* Triggers stretch to share the bar's spare width. Deliberately no
               min-w-0: a flex item's default min-width is its content, so a long
               label ("Announcements") keeps its own width and only the surplus is
               divided. Forcing equal widths instead collides labels and clips the
               last tab below ~1200px. Child selector rather than per-trigger so a
-              new tab inherits it without hardcoding the count. */}
-          <TabsList className="flex-1 [&>button]:flex-1">
+              new tab inherits it without hardcoding the count.
+
+              w-full, not flex-1: TabsList is a direct child of Tabs, which is a
+              plain block, so flex-1 would be inert here. It only worked while a
+              now-removed flex wrapper sat in between.
+
+              flex-wrap + h-auto override the base h-10: once 11 labels no longer
+              fit on one line the strip wraps to a second row instead of running
+              past the bar's right edge. */}
+          <TabsList className="w-full flex-wrap h-auto [&>button]:flex-1">
             <TabsTrigger value="organizations" data-testid="tab-schools">{t('superadmin.tabSchools')}</TabsTrigger>
             <TabsTrigger value="students" data-testid="tab-students">
               {t('superadmin.tabStudents')}
@@ -1053,7 +1060,6 @@ export default function SuperadminDashboard() {
               {t('superadmin.tabTranslations')}
             </TabsTrigger>
           </TabsList>
-          </div>
 
           <TabsContent value="organizations" className="space-y-4">
             <Card>
