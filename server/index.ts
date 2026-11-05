@@ -5,7 +5,7 @@ import compression from "compression";
 import cookieParser from "cookie-parser";
 import { validateEnvironmentVariables } from "./utils/env-validation";
 import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
+import { serveStatic, log } from "./serveStatic";
 import { csrfProtection, validateCsrf, csrfTokenEndpoint } from "./middleware/csrf.middleware";
 
 // Validate environment variables before starting the application
@@ -254,6 +254,20 @@ app.use((req, res, next) => {
   // setting up all the other routes so the catch-all route
   // doesn't interfere with the other routes
   if (app.get("env") === "development") {
+    // ./vite pulls in vite and @vitejs/plugin-react, both devDependencies, so
+    // it must stay out of the production bundle entirely -- see
+    // server/serveStatic.ts for what a static import of it cost.
+    //
+    // The specifier is held in a variable ON PURPOSE. A plain
+    // `await import("./vite")` is still statically analyzable, and esbuild
+    // --bundle follows it and inlines the module (without --splitting there is
+    // nowhere else to put it), which puts `import ... from "vite"` back at the
+    // top of dist/index.js and recreates the exact bug this replaced. An
+    // opaque specifier cannot be followed, so esbuild leaves it as a runtime
+    // import. It is only ever evaluated in development, where tsx resolves it
+    // relative to this file.
+    const devServerModule = "./vite";
+    const { setupVite } = (await import(devServerModule)) as typeof import("./vite");
     await setupVite(app, server);
   } else {
     serveStatic(app);
