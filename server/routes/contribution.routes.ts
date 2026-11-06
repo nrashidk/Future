@@ -345,11 +345,38 @@ router.post("/submit", isAuthenticated, checkOrgAdmin, async (req: Request, res:
       }
     }
 
-    // If organization has a curriculum set, validate the submission matches
     const organization = await storage.getOrganizationById(member.organizationId);
+
+    /**
+     * The submission must be for the SCHOOL'S OWN COUNTRY.
+     *
+     * countryId arrives from the client and was only checked for existence,
+     * so a school in one country could file questions against another: pick a
+     * country whose curricula happen to include your own and whose subject
+     * codes you can read from the public /api/countries routes, and your
+     * questions enter that country's bank on approval. Confirmed by test --
+     * a UAE school submitted to a freshly created country and got a 201.
+     *
+     * Nothing malicious is needed for this to bite. The country is a dropdown
+     * on a form; a stale selection or a copied request body is enough to file
+     * a school's work under the wrong flag, where it then shapes the quizzes
+     * of students who are not theirs.
+     *
+     * Checked rather than silently overridden, to match how curriculum is
+     * handled directly below: an admin who picked the wrong country is told
+     * so, instead of watching their submission land somewhere they did not
+     * choose.
+     */
+    if (organization?.countryId && countryId !== organization.countryId) {
+      return res.status(400).json({
+        error: `Submitted country '${countryId}' does not match your school's country '${organization.countryId}'. Questions can only be contributed to your own country.`,
+      });
+    }
+
+    // If organization has a curriculum set, validate the submission matches
     if (organization?.curriculum && curriculum && organization.curriculum !== curriculum) {
-      return res.status(400).json({ 
-        error: `Submitted curriculum '${curriculum}' does not match your school's curriculum '${organization.curriculum}'.` 
+      return res.status(400).json({
+        error: `Submitted curriculum '${curriculum}' does not match your school's curriculum '${organization.curriculum}'.`
       });
     }
 

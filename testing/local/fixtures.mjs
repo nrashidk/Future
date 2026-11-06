@@ -117,7 +117,12 @@ export async function build() {
         totalLicenses: 50,
         isUnlimitedLicenses: false,
         countryId: "uae",
-        curriculum: "MOE",
+        // UAE's curricula are ["MOE National", "British", "American", "IB"] --
+        // there is no "MOE". Organization creation accepts a curriculum the
+        // country does not offer, and a school created that way can never
+        // match a subject, so the contribution feature is dead for it. Using
+        // the real value here so the fixtures build a school that works.
+        curriculum: "MOE National",
         adminFirstName: `Admin${tag}`,
         adminLastName: "Test",
         adminEmail: `admin.${tag.toLowerCase()}.${RUN}@futurepath.test`,
