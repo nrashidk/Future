@@ -95,10 +95,16 @@ export function registerRecommendationsRoutes(app: Express) {
       // second pass as on the first. Without that, every re-run of the cap-th
       // assessment would 403.
       //
-      // Guests (no userId) and school students are not bound by this cap — the
-      // school allocation is enforced at create time against the member row.
-      // Self-paying premium accounts are excluded for the reason recorded in
-      // shared/assessmentLimits.ts: their limit is purchasedLicenses.
+      // Guests (no userId) are not bound by this cap, and neither are POOLED
+      // takers — school students and self-payers alike. Their bound is their
+      // licence pool, which is checked advisorily at create time and spent
+      // authoritatively by storage.consumeLicense in the transaction below.
+      //
+      // This comment used to say the school allocation was "enforced at create
+      // time against the member row" and that a self-payer's limit was
+      // users.purchased_licenses. The first is no longer how it works, and the
+      // second was never true in code — nothing counted against that column
+      // until the ledger existed. Both populations now run through one pool.
       if (assessment.userId) {
         const account = await storage.getUser(assessment.userId);
         const orgMember = await storage.getOrganizationMemberByUserId(assessment.userId);

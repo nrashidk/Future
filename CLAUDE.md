@@ -1,91 +1,218 @@
-# CLAUDE.md — Security & Quality Audit Instructions
+# CLAUDE.md — how to work in this repository
 
-This file governs how you (Claude Code) work in this repository. Read it fully before doing anything. Follow the phases in order. Do not skip ahead.
+This replaces the April 2026 security-audit brief that used to live here. That
+brief described a read-only audit in phases, told you not to modify any file,
+and listed findings to go and confirm. The audit is finished, its findings are
+fixed, and following those instructions now would stop you doing any work at
+all. What was worth keeping from it is kept below.
 
-## Project context
-- Stack: React + Vite (client), Node/Express + TypeScript (server), PostgreSQL via Drizzle ORM (Neon serverless), Passport (local + Google + Microsoft OAuth), express-session with connect-pg-simple, Stripe, Resend, OpenAI (customer-provided API key, stored encrypted), Puppeteer (PDF), Multer (uploads).
-- Product: a career-guidance platform.
+## The product
 
-## ⚠️ CRITICAL — who the users are
-**The end users are school students aged 13–18 (minors).** The system stores their names, schools, grade levels, assessment results, and psychological/career-personality/values profiles. School admins create and manage student accounts in bulk on the students' behalf.
+A career-guidance platform for school students, futurepath.ae. A student
+answers an interest and values questionnaire, sits a short subject quiz, and
+gets a report matching them to careers, weighted by their subjects, their
+interests, and their country's national priorities.
 
-Consequences for this audit, treat as binding:
-- This is minors' personal data under UAE PDPL (Federal Decree-Law 45/2021) and general child-data-protection norms. A data-exposure bug here is high severity by default.
-- **Escalate any authorization/access-control finding by one severity level** above what you'd normally assign. An IDOR that would be "HIGH" on an adult SaaS is **CRITICAL** here.
+Stack: React + Vite + TypeScript (client), Express + TypeScript (server),
+Drizzle ORM on Neon serverless Postgres, Passport (local + Google +
+Microsoft), express-session with connect-pg-simple, Stripe, Resend, Anthropic
+API for report narratives, Puppeteer for PDFs, Multer for uploads. Hosted on
+Render. Bilingual English/Arabic throughout, including the PDF.
 
-## replit.md — use as context, do NOT trust as truth
-replit.md at the repo root describes the intended architecture and contains a list (in its Security & Performance section) of security controls the previous builder *claims* were implemented: assessment ownership verification, path-traversal protection, role-based access control, CSP restrictions, cryptographic guest tokens, Stripe webhook secret enforcement, input sanitization, etc.
+## ⚠️ The users are minors
 
-**Read it to understand what each part is supposed to do. Then verify every security claim against the actual code.** A claim in replit.md is an allegation to confirm, never evidence that the control exists or works. Note any claim you cannot confirm in code as a finding.
+**End users are school students aged 13–18.** The system stores their names,
+schools, grade levels, assessment answers and career-personality profiles.
+School admins create and manage student accounts on their behalf.
 
-## Operating rules (apply to every phase)
-1. **Phase 1 is READ-ONLY.** Do not modify, create, or delete any file during the audit phase. Produce a findings report only.
-2. **No fixes until I approve the findings.** After Phase 1, stop and wait for my review.
-3. **One issue per commit** when fixing. Small, reviewable diffs. Never bundle unrelated changes. Never do a sweeping "refactor for security."
-4. **Run real tools, don't just read code.**
-5. **Cite file and line** for every finding.
-6. **If you are uncertain whether something is a bug, list it as "needs human review" — do not "fix" it.**
+Two consequences, both binding:
 
-## DO NOT TOUCH — this code is already correct
-The authentication core has been reviewed and is sound. Do not "harden," refactor, or rewrite these unless I explicitly ask:
-- server/auth.ts — bcrypt hashing, rate limiting, account lockout, password complexity, session regeneration on login, cookie flags (httpOnly/secure/sameSite). All intentional and correct.
+- This is minors' personal data under UAE PDPL (Federal Decree-Law 45/2021). A
+  data-exposure bug is high severity by default.
+- **Escalate any authorization or access-control finding by one severity
+  level.** An IDOR that would be HIGH on an adult product is CRITICAL here.
+
+There is a data-subject registry at `server/services/subjectAccess.ts` with a
+test that fails when a new column references a person and has not been
+classified as that person's data or someone else's action. It has caught real
+omissions twice. When it fails, classify the column — do not silence it.
+
+## Do not touch without being asked
+
+- **`server/auth.ts`** — bcrypt hashing, rate limiting, account lockout,
+  password complexity, session regeneration on login, cookie flags. Reviewed
+  and correct. Flag a genuine bug if you find one; do not restyle or refactor.
 - Stripe webhook signature verification.
-- CSRF middleware wiring order in server/routes.ts (auth → CSRF → routes is deliberate).
+- CSRF middleware wiring order in `server/routes.ts` (auth → CSRF → routes is
+  deliberate).
 - DOMPurify usage, helmet, Drizzle parameterized queries.
-Flag a genuine bug in these if you find one, but do not stylistically rework them.
 
-## Already verified clean (do not re-litigate)
-- Secret scanning: gitleaks run on full history — only 3 placeholder strings, allowlisted in .gitleaks.toml. No real secrets in history. .env is gitignored and was never committed.
-- Dependency vulnerabilities: npm install reports 0 vulnerabilities. A confirming `npm audit --omit=dev` is fine, but do not chase deprecation warnings (glob/recharts/jpeg-exif) during this audit — note them as maintenance follow-ups only.
-- Node runtime: now pinned to Node 22 LTS via .nvmrc.
+Superadmin status is recomputed from the database on every request, by email
+against `SUPERADMIN_EMAILS` or by role, and never read from the session. **Any
+endpoint that can write a user's email is a privilege-escalation surface** —
+treat changes there as security-critical.
 
-## Phase 1 — Audit (read-only, produce a report)
+`isSuperadminOnly` (in `server/middleware/auth.middleware.ts`) means nationwide
+superadmin, not "any admin". `isOrgAdmin` is the one scoped to a single school.
+Routes behind the former do no organization scoping and need none; do not widen
+one to admit org admins without adding that scoping.
 
-### 1a. Verified config issues to confirm and document
-- **Startup env guards:** server/db.ts correctly throws if DATABASE_URL is unset. Confirm there is NO equivalent guard for SESSION_SECRET or DB_ENCRYPTION_KEY. A missing SESSION_SECRET (used with `!` non-null assertion in auth.ts) is a silent security failure. Document as a finding.
-- **OAuth email linking:** in auth.ts upsertOAuthUser, accounts are auto-linked by matching email without checking the provider marked the email verified. Document.
-- **BASE_URL fallback** points to a repl.co URL; the app no longer runs on Replit. Document the need to set BASE_URL in the deployment environment.
+## replit.md — context, not truth
 
-### 1b. TOP PRIORITY — broken object-level authorization (IDOR)
-The most important task in this audit. Route modules live in server/routes/*.routes.ts. isAuthenticated only checks that a user is logged in — it does NOT check resource ownership.
+`replit.md` describes the intended architecture and lists security controls a
+previous builder claimed to have implemented. Read it to understand what each
+part is *supposed* to do, then verify against the code. A claim in there is an
+allegation, never evidence. The app no longer runs on Replit.
 
-For **every** endpoint that reads, updates, or deletes a record identified by an ID (path param, query param, or body field):
-- Trace whether the handler verifies the record belongs to the authenticated user (req.user.userId) before acting.
-- **Produce a table: endpoint | method | checks ownership? (yes/no/unclear) | file:line.** Put this table at the top of the report.
-- Every endpoint that does NOT verify ownership is a CRITICAL finding (minors' data — see escalation rule).
+## Working rules
 
-replit.md specifically claims "assessment ownership verification for PATCH endpoint." Verify that claim against the code, and check whether the SAME ownership pattern is applied to GET/DELETE on assessments and to every other user-owned resource (recommendations, quiz results, progress, files, reports). A control applied to one verb/endpoint and not the others is a common real gap.
+1. **Run real tools. Do not reason from the code alone.** Most of the genuine
+   findings in this repo came from executing something, not from reading.
+2. **Cite file and line** for every finding.
+3. **If you are unsure whether something is a bug, say so and leave it alone.**
+   Label it for human review rather than "fixing" it.
+4. **One issue per commit.** Small, reviewable diffs. Never bundle unrelated
+   changes, never do a sweeping "refactor for security".
+5. **Schema changes go to staging first.** Production is `ep-floral-rice-...`,
+   staging is `ep-soft-recipe-...`. Write a reversible migration, dry-run it
+   against data shaped like production, and show the before/after counts before
+   anything touches production.
+6. Never add a second SPF record to the domain. Never disable TLS verification
+   or unset `HTTPS_PROXY`.
 
-### 1c. CROSS-TENANT authorization (org-admin / superadmin) — second priority
-School admins manage students on their behalf; there are org_admin (scoped to one organization) and superadmin (nationwide) roles. Audit specifically:
-- Can an org_admin access, export, or modify students/data belonging to a **different** organization? Check every endpoint in organization.routes.ts, admin.routes.ts, analytics.routes.ts, and bulk import/export and credential-download paths. Confirm each one filters by the admin's own organizationId, not merely "is this user an admin."
-- The analytics endpoints claim to be "org-scoped for org_admins, nationwide for superadmins." Verify the scoping is enforced server-side on the query, not assumed from the role.
-- Note that the session stores only { userId, ... } and deserializeUser does not re-fetch from the DB. Confirm role and organizationId are read fresh from the database on each privileged request, never trusted from the session object or a client-supplied field.
+## The offline test harness
 
-### 1d. Guest access & session migration
-Guests can use the app anonymously and later register, migrating their guest session/data to a real account. Audit auth.routes.ts / wherever migration lives:
-- Can a guest migrate their data into an **existing other user's** account (account-takeover / data-injection)?
-- Are the "cryptographic guest tokens" (claimed in replit.md) actually generated with a CSPRNG and unguessable? Confirm in code.
-- Is there any endpoint that trusts a client-supplied guest/user ID to attribute data?
+`testing/local/` runs the whole application with no network: PGlite (Postgres
+in WASM) behind a TCP server, bridged to a WebSocket that the app's own Neon
+driver connects to unmodified. No production code changes to support it.
 
-### 1e. Other classes to audit
-- **File uploads & downloads** (multer, files.routes.ts): file-type allowlist, size limits, the claimed path-traversal protection (verify it), and the "time-limited token" sharing — confirm tokens expire, are single-scope, and can't be enumerated. Files may contain student PDFs/CSVs.
-- **OpenAI key handling** (apiCredentials, server/utils/encryption.ts, the superadmin LLM-prompt-template UI): confirm the customer key is decrypted only server-side at call time and never sent to the client; confirm the configurable prompt templates can't be abused for injection that exfiltrates the key or other users' data.
-- **Encryption util**: algorithm (expect AES-256-GCM), unique IV per encryption, auth tag handling.
-- **Password reset** (password-reset.routes.ts): token entropy, expiry, single-use, no user-enumeration in responses.
-- **CSRF** (middleware/csrf.middleware.ts): confirm it validates state-changing requests and isn't trivially bypassable.
-- **Input validation:** confirm zod (or equivalent) validates request bodies on write endpoints generally, not only on register.
-- **PDPL/GDPR:** verify the claimed data export/deletion actually removes/returns all of a student's personal data, including assessments, files, and analytics rows.
+```
+rm -rf ./.pgdata
+PGLITE_DIR=./.pgdata node testing/local/schema-push.mjs
+PGLITE_DIR=./.pgdata npx tsx testing/local/up.ts     # serves on :5050
+node testing/local/<suite>.mjs
+```
 
-### 1f. Run these and include output
-- `npm audit --omit=dev` (confirming; expected clean)
-- `npx semgrep --config auto server/` (SAST)
+Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
+`progression`, `licences`, `new-country`, `contribution`, `crosscutting`, plus
+`migration-029-dryrun`. `testing/local/README.md` has the details.
 
-### Deliverable for Phase 1
-A single markdown report grouped by severity: **CRITICAL / HIGH / MEDIUM / LOW**, with the IDOR ownership table (1b) and the cross-tenant findings (1c) at the top. Each finding: title, file:line, why it matters, suggested fix (described, not applied). Remember the minors-data severity escalation. Then STOP and wait for my review.
+**Run suites one at a time with a pause between them.** PGlite allows a single
+connection, so back-to-back suites exhaust it and fail with "Connection
+terminated unexpectedly", which reads exactly like a schema fault and is not
+one. A suite that fails in a batch and passes alone was never broken. Suites
+also share one database, so state accumulates — confirm any failure on a fresh
+`.pgdata` before believing it.
 
-## Phase 2 — Fixes (only after I approve)
-Highest-severity first. One issue per commit. After each fix, run the relevant test (or write a smoke test if none exists for that path). Do not proceed to the next fix until the current one is verified.
+## How tests lie here — read this before trusting a pass
 
-## Phase 3 — Tests
-If there is no test runner configured, propose one (Vitest fits this stack) before writing tests. Priority order: authorization checks fixed in Phase 2 (cross-tenant + IDOR), auth flows, payment/webhook handling, guest migration. Smoke tests first, not exhaustive coverage.
+Every item below is a false pass that was actually produced in this repo and
+caught afterwards. A green test here means less than you think.
+
+- **The SPA catch-all returns 200 with HTML for any unmatched URL.** A test
+  that hits a misspelled route gets 200 and "passes". Three nonexistent IDOR
+  holes were once reported this way. Assert on the response body, not the
+  status.
+- **Some endpoints return `200 []` instead of 403 on purpose** —
+  anti-enumeration. Reading that as a leak is wrong; so is reading it as proof
+  of access.
+- **Check what the guard you are testing actually guards.** An upload
+  allowlist "verified" as an org admin proved nothing: uploads are
+  superadmin-gated, so the 403 came from the role check and never reached the
+  allowlist.
+- **Never ask the client to claim something the server derives.** A premium-cap
+  test that sent a tier in the request body tested nothing.
+- **Read binary responses as bytes.** `res.text()` on a PDF reports a valid
+  `%PDF` header and 200 bytes for a one-megabyte file.
+- **An assertion that passes on an error is not an assertion.** A consent-gate
+  test once passed on a missing-field validation error.
+- **Do not "correct" a fixture to make a new test pass.** Deliberately invalid
+  fixture data was once tidied up, and the test then passed while asserting
+  nothing.
+- **A pass on HTTP 404 is a pass on nothing.** A test that a removal changed no
+  balances passed because the route path was wrong and nobody was removed.
+- **One branch is not the behaviour.** A licence guard scoped to school
+  students was tested with a school student, returned 403, and was written up
+  as "the feature does not work for anyone". It worked for everyone else.
+
+When a test passes, check the evidence in its own output — a count that moved,
+a status that is specific, a row that actually changed.
+
+## Bug families this codebase keeps producing
+
+- **Substring instead of token.** Eight-plus instances. Matching `"Science"`
+  inside `"Social Science"`, or a phrase inside a longer phrase that contains
+  it. Match on tokens or whole strings, and assert the negative case.
+- **Accepted at creation, broken for ever, visible nowhere.** A school with a
+  curriculum its country does not offer; an assessment with the same mismatch;
+  a country with no sector map; a curriculum with no subjects. Each was
+  accepted silently and only surfaced when a student hit a dead end. When
+  adding anything configurable, ask what happens if it is left empty, and make
+  that state visible — `storage.getCountryReadiness` is the pattern.
+- **A control applied to one verb and not its siblings.** Ownership checked on
+  PATCH and not GET or DELETE. When you fix an authorization gap, check every
+  verb and every sibling route.
+- **Check-then-act across connections.** Reading a balance on the pooled `db`
+  handle and writing it inside a transaction decides from a snapshot taken
+  outside that transaction, and takes a second connection while one is held.
+  Read on `tx`. `storage.consumeLicense` documents this.
+
+## Things that look wrong and are not
+
+- Arabic `_two`, `_few`, `_many` translation keys exist only in `ar`. That is
+  i18next plural handling, not missing English keys.
+- `direction: rtl` on a container already makes `text-align: start` resolve to
+  the right for everything inside it. Do **not** add a blanket
+  `[dir="rtl"] p, div, h1 { text-align: start }` — a rule that matches an
+  element beats a value it inherits, and that one silently un-centred every
+  heading in the Arabic PDF.
+- Which Stripe mode is live depends entirely on the key in the environment;
+  live keys are still pending, so payment flows exercise test mode.
+
+## The licence model
+
+One licence = one completed assessment with a generated report. Spent at
+**report generation**, from a pool belonging to a school or to a parent account
+(one account, one child, enforced at the schema). Enrolling costs nothing,
+abandoning a half-finished assessment costs nothing, and a student who leaves
+takes nothing, because the licence was attached to the pool and never to them.
+
+`license_consumptions` is the ledger and the only accounting record.
+`organizations.used_licenses` and `.reward_credits_used` are derived by
+counting ledger rows, never incremented — a counter set from a count cannot
+drift, and nothing should ever add to or subtract from those columns. The
+assessment id is unique on the ledger, which is what makes regenerating a
+report free instead of double-charging.
+
+Repeating a grade is allowed, costs a licence, and warns first. Reward credits
+— earned by schools contributing approved questions — are spent before paid
+licences. `shared/assessmentLimits.ts` holds the free-tier anti-abuse cap and
+nothing else: a pooled taker's limit is their balance, and an unknown balance
+fails closed at zero.
+
+## Known open items
+
+- **UAE offers four curricula and only `MOE National` has any subjects.**
+  British, American and IB have zero, so a student on any of them cannot
+  choose the three subjects the assessment requires. Either seed those
+  subjects or stop offering the curricula — both are content decisions.
+  `new-country.mjs` NC-09g asserts today's state and says to flip when fixed.
+- Every report PDF ends with a near-blank page carrying only the footer, in
+  both languages. The last career page fills the sheet and the footer
+  overflows. Chromium honours `break-before: avoid` poorly, so this is
+  pagination work across nine pages rather than a one-liner.
+- Migration 029 (the licence ledger) is written and dry-run but **has not been
+  applied to staging or production**.
+- No superadmin route grants or comps a licence; the Stripe webhook is the only
+  path. Tests write to the database directly to stand in for a purchase.
+- Roughly a third of the org-admin surface has no automated coverage.
+- `docs/` holds two conflicting whitepapers —
+  `future-path-white-paper-2026-v1.1.docx` and
+  `future-pathways-white-paper-2026-v1.1.docx`, the second under the old
+  "Future Pathways" name — plus an HTML copy. Figures in them still carry old
+  branding and development data.
+
+## Maintenance follow-ups, not audit findings
+
+Deprecation warnings from `glob`, `recharts` and `jpeg-exif`. Note them; do
+not chase them during other work.
