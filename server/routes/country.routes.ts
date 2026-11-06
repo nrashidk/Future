@@ -606,10 +606,87 @@ export function registerCountryRoutes(app: Express) {
         llmPopulated: true,
       });
 
+      /**
+       * REGENERATE THE SECTOR MAPS TOO -- this is the whole point of the
+       * route, and it used not to happen.
+       *
+       * repopulate updated mission, vision, prioritySectors, curricula and
+       * subjects and stopped there. But calculateVisionScore reads
+       * country_sector_categories, and without those rows every career scores
+       * VISION_FLOOR, so the vision component -- 30% of a basic report, 20%
+       * of premium -- becomes a constant that cannot tell one career from
+       * another. The report still renders and looks correct; the only trace
+       * is a SCORING WARNING in the server log.
+       *
+       * Those rows are written in exactly one place, persistGeneratedSectors,
+       * and it was reachable only from the autoPopulate branch of country
+       * creation. So a country created manually, or one whose sector
+       * generation failed at creation, was stranded for good: no route and no
+       * screen could ever fill the map, and repopulate -- the obvious thing
+       * to reach for -- rewrote everything EXCEPT the part that was missing.
+       *
+       * Sector generation failing must not fail the whole call: the country
+       * data above is already saved, and reporting the failure is more useful
+       * than rolling back a good update. The outcome is returned so the
+       * caller can see whether the map was actually written.
+       */
+      let sectorGeneration: Record<string, unknown> = { attempted: false };
+      const sectors = result.data!.prioritySectors ?? [];
+      if (sectors.length > 0) {
+        try {
+          const [careers, wefSkills] = await Promise.all([
+            storage.getAllCareers(),
+            storage.getAllWefSkills(),
+          ]);
+          const sectorResult = await generateSectorWefMappings(
+            storage,
+            country.name,
+            sectors,
+            { careerCatalog: careers, skillNames: wefSkills.map(s => s.name) },
+          );
+          for (const rejection of sectorResult.rejected ?? []) {
+            console.warn(`[Country] Rejected sector "${rejection.sector}" (${rejection.gate} gate): ${rejection.reason}`);
+          }
+          for (const warning of sectorResult.warnings ?? []) {
+            console.warn(`[Country] ${warning}`);
+          }
+
+          if (!sectorResult.success || !sectorResult.mappings) {
+            console.error(`[Country] Sector regeneration failed: ${sectorResult.error}`);
+            sectorGeneration = { attempted: true, persisted: false, error: sectorResult.error };
+          } else {
+            const wefSkillIdsByName = new Map(wefSkills.map(s => [skillKey(s.name), s.id]));
+            const written = await persistGeneratedSectors(
+              storage,
+              id,
+              country.name,
+              sectorResult.mappings,
+              wefSkillIdsByName,
+            );
+            sectorGeneration = {
+              attempted: true,
+              persisted: true,
+              sectorsWritten: written.sectorsWritten,
+              skillRowsWritten: written.skillRowsWritten,
+              categoryRowsWritten: written.categoryRowsWritten,
+              errors: written.errors,
+            };
+          }
+        } catch (sectorError) {
+          console.error("[Country] Sector regeneration threw:", sectorError);
+          sectorGeneration = {
+            attempted: true,
+            persisted: false,
+            error: sectorError instanceof Error ? sectorError.message : String(sectorError),
+          };
+        }
+      }
+
       res.json({
         success: true,
         country: updatedCountry,
         tokensUsed: result.tokensUsed,
+        sectorGeneration,
       });
     } catch (error) {
       console.error("Error repopulating country:", error);
