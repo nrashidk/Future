@@ -2897,11 +2897,51 @@ export class DatabaseStorage implements IStorage {
     return organization;
   }
 
+  /**
+   * The organization this user administers, whether they are its primary
+   * admin or one added later.
+   *
+   * Every admin-scoped route resolves the caller's school through here, and
+   * this used to match only organizations.adminUserId -- a single column, so
+   * a single user. But a school can have more than one admin: the add-admin
+   * endpoint (superadmin.routes.ts) writes an organization_members row with
+   * role "admin" and isPrimaryAdmin false and never touches that column. The
+   * result was an account that was created successfully, could log in, and
+   * then got 404 from /api/my-organization and 403 from everything else --
+   * a feature that produced a dead account.
+   *
+   * Fixed here rather than at the 27 call sites, and by reading membership
+   * rather than by writing adminUserId: overwriting that column would
+   * silently demote the primary admin, who is the one the delete guard in
+   * superadmin.routes.ts protects.
+   *
+   * THE ROLE CHECK IS LOAD-BEARING. organization_members holds students in
+   * the same table, so matching a membership without eq(role, "admin") would
+   * hand every student their school's full admin surface. The primary-admin
+   * column is tried first so existing behaviour is unchanged for them.
+   */
   async getOrganizationByAdminUserId(adminUserId: string): Promise<Organization | undefined> {
-    const [organization] = await db
+    const [byPrimaryColumn] = await db
       .select()
       .from(organizations)
       .where(eq(organizations.adminUserId, adminUserId));
+    if (byPrimaryColumn) return byPrimaryColumn;
+
+    const [adminMembership] = await db
+      .select()
+      .from(organizationMembers)
+      .where(
+        and(
+          eq(organizationMembers.userId, adminUserId),
+          eq(organizationMembers.role, "admin"),
+        ),
+      );
+    if (!adminMembership) return undefined;
+
+    const [organization] = await db
+      .select()
+      .from(organizations)
+      .where(eq(organizations.id, adminMembership.organizationId));
     return organization;
   }
 

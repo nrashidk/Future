@@ -223,11 +223,19 @@ if (org?.id && org.creds) {
      * test asserts the behaviour as it currently is, so the day it changes,
      * this fails and someone reads this comment.
      */
-    const brokeAtOne = gen.status === 400 && /Not enough questions/.test(JSON.stringify(gen.body));
-    rec("NC-07b", "one question in a new country breaks quiz generation",
-      brokeAtOne, brokeAtOne
-        ? "400 'Not enough questions' — pool is non-empty so the global fallback never fires"
-        : (Array.isArray(qs) ? `${qs.length} questions — behaviour has CHANGED, re-read the comment` : detail(gen)));
+    /**
+     * After the top-up fix: one question no longer breaks the country. The
+     * quiz builds, the country's own question is used, and the rest are
+     * borrowed from other countries at the same grade -- which the server
+     * logs as a warning, because the student is being assessed partly on
+     * another country's curriculum until the bank is populated.
+     */
+    const built = Array.isArray(qs) && qs.length >= 6;
+    rec("NC-07b", "one question no longer breaks a new country",
+      built, built ? `${qs.length} questions built` : detail(gen));
+    const mine = Array.isArray(qs) ? qs.filter((q) => /Testland/.test(q.question ?? "")).length : 0;
+    rec("NC-07d", "the country's own question is preferred and included",
+      mine > 0, `${mine} of ${qs?.length ?? 0} are Testland's, rest borrowed`);
 
     // The same assessment, in a country with NO questions of its own, works.
     const g2 = new Session("tlGuest2");

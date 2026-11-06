@@ -5,6 +5,15 @@ import { normalizeSubjectsAsync } from "../utils/subjects";
 import { printTokenAuthorizes } from "../utils/printToken";
 import { isUniqueViolation } from "../utils/pgErrors";
 
+/**
+ * The fewest questions a quiz may be built from. Declared once because two
+ * places need to agree on it: the global top-up that decides whether the
+ * country's own questions are sufficient, and the final check that refuses to
+ * build a quiz below it. When those two drifted apart, the top-up could leave
+ * the pool just under the bar it was meant to clear.
+ */
+const MIN_QUIZ_QUESTIONS = 6;
+
 /** Detect preferred language from standard Accept-Language or custom X-Language header */
 function getRequestLanguage(req: any): string {
   const acceptLang = (req.headers["accept-language"] || "").toLowerCase();
@@ -341,11 +350,63 @@ export function registerQuizRoutes(app: Express) {
         assessment.countryId,
         curriculum || undefined
       );
-      const subjectQuestions = questionPool.filter(q => favoriteSubjects.includes(q.subject));
-      
+      let subjectQuestions = questionPool.filter(q => favoriteSubjects.includes(q.subject));
+
+      /**
+       * TOP UP FROM THE GLOBAL BANK, RATHER THAN FALLING BACK TO IT.
+       *
+       * Every fallback above is gated on the pool being EXACTLY zero, which
+       * made a country with one question worse than a country with none: an
+       * empty country borrowed the global bank and worked, while adding the
+       * very first question made the pool non-empty, stopped the fallback
+       * firing, and left every student in that country with a hard 400 until
+       * the bank reached the minimum for their grade and subjects. Adding the
+       * first question BROKE a new country -- exactly what an admin does
+       * first when onboarding one.
+       *
+       * So when the country's own questions do not cover the student's
+       * subjects, questions are APPENDED rather than swapped in. The
+       * country's own stay at the front of the array and keep their
+       * preference in the per-subject selection below; the borrowed ones only
+       * fill what is missing. A fully populated country is untouched, because
+       * this does nothing once there are enough.
+       *
+       * BORROWED FROM ANY COUNTRY, NOT FROM A GLOBAL BANK. There is no global
+       * academic bank: every quiz_questions row carries a countryId, and the
+       * countryId-null rows are vision-awareness questions, a different kind
+       * entirely. The nearby-grade fallback further up already borrows across
+       * countries by querying grade alone, so this matches behaviour that
+       * exists rather than inventing a new one -- it only makes it fire
+       * before the cliff instead of after it, and keeps the student's own
+       * grade rather than shifting them a year.
+       *
+       * This is a stopgap, and the log says so: a student in a new country is
+       * being assessed partly on another country's curriculum. The real fix
+       * is a populated bank per country, which is an operational task, not a
+       * code one.
+       */
+      if (subjectQuestions.length < MIN_QUIZ_QUESTIONS && studentGrade) {
+        const seen = new Set(subjectQuestions.map(q => q.id));
+        const anyCountryPool = await storage.getQuizQuestionsByFilters({
+          grade: studentGrade,
+        });
+        const topUp = anyCountryPool.filter(
+          q => favoriteSubjects.includes(q.subject) && !seen.has(q.id),
+        );
+        if (topUp.length > 0) {
+          console.warn(
+            `[quiz] BORROWING QUESTIONS: country ${assessment.countryId} has only ` +
+            `${subjectQuestions.length} question(s) at grade ${studentGrade} for ` +
+            `[${favoriteSubjects.join(", ")}]. Adding ${topUp.length} from other ` +
+            `countries so the quiz can be built. Populate this country's bank.`,
+          );
+          subjectQuestions = [...subjectQuestions, ...topUp];
+        }
+      }
+
       if (subjectQuestions.length === 0) {
-        return res.status(400).json({ 
-          message: "No quiz questions available for your favorite subjects. Please update your subject preferences." 
+        return res.status(400).json({
+          message: "No quiz questions available for your favorite subjects. Please update your subject preferences."
         });
       }
       
@@ -381,7 +442,7 @@ export function registerQuizRoutes(app: Express) {
         }
       }
       
-      const MIN_QUESTIONS = 6;
+      const MIN_QUESTIONS = MIN_QUIZ_QUESTIONS;
       if (selectedQuestions.length < MIN_QUESTIONS) {
         const remaining = subjectQuestions.filter(q => !selectedQuestions.some(sq => sq.id === q.id));
         const needed = MIN_QUESTIONS - selectedQuestions.length;
