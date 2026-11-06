@@ -210,10 +210,67 @@ export function registerCountryRoutes(app: Express) {
       }
 
       const countries = await storage.getAllCountries();
-      res.json(countries);
+
+      /**
+       * READINESS ON THE LIST ITSELF, not behind a click.
+       *
+       * A country that cannot produce a usable report looked identical to one
+       * that could: same row, same name, nothing to distinguish them. The gaps
+       * that cause it are all silent at the point they are created and
+       * permanent afterwards -- a missing sector map makes every career score
+       * the same for national-vision alignment, and a curriculum with fewer
+       * than three subjects cannot be got past the first step of the
+       * assessment at all.
+       *
+       * So the summary travels with the list. A superadmin who adds a country
+       * and walks away sees the problem on the screen they are already on,
+       * rather than when a school in that country reports a broken report
+       * months later.
+       */
+      const withReadiness = await Promise.all(
+        countries.map(async (c: any) => {
+          const readiness = await storage.getCountryReadiness(c.id);
+          return {
+            ...c,
+            readiness: readiness
+              ? {
+                  ready: readiness.ready,
+                  blockerCount: readiness.blockers.length,
+                  warningCount: readiness.warnings.length,
+                  blockers: readiness.blockers,
+                  warnings: readiness.warnings,
+                }
+              : null,
+          };
+        }),
+      );
+
+      res.json(withReadiness);
     } catch (error) {
       console.error("Error fetching countries:", error);
       res.status(500).json({ message: "Failed to fetch countries" });
+    }
+  });
+
+  /**
+   * The full readiness breakdown for one country -- per-curriculum subject and
+   * question counts, and the sector-map row count behind the summary above.
+   */
+  app.get("/api/admin/countries/:id/readiness", isAuthenticated, async (req, res) => {
+    try {
+      const isSuperadmin = await checkSuperadmin(req);
+      if (!isSuperadmin) {
+        return res.status(403).json({ message: "Forbidden: Superadmin access required" });
+      }
+
+      const readiness = await storage.getCountryReadiness(req.params.id);
+      if (!readiness) {
+        return res.status(404).json({ message: "Country not found" });
+      }
+      res.json(readiness);
+    } catch (error) {
+      console.error("Error checking country readiness:", error);
+      res.status(500).json({ message: "Failed to check country readiness" });
     }
   });
 

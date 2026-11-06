@@ -131,7 +131,7 @@ import { collapseToLatestPerGrade, gradeSortKey, mergeGradeCounts, toCanonicalGr
 import { assessmentIsChildOwned } from "@shared/childOwnership";
 import { splitStudentName } from "@shared/studentName";
 import { SUBJECT_IDS } from "@shared/subjects";
-import { eq, ne, and, or, desc, count, avg, sql, inArray, notInArray, isNotNull, gte, type SQL } from "drizzle-orm";
+import { eq, ne, and, or, desc, count, avg, sql, inArray, notInArray, isNotNull, isNull, gte, type SQL } from "drizzle-orm";
 
 /**
  * One row of the VISION-ALIGNMENT sector <-> career-category map.
@@ -3229,6 +3229,142 @@ export class DatabaseStorage implements IStorage {
     }
 
     return { currency, poolOwnerType };
+  }
+
+  /**
+   * IS THIS COUNTRY ACTUALLY USABLE?
+   *
+   * A country can be created, saved, listed and selected while being unable to
+   * produce a usable report, and nothing anywhere said so. Every gap below was
+   * reachable, silent, and permanent once a country was set up wrong:
+   *
+   *   NO SECTOR MAP. country_sector_categories is what turns a student's
+   *   career matches into national-vision alignment. With no rows, matching
+   *   falls back to VISION_FLOOR -- every career scores the same 40 for
+   *   vision, so the column is dead weight and the report quietly says nothing
+   *   about the country it is supposedly tailored to. Only the LLM
+   *   auto-populate path ever wrote this table, so a country added by hand had
+   *   no map and no warning.
+   *
+   *   FEWER THAN THREE SUBJECTS IN A CURRICULUM. The assessment makes a
+   *   student choose three (MIN_SUBJECTS in SubjectsStep), so a curriculum
+   *   with one or two subjects is not degraded, it is a dead end: the student
+   *   cannot advance past the first step. A hard blocker, not a warning.
+   *
+   *   TOO FEW QUESTIONS. Below MIN_QUIZ_QUESTIONS the quiz borrows from other
+   *   countries to fill the paper. It works, which is the problem -- a report
+   *   comes out looking fine while the questions were another curriculum's.
+   *
+   * Reported per curriculum, because that is the grain a student actually
+   * meets: a country can be ready for its national curriculum and a dead end
+   * for IB, and one number for the whole country would hide it.
+   */
+  async getCountryReadiness(countryId: string): Promise<{
+    countryId: string;
+    ready: boolean;
+    blockers: string[];
+    warnings: string[];
+    checks: {
+      hasVision: boolean;
+      hasCurricula: boolean;
+      sectorMapRows: number;
+      curricula: Array<{
+        curriculum: string;
+        subjectCount: number;
+        questionCount: number;
+        ready: boolean;
+      }>;
+    };
+  } | null> {
+    const country = await this.getCountryById(countryId);
+    if (!country) return null;
+
+    const MIN_SUBJECTS_PER_CURRICULUM = 3; // SubjectsStep's MIN_SUBJECTS
+    const MIN_QUESTIONS_PER_CURRICULUM = 6; // quiz.routes.ts MIN_QUIZ_QUESTIONS
+
+    const hasVision =
+      (country.prioritySectors?.length ?? 0) > 0 && (country.nationalGoals?.length ?? 0) > 0;
+    const curriculaList = country.curricula ?? [];
+    const hasCurricula = curriculaList.length > 0;
+
+    // The sector map is reached through this country's priority sectors; the
+    // mapping rows themselves carry no country column.
+    const [sectorMap] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(countrySectorCategories)
+      .innerJoin(
+        countryPrioritySectors,
+        eq(countrySectorCategories.sectorId, countryPrioritySectors.id),
+      )
+      .where(eq(countryPrioritySectors.countryId, countryId));
+    const sectorMapRows = sectorMap?.n ?? 0;
+
+    const curricula = [];
+    for (const curriculum of curriculaList) {
+      const [subj] = await db
+        .select({ n: sql<number>`count(*)::int` })
+        .from(subjects)
+        .where(
+          and(
+            eq(subjects.countryId, countryId),
+            eq(subjects.curriculum, curriculum),
+            eq(subjects.isActive, true),
+          ),
+        );
+      // A question with a NULL curriculum applies to every curriculum in the
+      // country, so it counts toward each one.
+      const [qs] = await db
+        .select({ n: sql<number>`count(*)::int` })
+        .from(quizQuestions)
+        .where(
+          and(
+            eq(quizQuestions.countryId, countryId),
+            or(eq(quizQuestions.curriculum, curriculum), isNull(quizQuestions.curriculum)),
+          ),
+        );
+      const subjectCount = subj?.n ?? 0;
+      const questionCount = qs?.n ?? 0;
+      curricula.push({
+        curriculum,
+        subjectCount,
+        questionCount,
+        ready: subjectCount >= MIN_SUBJECTS_PER_CURRICULUM,
+      });
+    }
+
+    const blockers: string[] = [];
+    const warnings: string[] = [];
+
+    if (!hasVision) blockers.push("No priority sectors or national goals set.");
+    if (!hasCurricula) blockers.push("No curricula defined, so no school can be created.");
+    if (sectorMapRows === 0) {
+      blockers.push(
+        "No sector map. Every career will score the same for national-vision alignment, " +
+        "so reports will not reflect this country. Run Repopulate to generate it.",
+      );
+    }
+    for (const c of curricula) {
+      if (c.subjectCount < MIN_SUBJECTS_PER_CURRICULUM) {
+        blockers.push(
+          `${c.curriculum}: only ${c.subjectCount} subject(s). A student must choose ` +
+          `${MIN_SUBJECTS_PER_CURRICULUM}, so the assessment cannot be started.`,
+        );
+      }
+      if (c.questionCount < MIN_QUESTIONS_PER_CURRICULUM) {
+        warnings.push(
+          `${c.curriculum}: only ${c.questionCount} question(s). The quiz will borrow ` +
+          `from other countries to fill the paper.`,
+        );
+      }
+    }
+
+    return {
+      countryId,
+      ready: blockers.length === 0,
+      blockers,
+      warnings,
+      checks: { hasVision, hasCurricula, sectorMapRows, curricula },
+    };
   }
 
   // Organization Member operations

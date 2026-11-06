@@ -1077,6 +1077,8 @@
     "csvRowAnswerMismatch": "الصف {{row}}: الإجابة الصحيحة لا تتطابق مع أي خيار"
   },
   "countries": {
+    "notReady": "غير جاهز ({{count}})",
+    "readyWithWarnings": "جاهز، {{count}} تنبيه",
     "title": "إدارة الدول",
     "subtitle": "إضافة وإدارة الدول برؤيتها ومناهجها وأسئلة الاختبار",
     "addCountry": "إضافة دولة",

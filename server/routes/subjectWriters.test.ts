@@ -75,7 +75,7 @@ vi.mock("../auth", () => ({
   isAuthenticated: (req: any, _res: any, next: any) => { req.user = { userId: "u1" }; next(); },
 }));
 vi.mock("../middleware/auth.middleware", () => ({
-  isAdmin: (_req: any, _res: any, next: any) => next(),
+  isSuperadminOnly: (_req: any, _res: any, next: any) => next(),
   isOrgAdmin: (_req: any, _res: any, next: any) => next(),
   getSuperadminEmails: () => ["root@example.com"],
 }));

@@ -72,7 +72,7 @@ vi.mock("../auth", () => ({
   isAuthenticated: (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
 vi.mock("../middleware/auth.middleware", () => ({
-  isAdmin: (_req: unknown, _res: unknown, next: () => void) => next(),
+  isSuperadminOnly: (_req: unknown, _res: unknown, next: () => void) => next(),
   getSuperadminEmails: () => ["super@futurepath.test"],
 }));
 

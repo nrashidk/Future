@@ -1077,6 +1077,8 @@
     "csvRowAnswerMismatch": "Row {{row}}: Correct answer does not match any option"
   },
   "countries": {
+    "notReady": "Not ready ({{count}})",
+    "readyWithWarnings": "Ready, {{count}} warning(s)",
     "title": "Country Management",
     "subtitle": "Add and manage countries with their vision, curricula, and quiz questions",
     "addCountry": "Add Country",

@@ -3,7 +3,7 @@ import multer from "multer";
 import path from "path";
 import { storage, SubjectNotInCatalogueError } from "../storage";
 import { isAuthenticated } from "../auth";
-import { isAdmin, isOrgAdmin, getSuperadminEmails } from "../middleware/auth.middleware";
+import { isSuperadminOnly, isOrgAdmin, getSuperadminEmails } from "../middleware/auth.middleware";
 import { dataExportLimiter } from "../middleware/rateLimiter.middleware";
 import { insertQuizQuestionSchema, studentDemographicsSchema } from "@shared/schema";
 import { toPublicUser } from "@shared/userPublic";
@@ -228,7 +228,7 @@ export async function applyRemovalDisposition(
 
 export function registerAdminRoutes(app: Express) {
   // Super Admin Endpoints - Quiz Question Management
-  app.get("/api/admin/questions", isAuthenticated, isAdmin, async (req, res) => {
+  app.get("/api/admin/questions", isAuthenticated, isSuperadminOnly, async (req, res) => {
     try {
       const { countryId, curriculum, subject, grade, gradeBand, limit, offset } = req.query;
       
@@ -249,7 +249,7 @@ export function registerAdminRoutes(app: Express) {
     }
   });
 
-  app.post("/api/admin/questions", isAuthenticated, isAdmin, async (req, res) => {
+  app.post("/api/admin/questions", isAuthenticated, isSuperadminOnly, async (req, res) => {
     try {
       const validatedData = insertQuizQuestionSchema.parse(req.body);
 
@@ -275,7 +275,7 @@ export function registerAdminRoutes(app: Express) {
     }
   });
 
-  app.patch("/api/admin/questions/:id", isAuthenticated, isAdmin, async (req, res) => {
+  app.patch("/api/admin/questions/:id", isAuthenticated, isSuperadminOnly, async (req, res) => {
     try {
       const validatedData = insertQuizQuestionSchema.partial().parse(req.body);
       const question = await storage.updateQuizQuestion(req.params.id, validatedData);
@@ -299,7 +299,7 @@ export function registerAdminRoutes(app: Express) {
     }
   });
 
-  app.delete("/api/admin/questions/:id", isAuthenticated, isAdmin, async (req, res) => {
+  app.delete("/api/admin/questions/:id", isAuthenticated, isSuperadminOnly, async (req, res) => {
     try {
       const deleted = await storage.deleteQuizQuestion(req.params.id);
       if (!deleted) {
@@ -313,7 +313,7 @@ export function registerAdminRoutes(app: Express) {
   });
 
   // Bulk operations
-  app.post("/api/admin/questions/bulk-upload", isAuthenticated, isAdmin, async (req, res) => {
+  app.post("/api/admin/questions/bulk-upload", isAuthenticated, isSuperadminOnly, async (req, res) => {
     try {
       const { questions, format } = req.body;
       
@@ -407,7 +407,7 @@ export function registerAdminRoutes(app: Express) {
   // purchase (member) and the seed (member). Do not reintroduce a create path
   // that writes the organization alone.
 
-  app.get("/api/admin/organizations/:id", isAuthenticated, isAdmin, async (req, res) => {
+  app.get("/api/admin/organizations/:id", isAuthenticated, isSuperadminOnly, async (req, res) => {
     try {
       const organization = await storage.getOrganizationById(req.params.id);
       if (!organization) {
@@ -1544,7 +1544,7 @@ export function registerAdminRoutes(app: Express) {
     }
   });
 
-  app.get("/api/admin/questions/export", isAuthenticated, isAdmin, dataExportLimiter, async (req, res) => {
+  app.get("/api/admin/questions/export", isAuthenticated, isSuperadminOnly, dataExportLimiter, async (req, res) => {
     try {
       const { countryId, curriculum, subject, grade, gradeBand, format } = req.query;
       

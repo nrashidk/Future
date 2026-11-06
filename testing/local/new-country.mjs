@@ -280,6 +280,93 @@ if (org?.id) {
   }
 }
 
+/**
+ * READINESS -- whether the chain above actually produced a usable country.
+ *
+ * Everything before this point passed, and the country is still not fit to
+ * serve a student: this suite gives MOE two subjects and IB one, and the
+ * assessment makes a student choose three. That was invisible. A half-built
+ * country looked exactly like a finished one -- same row, same Active badge --
+ * and the ways it breaks are all silent: no sector map means every career
+ * scores the same for national-vision alignment, and too few subjects means
+ * the student cannot get past the first step at all.
+ *
+ * NC-09b is the one that matters. If readiness ever reports this country as
+ * ready, the check has stopped measuring anything.
+ */
+{
+  const sa = new Session("readinessSa");
+  await sa.login(SUPERADMIN.username, SUPERADMIN.password);
+
+  const r = await sa.get(`/api/admin/countries/${COUNTRY_ID}/readiness`);
+  rec("NC-09", "the readiness endpoint answers for the new country",
+    r.status === 200 && Array.isArray(r.body?.blockers), detail(r));
+
+  const blockers = (r.body?.blockers ?? []).join(" | ");
+  rec("NC-09b", "the half-built country is reported NOT ready",
+    r.body?.ready === false && r.body.blockers.length > 0,
+    r.body?.ready === false ? blockers.slice(0, 150) : `ready=${r.body?.ready} -- readiness is not measuring anything`);
+
+  // Named explicitly: these are the two gaps this suite actually created, so
+  // "not ready" has to be not-ready FOR THE RIGHT REASONS rather than for any
+  // reason at all.
+  rec("NC-09c", "it names the missing sector map", /sector map/i.test(blockers),
+    /sector map/i.test(blockers) ? "flagged" : "NOT flagged");
+  rec("NC-09d", "it names the curriculum with too few subjects", /subject/i.test(blockers),
+    /subject/i.test(blockers) ? "flagged" : "NOT flagged");
+
+  /**
+   * THE POSITIVE CONTROL -- the check must be able to say yes about something,
+   * or "not ready" above means nothing.
+   *
+   * Asserted against UAE's MOE National curriculum rather than against UAE as
+   * a whole, because UAE as a whole is NOT ready, and that is a live finding
+   * rather than a flaw in this test. See NC-09g.
+   */
+  const uae = await sa.get(`/api/admin/countries/uae/readiness`);
+  const moe = (uae.body?.checks?.curricula ?? []).find((c) => c.curriculum === "MOE National");
+  rec("NC-09e", "a fully seeded curriculum is reported ready (positive control)",
+    uae.status === 200 && moe?.ready === true && (uae.body?.checks?.sectorMapRows ?? 0) > 0,
+    moe ? `MOE National: ${moe.subjectCount} subjects, ${moe.questionCount} questions, ` +
+          `${uae.body.checks.sectorMapRows} sector rows` : detail(uae));
+
+  /**
+   * A LIVE FINDING, asserted as TODAY'S state deliberately.
+   *
+   * UAE offers four curricula in the dropdown -- MOE National, British,
+   * American, IB -- and only MOE National has any subjects at all. The other
+   * three have zero. A school or parent who picks British for a UAE student
+   * reaches the first step of the assessment, is asked to choose three
+   * subjects from an empty list, and can go no further. Nothing refuses the
+   * choice, so the dead end is only discovered by a student sitting in front
+   * of it.
+   *
+   * This is the fourth member of a family already seen in this codebase:
+   * accepted at creation, broken for ever, visible nowhere. The readiness
+   * check found it on its first run, which is the argument for the check.
+   *
+   * It is NOT fixed here, because both remedies are content decisions, not
+   * engineering ones: either seed the subjects those curricula actually teach
+   * in the UAE, or stop offering them. Inventing a British-curriculum subject
+   * list would be making that decision silently.
+   *
+   * WHEN IT IS FIXED, THIS TEST FAILS. That is the intent -- flip it to assert
+   * every declared curriculum is ready, and delete this comment.
+   */
+  const empty = (uae.body?.checks?.curricula ?? []).filter((c) => c.subjectCount === 0);
+  rec("NC-09g", "KNOWN: UAE offers curricula that have no subjects",
+    empty.length > 0,
+    empty.length > 0
+      ? `dead ends: ${empty.map((c) => c.curriculum).join(", ")} -- each a dropdown choice a student cannot complete`
+      : "all declared curricula now have subjects -- fix this test, the gap is closed");
+
+  const list = await sa.get("/api/admin/countries");
+  const mine = (list.body ?? []).find((c) => c.id === COUNTRY_ID);
+  rec("NC-09f", "readiness travels with the country list, not behind a click",
+    list.status === 200 && mine?.readiness?.ready === false && mine.readiness.blockerCount > 0,
+    mine?.readiness ? `blockers=${mine.readiness.blockerCount} warnings=${mine.readiness.warningCount}` : "no readiness on the list row");
+}
+
 const pass = results.filter((r) => r.pass === true).length;
 const fail = results.filter((r) => r.pass === false);
 const skip = results.filter((r) => r.pass === null);

@@ -15,8 +15,8 @@ import { queryClient, apiRequest, serverErrorMessage } from "@/lib/queryClient";
 import { useTranslation } from "react-i18next";
 import { ADD_BUTTON_CLASS, CARD_ACTIONS_CLASS } from "@/lib/adminActions";
 import { 
-  Globe, Plus, Edit, Trash2, Sparkles, BookOpen, 
-  CheckCircle, Clock, RefreshCw, Loader2, ArrowRightLeft
+  Globe, Plus, Edit, Trash2, Sparkles, BookOpen,
+  CheckCircle, Clock, RefreshCw, Loader2, ArrowRightLeft, AlertTriangle
 } from "lucide-react";
 
 interface Country {
@@ -44,6 +44,23 @@ interface Country {
   isActive: boolean;
   llmPopulated: boolean;
   createdAt: string;
+  /**
+   * Whether this country can actually produce a usable report.
+   *
+   * "Active" above says only that the country is switched on, which is not the
+   * same thing and was the only signal this table carried. A country with no
+   * sector map scores every career identically for national-vision alignment,
+   * and a curriculum with fewer than three subjects cannot be got past the
+   * first step of the assessment -- both of them silent, and both of them
+   * showing as a perfectly healthy Active row.
+   */
+  readiness: {
+    ready: boolean;
+    blockerCount: number;
+    warningCount: number;
+    blockers: string[];
+    warnings: string[];
+  } | null;
 }
 
 const GRADES = ["8", "9", "10", "11", "12"];
@@ -328,12 +345,40 @@ export default function CountryManagement() {
               {countries.map((country) => (
                 <TableRow key={country.id}>
                   <TableCell className="font-medium">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       {country.name}
                       {country.llmPopulated && (
                         <Badge variant="secondary" className="text-xs">
                           <Sparkles className="w-3 h-3 me-1" />
                           {t('countries.aiLabel')}
+                        </Badge>
+                      )}
+                      {/* READINESS, next to the name rather than in a column of
+                          its own: this is the first thing to know about a
+                          country and it has to be impossible to miss. The
+                          reasons go in the tooltip because they are sentences,
+                          not a count -- a superadmin who sees "Not ready" needs
+                          to know it is the sector map before they can fix it. */}
+                      {country.readiness && !country.readiness.ready && (
+                        <Badge
+                          variant="destructive"
+                          className="text-xs cursor-help"
+                          title={country.readiness.blockers.join("\n")}
+                          data-testid={`badge-country-not-ready-${country.id}`}
+                        >
+                          <AlertTriangle className="w-3 h-3 me-1" />
+                          {t('countries.notReady', { count: country.readiness.blockerCount })}
+                        </Badge>
+                      )}
+                      {country.readiness?.ready && country.readiness.warningCount > 0 && (
+                        <Badge
+                          variant="outline"
+                          className="text-xs cursor-help border-amber-500 text-amber-600"
+                          title={country.readiness.warnings.join("\n")}
+                          data-testid={`badge-country-warnings-${country.id}`}
+                        >
+                          <AlertTriangle className="w-3 h-3 me-1" />
+                          {t('countries.readyWithWarnings', { count: country.readiness.warningCount })}
                         </Badge>
                       )}
                     </div>

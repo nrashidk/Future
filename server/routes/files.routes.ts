@@ -4,7 +4,7 @@ import path from "path";
 import { pipeline } from "stream/promises";
 import { storage } from "../storage";
 import { isAuthenticated } from "../auth";
-import { isAdmin, getSuperadminEmails } from "../middleware/auth.middleware";
+import { isSuperadminOnly, getSuperadminEmails } from "../middleware/auth.middleware";
 import * as fileStorage from "../services/fileStorage";
 
 // Every route in this module now reads and writes DigitalOcean Spaces. The old
@@ -104,7 +104,7 @@ const isOrgAdmin = async (req: any): Promise<boolean> => {
 
 export function registerFilesRoutes(app: Express) {
   // Upload a file (superadmin only - using centralized middleware)
-  app.post("/api/files/upload", isAuthenticated, isAdmin, uploadSingleFile, async (req: any, res: Response) => {
+  app.post("/api/files/upload", isAuthenticated, isSuperadminOnly, uploadSingleFile, async (req: any, res: Response) => {
     try {
       const userId = req.user.userId;
       
