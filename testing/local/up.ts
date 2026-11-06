@@ -44,6 +44,15 @@ process.env.SPACES_ENDPOINT = "http://127.0.0.1:59000";
 process.env.SPACES_BUCKET = "fp-private";
 process.env.SPACES_PUBLIC_BUCKET = "fp-public";
 process.env.SPACES_REGION = "local";
+/**
+ * PDF generation launches Puppeteer, and puppeteer's own Chrome download never
+ * ran here (it fetches from storage.googleapis.com, which this sandbox cannot
+ * reach). A Chrome for Testing binary is already present for Playwright, and
+ * puppeteer honours this variable, so the real PDF path can be exercised
+ * instead of being reported blocked.
+ */
+process.env.PUPPETEER_EXECUTABLE_PATH =
+  process.env.PUPPETEER_EXECUTABLE_PATH ?? "/opt/pw-browsers/chromium";
 
 const { neonConfig } = await import("@neondatabase/serverless");
 const ws = (await import("ws")).default;

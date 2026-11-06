@@ -731,6 +731,16 @@ export function registerQuizRoutes(app: Express) {
         if (typeof response.questionId !== 'string' || response.questionId.trim() === '') {
           return res.status(400).json({ message: "Invalid questionId format" });
         }
+        // questionId was type-checked and answer was not, yet answer.trim() is
+        // called further down -- so a client sending an object or a number got
+        // a 500 ("Failed to submit quiz") instead of being told what was wrong
+        // with its request. Found by a test harness that sent the option
+        // object rather than its text.
+        if (typeof response.answer !== 'string') {
+          return res.status(400).json({
+            message: "Invalid answer format: answer must be a string",
+          });
+        }
       }
       
       const answeredIds = userResponses.map((r: any) => r.questionId);

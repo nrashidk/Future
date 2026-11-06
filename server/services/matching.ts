@@ -1130,10 +1130,30 @@ export function calculateInterestsScore(
   const matches: InterestMatch[] = [];
 
   // For each student interest, calculate multi-channel match score
+  /**
+   * Lexicon keys are capitalised ("Technology", "Arts & Design"), so an
+   * interest arriving in another case found nothing and was skipped in
+   * silence. With every interest skipped the component scores 0 -- and
+   * interests carry 35% of a basic report, MORE than vision -- while the
+   * report renders normally and says nothing.
+   *
+   * Matched case-insensitively now, and an interest that is genuinely
+   * unrecognised is logged rather than dropped quietly. The lookup map is
+   * built once per call; the catalogue is ~21 keys.
+   */
+  const lexiconByLowerKey = new Map(
+    Object.entries(INTEREST_LEXICON).map(([k, v]) => [k.toLowerCase(), v]),
+  );
+
   for (const interest of assessment.interests) {
-    const lexicon = INTEREST_LEXICON[interest];
+    const lexicon = INTEREST_LEXICON[interest] ?? lexiconByLowerKey.get(String(interest).toLowerCase());
     if (!lexicon) {
-      // Fallback for interests not in lexicon
+      console.warn(
+        `[matching] Unrecognised interest "${interest}" on assessment ${assessment.id}: ` +
+        `not in INTEREST_LEXICON, so it contributes nothing to the interests ` +
+        `component (which carries 35% of a basic report). Known keys: ` +
+        `${Object.keys(INTEREST_LEXICON).join(", ")}`,
+      );
       continue;
     }
 
