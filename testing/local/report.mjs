@@ -273,6 +273,85 @@ rec("RP-14", "school tier gets the premium cap of 5 matches", sRecs.length === 5
       writeFileSync("/tmp/claude-0/-home-claude/02cff30d-f3af-5c58-9ad5-4dbfc039eb52/scratchpad/premium-report.pdf", buf);
     }
   }
+
+  /**
+   * The ARABIC PDF -- the half of the product that had never once been
+   * rendered before this suite existed.
+   *
+   * A 200 and a %PDF header prove nothing here: Arabic fails by rendering
+   * tofu boxes or disconnected letterforms, and the byte count is the same
+   * either way. The two assertions that actually bite:
+   *
+   *   RP-18  only Cairo is embedded. The page pulls Cairo over the network as
+   *          a webfont with font-display:block. If that fetch fails in a
+   *          deployed container, Chromium silently substitutes whatever
+   *          system face it can find -- or, on a slim image with no Arabic
+   *          font at all, draws tofu. A second font family in the output, or
+   *          a missing Cairo, is that failure.
+   *
+   *   RP-19  the text layer really holds Arabic. Catches a render that
+   *          produced glyphs with no usable character mapping -- the report
+   *          would then be unsearchable and uncopyable even if it looked
+   *          right on screen.
+   *
+   * Both shell out to poppler; if it is not installed the checks record as
+   * blocked rather than inventing a pass.
+   */
+  if (s.id) {
+    const res = await fetch(`${BASE}/api/recommendations/pdf/${s.id}?lang=ar`, {
+      headers: { cookie: stu.cookie, "x-forwarded-for": stu.clientIp, "accept-language": "ar" },
+    });
+    const buf = Buffer.from(await res.arrayBuffer());
+    const renders = res.status === 200 && buf.subarray(0, 5).toString("latin1") === "%PDF-"
+      && /%%EOF/.test(buf.subarray(-1024).toString("latin1")) && buf.length > 10_000;
+
+    if (!renders) {
+      rec("RP-18", "the Arabic report embeds Cairo and nothing else", false,
+        `AR PDF did not render: HTTP ${res.status} bytes=${buf.length}`);
+      rec("RP-19", "the Arabic report's text layer holds real Arabic", false, "no PDF to read");
+    } else {
+      const { writeFileSync, mkdtempSync } = await import("fs");
+      const { join } = await import("path");
+      const { tmpdir } = await import("os");
+      const { execFileSync } = await import("child_process");
+      const arPath = join(mkdtempSync(join(tmpdir(), "fp-ar-")), "report-ar.pdf");
+      writeFileSync(arPath, buf);
+
+      let fonts = null;
+      try {
+        fonts = execFileSync("pdffonts", [arPath], { encoding: "utf8" });
+      } catch { /* poppler absent */ }
+
+      if (fonts === null) {
+        rec("RP-18", "the Arabic report embeds Cairo and nothing else", null, "pdffonts unavailable");
+      } else {
+        // Strip the per-subset "AAAAAA+" prefix Chromium puts on each slice.
+        const families = [...new Set(
+          fonts.split("\n").slice(2)
+            .map((l) => l.trim().split(/\s+/)[0]).filter(Boolean)
+            .map((n) => n.replace(/^[A-Z]{6}\+/, "")),
+        )];
+        const cairoOnly = families.length > 0 && families.every((f) => /^Cairo/.test(f));
+        rec("RP-18", "the Arabic report embeds Cairo and nothing else", cairoOnly,
+          `families: ${families.join(", ") || "NONE EMBEDDED"}`);
+      }
+
+      let text = null;
+      try {
+        text = execFileSync("pdftotext", [arPath, "-"], { encoding: "utf8" });
+      } catch { /* poppler absent */ }
+
+      if (text === null) {
+        rec("RP-19", "the Arabic report's text layer holds real Arabic", null, "pdftotext unavailable");
+      } else {
+        const arabicChars = (text.match(/[؀-ۿ]/g) ?? []).length;
+        const replacementChars = (text.match(/�/g) ?? []).length;
+        rec("RP-19", "the Arabic report's text layer holds real Arabic",
+          arabicChars > 500 && replacementChars === 0,
+          `${arabicChars} Arabic chars, ${replacementChars} replacement chars`);
+      }
+    }
+  }
 }
 
 const pass = results.filter((r) => r.pass === true).length;

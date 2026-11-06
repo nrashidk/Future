@@ -584,10 +584,18 @@ export default function ResultsPrint() {
           font-family: 'Cairo', sans-serif;
         }
         [dir="rtl"] .flex { direction: rtl; }
-        [dir="rtl"] p, [dir="rtl"] span, [dir="rtl"] div,
-        [dir="rtl"] h1, [dir="rtl"] h2, [dir="rtl"] h3, [dir="rtl"] h4 {
-          text-align: start;
-        }
+        /* NO blanket rule setting text-align:start on every p/div/h1..h4 here.
+           direction:rtl on .print-container above already makes the initial
+           text-align:start resolve to the right for every descendant, so such a
+           rule buys nothing -- and it costs a great deal, because a rule that
+           MATCHES an element beats a value that element INHERITS. Every heading
+           and paragraph sitting inside a text-center parent (13 of them in this
+           page) silently lost its centring and snapped to the right margin: the
+           Arabic PDF rendered its hero title and section headings hard against
+           the page edge beneath centred icons. The .text-center !important
+           guard below could not save them -- it only matches elements carrying
+           the class themselves, never their children.
+           There is no text-left in this file for such a rule to correct. */
         [dir="rtl"] .text-center { text-align: center !important; }
         [dir="rtl"] .ml-auto { margin-inline-start: auto; margin-inline-end: 0; }
         [dir="rtl"] .mr-auto { margin-inline-end: auto; margin-inline-start: 0; }
