@@ -36,6 +36,7 @@ import {
   organizationEvents,
   organizationConsents,
   childProfiles,
+  licenseConsumptions,
   childGuardianConsents,
   scoringTiers,
   tierComponentWeights,
@@ -2976,8 +2977,20 @@ export class DatabaseStorage implements IStorage {
    * changed the roster reintroduces exactly the enrolment-then-consumption gap
    * this exists to close.
    *
-   * role = 'student' because admin rows consume no licence
-   * (superadmin.routes.ts:501, :903).
+   * WHAT IS COUNTED CHANGED; THE "SET FROM A COUNT" PROPERTY DID NOT.
+   * This used to count ENROLMENTS — student rows on the roster, split by
+   * organization_members.license_source. A licence was therefore spent the
+   * moment a student was added, whether or not they ever finished, and the
+   * school could never buy a second year for them.
+   *
+   * It now counts SPENT LICENCES: rows in license_consumptions, written when a
+   * report is generated. Enrolling is free, abandoning is free, and a student
+   * who leaves returns their unspent licence to the pool automatically, because
+   * the licence was never attached to them in the first place.
+   *
+   * The reason this function exists is unchanged and still load-bearing: a
+   * counter SET from a COUNT cannot drift, so there is still no path anywhere
+   * that adds to or subtracts from these two columns.
    */
   async recomputeOrganizationLicenseUsage(
     organizationId: string,
@@ -2985,16 +2998,11 @@ export class DatabaseStorage implements IStorage {
   ): Promise<{ usedLicenses: number; rewardCreditsUsed: number }> {
     const [counts] = await tx
       .select({
-        paid: sql<number>`count(*) FILTER (WHERE ${organizationMembers.licenseSource} = 'paid')::int`,
-        reward: sql<number>`count(*) FILTER (WHERE ${organizationMembers.licenseSource} = 'reward')::int`,
+        paid: sql<number>`count(*) FILTER (WHERE ${licenseConsumptions.currency} = 'paid')::int`,
+        reward: sql<number>`count(*) FILTER (WHERE ${licenseConsumptions.currency} = 'reward')::int`,
       })
-      .from(organizationMembers)
-      .where(
-        and(
-          eq(organizationMembers.organizationId, organizationId),
-          eq(organizationMembers.role, 'student'),
-        ),
-      );
+      .from(licenseConsumptions)
+      .where(eq(licenseConsumptions.organizationId, organizationId));
 
     const usedLicenses = counts?.paid ?? 0;
     const rewardCreditsUsed = counts?.reward ?? 0;
@@ -3030,6 +3038,197 @@ export class DatabaseStorage implements IStorage {
       totalAvailable: org.isUnlimitedLicenses ? Infinity : availableRewardCredits + availablePaidLicenses,
       isUnlimited: org.isUnlimitedLicenses || false,
     };
+  }
+
+  /**
+   * How much a given student can still spend, whoever is paying for them.
+   *
+   * ONE FUNCTION FOR BOTH POPULATIONS, which is the point of the whole change.
+   * A school pool and a parent pool now differ only in which row holds the
+   * total; the rule, the ledger and the arithmetic are identical. Callers do
+   * not branch on population any more.
+   *
+   * Returns null for anyone who is not on a pool at all — free accounts and
+   * guests. They are bounded by the free-tier cap instead, which counts
+   * completed assessments directly and is untouched by any of this.
+   */
+  async getLicenseCapacityForStudent(userId: string): Promise<{
+    poolOwnerType: 'organization' | 'user';
+    organizationId?: string;
+    guardianUserId?: string;
+    availableRewardCredits: number;
+    availablePaidLicenses: number;
+    totalAvailable: number;
+    isUnlimited: boolean;
+  } | null> {
+    const orgMember = await this.getOrganizationMemberByUserId(userId);
+    if (orgMember?.role === 'student') {
+      const capacity = await this.getOrganizationAvailableCapacity(orgMember.organizationId);
+      return {
+        poolOwnerType: 'organization',
+        organizationId: orgMember.organizationId,
+        ...capacity,
+      };
+    }
+
+    // A parent account paying for its own child. child_profiles.guardian_user_id
+    // is .unique(), so the guardian account and the student account are the same
+    // row here by construction -- one account, one child.
+    const [child] = await db
+      .select({ guardianUserId: childProfiles.guardianUserId })
+      .from(childProfiles)
+      .where(eq(childProfiles.guardianUserId, userId));
+    if (!child) return null;
+
+    const user = await this.getUser(userId);
+    const purchased = user?.purchasedLicenses ?? 0;
+
+    const [spent] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(licenseConsumptions)
+      .where(eq(licenseConsumptions.guardianUserId, userId));
+
+    const availablePaidLicenses = Math.max(0, purchased - (spent?.n ?? 0));
+    return {
+      poolOwnerType: 'user',
+      guardianUserId: userId,
+      // Reward credits are a school mechanism; a parent pool has none.
+      availableRewardCredits: 0,
+      availablePaidLicenses,
+      totalAvailable: availablePaidLicenses,
+      isUnlimited: false,
+    };
+  }
+
+  /**
+   * Has this student already been charged for this grade?
+   *
+   * Drives the warning before a repeat, not a refusal: repeating a year is a
+   * real thing that happens to real students, and the product's job is to say
+   * "this will cost another licence" rather than to decide they may not.
+   *
+   * Reads the grade RECORDED ON THE CHARGE, never the student's current grade,
+   * so advancing a year does not retroactively make last year's charge look
+   * like this year's.
+   */
+  async hasConsumedLicenseForGrade(
+    studentUserId: string,
+    grade: string | null | undefined,
+  ): Promise<boolean> {
+    if (!grade) return false;
+    const [row] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(licenseConsumptions)
+      .where(
+        and(
+          eq(licenseConsumptions.studentUserId, studentUserId),
+          eq(licenseConsumptions.grade, grade),
+        ),
+      );
+    return (row?.n ?? 0) > 0;
+  }
+
+  /**
+   * Spend one licence, at the moment a report is generated.
+   *
+   * MUST be called inside the transaction that marks the assessment complete,
+   * so a report can never exist without its charge.
+   *
+   * REWARD CREDITS FIRST. A school that has earned credits by contributing
+   * questions spends those before its paid licences, so the reward is visible
+   * in the balance rather than theoretical.
+   *
+   * RE-RUNNING A REPORT IS FREE. The generate endpoint is re-runnable by
+   * design, and assessment_id is unique on the ledger, so a second run hits
+   * ON CONFLICT DO NOTHING and charges nothing. This is also what makes the
+   * call safe under concurrency: two simultaneous generations settle on one row.
+   *
+   * Returns null when nobody is on a pool (free tier, guest) -- those are
+   * bounded by the free cap, not by licences.
+   */
+  async consumeLicense(
+    tx: any,
+    params: { studentUserId: string; assessmentId: string; grade?: string | null },
+  ): Promise<{ currency: 'paid' | 'reward'; poolOwnerType: 'organization' | 'user' } | null> {
+    /**
+     * EVERY READ HERE IS ON `tx`, NOT ON `db`.
+     *
+     * This deliberately does NOT call getLicenseCapacityForStudent, which is
+     * the obvious thing to do and is wrong twice over. That function reads on
+     * the pooled `db` handle, so calling it from inside a transaction would:
+     *
+     *   1. decide the currency from a snapshot taken OUTSIDE the transaction
+     *      that is about to spend it -- the check-then-act gap that
+     *      recomputeOrganizationLicenseUsage's docblock exists to close, and
+     *      that this would have quietly reopened one layer up; and
+     *   2. take a second connection while this one is held, which deadlocks
+     *      outright on a single-connection pool and merely races on a larger
+     *      one. The offline harness caught this as a hang; production would
+     *      have shown nothing until two reports were generated at once.
+     *
+     * So the capacity read is written out against `tx` instead. It is three
+     * small selects, which is a fair price for the charge and the balance it
+     * was computed from being the same atomic fact.
+     */
+    const [member] = await tx
+      .select()
+      .from(organizationMembers)
+      .where(eq(organizationMembers.userId, params.studentUserId));
+
+    let poolOwnerType: 'organization' | 'user';
+    let organizationId: string | null = null;
+    let guardianUserId: string | null = null;
+    let availableRewardCredits = 0;
+
+    if (member?.role === 'student') {
+      poolOwnerType = 'organization';
+      organizationId = member.organizationId;
+
+      const [org] = await tx
+        .select({
+          rewardCredits: organizations.rewardCredits,
+          rewardCreditsUsed: organizations.rewardCreditsUsed,
+        })
+        .from(organizations)
+        .where(eq(organizations.id, member.organizationId));
+      availableRewardCredits = Math.max(
+        0,
+        (org?.rewardCredits ?? 0) - (org?.rewardCreditsUsed ?? 0),
+      );
+    } else {
+      const [child] = await tx
+        .select({ guardianUserId: childProfiles.guardianUserId })
+        .from(childProfiles)
+        .where(eq(childProfiles.guardianUserId, params.studentUserId));
+      // Free tier and guests are on no pool at all; they are bounded by the
+      // free cap, which counts completed assessments directly.
+      if (!child) return null;
+      poolOwnerType = 'user';
+      guardianUserId = params.studentUserId;
+    }
+
+    // Reward credits first, so a school that earned them by contributing
+    // questions sees the reward in its balance rather than in theory.
+    const currency: 'paid' | 'reward' = availableRewardCredits > 0 ? 'reward' : 'paid';
+
+    await tx
+      .insert(licenseConsumptions)
+      .values({
+        poolOwnerType,
+        organizationId,
+        guardianUserId,
+        studentUserId: params.studentUserId,
+        assessmentId: params.assessmentId,
+        grade: params.grade ?? null,
+        currency,
+      })
+      .onConflictDoNothing({ target: licenseConsumptions.assessmentId });
+
+    if (poolOwnerType === 'organization' && organizationId) {
+      await this.recomputeOrganizationLicenseUsage(organizationId, tx);
+    }
+
+    return { currency, poolOwnerType };
   }
 
   // Organization Member operations

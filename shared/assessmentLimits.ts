@@ -1,66 +1,64 @@
 /**
  * How many assessments a taker may COMPLETE, by population.
  *
- * TWO NUMBERS, NOT ONE, AND THEY ARE NOT THE SAME CONCEPT. They happen to share
- * a shape today — "a count of completed assessments this person is allowed" —
- * and collapsing them into a single constant would couple a pricing change to an
- * abuse-control change. They live together here so the relationship is visible
- * in one place rather than inferred from two literals in two files.
+ * TWO POPULATIONS, AND ONLY ONE OF THEM IS A NUMBER IN THIS FILE.
  *
- *   SCHOOL_ALLOCATIONS_PER_STUDENT is a PURCHASED LICENCE ALLOCATION. An
- *   organization paid for it, it is consumed at completion (the
- *   organizationMembers.hasCompletedAssessment flip in the generation
- *   transaction), and a school can in principle be sold more. It moves when
- *   PRICING moves. PD2 turns it into "allocations for the active period" rather
- *   than a lifetime count, at which point this constant stops being a plain
- *   number and this file is where that change starts.
+ *   POOLED TAKERS — school students and self-paying parents — are bounded by a
+ *   LICENCE POOL, which is data, not a constant. A licence is spent when a
+ *   report is generated, the ledger is the accounting record, and the balance
+ *   can only be answered by the server. Nothing in this file can say what it
+ *   is; callers pass it in.
  *
- *   FREE_ASSESSMENT_CAP is an ANTI-ABUSE CEILING on an unpaid tier. Nothing buys
- *   it, nothing revokes it, no period resets it, and no one can be sold more of
- *   it. It moves when ABUSE PATTERNS move.
+ *   FREE_ASSESSMENT_CAP is an ANTI-ABUSE CEILING on an unpaid tier. Nothing
+ *   buys it, nothing revokes it, no period resets it, and no one can be sold
+ *   more of it. It moves when ABUSE PATTERNS move, never when pricing does.
  *
- * They are entangled — FOLLOWUP.md records that the free cap "changes what a
- * licence is consumed BY" — but entangled is not identical. If a future change
- * makes one of these depend on the other, write that dependency down here; do
- * not merge them.
+ * WHAT THIS FILE USED TO SAY, AND WHY IT WAS WRONG. There was a constant here,
+ * SCHOOL_ALLOCATIONS_PER_STUDENT = 1, and a self-paying account returned
+ * Infinity. Both were load-bearing and both were false:
  *
- * SELF-PAYING PREMIUM USERS ARE BOUND BY NEITHER. Their limit is
- * users.purchasedLicenses, a per-user consumable, and neither number above
- * applies to them. Anything guarding on these two must exclude them explicitly.
+ *   The 1 capped every school student at one assessment for life. Nothing
+ *   anywhere could reset it, so a school could never buy a second year for a
+ *   student it had already assessed -- which is why multi-year progression
+ *   worked for every population except the one it was built for.
+ *
+ *   The Infinity meant a single purchase bought unlimited reports. The comment
+ *   defending it said the real limit was users.purchasedLicenses, and that was
+ *   true of the intent and false of the code: nothing counted consumption, so
+ *   there was no second number doing the work this one declined to do.
+ *
+ * Both are gone. A pooled taker's limit is their balance, and there is now a
+ * ledger that makes the balance a fact rather than an intention.
  */
-
-/** School students: allocations granted per student by their school's licence. */
-export const SCHOOL_ALLOCATIONS_PER_STUDENT = 1;
 
 /** Free (authenticated, non-school, non-premium) accounts: lifetime completions. */
 export const FREE_ASSESSMENT_CAP = 3;
 
 /**
- * How many completed assessments this taker is allowed, by population.
+ * How many more assessments this taker may complete.
  *
- * ONE function rather than the same three-way condition written at each guard.
- * It is currently needed in three places — the create guard
- * (server/routes/assessment.routes.ts), the generation guard
- * (server/routes/recommendations.routes.ts) and the client's availability hook —
- * and three hand-written copies of "school? premium? otherwise free" is exactly
- * the drift this codebase has been bitten by before: a control applied at one
+ * ONE function rather than the same condition written at each guard -- the
+ * drift this codebase has repeatedly been bitten by is a control applied at one
  * site and not its siblings.
  *
- * Infinity for a self-paying premium account is NOT "unlimited". It means this
- * module does not model their limit, which is users.purchasedLicenses. A caller
- * that needs to bound a premium user must do it separately; a caller that only
- * needs to know whether the FREE cap applies gets the right answer from here.
+ * `licensesAvailable` is the pool balance for a pooled taker, from the server:
+ * a number, or null meaning an unlimited pool (the superadmin override used for
+ * pilots and MOUs). It is ignored for free accounts, who are not on a pool.
  *
- * School students return their allocation, but note that the school guard on the
- * create path is enforced against organizationMembers.hasCompletedAssessment
- * rather than by counting rows — the number here is what the client renders.
+ * Passing undefined for a pooled taker returns 0, deliberately. An unknown
+ * balance must not render as an entry point the server is about to refuse --
+ * the same fail-closed rule the availability hook already applies while auth is
+ * unresolved.
  */
 export function assessmentLimitFor(
   isSchoolStudent: boolean,
   isPremiumUser: boolean,
+  licensesAvailable?: number | null,
 ): number {
-  if (isSchoolStudent) return SCHOOL_ALLOCATIONS_PER_STUDENT;
-  if (isPremiumUser) return Infinity;
+  if (isSchoolStudent || isPremiumUser) {
+    if (licensesAvailable === null) return Infinity;
+    return licensesAvailable ?? 0;
+  }
   return FREE_ASSESSMENT_CAP;
 }
 

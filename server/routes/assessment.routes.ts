@@ -398,30 +398,38 @@ export function registerAssessmentRoutes(app: Express) {
         }
 
         if (orgMember?.role === 'student') {
-          // LICENSE GUARD (school students only): a school license grants a
-          // student a limited number of assessment allocations. Block creation
-          // when the student has no unused allocation left.
-          //
-          // Framed as "does the student have an available (unused) allocation?"
-          // rather than "have they ever completed one." Today the license grants a
-          // single lifetime allocation, so a consumed allocation == one completed
-          // assessment (hasCompletedAssessment === true). Keeping the check
-          // allocation-shaped lets PD2 relax it without rewriting the guard.
-          //
-          // PD2: when per-period re-assessment is added, an allocated new period
-          // grants a fresh allocation here — compute unused allocations for the
-          // active period instead of reading the single hasCompletedAssessment flag.
-          //
-          // The old "fail-open on a missing orgMember row" caveat is gone with
-          // the accountType test that created it: the row IS the membership test
-          // now, so its absence means "not a school student" rather than "a
-          // school student we failed to look up". The state it was hedging
-          // against — a committed org_student users row with no membership —
-          // was 8c07e25's orphan bug, and is unreachable since that insert
-          // became transactional.
-          if (orgMember.hasCompletedAssessment) {
+          /**
+           * LICENCE GUARD — does the school's pool still have something to
+           * spend?
+           *
+           * This used to ask a different question: "has this student ever
+           * finished one?" That capped every school student at a single
+           * assessment for life, with nothing anywhere able to reset it, so a
+           * school could never buy a second year for a student it had already
+           * assessed. The cap was the reason multi-year progression worked for
+           * everyone except the population it was built for.
+           *
+           * Now the licence belongs to the POOL, not to the student. A student
+           * may sit as many assessments as their school is willing to fund,
+           * one licence each, and the only question at create time is whether
+           * the pool has capacity left.
+           *
+           * ADVISORY HERE, AUTHORITATIVE AT GENERATION. Nothing is spent by
+           * creating an assessment -- the charge happens when the report is
+           * generated. This check exists so a student is not walked through a
+           * whole assessment that cannot be paid for at the end; the generation
+           * transaction is what actually enforces the balance.
+           *
+           * The old "fail-open on a missing orgMember row" caveat is gone with
+           * the accountType test that created it: the row IS the membership test
+           * now, so its absence means "not a school student" rather than "a
+           * school student we failed to look up".
+           */
+          const capacity = await storage.getLicenseCapacityForStudent(userId);
+          if (capacity && !capacity.isUnlimited && capacity.totalAvailable <= 0) {
             return res.status(403).json({
-              message: "Assessment already completed for this allocation",
+              message: "Your school has no assessment licences left. Please ask your school to allocate one.",
+              code: "NO_LICENCES_AVAILABLE",
             });
           }
 
@@ -522,6 +530,28 @@ export function registerAssessmentRoutes(app: Express) {
               return res.status(402).json({
                 message: "Please complete payment to start an assessment for your child.",
                 code: "PAYMENT_REQUIRED",
+              });
+            }
+
+            /**
+             * THE SAME POOL CHECK THE SCHOOL BRANCH MAKES, for the same reason
+             * and through the same function.
+             *
+             * This half was previously unmetered entirely: a purchase set the
+             * account premium, and premium meant an unlimited number of
+             * assessments. One payment bought as many reports as the account
+             * cared to generate. assessmentLimitFor() returned Infinity and
+             * said so in a comment.
+             *
+             * 402 rather than 403: an exhausted pool is remedied by buying
+             * more, which is the same remedy as PAYMENT_REQUIRED above, so the
+             * client routes both to Checkout.
+             */
+            const capacity = await storage.getLicenseCapacityForStudent(userId);
+            if (capacity && !capacity.isUnlimited && capacity.totalAvailable <= 0) {
+              return res.status(402).json({
+                message: "You have used all your assessment licences. Purchase another to continue.",
+                code: "NO_LICENCES_AVAILABLE",
               });
             }
 
@@ -811,6 +841,60 @@ export function registerAssessmentRoutes(app: Express) {
     } catch (error) {
       console.error("Error sending guest report recovery email:", error);
       res.status(500).json({ message: "Failed to send recovery email" });
+    }
+  });
+
+  /**
+   * The signed-in student's licence balance.
+   *
+   * Exists because the client used to derive this from a CONSTANT -- a school
+   * student was shown "1 allocation" because the cap was hardcoded at one, and
+   * a paying account was shown unlimited because its cap was Infinity. Neither
+   * is a fact about that account any more: the balance lives in a pool, and
+   * only the server can say what is in it.
+   *
+   * `sameGradeAlreadyCharged` drives the warning before a repeat. It is a
+   * warning and not a refusal -- repeating a year happens, and the product's
+   * job is to say that it will cost another licence, not to decide the student
+   * may not do it.
+   *
+   * Returns onPool: false for free accounts and guests, who are bounded by the
+   * free-tier cap instead and have no balance to show.
+   */
+  app.get("/api/licenses/me", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.userId;
+      const capacity = await storage.getLicenseCapacityForStudent(userId);
+      if (!capacity) {
+        return res.json({ onPool: false });
+      }
+
+      // The grade the NEXT assessment would be sat at: the school's record for
+      // a school student, the child profile's for a parent-paid one. Read from
+      // the owning row rather than from any assessment, for the same reason the
+      // create path resolves school-owned fields there.
+      let currentGrade: string | null = null;
+      if (capacity.poolOwnerType === 'organization') {
+        const member = await storage.getOrganizationMemberByUserId(userId);
+        currentGrade = member?.grade ?? null;
+      } else {
+        const child = await storage.getChildProfileByGuardianUserId(userId);
+        currentGrade = child?.grade ?? null;
+      }
+
+      res.json({
+        onPool: true,
+        poolOwnerType: capacity.poolOwnerType,
+        available: capacity.isUnlimited ? null : capacity.totalAvailable,
+        availableRewardCredits: capacity.availableRewardCredits,
+        availablePaidLicenses: capacity.isUnlimited ? null : capacity.availablePaidLicenses,
+        isUnlimited: capacity.isUnlimited,
+        currentGrade,
+        sameGradeAlreadyCharged: await storage.hasConsumedLicenseForGrade(userId, currentGrade),
+      });
+    } catch (error) {
+      console.error("Error reading licence balance:", error);
+      res.status(500).json({ message: "Failed to read licence balance" });
     }
   });
 

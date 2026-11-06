@@ -26,7 +26,7 @@ import {
   users, assessments, recommendations, assessmentQuizzes, quizResponses,
   cvqResults, wefCompetencyResults, llmNarrativeCache, organizationMembers,
   organizations, organizationConsents, organizationEvents, passwordResetTokens,
-  organizationDeletions, childProfiles, childGuardianConsents,
+  organizationDeletions, childProfiles, childGuardianConsents, licenseConsumptions,
 } from "@shared/schema";
 import { eq, or, and, inArray, lte, desc } from "drizzle-orm";
 import { BLOCKING_AUDIT_SOURCES, collectBlockingAuditRecords } from "./accountErasure";
@@ -44,7 +44,8 @@ export type SubjectSection =
   | "consentAttestationsYouMade"
   | "organizationDeletionsYouPerformed"
   | "childProfile"
-  | "consentYouGaveForYourChild";
+  | "consentYouGaveForYourChild"
+  | "licences";
 
 /**
  * EVERY FOREIGN KEY THAT POINTS AT A USER, OR AT A ROW THAT IS ABOUT ONE.
@@ -97,6 +98,26 @@ export const SUBJECT_ACCESS_REGISTRY: Array<
   // holder's own act, and — decided in FOLLOWUP.md — it deliberately outlives
   // their own erasure (ON DELETE SET NULL), so it stays exportable after.
   { column: childGuardianConsents.performedBy, kind: "subject", section: "consentYouGaveForYourChild" },
+  /**
+   * THE LICENCE LEDGER — when an assessment of theirs was paid for, and out of
+   * whose pool.
+   *
+   * "subject" on all three, not "actor". It would be tempting to read these as
+   * billing records belonging to the school or the parent who paid, and
+   * therefore as somebody else's data. They are both: the row says THIS STUDENT
+   * had a report generated on THIS DATE at THIS GRADE, which is a fact about
+   * the student whoever settled the bill.
+   *
+   * guardian_user_id is the account that paid. On a parent pool that is the
+   * same account as the student by construction (one child per account), so it
+   * is the account holder's own record either way. It is null on a school row,
+   * where the payer is an organization rather than a person -- which is why no
+   * school admin's identity reaches this table and none has to be withheld, as
+   * organization_members.password_last_reset_by is above.
+   */
+  { column: licenseConsumptions.studentUserId, kind: "subject", section: "licences" },
+  { column: licenseConsumptions.guardianUserId, kind: "subject", section: "licences" },
+  { column: licenseConsumptions.assessmentId, kind: "subject", section: "licences" },
   ...BLOCKING_AUDIT_SOURCES.map((s) => ({ column: s.column, kind: "actor" as const })),
 ];
 
@@ -208,6 +229,33 @@ export async function collectSubjectAccess(db: any, userId: string) {
   const consentYouGaveForYourChild = await db.select().from(childGuardianConsents)
     .where(eq(childGuardianConsents.performedBy, userId));
 
+  /**
+   * Every licence spent on this student, and every licence they spent.
+   *
+   * `or` rather than one column: on a school pool the student is named in
+   * student_user_id and the payer is an organization; on a parent pool the same
+   * account appears in both columns. One query covers both without the caller
+   * needing to know which population it is looking at.
+   *
+   * organization_id is not returned -- which school paid is already in
+   * schoolEnrolment above, and repeating it here adds nothing.
+   */
+  const licences = await db
+    .select({
+      assessmentId: licenseConsumptions.assessmentId,
+      grade: licenseConsumptions.grade,
+      currency: licenseConsumptions.currency,
+      paidBy: licenseConsumptions.poolOwnerType,
+      consumedAt: licenseConsumptions.consumedAt,
+    })
+    .from(licenseConsumptions)
+    .where(
+      or(
+        eq(licenseConsumptions.studentUserId, userId),
+        eq(licenseConsumptions.guardianUserId, userId),
+      ),
+    );
+
   return {
     exportedAt: new Date().toISOString(),
     exportVersion: "2.0",
@@ -231,6 +279,7 @@ export async function collectSubjectAccess(db: any, userId: string) {
     consentAttestationsYouMade,
     childProfile: childProfile ?? null,
     consentYouGaveForYourChild,
+    licences,
     // Returned in full, like the attestations: the performer's own act, holding
     // a school's name and counts but no one else's personal data.
     organizationDeletionsYouPerformed: await db.select().from(organizationDeletions)
@@ -430,6 +479,7 @@ export function summarizeSubjectAccess(subject: NonNullable<Awaited<ReturnType<t
     organizationDeletionsYouPerformed: subject.organizationDeletionsYouPerformed.length,
     childProfile: subject.childProfile ? 1 : 0,
     consentYouGaveForYourChild: subject.consentYouGaveForYourChild.length,
+    licences: subject.licences.length,
   };
   return {
     accountCreated: subject.account.createdAt,

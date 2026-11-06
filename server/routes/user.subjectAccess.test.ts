@@ -31,7 +31,7 @@ import {
   organizations, organizationConsents, organizationEvents, passwordResetTokens,
   files, contributionSubmissions, contributionRewards, scoringConfigChangeLog,
   systemAnnouncements, systemConfig, organizationDeletions,
-  childProfiles, childGuardianConsents,
+  childProfiles, childGuardianConsents, licenseConsumptions,
 } from "@shared/schema";
 
 // Only the predicate builders are replaced, so the fake can read them.
@@ -80,7 +80,7 @@ const TABLES = [
   organizations, organizationConsents, organizationEvents, passwordResetTokens,
   files, contributionSubmissions, contributionRewards, scoringConfigChangeLog,
   systemAnnouncements, systemConfig, organizationDeletions,
-  childProfiles, childGuardianConsents,
+  childProfiles, childGuardianConsents, licenseConsumptions,
 ];
 
 const COLS = new Map<any, { table: any; key: string }>();
@@ -268,6 +268,15 @@ describe("SUBJECT_ACCESS_REGISTRY", () => {
       policyVersion: "pv-1", policyLastUpdated: "2026", policyLocale: "en",
       attestationTextHash: "h", createdAt: new Date("2026-05-02"),
     });
+    // The licence that paid for this student's report. A school row, so the
+    // payer is the organization and guardian_user_id is null -- the student is
+    // reached through student_user_id, which is the column that makes this
+    // their data rather than their school's.
+    store.add(licenseConsumptions, {
+      id: "lc-own", poolOwnerType: "organization", organizationId: "org-1",
+      guardianUserId: null, studentUserId: "u-student", assessmentId: "a1",
+      grade: "grade9", currency: "paid", consumedAt: new Date("2026-05-03"),
+    });
     const out: any = await collectSubjectAccess(makeDb(store), "u-student");
 
     const sectionOf: Record<string, (o: any) => any[]> = {
@@ -280,6 +289,7 @@ describe("SUBJECT_ACCESS_REGISTRY", () => {
       organizationDeletionsYouPerformed: (o) => o.organizationDeletionsYouPerformed,
       childProfile: (o) => (o.childProfile ? [o.childProfile] : []),
       consentYouGaveForYourChild: (o) => o.consentYouGaveForYourChild,
+      licences: (o) => o.licences,
     };
     for (const entry of SUBJECT_ACCESS_REGISTRY) {
       if (entry.kind !== "subject") continue;

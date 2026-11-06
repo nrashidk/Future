@@ -25,6 +25,7 @@ const getUser = vi.fn();
 const getChildProfileByGuardianUserId = vi.fn();
 const countCompletedAssessmentsByUser = vi.fn();
 const createAssessment = vi.fn();
+const getLicenseCapacityForStudent = vi.fn();
 
 vi.mock("../storage", () => ({
   storage: {
@@ -33,6 +34,7 @@ vi.mock("../storage", () => ({
     getChildProfileByGuardianUserId: (...a: any[]) => getChildProfileByGuardianUserId(...a),
     countCompletedAssessmentsByUser: (...a: any[]) => countCompletedAssessmentsByUser(...a),
     createAssessment: (...a: any[]) => createAssessment(...a),
+    getLicenseCapacityForStudent: (...a: any[]) => getLicenseCapacityForStudent(...a),
   },
 }));
 
@@ -85,6 +87,17 @@ beforeEach(() => {
   getChildProfileByGuardianUserId.mockReset();
   countCompletedAssessmentsByUser.mockReset().mockResolvedValue(0);
   createAssessment.mockReset().mockResolvedValue({ id: "new-a-1" });
+  // A pool with something left in it, so the licence check is not what any of
+  // the payment-gate cases below are measuring. The exhausted case is asserted
+  // explicitly at the end of this file.
+  getLicenseCapacityForStudent.mockReset().mockResolvedValue({
+    poolOwnerType: "user",
+    guardianUserId: "u-1",
+    availableRewardCredits: 0,
+    availablePaidLicenses: 1,
+    totalAvailable: 1,
+    isUnlimited: false,
+  });
 });
 
 describe("POST /api/assessments — payment gate", () => {
@@ -153,5 +166,55 @@ describe("POST /api/assessments — payment gate", () => {
     expect(body.code).not.toBe("FREE_ASSESSMENT_CAP_REACHED");
     // The old cap check is never reached for this population any more.
     expect(countCompletedAssessmentsByUser).not.toHaveBeenCalled();
+  });
+
+  /**
+   * PAYING ONCE IS NO LONGER A SEASON TICKET.
+   *
+   * Being premium used to be the whole of the self-payer's entitlement: the
+   * gate above was the only thing between a parent account and an unlimited
+   * number of reports, because the limit function returned Infinity for any
+   * premium account and nothing counted what was spent.
+   *
+   * A paid account now has a BALANCE, and an exhausted one is refused here --
+   * with 402 rather than 403, because the remedy is the same as the gate
+   * above's: buy more. These two cases are what keep the distinction honest.
+   */
+  it("refuses a paid account whose pool is exhausted", async () => {
+    getUser.mockResolvedValue({ isPremium: true, detachedAt: null });
+    getChildProfileByGuardianUserId.mockResolvedValueOnce({
+      id: "child-1", name: "Khaled", gender: "male", grade: "grade9",
+      dateOfBirth: "2012-05-04", countryId: "ae", curriculum: "MOE National",
+    });
+    getLicenseCapacityForStudent.mockResolvedValue({
+      poolOwnerType: "user", guardianUserId: "u-1",
+      availableRewardCredits: 0, availablePaidLicenses: 0,
+      totalAvailable: 0, isUnlimited: false,
+    });
+
+    const { status, body } = await post();
+
+    expect(status).toBe(402);
+    expect(body.code).toBe("NO_LICENCES_AVAILABLE");
+    expect(createAssessment).not.toHaveBeenCalled();
+  });
+
+  it("lets an unlimited pool through regardless of balance", async () => {
+    // organizations.is_unlimited_licenses — the superadmin override for pilots.
+    getUser.mockResolvedValue({ isPremium: true, detachedAt: null });
+    getChildProfileByGuardianUserId.mockResolvedValueOnce({
+      id: "child-1", name: "Khaled", gender: "male", grade: "grade9",
+      dateOfBirth: "2012-05-04", countryId: "ae", curriculum: "MOE National",
+    });
+    getLicenseCapacityForStudent.mockResolvedValue({
+      poolOwnerType: "organization", organizationId: "org-1",
+      availableRewardCredits: 0, availablePaidLicenses: Infinity,
+      totalAvailable: Infinity, isUnlimited: true,
+    });
+
+    const { status } = await post();
+
+    expect(status).toBe(200);
+    expect(createAssessment).toHaveBeenCalledTimes(1);
   });
 });

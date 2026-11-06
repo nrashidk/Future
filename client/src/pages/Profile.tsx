@@ -14,7 +14,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useTranslation } from "react-i18next";
 import { withReturnTo, currentPathWithQuery } from "@/lib/returnTo";
 import { isPremiumAssessment } from "@shared/assessmentTier";
-import { SCHOOL_ALLOCATIONS_PER_STUDENT, FREE_ASSESSMENT_CAP, requiresPaymentBeforeAssessment } from "@shared/assessmentLimits";
+import { FREE_ASSESSMENT_CAP, requiresPaymentBeforeAssessment } from "@shared/assessmentLimits";
 import { collapseToLatestPerGrade, toCanonicalGrade } from "@shared/grade";
 import { assessmentIsChildOwned } from "@shared/childOwnership";
 import { isResumableDraft } from "@shared/assessmentFlow";
@@ -163,6 +163,28 @@ export default function Profile() {
   const { data: assessments = [] } = useQuery<Assessment[]>({
     queryKey: ['/api/assessments/my'],
     enabled: !!user && !isOrgAdmin,
+  });
+
+  /**
+   * THE LICENCE BALANCE, from the server.
+   *
+   * This page used to render a school student's remaining assessments as
+   * `SCHOOL_ALLOCATIONS_PER_STUDENT - completed`, where the constant was 1 --
+   * so the number shown was always "1 minus however many you have done", and
+   * the student was capped at one for life. A licence now belongs to a pool
+   * that the school can top up, so the balance is data, not arithmetic over a
+   * constant, and only the server can answer it.
+   *
+   * Fetched for pooled accounts only; a free account has no pool and is still
+   * shown against FREE_ASSESSMENT_CAP below.
+   */
+  const { data: licenseBalance } = useQuery<{
+    onPool: boolean;
+    available: number | null;
+    isUnlimited: boolean;
+  }>({
+    queryKey: ['/api/licenses/me'],
+    enabled: !!user && !isOrgAdmin && (isOrgStudent || !!user?.isPremium),
   });
 
   // For org admins AND org students: fetch organization details
@@ -674,8 +696,12 @@ export default function Profile() {
                   </p>
                   <div className="flex items-center justify-between mt-3">
                     <p className="text-sm text-muted-foreground">{t("premium.availableAssessments")}</p>
+                    {/* The pool's remaining balance, already net of everything
+                        spent -- subtracting completions here would charge each
+                        past assessment twice, once in the ledger behind this
+                        number and once again on screen. */}
                     <p className="font-bold text-2xl text-primary" data-testid="text-student-available-assessments">
-                      {Math.max(0, SCHOOL_ALLOCATIONS_PER_STUDENT - assessments.filter(a => a.isCompleted).length)}
+                      {licenseBalance?.isUnlimited ? "∞" : (licenseBalance?.available ?? 0)}
                     </p>
                   </div>
                 </div>
@@ -756,7 +782,12 @@ export default function Profile() {
               <CardContent>
                 {/* "2 of 3" ONLY WHERE A CEILING EXISTS, and it is a different
                     ceiling per population — see shared/assessmentLimits.ts:
-                      org student       -> the school's allocation (SCHOOL_ALLOCATIONS_PER_STUDENT)
+                      org student       -> NEITHER, since the pool replaced the
+                                      per-student allocation. There is no
+                                      per-person ceiling to be a denominator:
+                                      the school can top the pool up, and the
+                                      remaining balance is shown above instead.
+                                      This used to read "N of 1".
                       free account      -> the anti-abuse cap (FREE_ASSESSMENT_CAP)
                       unpaid parent-registers -> NEITHER. Zero before payment is
                                       not a ceiling to count against, and this
@@ -783,10 +814,7 @@ export default function Profile() {
                   <p className="text-sm text-muted-foreground">{t("assessment.completed")}</p>
                   <p className="font-bold text-2xl text-green-600" data-testid="text-completed-assessments-count">
                     {isOrgStudent
-                      ? t("assessment.completedOf", {
-                          completed: individualCompletedAssessments,
-                          cap: SCHOOL_ALLOCATIONS_PER_STUDENT,
-                        })
+                      ? individualCompletedAssessments
                       : requiresPaymentToStart
                         ? individualCompletedAssessments
                         : !user.isPremium

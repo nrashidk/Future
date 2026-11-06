@@ -16,7 +16,6 @@
 
 import { describe, it, expect } from "vitest";
 import {
-  SCHOOL_ALLOCATIONS_PER_STUDENT,
   FREE_ASSESSMENT_CAP,
   assessmentLimitFor,
   isFreeTierCapReached,
@@ -24,30 +23,54 @@ import {
 } from "./assessmentLimits";
 
 describe("assessment limits", () => {
-  it("keeps the two limits distinct", () => {
-    // Not an arbitrary assertion: if these ever become equal, the next reader is
-    // one step from "merge them", which is what the module docblock forbids.
-    expect(SCHOOL_ALLOCATIONS_PER_STUDENT).not.toBe(FREE_ASSESSMENT_CAP);
-  });
-
   describe("assessmentLimitFor", () => {
-    it("gives a school student their allocation", () => {
-      expect(assessmentLimitFor(true, false)).toBe(SCHOOL_ALLOCATIONS_PER_STUDENT);
+    it("gives a pooled school student their pool balance", () => {
+      expect(assessmentLimitFor(true, false, 4)).toBe(4);
     });
 
-    it("gives a free account the cap", () => {
+    it("gives a pooled self-payer their pool balance", () => {
+      expect(assessmentLimitFor(false, true, 2)).toBe(2);
+    });
+
+    it("gives a free account the cap, ignoring any balance passed", () => {
       expect(assessmentLimitFor(false, false)).toBe(FREE_ASSESSMENT_CAP);
+      expect(assessmentLimitFor(false, false, 99)).toBe(FREE_ASSESSMENT_CAP);
     });
 
-    it("does not model a self-paying premium account's limit", () => {
-      expect(assessmentLimitFor(false, true)).toBe(Infinity);
+    it("treats null as an unlimited pool", () => {
+      // The superadmin override used for pilots and MOUs
+      // (organizations.is_unlimited_licenses).
+      expect(assessmentLimitFor(true, false, null)).toBe(Infinity);
+    });
+
+    /**
+     * THE REGRESSION THIS FILE EXISTS FOR, both halves of it.
+     *
+     * A self-paying account used to return Infinity unconditionally -- one
+     * purchase bought unlimited reports, because nothing counted consumption.
+     * A school student used to return a hardcoded 1, capping them at a single
+     * assessment for life with no way to grant another.
+     *
+     * Neither is reachable now: both populations return a balance, and an
+     * exhausted pool is zero rather than unlimited.
+     */
+    it("returns zero for an exhausted pool, never unlimited", () => {
+      expect(assessmentLimitFor(false, true, 0)).toBe(0);
+      expect(assessmentLimitFor(true, false, 0)).toBe(0);
+    });
+
+    it("fails closed when the balance is unknown", () => {
+      // An unresolved balance must not render as an entry point the server is
+      // about to refuse.
+      expect(assessmentLimitFor(true, false, undefined)).toBe(0);
+      expect(assessmentLimitFor(false, true, undefined)).toBe(0);
     });
 
     it("treats school membership as winning over the isPremium decoration", () => {
       // auth.routes.ts decorates isPremium=true onto a school student's response
       // while the column stays false (quiz.routes.ts:86-105). Either way they
-      // must get the school allocation, never the free cap.
-      expect(assessmentLimitFor(true, true)).toBe(SCHOOL_ALLOCATIONS_PER_STUDENT);
+      // are pooled, never on the free cap.
+      expect(assessmentLimitFor(true, true, 3)).toBe(3);
     });
   });
 

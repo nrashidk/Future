@@ -336,6 +336,110 @@ export const organizationMembersRelations = relations(organizationMembers, ({ on
   }),
 }));
 
+/**
+ * THE LICENCE LEDGER — one row per licence actually spent.
+ *
+ * This table is the accounting record for both populations, and it replaces
+ * two different mechanisms that disagreed with each other:
+ *
+ *   SCHOOLS counted a licence as spent the moment a student was ENROLLED.
+ *   organizations.used_licenses was not a stored total at all, it was
+ *   recomputed by counting student rows (storage.recomputeOrganizationLicense-
+ *   Usage). A school that enrolled 200 and saw 150 finish had still spent 200,
+ *   and each enrolled student was capped at one assessment for life with no
+ *   route anywhere to reset it. There was no second year to sell.
+ *
+ *   SELF-PAYERS had users.purchased_licenses incremented on purchase and
+ *   NOTHING counted consumption. assessmentLimitFor() returned Infinity for
+ *   any premium account. One purchase bought unlimited assessments.
+ *
+ * Now a licence is spent when a REPORT IS GENERATED, for everyone, and this
+ * is where that is written. Enrolling costs nothing, abandoning a half-finished
+ * assessment costs nothing, and a student who leaves takes nothing with them:
+ * the licence was never attached to them, only to the pool.
+ *
+ * DERIVED COUNTERS STAY DERIVED. organizations.used_licenses and
+ * .reward_credits_used are still recomputed rather than incremented, but they
+ * now count rows here instead of counting enrolments. Keeping them derived is
+ * deliberate: a stored counter and a ledger that disagree is a class of bug
+ * that cannot happen if the counter is only ever a SELECT over the ledger.
+ *
+ * ONE ROW PER ASSESSMENT, AT THE DATABASE. assessment_id is .unique(), which
+ * is what makes report regeneration free rather than double-charging. The
+ * generate endpoint is re-runnable by design (it re-scores and rewrites
+ * matches), and without this constraint every re-run would bill the pool
+ * again. The insert is ON CONFLICT DO NOTHING against this constraint, so
+ * concurrency and retries settle on one row rather than racing.
+ *
+ * GRADE IS COPIED, NOT JOINED. The same-grade warning has to keep working
+ * after a school advances a student's year, which rewrites the grade on the
+ * assessment and the member row. What was charged for is the grade AS IT WAS
+ * WHEN CHARGED, so it is recorded here and never updated.
+ */
+export const licenseConsumptions = pgTable("license_consumptions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+
+  /**
+   * WHICH POOL PAID. 'organization' for a school pool, 'user' for a parent's
+   * own pool. Two nullable owner columns rather than one polymorphic id, so
+   * each keeps a real foreign key — the pattern organization_deletions uses.
+   */
+  poolOwnerType: text("pool_owner_type").notNull(),
+  organizationId: varchar("organization_id").references(() => organizations.id),
+  guardianUserId: varchar("guardian_user_id").references(() => users.id),
+
+  /** The student whose report was generated. */
+  studentUserId: varchar("student_user_id").notNull().references(() => users.id),
+
+  /** The report that was paid for. Unique: a regenerated report is not a second charge. */
+  assessmentId: varchar("assessment_id").notNull().unique().references(() => assessments.id),
+
+  /** The grade at the moment of charging — see the note above on why it is copied. */
+  grade: text("grade"),
+
+  /**
+   * WHICH CURRENCY. 'paid' or 'reward'. Reward credits are earned by schools
+   * contributing approved questions and spend exactly like paid licences;
+   * they are spent FIRST so a contributing school sees the reward working.
+   * Mirrors organization_members.license_source, which this supersedes as the
+   * accounting record.
+   */
+  currency: text("currency").notNull(),
+
+  consumedAt: timestamp("consumed_at").notNull().defaultNow(),
+}, (table) => [
+  index("license_consumptions_org_idx").on(table.organizationId),
+  index("license_consumptions_guardian_idx").on(table.guardianUserId),
+  // The same-grade repeat lookup, and the per-student history on the progression view.
+  index("license_consumptions_student_idx").on(table.studentUserId, table.grade),
+
+  // A row belongs to exactly one pool, and names the owner of the type it claims.
+  check(
+    "license_consumptions_pool_owner_check",
+    sql`(${table.poolOwnerType} = 'organization' AND ${table.organizationId} IS NOT NULL AND ${table.guardianUserId} IS NULL)
+     OR (${table.poolOwnerType} = 'user' AND ${table.guardianUserId} IS NOT NULL AND ${table.organizationId} IS NULL)`,
+  ),
+  // Same two literals as organization_members.license_source, deliberately kept
+  // in step: storage.recomputeOrganizationLicenseUsage reads both.
+  check(
+    "license_consumptions_currency_check",
+    sql`${table.currency} IN ('paid', 'reward')`,
+  ),
+]);
+
+export const licenseConsumptionsRelations = relations(licenseConsumptions, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [licenseConsumptions.organizationId],
+    references: [organizations.id],
+  }),
+  guardian: one(users, {
+    fields: [licenseConsumptions.guardianUserId],
+    references: [users.id],
+  }),
+}));
+
+export type LicenseConsumption = typeof licenseConsumptions.$inferSelect;
+
 // Countries with mission/vision data
 export const countries = pgTable("countries", {
   id: varchar("id").primaryKey(),

@@ -248,6 +248,30 @@ export function registerRecommendationsRoutes(app: Express) {
             .set({ hasCompletedAssessment: true, assessmentCompletedAt: completedAt })
             .where(eq(organizationMembers.userId, assessment.userId));
         }
+
+        /**
+         * SPEND THE LICENCE. This is the moment a licence is actually used --
+         * not at purchase, not at enrolment, not when the assessment was
+         * started. Everything before this point is free.
+         *
+         * Inside the same transaction as the completion flip above, so a
+         * generated report and its charge are the same atomic fact: there is
+         * no window in which a school has a report it was not billed for, or a
+         * billed licence with no report to show for it.
+         *
+         * Idempotent. Regenerating a report re-scores and rewrites the matches
+         * by design, and that must not bill twice -- the ledger's unique
+         * constraint on the assessment makes the second call a no-op. Free-tier
+         * and guest assessments return null here and are bounded by the free
+         * cap instead.
+         */
+        if (assessment.userId) {
+          await storage.consumeLicense(tx, {
+            studentUserId: assessment.userId,
+            assessmentId: req.params.assessmentId,
+            grade: assessment.grade,
+          });
+        }
       });
 
       res.json({

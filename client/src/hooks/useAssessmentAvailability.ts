@@ -55,38 +55,73 @@ export function useAssessmentAvailability() {
     enabled: isCapCounted === true,
   });
 
+  /**
+   * THE POOL BALANCE, from the server, for anyone who is on a pool.
+   *
+   * This hook used to derive the number locally: a school student was shown a
+   * hardcoded 1, and a paying account was shown unlimited. Neither is a fact
+   * about the account -- a licence belongs to a pool, is spent when a report is
+   * generated, and only the server can say what is left in it.
+   *
+   * Fetched for pooled populations only. A free account has no pool and is
+   * still bounded by the cap arithmetic below.
+   */
+  const isPooled =
+    isOrgStudent === undefined || isPremiumUser === undefined
+      ? undefined
+      : isOrgStudent === true || isPremiumUser === true;
+
+  const { data: licenseBalance, isLoading: licenseLoading } = useQuery<{
+    onPool: boolean;
+    available: number | null;
+    isUnlimited: boolean;
+    sameGradeAlreadyCharged: boolean;
+    currentGrade: string | null;
+  }>({
+    queryKey: ["/api/licenses/me"],
+    enabled: isPooled === true,
+  });
+
   const completed = assessments.filter((a) => a.isCompleted);
   const hasInProgress = assessments.some((a) => !a.isCompleted && a.currentStep > 1);
 
   // Array comes back ordered by createdAt desc, so the first completed is the latest.
   const completedReportId = completed[0]?.id ?? null;
 
-  // WHICH LIMIT APPLIES. Three populations, and only one of them is unbounded
-  // here:
-  //   school student  -> SCHOOL_ALLOCATIONS_PER_STUDENT (the school bought it)
-  //   free account    -> FREE_ASSESSMENT_CAP            (anti-abuse ceiling)
-  //   premium self-payer -> Infinity from this hook; their real bound is
-  //                         users.purchasedLicenses, which this hook does not
-  //                         model and must not pretend to.
+  // WHICH LIMIT APPLIES. Two shapes, not three populations:
+  //   pooled (school student or self-payer) -> the pool's remaining balance,
+  //                                            fetched above; null = unlimited
+  //   free account                          -> FREE_ASSESSMENT_CAP, an
+  //                                            anti-abuse ceiling, counted
+  //                                            against completions
   //
-  // Infinity used to be returned for every `isOrgStudent === false` caller. That
-  // was the honest answer while free accounts could not reach /assessment at
-  // all, and it became a lie the moment they could: this hook's own docblock
-  // calls it the mirror of the server guard, and the server now 403s a free
-  // account's fourth create. A hook that says "unlimited" while the server
-  // refuses is the fail-open 15203ec removed from the field lock — it offers an
-  // entry point that is going to be rejected.
-  //
-  // Unknown still falls to a LIMITED branch rather than Infinity, for the same
-  // reason as before. That branch is computed from an empty list while the query
-  // is disabled, so the number is not meaningful until isLoading clears;
-  // consumers must gate on isLoading, which covers the auth request too.
-  // Shared with both server guards, so the three cannot drift apart.
-  const limit = assessmentLimitFor(isOrgStudent === true, isPremiumUser === true);
+  // Unknown still falls to a LIMITED branch rather than Infinity, for the
+  // reason it always did: a hook that says "unlimited" while the server refuses
+  // offers an entry point that is going to be rejected. Consumers must gate on
+  // isLoading, which covers the auth and balance requests too.
+  // Shared with the server guards, so the two cannot drift apart.
+  const limit = assessmentLimitFor(
+    isOrgStudent === true,
+    isPremiumUser === true,
+    licenseBalance?.isUnlimited ? null : licenseBalance?.available,
+  );
 
+  // A POOL BALANCE IS ALREADY REMAINING, NOT A TOTAL. Subtracting completions
+  // from it would charge every past assessment twice -- once in the ledger that
+  // produced the balance, once here. The free cap is a total and still needs
+  // the arithmetic.
   const availableCount = limit === Infinity
     ? Infinity
-    : Math.max(0, limit - completed.length);
+    : isPooled === true
+      ? limit
+      : Math.max(0, limit - completed.length);
+
+  /**
+   * Has this grade already been charged for? Drives the warning before a
+   * repeat -- a warning, not a refusal: repeating a year happens, and it costs
+   * another licence rather than being forbidden.
+   */
+  const sameGradeAlreadyCharged = licenseBalance?.sameGradeAlreadyCharged ?? false;
 
   // A REGISTERED-BUT-UNPAID PARENT-REGISTERS ACCOUNT — zero assessments
   // allowed before payment (decided 2026-09-16, replacing the free-tier cap
@@ -120,13 +155,18 @@ export function useAssessmentAvailability() {
       isPremiumUser === false &&
       !requiresPaymentToStart &&
       isFreeTierCapReached(false, false, completed.length),
-    // Covers BOTH requests. The assessments query is disabled until membership
-    // is known, and a disabled query does not report as loading, so without
+    // Covers ALL THREE requests. Each query is disabled until membership is
+    // known, and a disabled query does not report as loading, so without
     // authLoading this would claim the answer was ready before there was one.
-    isLoading: authLoading || assessmentsLoading,
+    // The balance query joined this list when the pool replaced the hardcoded
+    // allocation: a pooled caller's availableCount is meaningless until it
+    // lands, and reporting ready early would briefly render "0 left".
+    isLoading: authLoading || assessmentsLoading || licenseLoading,
     availableCount,
     hasAvailable: availableCount > 0,
     hasInProgress,
     completedReportId,
+    // For the "this will use another licence" warning before a repeat.
+    sameGradeAlreadyCharged,
   };
 }
