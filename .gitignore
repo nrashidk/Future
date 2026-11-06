@@ -63,6 +63,7 @@ docs/*.md
 !docs/arabic-review-pack.md
 !docs/test-plan.md
 !docs/test-results.md
+!docs/country-onboarding.md
 !docs/job-market-random-recon.md
 !docs/uae-official-sectors.md
 !docs/v2-phase4-recon.md
