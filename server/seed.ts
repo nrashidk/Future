@@ -824,7 +824,16 @@ export async function seedDatabase() {
       },
       // Curriculum configuration for UAE
       educationSystem: "The UAE follows a K-12 education system with the Ministry of Education (MoE) National Curriculum. International schools offer British, American, IB, and other curricula.",
-      curricula: ["MOE National", "British", "American", "IB"],
+      // ONLY CURRICULA THAT HAVE SUBJECTS SEEDED BELOW.
+      //
+      // This used to list ["MOE National", "British", "American", "IB"] while
+      // seeding subjects for MOE National alone. The other three appeared in
+      // the dropdown with nothing behind them, and because the assessment
+      // makes a student choose three subjects, picking one was a dead end at
+      // the first step rather than a degraded experience.
+      //
+      // Add a curriculum back here only together with its subjects.
+      curricula: ["MOE National"],
       gradeLevels: ["8", "9", "10", "11", "12"],
       universitiesLink: "https://caa.ae",
       universitiesLinkLabel: "CAA Accredited Universities",

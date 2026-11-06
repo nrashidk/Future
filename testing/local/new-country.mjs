@@ -331,34 +331,31 @@ if (org?.id) {
           `${uae.body.checks.sectorMapRows} sector rows` : detail(uae));
 
   /**
-   * A LIVE FINDING, asserted as TODAY'S state deliberately.
+   * THE INVARIANT: a country never offers a curriculum a student cannot use.
    *
-   * UAE offers four curricula in the dropdown -- MOE National, British,
-   * American, IB -- and only MOE National has any subjects at all. The other
-   * three have zero. A school or parent who picks British for a UAE student
-   * reaches the first step of the assessment, is asked to choose three
-   * subjects from an empty list, and can go no further. Nothing refuses the
-   * choice, so the dead end is only discovered by a student sitting in front
-   * of it.
+   * This test was written the other way round first. UAE offered four
+   * curricula -- MOE National, British, American, IB -- and only MOE National
+   * had any subjects. Picking British meant reaching the first step of the
+   * assessment, being asked to choose three subjects from an empty list, and
+   * going no further; nothing refused the choice, so it surfaced only when a
+   * student was sitting in front of it. So NC-09g asserted that broken state
+   * deliberately, and said to flip it once the gap closed.
    *
-   * This is the fourth member of a family already seen in this codebase:
-   * accepted at creation, broken for ever, visible nowhere. The readiness
-   * check found it on its first run, which is the argument for the check.
+   * The gap is closed: the seed now offers only curricula it seeds subjects
+   * for, and migration 030 removes empty ones from existing data -- keeping
+   * any that a school or an assessment still references, since dropping those
+   * would turn working rows into permanently invalid ones.
    *
-   * It is NOT fixed here, because both remedies are content decisions, not
-   * engineering ones: either seed the subjects those curricula actually teach
-   * in the UAE, or stop offering them. Inventing a British-curriculum subject
-   * list would be making that decision silently.
-   *
-   * WHEN IT IS FIXED, THIS TEST FAILS. That is the intent -- flip it to assert
-   * every declared curriculum is ready, and delete this comment.
+   * So the assertion is now the rule rather than the exception. If this fails,
+   * someone has added a curriculum to a country without adding its subjects,
+   * and a student is about to hit that empty list.
    */
   const empty = (uae.body?.checks?.curricula ?? []).filter((c) => c.subjectCount === 0);
-  rec("NC-09g", "KNOWN: UAE offers curricula that have no subjects",
-    empty.length > 0,
-    empty.length > 0
-      ? `dead ends: ${empty.map((c) => c.curriculum).join(", ")} -- each a dropdown choice a student cannot complete`
-      : "all declared curricula now have subjects -- fix this test, the gap is closed");
+  rec("NC-09g", "no country offers a curriculum with no subjects",
+    (uae.body?.checks?.curricula ?? []).length > 0 && empty.length === 0,
+    empty.length === 0
+      ? `all ${uae.body?.checks?.curricula?.length} offered curricula have subjects`
+      : `DEAD ENDS: ${empty.map((c) => c.curriculum).join(", ")} -- offered with no subjects behind them`);
 
   const list = await sa.get("/api/admin/countries");
   const mine = (list.body ?? []).find((c) => c.id === COUNTRY_ID);
