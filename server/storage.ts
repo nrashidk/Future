@@ -4319,7 +4319,23 @@ export class DatabaseStorage implements IStorage {
     recommendations: Recommendation[];
     careerNames: string[];
   }>> {
-    // Get all completed assessments for the user, ordered by grade
+    /**
+     * Ordered by grade NUMERICALLY, not alphabetically.
+     *
+     * assessments.grade is a text column, so ordering on it directly sorts
+     * "10" < "11" < "12" < "9" and a four-year progression came back as
+     * 10, 11, 12, 9 -- grade 9 last, after grade 12. Every consumer of this
+     * trusts the order: the student's own progression view, the school's
+     * grade-progress view, and any chart drawn from either. A parent looking
+     * at four years of their child's results would have seen the first year
+     * plotted at the end.
+     *
+     * Digits are extracted rather than cast, because the column holds both
+     * "10" (a self-paying student, whose value comes from the request) and
+     * "grade10" (a school student, whose value comes from the school record),
+     * and a plain ::int would throw on the second. A row with no digits at
+     * all sorts last rather than breaking the query.
+     */
     const userAssessments = await db
       .select()
       .from(assessments)
@@ -4327,7 +4343,10 @@ export class DatabaseStorage implements IStorage {
         eq(assessments.userId, userId),
         eq(assessments.isCompleted, true)
       ))
-      .orderBy(assessments.grade, assessments.completedAt);
+      .orderBy(
+        sql`NULLIF(regexp_replace(${assessments.grade}, '\\D', '', 'g'), '')::int NULLS LAST`,
+        assessments.completedAt,
+      );
 
     const result: Array<{
       assessment: Assessment;

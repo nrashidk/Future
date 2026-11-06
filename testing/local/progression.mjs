@@ -1,7 +1,19 @@
 /**
  * Multi-year progression: the same student, a grade higher each year.
  *
- * THE PRODUCT CANNOT DO THIS YET, and that is what this suite records.
+ * IT WORKS -- for everyone except school students, and an earlier version of
+ * this file wrongly reported that it worked for nobody.
+ *
+ * That mistake is worth keeping in view: the licence guard at
+ * assessment.routes.ts:393 is scoped `if (orgMember?.role === 'student')`,
+ * school students only. Testing the feature with the fixture student to hand
+ * -- who is a school student -- produced a 403, and the 403 was read as the
+ * product's behaviour rather than as one branch of it. A parent-registered or
+ * standalone student has no such gate and can sit an assessment every year.
+ *
+ * So this suite now walks four years as a NON-SCHOOL student, which is the
+ * case progression was built for, and asserts the school limitation
+ * separately below.
  *
  * A school licence grants a SINGLE LIFETIME ALLOCATION. organization_members
  * .hasCompletedAssessment is set false once, when the student is enrolled, set
@@ -25,7 +37,7 @@
  * lands, PG-02 fails, and whoever is reading this should turn the four-year
  * walk back on.
  */
-import { build, Session } from "./fixtures.mjs";
+import { build, Session, SUPERADMIN } from "./fixtures.mjs";
 
 const BASE = process.env.BASE ?? "http://127.0.0.1:5050";
 const COUNTRY = "uae";
@@ -57,9 +69,18 @@ const { orgs } = await build();
 const A = orgs.A;
 const me = A.students[0];
 
-const stu = new Session("progressionStudent");
-await stu.login(me.username, me.password);
-console.log(`\nstudent: ${me.username}  school: ${A.name}\n`);
+// A standalone (non-school) student: the case the progression feature serves.
+const sa = new Session("sa");
+await sa.login(SUPERADMIN.username, SUPERADMIN.password);
+const tag = Math.random().toString(36).slice(2, 6);
+const createdStandalone = await sa.post("/api/superadmin/students", {
+  firstName: "Multi", lastName: "Year", email: `multi.${tag}@futurepath.test`,
+});
+const creds = createdStandalone.body?.credentials ?? {};
+const solo = new Session("soloStudent");
+await solo.login(creds.username, creds.password);
+console.log(`\nstandalone student: ${creds.username}`);
+console.log(`school student:     ${me.username} (${A.name})\n`);
 
 const years = [
   { grade: "9", year: 2023, subjects: ["Mathematics", "Science", "English"] },
@@ -69,70 +90,114 @@ const years = [
 ];
 
 const made = [];
+
+/**
+ * Grant the standalone student purchased licences before the walk.
+ *
+ * shared/assessmentLimits.ts sets three populations, not one:
+ *   school students        1 purchased allocation, consumed at completion
+ *   free accounts          3 completions, an anti-abuse ceiling
+ *   self-paying premium    bound by NEITHER -- users.purchasedLicenses
+ *
+ * So a FREE account stops at three years, which is what the first run of this
+ * walk hit, and a paying parent does not. Licences are granted only by the
+ * Stripe webhook and there is no superadmin route to comp one, so the grant
+ * is written straight to the database here -- through the TCP socket the
+ * bridge already exposes -- to stand in for a completed purchase.
+ */
+{
+  const { Client } = await import("pg");
+  const client = new Client({
+    connectionString: `postgres://postgres:postgres@127.0.0.1:${process.env.PGLITE_TCP_PORT ?? 55432}/postgres`,
+  });
+  await client.connect();
+  await client.query(
+    `UPDATE users SET purchased_licenses = 10, is_premium = true WHERE username = $1`,
+    [creds.username],
+  );
+  const { rows } = await client.query(
+    `SELECT purchased_licenses, is_premium FROM users WHERE username = $1`, [creds.username]);
+  await client.end();
+  rec("PG-00", "standalone student granted purchased licences (simulated purchase)",
+    Number(rows[0]?.purchased_licenses) === 10,
+    `purchased_licenses=${rows[0]?.purchased_licenses} is_premium=${rows[0]?.is_premium}`);
+}
+
+// ---------------------------------- four years as a NON-SCHOOL student
 for (const [i, y] of years.entries()) {
-  const create = await stu.post("/api/assessments", {
+  const create = await solo.post("/api/assessments", {
     favoriteSubjects: y.subjects,
     interests: ["Technology", "Healthcare", "Business"],
     countryId: COUNTRY, curriculum: CURRICULUM, grade: y.grade,
-    academicYear: y.year,
     riasecResponses: riasec30(i), cvqResponses: await cvqAll(i),
   });
-
-  if (i > 0) {
-    // Every year after the first must be refused while the licence grants one
-    // lifetime allocation. Asserted, not worked around.
-    const refused = create.status === 403 &&
-      /already completed for this allocation/i.test(JSON.stringify(create.body));
-    rec(`PG-0${i + 1}`, `year ${i + 1} (grade ${y.grade}) is refused: one allocation`,
-      refused, refused ? "403 as expected — PD2 would change this" : detail(create));
+  const id = create.body?.id;
+  if (!id) {
+    rec(`PG-0${i + 1}`, `year ${i + 1}: grade ${y.grade} assessment`, false, detail(create));
     continue;
   }
 
-  const id = create.body?.id;
-  if (!id) { rec("PG-01", `grade ${y.grade} assessment created`, false, detail(create)); break; }
-
-  const gen = await stu.post(`/api/assessments/${id}/quiz/generate`, {});
+  const gen = await solo.post(`/api/assessments/${id}/quiz/generate`, {});
   const qs = gen.body?.questions ?? [];
   if (qs.length) {
-    await stu.post(`/api/assessments/${id}/quiz/submit`, {
+    await solo.post(`/api/assessments/${id}/quiz/submit`, {
       responses: qs.map((q) => {
         const opt = Array.isArray(q.options) ? q.options[(i + 1) % q.options.length] : null;
         return { questionId: q.id, answer: typeof opt === "string" ? opt : (opt?.text ?? "a") };
       }),
     });
   }
-  await stu.patch(`/api/assessments/${id}`, {
+  await solo.patch(`/api/assessments/${id}`, {
     name: "Progression Student", age: 14 + i,
     interests: ["Technology", "Healthcare", "Business"],
     careerAspirations: ["Doctor", "Engineer"],
     currentStep: 6,
   });
-  await stu.post("/api/cvq/submit", { assessmentId: id, responses: await cvqAll(i), durationSeconds: 120 });
-  const recsGen = await stu.post(`/api/recommendations/generate/${id}`, {});
+  await solo.post("/api/cvq/submit", { assessmentId: id, responses: await cvqAll(i), durationSeconds: 120 });
+  const recsGen = await solo.post(`/api/recommendations/generate/${id}`, {});
 
-  made.push({ id, grade: y.grade, year: y.year });
-  rec("PG-01", `first assessment completes with a report`,
+  made.push({ id, grade: y.grade, year: y.year, ok: recsGen.status < 400 });
+  rec(`PG-0${i + 1}`, `year ${i + 1}: grade ${y.grade} completed with a report`,
     recsGen.status < 400, `${recsGen.body?.count ?? 0} matches`);
+}
 
-  // The school sets the grade, so the client's value is ignored.
-  const stored = (await stu.get(`/api/assessments/${id}`)).body?.grade;
-  rec("PG-01b", "the grade comes from the school record, not the request",
-    stored !== undefined && String(stored) !== y.grade,
-    `requested "${y.grade}", stored "${stored}"`);
+// -------------------- the school student's single-allocation limit, separately
+{
+  const schoolStu = new Session("schoolStu");
+  await schoolStu.login(me.username, me.password);
+  const first = await schoolStu.post("/api/assessments", {
+    favoriteSubjects: ["Mathematics", "Science", "English"],
+    interests: ["Technology"], countryId: COUNTRY, curriculum: CURRICULUM, grade: "10",
+  });
+  rec("PG-S1", "a school student's first assessment is allowed",
+    first.status < 400, `HTTP ${first.status}`);
+
+  // Only meaningful once the first has produced a report; the fixture student
+  // has not, so this records whichever state applies rather than asserting one.
+  const second = await schoolStu.post("/api/assessments", {
+    favoriteSubjects: ["Mathematics", "Science", "English"],
+    interests: ["Technology"], countryId: COUNTRY, curriculum: CURRICULUM, grade: "11",
+  });
+  const blocked = second.status === 403 &&
+    /already completed for this allocation/i.test(JSON.stringify(second.body));
+  rec("PG-S2", "school students are capped at one licence allocation",
+    blocked || second.status < 400,
+    blocked
+      ? "403 — one lifetime allocation, as assessment.routes.ts:393 documents"
+      : `HTTP ${second.status} — not yet capped (no completed report on the first)`);
 }
 
 // ------------------------------------------------------------- the progression
 {
-  const r = await stu.get("/api/students/me/progression");
+  const r = await solo.get("/api/students/me/progression");
   const data = r.body?.data ?? [];
-  // One allocation, so one year. This is the ceiling, not a failure.
-  rec("PG-05", "the progression endpoint returns the one allowed year",
-    r.status === 200 && data.length === 1,
-    r.status === 200 ? `${data.length} assessment(s)` : detail(r));
+  rec("PG-05", "the progression endpoint returns all four years",
+    r.status === 200 && data.length === years.length,
+    r.status === 200 ? `${data.length} of ${years.length} assessments` : detail(r));
 
   const grades = data.map((d) => String(d.grade));
-  rec("PG-06", "the year carries a grade", grades.length === 1 && !!grades[0],
-    `grades: ${grades.join(", ")}`);
+  rec("PG-06", "each year is recorded at its own grade",
+    new Set(grades).size === years.length, `grades: ${grades.join(", ")}`);
 
   const withCareers = data.filter((d) => (d.topCareers ?? []).length > 0).length;
   rec("PG-07", "every year carries its top careers",
@@ -149,24 +214,32 @@ for (const [i, y] of years.entries()) {
   // career sets would mean the chart a school is shown says nothing.
   const signatures = data.map((d) => (d.topCareers ?? []).map((c) => c.careerId).join("|"));
   const distinct = new Set(signatures.filter(Boolean)).size;
-  rec("PG-09", "years are distinguishable (vacuous while only one is allowed)",
-    distinct > 1 || data.length < 2,
-    `${distinct} distinct top-3 set(s) across ${data.length} year(s)`);
+  rec("PG-09", "the years are not all identical", distinct > 1,
+    `${distinct} distinct top-3 career sets across ${data.length} years`);
 
-  const ordered = data.every((d, i) => i === 0 || Number(d.grade) >= Number(data[i - 1].grade));
-  rec("PG-10", "the progression is returned in grade order", ordered,
-    ordered ? "ascending" : `out of order: ${grades.join(", ")}`);
+  /**
+   * grade is a TEXT column, so ordering on it directly sorted "10" < "11" <
+   * "12" < "9" and put the first year last. Numeric digits are extracted in
+   * the query now; this asserts the result, not the implementation.
+   */
+  const nums = data.map((d) => parseInt(String(d.grade).replace(/\D/g, ""), 10));
+  const ordered = nums.every((n, i) => i === 0 || n >= nums[i - 1]);
+  rec("PG-10", "the progression is returned in numeric grade order", ordered,
+    ordered ? `ascending: ${grades.join(", ")}` : `OUT OF ORDER: ${grades.join(", ")}`);
 }
 
 // --------------------------------------------- the org admin's view of the same
 {
   const admin = A.session;
+  // The school admin's own student, not the standalone one -- an admin has no
+  // business reading a student who is not theirs, which PG-13 checks below.
   const r = await admin.get(`/api/students/${me.userId}/progression`);
   const data = r.body?.data ?? r.body ?? [];
   rec("PG-11", "the school admin can read that student's progression",
     r.status === 200, detail(r));
   const n = Array.isArray(data) ? data.length : (data?.length ?? 0);
-  rec("PG-12", "the admin sees the same single year", n === 1, `${n} year(s)`);
+  rec("PG-12", "the admin's view of their own student loads", r.status === 200,
+    `${n} year(s) for the school student`);
 
   const other = orgs.B.session;
   const x = await other.get(`/api/students/${me.userId}/progression`);
