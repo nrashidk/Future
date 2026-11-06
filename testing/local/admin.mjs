@@ -52,7 +52,7 @@ console.log(`\n--- Section 5: organization admin (${A.name}) ---\n`);
   const tag = Math.random().toString(36).slice(2, 7);
   const made = await sa.post("/api/superadmin/organizations/create-with-admin", {
     organizationName: `Unconsented School ${tag}`, totalLicenses: 10, isUnlimitedLicenses: false,
-    countryId: "uae", curriculum: "MOE",
+    countryId: "uae", curriculum: "MOE National",
     adminFirstName: "NoConsent", adminLastName: "Admin",
     adminEmail: `noconsent.${tag}@futurepath.test`, adminPhone: "+971500000000",
     adminUsername: `noconsent${tag}`,
@@ -125,6 +125,36 @@ console.log(`\n--- Section 7: superadmin ---\n`);
 
 const sa = new Session("superadmin");
 await sa.login(SUPERADMIN.username, SUPERADMIN.password);
+
+// A school cannot be created with a curriculum its country does not offer.
+// Before this was enforced, such a school was accepted and then permanently
+// unable to match a subject -- contributions dead, students on borrowed
+// questions, and no error anywhere.
+{
+  const tag = Math.random().toString(36).slice(2, 7);
+  const r = await sa.post("/api/superadmin/organizations/create-with-admin", {
+    organizationName: `Bad Curriculum ${tag}`, totalLicenses: 5, isUnlimitedLicenses: false,
+    // Deliberately invalid: UAE offers "MOE National", not "MOE". Do not
+    // "correct" this value -- the whole point of the test is that it is wrong.
+    countryId: "uae", curriculum: "MOE",
+    adminFirstName: "Bad", adminLastName: "Curriculum",
+    adminEmail: `badcur.${tag}@futurepath.test`, adminPhone: "+971500000000",
+    adminUsername: `badcur${tag}`,
+  });
+  rec("O-17", "school with a curriculum its country lacks is refused",
+    r.status === 400, `HTTP ${r.status} ${JSON.stringify(r.body).slice(0, 100)}`);
+}
+{
+  const r = await sa.post("/api/superadmin/organizations/create-with-admin", {
+    organizationName: "Unknown Country School", totalLicenses: 5, isUnlimitedLicenses: false,
+    countryId: "atlantis", curriculum: "MOE National",
+    adminFirstName: "A", adminLastName: "B",
+    adminEmail: `atl.${Date.now()}@futurepath.test`, adminPhone: "+971500000000",
+    adminUsername: `atl${Date.now()}`,
+  });
+  rec("O-18", "school in a non-existent country is refused", r.status === 400, `HTTP ${r.status}`);
+}
+
 
 // A-03 every superadmin surface loads
 for (const [path, name] of [

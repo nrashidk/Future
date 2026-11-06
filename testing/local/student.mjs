@@ -58,7 +58,7 @@ if (login) {
     const made = await peerSession.post("/api/assessments", {
       favoriteSubjects: ["Mathematics", "Science", "English"],
       interests: ["technology"], assessmentType: "basic",
-      countryId: "uae", curriculum: "MOE", grade: "10",
+      countryId: "uae", curriculum: "MOE National", grade: "10",
     });
     peerAssessmentId = made.body?.id ?? null;
   } catch { /* reported below */ }

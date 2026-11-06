@@ -47,7 +47,7 @@ let parentUserId = null;
   const r = await s.post("/api/register/parent", {
     firstName: "Test", lastName: "Parent", email, password, confirmPassword: password,
     child: { name: "Test Child", dateOfBirth: "2010-04-04", gender: "male",
-             grade: "10", countryId: "uae", curriculum: "MOE" },
+             grade: "10", countryId: "uae", curriculum: "MOE National" },
     // Both claims or nothing: the schema requires literal true on each, and
     // attestationText pins the exact wording the parent was shown.
     consentsToProcessing: true, attestsGuardianRelationship: true,
@@ -67,7 +67,7 @@ let parentUserId = null;
     firstName: "No", lastName: "Consent", email: `nc.${Date.now()}@futurepath.test`,
     password, confirmPassword: password,
     child: { name: "Child", dateOfBirth: "2010-04-04", gender: "male",
-             grade: "10", countryId: "uae", curriculum: "MOE" },
+             grade: "10", countryId: "uae", curriculum: "MOE National" },
     // Everything else valid, so the ONLY reason to refuse is the withheld
     // consent -- otherwise this passes on a missing-field error and proves
     // nothing about the consent gate.
@@ -86,7 +86,7 @@ let parentUserId = null;
     firstName: "Weak", lastName: "Pass", email: `weak.${Date.now()}@futurepath.test`,
     password: "short", confirmPassword: "short",
     child: { name: "Child", dateOfBirth: "2010-04-04", gender: "male",
-             grade: "10", countryId: "uae", curriculum: "MOE" },
+             grade: "10", countryId: "uae", curriculum: "MOE National" },
     consentsToProcessing: true, attestsGuardianRelationship: true,
     attestationText: "x", locale: "en",
   });
@@ -100,7 +100,7 @@ if (parentUserId) {
   const r = await s.post("/api/register/parent", {
     firstName: "Dupe", lastName: "Parent", email, password, confirmPassword: password,
     child: { name: "Child", dateOfBirth: "2010-04-04", gender: "male",
-             grade: "10", countryId: "uae", curriculum: "MOE" },
+             grade: "10", countryId: "uae", curriculum: "MOE National" },
     consentsToProcessing: true, attestsGuardianRelationship: true,
     attestationText: "x", locale: "en",
   });

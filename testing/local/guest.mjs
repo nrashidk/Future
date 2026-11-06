@@ -154,7 +154,7 @@ for (const lang of ["en", "ar"]) {
       favoriteSubjects: subjects, interests: ["technology"], assessmentType: "basic",
       // grade is required for quiz generation: without it the quiz is created
       // but reads back empty, so the count silently looks like zero.
-      countryId: "uae", curriculum: "MOE", grade: "10",
+      countryId: "uae", curriculum: "MOE National", grade: "10",
     });
     const id = made.body?.id;
     if (!id) { counts[subjects.length] = `create ${made.status}`; continue; }

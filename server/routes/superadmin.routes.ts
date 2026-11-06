@@ -948,6 +948,36 @@ export function registerSuperadminRoutes(app: Express) {
         return res.status(400).json({ message: "Curriculum is required" });
       }
 
+      /**
+       * The country must exist, and the curriculum must be one it offers.
+       *
+       * Requiring both values above is not enough: the check accepted any
+       * non-empty string, so a school could be created with a curriculum its
+       * country does not teach. UAE offers ["MOE National", "British",
+       * "American", "IB"], and a school created with "MOE" was accepted
+       * without complaint.
+       *
+       * Such a school is then dead in a way nothing reports. Subjects are
+       * keyed on (countryId, curriculum), so getSubjectsByCurriculum returns
+       * nothing for it, for ever: the contribution feature can never find a
+       * subject to file questions under, and its students fall through the
+       * quiz fallbacks onto borrowed questions. No error is raised at any
+       * point -- not at creation, not at enrolment, not at assessment.
+       *
+       * This is the same failure shape as the sector map and the quiz cliff:
+       * accepted at creation, broken for ever, visible nowhere. Caught here,
+       * at the only moment someone is in a position to correct it.
+       */
+      const country = await storage.getCountryById(countryId.trim());
+      if (!country) {
+        return res.status(400).json({ message: `Unknown country '${countryId}'` });
+      }
+      if (country.curricula?.length && !country.curricula.includes(curriculum.trim())) {
+        return res.status(400).json({
+          message: `Curriculum '${curriculum}' is not offered by ${country.name}. Valid options: ${country.curricula.join(", ")}`,
+        });
+      }
+
       if (adminEmail) {
         const existingByEmail = await storage.getUserByEmail(adminEmail);
         if (existingByEmail) {

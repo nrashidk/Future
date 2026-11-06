@@ -242,7 +242,7 @@ if (org?.id && org.creds) {
     await g2.get("/api/auth/user");
     const made2 = await g2.post("/api/assessments", {
       favoriteSubjects: ["Mathematics", "Science", "English"], interests: ["technology"],
-      assessmentType: "basic", countryId: "uae", curriculum: "MOE", grade: "10",
+      assessmentType: "basic", countryId: "uae", curriculum: "MOE National", grade: "10",
     });
     const gen2 = made2.body?.id
       ? await g2.post(`/api/assessments/${made2.body.id}/quiz/generate`, {})
