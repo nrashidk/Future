@@ -1,4 +1,4 @@
-import type { Express, Request, Response } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import multer from "multer";
 import path from "path";
 import { pipeline } from "stream/promises";
@@ -45,6 +45,34 @@ const upload = multer({
 });
 
 /**
+ * Runs multer and turns its rejections into 400s.
+ *
+ * fileFilter signals a disallowed type with cb(new Error(...)), and the size
+ * limit throws LIMIT_FILE_SIZE. Both are multer errors, so without this they
+ * reach Express's default error handler and come back as 500 -- telling the
+ * caller the server broke when in fact they sent the wrong thing, and filing
+ * every rejected upload as a server fault in whatever watches error rates.
+ *
+ * The allowlist itself is unchanged: this only fixes how a refusal is
+ * reported.
+ */
+const uploadSingleFile = (req: any, res: Response, next: NextFunction) => {
+  upload.single("file")(req, res, (err: any) => {
+    if (!err) return next();
+    if (err.code === "LIMIT_FILE_SIZE") {
+      return res.status(400).json({
+        code: "FILE_TOO_LARGE",
+        message: "File is too large. The limit is 50 MB.",
+      });
+    }
+    return res.status(400).json({
+      code: "FILE_TYPE_NOT_ALLOWED",
+      message: err.message || "File type not allowed.",
+    });
+  });
+};
+
+/**
  * Check if user is superadmin
  */
 const isSuperadmin = async (req: any): Promise<boolean> => {
@@ -76,7 +104,7 @@ const isOrgAdmin = async (req: any): Promise<boolean> => {
 
 export function registerFilesRoutes(app: Express) {
   // Upload a file (superadmin only - using centralized middleware)
-  app.post("/api/files/upload", isAuthenticated, isAdmin, upload.single("file"), async (req: any, res: Response) => {
+  app.post("/api/files/upload", isAuthenticated, isAdmin, uploadSingleFile, async (req: any, res: Response) => {
     try {
       const userId = req.user.userId;
       
