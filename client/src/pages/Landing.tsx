@@ -58,6 +58,14 @@ export default function Landing() {
   const displayCount = isLoading ? "..." : studentCount.toLocaleString();
   const isPlural = studentCount !== 1;
 
+  /**
+   * Below this, the counter is hidden rather than shown. A low number is worse
+   * than no number on a landing page: "3 assessments completed" reads as a
+   * dead product. 25 is a judgement call, not a measurement -- it is simply
+   * the point at which a count starts reassuring rather than alarming.
+   */
+  const MIN_COUNT_TO_SHOW = 25;
+
   useEffect(() => { document.title = t("pageTitle"); }, [t]);
 
   const handleLogin = () => setLocation("/login");
@@ -112,16 +120,31 @@ export default function Landing() {
             </Button>
           </div>
 
-          <StickyNote color="pink" rotation="1" className="inline-block px-6 py-3">
-            <div className="flex items-center gap-2">
-              <Users className="w-5 h-5 text-primary" />
-              <span className="text-sm font-medium" data-testid="text-student-count">
-                {isPlural
-                  ? t("hero.assessmentsCompletedPlural", { count: displayCount })
-                  : t("hero.assessmentsCompleted", { count: displayCount })}
-              </span>
-            </div>
-          </StickyNote>
+          {/*
+            Social proof, shown only once there is some.
+
+            This rendered unconditionally, so on a site with no completed
+            assessments it advertised "0 assessments completed" to every
+            visitor. That is honest, which is why it is not the same defect as
+            the invented testimonial that used to sit further down this page --
+            but it is the same instinct in reverse: a proof element with
+            nothing to prove, working against the product.
+
+            Hidden below the threshold rather than faked. When the number is
+            worth showing it comes back on its own, with no code change.
+          */}
+          {!isLoading && studentCount >= MIN_COUNT_TO_SHOW && (
+            <StickyNote color="pink" rotation="1" className="inline-block px-6 py-3">
+              <div className="flex items-center gap-2">
+                <Users className="w-5 h-5 text-primary" />
+                <span className="text-sm font-medium" data-testid="text-student-count">
+                  {isPlural
+                    ? t("hero.assessmentsCompletedPlural", { count: displayCount })
+                    : t("hero.assessmentsCompleted", { count: displayCount })}
+                </span>
+              </div>
+            </StickyNote>
+          )}
 
           {organizations.length > 0 && (
             <div className="mt-12 w-full">

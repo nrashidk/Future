@@ -268,6 +268,37 @@ export function registerAssessmentRoutes(app: Express) {
       }
       const validatedData = insertAssessmentSchema.parse(normalizationResult.normalized);
 
+      /**
+       * The curriculum must be one the country actually offers.
+       *
+       * It was accepted as any non-empty string, so an assessment could be
+       * created for UAE with curriculum "MOE" when UAE offers "MOE National".
+       * Nothing failed: the quiz query asks for (country, grade, curriculum)
+       * first, finds nothing, and falls through to a pool that ignores
+       * curriculum -- so the student sits a quiz drawn from a curriculum they
+       * do not study, and the report is built on it. No error, no warning, in
+       * any log.
+       *
+       * Checked here rather than in the quiz builder because this is the only
+       * point where someone can still be told. By generation time the answers
+       * exist and refusing would discard the student's work.
+       *
+       * Organization creation got the same check earlier today; this is the
+       * other door into the same mismatch.
+       */
+      if (validatedData.countryId && validatedData.curriculum) {
+        const country = await storage.getCountryById(validatedData.countryId);
+        if (!country) {
+          return res.status(400).json({ message: `Unknown country '${validatedData.countryId}'` });
+        }
+        if (country.curricula?.length && !country.curricula.includes(validatedData.curriculum)) {
+          return res.status(400).json({
+            message: `Curriculum '${validatedData.curriculum}' is not offered by ${country.name}. Valid options: ${country.curricula.join(", ")}`,
+            code: "CURRICULUM_NOT_OFFERED",
+          });
+        }
+      }
+
       // Check if user is authenticated and get userId
       const userId = req.isAuthenticated() 
         ? (req.user.userId) 

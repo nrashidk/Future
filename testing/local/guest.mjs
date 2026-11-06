@@ -199,6 +199,25 @@ for (const lang of ["en", "ar"]) {
   }
 }
 
+// ------------------------------- curriculum must be one the country offers
+{
+  // Session, not bare fetch: CSRF applies to guests too, so a raw POST is
+  // refused before it reaches the check under test.
+  const { Session } = await import("./fixtures.mjs");
+  const g = new Session("curriculumProbe");
+  await g.get("/api/auth/user");
+  const r = await g.post("/api/assessments", {
+    favoriteSubjects: ["Mathematics", "Science", "English"], interests: ["Technology"],
+    // UAE offers "MOE National"; "MOE" is not one of its curricula. Accepting
+    // it silently gave the student a quiz from a curriculum they do not study.
+    countryId: "uae", curriculum: "MOE", grade: "10",
+  });
+  const body = r.body ?? {};
+  rec("G-21", "assessment with a curriculum the country lacks is refused",
+    r.status === 400 && body.code === "CURRICULUM_NOT_OFFERED",
+    `HTTP ${r.status} ${JSON.stringify(body).slice(0, 90)}`);
+}
+
 // ------------------------------------------------------------ G-11 (72h TTL)
 {
   const r = await fetch(`${BASE}/locales/en/results.json`);
