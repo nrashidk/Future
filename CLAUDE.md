@@ -160,6 +160,19 @@ a status that is specific, a row that actually changed.
 - **A control applied to one verb and not its siblings.** Ownership checked on
   PATCH and not GET or DELETE. When you fix an authorization gap, check every
   verb and every sibling route.
+- **An outer column inside a drizzle `sql` subquery renders UNQUALIFIED.**
+  `sql\`(SELECT ... FROM license_grants g WHERE g.organization_id = ${organizations.id})\``
+  emits `WHERE g.organization_id = "id"`, and Postgres resolves a bare `"id"`
+  against the *innermost* table — so it compared each grant's own primary key
+  to an organization id. Valid SQL, no error, every figure silently zero.
+  Spelling the table name into the subquery fixes it and breaks the same silent
+  way if the table is ever renamed. Prefer separate `GROUP BY` aggregates
+  merged in code: nothing to mis-resolve, and each query is verifiable by
+  reading it. `storage.getLicenseAnalytics` documents both this and the
+  row-multiplication trap next to it.
+- **Joining one row to two one-to-many tables multiplies it.** A school with 3
+  grant rows and 40 consumption rows joined to both at once is 120 rows, and
+  reports 120 of each. Aggregate each side separately.
 - **Check-then-act across connections.** Reading a balance on the pooled `db`
   handle and writing it inside a transaction decides from a snapshot taken
   outside that transaction, and takes a second connection while one is held.

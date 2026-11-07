@@ -3271,6 +3271,227 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
+  /**
+   * PAID VERSUS CONSUMED, per school and per country.
+   *
+   * Reads both ledgers: license_grants for what a school was given and what
+   * was paid, license_consumptions for what it has spent. Neither number comes
+   * from a counter that could have drifted.
+   *
+   * THREE PLAIN AGGREGATES, MERGED IN CODE. Not one clever query, for two
+   * separate reasons, both of which produced a wrong number here first:
+   *
+   * 1. JOINING organizations to both ledgers at once MULTIPLIES rows. A school
+   *    with 3 grants and 40 consumptions becomes 120 rows and reports 120 of
+   *    each.
+   * 2. CORRELATED SUBQUERIES looked like the fix and were worse. Drizzle
+   *    renders an embedded outer column UNQUALIFIED inside a sql`` subquery:
+   *    `WHERE g.organization_id = ${organizations.id}` emits
+   *    `WHERE g.organization_id = "id"`, and Postgres resolves a bare "id"
+   *    against the INNERMOST table — so it compared each grant's own primary
+   *    key to an organization id. Valid SQL, no error, every figure silently
+   *    zero. Spelling the table name into the subquery would fix it and would
+   *    break the same silent way if the table were ever renamed.
+   *
+   * Grouping each ledger by organization_id on its own cannot multiply and has
+   * no outer column to mis-resolve, and each query is verifiable by reading it.
+   *
+   * COUNTRY TOTALS ARE SUMMED FROM THE SCHOOL ROWS, in code, rather than by a
+   * second query. A second aggregate can disagree with the first after any
+   * later edit; summing the rows that are already being returned cannot.
+   *
+   * WHAT THIS DOES NOT COVER, and says so in its own payload: a parent's own
+   * licence pool. license_grants is keyed to an organization, and a parent
+   * buying for one child has no organization, so parent purchases are not in
+   * it. Their CONSUMPTION is counted and reported on its own line, because
+   * leaving it out would make platform consumption quietly too low. Reporting
+   * school revenue as platform revenue is the kind of plausible wrong number
+   * this whole change exists to stop.
+   */
+  async getLicenseAnalytics(): Promise<{
+    perSchool: Array<any>;
+    perCountry: Array<any>;
+    platform: any;
+    revenueByCurrency: Array<{ currency: string; amount: number; purchases: number }>;
+    guardianPools: { consumed: number; consumedPaid: number; consumedReward: number };
+    caveats: string[];
+  }> {
+    const schoolRows = await db
+      .select({
+        organizationId: organizations.id,
+        name: organizations.name,
+        countryId: organizations.countryId,
+        curriculum: organizations.curriculum,
+        isUnlimited: organizations.isUnlimitedLicenses,
+        totalLicenses: organizations.totalLicenses,
+      })
+      .from(organizations)
+      .orderBy(organizations.name);
+
+    // Grants per school. FILTER rather than extra passes, so every figure here
+    // comes from one scan of the same rows and cannot disagree with its total.
+    const grantRows = await db
+      .select({
+        organizationId: licenseGrants.organizationId,
+        granted: sql<number>`COALESCE(SUM(${licenseGrants.licensesDelta}), 0)::int`,
+        revenue: sql<number>`COALESCE(SUM(${licenseGrants.amountPaid}) FILTER (WHERE ${licenseGrants.kind} = 'purchase'), 0)::double precision`,
+        purchases: sql<number>`count(*) FILTER (WHERE ${licenseGrants.kind} = 'purchase')::int`,
+        grantedFree: sql<number>`COALESCE(SUM(${licenseGrants.licensesDelta}) FILTER (WHERE ${licenseGrants.kind} IN ('comp', 'backfill')), 0)::int`,
+      })
+      .from(licenseGrants)
+      .groupBy(licenseGrants.organizationId);
+
+    // Consumption per school. Guardian-pool rows carry no organization and are
+    // counted on their own below.
+    const consumptionRows = await db
+      .select({
+        organizationId: licenseConsumptions.organizationId,
+        consumed: sql<number>`count(*)::int`,
+        consumedPaid: sql<number>`count(*) FILTER (WHERE ${licenseConsumptions.currency} = 'paid')::int`,
+        consumedReward: sql<number>`count(*) FILTER (WHERE ${licenseConsumptions.currency} = 'reward')::int`,
+      })
+      .from(licenseConsumptions)
+      .where(eq(licenseConsumptions.poolOwnerType, "organization"))
+      .groupBy(licenseConsumptions.organizationId);
+
+    const grantsBy = new Map(grantRows.map((g: any) => [g.organizationId, g]));
+    const consBy = new Map(consumptionRows.map((c: any) => [c.organizationId, c]));
+
+    const perSchoolRows = schoolRows.map((s: any) => {
+      const g = grantsBy.get(s.organizationId);
+      const c = consBy.get(s.organizationId);
+      return {
+        ...s,
+        granted: Number(g?.granted ?? 0),
+        revenue: Number(g?.revenue ?? 0),
+        purchases: Number(g?.purchases ?? 0),
+        grantedFree: Number(g?.grantedFree ?? 0),
+        consumed: Number(c?.consumed ?? 0),
+        consumedPaid: Number(c?.consumedPaid ?? 0),
+        consumedReward: Number(c?.consumedReward ?? 0),
+      };
+    });
+
+    const perSchool = perSchoolRows.map((r: any) => {
+      return {
+        ...r,
+        /**
+         * null, not a number, for an unlimited school. Its entitlement has no
+         * value, so "remaining" has no answer — and 0 would read as exhausted,
+         * which is the opposite of the truth.
+         *
+         * Only PAID consumption is subtracted: reward credits are a separate
+         * pool earned by contributing questions, so counting them here would
+         * charge a school twice for the same assessment.
+         */
+        remaining: r.isUnlimited ? null : r.granted - r.consumedPaid,
+      };
+    });
+
+    // Summed from the rows above, so the two can never disagree.
+    const byCountry = new Map<string, any>();
+    for (const s of perSchool) {
+      const key = s.countryId ?? "__unassigned__";
+      if (!byCountry.has(key)) {
+        byCountry.set(key, {
+          countryId: s.countryId, countryName: null, countryNameAr: null,
+          schools: 0, unlimitedSchools: 0,
+          granted: 0, grantedFree: 0, revenue: 0, purchases: 0,
+          consumed: 0, consumedPaid: 0, consumedReward: 0, remaining: 0,
+        });
+      }
+      const c = byCountry.get(key);
+      c.schools += 1;
+      if (s.isUnlimited) c.unlimitedSchools += 1;
+      c.granted += s.granted;
+      c.grantedFree += s.grantedFree;
+      c.revenue += s.revenue;
+      c.purchases += s.purchases;
+      c.consumed += s.consumed;
+      c.consumedPaid += s.consumedPaid;
+      c.consumedReward += s.consumedReward;
+      // Unlimited schools contribute nothing to a remaining balance, because
+      // they have none to contribute.
+      if (s.remaining !== null) c.remaining += s.remaining;
+    }
+
+    // Names from the controlled vocabulary, in both languages, rather than
+    // echoing the id — the same reason GET /api/reference exists.
+    const countryRows = await db
+      .select({ id: countries.id, name: countries.name, nameAr: countries.nameAr })
+      .from(countries);
+    const nameById = new Map(countryRows.map((c: any) => [c.id, c]));
+    for (const c of byCountry.values()) {
+      const match = c.countryId ? nameById.get(c.countryId) : null;
+      c.countryName = match?.name ?? (c.countryId ? c.countryId : "No country set");
+      c.countryNameAr = match?.nameAr ?? null;
+    }
+
+    const perCountry = [...byCountry.values()].sort((a, b) => b.consumed - a.consumed);
+
+    /**
+     * REVENUE GROUPED BY CURRENCY, never summed across them. Stripe is on USD
+     * today and the column exists so a switch to AED is possible; adding the
+     * two together would produce a number that is not money in any currency.
+     */
+    const revenueRows = await db
+      .select({
+        currency: licenseGrants.currency,
+        amount: sql<number>`COALESCE(SUM(${licenseGrants.amountPaid}), 0)::double precision`,
+        purchases: sql<number>`count(*)::int`,
+      })
+      .from(licenseGrants)
+      .where(eq(licenseGrants.kind, "purchase"))
+      .groupBy(licenseGrants.currency);
+
+    const revenueByCurrency = revenueRows
+      .filter((r: any) => r.currency)
+      .map((r: any) => ({ currency: r.currency, amount: Number(r.amount), purchases: Number(r.purchases) }));
+
+    // A parent's own pool: counted, attributed to no school, reported apart.
+    const [guardian] = await db
+      .select({
+        consumed: sql<number>`count(*)::int`,
+        consumedPaid: sql<number>`count(*) FILTER (WHERE ${licenseConsumptions.currency} = 'paid')::int`,
+        consumedReward: sql<number>`count(*) FILTER (WHERE ${licenseConsumptions.currency} = 'reward')::int`,
+      })
+      .from(licenseConsumptions)
+      .where(eq(licenseConsumptions.poolOwnerType, "user"));
+
+    const platform = {
+      schools: perSchool.length,
+      unlimitedSchools: perSchool.filter((s) => s.isUnlimited).length,
+      granted: perSchool.reduce((a, s) => a + s.granted, 0),
+      grantedFree: perSchool.reduce((a, s) => a + s.grantedFree, 0),
+      purchases: perSchool.reduce((a, s) => a + s.purchases, 0),
+      schoolConsumed: perSchool.reduce((a, s) => a + s.consumed, 0),
+      schoolConsumedPaid: perSchool.reduce((a, s) => a + s.consumedPaid, 0),
+      schoolConsumedReward: perSchool.reduce((a, s) => a + s.consumedReward, 0),
+      guardianConsumed: Number(guardian?.consumed ?? 0),
+      // Every report generated on the platform, from either kind of pool.
+      totalConsumed: perSchool.reduce((a, s) => a + s.consumed, 0) + Number(guardian?.consumed ?? 0),
+      remainingAtCappedSchools: perSchool.reduce((a, s) => a + (s.remaining ?? 0), 0),
+    };
+
+    return {
+      perSchool,
+      perCountry,
+      platform,
+      revenueByCurrency,
+      guardianPools: {
+        consumed: Number(guardian?.consumed ?? 0),
+        consumedPaid: Number(guardian?.consumedPaid ?? 0),
+        consumedReward: Number(guardian?.consumedReward ?? 0),
+      },
+      caveats: [
+        "Revenue covers school licences only. A parent's own pool has no organization, so parent purchases are not in the grants ledger; their consumption is reported under guardianPools.",
+        "Grants backfilled by migration 032 carry no amount on purpose: the one payment on record cannot be attributed to a licence count that may have been edited since. They appear in grantedFree, never in revenue.",
+        "An unlimited school has no remaining balance and is excluded from remainingAtCappedSchools rather than counted as zero.",
+        "Reward credits are earned, not bought. They are consumption without revenue, and are subtracted from no paid balance.",
+      ],
+    };
+  }
+
   async recomputeOrganizationLicenseUsage(
     organizationId: string,
     tx: any = db,

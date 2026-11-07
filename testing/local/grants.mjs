@@ -226,6 +226,193 @@ let compOrgId = null;
     `HTTP ${r.status} ${typeof r.body === "string" ? "(html)" : JSON.stringify(r.body).slice(0, 60)}`);
 }
 
+/**
+ * =========================  ANALYTICS  =========================
+ *
+ * A-01  the endpoint totals agree with the ledgers, counted independently
+ * A-02  MULTIPLE grants and MULTIPLE consumptions on one school do not
+ *       multiply each other. This is the case the whole query shape exists
+ *       for: joining organizations to both ledgers at once gives a school with
+ *       3 grants and 4 consumptions 12 rows, and reports 12 of each. Every
+ *       figure would be wrong in a way that looks entirely plausible, which is
+ *       why it is asserted with exact numbers rather than "looks about right".
+ * A-03  country totals are exactly the sum of their schools' rows
+ * A-04  only paid consumption is deducted from a balance -- reward credits are
+ *       a separate pool, and charging both would bill a school twice
+ * A-05  an unlimited school reports no remaining balance rather than zero
+ * A-06  revenue counts purchases only, never comps or backfilled rows
+ * A-07  revenue is grouped by currency, never summed across them
+ * A-08  only a superadmin can read it
+ */
+{
+  const an = await sa.get("/api/superadmin/licenses/analytics");
+  const body = an.body ?? {};
+
+  // Independent truth, straight from the two ledgers.
+  const [truth] = await sql(`
+    SELECT (SELECT COALESCE(SUM(licenses_delta),0)::int FROM license_grants) AS granted,
+           (SELECT COALESCE(SUM(amount_paid),0)::double precision FROM license_grants WHERE kind='purchase') AS revenue,
+           (SELECT count(*)::int FROM license_consumptions) AS consumed,
+           (SELECT count(*)::int FROM organizations) AS schools`);
+
+  const revenueTotal = (body.revenueByCurrency ?? []).reduce((a, r) => a + Number(r.amount), 0);
+  rec("A-01", "platform totals agree with the ledgers counted independently",
+    an.status === 200 &&
+      Number(body.platform?.granted) === Number(truth.granted) &&
+      Number(body.platform?.totalConsumed) === Number(truth.consumed) &&
+      Math.abs(revenueTotal - Number(truth.revenue)) < 0.01 &&
+      Number(body.platform?.schools) === Number(truth.schools),
+    `granted ${body.platform?.granted}/${truth.granted}, consumed ` +
+    `${body.platform?.totalConsumed}/${truth.consumed}, revenue ${revenueTotal}/${truth.revenue}, ` +
+    `schools ${body.platform?.schools}/${truth.schools}`);
+}
+
+// --------------- A-02  several grants AND several consumptions on one school
+{
+  // compOrgId already carries 3 grant rows (40, +60, -25) from W-04/W-05.
+  // Give it consumption too, which is what triggers the multiplication bug.
+  const [stu] = await sql(
+    `SELECT user_id FROM organization_members
+      WHERE organization_id = $1 AND role = 'student' LIMIT 1`, [orgs.A.orgId]);
+
+  // Four consumption rows, each needing its own assessment: the assessment id
+  // is unique on the consumption ledger, which is what makes a regenerated
+  // report free.
+  for (let i = 0; i < 4; i++) {
+    const [a] = await sql(
+      `INSERT INTO assessments (user_id, country_id, curriculum, grade, favorite_subjects, interests)
+       VALUES ($1, 'uae', 'MOE National', '10', ARRAY['Mathematics'], ARRAY['Technology'])
+       RETURNING id`, [stu.user_id]);
+    await sql(
+      `INSERT INTO license_consumptions
+         (pool_owner_type, organization_id, student_user_id, assessment_id, grade, currency)
+       VALUES ('organization', $1, $2, $3, '10', $4)`,
+      [compOrgId, stu.user_id, a.id, i < 3 ? "paid" : "reward"]);
+  }
+
+  const an = await sa.get("/api/superadmin/licenses/analytics");
+  const row = (an.body?.perSchool ?? []).find((s) => s.organizationId === compOrgId);
+
+  const [grantRows] = await sql(
+    `SELECT count(*)::int n FROM license_grants WHERE organization_id = $1`, [compOrgId]);
+  const [consRows] = await sql(
+    `SELECT count(*)::int n FROM license_consumptions WHERE organization_id = $1`, [compOrgId]);
+
+  rec("A-02", "several grants and several consumptions do not multiply",
+    !!row && row.granted === 75 && row.consumed === 4 &&
+      row.consumedPaid === 3 && row.consumedReward === 1,
+    row ? `${grantRows.n} grants x ${consRows.n} consumptions -> granted=${row.granted} (75), ` +
+          `consumed=${row.consumed} (4), paid=${row.consumedPaid} (3), reward=${row.consumedReward} (1)`
+        : "school not in the report");
+
+  // -------------------- A-04  only paid consumption reduces the balance
+  rec("A-04", "only paid consumption is deducted, not reward credits",
+    row?.remaining === 72,
+    `remaining=${row?.remaining}, expected 72 (75 granted - 3 paid, reward untouched)`);
+}
+
+// ------------------------ A-03  country totals are the sum of school rows
+{
+  const an = await sa.get("/api/superadmin/licenses/analytics");
+  const schools = an.body?.perSchool ?? [];
+  const countries = an.body?.perCountry ?? [];
+  const mismatches = [];
+  for (const c of countries) {
+    const mine = schools.filter((s) => (s.countryId ?? null) === (c.countryId ?? null));
+    const g = mine.reduce((a, s) => a + s.granted, 0);
+    const u = mine.reduce((a, s) => a + s.consumed, 0);
+    if (g !== c.granted || u !== c.consumed || mine.length !== c.schools) {
+      mismatches.push(`${c.countryName}: ${g}/${c.granted} granted, ${u}/${c.consumed} consumed`);
+    }
+  }
+  rec("A-03", "every country total is exactly the sum of its schools' rows",
+    countries.length > 0 && mismatches.length === 0,
+    `${countries.length} countries checked: ${mismatches.length ? mismatches.join("; ") : "all agree"}` +
+    `; names resolved: ${countries.every((c) => !!c.countryName)}`);
+}
+
+// --------------------- A-05  an unlimited school has no remaining balance
+{
+  const [beforeA] = await sql(
+    `SELECT is_unlimited_licenses FROM organizations WHERE id = $1`, [orgs.A.orgId]);
+  await sql(`UPDATE organizations SET is_unlimited_licenses = true WHERE id = $1`, [orgs.A.orgId]);
+
+  const an = await sa.get("/api/superadmin/licenses/analytics");
+  const row = (an.body?.perSchool ?? []).find((s) => s.organizationId === orgs.A.orgId);
+  // null, not 0: zero reads as exhausted, the opposite of unlimited.
+  rec("A-05", "an unlimited school reports no remaining balance, not zero",
+    row?.remaining === null && row?.isUnlimited === true &&
+      an.body?.platform?.unlimitedSchools >= 1,
+    `remaining=${JSON.stringify(row?.remaining)}, unlimited=${row?.isUnlimited}, ` +
+    `platform counts ${an.body?.platform?.unlimitedSchools}`);
+
+  await sql(`UPDATE organizations SET is_unlimited_licenses = $2 WHERE id = $1`,
+    [orgs.A.orgId, beforeA.is_unlimited_licenses]);
+}
+
+// ------------------- A-06 / A-07  revenue is purchases only, per currency
+{
+  const an = await sa.get("/api/superadmin/licenses/analytics");
+  const rev = an.body?.revenueByCurrency ?? [];
+
+  const [truth] = await sql(`
+    SELECT COALESCE(SUM(amount_paid),0)::double precision AS purchases_only,
+           (SELECT count(*)::int FROM license_grants WHERE kind IN ('comp','backfill')) AS free_rows
+      FROM license_grants WHERE kind = 'purchase'`);
+
+  const total = rev.reduce((a, r) => a + Number(r.amount), 0);
+  rec("A-06", "revenue counts purchases only, with comps and backfills excluded",
+    Math.abs(total - Number(truth.purchases_only)) < 0.01 && Number(truth.free_rows) > 0,
+    `revenue ${total} vs purchases-only ${truth.purchases_only}, ` +
+    `with ${truth.free_rows} free row(s) present and excluded`);
+
+  // Add an AED purchase and require it to be reported apart, not added in.
+  const [org] = await sql(`SELECT id FROM organizations LIMIT 1`);
+  await sql(`INSERT INTO license_grants (organization_id, kind, licenses_delta, amount_paid, currency, note)
+             VALUES ($1, 'purchase', 5, 100, 'AED', 'grants.mjs A-07 currency probe')`, [org.id]);
+
+  const after = await sa.get("/api/superadmin/licenses/analytics");
+  const byCur = Object.fromEntries((after.body?.revenueByCurrency ?? []).map((r) => [r.currency, r.amount]));
+  rec("A-07", "two currencies are reported apart, never added together",
+    Object.keys(byCur).length >= 2 && Number(byCur.AED) === 100 && Number(byCur.USD) > 0,
+    `${JSON.stringify(byCur)}`);
+
+  await sql(`DELETE FROM license_grants WHERE note = 'grants.mjs A-07 currency probe'`);
+}
+
+// ------------------------------------- A-08  org admins cannot read it
+{
+  const r = await orgs.A.session.get("/api/superadmin/licenses/analytics");
+  rec("A-08", "an org admin cannot read licence analytics",
+    r.status === 401 || r.status === 403,
+    `HTTP ${r.status}`);
+}
+
+/**
+ * ------------- A-09  the independent check again, now consumption is non-zero
+ *
+ * A-01 ran before any consumption existed, so its consumed comparison was 0
+ * against 0 — true, and no evidence. A-02 since created four rows, one of them
+ * a reward, so repeating the check here compares real numbers on both sides.
+ */
+{
+  const an = await sa.get("/api/superadmin/licenses/analytics");
+  const [truth] = await sql(`
+    SELECT (SELECT count(*)::int FROM license_consumptions) AS all_consumed,
+           (SELECT count(*)::int FROM license_consumptions WHERE pool_owner_type = 'organization') AS school_consumed,
+           (SELECT count(*)::int FROM license_consumptions WHERE pool_owner_type = 'user') AS guardian_consumed,
+           (SELECT count(*)::int FROM license_consumptions WHERE currency = 'reward') AS reward`);
+  const p = an.body?.platform ?? {};
+  rec("A-09", "consumption totals agree once there is some, school and parent apart",
+    Number(truth.all_consumed) > 0 &&
+      Number(p.totalConsumed) === Number(truth.all_consumed) &&
+      Number(p.schoolConsumed) === Number(truth.school_consumed) &&
+      Number(p.guardianConsumed) === Number(truth.guardian_consumed) &&
+      Number(p.schoolConsumedReward) === Number(truth.reward),
+    `total ${p.totalConsumed}/${truth.all_consumed}, school ${p.schoolConsumed}/${truth.school_consumed}, ` +
+    `parent ${p.guardianConsumed}/${truth.guardian_consumed}, reward ${p.schoolConsumedReward}/${truth.reward}`);
+}
+
 const pass = results.filter((r) => r.pass).length;
 const fail = results.filter((r) => !r.pass);
 console.log(`\n${"=".repeat(78)}`);

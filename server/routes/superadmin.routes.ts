@@ -351,6 +351,26 @@ export function registerSuperadminRoutes(app: Express) {
     }
   });
 
+  /**
+   * LICENCE ANALYTICS — paid against consumed, per school and per country.
+   *
+   * Both sides come from ledgers rather than counters: grants for what a school
+   * was given and what was paid, consumptions for what it spent.
+   *
+   * The payload carries its own `caveats`, which is not decoration. The honest
+   * limits of these figures — parent pools being outside the grants ledger,
+   * backfilled rows carrying no amount — travel with the numbers, so a reader
+   * cannot pick up school revenue and present it as platform revenue.
+   */
+  app.get("/api/superadmin/licenses/analytics", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      res.json(await storage.getLicenseAnalytics());
+    } catch (error) {
+      console.error("Error building licence analytics:", error);
+      res.status(500).json({ message: "Failed to build licence analytics" });
+    }
+  });
+
   // ===============================
   // ORGANIZATIONS DIRECTORY (with search/filter/sort)
   // ===============================
