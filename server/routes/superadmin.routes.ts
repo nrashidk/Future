@@ -6,6 +6,7 @@ import { clearSubjectCache } from "../utils/subjects";
 import { dataExportLimiter, orgCreationLimiter } from "../middleware/rateLimiter.middleware";
 import { getSuperadminEmails } from "../middleware/auth.middleware";
 import { evaluateEmailChange, normalizeEmail } from "../utils/emailChange";
+import { decideGrantMoney } from "@shared/licenseGrants";
 import { sendEmailChangeNotifications } from "../services/email";
 import { toPublicUser } from "@shared/userPublic";
 import type { User } from "@shared/schema";
@@ -319,6 +320,34 @@ export function registerSuperadminRoutes(app: Express) {
     } catch (error) {
       console.error("Error fetching superadmin metrics:", error);
       res.status(500).json({ message: "Failed to fetch metrics" });
+    }
+  });
+
+  /**
+   * LICENCE RECONCILIATION — schools whose grants ledger disagrees with their
+   * licence total.
+   *
+   * This is what makes the grants ledger worth having while total_licenses is
+   * still the authoritative value. A school appears here when some code path
+   * changed its entitlement without recording a row, which is the
+   * accepted-at-creation, visible-nowhere failure this codebase keeps
+   * producing: found by making the invisible state reportable, not by hoping
+   * somebody notices.
+   *
+   * An empty list is the expected answer, and the count is returned so that
+   * "nothing wrong" is distinguishable from "nothing checked".
+   */
+  app.get("/api/superadmin/licenses/reconciliation", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const mismatches = await storage.getLicenseGrantReconciliation();
+      res.json({
+        checked: "all schools with a licence cap; unlimited schools are excluded because their total has no meaning",
+        mismatchCount: mismatches.length,
+        mismatches,
+      });
+    } catch (error) {
+      console.error("Error reconciling licence grants:", error);
+      res.status(500).json({ message: "Failed to reconcile licence grants" });
     }
   });
 
@@ -835,7 +864,48 @@ export function registerSuperadminRoutes(app: Express) {
         totalLicenses: newTotalLicenses,
         isUnlimitedLicenses: newIsUnlimited,
       });
-      
+
+      /**
+       * THE GRANT ROW. This route is where every top-up after a school's first
+       * purchase actually happens, and it used to record a count and nothing
+       * else -- which is why "paid per school" was unanswerable.
+       *
+       * THE AMOUNT IS OPTIONAL INPUT, not something the server can derive. A
+       * school paying by bank transfer is money this system never sees, so the
+       * superadmin is the only source for it. Given an amount, this is a
+       * purchase; given none, an increase is a comp and a decrease an
+       * adjustment. Nothing is guessed: a top-up with no amount is reported as
+       * granted rather than as revenue.
+       *
+       * Superadmin-gated by the middleware on this route, like everything else
+       * here that can change what a school is entitled to.
+       */
+      const delta = newTotalLicenses - previousValue.totalLicenses;
+      if (delta !== 0) {
+        // A reduction is never a sale, so an unpaid decrease is an adjustment
+        // and an unpaid increase is a comp.
+        const money = decideGrantMoney(
+          req.body?.amountPaid, req.body?.currency, delta > 0 ? "comp" : "adjustment",
+        );
+        try {
+          await storage.recordLicenseGrant({
+            organizationId: req.params.id,
+            kind: money.kind,
+            licensesDelta: delta,
+            amountPaid: money.amountPaid,
+            currency: money.currency,
+            performedBy: currentUser.id,
+            note: req.body?.note ? String(req.body.note).slice(0, 2000) : eventDescription || null,
+          });
+        } catch (e) {
+          // The entitlement change has already succeeded. Failing the request
+          // now would tell the superadmin it did not happen, and they would do
+          // it again. The reconciliation report is what surfaces the missing
+          // row, which is exactly the case it exists for.
+          console.error(`[Licences] Failed to record grant for ${req.params.id}:`, e);
+        }
+      }
+
       if (eventType) {
         await storage.createOrganizationEvent({
           organizationId: req.params.id,
@@ -1067,6 +1137,45 @@ export function registerSuperadminRoutes(app: Express) {
       });
       
       const currentUser = (req as any).currentUser;
+
+      /**
+       * THE OPENING GRANT, so the ledger agrees with total_licenses from the
+       * school's first moment. Without it every superadmin-created school is
+       * flagged by the reconciliation report on day one.
+       *
+       * KIND 'comp' WHEN NO AMOUNT IS GIVEN, and that is a real claim: it says
+       * these licences were granted free. If the school in fact paid offline,
+       * the superadmin should pass the amount, which makes it a purchase. The
+       * alternative -- defaulting to 'purchase' with an amount of zero -- would
+       * put a free school into revenue at zero and understate the average
+       * price, so a missing amount is reported as granted rather than sold.
+       *
+       * An unlimited school gets no row: its total is zero here and has no
+       * meaning, which is also why reconciliation excludes it.
+       */
+      const openingLicenses = isUnlimitedLicenses ? 0 : parseInt(totalLicenses);
+      if (openingLicenses > 0) {
+        const money = decideGrantMoney(req.body?.amountPaid, req.body?.currency, "comp");
+        try {
+          await storage.recordLicenseGrant({
+            organizationId: organization.id,
+            kind: money.kind,
+            licensesDelta: openingLicenses,
+            amountPaid: money.amountPaid,
+            currency: money.currency,
+            performedBy: currentUser.id,
+            note: money.kind === "purchase"
+              ? "Recorded by superadmin at school creation"
+              : "Granted by superadmin at school creation; no payment recorded",
+          });
+        } catch (e) {
+          // The school exists and is usable. Failing the request here would
+          // leave a created school behind a 500, and the superadmin would
+          // create it again. Reconciliation surfaces the missing row.
+          console.error(`[Licences] Failed to record opening grant for ${organization.id}:`, e);
+        }
+      }
+
       await storage.createOrganizationEvent({
         organizationId: organization.id,
         eventType: "admin_added",

@@ -37,6 +37,7 @@ import {
   organizationConsents,
   childProfiles,
   licenseConsumptions,
+  licenseGrants,
   contributionReviews,
   REVIEW_MAJORITY,
   childGuardianConsents,
@@ -131,6 +132,7 @@ import {
 import { db } from "./db";
 import { collapseToLatestPerGrade, gradeSortKey, mergeGradeCounts, toCanonicalGrade } from "@shared/grade";
 import { assessmentIsChildOwned } from "@shared/childOwnership";
+import { decideGrantMoney } from "@shared/licenseGrants";
 import { splitStudentName } from "@shared/studentName";
 import { SUBJECT_IDS } from "@shared/subjects";
 import { eq, ne, and, or, desc, count, avg, sql, inArray, notInArray, isNotNull, isNull, gte, type SQL } from "drizzle-orm";
@@ -2979,6 +2981,54 @@ export class DatabaseStorage implements IStorage {
         })
         .returning();
 
+      /**
+       * THE GRANT ROW, in this same transaction.
+       *
+       * Recorded here rather than by the caller so it cannot be written while
+       * the purchase rolls back. The three payment columns above are kept as
+       * they were -- they are what the old code reads -- but they hold one
+       * payment for ever, which is why this row exists.
+       *
+       * The unique Stripe id makes a webhook redelivery a no-op; a redelivery
+       * that got this far would already have failed on the "user already has
+       * an organization" check above, and this is the second guard.
+       */
+      /**
+       * NEVER LET THIS FAIL THE PURCHASE.
+       *
+       * recordLicenseGrant refuses a purchase without an amount, and the check
+       * constraint refuses it at the database. Either would throw INSIDE this
+       * transaction and roll back a payment Stripe has already taken -- the
+       * same hazard that keeps country and curriculum nullable on this path.
+       * A try/catch is not enough: in Postgres a failed statement aborts the
+       * surrounding transaction regardless.
+       *
+       * So the amount decides the kind BEFORE the insert, in one shared pure
+       * function with its own tests (shared/licenseGrants.ts). An amount that
+       * is not a finite number — a Stripe payload without `amount` makes this
+       * NaN — is recorded as a grant with no money and a note saying so,
+       * rather than as a purchase that cannot be written. An unexplained
+       * licence count is recoverable from Stripe; a lost sale is not.
+       */
+      const money = decideGrantMoney(amountPaid, "USD");
+
+      await this.recordLicenseGrant({
+        organizationId: organization.id,
+        kind: money.kind,
+        licensesDelta: studentCount,
+        amountPaid: money.amountPaid,
+        // Stripe is configured for USD (server/routes/payment.routes.ts), and
+        // the amount above is already converted to major units. Stored rather
+        // than assumed, so a later switch to AED cannot silently mix the two.
+        currency: money.currency,
+        // Kept on the row either way: it is the link back to Stripe, and it is
+        // what makes a webhook redelivery a no-op.
+        stripePaymentId: paymentIntentId,
+        note: money.kind === "purchase"
+          ? "Group purchase through Stripe"
+          : `Group purchase through Stripe ${paymentIntentId}, but the amount was missing or unreadable — NOT counted as revenue. Reconcile against Stripe.`,
+      }, tx);
+
       // Enroll admin as organization member
       await tx
         .insert(organizationMembers)
@@ -3113,6 +3163,114 @@ export class DatabaseStorage implements IStorage {
    * counter SET from a COUNT cannot drift, so there is still no path anywhere
    * that adds to or subtracts from these two columns.
    */
+  /**
+   * RECORD A CHANGE TO A SCHOOL'S ENTITLEMENT. One row, every time.
+   *
+   * Takes `tx` so the row lands in the SAME transaction as the entitlement
+   * change that earned it. A grant recorded outside that transaction can be
+   * written while the change it describes rolls back, which is worse than not
+   * recording it: the ledger would then disagree with total_licenses and the
+   * reconciliation report would blame a school that is fine.
+   *
+   * RETURNS null ON A DUPLICATE STRIPE PAYMENT rather than throwing. Stripe
+   * redelivers webhooks, and a redelivery is a normal event, not an error --
+   * the partial unique index refuses the second row and the caller carries on.
+   * The pg code is matched, not the message: drizzle wraps the error, so
+   * message matching silently never fires. The duplicate-vote check in
+   * recordContributionReview learned this the same way.
+   */
+  async recordLicenseGrant(
+    params: {
+      organizationId: string;
+      kind: "purchase" | "comp" | "adjustment";
+      licensesDelta: number;
+      amountPaid?: number | null;
+      currency?: string | null;
+      stripePaymentId?: string | null;
+      performedBy?: string | null;
+      note?: string | null;
+    },
+    // Defaults to the pooled handle, like recomputeOrganizationLicenseUsage.
+    // Callers inside a transaction MUST pass their tx — see above.
+    tx: any = db,
+  ): Promise<{ id: string } | null> {
+    // The check constraint refuses money on anything but a purchase, and
+    // refuses a purchase without it. Normalising here means a caller that
+    // passes an amount with the wrong kind gets a clear refusal rather than a
+    // constraint violation from three layers down.
+    const isPurchase = params.kind === "purchase";
+    if (isPurchase && (params.amountPaid == null || !params.currency)) {
+      throw new Error("A purchase grant must carry both an amount and a currency");
+    }
+
+    try {
+      const [row] = await tx
+        .insert(licenseGrants)
+        .values({
+          organizationId: params.organizationId,
+          kind: params.kind,
+          licensesDelta: params.licensesDelta,
+          amountPaid: isPurchase ? params.amountPaid : null,
+          currency: isPurchase ? params.currency : null,
+          stripePaymentId: params.stripePaymentId ?? null,
+          performedBy: params.performedBy ?? null,
+          note: params.note ?? null,
+        })
+        .returning({ id: licenseGrants.id });
+      return row ?? null;
+    } catch (e: any) {
+      const code = e?.code ?? e?.cause?.code ?? e?.originalError?.code;
+      if (code === "23505" && params.stripePaymentId) {
+        console.log(
+          `[Licences] Stripe payment ${params.stripePaymentId} already recorded; ignoring redelivery.`,
+        );
+        return null;
+      }
+      throw e;
+    }
+  }
+
+  /**
+   * SCHOOLS WHOSE LEDGER DISAGREES WITH THEIR LICENCE TOTAL.
+   *
+   * The whole reason the grants ledger is worth having while total_licenses
+   * remains authoritative. A school appears here when some code path changed
+   * its entitlement without recording a row -- the accepted-at-creation,
+   * visible-nowhere family, which in this codebase is found by making the
+   * invisible state reportable rather than by hoping to notice it.
+   *
+   * UNLIMITED SCHOOLS ARE EXCLUDED. Their total_licenses is a number with no
+   * meaning, so comparing it to anything produces a mismatch that is not one.
+   */
+  async getLicenseGrantReconciliation(): Promise<Array<{
+    organizationId: string;
+    name: string;
+    countryId: string | null;
+    totalLicenses: number;
+    ledgerTotal: number;
+    difference: number;
+  }>> {
+    const rows = await db
+      .select({
+        organizationId: organizations.id,
+        name: organizations.name,
+        countryId: organizations.countryId,
+        totalLicenses: organizations.totalLicenses,
+        ledgerTotal: sql<number>`COALESCE(SUM(${licenseGrants.licensesDelta}), 0)::int`,
+      })
+      .from(organizations)
+      .leftJoin(licenseGrants, eq(licenseGrants.organizationId, organizations.id))
+      .where(eq(organizations.isUnlimitedLicenses, false))
+      .groupBy(organizations.id, organizations.name, organizations.countryId, organizations.totalLicenses)
+      .having(sql`COALESCE(SUM(${licenseGrants.licensesDelta}), 0) <> ${organizations.totalLicenses}`);
+
+    return rows.map((r: any) => ({
+      ...r,
+      ledgerTotal: Number(r.ledgerTotal),
+      difference: Number(r.ledgerTotal) - Number(r.totalLicenses),
+    }));
+  }
+
   async recomputeOrganizationLicenseUsage(
     organizationId: string,
     tx: any = db,

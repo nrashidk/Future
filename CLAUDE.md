@@ -95,8 +95,14 @@ node testing/local/<suite>.mjs
 
 Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `progression`, `licences`, `new-country`, `contribution`, `crosscutting`,
-`school-setup`, `question-gaps`, `peer-review`, plus `migration-029-dryrun`,
-`migration-030-dryrun` and `migration-032-dryrun`.
+`school-setup`, `question-gaps`, `peer-review`, `grants`, plus
+`migration-029-dryrun`, `migration-030-dryrun` and `migration-032-dryrun`.
+
+`grants` runs migration 032 itself before asserting anything: schema-push
+creates the tables and marks migrations applied **without running them**, so
+the backfill never happens in the harness and schools created by `seed.ts` have
+no ledger row. Reconciliation then correctly flags a state that only exists
+here. Any suite that asserts on reconciliation needs to do the same.
 `testing/local/README.md` has the details.
 
 **Run suites one at a time with a pause between them.** PGlite allows a single
@@ -188,7 +194,25 @@ names its money and nothing else may, so a comp can never appear in revenue.
 It is **additive for now**: `organizations.total_licenses` is still the value
 licence enforcement reads, and the sum of deltas is reconciled against it
 rather than replacing it. That reconciliation is the point — it catches a code
-path that changes entitlement without recording it.
+path that changes entitlement without recording it, and it is readable at
+`GET /api/superadmin/licenses/reconciliation`. Unlimited schools are excluded,
+because their total is a number with no meaning.
+
+Three paths write to it: the Stripe group purchase, superadmin school creation,
+and the superadmin licence add/remove route. **An amount is optional input on
+the two superadmin paths** and the only source for a school that paid by bank
+transfer — money this system never sees. With an amount the row is a purchase;
+without one an increase is a comp and a decrease an adjustment. Nothing is
+guessed, so a top-up with no amount reports as granted rather than as revenue.
+
+`shared/licenseGrants.ts` holds that amount-to-kind rule, pure and tested,
+because one of its callers runs **inside the Stripe purchase transaction**: a
+purchase without an amount is refused by the check constraint, and a refused
+insert there rolls back a payment already taken. A try/catch does not save it —
+in Postgres a failed statement aborts the surrounding transaction regardless —
+so the kind must be decided correctly before the insert. `NaN` from a Stripe
+payload with no `amount` is the case that matters. An unexplained licence count
+is recoverable from Stripe; a lost sale is not.
 
 Stripe cannot answer any licence question. It knows amounts and customers, not
 licences, schools, countries or curricula, and reward credits never touch it
