@@ -336,11 +336,19 @@ export function registerCountryRoutes(app: Express) {
         llmPopulated: false,
       };
 
+      // Curricula the model reports as taught in the country but which the
+      // country is deliberately NOT created with -- see the note on `curricula`
+      // below.
+      let suggestedCurricula: string[] = [];
+
       if (autoPopulate) {
         console.log(`[Country] Auto-populating data for ${name} using LLM...`);
         const result = await researchCountryData(storage, name, code);
         
         if (result.success && result.data) {
+          suggestedCurricula = (result.data.curricula ?? []).filter(
+            (c) => c !== result.data!.nationalCurriculum,
+          );
           countryData = {
             ...countryData,
             mission: result.data.mission,
@@ -352,7 +360,30 @@ export function registerCountryRoutes(app: Express) {
             educationSystem: result.data.educationSystem,
             universitiesLink: result.data.universitiesLink,
             universitiesLinkLabel: result.data.universitiesLinkLabel,
-            curricula: result.data.curricula,
+            /**
+             * THE NATIONAL CURRICULUM ONLY.
+             *
+             * This used to take the model's whole list, so a country arrived
+             * offering four curricula at once -- and every curriculum offered
+             * is a commitment to fill, because it needs its own questions for
+             * each subject and grade or the quiz silently borrows another
+             * country's. The UAE shipped exactly that way: four offered, one
+             * with content.
+             *
+             * The national curriculum is also the right one to lead with for
+             * a platform sold to ministries, and it is the one the question
+             * bank will actually cover. The others come back as suggestions
+             * (suggestedCurricula in the response) for a superadmin to add
+             * deliberately, once there is content behind them.
+             *
+             * Falls back to the model's first entry if it did not name a
+             * national curriculum, and to nothing at all if it named none --
+             * an empty list is recoverable and the readiness check reports it,
+             * whereas a wrong curriculum name becomes a key schools match on.
+             */
+            curricula: result.data.nationalCurriculum
+              ? [result.data.nationalCurriculum]
+              : (result.data.curricula ?? []).slice(0, 1),
             subjects: result.data.subjects,
             gradeLevels: result.data.gradeLevels,
             llmPopulated: true,
@@ -476,6 +507,13 @@ export function registerCountryRoutes(app: Express) {
         success: true,
         country: sectorGeneration?.persisted ? await storage.getCountryById(id) : country,
         autoPopulated: autoPopulate && countryData.llmPopulated,
+        // Which curricula the model found but the country was NOT created with
+        // -- offered to the superadmin to add deliberately, once there is
+        // question content to back them. Adding one creates its subjects.
+        ...(suggestedCurricula.length ? { suggestedCurricula } : {}),
+        // Subject rows created per curriculum, so the caller can see the
+        // country is usable rather than having to go and look.
+        subjectSeeding,
         ...(sectorGeneration ? { sectorGeneration } : {}),
       });
     } catch (error) {
@@ -732,7 +770,24 @@ export function registerCountryRoutes(app: Express) {
         educationSystem: result.data!.educationSystem,
         universitiesLink: result.data!.universitiesLink,
         universitiesLinkLabel: result.data!.universitiesLinkLabel,
-        curricula: result.data!.curricula,
+        /**
+         * REPOPULATE MUST NOT WIDEN WHAT A COUNTRY OFFERS.
+         *
+         * This took the model's whole curricula list, so refreshing a country
+         * could ADD curricula -- each one offered with no questions behind it.
+         * A refresh is for correcting the country's own data, not for taking
+         * on new content commitments.
+         *
+         * So existing curricula are kept as they are, and the national one is
+         * added only if it is somehow missing. Adding an international
+         * curriculum stays a deliberate act.
+         */
+        curricula: (() => {
+          const current = country.curricula ?? [];
+          const national = result.data!.nationalCurriculum;
+          if (national && !current.includes(national)) return [national, ...current];
+          return current;
+        })(),
         subjects: result.data!.subjects,
         gradeLevels: result.data!.gradeLevels,
         llmPopulated: true,
@@ -747,8 +802,12 @@ export function registerCountryRoutes(app: Express) {
        * every new one a dead end. Idempotent, so a country that already has
        * its rows is unaffected.
        */
+      // Seeded against what the country NOW OFFERS, not against the model's
+      // list -- those are deliberately different since repopulate stopped
+      // widening the offer, and seeding from the model's list would create
+      // subject rows for curricula the country does not offer.
       const subjectSeeding: Array<{ curriculum: string; created: number }> = [];
-      for (const curriculum of result.data!.curricula ?? []) {
+      for (const curriculum of updatedCountry.curricula ?? []) {
         try {
           const { created } = await storage.ensureCurriculumSubjects(req.params.id, curriculum);
           subjectSeeding.push({ curriculum, created });

@@ -33,6 +33,20 @@ interface CountryData {
   educationSystem: string;
   universitiesLink: string;
   universitiesLinkLabel: string;
+  /**
+   * THE STATE CURRICULUM, named separately from the rest.
+   *
+   * `curricula` below is every curriculum TAUGHT in the country, which is a
+   * different thing from what the platform should offer on day one. Each
+   * curriculum the platform offers is a commitment to fill: it needs its own
+   * questions for every subject and grade, or the quiz silently borrows
+   * another country's. Creating four at once creates three liabilities.
+   *
+   * So the national curriculum is identified on its own and is the one a new
+   * country is created with. The others are returned as suggestions for a
+   * superadmin to add deliberately, once there is content to back them.
+   */
+  nationalCurriculum: string;
   curricula: string[];
   subjects: string[];
   gradeLevels: string[];
@@ -291,7 +305,8 @@ Provide the following information in JSON format:
   "educationSystem": "Brief description of the education system (grade levels, structure, key features) in 2-3 sentences",
   "universitiesLink": "URL to the official higher education accreditation body or ministry website",
   "universitiesLinkLabel": "Display name for the link, e.g., 'Ministry of Education' or 'Higher Education Commission'",
-  "curricula": ["Array of curricula used in the country, e.g., 'National Curriculum', 'CBSE', 'IB', 'Cambridge', 'American'"],
+  "nationalCurriculum": "The name of the country's OWN state/government curriculum, as its ministry of education calls it (e.g. 'MOE National' for the UAE, 'National Curriculum' elsewhere). Never an international curriculum such as IB, Cambridge, British or American — those belong in the array below.",
+  "curricula": ["Array of OTHER curricula also taught in the country, typically by international schools, e.g. 'British', 'American', 'IB', 'CBSE'. Do not repeat the national curriculum here."],
   "subjects": ["Array of 6-8 core school subjects commonly taught, e.g., 'Mathematics', 'Science', 'English', 'History'"],
   "gradeLevels": ["8", "9", "10", "11", "12"],
   "targets": [
@@ -318,6 +333,7 @@ Focus on accurate, verifiable information. For subjects, use the actual names us
       educationSystem: "",
       universitiesLink: "",
       universitiesLinkLabel: "",
+      nationalCurriculum: "",
       curricula: [],
       subjects: ["Mathematics", "Science", "English", "Social Studies", "Computer Science"],
       gradeLevels: ["8", "9", "10", "11", "12"],

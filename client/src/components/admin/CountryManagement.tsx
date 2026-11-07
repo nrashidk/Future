@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import CountryOnboarding from "./CountryOnboarding";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
@@ -100,6 +101,20 @@ export default function CountryManagement() {
     queryKey: ['/api/admin/countries'],
   });
 
+  /**
+   * The country being walked through setup, or null.
+   *
+   * Creating a country used to close the dialog and drop the superadmin back
+   * on the list, with the remaining steps -- sector map, questions -- spread
+   * across other tabs and nothing saying they were outstanding. That is how a
+   * country ended up created but unusable. So creation now HANDS OFF to the
+   * onboarding panel instead of dismissing, and the panel holds until the
+   * readiness endpoint says the country is ready.
+   */
+  const [onboarding, setOnboarding] = useState<{
+    id: string; name: string; suggestedCurricula: string[];
+  } | null>(null);
+
   const createMutation = useMutation({
     mutationFn: async (data: typeof newCountryForm) => {
       const response = await apiRequest('POST', '/api/admin/countries', data);
@@ -109,6 +124,11 @@ export default function CountryManagement() {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/countries'] });
       queryClient.invalidateQueries({ queryKey: ['/api/countries'] });
       setIsCreateModalOpen(false);
+      setOnboarding({
+        id: result.country?.id ?? newCountryForm.id,
+        name: result.country?.name ?? newCountryForm.name,
+        suggestedCurricula: result.suggestedCurricula ?? [],
+      });
       setNewCountryForm({ id: "", name: "", code: "", abbreviation: "", autoPopulate: true });
       toast({ 
         title: t('countries.createSuccess'), 
@@ -436,6 +456,22 @@ export default function CountryManagement() {
                       >
                         <BookOpen className="w-4 h-4" />
                       </Button>
+                      {/* THE WAY BACK IN. A country whose setup was left
+                          unfinished needs one obvious route to the checklist,
+                          or the red badge on this row is a dead end. Shown
+                          only when there is something to finish. */}
+                      {country.readiness && !country.readiness.ready && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setOnboarding({
+                            id: country.id, name: country.name, suggestedCurricula: [],
+                          })}
+                          data-testid={`button-finish-setup-${country.id}`}
+                        >
+                          {t('countries.onboarding.finishSetup')}
+                        </Button>
+                      )}
                       <Button 
                         size="icon" 
                         variant="ghost"
@@ -481,6 +517,29 @@ export default function CountryManagement() {
           )}
         </CardContent>
       </Card>
+
+      {/* THE ONBOARDING FLOW.
+          Not dismissable by clicking outside while the country is unfinished
+          would be the obvious instinct, and it is wrong -- a superadmin who
+          has to leave must be able to, and the red readiness badge on the list
+          row is what brings them back. "Finish later" is an explicit exit
+          rather than a trap. */}
+      <Dialog open={!!onboarding} onOpenChange={(open) => { if (!open) setOnboarding(null); }}>
+        <DialogContent className="max-w-xl">
+          <DialogHeader>
+            <DialogTitle>{t('countries.onboarding.title')}</DialogTitle>
+            <DialogDescription>{t('countries.onboarding.description')}</DialogDescription>
+          </DialogHeader>
+          {onboarding && (
+            <CountryOnboarding
+              countryId={onboarding.id}
+              countryName={onboarding.name}
+              suggestedCurricula={onboarding.suggestedCurricula}
+              onDone={() => setOnboarding(null)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
         <DialogContent className="max-w-md">
