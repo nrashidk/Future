@@ -1,9 +1,34 @@
 import type { Express } from "express";
 import { storage } from "../storage";
 import { SUBJECT_IDS, subjectNameFor, gradeLabelFor } from "@shared/subjects";
+import { createRequire } from "module";
 import isoCountries from "i18n-iso-countries";
-import isoEn from "i18n-iso-countries/langs/en.json";
-import isoAr from "i18n-iso-countries/langs/ar.json";
+
+/**
+ * THE LOCALE FILES ARE LOADED WITH require, NOT import. This matters and it
+ * took production down to learn.
+ *
+ * `import isoEn from "i18n-iso-countries/langs/en.json"` type-checks, builds,
+ * and runs in dev. It then crashes the deployed server at boot:
+ *
+ *   ERR_IMPORT_ATTRIBUTE_MISSING: Module ".../langs/en.json" needs an import
+ *   attribute of "type: json"
+ *
+ * The server bundle is ESM built with esbuild --packages=external, so an
+ * import of a file inside a dependency survives into dist/index.js as a bare
+ * ESM import and is resolved by Node at boot. Node requires
+ * `with { type: "json" }` on any ESM JSON import. Vite rewrites JSON imports
+ * for the client, and tsx tolerates them in dev, so neither the typecheck nor
+ * the local run shows it -- the failure only exists in the one place nothing
+ * was exercising: `node dist/index.js`.
+ *
+ * createRequire sidesteps the whole question: CJS require has always loaded
+ * JSON natively, needs no attribute, and is unaffected by how the file is
+ * bundled.
+ */
+const require = createRequire(import.meta.url);
+const isoEn = require("i18n-iso-countries/langs/en.json");
+const isoAr = require("i18n-iso-countries/langs/ar.json");
 
 /**
  * The world's countries, in English and Arabic, for the picker that creates
