@@ -24,6 +24,16 @@ const createCountrySchema = z.object({
   code: z.string().min(2).max(3).regex(/^[A-Z]+$/, "Code must be 2-3 uppercase letters"),
   abbreviation: z.string().max(10).optional().nullable(),
   autoPopulate: z.boolean().optional().default(false),
+  /**
+   * The curricula this country offers, optional.
+   *
+   * Creation previously had no way to accept these -- a country was always
+   * written with an empty list, and the only route to giving it any was a
+   * second PUT. Supplying them here lets a country be created complete in one
+   * call, and it is what makes the subject seeding below run at creation
+   * rather than on a later update.
+   */
+  curricula: z.array(z.string().min(1).max(100)).max(20).optional(),
 });
 
 const updateCountrySchema = z.object({
@@ -292,6 +302,7 @@ export function registerCountryRoutes(app: Express) {
       }
       
       const { id, name, code, abbreviation, autoPopulate } = parseResult.data;
+      const parsed = parseResult.data;
 
       const existing = await storage.getCountryById(id);
       if (existing) {
@@ -313,7 +324,10 @@ export function registerCountryRoutes(app: Express) {
         educationSystem: null,
         universitiesLink: null,
         universitiesLinkLabel: null,
-        curricula: [],
+        // Supplied by the caller, or filled in by auto-population further down.
+        // Either way the subject seeding after createCountry sees them, so a
+        // country created with its curricula is never a dead end.
+        curricula: parsed.curricula ?? [],
         subjects: [],
         gradeLevels: ["8", "9", "10", "11", "12"],
         logoUrl: null,
@@ -350,6 +364,37 @@ export function registerCountryRoutes(app: Express) {
       }
 
       const country = await storage.createCountry(countryData);
+
+      /**
+       * EVERY CURRICULUM GETS ITS SUBJECT ROWS, IMMEDIATELY.
+       *
+       * Creating a country wrote its curricula list and nothing else, so a new
+       * country offered curricula with no subjects behind them. Because the
+       * assessment makes a student choose three subjects, each of those was a
+       * dead end at the first step -- an empty list, nothing having refused the
+       * choice, discovered only by a student sitting in front of it. UAE
+       * shipped that way for three of its four curricula.
+       *
+       * Done here rather than left to the model. The research prompt does
+       * return a list of subject names, but the student-facing vocabulary is
+       * six fixed subjects that career matching is hard-coded to, so a
+       * generated seventh would silently score every career as a non-match.
+       * storage.ensureCurriculumSubjects explains that in full; what varies
+       * between curricula is naming, which lives in aliases.
+       */
+      const subjectSeeding: Array<{ curriculum: string; created: number }> = [];
+      for (const curriculum of countryData.curricula ?? []) {
+        try {
+          const { created } = await storage.ensureCurriculumSubjects(country.id, curriculum);
+          subjectSeeding.push({ curriculum, created });
+        } catch (e) {
+          // A country with no subjects is recoverable -- the readiness check
+          // reports it as a blocker and Repopulate fixes it -- so this must not
+          // fail the creation that already succeeded.
+          console.error(`[Country] Failed to seed subjects for ${curriculum}:`, e);
+        }
+      }
+      console.log(`[Country] Seeded subjects:`, JSON.stringify(subjectSeeding));
 
       let sectorGeneration: Record<string, unknown> | undefined;
 
@@ -465,6 +510,36 @@ export function registerCountryRoutes(app: Express) {
       }
 
       const country = await storage.updateCountry(id, updates);
+
+      /**
+       * A CURRICULUM GETS ITS SUBJECTS THE MOMENT IT IS OFFERED.
+       *
+       * This is where curricula are actually set for a country added by hand:
+       * the create route hardcodes an empty list and only auto-population
+       * fills it in, so a human clicking through the screens arrives here. Add
+       * a curriculum and, until now, it appeared in the dropdown with nothing
+       * behind it -- and because the assessment makes a student pick three
+       * subjects, choosing it was a dead end at the first step. UAE shipped
+       * that way for three of its four curricula.
+       *
+       * Seeding on the write that offers the curriculum is what makes the dead
+       * end unreachable rather than merely reported. The readiness check still
+       * exists to catch a curriculum whose subjects were removed afterwards.
+       *
+       * Idempotent, and it skips any subject name a curator already added, so
+       * repeated saves and hand-curated curricula are both safe. It never
+       * fails the update that already succeeded.
+       */
+      if (updates.curricula && updates.curricula.length > 0) {
+        for (const curriculum of updates.curricula) {
+          try {
+            await storage.ensureCurriculumSubjects(id, curriculum);
+          } catch (e) {
+            console.error(`[Country] Failed to seed subjects for ${curriculum}:`, e);
+          }
+        }
+      }
+
       res.json(country);
     } catch (error) {
       console.error("Error updating country:", error);
@@ -662,6 +737,25 @@ export function registerCountryRoutes(app: Express) {
         gradeLevels: result.data!.gradeLevels,
         llmPopulated: true,
       });
+
+      /**
+       * AND BACKFILL THE SUBJECT ROWS, which is what makes this route able to
+       * repair an existing country rather than only refresh its prose.
+       *
+       * Repopulate rewrote the curricula list without touching subjects, so a
+       * country could come out of it offering MORE curricula than before and
+       * every new one a dead end. Idempotent, so a country that already has
+       * its rows is unaffected.
+       */
+      const subjectSeeding: Array<{ curriculum: string; created: number }> = [];
+      for (const curriculum of result.data!.curricula ?? []) {
+        try {
+          const { created } = await storage.ensureCurriculumSubjects(req.params.id, curriculum);
+          subjectSeeding.push({ curriculum, created });
+        } catch (e) {
+          console.error(`[Country] Failed to seed subjects for ${curriculum}:`, e);
+        }
+      }
 
       /**
        * REGENERATE THE SECTOR MAPS TOO -- this is the whole point of the

@@ -105,16 +105,30 @@ for (const [name, code, curriculum] of [
   const r = await sa.post("/api/superadmin/subjects", { name: "Incomplete" });
   rec("NC-03b", "subject without countryId/curriculum is refused", r.status === 400, `HTTP ${r.status}`);
 }
+/**
+ * These two asserted EXACT COUNTS -- two subjects under MOE, one under IB,
+ * being the ones this suite adds by hand. Both now hold more, because
+ * offering a curriculum seeds it the six umbrella subjects, and a count is
+ * the wrong thing to pin anyway: it breaks whenever the umbrella list or the
+ * fixtures change, while saying nothing about the property that matters.
+ *
+ * What matters is that the per-curriculum lists stay SEPARATE. A hand-added
+ * subject must appear under its own curriculum and not leak into the other,
+ * which is the thing a (country, curriculum) key is for.
+ */
 {
-  const r = await sa.get(`/api/countries/${COUNTRY_ID}/curricula/MOE/subjects`);
-  const n = Array.isArray(r.body) ? r.body.length : null;
-  rec("NC-03c", "MOE subjects list shows exactly the two MOE subjects", n === 2,
-    n === null ? detail(r) : `${n} subjects`);
-}
-{
-  const r = await sa.get(`/api/countries/${COUNTRY_ID}/curricula/IB/subjects`);
-  const n = Array.isArray(r.body) ? r.body.length : null;
-  rec("NC-03d", "IB subjects list is separate from MOE", n === 1, n === null ? detail(r) : `${n} subjects`);
+  const moe = await sa.get(`/api/countries/${COUNTRY_ID}/curricula/MOE/subjects`);
+  const ib = await sa.get(`/api/countries/${COUNTRY_ID}/curricula/IB/subjects`);
+  const moeNames = Array.isArray(moe.body) ? moe.body.map((x) => x.name) : null;
+  const ibNames = Array.isArray(ib.body) ? ib.body.map((x) => x.name) : null;
+
+  rec("NC-03c", "MOE's own subject is under MOE and not under IB",
+    moeNames?.includes("Biology") === true && ibNames?.includes("Biology") === false,
+    moeNames ? `MOE has ${moeNames.length}, IB has ${ibNames.length}` : detail(moe));
+
+  rec("NC-03d", "IB's own subject is under IB and not under MOE",
+    ibNames?.includes("Economics") === true && moeNames?.includes("Economics") === false,
+    ibNames ? `IB: ${ibNames.join(", ")}` : detail(ib));
 }
 
 // ------------------------------------------------------------ 4. questions
@@ -312,8 +326,44 @@ if (org?.id) {
   // reason at all.
   rec("NC-09c", "it names the missing sector map", /sector map/i.test(blockers),
     /sector map/i.test(blockers) ? "flagged" : "NOT flagged");
-  rec("NC-09d", "it names the curriculum with too few subjects", /subject/i.test(blockers),
-    /subject/i.test(blockers) ? "flagged" : "NOT flagged");
+  /**
+   * THE SUBJECT DETECTOR, PROVEN DIRECTLY.
+   *
+   * This used to read the blocker off Testland, which was a dead end for lack
+   * of subjects as a side effect of how this suite builds it. That no longer
+   * happens: a curriculum now gets its six umbrella subjects on the write that
+   * offers it, so the natural flow can never produce the state. Which is the
+   * point -- but it means the detector has to be given the state on purpose,
+   * or this assertion silently stops measuring anything.
+   *
+   * So the subjects of one curriculum are removed and the check is asked
+   * again. Deactivated rather than deleted, because readiness counts active
+   * rows and a question may reference the subject.
+   */
+  const { Client } = await import("pg");
+  const pg = new Client({
+    connectionString: `postgres://postgres:postgres@127.0.0.1:${process.env.PGLITE_TCP_PORT ?? 55432}/postgres`,
+  });
+  await pg.connect();
+  try {
+    const { rowCount } = await pg.query(
+      `UPDATE subjects SET is_active = false WHERE country_id = $1 AND curriculum = $2`,
+      [COUNTRY_ID, "IB"],
+    );
+    const after = await sa.get(`/api/admin/countries/${COUNTRY_ID}/readiness`);
+    const b = (after.body?.blockers ?? []).join(" | ");
+    rec("NC-09d", "a curriculum stripped of subjects IS flagged as a dead end",
+      rowCount > 0 && /IB.*subject/i.test(b),
+      rowCount === 0 ? "SETUP FAILED -- no subject rows to deactivate"
+        : (/IB.*subject/i.test(b) ? b.match(/IB[^|]*/)?.[0]?.trim() : `NOT flagged: ${b.slice(0, 120)}`));
+
+    await pg.query(
+      `UPDATE subjects SET is_active = true WHERE country_id = $1 AND curriculum = $2`,
+      [COUNTRY_ID, "IB"],
+    );
+  } finally {
+    await pg.end();
+  }
 
   /**
    * THE POSITIVE CONTROL -- the check must be able to say yes about something,
@@ -362,6 +412,74 @@ if (org?.id) {
   rec("NC-09f", "readiness travels with the country list, not behind a click",
     list.status === 200 && mine?.readiness?.ready === false && mine.readiness.blockerCount > 0,
     mine?.readiness ? `blockers=${mine.readiness.blockerCount} warnings=${mine.readiness.warningCount}` : "no readiness on the list row");
+}
+
+/**
+ * THE PATH THAT ACTUALLY MATTERS: a country created WITH its curricula.
+ *
+ * Everything above builds a country the long way round -- create it bare, then
+ * add curricula, then add subjects by hand -- which is what a human clicking
+ * through the screens does, and it is deliberately left half-built so the
+ * readiness checks have something to find.
+ *
+ * Auto-population is not that. It researches the country and hands back its
+ * curricula in one go, so the curricula are present at the moment the country
+ * row is written, and that is where the subject rows are now created. This
+ * asserts the case Saudi Arabia will actually take: six umbrella subjects per
+ * curriculum, with no further action.
+ *
+ * Six, not a model's idea of a subject list, because career matching is
+ * hard-coded to those six and a seventh would score every career as a
+ * non-match for any student who picked it. What varies per curriculum is the
+ * naming, which lives in aliases -- hence the alias assertion below.
+ */
+{
+  const sa2 = new Session("autoSubjects");
+  await sa2.login(SUPERADMIN.username, SUPERADMIN.password);
+  const id = `seedland-${RUN}`;
+
+  const created = await sa2.post("/api/admin/countries", {
+    // 2-3 UPPERCASE LETTERS only -- RUN is base36 and can start with a digit,
+    // so it cannot be spliced in raw. Derived to a letter so repeat runs still
+    // differ.
+    id, name: `Seedland ${RUN}`,
+    code: `S${String.fromCharCode(65 + (RUN.charCodeAt(0) + RUN.charCodeAt(1)) % 26)}`,
+    abbreviation: "SL", currency: "SLD", region: "Test",
+    curricula: ["National", "IB"],
+    prioritySectors: ["Technology"], nationalGoals: ["Growth"],
+    gradeLevels: ["9", "10", "11", "12"],
+    autoPopulate: false,
+  });
+  rec("NC-10", "a country can be created with its curricula in one call",
+    created.status === 201, detail(created));
+
+  for (const curriculum of ["National", "IB"]) {
+    const r = await sa2.get(`/api/countries/${id}/curricula/${encodeURIComponent(curriculum)}/subjects`);
+    const names = (r.body ?? []).map((s) => s.name).sort();
+    const expected = ["Arabic", "Computer Science", "English", "Mathematics", "Science", "Social Studies"];
+    rec(`NC-10:${curriculum}`, `${curriculum} got the six umbrella subjects automatically`,
+      JSON.stringify(names) === JSON.stringify(expected),
+      names.length ? names.join(", ") : detail(r));
+  }
+
+  // The aliases are what let a curriculum call a subject something local --
+  // "Islamic Studies", "Physics" -- and still resolve to the umbrella subject
+  // that matching understands. Without them the row is just a label.
+  const nat = await sa2.get(`/api/countries/${id}/curricula/National/subjects`);
+  const science = (nat.body ?? []).find((s) => s.name === "Science");
+  rec("NC-10b", "the seeded subjects carry their local-name aliases",
+    Array.isArray(science?.aliases) && science.aliases.includes("Physics") &&
+    science.aliases.includes("Biology"),
+    science ? `Science aliases: ${(science.aliases ?? []).slice(0, 5).join(", ")}` : "no Science row");
+
+  // And the whole point: such a country is not a dead end.
+  const ready = await sa2.get(`/api/admin/countries/${id}/readiness`);
+  const subjectBlockers = (ready.body?.blockers ?? []).filter((b) => /subject/i.test(b));
+  rec("NC-10c", "no curriculum of it is a dead end for lack of subjects",
+    ready.status === 200 && subjectBlockers.length === 0,
+    subjectBlockers.length === 0
+      ? `remaining blockers are not about subjects: ${(ready.body?.blockers ?? []).length}`
+      : subjectBlockers.join(" | "));
 }
 
 const pass = results.filter((r) => r.pass === true).length;

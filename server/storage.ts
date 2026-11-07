@@ -965,6 +965,125 @@ export class DatabaseStorage implements IStorage {
     return subject;
   }
 
+  /**
+   * Give a curriculum the six subject rows that make it usable.
+   *
+   * WHY THIS IS NOT AN LLM JOB, which is the counter-intuitive part. A country
+   * can be researched and populated by the model -- its vision, priority
+   * sectors, national goals, curricula and sector map all come back from a
+   * prompt -- so it reads as though subjects should too. They must not.
+   *
+   * The student-facing subject vocabulary is SIX FIXED SUBJECTS, hard-coded in
+   * shared/subjects.ts and depended on by the assessment's subject tiles, the
+   * admin question form, the quiz pool lookup, the report pages, the Arabic
+   * prose templates, and -- decisively -- career matching, whose umbrella map
+   * in server/utils/subjectMap.ts is not country-aware at all. A student in
+   * every country picks from the same six tiles.
+   *
+   * So a model inventing a seventh subject for a curriculum would produce a
+   * row that no career can ever project onto. Every career would return the
+   * flat non-match score for any student who picked it, and nothing would
+   * report an error: the submission succeeds, the row is real, and only the
+   * intersection is empty. That is the same shape as the contributed-question
+   * vocabulary defect already pinned in contribution.subjectVocabulary.test.ts.
+   *
+   * What genuinely varies between curricula is the NAMING, and that is what
+   * aliases are for: a curriculum that teaches "Islamic Studies" gets it as an
+   * alias of Social Studies -- which is exactly how the UAE seed treats it --
+   * never as a row of its own.
+   *
+   * ALIASES COME FROM THE UMBRELLA MAP, inverted, rather than being retyped
+   * here. DEFAULT_SUBJECT_MAP already states which local names belong to which
+   * umbrella subject, and it is the map career matching itself uses, so
+   * deriving the aliases from it is what keeps the alias resolution and the
+   * matching projection from drifting apart. Hand-copied lists are how they
+   * drift.
+   *
+   * Idempotent: the unique index on (country, curriculum, code) means calling
+   * this again adds nothing, so it is safe on every country create, on every
+   * repopulate, and whenever a curriculum is added.
+   */
+  async ensureCurriculumSubjects(
+    countryId: string,
+    curriculum: string,
+  ): Promise<{ created: number; alreadyPresent: number }> {
+    // umbrella subject -> the local names that mean it
+    const aliasesFor: Record<string, string[]> = {};
+    for (const [variant, umbrella] of Object.entries(DEFAULT_SUBJECT_MAP)) {
+      if (variant === umbrella) continue;
+      (aliasesFor[umbrella] ??= []).push(variant);
+    }
+
+    const existing = await db
+      .select({ name: subjects.name })
+      .from(subjects)
+      .where(and(eq(subjects.countryId, countryId), eq(subjects.curriculum, curriculum)));
+    const had = existing.length;
+
+    /**
+     * SKIP BY NAME, not only by the unique index.
+     *
+     * The index is on (country, curriculum, code), so an existing row called
+     * "Mathematics" under a hand-written code would not conflict with this
+     * one's "mathematics" -- the insert would succeed and the curriculum would
+     * then hold two subjects with the SAME NAME. Since the name is the
+     * vocabulary everything else matches on (the assessment stores it, the
+     * quiz pool compares it, the alias map resolves to it), a duplicate name
+     * is worse than a missing row: the alias map would collapse both to one
+     * canonical and which row a student's pick resolved to would depend on
+     * ordering.
+     *
+     * So an already-curated curriculum is left as it is and only the genuinely
+     * missing umbrella subjects are added. Readiness still reports the result.
+     */
+    const present = new Set(existing.map((s) => s.name.toLowerCase()));
+
+    /**
+     * AN ALIAS MUST NOT SHADOW A SUBJECT THAT ALREADY EXISTS BY NAME.
+     *
+     * The umbrella map lists "Biology" as a variant of Science and "Economics"
+     * as one of Social Studies. If a curriculum already carries a subject
+     * actually NAMED "Biology", seeding Science with that alias puts two
+     * entries for "biology" into the alias map -- one from the Biology row's
+     * own name, one from Science's alias list -- and buildSubjectAliasMap
+     * keeps whichever it writes last. A student picking Biology would then
+     * resolve to Science, and the question pool for Biology would come back
+     * empty with nothing reporting an error.
+     *
+     * This is not hypothetical: it is what happened the first time this
+     * seeding ran. A country with a hand-curated Biology subject stopped
+     * drawing its own Biology questions, and only a test that counted whose
+     * questions ended up in the quiz noticed.
+     *
+     * So a curator's subject wins. The umbrella row is still created -- the
+     * six must exist -- but it gives up the alias that would have swallowed
+     * an existing name.
+     */
+    const rows = SUBJECT_IDS.map((name, i) => ({
+      name,
+      // Same slug form the UAE seed uses, so a country added through this path
+      // and one added by the seed are indistinguishable.
+      code: name.toLowerCase().replace(/\s+/g, "_"),
+      countryId,
+      curriculum,
+      aliases: (aliasesFor[name] ?? []).filter((a) => !present.has(a.toLowerCase())),
+      displayOrder: i + 1,
+      isActive: true,
+    })).filter((r) => !present.has(r.name.toLowerCase()));
+
+    if (rows.length > 0) {
+      await db.insert(subjects).values(rows).onConflictDoNothing();
+    }
+
+    const after = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(subjects)
+      .where(and(eq(subjects.countryId, countryId), eq(subjects.curriculum, curriculum)));
+    const now = after[0]?.n ?? 0;
+
+    return { created: now - had, alreadyPresent: had };
+  }
+
   async updateSubject(id: string, data: Partial<InsertSubject>): Promise<Subject> {
     const [subject] = await db
       .update(subjects)
