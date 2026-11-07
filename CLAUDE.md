@@ -95,7 +95,8 @@ node testing/local/<suite>.mjs
 
 Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `progression`, `licences`, `new-country`, `contribution`, `crosscutting`,
-`school-setup`, `question-gaps`, `peer-review`, `grants`, `pricing`, plus
+`school-setup`, `question-gaps`, `peer-review`, `grants`, `pricing`,
+`org-admin`, plus
 `migration-029-dryrun`, `migration-030-dryrun`, `migration-032-dryrun` and
 `migration-033-dryrun`.
 
@@ -402,7 +403,17 @@ chose to review would sit for ever with no one able to see it.
   as revenue rather than as a giveaway. The Stripe webhook is still the only
   path that takes a payment; tests write to the database directly to stand in
   for one.
-- Roughly a third of the org-admin surface has no automated coverage.
+- The org-admin surface is partly covered now. `org-admin.mjs` takes the five
+  endpoints that had NO references in any suite — bulk-reset-passwords,
+  import-students, export-assessments, export/reports and the logo upload —
+  and all five guards hold. **bulk-reset-passwords answers 200 with
+  `success: true` even when every member in the batch was refused**, so a
+  status-based test passes identically whether the guard works or is absent;
+  proved by removing the per-member org check, which let school A reset school
+  B's students' passwords while still returning 200. Judge that route by
+  whether the victim's password still logs in, never by its response. Still
+  uncovered: the question CRUD and bulk-upload routes, and most of the
+  organization PATCH surface.
 - `docs/` holds two conflicting whitepapers —
   `future-path-white-paper-2026-v1.1.docx` and
   `future-pathways-white-paper-2026-v1.1.docx`, the second under the old
