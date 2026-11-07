@@ -107,17 +107,24 @@ export function subjectNameFor(id: string, lang: string): string {
 }
 
 /**
- * The grade levels the platform assesses, with their labels.
+ * A grade's LABEL in the requested language.
  *
- * Grades live on each country as a plain string array (`countries.grade_levels`)
- * with no Arabic anywhere, so an Arabic screen or prompt had nothing to render
- * but the bare number. The numbers themselves are the stored values and must
- * not be localised -- Arabic-Indic digits here would stop matching
- * `quiz_questions.grade`.
+ * Grades live on each country as a plain string array
+ * (`countries.grade_levels`) with no Arabic anywhere, so an Arabic screen or
+ * prompt had nothing to render but a bare number. This supplies the label and
+ * nothing else.
+ *
+ * DELIBERATELY NO `GRADE_LEVELS` CONSTANT HERE. One was added alongside this
+ * function and removed within the hour: grades are per-country data, and a
+ * hardcoded list beside the column that actually holds them is a second source
+ * of truth for the same fact -- the drift this codebase keeps producing. It
+ * was also dead on arrival, since every caller already reads
+ * `country.gradeLevels`. If a default is ever needed, it belongs next to the
+ * column, not here.
+ *
+ * The VALUE is never localised: it is what `quiz_questions.grade` is matched
+ * against, and Arabic-Indic digits would silently stop matching.
  */
-export const GRADE_LEVELS = ["8", "9", "10", "11", "12"] as const;
-export type GradeLevel = (typeof GRADE_LEVELS)[number];
-
 export function gradeLabelFor(grade: string, lang: string): string {
   const n = String(grade).replace(/\D/g, "");
   if (!n) return String(grade);
