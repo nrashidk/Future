@@ -3334,12 +3334,31 @@ export class DatabaseStorage implements IStorage {
       .select({
         organizationId: licenseGrants.organizationId,
         granted: sql<number>`COALESCE(SUM(${licenseGrants.licensesDelta}), 0)::int`,
-        revenue: sql<number>`COALESCE(SUM(${licenseGrants.amountPaid}) FILTER (WHERE ${licenseGrants.kind} = 'purchase'), 0)::double precision`,
         purchases: sql<number>`count(*) FILTER (WHERE ${licenseGrants.kind} = 'purchase')::int`,
         grantedFree: sql<number>`COALESCE(SUM(${licenseGrants.licensesDelta}) FILTER (WHERE ${licenseGrants.kind} IN ('comp', 'backfill')), 0)::int`,
       })
       .from(licenseGrants)
       .groupBy(licenseGrants.organizationId);
+
+    /**
+     * REVENUE PER SCHOOL **PER CURRENCY**, as its own grouping.
+     *
+     * Summing amount_paid for a school without grouping by currency adds AED to
+     * USD and produces a number that is money in neither — the exact mistake
+     * the platform figure is grouped to avoid, made one level down where a
+     * platform-level test would not see it. A school realistically pays in one
+     * currency, so this is almost always a single entry; the shape is what
+     * stops it being wrong in the case where it is not.
+     */
+    const schoolRevenueRows = await db
+      .select({
+        organizationId: licenseGrants.organizationId,
+        currency: licenseGrants.currency,
+        amount: sql<number>`COALESCE(SUM(${licenseGrants.amountPaid}), 0)::double precision`,
+      })
+      .from(licenseGrants)
+      .where(eq(licenseGrants.kind, "purchase"))
+      .groupBy(licenseGrants.organizationId, licenseGrants.currency);
 
     // Consumption per school. Guardian-pool rows carry no organization and are
     // counted on their own below.
@@ -3357,13 +3376,21 @@ export class DatabaseStorage implements IStorage {
     const grantsBy = new Map(grantRows.map((g: any) => [g.organizationId, g]));
     const consBy = new Map(consumptionRows.map((c: any) => [c.organizationId, c]));
 
+    const revenueBySchool = new Map<string, Array<{ currency: string; amount: number }>>();
+    for (const r of schoolRevenueRows as any[]) {
+      if (!r.currency) continue;
+      const list = revenueBySchool.get(r.organizationId) ?? [];
+      list.push({ currency: r.currency, amount: Number(r.amount) });
+      revenueBySchool.set(r.organizationId, list);
+    }
+
     const perSchoolRows = schoolRows.map((s: any) => {
       const g = grantsBy.get(s.organizationId);
       const c = consBy.get(s.organizationId);
       return {
         ...s,
         granted: Number(g?.granted ?? 0),
-        revenue: Number(g?.revenue ?? 0),
+        revenue: revenueBySchool.get(s.organizationId) ?? [],
         purchases: Number(g?.purchases ?? 0),
         grantedFree: Number(g?.grantedFree ?? 0),
         consumed: Number(c?.consumed ?? 0),
@@ -3396,7 +3423,8 @@ export class DatabaseStorage implements IStorage {
         byCountry.set(key, {
           countryId: s.countryId, countryName: null, countryNameAr: null,
           schools: 0, unlimitedSchools: 0,
-          granted: 0, grantedFree: 0, revenue: 0, purchases: 0,
+          granted: 0, grantedFree: 0, revenue: [] as Array<{ currency: string; amount: number }>,
+          purchases: 0,
           consumed: 0, consumedPaid: 0, consumedReward: 0, remaining: 0,
         });
       }
@@ -3405,7 +3433,13 @@ export class DatabaseStorage implements IStorage {
       if (s.isUnlimited) c.unlimitedSchools += 1;
       c.granted += s.granted;
       c.grantedFree += s.grantedFree;
-      c.revenue += s.revenue;
+      // Per currency here too, for the same reason: a country can hold schools
+      // that paid in different currencies, and one total would be money in
+      // neither.
+      for (const r of s.revenue) {
+        const hit = c.revenue.find((x: any) => x.currency === r.currency);
+        if (hit) hit.amount += r.amount; else c.revenue.push({ ...r });
+      }
       c.purchases += s.purchases;
       c.consumed += s.consumed;
       c.consumedPaid += s.consumedPaid;
@@ -3423,7 +3457,11 @@ export class DatabaseStorage implements IStorage {
     const nameById = new Map(countryRows.map((c: any) => [c.id, c]));
     for (const c of byCountry.values()) {
       const match = c.countryId ? nameById.get(c.countryId) : null;
-      c.countryName = match?.name ?? (c.countryId ? c.countryId : "No country set");
+      // NULL for a school with no country, not an English sentence. The client
+      // writes that in the reader's language; prose from here arrives in
+      // English on the Arabic side, which is how "No country set" sat
+      // untranslated in the middle of an otherwise Arabic table.
+      c.countryName = match?.name ?? c.countryId ?? null;
       c.countryNameAr = match?.nameAr ?? null;
     }
 
@@ -3483,11 +3521,22 @@ export class DatabaseStorage implements IStorage {
         consumedPaid: Number(guardian?.consumedPaid ?? 0),
         consumedReward: Number(guardian?.consumedReward ?? 0),
       },
+      /**
+       * CODES, NOT PROSE. The limits of these figures matter as much as the
+       * figures, so they travel with them — but as codes the client turns into
+       * a sentence in the reader's own language, the same arrangement
+       * ERASURE_BLOCK_CODES uses.
+       *
+       * Sending English sentences from here had two faults: the Arabic half of
+       * a bilingual product got English, and the wording named response fields
+       * — guardianPools, grantedFree — which mean nothing to the person
+       * reading a dashboard.
+       */
       caveats: [
-        "Revenue covers school licences only. A parent's own pool has no organization, so parent purchases are not in the grants ledger; their consumption is reported under guardianPools.",
-        "Grants backfilled by migration 032 carry no amount on purpose: the one payment on record cannot be attributed to a licence count that may have been edited since. They appear in grantedFree, never in revenue.",
-        "An unlimited school has no remaining balance and is excluded from remainingAtCappedSchools rather than counted as zero.",
-        "Reward credits are earned, not bought. They are consumption without revenue, and are subtracted from no paid balance.",
+        "parentPoolsNotInRevenue",
+        "backfilledGrantsHaveNoAmount",
+        "unlimitedHasNoBalance",
+        "rewardCreditsAreNotRevenue",
       ],
     };
   }

@@ -28,6 +28,7 @@ import {
 import { SCORING_ESTATE_STATES, type ScoringEstateState } from "@shared/schema";
 import ScoringConfigEditor from "@/components/admin/ScoringConfigEditor";
 import CountryManagement from "@/components/admin/CountryManagement";
+import LicenseAnalytics from "@/components/admin/LicenseAnalytics";
 import ContributionReviewQueue from "@/components/admin/ContributionReviewQueue";
 import SubjectManagement from "@/components/admin/SubjectManagement";
 import TranslationManager from "@/components/admin/TranslationManager";
@@ -1052,6 +1053,12 @@ export default function SuperadminDashboard() {
             <TabsTrigger value="students" data-testid="tab-students">
               {t('superadmin.tabStudents')}
             </TabsTrigger>
+            {/* Next to Schools, because every figure in it is per school and
+                per country, and it is read alongside that list rather than
+                after the operational tabs. */}
+            <TabsTrigger value="licenses" data-testid="tab-licenses">
+              {t('superadmin.tabLicenses')}
+            </TabsTrigger>
             <TabsTrigger value="activity" data-testid="tab-activity">{t('superadmin.tabActivity')}</TabsTrigger>
             <TabsTrigger value="files" data-testid="tab-files">
               {t('superadmin.tabFiles')}
@@ -1824,6 +1831,10 @@ export default function SuperadminDashboard() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="licenses" className="space-y-4">
+            <LicenseAnalytics />
           </TabsContent>
 
           <TabsContent value="countries" className="space-y-4">

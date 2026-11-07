@@ -327,8 +327,12 @@ let compOrgId = null;
   }
   rec("A-03", "every country total is exactly the sum of its schools' rows",
     countries.length > 0 && mismatches.length === 0,
+    // A country WITH an id must resolve to a name; the one without an id is
+    // the "no country set" bucket and is deliberately null, for the client to
+    // label in the reader's language.
     `${countries.length} countries checked: ${mismatches.length ? mismatches.join("; ") : "all agree"}` +
-    `; names resolved: ${countries.every((c) => !!c.countryName)}`);
+    `; named where they have an id: ${countries.filter((c) => c.countryId).every((c) => !!c.countryName)}` +
+    `; unassigned bucket left null: ${countries.filter((c) => !c.countryId).every((c) => c.countryName === null)}`);
 }
 
 // --------------------- A-05  an unlimited school has no remaining balance
@@ -376,6 +380,28 @@ let compOrgId = null;
   rec("A-07", "two currencies are reported apart, never added together",
     Object.keys(byCur).length >= 2 && Number(byCur.AED) === 100 && Number(byCur.USD) > 0,
     `${JSON.stringify(byCur)}`);
+
+  /**
+   * A-07b  THE SAME RULE ONE LEVEL DOWN.
+   *
+   * A-07 only looked at the platform figure, and the per-school and
+   * per-country revenue were summing straight across currencies underneath it
+   * -- 900 USD and 100 AED reported as "1000" of nothing. Checking the
+   * platform total alone let that pass, so the school and country rows are
+   * checked for the same property.
+   */
+  const school = (after.body?.perSchool ?? []).find((s) => s.organizationId === org.id);
+  const country = (after.body?.perCountry ?? []).find((c) =>
+    (after.body.perSchool.find((s) => s.organizationId === org.id) ?? {}).countryId === c.countryId);
+
+  const schoolCurs = (school?.revenue ?? []).map((r) => r.currency).sort();
+  const summed = (school?.revenue ?? []).some((r) => typeof r !== "object");
+  rec("A-07b", "per-school and per-country revenue are per currency too",
+    Array.isArray(school?.revenue) && !summed &&
+      schoolCurs.includes("AED") &&
+      Array.isArray(country?.revenue) &&
+      (country?.revenue ?? []).some((r) => r.currency === "AED" && Number(r.amount) === 100),
+    `school: ${JSON.stringify(school?.revenue)}; country: ${JSON.stringify(country?.revenue)}`);
 
   await sql(`DELETE FROM license_grants WHERE note = 'grants.mjs A-07 currency probe'`);
 }
