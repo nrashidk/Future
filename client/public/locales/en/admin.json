@@ -1077,6 +1077,8 @@
     "csvRowAnswerMismatch": "Row {{row}}: Correct answer does not match any option"
   },
   "countries": {
+    "selectCountry": "Select a country…",
+    "alreadyAdded": "already added",
     "onboarding": {
       "title": "Set up this country",
       "description": "A country must have its national priorities, a sector map and questions before a student can get a usable report. This checklist stays open until it does.",
@@ -1136,13 +1138,13 @@
     "confirmDelete": "Are you sure you want to delete {{name}}?",
     "cannotDelete": "Cannot delete default country",
     "addCountryTitle": "Add New Country",
-    "addCountryDesc": "Add a new country to the platform. Enable AI auto-populate to automatically research and fill in the country's vision, education system, and subjects.",
+    "addCountryDesc": "Add a new country to the platform. AI auto-populate researches its national vision, priority sectors and national curriculum. Subjects are standard and added automatically.",
     "countryId": "Country ID *",
     "countryCode": "Country Code *",
     "countryName": "Country Name *",
     "abbreviation": "Abbreviation",
     "aiAutoPopulate": "AI Auto-Populate",
-    "aiAutoPopulateDesc": "Research vision, goals, education system, and subjects automatically",
+    "aiAutoPopulateDesc": "Research vision, priority sectors and the national curriculum automatically",
     "cancel": "Cancel",
     "researching": "Researching...",
     "creating": "Creating...",

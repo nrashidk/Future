@@ -34,6 +34,16 @@ const createCountrySchema = z.object({
    * rather than on a later update.
    */
   curricula: z.array(z.string().min(1).max(100)).max(20).optional(),
+  /**
+   * The Arabic name, optional.
+   *
+   * Creation had no way to accept one, so every new country started with a
+   * null Arabic name and the only routes to filling it were auto-population
+   * or a later edit -- in a product that is bilingual throughout, including
+   * the PDF. The picker supplies it from the ISO list, where the Arabic names
+   * are maintained rather than typed by whoever happened to add the country.
+   */
+  nameAr: z.string().min(1).max(200).optional().nullable(),
 });
 
 const updateCountrySchema = z.object({
@@ -312,6 +322,7 @@ export function registerCountryRoutes(app: Express) {
       let countryData: any = {
         id,
         name,
+        nameAr: parsed.nameAr ?? null,
         code: code.toUpperCase(),
         abbreviation: abbreviation || null,
         mission: "",

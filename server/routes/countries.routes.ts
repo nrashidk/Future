@@ -1,6 +1,29 @@
 import type { Express } from "express";
 import { storage } from "../storage";
 import { SUBJECT_IDS, subjectNameFor, gradeLabelFor } from "@shared/subjects";
+import isoCountries from "i18n-iso-countries";
+import isoEn from "i18n-iso-countries/langs/en.json";
+import isoAr from "i18n-iso-countries/langs/ar.json";
+
+/**
+ * The world's countries, in English and Arabic, for the picker that creates
+ * one.
+ *
+ * REGISTERED ONCE AT MODULE LOAD, and only two locales: the package ships
+ * ~190 of them and registering all would be megabytes for no purpose.
+ *
+ * WHY A LIST AT ALL. Creating a country took four free-text fields, so the
+ * same country could arrive as "UAE", "U.A.E." or "Emirates" depending on who
+ * typed it -- and that string is then handed to the model as the thing to
+ * research. An ambiguous or misspelled name produces research about the wrong
+ * place, or nothing, with no error. The name is also what a school's country
+ * is matched against later.
+ *
+ * ISO rather than a hand-written list because the Arabic names have to be
+ * right, and 250 of them typed by hand would not be.
+ */
+isoCountries.registerLocale(isoEn as any);
+isoCountries.registerLocale(isoAr as any);
 
 export function registerCountriesRoutes(app: Express) {
   app.get("/api/countries", async (_req, res) => {
@@ -158,6 +181,49 @@ export function registerCountriesRoutes(app: Express) {
     } catch (error) {
       console.error("Error building reference data:", error);
       res.status(500).json({ message: "Failed to build reference data" });
+    }
+  });
+
+  /**
+   * The catalogue a superadmin picks from when adding a country.
+   *
+   * `alreadyAdded` is marked rather than filtered out, so the picker can show
+   * a country as taken instead of silently omitting it and leaving someone
+   * hunting for a country that is already there.
+   *
+   * Suggestions are ISO ALPHA-2 -- AE, SA, EG -- which is the house
+   * convention. They are suggestions and not an imposed convention because
+   * the live UAE row predates it and uses "uae"/"UAE"; rewriting a primary
+   * key that foreign keys and URLs already point at is a migration, not a
+   * tidy-up. So the picker pre-fills and the fields stay editable.
+   */
+  app.get("/api/reference/country-catalog", async (_req, res) => {
+    try {
+      const existing = await storage.getAllCountries();
+      const takenNames = new Set(existing.map((c: any) => (c.name ?? "").toLowerCase()));
+
+      const en = isoCountries.getNames("en", { select: "official" });
+      const ar = isoCountries.getNames("ar", { select: "official" });
+
+      const catalog = Object.entries(en)
+        .map(([alpha2, name]) => ({
+          alpha2,
+          alpha3: isoCountries.alpha2ToAlpha3(alpha2) ?? null,
+          name: name as string,
+          nameAr: (ar as Record<string, string>)[alpha2] ?? null,
+          // ISO ALPHA-2, which is the house convention: AE, SA, EG.
+          // Suggested rather than binding -- the fields stay editable, because
+          // the live UAE row predates this and uses "uae"/"UAE".
+          suggestedId: alpha2.toLowerCase(),
+          suggestedCode: alpha2,
+          alreadyAdded: takenNames.has((name as string).toLowerCase()),
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      res.json({ countries: catalog });
+    } catch (error) {
+      console.error("Error building country catalog:", error);
+      res.status(500).json({ message: "Failed to build country catalog" });
     }
   });
 }

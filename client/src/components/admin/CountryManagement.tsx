@@ -78,9 +78,36 @@ export default function CountryManagement() {
   const [newCountryForm, setNewCountryForm] = useState({
     id: "",
     name: "",
+    nameAr: "",
     code: "",
     abbreviation: "",
     autoPopulate: true,
+  });
+
+  /**
+   * The world's countries, for the picker.
+   *
+   * The name used to be typed, so the same country could arrive as "UAE",
+   * "U.A.E." or "Emirates" depending on who added it -- and that string is
+   * handed to the model as the thing to research, where an ambiguous or
+   * misspelled name produces research about the wrong place, or nothing, with
+   * no error anywhere. Picking from a list removes the failure rather than
+   * validating against it.
+   *
+   * It also supplies the Arabic name, which creation previously had no way to
+   * accept at all, in a product that is bilingual throughout.
+   *
+   * Fetched only while the dialog is open: 250 entries are not worth holding
+   * for a screen nobody has opened.
+   */
+  const { data: catalog } = useQuery<{
+    countries: Array<{
+      alpha2: string; alpha3: string | null; name: string; nameAr: string | null;
+      suggestedId: string; suggestedCode: string; alreadyAdded: boolean;
+    }>;
+  }>({
+    queryKey: ['/api/reference/country-catalog'],
+    enabled: isCreateModalOpen,
   });
   
   const [generateForm, setGenerateForm] = useState({
@@ -129,7 +156,7 @@ export default function CountryManagement() {
         name: result.country?.name ?? newCountryForm.name,
         suggestedCurricula: result.suggestedCurricula ?? [],
       });
-      setNewCountryForm({ id: "", name: "", code: "", abbreviation: "", autoPopulate: true });
+      setNewCountryForm({ id: "", name: "", nameAr: "", code: "", abbreviation: "", autoPopulate: true });
       toast({ 
         title: t('countries.createSuccess'), 
         description: result.autoPopulated 
@@ -571,15 +598,40 @@ export default function CountryManagement() {
                 />
               </div>
             </div>
+            {/* THE PICKER, and it comes first because everything else derives
+                from it. A country already added is shown as taken rather than
+                hidden, so nobody hunts for one that is already there. */}
             <div>
               <Label htmlFor="countryName">{t('countries.countryName')}</Label>
-              <Input
+              <select
                 id="countryName"
-                placeholder="e.g., Saudi Arabia"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 value={newCountryForm.name}
-                onChange={(e) => setNewCountryForm(f => ({ ...f, name: e.target.value }))}
-                data-testid="input-country-name"
-              />
+                onChange={(e) => {
+                  const picked = catalog?.countries.find((c) => c.name === e.target.value);
+                  setNewCountryForm((f) => ({
+                    ...f,
+                    name: e.target.value,
+                    nameAr: picked?.nameAr ?? "",
+                    // Pre-filled, not imposed: both stay editable below, because
+                    // the live UAE row uses "uae"/"UAE" rather than ISO's
+                    // "are"/"ARE" and its key is already pointed at.
+                    id: picked?.suggestedId ?? f.id,
+                    code: picked?.suggestedCode ?? f.code,
+                  }));
+                }}
+                data-testid="select-country-name"
+              >
+                <option value="">{t('countries.selectCountry')}</option>
+                {(catalog?.countries ?? []).map((c) => (
+                  <option key={c.alpha2} value={c.name} disabled={c.alreadyAdded}>
+                    {c.name}{c.nameAr ? ` — ${c.nameAr}` : ""}{c.alreadyAdded ? ` (${t('countries.alreadyAdded')})` : ""}
+                  </option>
+                ))}
+              </select>
+              {newCountryForm.nameAr && (
+                <p className="text-sm text-muted-foreground mt-1" dir="rtl">{newCountryForm.nameAr}</p>
+              )}
             </div>
             <div>
               <Label htmlFor="abbreviation">{t('countries.abbreviation')}</Label>

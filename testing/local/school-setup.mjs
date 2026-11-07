@@ -173,6 +173,48 @@ rec("S-00", "a school can exist with neither country nor curriculum",
     unknown.status === 404, `HTTP ${unknown.status}`);
 }
 
+/**
+ * THE COUNTRY CATALOGUE behind the picker that creates a country.
+ *
+ * Creating one took four free-text fields, so the same country could arrive as
+ * "UAE", "U.A.E." or "Emirates" depending on who typed it -- and that string
+ * is handed to the model as the thing to research, where an ambiguous or
+ * misspelled name yields research about the wrong place, or nothing, with no
+ * error. Picking from a list removes the failure instead of validating against
+ * it, and supplies the Arabic name, which creation could not accept at all.
+ */
+{
+  const r = await fetch(`${BASE}/api/reference/country-catalog`);
+  const body = await r.json();
+  const list = body.countries ?? [];
+
+  rec("C-01", "the catalogue lists the world's countries",
+    r.status === 200 && list.length > 190, `${list.length} entries`);
+
+  const sa = list.find((c) => c.name === "Saudi Arabia");
+  rec("C-02", "each entry carries ISO alpha-2 and both names",
+    sa?.suggestedId === "sa" && sa?.suggestedCode === "SA" &&
+    /[\u0600-\u06FF]/.test(sa?.nameAr ?? ""),
+    sa ? `${sa.suggestedId}/${sa.suggestedCode} ${sa.name} / ${sa.nameAr}` : "Saudi Arabia missing");
+
+  // Marked, not filtered: a country that is already there must be visible as
+  // taken, or someone hunts for one that exists.
+  const uae = list.find((c) => c.name === "United Arab Emirates");
+  rec("C-03", "a country already added is marked as taken, not hidden",
+    uae?.alreadyAdded === true, uae ? `alreadyAdded=${uae.alreadyAdded}` : "UAE missing");
+
+  const notAdded = list.filter((c) => !c.alreadyAdded).length;
+  rec("C-04", "the rest are available", notAdded === list.length - 1,
+    `${notAdded} available of ${list.length}`);
+
+  // The names the picker offers must be the names the model is then asked to
+  // research, so they have to match what is actually stored.
+  const stored = await (await fetch(`${BASE}/api/reference?countryId=uae`)).json();
+  rec("C-05", "the catalogue name matches the stored country exactly",
+    stored.countries?.[0]?.name === uae?.name,
+    `stored="${stored.countries?.[0]?.name}" catalogue="${uae?.name}"`);
+}
+
 const pass = results.filter((r) => r.pass).length;
 const fail = results.filter((r) => !r.pass);
 console.log(`\n${"=".repeat(78)}`);
