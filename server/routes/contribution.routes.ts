@@ -294,6 +294,39 @@ router.get("/submissions", isAuthenticated, checkOrgAdmin, async (req: Request, 
 });
 
 // Submit questions for review
+/**
+ * WHAT THIS SCHOOL SHOULD WRITE NEXT.
+ *
+ * The contribute screen let a school pick any subject and any grade, so what
+ * got written was what the school was strongest at -- which is the cell least
+ * likely to be empty. The weak cells stayed weak, and nothing anywhere said
+ * which they were.
+ *
+ * The school's country and curriculum are NOT parameters: they are fixed
+ * properties of the school, guaranteed to exist by the setup gate, and taking
+ * them from the request would reintroduce the choice this removes. A school
+ * teaches one curriculum; the only open question is subject and grade.
+ */
+router.get("/gaps", isAuthenticated, checkOrgAdmin, async (req: Request, res: Response) => {
+  try {
+    const member = (req as any).orgMember;
+    const setupGate = await requireSchoolSetup(storage, member.organizationId);
+    if (!setupGate.allowed) {
+      return res.status(setupGate.status).json(setupGate.body);
+    }
+
+    const organization = await storage.getOrganizationById(member.organizationId);
+    const gaps = await storage.getQuestionGaps(organization!.countryId!, organization!.curriculum!);
+    if (!gaps) {
+      return res.status(404).json({ error: "Country not found" });
+    }
+    res.json(gaps);
+  } catch (error) {
+    console.error("Error reading question gaps:", error);
+    res.status(500).json({ error: "Failed to read question gaps" });
+  }
+});
+
 router.post("/submit", isAuthenticated, checkOrgAdmin, async (req: Request, res: Response) => {
   try {
     const member = (req as any).orgMember;

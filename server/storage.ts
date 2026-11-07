@@ -3486,6 +3486,120 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
+  /**
+   * WHERE THE QUESTION BANK IS THIN, cell by cell.
+   *
+   * A cell is one (country, curriculum, subject, grade). It is the real unit
+   * because that is what the quiz draws from: a student picking three subjects
+   * gets FIVE questions per subject at THEIR grade
+   * (QUIZ_DISTRIBUTION_BY_SUBJECT_COUNT in quiz.routes.ts). So a country can
+   * hold hundreds of questions and still fail a particular student, if the
+   * three cells they land on are empty.
+   *
+   * WHY THIS EXISTS. Questions arrive two ways -- generated, or contributed by
+   * schools -- and both were pointed wherever the person happened to choose.
+   * Left to a free choice a school contributes what it is strongest at, which
+   * is the cell least likely to be empty, and the weak cells stay weak.
+   * Nothing reported which they were: the country readiness check counts
+   * questions per CURRICULUM, one total, which is enough to say "this
+   * curriculum is thin" and not enough to say "Arabic grade 11 is empty".
+   *
+   * BELOW TARGET IS NOT A FAILURE, IT IS A BORROW. When a cell cannot fill its
+   * share the quiz tops up from other countries, so the student still gets a
+   * paper -- assessed partly on a curriculum that is not theirs, with nothing
+   * surfacing that. That cost is what this table makes visible.
+   *
+   * A question with a NULL curriculum applies to every curriculum in the
+   * country, so it counts toward each -- the same rule the readiness check uses.
+   */
+  async getQuestionGaps(
+    countryId: string,
+    curriculum: string,
+  ): Promise<{
+    countryId: string;
+    curriculum: string;
+    target: number;
+    cells: Array<{
+      subject: string;
+      grade: string;
+      count: number;
+      shortfall: number;
+      status: "empty" | "short" | "thin" | "ok";
+    }>;
+    summary: { empty: number; short: number; thin: number; ok: number; totalShortfall: number };
+  } | null> {
+    const country = await this.getCountryById(countryId);
+    if (!country) return null;
+
+    // What ONE student needs from one cell. Not a target for the bank as a
+    // whole -- a cell holding exactly this serves every student at that grade
+    // the same five questions, which is why `thin` sits above it.
+    const TARGET_PER_CELL = 5;
+    const HEALTHY_PER_CELL = 10;
+
+    const subjectRows = await this.getSubjectsByCurriculum(countryId, curriculum);
+    const subjects = subjectRows.filter((s) => s.isActive).map((s) => s.name);
+    const grades = country.gradeLevels ?? [];
+
+    const counts = await db
+      .select({
+        subject: quizQuestions.subject,
+        grade: quizQuestions.grade,
+        n: sql<number>`count(*)::int`,
+      })
+      .from(quizQuestions)
+      .where(
+        and(
+          eq(quizQuestions.countryId, countryId),
+          or(eq(quizQuestions.curriculum, curriculum), isNull(quizQuestions.curriculum)),
+        ),
+      )
+      .groupBy(quizQuestions.subject, quizQuestions.grade);
+
+    const byCell = new Map<string, number>();
+    for (const row of counts) byCell.set(`${row.subject}|${row.grade}`, row.n);
+
+    const cells: Array<{
+      subject: string; grade: string; count: number; shortfall: number;
+      status: "empty" | "short" | "thin" | "ok";
+    }> = [];
+
+    for (const subject of subjects) {
+      for (const grade of grades) {
+        // grade is an INTEGER column while gradeLevels is text; compare on the
+        // number, not the string.
+        const gradeNum = parseInt(String(grade).replace(/[^0-9]/g, ""), 10);
+        const count = byCell.get(`${subject}|${gradeNum}`) ?? 0;
+        const status =
+          count === 0 ? "empty"
+            : count < TARGET_PER_CELL ? "short"
+              : count < HEALTHY_PER_CELL ? "thin"
+                : "ok";
+        cells.push({
+          subject, grade: String(grade), count,
+          shortfall: Math.max(0, TARGET_PER_CELL - count),
+          status,
+        });
+      }
+    }
+
+    // Worst first: this list is meant to be acted on from the top, by a school
+    // deciding what to write or a generator deciding what to fill.
+    const rank = { empty: 0, short: 1, thin: 2, ok: 3 };
+    cells.sort((a, b) => rank[a.status] - rank[b.status] || a.count - b.count);
+
+    const summary = {
+      empty: cells.filter((c) => c.status === "empty").length,
+      short: cells.filter((c) => c.status === "short").length,
+      thin: cells.filter((c) => c.status === "thin").length,
+      ok: cells.filter((c) => c.status === "ok").length,
+      totalShortfall: cells.reduce((n, c) => n + c.shortfall, 0),
+    };
+
+    return { countryId, curriculum, target: TARGET_PER_CELL, cells, summary };
+  }
+
+
   // Organization Member operations
   async createOrganizationMember(memberData: InsertOrganizationMember): Promise<OrganizationMember> {
     const [member] = await db

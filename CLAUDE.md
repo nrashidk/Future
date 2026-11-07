@@ -95,7 +95,8 @@ node testing/local/<suite>.mjs
 
 Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `progression`, `licences`, `new-country`, `contribution`, `crosscutting`,
-`school-setup`, plus `migration-029-dryrun` and `migration-030-dryrun`.
+`school-setup`, `question-gaps`, plus `migration-029-dryrun` and
+`migration-030-dryrun`.
 `testing/local/README.md` has the details.
 
 **Run suites one at a time with a pause between them.** PGlite allows a single
@@ -216,6 +217,27 @@ the same shape as the consent gate beside it. The columns stay nullable
 because the Stripe group-purchase path creates an organization inside the
 payment transaction where neither value exists — a NOT NULL there would roll
 back a paid purchase.
+
+## Question gaps
+
+`storage.getQuestionGaps(countryId, curriculum)` reports the bank cell by
+cell, where a cell is one (country, curriculum, subject, grade). That is the
+unit the quiz draws from: a student picking three subjects gets FIVE questions
+per subject at THEIR grade, so a country can hold hundreds of questions and
+still fail a student whose three cells are empty.
+
+An empty cell does not degrade the paper, it removes a subject from it. The
+top-up only fires below `MIN_QUIZ_QUESTIONS` for the whole quiz, so a student
+who picked Arabic with that cell empty gets ten questions instead of fifteen
+and none of them Arabic — silently, with their subject scores computed from
+what is left. `question-gaps.mjs` G-09 asserts exactly that.
+
+Schools read it at `GET /api/contributions/gaps`, scoped to their own school:
+country and curriculum are properties of the school, never request
+parameters, or the free choice this removes comes back through the query
+string. Superadmins read every curriculum of a country at
+`/api/admin/countries/:id/question-gaps`, so generation and contribution aim
+at the same cells.
 
 ## Known open items
 

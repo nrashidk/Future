@@ -273,6 +273,41 @@ export function registerCountryRoutes(app: Express) {
   });
 
   /**
+   * The same gap table a school sees, for a superadmin, for any curriculum.
+   *
+   * Two populations fill the question bank -- generation and school
+   * contributions -- and until now they were aimed independently, which is how
+   * a bank ends up lopsided. Both now read the same table, so generating is
+   * directed at the cells schools have not covered rather than at whatever was
+   * typed into the form.
+   */
+  app.get("/api/admin/countries/:id/question-gaps", isAuthenticated, async (req, res) => {
+    try {
+      const isSuperadmin = await checkSuperadmin(req);
+      if (!isSuperadmin) {
+        return res.status(403).json({ message: "Forbidden: Superadmin access required" });
+      }
+
+      const country = await storage.getCountryById(req.params.id);
+      if (!country) return res.status(404).json({ message: "Country not found" });
+
+      // Every curriculum the country offers, not one named by the caller: a
+      // superadmin deciding where to generate needs to see the whole country,
+      // and a curriculum missing from such a list is how it stays empty.
+      const perCurriculum = [];
+      for (const curriculum of country.curricula ?? []) {
+        const gaps = await storage.getQuestionGaps(req.params.id, curriculum);
+        if (gaps) perCurriculum.push(gaps);
+      }
+
+      res.json({ countryId: req.params.id, curricula: perCurriculum });
+    } catch (error) {
+      console.error("Error reading question gaps:", error);
+      res.status(500).json({ message: "Failed to read question gaps" });
+    }
+  });
+
+  /**
    * The full readiness breakdown for one country -- per-curriculum subject and
    * question counts, and the sector-map row count behind the summary above.
    */
