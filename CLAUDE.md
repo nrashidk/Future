@@ -95,7 +95,7 @@ node testing/local/<suite>.mjs
 
 Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `progression`, `licences`, `new-country`, `contribution`, `crosscutting`,
-`school-setup`, `question-gaps`, plus `migration-029-dryrun` and
+`school-setup`, `question-gaps`, `peer-review`, plus `migration-029-dryrun` and
 `migration-030-dryrun`.
 `testing/local/README.md` has the details.
 
@@ -238,6 +238,30 @@ parameters, or the free choice this removes comes back through the query
 string. Superadmins read every curriculum of a country at
 `/api/admin/countries/:id/question-gaps`, so generation and contribution aim
 at the same cells.
+
+## Peer review of contributed questions
+
+A submission passing the automatic LLM check goes to peer review, not to a
+superadmin queue: three other schools vote and two agreeing decides. Five
+rules, each of which fails silently if broken, so each has an assertion in
+`peer-review.mjs`:
+
+- a school never reviews its own work, in any country (the queue excludes it
+  AND the write refuses it — the queue is a convenience, the write is the
+  control)
+- the reviewer is never told who wrote it, achieved by not selecting the
+  author's columns rather than by not rendering them
+- one vote per SCHOOL, not per administrator — a unique index, since a school
+  with two admins could otherwise supply a majority alone
+- an outcome settles as soon as it is mathematically decided, inside the same
+  transaction as the vote
+- **credit goes only to reviewers who voted WITH the outcome.** Crediting every
+  review regardless would pay a school to approve everything unread as fast as
+  it could click.
+
+Superadmins still see `peer_review` submissions and can override at any point.
+Removing that was worse than the bottleneck it replaced: a submission nobody
+chose to review would sit for ever with no one able to see it.
 
 ## Known open items
 

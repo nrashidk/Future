@@ -1,6 +1,18 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { storage } from "../storage";
 import { requireSchoolSetup } from "../utils/schoolSetupGate";
+import { REVIEWS_REQUIRED, REVIEW_MAJORITY } from "@shared/schema";
+
+/**
+ * What a school earns for ONE review that matched the outcome.
+ *
+ * Deliberately smaller than authoring, which pays one credit per five approved
+ * questions. Reviewing is worth paying for -- it is the scarce resource once
+ * schools outnumber superadmins -- but it is minutes of work against the hours
+ * of writing a question set, and paying them alike would make reviewing the
+ * rational thing to do instead of contributing.
+ */
+const REVIEW_CREDIT_PER_REVIEW = 1;
 import { z } from "zod";
 import { isAuthenticated } from "../auth";
 import DOMPurify from "isomorphic-dompurify";
@@ -239,7 +251,21 @@ router.get("/balance", isAuthenticated, checkOrgAdmin, async (req: Request, res:
     }
 
     const submissions = await storage.getContributionSubmissionsByOrg(org.id);
-    const pendingSubmissions = submissions.filter(s => s.status === "pending" || s.status === "in_review" || s.status === "llm_verified");
+    /**
+     * PEER REVIEW DOES NOT REMOVE SUPERADMIN OVERSIGHT, it just stops being
+     * the only path.
+     *
+     * Routing verified submissions to peer review took them out of this queue
+     * entirely, which was a worse bug than the bottleneck it replaced: a
+     * submission nobody chose to review would sit at `peer_review` for ever
+     * with no one able to see it, and a superadmin could not intervene in one
+     * that was going wrong. Including it here restores the backstop -- the
+     * superadmin review route still accepts a decision at any point, and that
+     * decision settles the submission regardless of the votes cast.
+     */
+    const pendingSubmissions = submissions.filter(s =>
+      s.status === "pending" || s.status === "in_review" ||
+      s.status === "llm_verified" || s.status === "peer_review");
     const approvedUnallocated = submissions.filter(s => s.status === "approved" && !(s as any).rewardAllocated);
     const totalApproved = submissions.reduce((sum, s) => sum + (s.approvedCount || 0), 0);
     const totalCreditsEarned = submissions.reduce((sum, s) => sum + (s.creditsAwarded || 0), 0);
@@ -294,6 +320,157 @@ router.get("/submissions", isAuthenticated, checkOrgAdmin, async (req: Request, 
 });
 
 // Submit questions for review
+/**
+ * THE PEER REVIEW QUEUE — other schools' questions awaiting judgement.
+ *
+ * Never this school's own, in any country, and never one it has already voted
+ * on. The author's identity is not in the response at all: a field that
+ * reaches the browser has been disclosed whatever the interface does with it,
+ * so blindness is achieved by not selecting it rather than by not rendering it.
+ */
+router.get("/review-queue", isAuthenticated, checkOrgAdmin, async (req: Request, res: Response) => {
+  try {
+    const member = (req as any).orgMember;
+    const setupGate = await requireSchoolSetup(storage, member.organizationId);
+    if (!setupGate.allowed) {
+      return res.status(setupGate.status).json(setupGate.body);
+    }
+
+    const queue = await storage.getPeerReviewQueue(member.organizationId);
+    res.json({
+      reviewsRequired: REVIEWS_REQUIRED,
+      majority: REVIEW_MAJORITY,
+      submissions: queue,
+    });
+  } catch (error) {
+    console.error("Error reading review queue:", error);
+    res.status(500).json({ error: "Failed to read review queue" });
+  }
+});
+
+/**
+ * Cast this school's vote.
+ *
+ * One vote per SCHOOL, not per administrator -- a school with two admins could
+ * otherwise supply a majority by itself, which the unique index on
+ * (submission, reviewer org) refuses at the database.
+ *
+ * The decision settles inside the same transaction as the vote, so two schools
+ * voting at once cannot both believe they completed the quorum and settle the
+ * submission twice.
+ */
+router.post("/review/:id", isAuthenticated, checkOrgAdmin, async (req: Request, res: Response) => {
+  try {
+    const member = (req as any).orgMember;
+    const setupGate = await requireSchoolSetup(storage, member.organizationId);
+    if (!setupGate.allowed) {
+      return res.status(setupGate.status).json(setupGate.body);
+    }
+
+    const parsed = z.object({
+      vote: z.enum(["approve", "reject"]),
+      comment: z.string().max(2000).optional(),
+    }).safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Invalid review", details: parsed.error.flatten() });
+    }
+
+    const result = await storage.recordContributionReview({
+      submissionId: req.params.id,
+      reviewerOrgId: member.organizationId,
+      reviewerUserId: (req as any).user.userId,
+      vote: parsed.data.vote,
+      comment: parsed.data.comment,
+    });
+
+    if (!result.recorded) {
+      // 409 for ALREADY_REVIEWED and NOT_IN_REVIEW alike: in both the request
+      // is well-formed and the caller entitled, and it is the state that
+      // refuses -- which is what a 409 says and a 500 does not.
+      const status = result.reason === "NOT_FOUND" ? 404
+        : result.reason === "OWN_SUBMISSION" ? 403
+          : 409;
+      return res.status(status).json({ error: result.reason });
+    }
+
+    /**
+     * CREDIT THE REVIEWERS WHO WERE RIGHT, once the outcome is settled.
+     *
+     * Only the schools whose vote matched the outcome. Crediting every review
+     * regardless would pay a school to approve everything unread as fast as it
+     * could click -- the cheapest way to earn, and one that would fill the bank
+     * with whatever the automatic check let through.
+     *
+     * Credits are PENDING, not granted: allocation stays a superadmin act, the
+     * same as authoring rewards, so the reward model has one gate rather than
+     * two.
+     */
+    if (result.decided && result.outcome) {
+      const winners = await storage.getReviewersOnMajoritySide(req.params.id, result.outcome);
+      for (const orgId of winners) {
+        try {
+          await storage.incrementPendingRewardCredits(orgId, REVIEW_CREDIT_PER_REVIEW);
+        } catch (e) {
+          // A credit that fails to land must not fail the review that earned
+          // it: the vote is the record, the credit is bookkeeping.
+          console.error(`[Contribution] Failed to credit reviewer ${orgId}:`, e);
+        }
+      }
+    }
+
+    res.json({
+      recorded: true,
+      reviewsSoFar: result.reviewsSoFar,
+      reviewsRequired: REVIEWS_REQUIRED,
+      decided: result.decided,
+      outcome: result.outcome ?? null,
+    });
+  } catch (error: any) {
+    /**
+     * The unique index refusing a second vote from the same school, when two
+     * arrive simultaneously and both pass the check above. Matched on
+     * Postgres's error CODE rather than its message text: drizzle wraps the
+     * error, so the message is not reliably reachable -- which is how this
+     * case escaped as a 500 the first time.
+     */
+    const pgCode = error?.code ?? error?.cause?.code;
+    if (pgCode === "23505") {
+      return res.status(409).json({ error: "ALREADY_REVIEWED" });
+    }
+    console.error("Error recording review:", error);
+    res.status(500).json({ error: "Failed to record review" });
+  }
+});
+
+/**
+ * The reviews on the AUTHOR's own submission: the outcome and what reviewers
+ * said, never who said it. Blind runs both ways, so a school cannot learn who
+ * rejected its questions and take it personally in the next review round.
+ */
+router.get("/:id/feedback", isAuthenticated, checkOrgAdmin, async (req: Request, res: Response) => {
+  try {
+    const member = (req as any).orgMember;
+    const submission = await storage.getContributionSubmission(req.params.id);
+    if (!submission) return res.status(404).json({ error: "Not found" });
+    if (submission.organizationId !== member.organizationId) {
+      return res.status(403).json({ error: "Not your submission" });
+    }
+
+    const reviews = await storage.getReviewFeedbackForAuthor(req.params.id);
+    res.json({
+      status: submission.status,
+      // A rejected submission's questions are discarded -- they never enter
+      // the bank -- and the school is told so plainly rather than left to
+      // infer it from a status word.
+      discarded: submission.status === "rejected",
+      reviews,
+    });
+  } catch (error) {
+    console.error("Error reading review feedback:", error);
+    res.status(500).json({ error: "Failed to read feedback" });
+  }
+});
+
 /**
  * WHAT THIS SCHOOL SHOULD WRITE NEXT.
  *
@@ -475,9 +652,22 @@ router.post("/submit", isAuthenticated, checkOrgAdmin, async (req: Request, res:
           llmVerifiedAt: new Date(),
         };
         
-        // If LLM verified, update status to llm_verified for superadmin review
+        /**
+         * PASSING THE AUTOMATIC CHECK SENDS IT TO PEER REVIEW, not to a
+         * superadmin queue.
+         *
+         * Waiting for one person does not scale past a handful of schools, and
+         * it puts a single judgement behind every question in the bank.
+         * Schools teaching the curriculum are better placed to judge and there
+         * are many of them, so three of them decide by majority.
+         *
+         * A submission that FAILS the automatic check does not reach peer
+         * review at all -- it keeps its status and a superadmin picks it up.
+         * Reviewers' attention is the scarce resource here; spending it on
+         * questions a machine already rejected wastes it.
+         */
         if (result.verified && result.overallScore >= 50) {
-          updateData.status = "llm_verified";
+          updateData.status = "peer_review";
         }
         
         await storage.updateContributionSubmission(submission.id, updateData);
@@ -570,7 +760,10 @@ router.post("/admin/:id/review", isAuthenticated, checkSuperadmin, async (req: R
       return res.status(404).json({ error: "Submission not found" });
     }
 
-    if (submission.status !== "pending" && submission.status !== "in_review" && submission.status !== "llm_verified") {
+    // `peer_review` included: a superadmin overriding an in-flight peer review
+    // is exactly the backstop that makes peer review safe to rely on.
+    if (submission.status !== "pending" && submission.status !== "in_review" &&
+        submission.status !== "llm_verified" && submission.status !== "peer_review") {
       return res.status(400).json({ error: "Submission already reviewed" });
     }
 

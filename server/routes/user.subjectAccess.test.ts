@@ -29,7 +29,7 @@ import {
   users, assessments, recommendations, assessmentQuizzes, quizResponses,
   cvqResults, wefCompetencyResults, llmNarrativeCache, organizationMembers,
   organizations, organizationConsents, organizationEvents, passwordResetTokens,
-  files, contributionSubmissions, contributionRewards, scoringConfigChangeLog,
+  files, contributionSubmissions, contributionRewards, contributionReviews, scoringConfigChangeLog,
   systemAnnouncements, systemConfig, organizationDeletions,
   childProfiles, childGuardianConsents, licenseConsumptions,
 } from "@shared/schema";
@@ -78,7 +78,7 @@ const TABLES = [
   users, assessments, recommendations, assessmentQuizzes, quizResponses,
   cvqResults, wefCompetencyResults, llmNarrativeCache, organizationMembers,
   organizations, organizationConsents, organizationEvents, passwordResetTokens,
-  files, contributionSubmissions, contributionRewards, scoringConfigChangeLog,
+  files, contributionSubmissions, contributionRewards, contributionReviews, scoringConfigChangeLog,
   systemAnnouncements, systemConfig, organizationDeletions,
   childProfiles, childGuardianConsents, licenseConsumptions,
 ];

@@ -2089,6 +2089,80 @@ export const contributionRewards = pgTable("contribution_rewards", {
   index("contribution_rewards_submission_idx").on(table.submissionId),
 ]);
 
+/**
+ * PEER REVIEW — schools checking each other's contributed questions.
+ *
+ * A submission that passes the automatic LLM check used to wait for a
+ * superadmin, which does not scale past a handful of schools and puts one
+ * person's judgement behind every question in the bank. Schools teaching the
+ * curriculum are better placed to say whether a question is right, and there
+ * are many of them.
+ *
+ * THE RULES, and each one is load-bearing:
+ *
+ *   MAJORITY OF THREE. Three reviews are collected and two agreeing decides.
+ *   Small enough that a submission is not left waiting for reviewers who never
+ *   come, large enough that no single school decides alone.
+ *
+ *   BLIND. A reviewer is never shown who wrote the question. The queue
+ *   endpoint omits the author's organization and user entirely rather than
+ *   relying on the client not to render them -- a field that reaches the
+ *   browser has been disclosed, whatever the UI does with it.
+ *
+ *   NEVER YOUR OWN, across countries too. The unique index below stops a
+ *   school voting twice; the author check in the route stops it voting on
+ *   itself. Both are needed: the index cannot see who wrote the submission.
+ *
+ *   CREDIT FOLLOWS THE MAJORITY. A reviewer is credited only if their vote
+ *   matched the outcome. Crediting every review regardless would pay a school
+ *   to approve everything unread as fast as it could click, which is the
+ *   cheapest way to earn and would quietly destroy the bank it is meant to
+ *   protect.
+ *
+ *   REJECTED IS DISCARDED. A rejected submission's questions never enter the
+ *   bank, and the authoring school sees the outcome and the reviewers'
+ *   comments -- anonymously, since blind runs both ways.
+ */
+export const REVIEWS_REQUIRED = 3;
+export const REVIEW_MAJORITY = 2;
+
+export const contributionReviews = pgTable("contribution_reviews", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  submissionId: varchar("submission_id").notNull()
+    .references(() => contributionSubmissions.id, { onDelete: "cascade" }),
+
+  /** The reviewing SCHOOL. One vote per school, not per administrator. */
+  reviewerOrgId: varchar("reviewer_org_id").notNull()
+    .references(() => organizations.id, { onDelete: "cascade" }),
+  /** Which administrator cast it -- for accountability, never shown to the author. */
+  reviewerUserId: varchar("reviewer_user_id").notNull().references(() => users.id),
+
+  vote: text("vote").notNull(), // 'approve' | 'reject'
+  comment: text("comment"),
+
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  index("contribution_reviews_submission_idx").on(table.submissionId),
+  index("contribution_reviews_org_idx").on(table.reviewerOrgId),
+  // One vote per school per submission. Without this a school with two
+  // administrators could supply a majority by itself.
+  uniqueIndex("contribution_reviews_one_per_org").on(table.submissionId, table.reviewerOrgId),
+  check("contribution_reviews_vote_check", sql`${table.vote} IN ('approve', 'reject')`),
+]);
+
+export const contributionReviewsRelations = relations(contributionReviews, ({ one }) => ({
+  submission: one(contributionSubmissions, {
+    fields: [contributionReviews.submissionId],
+    references: [contributionSubmissions.id],
+  }),
+  reviewerOrg: one(organizations, {
+    fields: [contributionReviews.reviewerOrgId],
+    references: [organizations.id],
+  }),
+}));
+
+export type ContributionReview = typeof contributionReviews.$inferSelect;
+
 export const contributionRewardsRelations = relations(contributionRewards, ({ one }) => ({
   organization: one(organizations, {
     fields: [contributionRewards.organizationId],

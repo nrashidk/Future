@@ -147,6 +147,7 @@
         "files_uploaded": "Files you uploaded",
         "contributions_submitted": "Question contributions you submitted",
         "contributions_reviewed": "Question contributions you reviewed",
+        "contributions_peer_reviewed": "Peer reviews you cast on other schools' question contributions",
         "contribution_rewards_awarded": "Contribution rewards you awarded",
         "scoring_config_changes": "Scoring-configuration changes you made",
         "system_announcements": "System announcements you created",

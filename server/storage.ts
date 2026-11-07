@@ -37,6 +37,8 @@ import {
   organizationConsents,
   childProfiles,
   licenseConsumptions,
+  contributionReviews,
+  REVIEW_MAJORITY,
   childGuardianConsents,
   scoringTiers,
   tierComponentWeights,
@@ -3600,6 +3602,259 @@ export class DatabaseStorage implements IStorage {
   }
 
 
+  /**
+   * Submissions this school may review: awaiting peer review, not its own, not
+   * already voted on by it.
+   *
+   * BLIND BY OMISSION, NOT BY CONVENTION. The author's organization and user
+   * are not selected at all. Returning them and trusting the client not to
+   * render them would be a disclosure either way -- a field that reaches the
+   * browser has been disclosed, whatever the interface does with it.
+   *
+   * The two exclusions below do different jobs and both are needed. The author
+   * check keeps a school off its own submission; the NOT EXISTS keeps it from
+   * seeing one it has already voted on. The unique index is the backstop for
+   * the second, but a queue that kept offering an already-reviewed item would
+   * be useless even with the write refused.
+   */
+  async getPeerReviewQueue(reviewerOrgId: string, limit = 20): Promise<Array<{
+    id: string;
+    countryId: string;
+    curriculum: string;
+    subject: string;
+    grade: number;
+    questions: unknown;
+    totalQuestions: number;
+    llmVerificationScore: number | null;
+    reviewsSoFar: number;
+    createdAt: Date | null;
+  }>> {
+    const rows = await db
+      .select({
+        id: contributionSubmissions.id,
+        countryId: contributionSubmissions.countryId,
+        curriculum: contributionSubmissions.curriculum,
+        subject: contributionSubmissions.subject,
+        grade: contributionSubmissions.grade,
+        questions: contributionSubmissions.questions,
+        totalQuestions: contributionSubmissions.totalQuestions,
+        llmVerificationScore: contributionSubmissions.llmVerificationScore,
+        createdAt: contributionSubmissions.createdAt,
+        reviewsSoFar: sql<number>`(
+          SELECT count(*)::int FROM ${contributionReviews}
+          WHERE ${contributionReviews.submissionId} = ${contributionSubmissions.id}
+        )`,
+      })
+      .from(contributionSubmissions)
+      .where(
+        and(
+          eq(contributionSubmissions.status, "peer_review"),
+          // Never your own -- in any country.
+          ne(contributionSubmissions.organizationId, reviewerOrgId),
+          sql`NOT EXISTS (
+            SELECT 1 FROM ${contributionReviews}
+            WHERE ${contributionReviews.submissionId} = ${contributionSubmissions.id}
+              AND ${contributionReviews.reviewerOrgId} = ${reviewerOrgId}
+          )`,
+        ),
+      )
+      // Oldest first, so nothing waits indefinitely behind newer arrivals.
+      .orderBy(contributionSubmissions.createdAt)
+      .limit(limit);
+
+    return rows as any;
+  }
+
+  /**
+   * Record one school's vote and, if that completes the quorum, settle it.
+   *
+   * ALL IN ONE TRANSACTION. The vote, the tally and the decision have to be a
+   * single atomic fact: two schools voting simultaneously would otherwise both
+   * read two prior votes, both believe they are the third, and both settle the
+   * submission -- awarding its credits twice.
+   *
+   * The unique index on (submission, reviewer org) is what makes a double vote
+   * impossible rather than merely unlikely, and the status check below means
+   * only the transaction that finds it still `peer_review` does the settling.
+   */
+  async recordContributionReview(params: {
+    submissionId: string;
+    reviewerOrgId: string;
+    reviewerUserId: string;
+    vote: "approve" | "reject";
+    comment?: string | null;
+  }): Promise<{
+    recorded: boolean;
+    reason?: string;
+    reviewsSoFar: number;
+    decided: boolean;
+    outcome?: "approved" | "rejected";
+  }> {
+    return await db.transaction(async (tx) => {
+      const [submission] = await tx
+        .select()
+        .from(contributionSubmissions)
+        .where(eq(contributionSubmissions.id, params.submissionId))
+        .for("update");
+
+      if (!submission) {
+        return { recorded: false, reason: "NOT_FOUND", reviewsSoFar: 0, decided: false };
+      }
+      if (submission.status !== "peer_review") {
+        // Already settled, or never reached review. Not an error worth an
+        // exception: a reviewer whose queue was a moment stale lands here.
+        return { recorded: false, reason: "NOT_IN_REVIEW", reviewsSoFar: 0, decided: false };
+      }
+      if (submission.organizationId === params.reviewerOrgId) {
+        // The queue already excludes this, so reaching it means a crafted
+        // request. Refused here because the queue is a convenience and this is
+        // the control.
+        return { recorded: false, reason: "OWN_SUBMISSION", reviewsSoFar: 0, decided: false };
+      }
+
+      /**
+       * ASKED BEFORE INSERTING, with the unique index still behind it.
+       *
+       * Relying on the constraint violation alone meant the caller had to
+       * recognise a Postgres error to tell "you already voted" from "the
+       * server broke" -- and it could not: drizzle wraps the error, so a
+       * second vote surfaced as a 500. A 500 tells an administrator to try
+       * again later, which is the opposite of the truth.
+       *
+       * The check does not replace the index. The index is what makes two
+       * simultaneous votes from one school impossible; this is what makes the
+       * ordinary case answerable.
+       */
+      const [already] = await tx
+        .select({ id: contributionReviews.id })
+        .from(contributionReviews)
+        .where(
+          and(
+            eq(contributionReviews.submissionId, params.submissionId),
+            eq(contributionReviews.reviewerOrgId, params.reviewerOrgId),
+          ),
+        );
+      if (already) {
+        return { recorded: false, reason: "ALREADY_REVIEWED", reviewsSoFar: 0, decided: false };
+      }
+
+      await tx.insert(contributionReviews).values({
+        submissionId: params.submissionId,
+        reviewerOrgId: params.reviewerOrgId,
+        reviewerUserId: params.reviewerUserId,
+        vote: params.vote,
+        comment: params.comment ?? null,
+      });
+
+      const votes = await tx
+        .select({ vote: contributionReviews.vote, orgId: contributionReviews.reviewerOrgId })
+        .from(contributionReviews)
+        .where(eq(contributionReviews.submissionId, params.submissionId));
+
+      const approvals = votes.filter((v) => v.vote === "approve").length;
+      const rejections = votes.filter((v) => v.vote === "reject").length;
+
+      // Settle as soon as an outcome is MATHEMATICALLY DECIDED, rather than
+      // waiting for the third vote. Two approvals out of three cannot be
+      // overturned by the vote still outstanding, so holding the submission
+      // open for it would only delay the author and waste a reviewer's time.
+      let decided: "approved" | "rejected" | null = null;
+      if (approvals >= REVIEW_MAJORITY) decided = "approved";
+      else if (rejections >= REVIEW_MAJORITY) decided = "rejected";
+
+      if (decided) {
+        await tx
+          .update(contributionSubmissions)
+          .set({
+            status: decided,
+            approvedCount: decided === "approved" ? submission.totalQuestions : 0,
+            rejectedCount: decided === "rejected" ? submission.totalQuestions : 0,
+            reviewedAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(contributionSubmissions.id, params.submissionId));
+      }
+
+      return {
+        recorded: true,
+        reviewsSoFar: votes.length,
+        decided: !!decided,
+        outcome: decided ?? undefined,
+      };
+    });
+  }
+
+  /**
+   * Which schools voted with the outcome -- the ones a review credit is owed to.
+   *
+   * CREDIT FOLLOWS THE MAJORITY, deliberately. Crediting every review whatever
+   * it said would pay a school to approve everything unread as fast as it
+   * could click: the cheapest possible way to earn, and one that would quietly
+   * fill the bank with whatever the automatic check happened to let through.
+   * Being paid only when you agreed with the other reviewers makes careless
+   * voting worthless rather than merely frowned upon.
+   */
+  async getReviewersOnMajoritySide(
+    submissionId: string,
+    outcome: "approved" | "rejected",
+  ): Promise<string[]> {
+    const want = outcome === "approved" ? "approve" : "reject";
+    const rows = await db
+      .select({ orgId: contributionReviews.reviewerOrgId })
+      .from(contributionReviews)
+      .where(
+        and(
+          eq(contributionReviews.submissionId, submissionId),
+          eq(contributionReviews.vote, want),
+        ),
+      );
+    return rows.map((r) => r.orgId);
+  }
+
+  /**
+   * The reviews on one submission, for its AUTHOR -- outcome and comments,
+   * never who wrote them. Blind runs both ways.
+   */
+  async getReviewFeedbackForAuthor(submissionId: string): Promise<Array<{
+    vote: string; comment: string | null; createdAt: Date;
+  }>> {
+    const rows = await db
+      .select({
+        vote: contributionReviews.vote,
+        comment: contributionReviews.comment,
+        createdAt: contributionReviews.createdAt,
+      })
+      .from(contributionReviews)
+      .where(eq(contributionReviews.submissionId, submissionId))
+      .orderBy(contributionReviews.createdAt);
+    return rows;
+  }
+
+
+  /**
+   * Add to a school's PENDING reward credits, atomically.
+   *
+   * `x = x + n` IN SQL, not read-then-write. The existing reward paths read
+   * the organization, add in JavaScript and write the sum back, which is the
+   * check-then-act shape this codebase keeps producing: two credits landing
+   * together both read the same starting value and one is lost.
+   *
+   * That race is theoretical for authoring rewards, which a superadmin grants
+   * one at a time. It is not theoretical here: settling one submission credits
+   * up to three schools in a loop, and several submissions can settle at once.
+   */
+  async incrementPendingRewardCredits(organizationId: string, credits: number): Promise<void> {
+    if (credits <= 0) return;
+    await db
+      .update(organizations)
+      .set({
+        pendingRewardCredits: sql`COALESCE(${organizations.pendingRewardCredits}, 0) + ${credits}`,
+        updatedAt: new Date(),
+      })
+      .where(eq(organizations.id, organizationId));
+  }
+
+
   // Organization Member operations
   async createOrganizationMember(memberData: InsertOrganizationMember): Promise<OrganizationMember> {
     const [member] = await db
@@ -4546,6 +4801,15 @@ export class DatabaseStorage implements IStorage {
           eq(contributionSubmissions.status, "pending"),
           eq(contributionSubmissions.status, "in_review"),
           eq(contributionSubmissions.status, "llm_verified"),
+          // PEER REVIEW DOES NOT REMOVE SUPERADMIN OVERSIGHT, it just stops
+          // being the only path. Routing verified submissions to peer review
+          // took them out of this queue entirely, which is worse than the
+          // bottleneck it replaced: one that no school chose to review would
+          // sit there for ever with nobody able to see it, and a superadmin
+          // could not step into one going wrong. The review route accepts a
+          // decision on a peer_review submission at any point, and that
+          // decision settles it whatever the votes said.
+          eq(contributionSubmissions.status, "peer_review"),
           eq(contributionSubmissions.status, "approved")
         )
       )

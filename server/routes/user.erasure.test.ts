@@ -35,7 +35,7 @@ import {
   users, assessments, recommendations, assessmentQuizzes, quizResponses,
   cvqResults, organizationMembers, wefCompetencyResults,
   organizations, organizationEvents, files, contributionSubmissions,
-  contributionRewards, scoringConfigChangeLog, systemAnnouncements, systemConfig,
+  contributionRewards, contributionReviews, scoringConfigChangeLog, systemAnnouncements, systemConfig,
   childProfiles,
 } from "@shared/schema";
 import { ERASURE_BLOCK_CODES } from "@shared/dataRights";
@@ -101,7 +101,7 @@ const PASSWORD_HASH = await hashPassword(PASSWORD);
 const TABLES = [
   users, assessments, recommendations, assessmentQuizzes, quizResponses,
   cvqResults, organizationMembers, wefCompetencyResults, organizations,
-  organizationEvents, files, contributionSubmissions, contributionRewards,
+  organizationEvents, files, contributionSubmissions, contributionRewards, contributionReviews,
   scoringConfigChangeLog, systemAnnouncements, systemConfig, childProfiles,
 ];
 

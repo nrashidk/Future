@@ -16,6 +16,10 @@ export const ERASURE_BLOCK_CODES = [
   "files_uploaded",
   "contributions_submitted",
   "contributions_reviewed",
+  // Peer review by a school, distinct from the superadmin review above: the
+  // list requires one code per blocking source, and telling the person WHICH
+  // kind of review holds up their erasure is more use than one blurred label.
+  "contributions_peer_reviewed",
   "contribution_rewards_awarded",
   "scoring_config_changes",
   "system_announcements",

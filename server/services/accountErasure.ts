@@ -14,7 +14,7 @@
 import {
   users, assessments, recommendations, assessmentQuizzes, quizResponses,
   cvqResults, organizationMembers, wefCompetencyResults,
-  organizations, organizationEvents, contributionSubmissions, contributionRewards,
+  organizations, organizationEvents, contributionSubmissions, contributionRewards, contributionReviews,
   files, scoringConfigChangeLog, systemAnnouncements, systemConfig,
   childProfiles,
 } from "@shared/schema";
@@ -165,6 +165,24 @@ export const BLOCKING_AUDIT_SOURCES: Array<{ table: any; column: any; code: Eras
   { table: files, column: files.uploadedBy, code: "files_uploaded", label: "files you uploaded" },
   { table: contributionSubmissions, column: contributionSubmissions.submittedByUserId, code: "contributions_submitted", label: "question contributions you submitted" },
   { table: contributionSubmissions, column: contributionSubmissions.reviewedByUserId, code: "contributions_reviewed", label: "question contributions you reviewed" },
+  /**
+   * PEER REVIEWS you cast. Same code and label as the superadmin review row
+   * above, because to the person being told why their erasure is held up it is
+   * the same fact: questions in the bank carry your judgement.
+   *
+   * It belongs here rather than being hand-added to SUBJECT_ACCESS_REGISTRY as
+   * an actor, because that registry takes its actor rows VERBATIM from this
+   * list -- so "what blocks your erasure" and "what we hold but did not
+   * include in your export" cannot drift. Adding it in one place populates
+   * both; adding it in the other breaks the equality test that guards them.
+   *
+   * ACTOR AND NOT SUBJECT, deliberately. A review is a fact about the
+   * SUBMISSION -- whether those questions were judged sound -- not about the
+   * person judging. Classifying it as the reviewer's own data would also sit
+   * badly with peer review being blind: an author sees verdicts and comments,
+   * never who wrote them.
+   */
+  { table: contributionReviews, column: contributionReviews.reviewerUserId, code: "contributions_peer_reviewed", label: "peer reviews you cast on other schools' question contributions" },
   { table: contributionRewards, column: contributionRewards.awardedByUserId, code: "contribution_rewards_awarded", label: "contribution rewards you awarded" },
   { table: scoringConfigChangeLog, column: scoringConfigChangeLog.changedBy, code: "scoring_config_changes", label: "scoring-configuration changes you made" },
   { table: systemAnnouncements, column: systemAnnouncements.createdByUserId, code: "system_announcements", label: "system announcements you created" },
