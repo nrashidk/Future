@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Loader2 } from "lucide-react";
 import { CredentialsModal } from "@/components/CredentialsModal";
 import { useTranslation } from "react-i18next";
+import { formatMoney } from "@shared/pricing";
 import { useLanguage } from "@/contexts/LanguageContext";
 
 // Initialize Stripe (lazy loaded)
@@ -31,11 +32,22 @@ const getStripe = () => {
 
 function CheckoutForm({
   amount,
+  amountMinor,
+  currency,
   studentCount,
   clientSecret,
   authenticatedUser,
 }: {
   amount: number | null;
+  /**
+   * MINOR UNITS AND THE CURRENCY, both from the server.
+   *
+   * `amount` alone was rendered as `${amount.toFixed(2)}` — a hardcoded dollar
+   * sign on a platform that charges UAE schools. The major-unit `amount` is
+   * kept for compatibility; these two are what the display uses.
+   */
+  amountMinor: number | null;
+  currency: string | null;
   studentCount: number;
   clientSecret: string;
   /**
@@ -50,7 +62,7 @@ function CheckoutForm({
    */
   authenticatedUser?: { firstName?: string | null; lastName?: string | null; email?: string | null };
 }) {
-  const { t } = useTranslation("pricing");
+  const { t, i18n } = useTranslation("pricing");
   const stripe = useStripe();
   const elements = useElements();
   const { toast } = useToast();
@@ -308,7 +320,9 @@ function CheckoutForm({
         <div className="flex justify-between text-lg font-bold">
           <span>{t("checkout.total")}</span>
           {amount !== null ? (
-            <span className="text-purple-600">${amount.toFixed(2)}</span>
+            <span className="text-purple-600" data-testid="text-checkout-total">
+              {formatMoney(amountMinor ?? Math.round(amount * 100), currency ?? "USD", i18n.language)}
+            </span>
           ) : (
             <span className="text-gray-400">{t("checkout.calculating")}</span>
           )}
@@ -327,7 +341,9 @@ function CheckoutForm({
             {t("checkout.processing")}
           </>
         ) : amount !== null ? (
-          t("checkout.pay", { amount: amount.toFixed(2) })
+          t("checkout.pay", {
+            amount: formatMoney(amountMinor ?? Math.round(amount * 100), currency ?? "USD", i18n.language),
+          })
         ) : (
           <>
             <Loader2 className="w-4 h-4 me-2 animate-spin" />
@@ -361,6 +377,10 @@ export default function Checkout() {
   const [clientSecret, setClientSecret] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [serverAmount, setServerAmount] = useState<number | null>(null);
+  // Minor units and the currency, both decided by the server. The client never
+  // computes what it displays here: it shows what it is about to be charged.
+  const [serverAmountMinor, setServerAmountMinor] = useState<number | null>(null);
+  const [serverCurrency, setServerCurrency] = useState<string | null>(null);
   const { user, isAuthenticated, isLoading: authLoading } = useAuth();
 
   const params = new URLSearchParams(window.location.search);
@@ -414,6 +434,8 @@ export default function Checkout() {
 
         setClientSecret(data.clientSecret);
         setServerAmount(data.amount);
+        setServerAmountMinor(data.amountMinor ?? null);
+        setServerCurrency(data.currency ?? null);
       } catch (error) {
         console.error("Error creating payment intent:", error);
         setLocation("/tier-selection");
@@ -468,7 +490,7 @@ export default function Checkout() {
                     locale: language === "ar" ? "ar" : "en",
                   }}
                 >
-                  <CheckoutForm amount={serverAmount} studentCount={studentCount} clientSecret={clientSecret} authenticatedUser={studentCount === 1 ? user : undefined} />
+                  <CheckoutForm amount={serverAmount} amountMinor={serverAmountMinor} currency={serverCurrency} studentCount={studentCount} clientSecret={clientSecret} authenticatedUser={studentCount === 1 ? user : undefined} />
                 </Elements>
               ) : (
                 <div className="text-center py-8 text-red-600">

@@ -16,12 +16,12 @@
       "feature6": "Enhanced career matching (personality + values)",
       "feature7": "Top 5 career matches with insights",
       "feature8": "Downloadable PDF report",
-      "cta": "Get Individual Assessment – $10.00"
+      "cta": "Get Individual Assessment – {{amount}}"
     },
     "group": {
       "title": "Group Assessment",
       "description": "For schools and institutions",
-      "discountRange": "$8.00–$9.00",
+      "discountRange": "{{low}}–{{high}}",
       "discountLabel": "/student 10%–20% off",
       "everythingPlus": "Everything in Individual, plus:",
       "feature1": "School-wide analytics dashboard",
@@ -45,7 +45,7 @@
     "cardDescription": "Enter the number of students to calculate your total cost",
     "studentCountLabel": "Number of Students",
     "basePrice": "Base Price",
-    "basePriceValue": "$10.00 per student",
+    "basePriceValue": "{{amount}} per student",
     "bulkDiscount": "Bulk Discount",
     "pricePerStudent": "Price per Student",
     "total": "Total for {{count}} {{unit}}",
@@ -59,7 +59,7 @@
     "discount2": "15% off",
     "discount3": "20% off",
     "back": "Back to Plan Selection",
-    "continue": "Continue to Checkout – ${{amount}}"
+    "continue": "Continue to Checkout – {{amount}}"
   },
   "checkout": {
     "pageTitle": "Checkout",
@@ -83,7 +83,7 @@
     "total": "Total",
     "calculating": "Calculating...",
     "processing": "Processing...",
-    "pay": "Pay ${{amount}}",
+    "pay": "Pay {{amount}}",
     "secureNotice": "Secure payment powered by Stripe. Your payment information is encrypted and secure.",
     "emailPlaceholder": "you@domain.com",
     "phonePlaceholder": "0501234567",

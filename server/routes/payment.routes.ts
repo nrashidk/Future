@@ -4,6 +4,7 @@ import { isAuthenticated } from "../auth";
 import { paymentLimiter, stampBuyerLimiter } from "../middleware/rateLimiter.middleware";
 import { grantIndividualPremium } from "../services/premiumGrant";
 import { toPublicUser } from "@shared/userPublic";
+import { quotePrice, minimumChargeMinor, formatMoney, toMajor } from "@shared/pricing";
 import Stripe from "stripe";
 
 // Initialize Stripe only if keys are configured
@@ -59,24 +60,27 @@ export function registerPaymentRoutes(app: Express) {
         });
       }
 
-      // SERVER-SIDE PRICING CALCULATION
-      const basePrice = 10.00; // $10 per student
-      let discount = 0;
-      
-      if (studentCount >= 1000) {
-        discount = 0.20; // 20% off for 1000+
-      } else if (studentCount >= 500) {
-        discount = 0.15; // 15% off for 500+
-      } else if (studentCount >= 100) {
-        discount = 0.10; // 10% off for 100+
-      }
+      /**
+       * SERVER-SIDE PRICING, from shared/pricing.ts.
+       *
+       * The tiers used to be written out here AND again by hand in
+       * client/src/pages/GroupPricing.tsx. They agreed, which is the dangerous
+       * state rather than the safe one: the page quotes one price, this charges
+       * another, and nothing fails. Both now read the same module.
+       */
+      const quote = quotePrice({ studentCount });
+      const amountInMinor = quote.totalMinor;
 
-      const total = basePrice * studentCount * (1 - discount);
-      const amountInCents = Math.round(total * 100);
-
-      // Minimum payment validation
-      if (amountInCents < 50) {
-        return res.status(400).json({ message: "Invalid amount. Minimum is $0.50 USD" });
+      /**
+       * The minimum is PER CURRENCY. The old check was `< 50` with the message
+       * "Minimum is $0.50 USD", which against a dirham price is 0.50 AED — an
+       * amount this would pass and Stripe would then refuse, turning a clear
+       * message into a payment-provider error after the card was filled in.
+       */
+      if (amountInMinor < minimumChargeMinor(quote.currency)) {
+        return res.status(400).json({
+          message: `Invalid amount. Minimum is ${formatMoney(minimumChargeMinor(quote.currency), quote.currency)}`,
+        });
       }
 
       // Get userId - works for both OAuth and local users
@@ -85,24 +89,33 @@ export function registerPaymentRoutes(app: Express) {
         : "guest";
 
       const paymentIntent = await stripe.paymentIntents.create({
-        amount: amountInCents,
-        currency: "usd",
+        amount: amountInMinor,
+        // Lower case: Stripe wants the code lower cased, while everything
+        // stored and reported uses upper case.
+        currency: quote.currency.toLowerCase(),
         automatic_payment_methods: {
           enabled: true,
         },
         metadata: {
           userId,
           studentCount: studentCount.toString(),
-          expectedAmount: amountInCents.toString(),
+          expectedAmount: amountInMinor.toString(),
+          // The currency is stamped too. Without it, a later backstop reading
+          // this metadata has an amount and no idea what money it is in.
+          currency: quote.currency,
           assessmentType: "premium"
         }
       });
 
-      // Return server-calculated total for UI display
-      res.json({ 
+      res.json({
         clientSecret: paymentIntent.client_secret,
-        amount: total, // Server-calculated amount in dollars
-        studentCount
+        // Kept in MAJOR units under the same name the client already reads, so
+        // this change does not move the displayed figure.
+        amount: toMajor(amountInMinor, quote.currency),
+        // New, so the client can stop assuming dollars.
+        amountMinor: amountInMinor,
+        currency: quote.currency,
+        studentCount,
       });
     } catch (error: any) {
       console.error("Error creating payment intent:", error);

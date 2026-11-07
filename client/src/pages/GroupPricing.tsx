@@ -8,26 +8,25 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Users, ArrowLeft } from "lucide-react";
 import { useTranslation } from "react-i18next";
+import { quotePrice, formatMoney } from "@shared/pricing";
 
 export default function GroupPricing() {
-  const { t } = useTranslation("pricing");
+  // i18n for the locale, so money is grouped the reader's way.
+  const { t, i18n } = useTranslation("pricing");
   useEffect(() => { document.title = `${t("groupPricing.pageTitle")} | ${t("appName")}`; }, [t]);
 
   const [, setLocation] = useLocation();
   const [studentCount, setStudentCount] = useState<number>(100);
 
-  const calculatePrice = (count: number): { total: number; perStudent: number; discount: number } => {
-    const basePrice = 10;
-    let discount = 0;
-    if (count >= 1000) discount = 0.20;
-    else if (count >= 500) discount = 0.15;
-    else if (count >= 100) discount = 0.10;
-    const perStudent = basePrice * (1 - discount);
-    const total = perStudent * count;
-    return { total, perStudent, discount: discount * 100 };
-  };
-
-  const pricing = calculatePrice(studentCount);
+  /**
+   * THE SAME CALCULATION THE SERVER CHARGES, from shared/pricing.ts.
+   *
+   * These tiers used to be written out here by hand and again in
+   * server/routes/payment.routes.ts. They agreed, which is worse than
+   * disagreeing: nothing compares them at runtime, so a change to one would
+   * have quoted a buyer one price and charged another with no error anywhere.
+   */
+  const pricing = quotePrice({ studentCount });
 
   return (
     <PageLayout variant="gradient">
@@ -70,19 +69,29 @@ export default function GroupPricing() {
             <div className="space-y-3">
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600 dark:text-gray-400">{t("groupPricing.basePrice")}</span>
-                <span className="font-semibold">{t("groupPricing.basePriceValue")}</span>
+                {/* The amount is a parameter, not part of the sentence. It was
+                    written into the translation as "$10.00 per student", which
+                    meant the headline price lived in two locale files and
+                    nothing moved it when the real price changed. */}
+                <span className="font-semibold" data-testid="text-base-price">
+                  {t("groupPricing.basePriceValue", {
+                    amount: formatMoney(pricing.unitPriceMinor, pricing.currency, i18n.language),
+                  })}
+                </span>
               </div>
 
-              {pricing.discount > 0 && (
+              {pricing.discountPercent > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600 dark:text-gray-400">{t("groupPricing.bulkDiscount")}</span>
-                  <span className="text-green-600 font-semibold">-{pricing.discount}%</span>
+                  <span className="text-green-600 font-semibold">-{pricing.discountPercent}%</span>
                 </div>
               )}
 
               <div className="flex justify-between text-sm">
                 <span className="text-gray-600 dark:text-gray-400">{t("groupPricing.pricePerStudent")}</span>
-                <span className="font-semibold">${pricing.perStudent.toFixed(2)}</span>
+                <span className="font-semibold" data-testid="text-price-per-student">
+                  {formatMoney(pricing.perStudentMinor, pricing.currency, i18n.language)}
+                </span>
               </div>
 
               <Separator />
@@ -94,7 +103,9 @@ export default function GroupPricing() {
                     unit: studentCount === 1 ? t("groupPricing.student") : t("groupPricing.students"),
                   })}
                 </span>
-                <span className="text-blue-600">${pricing.total.toFixed(2)}</span>
+                <span className="text-blue-600" data-testid="text-price-total">
+                  {formatMoney(pricing.totalMinor, pricing.currency, i18n.language)}
+                </span>
               </div>
             </div>
 
@@ -128,10 +139,10 @@ export default function GroupPricing() {
             </Button>
             <Button
               className="w-full bg-blue-600 hover:bg-blue-700 flex-1"
-              onClick={() => setLocation(`/checkout?students=${studentCount}&total=${pricing.total}`)}
+              onClick={() => setLocation(`/checkout?students=${studentCount}`)}
               data-testid="button-continue-checkout"
             >
-              {t("groupPricing.continue", { amount: pricing.total.toFixed(2) })}
+              {t("groupPricing.continue", { amount: formatMoney(pricing.totalMinor, pricing.currency, i18n.language) })}
             </Button>
           </CardFooter>
         </Card>

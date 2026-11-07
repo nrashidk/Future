@@ -7,9 +7,27 @@ import { Check, User, Users, BarChart3, TrendingUp, Settings, ArrowLeft } from "
 import { useTranslation } from "react-i18next";
 import { Link } from "wouter";
 import { readReturnTo, withReturnTo } from "@/lib/returnTo";
+import { quotePrice, formatMoney, VOLUME_TIERS } from "@shared/pricing";
 
 export default function TierSelection() {
-  const { t } = useTranslation("pricing");
+  const { t, i18n } = useTranslation("pricing");
+
+  /**
+   * The undiscounted list price, for display only. A single licence gets no
+   * volume discount, so one student is exactly the headline figure.
+   */
+  const listPrice = quotePrice({ studentCount: 1 });
+
+  /**
+   * The ends of the bulk range, computed from the tiers rather than written
+   * out. These were the literal string "$8.00–$9.00" in both locale files —
+   * correct only while the price and every tier stayed exactly as they were,
+   * and silently wrong the moment either moved.
+   */
+  const bestBulk = quotePrice({ studentCount: VOLUME_TIERS[0].minStudents });
+  const smallestBulk = quotePrice({
+    studentCount: VOLUME_TIERS[VOLUME_TIERS.length - 2].minStudents,
+  });
   useEffect(() => { document.title = `${t("tierSelection.pageTitle")} | ${t("appName")}`; }, [t]);
 
   const [, setLocation] = useLocation();
@@ -59,8 +77,11 @@ export default function TierSelection() {
                 <CardTitle className="text-2xl">{t("tierSelection.individual.title")}</CardTitle>
               </div>
               <CardDescription>{t("tierSelection.individual.description")}</CardDescription>
-              <div className="text-3xl font-bold mt-4">
-                $10
+              {/* Formatted from the shared price, not written into the markup.
+                  A price typed in JSX becomes a lie the moment the real one
+                  changes, and nothing fails when it does. */}
+              <div className="text-3xl font-bold mt-4" data-testid="text-tier-individual-price">
+                {formatMoney(listPrice.unitPriceMinor, listPrice.currency, i18n.language)}
                 <span className="text-sm font-normal text-gray-500">{t("tierSelection.individual.perStudent")}</span>
               </div>
             </CardHeader>
@@ -82,7 +103,9 @@ export default function TierSelection() {
                 onClick={handleIndividualTier}
                 data-testid="button-select-individual"
               >
-                {t("tierSelection.individual.cta")}
+                {t("tierSelection.individual.cta", {
+                  amount: formatMoney(listPrice.unitPriceMinor, listPrice.currency, i18n.language),
+                })}
               </Button>
             </CardFooter>
           </Card>
@@ -97,9 +120,14 @@ export default function TierSelection() {
               <CardDescription>{t("tierSelection.group.description")}</CardDescription>
               <div className="mt-4">
                 <div className="text-3xl font-bold">
-                  <span className="text-sm font-normal text-gray-500 line-through">$10.00</span>
+                  <span className="text-sm font-normal text-gray-500 line-through" data-testid="text-tier-group-list-price">
+                    {formatMoney(listPrice.unitPriceMinor, listPrice.currency, i18n.language)}
+                  </span>
                   {" "}
-                  {t("tierSelection.group.discountRange")}
+                  {t("tierSelection.group.discountRange", {
+                    low: formatMoney(bestBulk.perStudentMinor, bestBulk.currency, i18n.language),
+                    high: formatMoney(smallestBulk.perStudentMinor, smallestBulk.currency, i18n.language),
+                  })}
                   <span className="text-sm font-normal text-gray-500">{t("tierSelection.group.discountLabel")}</span>
                 </div>
               </div>
