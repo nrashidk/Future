@@ -14,6 +14,7 @@ import { z } from "zod";
 import { isPremiumAssessment } from "../utils/assessmentTier";
 import * as fileStorage from "../services/fileStorage";
 import { requireOrganizationConsent } from "../utils/consentGate";
+import { requireSchoolSetup } from "../utils/schoolSetupGate";
 import { db } from "../db";
 import { eraseUserData, detachUserFromOrganization } from "../services/accountErasure";
 import { mintPrintToken, PDF_GOTO_TIMEOUT_MS, PDF_WAIT_FOR_READY_TIMEOUT_MS } from "../utils/printToken";
@@ -780,6 +781,21 @@ export function registerAdminRoutes(app: Express) {
         return res.status(consentGate.status).json(consentGate.body);
       }
 
+      /**
+       * AND THE SCHOOL MUST KNOW WHAT IT TEACHES.
+       *
+       * Country and curriculum decide which quiz bank a student's assessment
+       * draws from, so enrolling into a school that has neither produces a
+       * student whose assessment has no questions -- a failure that surfaces
+       * much later, in front of the student. Checked alongside consent because
+       * both are preconditions of the same act. See
+       * server/utils/schoolSetupGate.ts.
+       */
+      const setupGate = await requireSchoolSetup(storage, req.params.id);
+      if (!setupGate.allowed) {
+        return res.status(setupGate.status).json(setupGate.body);
+      }
+
       if (!fullName || !grade) {
         return res.status(400).json({ message: "Missing required fields: fullName, grade" });
       }
@@ -909,6 +925,21 @@ export function registerAdminRoutes(app: Express) {
       const consentGate = await requireOrganizationConsent(storage, req.params.id);
       if (!consentGate.allowed) {
         return res.status(consentGate.status).json(consentGate.body);
+      }
+
+      /**
+       * AND THE SCHOOL MUST KNOW WHAT IT TEACHES.
+       *
+       * Country and curriculum decide which quiz bank a student's assessment
+       * draws from, so enrolling into a school that has neither produces a
+       * student whose assessment has no questions -- a failure that surfaces
+       * much later, in front of the student. Checked alongside consent because
+       * both are preconditions of the same act. See
+       * server/utils/schoolSetupGate.ts.
+       */
+      const setupGate = await requireSchoolSetup(storage, req.params.id);
+      if (!setupGate.allowed) {
+        return res.status(setupGate.status).json(setupGate.body);
       }
       const organizationId = req.params.id;
 
@@ -2367,6 +2398,21 @@ export function registerAdminRoutes(app: Express) {
       const consentGate = await requireOrganizationConsent(storage, req.params.id);
       if (!consentGate.allowed) {
         return res.status(consentGate.status).json(consentGate.body);
+      }
+
+      /**
+       * AND THE SCHOOL MUST KNOW WHAT IT TEACHES.
+       *
+       * Country and curriculum decide which quiz bank a student's assessment
+       * draws from, so enrolling into a school that has neither produces a
+       * student whose assessment has no questions -- a failure that surfaces
+       * much later, in front of the student. Checked alongside consent because
+       * both are preconditions of the same act. See
+       * server/utils/schoolSetupGate.ts.
+       */
+      const setupGate = await requireSchoolSetup(storage, req.params.id);
+      if (!setupGate.allowed) {
+        return res.status(setupGate.status).json(setupGate.body);
       }
 
       const organization = await storage.getOrganizationById(req.params.id);

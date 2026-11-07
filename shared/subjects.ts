@@ -67,3 +67,59 @@ export const SUBJECT_LABEL_KEYS: Record<SubjectId, string> = {
 export function subjectLabelKey(id: string): string | undefined {
   return SUBJECT_LABEL_KEYS[id as SubjectId];
 }
+
+/**
+ * id → Arabic name, FOR THE SERVER.
+ *
+ * SUBJECT_LABEL_KEYS above solves this for the client, which has i18n. The
+ * server does not: it builds the Arabic report narrative, and it had no Arabic
+ * subject vocabulary at all. So an Arabic report said "Science" and
+ * "Mathematics" in English, inside Arabic prose, joined with an Arabic
+ * conjunction -- `premiumNarratives.ts` picks the separator by language and
+ * then interpolates untranslated names.
+ *
+ * The strings are copied from client/public/locales/ar/assessment.json rather
+ * than written fresh, so the name a student picks on screen and the name their
+ * report prints are the same words. If one changes, change both -- they are
+ * two copies by necessity (the server cannot read the locale bundles), which
+ * is why subjectNameFor is the only way either side should reach them.
+ */
+export const SUBJECT_NAMES_AR: Record<SubjectId, string> = {
+  "Mathematics": "الرياضيات",
+  "Science": "العلوم",
+  "English": "اللغة الإنجليزية",
+  "Arabic": "اللغة العربية",
+  "Social Studies": "الدراسات الاجتماعية",
+  "Computer Science": "علوم الحاسب",
+};
+
+/**
+ * A subject's name in the requested language.
+ *
+ * Falls back to the id for anything outside the six, for the same reason
+ * subjectLabelKey returns undefined: `subjects.name` is free text server-side,
+ * so a subject seeded outside this list can reach a report, and printing what
+ * it is called is more honest than hiding it or showing a placeholder.
+ */
+export function subjectNameFor(id: string, lang: string): string {
+  if (lang !== "ar") return id;
+  return SUBJECT_NAMES_AR[id as SubjectId] ?? id;
+}
+
+/**
+ * The grade levels the platform assesses, with their labels.
+ *
+ * Grades live on each country as a plain string array (`countries.grade_levels`)
+ * with no Arabic anywhere, so an Arabic screen or prompt had nothing to render
+ * but the bare number. The numbers themselves are the stored values and must
+ * not be localised -- Arabic-Indic digits here would stop matching
+ * `quiz_questions.grade`.
+ */
+export const GRADE_LEVELS = ["8", "9", "10", "11", "12"] as const;
+export type GradeLevel = (typeof GRADE_LEVELS)[number];
+
+export function gradeLabelFor(grade: string, lang: string): string {
+  const n = String(grade).replace(/\D/g, "");
+  if (!n) return String(grade);
+  return lang === "ar" ? `الصف ${n}` : `Grade ${n}`;
+}

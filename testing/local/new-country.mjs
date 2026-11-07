@@ -247,9 +247,39 @@ if (org?.id && org.creds) {
     const built = Array.isArray(qs) && qs.length >= 6;
     rec("NC-07b", "one question no longer breaks a new country",
       built, built ? `${qs.length} questions built` : detail(gen));
-    const mine = Array.isArray(qs) ? qs.filter((q) => /Testland/.test(q.question ?? "")).length : 0;
-    rec("NC-07d", "the country's own question is preferred and included",
-      mine > 0, `${mine} of ${qs?.length ?? 0} are Testland's, rest borrowed`);
+    /**
+     * FLAKY AS ORIGINALLY WRITTEN, and it took two false alarms to notice.
+     *
+     * This asserted that the country's single own question appeared among the
+     * fifteen built. But selection shuffles the pool and slices it
+     * (quiz.routes.ts, shuffleQuestions), so one own question among fourteen
+     * borrowed ones appears or does not by luck. It passed on one fresh
+     * database and failed on the next, and on the first of those failures it
+     * was read as a regression from an unrelated change.
+     *
+     * So it is asked over several attempts instead. The claim being made is
+     * that the country's own question is ELIGIBLE -- that it is in the pool
+     * rather than excluded by the borrowing path -- and an own question that
+     * never surfaces across five independent draws is not eligible, while one
+     * that surfaces once is. A single draw cannot distinguish those.
+     */
+    let mine = 0;
+    let attempts = 0;
+    for (let i = 0; i < 5 && mine === 0; i++) {
+      attempts++;
+      const g3 = new Session(`tlGuestDraw${i}`);
+      await g3.get("/api/auth/user");
+      const a3 = await g3.post("/api/assessments", {
+        favoriteSubjects: ["Mathematics", "Biology", "Economics"], interests: ["healthcare"],
+        assessmentType: "basic", countryId: COUNTRY_ID, curriculum: "MOE", grade: "10",
+      });
+      if (!a3.body?.id) continue;
+      const q3 = await g3.post(`/api/assessments/${a3.body.id}/quiz/generate`, {});
+      const list = q3.body?.questions ?? [];
+      mine = list.filter((q) => /Testland/.test(q.question ?? "")).length;
+    }
+    rec("NC-07d", "the country's own question is eligible, not excluded by borrowing",
+      mine > 0, `found in ${attempts} draw(s): ${mine} of 15 were Testland's`);
 
     // The same assessment, in a country with NO questions of its own, works.
     const g2 = new Session("tlGuest2");

@@ -3,6 +3,7 @@ import type { RiasecScores } from "./matching";
 // Shared with matching.ts's calculateSubjectsScore so scoring and narrative can
 // never disagree about which subjects a career relates to.
 import { normalizeCareerSubjects } from "../utils/subjectMap";
+import { subjectNameFor } from "@shared/subjects";
 
 /**
  * Premium Narrative Generator
@@ -334,7 +335,21 @@ export function generateEnhancedReasoning(context: NarrativeContext): string {
           : `The analytical and problem-solving skills you're developing in your coursework will transfer well to ${title}.`
       );
     } else {
-      const subjectList = relevantSubjects.slice(0, 3).join(lang === "ar" ? " و" : ", ");
+      /**
+       * TRANSLATE THE SUBJECTS, not just the separator.
+       *
+       * This picked an Arabic conjunction and then interpolated the subject
+       * names untranslated, so an Arabic report read "اهتمامك بـScience
+       * وMathematics" -- Arabic prose with English subjects inside it. The
+       * separator was localised because it was visible in this line; the names
+       * were not because the server had no Arabic subject vocabulary at all.
+       * It does now (shared/subjects.ts), sourced from the same strings the
+       * student saw when they picked them.
+       */
+      const subjectList = relevantSubjects
+        .slice(0, 3)
+        .map((s) => subjectNameFor(s, lang))
+        .join(lang === "ar" ? " و" : ", ");
       paragraphs.push(
         lang === "ar"
           ? `اهتمامك بـ${subjectList} يدعم مسار هذه المهنة مباشرةً. تُشكّل المفاهيم والمهارات من هذه المواد الأساس لعمل ${title}. مع تقدمك، ستدرك كيف تنطبق المعرفة الأكاديمية على التحديات المهنية الواقعية، مما يجعل دراستك أكثر هدفاً وجاذبية.`
@@ -423,9 +438,12 @@ export function generateEnhancedActionSteps(context: NarrativeContext): string[]
   const lang = language === "ar" ? "ar" : "en";
   const title = localTitle(career, lang);
   const skills01 = career.requiredSkills.slice(0, 2).join(lang === "ar" ? " و" : " and ");
+  // Translated for the same reason as the subject list above: this is
+  // interpolated into Arabic prose, and the stored value is a canonical
+  // English id.
   const topSubject =
     assessment.favoriteSubjects && (assessment.favoriteSubjects as string[]).length > 0
-      ? (assessment.favoriteSubjects as string[])[0]
+      ? subjectNameFor((assessment.favoriteSubjects as string[])[0], lang)
       : null;
 
   // Parse a numeric grade from strings like "grade11" or "11" (precedent: quiz.routes.ts:128-136).

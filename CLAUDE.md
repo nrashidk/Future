@@ -94,8 +94,9 @@ node testing/local/<suite>.mjs
 ```
 
 Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
-`progression`, `licences`, `new-country`, `contribution`, `crosscutting`, plus
-`migration-029-dryrun`. `testing/local/README.md` has the details.
+`progression`, `licences`, `new-country`, `contribution`, `crosscutting`,
+`school-setup`, plus `migration-029-dryrun` and `migration-030-dryrun`.
+`testing/local/README.md` has the details.
 
 **Run suites one at a time with a pause between them.** PGlite allows a single
 connection, so back-to-back suites exhaust it and fail with "Connection
@@ -190,13 +191,37 @@ licences. `shared/assessmentLimits.ts` holds the free-tier anti-abuse cap and
 nothing else: a pooled taker's limit is their balance, and an unknown balance
 fails closed at zero.
 
+## The reference vocabulary
+
+`GET /api/reference` returns the four controlled lists — countries, curricula,
+subjects, grades — each with English and Arabic, plus the canonical six
+subjects independent of any country. Build prompts, dropdowns and validation
+messages from it rather than assembling them per caller: the vocabularies have
+drifted before (a subject NAME on one side and a CODE on the other), and the
+Arabic report printed English subject names because the server had no Arabic
+subject list at all.
+
+Grade VALUES stay Latin digits — they are matched against
+`quiz_questions.grade`, and Arabic-Indic digits would silently stop matching.
+Only the labels are localised. `shared/subjects.ts` holds the server-side
+Arabic names, copied from the client locale bundle because the server cannot
+read it; change both together.
+
+## A school is not operational until it has a country and a curriculum
+
+Both decide which quiz bank a student's assessment draws from and which
+questions the school may contribute. `server/utils/schoolSetupGate.ts` blocks
+enrolment (all three sinks) and contribution with 409 until both are set, in
+the same shape as the consent gate beside it. The columns stay nullable
+because the Stripe group-purchase path creates an organization inside the
+payment transaction where neither value exists — a NOT NULL there would roll
+back a paid purchase.
+
 ## Known open items
 
-- **UAE offers four curricula and only `MOE National` has any subjects.**
-  British, American and IB have zero, so a student on any of them cannot
-  choose the three subjects the assessment requires. Either seed those
-  subjects or stop offering the curricula — both are content decisions.
-  `new-country.mjs` NC-09g asserts today's state and says to flip when fixed.
+- Nothing about curricula: that gap is closed. Offering a curriculum now
+  creates its six subjects, empty ones were removed, and `new-country.mjs`
+  NC-09g enforces the invariant.
 - Every report PDF ends with a near-blank page carrying only the footer, in
   both languages. The last career page fills the sheet and the footer
   overflows. Chromium honours `break-before: avoid` poorly, so this is

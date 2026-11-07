@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from "express";
 import { storage } from "../storage";
+import { requireSchoolSetup } from "../utils/schoolSetupGate";
 import { z } from "zod";
 import { isAuthenticated } from "../auth";
 import DOMPurify from "isomorphic-dompurify";
@@ -367,6 +368,22 @@ router.post("/submit", isAuthenticated, checkOrgAdmin, async (req: Request, res:
      * so, instead of watching their submission land somewhere they did not
      * choose.
      */
+    /**
+     * THE SCHOOL MUST BE SET UP BEFORE IT MAY CONTRIBUTE.
+     *
+     * The two checks below are written as "if the school has one set, it must
+     * match" -- which means a school with NEITHER skips both and can submit
+     * questions tagged to any country and any curriculum the platform knows
+     * about. That state is reachable: the Stripe group-purchase path creates a
+     * school inside the payment transaction with neither value available.
+     *
+     * A school teaches one curriculum. It should never have been choosing.
+     */
+    const setupGate = await requireSchoolSetup(storage, member.organizationId);
+    if (!setupGate.allowed) {
+      return res.status(setupGate.status).json(setupGate.body);
+    }
+
     if (organization?.countryId && countryId !== organization.countryId) {
       return res.status(400).json({
         error: `Submitted country '${countryId}' does not match your school's country '${organization.countryId}'. Questions can only be contributed to your own country.`,
