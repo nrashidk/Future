@@ -14,7 +14,8 @@
  *   P-05  one vote per SCHOOL, not per administrator
  *   P-06  a majority decides, and the questions follow the decision
  *   P-08  credit goes only to reviewers who voted WITH the outcome
- *   P-12  a school only reviews ITS OWN curriculum
+ *   P-12  a school only reviews its own CURRICULUM
+ *   P-13  ...and only within its own COUNTRY
  *
  * P-08 is the one holding the whole thing up. Credit every review regardless
  * and a school is paid to approve everything unread as fast as it can click --
@@ -240,11 +241,9 @@ let submissionId = null;
  * not offering it (a convenience) and the write refusing it (the control). A
  * queue filter alone is bypassed by posting the id.
  *
- * COUNTRY IS NOT MATCHED, on purpose, so this test deliberately puts the
- * mismatched reviewer in the SAME country as the author. If the restriction
- * were accidentally written against country instead of curriculum, this test
- * would still pass -- so the positive direction is checked too, below, with a
- * reviewer that shares the curriculum and differs in nothing else.
+ * The mismatched reviewer is put in the SAME country as the author, so this
+ * isolates the curriculum guard from the country one next door. P-13 does the
+ * reverse: same curriculum, different country.
  */
 {
   // Offer British on the UAE so a school can legitimately be put on it. This
@@ -336,6 +335,56 @@ let submissionId = null;
   rec("P-12c", "and voting on it directly is refused",
     direct.status === 403 && direct.body?.error === "CURRICULUM_MISMATCH",
     `HTTP ${direct.status} ${direct.body?.error ?? ""}`);
+
+  /**
+   * ---------------- P-13  same curriculum, DIFFERENT country, still refused
+   *
+   * The same curriculum is not the same syllabus across borders. A school
+   * teaching MOE National in another country would be marking a UAE MOE
+   * question against requirements it does not share.
+   *
+   * The fixture seeds one country, so a second is created. The refusal code is
+   * asserted specifically: with a single shared code this would pass on the
+   * CURRICULUM guard firing and never reach the country one -- the "check what
+   * the guard you are testing actually guards" trap.
+   */
+  const OTHER = `peerland${tag}`;
+  const mk = await sa.post("/api/admin/countries", {
+    id: OTHER, name: `Peerland ${tag}`, code: `P${tag.slice(0, 1).toUpperCase()}`,
+    autoPopulate: false,
+  });
+  await sa.put(`/api/admin/countries/${OTHER}`, { curricula: ["MOE National"] });
+
+  const abroad = await sa.post("/api/superadmin/organizations/create-with-admin", {
+    organizationName: `Abroad School ${tag}`,
+    totalLicenses: 5,
+    isUnlimitedLicenses: false,
+    countryId: OTHER,
+    curriculum: "MOE National",
+    adminFirstName: "Abroad", adminLastName: "Reviewer",
+    adminEmail: `abroad.${tag}@futurepath.test`,
+    adminPhone: "+971500000000",
+    adminUsername: `abroad${tag}`,
+  });
+  const aBody = abroad.body ?? {};
+  const aCreds = aBody.admin?.credentials ?? {};
+  const abroadSession = new Session("Abroad");
+  if (aCreds.password) await abroadSession.login(aCreds.username ?? `abroad${tag}`, aCreds.password);
+
+  rec("P-13", "a same-curriculum school in another country exists",
+    mk.status < 400 && !!aCreds.password,
+    `country HTTP ${mk.status}, school ${aCreds.password ? "ok" : "FAILED"}`);
+
+  const abroadQ = await abroadSession.get("/api/contributions/review-queue");
+  const abroadOffered = abroadQ.body?.submissions ?? [];
+  rec("P-13b", "it is not offered the UAE submission on the same curriculum",
+    abroadQ.status === 200 && !abroadOffered.some((s) => s.id === id),
+    `HTTP ${abroadQ.status}, ${abroadOffered.length} offered`);
+
+  const abroadVote = await abroadSession.post(`/api/contributions/review/${id}`, { vote: "approve" });
+  rec("P-13c", "and its vote is refused on COUNTRY, not curriculum",
+    abroadVote.status === 403 && abroadVote.body?.error === "COUNTRY_MISMATCH",
+    `HTTP ${abroadVote.status} ${abroadVote.body?.error ?? ""}`);
 
   /**
    * The positive direction, on the same submission the mismatched school was

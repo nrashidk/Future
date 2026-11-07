@@ -249,16 +249,21 @@ rules, each of which fails silently if broken, so each has an assertion in
 - a school never reviews its own work, in any country (the queue excludes it
   AND the write refuses it — the queue is a convenience, the write is the
   control)
-- **a school reviews only its own curriculum**, enforced in the queue and the
-  write both. Curriculum, NOT country: a British-curriculum school in the UAE
-  is the right judge of a British-curriculum question from Saudi Arabia, and
-  matching on country would starve the queue in every country with few
-  schools — which is every new country. The queue reads the reviewer's
-  curriculum as a subselect in the same statement, so no caller can pass the
-  wrong one; the write reads it on `tx`. Both fail closed on a school with no
-  curriculum. The negative case needs TWO schools on the other curriculum —
-  with one, its queue is empty either way and "not offered" passes on an
-  empty list
+- **a school reviews only its own country AND curriculum**, enforced in the
+  queue and the write both. Country is matched deliberately: the same
+  curriculum is not the same syllabus across borders — a British-curriculum
+  school in Saudi Arabia teaches it inside Saudi requirements, with national
+  content and local examination arrangements — so a reviewer from elsewhere
+  would be marking against a syllabus it does not teach while believing it
+  shares one. The accepted cost is that a country's first school has nobody to
+  review it and its submissions sit at `peer_review` until a superadmin acts,
+  which is a second reason superadmins must keep seeing them. The queue reads
+  both values as subselects in the same statement, so no caller can pass the
+  wrong ones; the write reads them on `tx`. Both fail closed when either is
+  unset. `COUNTRY_MISMATCH` and `CURRICULUM_MISMATCH` are separate codes on
+  purpose — with one shared code a test cannot tell which guard refused. The
+  curriculum negative case needs TWO schools on the other curriculum: with
+  one, its queue is empty either way and "not offered" passes on an empty list
 - the reviewer is never told who wrote it, achieved by not selecting the
   author's columns rather than by not rendering them
 - one vote per SCHOOL, not per administrator — a unique index, since a school

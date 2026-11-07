@@ -3617,19 +3617,31 @@ export class DatabaseStorage implements IStorage {
    * the second, but a queue that kept offering an already-reviewed item would
    * be useless even with the write refused.
    *
-   * ONLY THE REVIEWER'S OWN CURRICULUM. A school teaching MOE National is not
-   * placed to judge whether an IB question is correct at that grade, and a
-   * reviewer who cannot judge votes on presentation or votes to collect the
-   * credit. Country is deliberately NOT matched: a British-curriculum school in
-   * the UAE is exactly the right judge of a British-curriculum question from
-   * Saudi Arabia, and restricting by country would starve the queue in every
-   * country with few schools -- which is every new country.
+   * ONLY THE REVIEWER'S OWN COUNTRY AND CURRICULUM, in that order.
    *
-   * The curriculum is read in the same statement as a subselect rather than
-   * fetched first and passed in. A caller cannot hand in the wrong one, and
-   * there is no window between reading it and filtering on it. A school with no
-   * curriculum compares against NULL and matches nothing, so the gate's absence
-   * cannot open the queue.
+   * A school teaching MOE National is not placed to judge whether an IB
+   * question is correct at that grade, and a reviewer who cannot judge votes on
+   * presentation or votes to collect the credit.
+   *
+   * COUNTRY IS MATCHED TOO, and that is the deliberate choice. The same
+   * curriculum is not the same syllabus across borders: a British-curriculum
+   * school in Saudi Arabia teaches it inside Saudi requirements, with national
+   * content, local examination arrangements and a different context in the
+   * questions themselves. A UAE reviewer judging it would be marking against a
+   * syllabus it does not teach while believing it shares one. Matching country
+   * first removes that class of disagreement rather than relying on reviewers
+   * to notice it.
+   *
+   * THE COST, accepted: a country whose first school has just been created has
+   * nobody to review its submissions, so they sit at `peer_review`
+   * indefinitely. Superadmin override is what makes that survivable -- it is
+   * also why superadmins must keep seeing `peer_review` submissions.
+   *
+   * Both values are read in the same statement as subselects rather than
+   * fetched first and passed in. A caller cannot hand in the wrong ones, and
+   * there is no window between reading them and filtering on them. A school
+   * missing either compares against NULL and matches nothing, so the gate's
+   * absence cannot open the queue.
    */
   async getPeerReviewQueue(reviewerOrgId: string, limit = 20): Promise<Array<{
     id: string;
@@ -3665,7 +3677,11 @@ export class DatabaseStorage implements IStorage {
           eq(contributionSubmissions.status, "peer_review"),
           // Never your own -- in any country.
           ne(contributionSubmissions.organizationId, reviewerOrgId),
-          // Only the curriculum this school actually teaches.
+          // Only this school's own country, and only the curriculum it teaches.
+          sql`${contributionSubmissions.countryId} = (
+            SELECT ${organizations.countryId} FROM ${organizations}
+            WHERE ${organizations.id} = ${reviewerOrgId}
+          )`,
           sql`${contributionSubmissions.curriculum} = (
             SELECT ${organizations.curriculum} FROM ${organizations}
             WHERE ${organizations.id} = ${reviewerOrgId}
@@ -3732,22 +3748,34 @@ export class DatabaseStorage implements IStorage {
       }
 
       /**
-       * THE REVIEWER MUST TEACH THE CURRICULUM.
+       * THE REVIEWER MUST SHARE THE COUNTRY AND TEACH THE CURRICULUM.
        *
        * Read on `tx`, not on the pooled `db` handle: deciding from a snapshot
        * taken outside the transaction holding the submission is the
        * check-then-act mistake this codebase keeps producing, and it takes a
        * second connection while one is held.
        *
-       * Fails closed. A school with no curriculum set is refused rather than
+       * TWO DISTINCT REASONS, not one. With a single code a test cannot tell
+       * which guard refused -- the same mistake as "verifying" an upload
+       * allowlist that was never reached because the role check refused first.
+       *
+       * Fails closed. A school missing either value is refused rather than
        * admitted — the setup gate should have stopped it at the route, and if
        * that gate is ever bypassed this must not be the thing that lets it
        * through.
        */
       const [reviewerOrg] = await tx
-        .select({ curriculum: organizations.curriculum })
+        .select({
+          countryId: organizations.countryId,
+          curriculum: organizations.curriculum,
+        })
         .from(organizations)
         .where(eq(organizations.id, params.reviewerOrgId));
+
+      const reviewerCountry = reviewerOrg?.countryId?.trim();
+      if (!reviewerCountry || reviewerCountry !== submission.countryId) {
+        return { recorded: false, reason: "COUNTRY_MISMATCH", reviewsSoFar: 0, decided: false };
+      }
 
       const reviewerCurriculum = reviewerOrg?.curriculum?.trim();
       if (!reviewerCurriculum || reviewerCurriculum !== submission.curriculum) {

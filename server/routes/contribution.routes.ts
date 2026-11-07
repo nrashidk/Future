@@ -323,10 +323,11 @@ router.get("/submissions", isAuthenticated, checkOrgAdmin, async (req: Request, 
 /**
  * THE PEER REVIEW QUEUE — other schools' questions awaiting judgement.
  *
- * Never this school's own, in any country, never one it has already voted on,
- * and only its own curriculum — a school cannot judge a curriculum it does not
- * teach. Country is not matched: a British-curriculum school in the UAE is the
- * right judge of a British-curriculum question from anywhere.
+ * Never this school's own, in any country; never one it has already voted on;
+ * and only its own country AND curriculum. The same curriculum is not the same
+ * syllabus across borders — a British-curriculum school in Saudi Arabia teaches
+ * it inside Saudi requirements — so a reviewer from elsewhere would be marking
+ * against a syllabus it does not teach while believing it shares one.
  *
  * The author's identity is not in the response at all: a field that
  * reaches the browser has been disclosed whatever the interface does with it,
@@ -391,10 +392,11 @@ router.post("/review/:id", isAuthenticated, checkOrgAdmin, async (req: Request, 
       // 409 for ALREADY_REVIEWED and NOT_IN_REVIEW alike: in both the request
       // is well-formed and the caller entitled, and it is the state that
       // refuses -- which is what a 409 says and a 500 does not.
-      // 403 for OWN_SUBMISSION and CURRICULUM_MISMATCH: both are properties of
-      // who is asking and will not change by retrying, unlike the two 409s.
+      // 403 for the three entitlement refusals: all are properties of who is
+      // asking and will not change by retrying, unlike the two 409s.
+      const ENTITLEMENT = ["OWN_SUBMISSION", "COUNTRY_MISMATCH", "CURRICULUM_MISMATCH"];
       const status = result.reason === "NOT_FOUND" ? 404
-        : (result.reason === "OWN_SUBMISSION" || result.reason === "CURRICULUM_MISMATCH") ? 403
+        : ENTITLEMENT.includes(result.reason ?? "") ? 403
           : 409;
       return res.status(status).json({ error: result.reason });
     }
