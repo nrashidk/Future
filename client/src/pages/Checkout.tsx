@@ -385,6 +385,13 @@ export default function Checkout() {
 
   const params = new URLSearchParams(window.location.search);
   const studentCount = parseInt(params.get("students") || "1");
+  /**
+   * The country chosen on the pricing page, carried through so the amount
+   * charged is the amount quoted. Absent is legitimate — a saved bookmark, or
+   * a platform with one country — and the server falls back to its default
+   * rather than refusing.
+   */
+  const countryId = params.get("country") || "";
 
   // THE INDIVIDUAL SELF-PAY ROUTE IS PARENT-REGISTERS-ONLY NOW
   // (docs/parent-registers-scoping.md). Reaching /checkout?students=1
@@ -422,7 +429,10 @@ export default function Checkout() {
     const createPaymentIntent = async () => {
       try {
         const res = await apiRequest("POST", "/api/create-payment-intent", {
-          studentCount: studentCount
+          studentCount: studentCount,
+          // Selects the country's row server-side. The price itself is never
+          // sent from here — the server reads it.
+          ...(countryId ? { countryId } : {}),
         });
         const data = await res.json();
 

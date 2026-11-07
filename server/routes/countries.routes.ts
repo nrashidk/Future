@@ -159,6 +159,38 @@ export function registerCountriesRoutes(app: Express) {
    * says so in `usesFallbackPrice`, because refusing there would block every
    * sale in a country nobody has priced yet.
    */
+  /**
+   * THE COUNTRIES A BUYER CAN PICK, for the pricing page's selector.
+   *
+   * Separate from /api/reference, which carries every country's curricula and
+   * every curriculum's subjects and aliases — kilobytes of question-bank
+   * structure that a pricing dropdown has no use for and an anonymous visitor
+   * has no reason to receive.
+   *
+   * Both names, because the vocabulary is bilingual and the page may be read
+   * in either. Inactive countries are excluded: a country that cannot run an
+   * assessment must not be sellable.
+   */
+  app.get("/api/pricing/countries", async (_req, res) => {
+    try {
+      const all = await storage.getAllCountries();
+      res.json({
+        countries: all
+          .filter((c: any) => c.isActive !== false)
+          .map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            nameAr: c.nameAr ?? null,
+            currency: c.licenseCurrency ?? null,
+          }))
+          .sort((a: any, b: any) => a.name.localeCompare(b.name)),
+      });
+    } catch (error) {
+      console.error("Error listing countries for pricing:", error);
+      res.status(500).json({ message: "Failed to list countries" });
+    }
+  });
+
   app.get("/api/pricing/quote", async (req, res) => {
     try {
       const studentCount = parseInt(String(req.query.students ?? "1"), 10);
