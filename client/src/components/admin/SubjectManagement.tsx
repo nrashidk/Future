@@ -324,7 +324,7 @@ export default function SubjectManagement() {
                 <SelectItem value="__all__">{t('subjects.allCountries')}</SelectItem>
                 {countries.map(country => (
                   <SelectItem key={country.id} value={country.id}>
-                    {country.abbreviation || country.name}
+                    {country.abbreviation || country.code || country.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -435,7 +435,7 @@ export default function SubjectManagement() {
                     <TableCell>
                       <code className="text-xs bg-muted px-1 py-0.5 rounded">{subject.code}</code>
                     </TableCell>
-                    <TableCell>{country?.abbreviation || country?.name || subject.countryId}</TableCell>
+                    <TableCell>{country?.abbreviation || country?.code || country?.name || subject.countryId}</TableCell>
                     <TableCell>
                       <Badge variant="outline">{subject.curriculum}</Badge>
                     </TableCell>
@@ -502,7 +502,7 @@ export default function SubjectManagement() {
                   <SelectContent>
                     {countries.map(country => (
                       <SelectItem key={country.id} value={country.id}>
-                        {country.abbreviation || country.name}
+                        {country.abbreviation || country.code || country.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -804,7 +804,7 @@ export default function SubjectManagement() {
                     <SelectContent>
                       {countries.map(country => (
                         <SelectItem key={country.id} value={country.id}>
-                          {country.abbreviation || country.name}
+                          {country.abbreviation || country.code || country.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -847,7 +847,7 @@ export default function SubjectManagement() {
                     <SelectContent>
                       {countries.map(country => (
                         <SelectItem key={country.id} value={country.id}>
-                          {country.abbreviation || country.name}
+                          {country.abbreviation || country.code || country.name}
                         </SelectItem>
                       ))}
                     </SelectContent>

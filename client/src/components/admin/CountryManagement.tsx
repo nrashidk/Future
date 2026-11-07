@@ -633,16 +633,16 @@ export default function CountryManagement() {
                 <p className="text-sm text-muted-foreground mt-1" dir="rtl">{newCountryForm.nameAr}</p>
               )}
             </div>
-            <div>
-              <Label htmlFor="abbreviation">{t('countries.abbreviation')}</Label>
-              <Input
-                id="abbreviation"
-                placeholder="e.g., KSA (optional)"
-                value={newCountryForm.abbreviation}
-                onChange={(e) => setNewCountryForm(f => ({ ...f, abbreviation: e.target.value }))}
-                data-testid="input-country-abbreviation"
-              />
-            </div>
+            {/* NO ABBREVIATION FIELD.
+                It is display-only -- the subject screens render
+                `abbreviation || name` as a column shorthand -- and it
+                duplicates `code`, which the picker now always fills with the
+                ISO alpha-2. Asking for it meant asking for a value most
+                countries do not have, to shorten a name that `code` already
+                shortens. The column and the edit field stay, so the UAE row's
+                existing "UAE" is untouched; the displays fall back through
+                `code` now, so a country without one is never shown as a long
+                name in a narrow column. */}
             <div className="flex items-center justify-between p-4 bg-primary/5 rounded-lg">
               <div className="space-y-0.5">
                 <Label htmlFor="autoPopulate" className="flex items-center gap-2">

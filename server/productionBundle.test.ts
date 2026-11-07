@@ -67,4 +67,57 @@ describe("production bundle", () => {
     );
     expect(undeclared, `dist/index.js imports undeclared packages: ${undeclared.join(", ")}`).toEqual([]);
   }, 60_000);
+
+  /**
+   * THE BUNDLE MUST ACTUALLY START. The two assertions above inspect the
+   * bundle's import list; this one runs it.
+   *
+   * That distinction is not academic. A JSON import inside a dependency --
+   * `import en from "i18n-iso-countries/langs/en.json"` -- satisfies both
+   * tests above: the package IS a declared production dependency, so nothing
+   * about the import list is wrong. It still took production down, because
+   * esbuild leaves it as a bare ESM import and Node refuses any ESM JSON
+   * import without `with { type: "json" }`:
+   *
+   *   ERR_IMPORT_ATTRIBUTE_MISSING: Module ".../langs/en.json" needs an
+   *   import attribute of "type: json"
+   *
+   * tsc passed, the build passed, every suite passed, and the server crashed
+   * at boot on Render. The only thing that could have caught it is starting
+   * the bundle, which nothing did.
+   *
+   * HOW IT PASSES WITHOUT A DATABASE: server/db.ts throws on a missing
+   * DATABASE_URL, which is itself proof that module loading completed -- that
+   * error comes from running code, not from resolving imports. So reaching it
+   * is success here, and any module-resolution error is failure. Deliberately
+   * not given a DATABASE_URL: this test is about whether the process can
+   * start, not about what it does next.
+   */
+  it("starts far enough to reach its own config check", async () => {
+    const { spawn } = await import("child_process");
+    const dist = resolve(__dirname, "../dist/index.js");
+
+    const output = await new Promise<string>((resolveOut) => {
+      const proc = spawn(process.execPath, [dist], {
+        env: { ...process.env, DATABASE_URL: "", NODE_ENV: "production", PORT: "0" },
+      });
+      let buf = "";
+      proc.stdout.on("data", (d) => { buf += d; });
+      proc.stderr.on("data", (d) => { buf += d; });
+      const done = () => { try { proc.kill(); } catch {} resolveOut(buf); };
+      proc.on("exit", done);
+      setTimeout(done, 15_000);
+    });
+
+    // Anything the MODULE LOADER raises -- a missing attribute, an
+    // unresolvable package -- means the server could never have served a
+    // request.
+    const loaderFailure = output.match(
+      /ERR_IMPORT_ATTRIBUTE_MISSING|ERR_MODULE_NOT_FOUND|ERR_UNKNOWN_FILE_EXTENSION|Cannot find package|Cannot find module/,
+    );
+    expect(
+      loaderFailure?.[0],
+      `dist/index.js fails during module loading:\n${output.slice(0, 1200)}`,
+    ).toBeUndefined();
+  }, 90_000);
 });
