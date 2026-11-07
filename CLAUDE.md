@@ -95,7 +95,7 @@ node testing/local/<suite>.mjs
 
 Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `progression`, `licences`, `new-country`, `contribution`, `crosscutting`,
-`school-setup`, `question-gaps`, `peer-review`, `grants`, plus
+`school-setup`, `question-gaps`, `peer-review`, `grants`, `pricing`, plus
 `migration-029-dryrun`, `migration-030-dryrun`, `migration-032-dryrun` and
 `migration-033-dryrun`.
 
@@ -105,6 +105,11 @@ the backfill never happens in the harness and schools created by `seed.ts` have
 no ledger row. Reconciliation then correctly flags a state that only exists
 here. Any suite that asserts on reconciliation needs to do the same.
 `testing/local/README.md` has the details.
+
+**A suite that invents countries must delete them again.** `pricing` and
+`migration-033-dryrun` both create countries, and leaving them behind made
+`school-setup`'s catalogue count report 247 of 250 and fail — a true statement
+about a state another suite created, which reads exactly like a catalogue bug.
 
 **Run suites one at a time with a pause between them.** PGlite allows a single
 connection, so back-to-back suites exhaust it and fail with "Connection

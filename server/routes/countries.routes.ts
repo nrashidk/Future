@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import { countryPricing, quotePrice, toMajor } from "@shared/pricing";
 import { storage } from "../storage";
 import { SUBJECT_IDS, subjectNameFor, gradeLabelFor } from "@shared/subjects";
 import { createRequire } from "module";
@@ -140,6 +141,66 @@ export function registerCountriesRoutes(app: Express) {
    * assessment already exposes to a guest choosing a country, and a prompt
    * builder on the server uses the same source rather than a second one.
    */
+  /**
+   * WHAT A LICENCE COSTS IN A GIVEN COUNTRY — the quote the pricing page shows.
+   *
+   * Public and read-only: a school has no account when it is deciding whether
+   * to buy, so this cannot sit behind a login.
+   *
+   * IT EXISTS SO THE PAGE DOES NOT CALCULATE THE PRICE ITSELF. The quote shown
+   * and the amount charged now come from the same function reading the same
+   * country row, instead of the client deriving one and the server deriving
+   * the other — which is exactly how the volume tiers came to be written out
+   * twice and agree only by luck.
+   *
+   * An unknown country is refused rather than quietly quoted in dollars, the
+   * same as at checkout: a typo in a country id must not silently sell a UAE
+   * school a dollar licence. A country with no price set DOES fall back, and
+   * says so in `usesFallbackPrice`, because refusing there would block every
+   * sale in a country nobody has priced yet.
+   */
+  app.get("/api/pricing/quote", async (req, res) => {
+    try {
+      const studentCount = parseInt(String(req.query.students ?? "1"), 10);
+      if (!Number.isInteger(studentCount) || studentCount < 1 || studentCount > 100000) {
+        return res.status(400).json({ message: "Invalid student count", code: "INVALID_COUNT" });
+      }
+
+      const countryId = req.query.countryId ? String(req.query.countryId) : null;
+      let country = null;
+      if (countryId) {
+        country = await storage.getCountryById(countryId);
+        if (!country) {
+          return res.status(400).json({ message: "Unknown country", code: "UNKNOWN_COUNTRY" });
+        }
+      }
+
+      const { unitPriceMinor, currency, usedFallback } = countryPricing(country);
+      const quote = quotePrice({ studentCount, unitPriceMinor, currency });
+
+      res.json({
+        countryId: country?.id ?? null,
+        currency: quote.currency,
+        // Minor units are authoritative; the major-unit figures are for
+        // display only and are never what gets charged.
+        unitPriceMinor: quote.unitPriceMinor,
+        perStudentMinor: quote.perStudentMinor,
+        totalMinor: quote.totalMinor,
+        unitPrice: toMajor(quote.unitPriceMinor, quote.currency),
+        perStudent: toMajor(quote.perStudentMinor, quote.currency),
+        total: toMajor(quote.totalMinor, quote.currency),
+        discountPercent: quote.discountPercent,
+        studentCount: quote.studentCount,
+        // Visible, not silent: a live country transacting in dollars is
+        // otherwise only noticed on a receipt.
+        usesFallbackPrice: usedFallback,
+      });
+    } catch (error) {
+      console.error("Error quoting licence price:", error);
+      res.status(500).json({ message: "Failed to quote price" });
+    }
+  });
+
   app.get("/api/reference", async (req, res) => {
     try {
       const countryId = typeof req.query.countryId === "string" ? req.query.countryId : undefined;

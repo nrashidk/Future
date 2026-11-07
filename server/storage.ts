@@ -2930,6 +2930,23 @@ export class DatabaseStorage implements IStorage {
     studentCount: number;
     paymentIntentId: string;
     amountPaid: number;
+    /**
+     * WHAT WAS ACTUALLY CHARGED. Previously assumed to be USD, which stopped
+     * being true the moment a country could set its own price — the ledger
+     * would have recorded dirhams as dollars and overstated revenue roughly
+     * fourfold.
+     */
+    currency?: string;
+    /**
+     * The country the buyer chose at checkout, which decided the price.
+     *
+     * Also the country the school is created with. Before this, the Stripe
+     * path made an organization with no country at all, so the setup gate
+     * blocked its enrolment until somebody noticed — and a school that paid in
+     * dirhams and then had its country set to somewhere else would have left
+     * the price it paid unexplainable.
+     */
+    countryId?: string | null;
   }): Promise<{ user: User; organization: Organization }> {
     const { userId, organizationName, studentCount, paymentIntentId, amountPaid } = params;
 
@@ -2977,7 +2994,17 @@ export class DatabaseStorage implements IStorage {
           totalLicenses: studentCount,
           usedLicenses: 0,
           stripePaymentId: paymentIntentId,
-          amountPaid
+          amountPaid,
+          /**
+           * The country the buyer chose, which is also the country whose price
+           * they just paid. Carried onto the school so the two cannot drift
+           * apart, and so this path stops creating schools with no country at
+           * all — which the setup gate then blocked until somebody noticed.
+           *
+           * Still nullable: an older client that sends no country must not
+           * roll back a payment Stripe has taken.
+           */
+          countryId: params.countryId ?? null,
         })
         .returning();
 
@@ -3010,16 +3037,17 @@ export class DatabaseStorage implements IStorage {
        * rather than as a purchase that cannot be written. An unexplained
        * licence count is recoverable from Stripe; a lost sale is not.
        */
-      const money = decideGrantMoney(amountPaid, "USD");
+      // The charged currency, not an assumption about it.
+      const money = decideGrantMoney(amountPaid, params.currency ?? "USD");
 
       await this.recordLicenseGrant({
         organizationId: organization.id,
         kind: money.kind,
         licensesDelta: studentCount,
         amountPaid: money.amountPaid,
-        // Stripe is configured for USD (server/routes/payment.routes.ts), and
-        // the amount above is already converted to major units. Stored rather
-        // than assumed, so a later switch to AED cannot silently mix the two.
+        // The currency actually charged, passed in by the caller that created
+        // the PaymentIntent. Assuming USD here would have recorded a dirham
+        // sale as a dollar one and overstated revenue roughly fourfold.
         currency: money.currency,
         // Kept on the row either way: it is the link back to Stripe, and it is
         // what makes a webhook redelivery a no-op.

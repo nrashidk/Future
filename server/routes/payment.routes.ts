@@ -4,7 +4,7 @@ import { isAuthenticated } from "../auth";
 import { paymentLimiter, stampBuyerLimiter } from "../middleware/rateLimiter.middleware";
 import { grantIndividualPremium } from "../services/premiumGrant";
 import { toPublicUser } from "@shared/userPublic";
-import { quotePrice, minimumChargeMinor, formatMoney, toMajor } from "@shared/pricing";
+import { quotePrice, minimumChargeMinor, formatMoney, toMajor, countryPricing } from "@shared/pricing";
 import Stripe from "stripe";
 
 // Initialize Stripe only if keys are configured
@@ -25,8 +25,11 @@ export function registerPaymentRoutes(app: Express) {
     }
 
     try {
-      // SECURITY FIX: Ignore client-provided amount, calculate server-side
-      const { studentCount = 1 } = req.body;
+      // SECURITY FIX: Ignore client-provided amount, calculate server-side.
+      // The COUNTRY is accepted — a group buyer has no account yet, so there
+      // is nothing on the server to derive it from — but it only ever selects
+      // a row; the price itself is never taken from the request.
+      const { studentCount = 1, countryId } = req.body;
 
       // Validate student count
       if (!Number.isInteger(studentCount) || studentCount < 1 || studentCount > 100000) {
@@ -68,7 +71,40 @@ export function registerPaymentRoutes(app: Express) {
        * state rather than the safe one: the page quotes one price, this charges
        * another, and nothing fails. Both now read the same module.
        */
-      const quote = quotePrice({ studentCount });
+      /**
+       * THE PRICE COMES FROM THE COUNTRY ROW, never from the request.
+       *
+       * The buyer names a country; the server reads that country's price. A
+       * client that sends a price, a currency or an amount is ignored.
+       *
+       * An UNKNOWN country is refused rather than quietly charged in dollars.
+       * Silently falling back would mean a typo in a country id sells a UAE
+       * school a dollar licence and tells nobody — the
+       * accepted-at-creation-broken-for-ever shape. A country that simply has
+       * no price set is different and DOES fall back, because refusing there
+       * would block every sale in a country nobody has priced yet.
+       */
+      let country = null;
+      if (countryId) {
+        country = await storage.getCountryById(String(countryId));
+        if (!country) {
+          return res.status(400).json({
+            message: "Unknown country. Please choose your country again.",
+            code: "UNKNOWN_COUNTRY",
+          });
+        }
+      }
+
+      const { unitPriceMinor, currency, usedFallback } = countryPricing(country);
+      if (usedFallback && country) {
+        // Visible rather than silent: a live country transacting in dollars is
+        // otherwise only discovered by reading a receipt.
+        console.warn(
+          `[Pricing] Country ${country.id} has no licence price set; charging the ${currency} default.`,
+        );
+      }
+
+      const quote = quotePrice({ studentCount, unitPriceMinor, currency });
       const amountInMinor = quote.totalMinor;
 
       /**
@@ -103,6 +139,9 @@ export function registerPaymentRoutes(app: Express) {
           // The currency is stamped too. Without it, a later backstop reading
           // this metadata has an amount and no idea what money it is in.
           currency: quote.currency,
+          // Stamped so a backstop completing from metadata alone knows which
+          // country's price was paid, not just how much.
+          countryId: country?.id ?? "",
           assessmentType: "premium"
         }
       });
@@ -400,12 +439,25 @@ export function registerPaymentRoutes(app: Express) {
       let organization = null;
       if (studentCount > 1 && organizationName) {
         try {
+          /**
+           * THE CURRENCY AND COUNTRY COME FROM THE PAYMENTINTENT, which is
+           * Stripe's own record of what was charged — not from this request.
+           * The client cannot restate what it paid.
+           *
+           * `/ 100` was hardcoded here. That is right for dollars and dirhams
+           * and wrong for every three-decimal Gulf currency: a 36.730 KWD
+           * charge would have been recorded as 367.30. toMajor uses the
+           * currency's real exponent.
+           */
+          const paidCurrency = (paymentIntent.currency ?? "usd").toUpperCase();
           const result = await storage.createGroupPurchaseTransaction({
             userId: user.id,
             organizationName,
             studentCount,
             paymentIntentId: paymentIntent.id,
-            amountPaid: paymentIntent.amount / 100 // Convert cents to dollars
+            amountPaid: toMajor(paymentIntent.amount, paidCurrency),
+            currency: paidCurrency,
+            countryId: paymentIntent.metadata?.countryId || null,
           });
           user = result.user;
           organization = result.organization;

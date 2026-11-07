@@ -182,6 +182,14 @@ await client.query(SQL);
     Number(after?.p) === 3673, `id="${row.id}" code="${row.code}" -> ${after?.p}`);
 }
 
+/**
+ * Remove the countries this suite invented, for the same reason pricing.mjs
+ * does: suites share one database, and three extra countries make
+ * school-setup's catalogue count fail in a way that looks like a real bug.
+ */
+await q(`DELETE FROM countries WHERE id IN ('ksa', 'egy')`);
+await q(`UPDATE countries SET license_price_minor = NULL, license_currency = NULL`);
+
 await client.end();
 
 const pass = results.filter((r) => r.pass).length;

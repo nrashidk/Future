@@ -7,6 +7,7 @@ import { dataExportLimiter, orgCreationLimiter } from "../middleware/rateLimiter
 import { getSuperadminEmails } from "../middleware/auth.middleware";
 import { evaluateEmailChange, normalizeEmail } from "../utils/emailChange";
 import { decideGrantMoney } from "@shared/licenseGrants";
+import { toMajor } from "@shared/pricing";
 import { sendEmailChangeNotifications } from "../services/email";
 import { toPublicUser } from "@shared/userPublic";
 import type { User } from "@shared/schema";
@@ -118,7 +119,9 @@ export async function classifyUnreconciledIntent(pi: Stripe.PaymentIntent): Prom
   const base = {
     id: pi.id,
     created: new Date(pi.created * 1000).toISOString(),
-    amount: pi.amount / 100,
+    // The currency's own exponent, not a flat /100 that is wrong for every
+    // three-decimal Gulf currency.
+    amount: toMajor(pi.amount, (pi.currency ?? "usd").toUpperCase()),
     currency: pi.currency,
     studentCount,
     metadataUserId,
@@ -3155,23 +3158,33 @@ export function registerSuperadminRoutes(app: Express) {
 
       const rows: ReconciliationRow[] = [];
       const errors: { paymentIntentId: string; error: string }[] = [];
-      const tally: Record<ReconciliationClass, { count: number; amount: number }> = {
-        amount_mismatch: { count: 0, amount: 0 },
-        unidentifiable: { count: 0, amount: 0 },
-        group_incomplete: { count: 0, amount: 0 },
-        already_granted: { count: 0, amount: 0 },
-        oauth_blocked: { count: 0, amount: 0 },
-        grantable_user: { count: 0, amount: 0 },
-        grantable_guest: { count: 0, amount: 0 },
+      // `amounts`, plural and per currency: one number cannot represent a mix.
+      const tally: Record<ReconciliationClass, { count: number; amounts: Array<{ currency: string; amount: number }> }> = {
+        amount_mismatch: { count: 0, amounts: [] },
+        unidentifiable: { count: 0, amounts: [] },
+        group_incomplete: { count: 0, amounts: [] },
+        already_granted: { count: 0, amounts: [] },
+        oauth_blocked: { count: 0, amounts: [] },
+        grantable_user: { count: 0, amounts: [] },
+        grantable_guest: { count: 0, amounts: [] },
       };
 
       let totalSucceeded = 0;
-      // Sum in integer cents and divide once at the end - never accumulate money
-      // in floats.
-      let unreconciledCents = 0;
-      const tallyCents: Record<ReconciliationClass, number> = {
-        amount_mismatch: 0, unidentifiable: 0, group_incomplete: 0,
-        already_granted: 0, oauth_blocked: 0, grantable_user: 0, grantable_guest: 0,
+      /**
+       * Sum in integer MINOR UNITS and divide once at the end - never
+       * accumulate money in floats.
+       *
+       * PER CURRENCY. This was a single running total of "cents", which was
+       * correct only while every charge was in dollars. The moment a UAE
+       * school pays in dirhams it adds 3673 fils to 1000 cents and reports the
+       * sum as money, which it is not in any currency. Nor can the division at
+       * the end be a flat /100: a three-decimal Gulf charge would come out ten
+       * times too large.
+       */
+      const unreconciledMinor: Record<string, number> = {};
+      const tallyMinor: Record<ReconciliationClass, Record<string, number>> = {
+        amount_mismatch: {}, unidentifiable: {}, group_incomplete: {},
+        already_granted: {}, oauth_blocked: {}, grantable_user: {}, grantable_guest: {},
       };
 
       let startingAfter: string | undefined;
@@ -3201,8 +3214,9 @@ export function registerSuperadminRoutes(app: Express) {
             const row = await classifyUnreconciledIntent(pi);
             rows.push(row);
             tally[row.class].count++;
-            tallyCents[row.class] += pi.amount;
-            unreconciledCents += pi.amount;
+            const cur = (pi.currency ?? "usd").toUpperCase();
+            tallyMinor[row.class][cur] = (tallyMinor[row.class][cur] ?? 0) + pi.amount;
+            unreconciledMinor[cur] = (unreconciledMinor[cur] ?? 0) + pi.amount;
           } catch (error) {
             // One bad intent must never abort the batch - same contract as the
             // bulk maintenance routes above.
@@ -3220,8 +3234,15 @@ export function registerSuperadminRoutes(app: Express) {
         }
       }
 
+      // Each class reports an amount PER CURRENCY, using that currency's real
+      // exponent rather than a flat /100.
+      const spread = (byCurrency: Record<string, number>) =>
+        Object.entries(byCurrency).map(([currency, minor]) => ({
+          currency, amount: toMajor(minor, currency),
+        }));
+
       for (const key of Object.keys(tally) as ReconciliationClass[]) {
-        tally[key].amount = tallyCents[key] / 100;
+        tally[key].amounts = spread(tallyMinor[key]);
       }
 
       res.json({
@@ -3229,7 +3250,7 @@ export function registerSuperadminRoutes(app: Express) {
         since: new Date(createdGte * 1000).toISOString(),
         totalSucceeded,
         totalUnreconciled: rows.length,
-        totalAmountUnreconciled: unreconciledCents / 100,
+        totalAmountsUnreconciled: spread(unreconciledMinor),
         tally,
         rows,
         errors,
