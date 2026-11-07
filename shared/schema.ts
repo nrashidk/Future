@@ -578,7 +578,39 @@ export const countries = pgTable("countries", {
   reportTheme: jsonb("report_theme"), // Custom colors/branding for reports
   isActive: boolean("is_active").notNull().default(true), // Whether country is available for assessments
   llmPopulated: boolean("llm_populated").notNull().default(false), // Whether data was auto-populated by LLM
-  
+
+  /**
+   * WHAT A LICENCE COSTS HERE, in this country's own money.
+   *
+   * A UAE school was being charged in US dollars, which no UAE business
+   * expects and which earns the buyer a foreign-transaction fee from their own
+   * bank on top of the price.
+   *
+   * MINOR UNITS — fils, halalas, cents — as an integer. Money in a float does
+   * not add up, and Stripe is charged in minor units anyway. How many minor
+   * units make one unit depends on the currency, which is why the currency is
+   * stored beside it and never assumed: 1000 is ten dirhams but ONE dinar.
+   *
+   * NOT A CONVERTED PRICE. Each is decided once and stored. A live exchange
+   * rate in the payment path would buy nothing — the dirham and the riyal are
+   * both pegged to the dollar — while adding a way for checkout to fail when
+   * a rate service is down, and making two identical sales a month apart
+   * record different amounts.
+   *
+   * NULLABLE, AND BOTH-OR-NEITHER. A country added before anyone sets its
+   * price still has to be able to transact, so `countryPricing` in
+   * shared/pricing.ts falls back to the dollar default and REPORTS that it
+   * did. A price with no currency is meaningless and a currency with no price
+   * has nothing to charge, so a half-configured country falls back whole
+   * rather than charging 3700 cents for a 37 dirham licence.
+   *
+   * NO PRICE HISTORY HERE, deliberately: license_grants already records what
+   * was actually paid on every purchase, so the past is in the ledger and this
+   * column only ever answers "what does it cost now".
+   */
+  licensePriceMinor: integer("license_price_minor"),
+  licenseCurrency: varchar("license_currency", { length: 3 }),
+
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

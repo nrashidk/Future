@@ -96,7 +96,8 @@ node testing/local/<suite>.mjs
 Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `progression`, `licences`, `new-country`, `contribution`, `crosscutting`,
 `school-setup`, `question-gaps`, `peer-review`, `grants`, plus
-`migration-029-dryrun`, `migration-030-dryrun` and `migration-032-dryrun`.
+`migration-029-dryrun`, `migration-030-dryrun`, `migration-032-dryrun` and
+`migration-033-dryrun`.
 
 `grants` runs migration 032 itself before asserting anything: schema-push
 creates the tables and marks migrations applied **without running them**, so
