@@ -14,6 +14,7 @@
  *   P-05  one vote per SCHOOL, not per administrator
  *   P-06  a majority decides, and the questions follow the decision
  *   P-08  credit goes only to reviewers who voted WITH the outcome
+ *   P-12  a school only reviews ITS OWN curriculum
  *
  * P-08 is the one holding the whole thing up. Credit every review regardless
  * and a school is paid to approve everything unread as fast as it can click --
@@ -226,6 +227,125 @@ let submissionId = null;
     `SELECT COUNT(*)::int n FROM quiz_questions WHERE question LIKE $1`, ["Peer review probe 3%"]);
   rec("P-11", "its questions never entered the question bank",
     Number(inBank[0].n) === 0, `${inBank[0].n} found in the bank`);
+}
+
+/**
+ * ------------------- P-12  a school only reviews its OWN curriculum
+ *
+ * A school teaching MOE National cannot judge whether a British-curriculum
+ * question is right for its grade. It would be voting on presentation, or
+ * voting to collect the credit.
+ *
+ * Both halves are asserted, because they are different mechanisms: the queue
+ * not offering it (a convenience) and the write refusing it (the control). A
+ * queue filter alone is bypassed by posting the id.
+ *
+ * COUNTRY IS NOT MATCHED, on purpose, so this test deliberately puts the
+ * mismatched reviewer in the SAME country as the author. If the restriction
+ * were accidentally written against country instead of curriculum, this test
+ * would still pass -- so the positive direction is checked too, below, with a
+ * reviewer that shares the curriculum and differs in nothing else.
+ */
+{
+  // Offer British on the UAE so a school can legitimately be put on it. This
+  // is the real superadmin path, and it seeds the curriculum's six subjects.
+  await sa.put("/api/admin/countries/uae", {
+    curricula: ["MOE National", "British"],
+  });
+
+  /**
+   * TWO British schools, not one. With a single one its queue is empty either
+   * way, and "not offered the MOE submission" would pass just as well if the
+   * restriction refused everything -- an assertion that holds on an empty list
+   * is not an assertion. The second gives the first something it SHOULD see,
+   * so the queue has to prove it is filtering rather than closing.
+   */
+  const makeBritish = async (label, slug) => {
+    const created = await sa.post("/api/superadmin/organizations/create-with-admin", {
+      organizationName: `${label} ${tag}`,
+      totalLicenses: 5,
+      isUnlimitedLicenses: false,
+      countryId: "uae",
+      curriculum: "British",
+      adminFirstName: "Brit", adminLastName: label.replace(/\W/g, ""),
+      adminEmail: `${slug}.${tag}@futurepath.test`,
+      adminPhone: "+971500000000",
+      adminUsername: `${slug}${tag}`,
+    });
+    const body = created.body ?? {};
+    const creds = body.admin?.credentials ?? {};
+    const orgId = body.organization?.id ?? body.id ?? body.organizationId;
+    const s = new Session(label);
+    if (creds.password) {
+      await s.login(creds.username ?? `${slug}${tag}`, creds.password);
+      const orgsLocale = await (await fetch(`${BASE}/locales/en/orgs.json`)).json().catch(() => null);
+      await s.post("/api/my-organization/consent", {
+        consentsToProcessing: true,
+        attestsGuardianConsent: true,
+        attestationText: orgsLocale
+          ? `${orgsLocale.consentProcessing ?? ""}\n${orgsLocale.consentGuardian ?? ""}`.trim()
+          : "LOCAL FIXTURE: consent attestation wording unavailable",
+        locale: "en",
+      });
+    }
+    return { session: s, orgId, ok: !!orgId && !!creds.password };
+  };
+
+  const brit = await makeBritish("British Reviewer", "brit");
+  const britAuthor = await makeBritish("British Author", "britauth");
+
+  // Something the British school SHOULD see: same curriculum, another school.
+  const britSub = await britAuthor.session.post("/api/contributions/submit", {
+    countryId: "uae", curriculum: "British", subject: "mathematics", grade: 11,
+    questions: [question(5)],
+  });
+  const britId = britSub.body?.submissionId ?? britSub.body?.submission?.id ?? britSub.body?.id;
+  if (britId) {
+    await sql(`UPDATE contribution_submissions SET status = 'peer_review' WHERE id = $1`, [britId]);
+  }
+
+  // A fresh MOE National submission for them to NOT see.
+  const sub = await A.session.post("/api/contributions/submit", {
+    countryId: "uae", curriculum: "MOE National", subject: "english", grade: 11,
+    questions: [question(4)],
+  });
+  const id = sub.body?.submissionId ?? sub.body?.submission?.id ?? sub.body?.id;
+  await sql(`UPDATE contribution_submissions SET status = 'peer_review' WHERE id = $1`, [id]);
+
+  rec("P-12", "two British schools exist, with one submission on each curriculum",
+    brit.ok && britAuthor.ok && !!id && !!britId,
+    `reviewer=${brit.ok ? "ok" : "FAILED"} author=${britAuthor.ok ? "ok" : "FAILED"} ` +
+    `moe=${id ? id.slice(0, 8) : "FAILED"} british=${britId ? britId.slice(0, 8) : "FAILED"}`);
+
+  /**
+   * ONE assertion covering both directions, because either alone passes on a
+   * mistake: offered the British submission (so the filter is not a blanket
+   * refusal) and NOT offered the MOE one (so it is filtering on curriculum).
+   */
+  const q = await brit.session.get("/api/contributions/review-queue");
+  const offered = (q.body?.submissions ?? []);
+  rec("P-12b", "it is offered its own curriculum and not the other",
+    q.status === 200 &&
+      offered.some((s) => s.id === britId) &&
+      !offered.some((s) => s.id === id) &&
+      offered.every((s) => s.curriculum === "British"),
+    `HTTP ${q.status}, ${offered.length} offered: ` +
+    `${[...new Set(offered.map((s) => s.curriculum))].join("/") || "none"}`);
+
+  const direct = await brit.session.post(`/api/contributions/review/${id}`, { vote: "approve" });
+  rec("P-12c", "and voting on it directly is refused",
+    direct.status === 403 && direct.body?.error === "CURRICULUM_MISMATCH",
+    `HTTP ${direct.status} ${direct.body?.error ?? ""}`);
+
+  /**
+   * The positive direction, on the same submission the mismatched school was
+   * just refused. Without this, a restriction written against country, or one
+   * that refused everybody, would pass P-12b and P-12c.
+   */
+  const matching = await extra[1].session.post(`/api/contributions/review/${id}`, { vote: "approve" });
+  rec("P-12d", "a school on the SAME curriculum can still vote on it",
+    matching.status === 200 && matching.body?.recorded === true,
+    `HTTP ${matching.status} recorded=${matching.body?.recorded} ${matching.body?.error ?? ""}`);
 }
 
 const pass = results.filter((r) => r.pass).length;

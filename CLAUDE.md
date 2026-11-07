@@ -242,13 +242,23 @@ at the same cells.
 ## Peer review of contributed questions
 
 A submission passing the automatic LLM check goes to peer review, not to a
-superadmin queue: three other schools vote and two agreeing decides. Five
+superadmin queue: three other schools vote and two agreeing decides. Six
 rules, each of which fails silently if broken, so each has an assertion in
 `peer-review.mjs`:
 
 - a school never reviews its own work, in any country (the queue excludes it
   AND the write refuses it — the queue is a convenience, the write is the
   control)
+- **a school reviews only its own curriculum**, enforced in the queue and the
+  write both. Curriculum, NOT country: a British-curriculum school in the UAE
+  is the right judge of a British-curriculum question from Saudi Arabia, and
+  matching on country would starve the queue in every country with few
+  schools — which is every new country. The queue reads the reviewer's
+  curriculum as a subselect in the same statement, so no caller can pass the
+  wrong one; the write reads it on `tx`. Both fail closed on a school with no
+  curriculum. The negative case needs TWO schools on the other curriculum —
+  with one, its queue is empty either way and "not offered" passes on an
+  empty list
 - the reviewer is never told who wrote it, achieved by not selecting the
   author's columns rather than by not rendering them
 - one vote per SCHOOL, not per administrator — a unique index, since a school

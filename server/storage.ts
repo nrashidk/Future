@@ -3616,6 +3616,20 @@ export class DatabaseStorage implements IStorage {
    * seeing one it has already voted on. The unique index is the backstop for
    * the second, but a queue that kept offering an already-reviewed item would
    * be useless even with the write refused.
+   *
+   * ONLY THE REVIEWER'S OWN CURRICULUM. A school teaching MOE National is not
+   * placed to judge whether an IB question is correct at that grade, and a
+   * reviewer who cannot judge votes on presentation or votes to collect the
+   * credit. Country is deliberately NOT matched: a British-curriculum school in
+   * the UAE is exactly the right judge of a British-curriculum question from
+   * Saudi Arabia, and restricting by country would starve the queue in every
+   * country with few schools -- which is every new country.
+   *
+   * The curriculum is read in the same statement as a subselect rather than
+   * fetched first and passed in. A caller cannot hand in the wrong one, and
+   * there is no window between reading it and filtering on it. A school with no
+   * curriculum compares against NULL and matches nothing, so the gate's absence
+   * cannot open the queue.
    */
   async getPeerReviewQueue(reviewerOrgId: string, limit = 20): Promise<Array<{
     id: string;
@@ -3651,6 +3665,11 @@ export class DatabaseStorage implements IStorage {
           eq(contributionSubmissions.status, "peer_review"),
           // Never your own -- in any country.
           ne(contributionSubmissions.organizationId, reviewerOrgId),
+          // Only the curriculum this school actually teaches.
+          sql`${contributionSubmissions.curriculum} = (
+            SELECT ${organizations.curriculum} FROM ${organizations}
+            WHERE ${organizations.id} = ${reviewerOrgId}
+          )`,
           sql`NOT EXISTS (
             SELECT 1 FROM ${contributionReviews}
             WHERE ${contributionReviews.submissionId} = ${contributionSubmissions.id}
@@ -3710,6 +3729,29 @@ export class DatabaseStorage implements IStorage {
         // request. Refused here because the queue is a convenience and this is
         // the control.
         return { recorded: false, reason: "OWN_SUBMISSION", reviewsSoFar: 0, decided: false };
+      }
+
+      /**
+       * THE REVIEWER MUST TEACH THE CURRICULUM.
+       *
+       * Read on `tx`, not on the pooled `db` handle: deciding from a snapshot
+       * taken outside the transaction holding the submission is the
+       * check-then-act mistake this codebase keeps producing, and it takes a
+       * second connection while one is held.
+       *
+       * Fails closed. A school with no curriculum set is refused rather than
+       * admitted — the setup gate should have stopped it at the route, and if
+       * that gate is ever bypassed this must not be the thing that lets it
+       * through.
+       */
+      const [reviewerOrg] = await tx
+        .select({ curriculum: organizations.curriculum })
+        .from(organizations)
+        .where(eq(organizations.id, params.reviewerOrgId));
+
+      const reviewerCurriculum = reviewerOrg?.curriculum?.trim();
+      if (!reviewerCurriculum || reviewerCurriculum !== submission.curriculum) {
+        return { recorded: false, reason: "CURRICULUM_MISMATCH", reviewsSoFar: 0, decided: false };
       }
 
       /**

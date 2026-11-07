@@ -76,6 +76,7 @@ class Session {
   }
   get(p) { return this.req("GET", p); }
   post(p, b) { return this.req("POST", p, b); }
+  put(p, b) { return this.req("PUT", p, b); }
   patch(p, b) { return this.req("PATCH", p, b); }
   del(p) { return this.req("DELETE", p); }
 
