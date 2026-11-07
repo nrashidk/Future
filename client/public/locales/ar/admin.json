@@ -1120,7 +1120,6 @@
     "csvRowAnswerMismatch": "الصف {{row}}: الإجابة الصحيحة لا تتطابق مع أي خيار"
   },
   "countries": {
-    "selectCountry": "اختر دولة…",
     "alreadyAdded": "مضافة بالفعل",
     "onboarding": {
       "title": "إعداد هذه الدولة",

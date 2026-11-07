@@ -1120,7 +1120,6 @@
     "csvRowAnswerMismatch": "Row {{row}}: Correct answer does not match any option"
   },
   "countries": {
-    "selectCountry": "Select a country…",
     "alreadyAdded": "already added",
     "onboarding": {
       "title": "Set up this country",
