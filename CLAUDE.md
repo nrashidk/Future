@@ -251,6 +251,54 @@ licences. `shared/assessmentLimits.ts` holds the free-tier anti-abuse cap and
 nothing else: a pooled taker's limit is their balance, and an unknown balance
 fails closed at zero.
 
+## Licence pricing
+
+`shared/pricing.ts` is the ONLY price calculation. The volume tiers were once
+written out by hand in both `payment.routes.ts` and `GroupPricing.tsx`, and
+the price itself was literal text in four more places including both locale
+bundles. They agreed, which is the dangerous state: nothing compares them at
+runtime, so a change to one quotes a buyer one price and charges another with
+no error anywhere.
+
+Each country stores its own price in **minor units** (`license_price_minor`)
+with its own `license_currency`. Both or neither — a database constraint, not
+just a code rule, because a price with no currency is how a country bills 3700
+*cents* for a 37 dirham licence. A country with no price falls back to the USD
+default and `countryPricing` **reports that it fell back**, so an unpriced
+country is visible rather than discovered on a receipt.
+
+**Not a converter.** The dirham and the riyal are both pegged to the dollar, so
+a live rate buys nothing and adds a way for checkout to fail when a rate
+service is down, plus two identical sales a month apart recording different
+amounts. The opening prices are the exact peg conversion of the old $10 — AED
+36.73, SAR 37.50 — rounded to the true figure rather than up to a presentable
+37.00, because rounding up is a price rise nobody asked for. Changing them is
+a one-row UPDATE.
+
+Three things that fail SILENTLY and are handled centrally:
+- **Currency exponents.** 1000 minor units is ten dirhams but ONE dinar. The
+  Gulf three-decimal currencies (KWD, BHD, OMR, JOD) mischarge by a factor of
+  ten if read as two-decimal. Never divide money by a hardcoded 100 — use
+  `toMajor`.
+- **Stripe rejects a three-decimal amount that is not a multiple of ten**, so
+  a Kuwaiti price would fail at checkout for that country alone.
+- **The minimum charge is per currency.** The old `< 50` check with the message
+  "Minimum is $0.50 USD" is 0.50 AED against a dirham price — an amount it
+  passes and Stripe then refuses, after the card is filled in.
+
+Rounding happens once, at the end. Rounding per student and multiplying drifts
+a few fils on a large order, which surfaces as the page and the receipt
+disagreeing for no explicable reason.
+
+**The country is client-selected at checkout and that is currently safe only
+because prices are equivalent at the peg.** A group buyer has no account, so
+there is nothing server-side to derive it from. The price is never read from
+the request — only the country id, which selects a row. The day a market is
+priced genuinely lower, a school could select it, pay that price, and have its
+country corrected afterwards: **real regional pricing needs the country locked
+to the purchase first.** An unknown country is refused rather than quietly
+charged in dollars.
+
 ## The reference vocabulary
 
 `GET /api/reference` returns the four controlled lists — countries, curricula,
@@ -346,9 +394,9 @@ chose to review would sit for ever with no one able to see it.
   both languages. The last career page fills the sheet and the footer
   overflows. Chromium honours `break-before: avoid` poorly, so this is
   pagination work across nine pages rather than a one-liner.
-- Migrations 029 (licence ledger), 030 (empty curricula), 031 (peer review) and
-  032 (licence grants) are written and dry-run but **have not been
-  applied to staging or production**.
+- Migrations 029 (licence ledger), 030 (empty curricula), 031 (peer review),
+  032 (licence grants) and 033 (per-country pricing) are written and dry-run
+  but **have not been applied to staging or production**.
 - Closed: a superadmin can now grant or comp licences, and both that route and
   school creation accept an optional amount so a sale made offline is recorded
   as revenue rather than as a giveaway. The Stripe webhook is still the only
