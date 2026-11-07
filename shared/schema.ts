@@ -440,6 +440,114 @@ export const licenseConsumptionsRelations = relations(licenseConsumptions, ({ on
 
 export type LicenseConsumption = typeof licenseConsumptions.$inferSelect;
 
+/**
+ * WHERE A SCHOOL'S LICENCES CAME FROM. The other half of the ledger.
+ *
+ * license_consumptions records every licence SPENT. Nothing recorded where
+ * they came from. A school's payment was three columns on the organization —
+ * one date, one Stripe id, one amount — holding a single purchase for ever,
+ * and the purchase path creates the organization and refuses a second one, so
+ * a school could only ever buy once through Stripe. Every top-up after that is
+ * a superadmin hand-edit that records a COUNT and no money at all.
+ *
+ * So "paid versus consumed" was unanswerable: the consumed side was exact and
+ * the paid side was whatever the school first bought, with comps, top-ups and
+ * reductions invisible. Per-country revenue did not exist in any form, and
+ * Stripe cannot supply it — Stripe knows amounts and customers, not licences,
+ * schools, countries or curricula, and reward credits never touch Stripe at
+ * all because they are earned rather than bought.
+ *
+ * ONE ROW PER CHANGE TO ENTITLEMENT, whatever caused it. That makes the sum of
+ * the deltas reconcilable against organizations.total_licenses, the same
+ * discipline as deriving used_licenses from a count of consumption rows.
+ *
+ * ADDITIVE FOR NOW, DELIBERATELY. total_licenses stays the authoritative value
+ * that licence enforcement reads. Deriving it from this ledger would mean
+ * touching every licence check at once, which is not a change to bundle with
+ * introducing the table. The reconciliation report is the bridge: it flags any
+ * school whose deltas disagree with its total, which is what catches a code
+ * path that changes entitlement without recording it — the
+ * accepted-at-creation, visible-nowhere family.
+ */
+export const licenseGrants = pgTable("license_grants", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+
+  organizationId: varchar("organization_id").notNull().references(() => organizations.id, { onDelete: "cascade" }),
+
+  /**
+   * WHY THE ENTITLEMENT CHANGED.
+   *   purchase   — money changed hands through Stripe
+   *   comp       — granted free by a superadmin (a pilot, a goodwill credit)
+   *   adjustment — a correction by a superadmin, and the only kind that is
+   *                routinely negative
+   *   backfill   — written by migration 032 for entitlement that predates this
+   *                table. Separate from 'purchase' on purpose: for most of
+   *                these the money is unknown, and reporting them as purchases
+   *                would invent revenue.
+   */
+  kind: text("kind").notNull(),
+
+  /** Signed, so a reduction is a row rather than an edit to an earlier one. */
+  licensesDelta: integer("licenses_delta").notNull(),
+
+  /**
+   * In MAJOR units, and the currency is stored rather than assumed. Stripe is
+   * configured for USD today on a UAE platform; if that ever becomes AED, a
+   * bare amount column would silently mix the two in one sum.
+   */
+  amountPaid: real("amount_paid"),
+  currency: varchar("currency", { length: 3 }),
+
+  /**
+   * UNIQUE WHERE PRESENT, which is what makes this safe against a webhook
+   * retry. Stripe redelivers, and without this a redelivery would grant the
+   * licences a second time — the same reason the assessment id is unique on
+   * the consumption ledger.
+   */
+  stripePaymentId: varchar("stripe_payment_id"),
+
+  /** Null for anything Stripe did on its own; set for a superadmin act. */
+  performedBy: varchar("performed_by").references(() => users.id),
+
+  note: text("note"),
+
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => [
+  index("license_grants_org_idx").on(table.organizationId),
+  // Revenue over a period, and the reporting sort.
+  index("license_grants_created_idx").on(table.createdAt),
+  // Partial: many rows legitimately have no Stripe id, and a plain unique
+  // index would allow only one of them.
+  uniqueIndex("license_grants_stripe_payment_idx")
+    .on(table.stripePaymentId)
+    .where(sql`${table.stripePaymentId} IS NOT NULL`),
+
+  check(
+    "license_grants_kind_check",
+    sql`${table.kind} IN ('purchase', 'comp', 'adjustment', 'backfill')`,
+  ),
+  // A purchase names its money; nothing else may claim any. A comp that
+  // recorded an amount would appear in revenue having been given away.
+  check(
+    "license_grants_purchase_money_check",
+    sql`(${table.kind} = 'purchase' AND ${table.amountPaid} IS NOT NULL AND ${table.currency} IS NOT NULL)
+     OR (${table.kind} <> 'purchase' AND ${table.amountPaid} IS NULL AND ${table.currency} IS NULL)`,
+  ),
+]);
+
+export const licenseGrantsRelations = relations(licenseGrants, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [licenseGrants.organizationId],
+    references: [organizations.id],
+  }),
+  performer: one(users, {
+    fields: [licenseGrants.performedBy],
+    references: [users.id],
+  }),
+}));
+
+export type LicenseGrant = typeof licenseGrants.$inferSelect;
+
 // Countries with mission/vision data
 export const countries = pgTable("countries", {
   id: varchar("id").primaryKey(),

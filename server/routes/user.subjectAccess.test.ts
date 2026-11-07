@@ -31,7 +31,7 @@ import {
   organizations, organizationConsents, organizationEvents, passwordResetTokens,
   files, contributionSubmissions, contributionRewards, contributionReviews, scoringConfigChangeLog,
   systemAnnouncements, systemConfig, organizationDeletions,
-  childProfiles, childGuardianConsents, licenseConsumptions,
+  childProfiles, childGuardianConsents, licenseConsumptions, licenseGrants,
 } from "@shared/schema";
 
 // Only the predicate builders are replaced, so the fake can read them.
@@ -80,7 +80,7 @@ const TABLES = [
   organizations, organizationConsents, organizationEvents, passwordResetTokens,
   files, contributionSubmissions, contributionRewards, contributionReviews, scoringConfigChangeLog,
   systemAnnouncements, systemConfig, organizationDeletions,
-  childProfiles, childGuardianConsents, licenseConsumptions,
+  childProfiles, childGuardianConsents, licenseConsumptions, licenseGrants,
 ];
 
 const COLS = new Map<any, { table: any; key: string }>();

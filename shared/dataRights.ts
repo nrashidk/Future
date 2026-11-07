@@ -21,6 +21,11 @@ export const ERASURE_BLOCK_CODES = [
   // kind of review holds up their erasure is more use than one blurred label.
   "contributions_peer_reviewed",
   "contribution_rewards_awarded",
+  // Licence grants, comps and adjustments you made to a school's entitlement.
+  // Its own code rather than folded into school activity: this is the
+  // accounting record money reconciles against, and a person told their
+  // erasure is held up deserves to know it is that rather than a log entry.
+  "license_grants_performed",
   "scoring_config_changes",
   "system_announcements",
   "system_settings",

@@ -36,7 +36,7 @@ import {
   cvqResults, organizationMembers, wefCompetencyResults,
   organizations, organizationEvents, files, contributionSubmissions,
   contributionRewards, contributionReviews, scoringConfigChangeLog, systemAnnouncements, systemConfig,
-  childProfiles,
+  childProfiles, licenseGrants,
 } from "@shared/schema";
 import { ERASURE_BLOCK_CODES } from "@shared/dataRights";
 
@@ -103,6 +103,7 @@ const TABLES = [
   cvqResults, organizationMembers, wefCompetencyResults, organizations,
   organizationEvents, files, contributionSubmissions, contributionRewards, contributionReviews,
   scoringConfigChangeLog, systemAnnouncements, systemConfig, childProfiles,
+  licenseGrants,
 ];
 
 /** column object -> {table, key}, by reference, built from the real schema. */
@@ -125,6 +126,10 @@ const FKS: Array<{ child: any; childKey: string; parent: any; parentKey: string 
   { child: organizations, childKey: "adminUserId", parent: users, parentKey: "id" },
   { child: organizationEvents, childKey: "performedBy", parent: users, parentKey: "id" },
   { child: childProfiles, childKey: "guardianUserId", parent: users, parentKey: "id" },
+  // No ON DELETE on this one, deliberately: a licence grant is the accounting
+  // record a school's entitlement reconciles against, so deleting the
+  // superadmin who made it must be refused rather than quietly cascade.
+  { child: licenseGrants, childKey: "performedBy", parent: users, parentKey: "id" },
 ];
 
 type Row = Record<string, any>;

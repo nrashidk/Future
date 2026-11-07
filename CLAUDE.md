@@ -95,8 +95,8 @@ node testing/local/<suite>.mjs
 
 Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `progression`, `licences`, `new-country`, `contribution`, `crosscutting`,
-`school-setup`, `question-gaps`, `peer-review`, plus `migration-029-dryrun` and
-`migration-030-dryrun`.
+`school-setup`, `question-gaps`, `peer-review`, plus `migration-029-dryrun`,
+`migration-030-dryrun` and `migration-032-dryrun`.
 `testing/local/README.md` has the details.
 
 **Run suites one at a time with a pause between them.** PGlite allows a single
@@ -179,7 +179,23 @@ One licence = one completed assessment with a generated report. Spent at
 abandoning a half-finished assessment costs nothing, and a student who leaves
 takes nothing, because the licence was attached to the pool and never to them.
 
-`license_consumptions` is the ledger and the only accounting record.
+**Two ledgers, one for each direction.** `license_grants` records every change
+to a school's entitlement — a Stripe purchase, a superadmin comp, a correction
+— one row each, signed, so a reduction is a row and not an edit. Its Stripe
+payment id is unique *where present* (a partial index), which is what makes a
+webhook redelivery safe instead of granting the licences twice. A purchase
+names its money and nothing else may, so a comp can never appear in revenue.
+It is **additive for now**: `organizations.total_licenses` is still the value
+licence enforcement reads, and the sum of deltas is reconciled against it
+rather than replacing it. That reconciliation is the point — it catches a code
+path that changes entitlement without recording it.
+
+Stripe cannot answer any licence question. It knows amounts and customers, not
+licences, schools, countries or curricula, and reward credits never touch it
+because they are earned rather than bought.
+
+`license_consumptions` is the ledger of spending and the only accounting record
+for it.
 `organizations.used_licenses` and `.reward_credits_used` are derived by
 counting ledger rows, never incremented — a counter set from a count cannot
 drift, and nothing should ever add to or subtract from those columns. The

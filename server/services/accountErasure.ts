@@ -15,6 +15,7 @@ import {
   users, assessments, recommendations, assessmentQuizzes, quizResponses,
   cvqResults, organizationMembers, wefCompetencyResults,
   organizations, organizationEvents, contributionSubmissions, contributionRewards, contributionReviews,
+  licenseGrants,
   files, scoringConfigChangeLog, systemAnnouncements, systemConfig,
   childProfiles,
 } from "@shared/schema";
@@ -184,6 +185,24 @@ export const BLOCKING_AUDIT_SOURCES: Array<{ table: any; column: any; code: Eras
    */
   { table: contributionReviews, column: contributionReviews.reviewerUserId, code: "contributions_peer_reviewed", label: "peer reviews you cast on other schools' question contributions" },
   { table: contributionRewards, column: contributionRewards.awardedByUserId, code: "contribution_rewards_awarded", label: "contribution rewards you awarded" },
+  /**
+   * LICENCE GRANTS you made — a purchase recorded on a school's behalf, a comp,
+   * or a correction to its entitlement.
+   *
+   * ACTOR, not subject. The row is a fact about the SCHOOL: how many licences
+   * it holds and what was paid for them. That it was you who granted them says
+   * nothing about you beyond the act itself.
+   *
+   * It blocks erasure for a stronger reason than most of this list: these rows
+   * are what school revenue and entitlement reconcile against, so losing one
+   * would leave a school's total unexplainable.
+   *
+   * Here rather than hand-added to SUBJECT_ACCESS_REGISTRY, because that
+   * registry takes its actor rows verbatim from this list — so "what blocks
+   * your erasure" and "what we hold but did not include in your export" cannot
+   * drift apart.
+   */
+  { table: licenseGrants, column: licenseGrants.performedBy, code: "license_grants_performed", label: "licence grants, comps and adjustments you made to a school's entitlement" },
   { table: scoringConfigChangeLog, column: scoringConfigChangeLog.changedBy, code: "scoring_config_changes", label: "scoring-configuration changes you made" },
   { table: systemAnnouncements, column: systemAnnouncements.createdByUserId, code: "system_announcements", label: "system announcements you created" },
   { table: systemConfig, column: systemConfig.updatedByUserId, code: "system_settings", label: "system settings you updated" },
