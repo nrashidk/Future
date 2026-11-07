@@ -406,6 +406,7 @@
     "completedOf": "{{completed}} completed ({{rate}}%)",
     "licenseUtilization": "License Utilization",
     "licensesUsed": "{{used}} / {{total}} licenses used",
+    "licensesUncapped": "+{{used}} more on unlimited plans",
     "tabSchools": "Schools",
     "tabStudents": "Users",
     "tabActivity": "Recent Activity",

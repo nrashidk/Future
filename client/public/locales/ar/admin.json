@@ -406,6 +406,7 @@
     "completedOf": "{{completed}} مكتمل ({{rate}}%)",
     "licenseUtilization": "استخدام التراخيص",
     "licensesUsed": "{{used}} / {{total}} ترخيص مستخدم",
+    "licensesUncapped": "+{{used}} إضافية على خطط غير محدودة",
     "tabSchools": "المدارس",
     "tabStudents": "المستخدمون",
     "tabActivity": "النشاط الأخير",

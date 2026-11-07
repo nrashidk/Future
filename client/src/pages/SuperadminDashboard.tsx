@@ -44,6 +44,14 @@ interface Metrics {
   totalLicenses: number;
   usedLicenses: number;
   unlimitedSchools: number;
+  /**
+   * usedLicenses is PLATFORM-WIDE consumption; cappedUsedLicenses is the part
+   * of it belonging to schools that have a cap, and is the only one that
+   * belongs in a ratio against totalLicenses. Pairing the platform figure with
+   * the capped total read "525 / 270 licenses used" under a 9% headline.
+   */
+  cappedUsedLicenses: number;
+  unlimitedUsedLicenses: number;
   utilizationRate: number;
   completionRate: number;
 }
@@ -1007,9 +1015,19 @@ export default function SuperadminDashboard() {
               <div className="text-2xl font-bold" data-testid="text-license-utilization">
                 {metricsLoading ? "..." : `${metrics?.utilizationRate || 0}%`}
               </div>
+              {/* The capped figure, so the caption and the percentage above it
+                  describe the same population. */}
               <p className="text-xs text-muted-foreground">
-                {t('superadmin.licensesUsed', { used: metrics?.usedLicenses || 0, total: metrics?.totalLicenses || 0 })}
+                {t('superadmin.licensesUsed', { used: metrics?.cappedUsedLicenses || 0, total: metrics?.totalLicenses || 0 })}
               </p>
+              {/* Unlimited schools have no cap, so their consumption is real
+                  but has no denominator. Shown on its own line rather than
+                  hidden, and only when there is some. */}
+              {(metrics?.unlimitedUsedLicenses ?? 0) > 0 && (
+                <p className="text-xs text-muted-foreground" data-testid="text-license-uncapped">
+                  {t('superadmin.licensesUncapped', { used: metrics?.unlimitedUsedLicenses ?? 0 })}
+                </p>
+              )}
             </CardContent>
           </Card>
         </div>

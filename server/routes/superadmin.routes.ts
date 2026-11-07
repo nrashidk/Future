@@ -253,15 +253,34 @@ export function registerSuperadminRoutes(app: Express) {
       let unlimitedSchools = 0;
       let totalStudents = 0;
       let studentsCompleted = 0;
-      
+
+      /**
+       * UNLIMITED SCHOOLS ARE OUT OF THE RATIO ENTIRELY, numerator included.
+       *
+       * They were already left out of the licence total, because they have no
+       * cap to count -- but their consumption was still being added to the
+       * used figure. One unlimited school with 500 assessments took utilisation
+       * from 0% to 112% on a live dashboard, which was reproduced before this
+       * was changed.
+       *
+       * A school with no cap has no utilisation: the ratio is meaningless for
+       * it, not merely large. So its consumption is reported on its own line
+       * instead of being folded into a denominator it has no share of.
+       */
+      let cappedUsedLicenses = 0;
+      let unlimitedUsedLicenses = 0;
+
       for (const org of organizations) {
         if (org.isUnlimitedLicenses) {
           unlimitedSchools++;
+          unlimitedUsedLicenses += org.usedLicenses;
         } else {
           totalLicenses += org.totalLicenses;
+          cappedUsedLicenses += org.usedLicenses;
         }
+        // Platform-wide consumption, every school, capped or not.
         usedLicenses += org.usedLicenses;
-        
+
         const members = await storage.getOrganizationMembersByOrganizationId(org.id);
         const students = members.filter(m => m.role === "student");
         totalStudents += students.length;
@@ -274,9 +293,14 @@ export function registerSuperadminRoutes(app: Express) {
         totalAdmins += members.filter((m: any) => m.role === "admin").length;
       }
       
-      const utilizationRate = totalLicenses > 0 ? Math.round((usedLicenses / totalLicenses) * 100) : 0;
+      // Capped schools only, on both sides of the ratio, so it cannot exceed
+      // 100% -- and clamped anyway, because a figure over 100 on a dashboard
+      // destroys trust in every other figure beside it.
+      const utilizationRate = totalLicenses > 0
+        ? Math.min(100, Math.round((cappedUsedLicenses / totalLicenses) * 100))
+        : 0;
       const completionRate = totalStudents > 0 ? Math.round((studentsCompleted / totalStudents) * 100) : 0;
-      
+
       res.json({
         totalSchools,
         totalAdmins,
@@ -285,6 +309,10 @@ export function registerSuperadminRoutes(app: Express) {
         totalLicenses,
         usedLicenses,
         unlimitedSchools,
+        // Broken out so the ratio is readable: which part of consumption it
+        // covers, and which part sits outside it.
+        cappedUsedLicenses,
+        unlimitedUsedLicenses,
         utilizationRate,
         completionRate,
       });

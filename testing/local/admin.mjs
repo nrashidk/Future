@@ -220,6 +220,93 @@ const target = A.students[0].userId;
     r.status === 501, `HTTP ${r.status} ${JSON.stringify(r.body).slice(0, 80)}`);
 }
 
+/**
+ * ------------- A-14  utilisation cannot exceed 100% because of an unlimited school
+ *
+ * A-03 above only asks that the metrics endpoint returns 200, which is a pass
+ * on nothing: it returned 200 while reporting 112%.
+ *
+ * Unlimited schools were left out of the licence TOTAL, because they have no
+ * cap to count, while their consumption was still added to the USED figure.
+ * One unlimited school with 500 assessments was enough.
+ *
+ * The school is restored afterwards -- suites share one database, and leaving a
+ * school unlimited with invented consumption would quietly change the figures
+ * every later suite reads.
+ */
+{
+  /**
+   * ONE CONNECTION PER QUERY, opened and closed.
+   *
+   * PGlite allows a single connection. Holding a client open across the HTTP
+   * calls below starves the application of the one connection it needs, and
+   * the symptom is not a database error -- it is "login failed: 500" in the
+   * NEXT suite to run, which reads like a broken session store. This was
+   * produced here before it was written this way.
+   */
+  const sql = async (text, params = []) => {
+    const { Client } = await import("pg");
+    const c = new Client({
+      connectionString: `postgres://postgres:postgres@127.0.0.1:${process.env.PGLITE_TCP_PORT ?? 55432}/postgres`,
+    });
+    await c.connect();
+    try { return (await c.query(text, params)).rows; } finally { await c.end(); }
+  };
+
+  /**
+   * TWO schools are set up, not one. With only the unlimited school, capped
+   * consumption is zero and the ratio comes out 0% -- which satisfies "not
+   * over 100" just as well as a broken endpoint returning zero always. The
+   * capped school gives the ratio a real non-zero value to get right, and the
+   * expected value is computed from SQL rather than from the endpoint's own
+   * reported parts, which would only prove it agrees with itself.
+   */
+  const [unl, capped] = await sql(
+    `SELECT id, is_unlimited_licenses, total_licenses, used_licenses
+       FROM organizations ORDER BY created_at LIMIT 2`);
+
+  try {
+    await sql(
+      `UPDATE organizations SET is_unlimited_licenses = true, used_licenses = 500 WHERE id = $1`,
+      [unl.id]);
+    await sql(
+      `UPDATE organizations SET is_unlimited_licenses = false, total_licenses = 100, used_licenses = 25
+         WHERE id = $1`, [capped.id]);
+
+    const [truth] = await sql(
+      `SELECT COALESCE(SUM(total_licenses), 0)::int AS total,
+              COALESCE(SUM(used_licenses), 0)::int  AS used
+         FROM organizations WHERE is_unlimited_licenses = false`);
+    const expectedRate = truth.total > 0
+      ? Math.min(100, Math.round((truth.used / truth.total) * 100)) : 0;
+
+    const m = (await sa.get("/api/superadmin/metrics")).body ?? {};
+
+    rec("A-14", "utilisation is the capped ratio, with the unlimited school out of it",
+      m.utilizationRate === expectedRate &&
+      Number(m.cappedUsedLicenses) === truth.used &&
+      Number(m.totalLicenses) === truth.total &&
+      Number(m.unlimitedUsedLicenses) === 500,
+      `utilisation=${m.utilizationRate}% (SQL says ${expectedRate}%), ` +
+      `capped ${m.cappedUsedLicenses}/${m.totalLicenses} (SQL ${truth.used}/${truth.total}), ` +
+      `uncapped used=${m.unlimitedUsedLicenses}`);
+
+    // The 500 must be absent from the ratio's numerator and present in the
+    // platform total: excluded from the ratio, not dropped from the figures.
+    rec("A-14b", "the uncapped 500 is out of the numerator but still in the total",
+      Number(m.cappedUsedLicenses) < 500 && Number(m.usedLicenses) >= 525,
+      `numerator=${m.cappedUsedLicenses}, platform used=${m.usedLicenses}`);
+  } finally {
+    await sql(
+      `UPDATE organizations SET is_unlimited_licenses = $2, used_licenses = $3 WHERE id = $1`,
+      [unl.id, unl.is_unlimited_licenses, unl.used_licenses]);
+    await sql(
+      `UPDATE organizations SET is_unlimited_licenses = $2, total_licenses = $3, used_licenses = $4
+         WHERE id = $1`,
+      [capped.id, capped.is_unlimited_licenses, capped.total_licenses, capped.used_licenses]);
+  }
+}
+
 const pass = results.filter((r) => r.pass === true).length;
 const fail = results.filter((r) => r.pass === false);
 const skip = results.filter((r) => r.pass === null);
