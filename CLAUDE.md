@@ -340,10 +340,14 @@ chose to review would sit for ever with no one able to see it.
   both languages. The last career page fills the sheet and the footer
   overflows. Chromium honours `break-before: avoid` poorly, so this is
   pagination work across nine pages rather than a one-liner.
-- Migration 029 (the licence ledger) is written and dry-run but **has not been
+- Migrations 029 (licence ledger), 030 (empty curricula), 031 (peer review) and
+  032 (licence grants) are written and dry-run but **have not been
   applied to staging or production**.
-- No superadmin route grants or comps a licence; the Stripe webhook is the only
-  path. Tests write to the database directly to stand in for a purchase.
+- Closed: a superadmin can now grant or comp licences, and both that route and
+  school creation accept an optional amount so a sale made offline is recorded
+  as revenue rather than as a giveaway. The Stripe webhook is still the only
+  path that takes a payment; tests write to the database directly to stand in
+  for one.
 - Roughly a third of the org-admin surface has no automated coverage.
 - `docs/` holds two conflicting whitepapers —
   `future-path-white-paper-2026-v1.1.docx` and
