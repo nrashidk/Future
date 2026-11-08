@@ -503,12 +503,25 @@ chose to review would sit for ever with no one able to see it.
     `multer`, `brace-expansion`, `source-map-js`, `zod`. Multer and body-parser
     deserve attention ahead of the puppeteer bump, which is the one everybody
     reaches for because it is the one that was written down.
-  - **Career salaries reaching students are US dollars, hardcoded.** `seed.ts:965+`
-    seeds literal strings like `"$80,000 - $150,000"`, and
-    `llmNarrativeService.ts:360` feeds `career.averageSalary` into the report
-    narrative as `salaryRange`. The `careers.average_salary_local` column
-    (`schema.ts:987`) exists with **no reader and no writer anywhere** — the intent
-    was schema'd and never wired. A UAE student's report quotes American pay.
+  - **US salaries do NOT reach students. An earlier version of this very bullet
+    said they did, and it was wrong** — a good example of why a claim here needs
+    a grep behind it. `seed.ts:965+` does seed US dollar strings into
+    `careers.average_salary`, but **no client file reads either salary column**,
+    and **no prompt template anywhere contains `{{salaryRange}}`**, so the value
+    was built and interpolated into nothing. The results page omits the
+    salary-and-growth block for free reports and renders no salary for premium
+    either; growth is an enumerated, localised band via `shared/growthBands.ts`,
+    not a verbatim O\*NET string. `careers.average_salary_local` is a dead column,
+    which is true and harmless.
+    What WAS real is a trapdoor, now closed: `userPromptTemplate` is editable from
+    the superadmin UI (`superadmin.routes.ts:1609`), so adding `{{salaryRange}}`
+    to a template was a no-code, no-review action that would have put US dollars
+    in front of a UAE student. `shared/careerSalary.ts` now resolves that variable
+    to the LOCAL figure or a neutral phrase and **never** to
+    `average_salary`. Behaviour today is unchanged by design; what a template edit
+    can cause is not. Converting the US figure at the dirham peg was considered and
+    rejected: the peg makes the currency exact and leaves the number wrong, since
+    American pay levels are not local ones.
   - Confirmed genuinely ABSENT (grep + schema, not inference): email verification
     on registration (no token column, `emailVerified` is only Google's OAuth
     boolean), and any webhook event-ID idempotency table (no `stripe_event_id`

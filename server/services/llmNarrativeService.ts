@@ -7,6 +7,7 @@
 
 import type { IStorage } from "../storage";
 import type { Assessment, Career, LlmPromptTemplate } from "../../shared/schema";
+import { resolveSalaryRange } from "../../shared/careerSalary";
 
 interface StudentContext {
   gradeLevel: string;
@@ -357,7 +358,14 @@ function buildCareerContext(career: Career): CareerContext {
     educationLevel: career.educationLevel || "Bachelor's degree",
     requiredSkills: career.requiredSkills || [],
     relatedSubjects: career.relatedSubjects || [],
-    salaryRange: career.averageSalary || "Varies by experience",
+    /**
+     * The LOCAL figure or nothing — never careers.average_salary, which holds
+     * US dollar ranges seeded in seed.ts. No template in the repo interpolates
+     * {{salaryRange}} today, so this changes no output; it changes what a
+     * superadmin can cause by adding that variable to an editable template.
+     * See shared/careerSalary.ts.
+     */
+    salaryRange: resolveSalaryRange(career),
   };
 }
 
