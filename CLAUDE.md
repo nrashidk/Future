@@ -475,6 +475,48 @@ chose to review would sit for ever with no one able to see it.
   whether the victim's password still logs in, never by its response. Still
   uncovered: the question CRUD and bulk-upload routes, and most of the
   organization PATCH surface.
+- **Verified against the repo 2026-11-08, after five "open items" turned out to be
+  stale.** Each line below was confirmed by reading the code on `main`, not by
+  reading a document. Documents in this repo were wrong three times in one day.
+  - **Translation editing is DISABLED and returns 501**, with
+    `TRANSLATION_OVERRIDES_NOT_PERSISTED` (`superadmin.routes.ts:3084-3112`). It is
+    NOT the old "writes to the wrong directory" bug. GET still works and is
+    accurate. The real fix — DB persistence plus a `/locales` route that merges
+    overrides over the built bundle — is unbuilt; a path change alone would be
+    erased by the next redeploy, which is why it was refused rather than moved.
+  - **The admin student-edit PATCH accepts `fullName, grade, studentGender,
+    studentId, dateOfBirth`** (`admin.routes.ts:1105`). The recon's claim that it
+    takes name and grade only is stale. Age is derived from `dateOfBirth`, so
+    there is no `studentAge` to accept.
+  - **Guest → account claim IS built**: `storage.migrateGuestAssessments`
+    (`storage.ts:1438`) matches on `guestSessionId`, which IS stored
+    (`storage.ts:2578`), and `client/src/lib/claimGuestAssessments.ts` calls
+    `POST /api/assessments/migrate`. FOLLOWUP's "guestSessionId never stored" is
+    stale. **But no harness suite asserts it** — `guest.mjs` never exercises the
+    claim, so this is built-and-unproven, the same state the school-owned field
+    lock was in before `school-lock.mjs`.
+  - **15 high-severity advisories in PRODUCTION dependencies**, not the 4 that was
+    recorded (`npm audit --omit=dev`; 18 high counting dev). Nine are the puppeteer
+    chain — puppeteer, puppeteer-core, @puppeteer/browsers, chromium-bidi,
+    extract-zip, basic-ftp, get-uri, pac-proxy-agent, proxy-agent. **The other six
+    are not, and sit in the live request path**: `body-parser`, `compression`,
+    `multer`, `brace-expansion`, `source-map-js`, `zod`. Multer and body-parser
+    deserve attention ahead of the puppeteer bump, which is the one everybody
+    reaches for because it is the one that was written down.
+  - **Career salaries reaching students are US dollars, hardcoded.** `seed.ts:965+`
+    seeds literal strings like `"$80,000 - $150,000"`, and
+    `llmNarrativeService.ts:360` feeds `career.averageSalary` into the report
+    narrative as `salaryRange`. The `careers.average_salary_local` column
+    (`schema.ts:987`) exists with **no reader and no writer anywhere** — the intent
+    was schema'd and never wired. A UAE student's report quotes American pay.
+  - Confirmed genuinely ABSENT (grep + schema, not inference): email verification
+    on registration (no token column, `emailVerified` is only Google's OAuth
+    boolean), and any webhook event-ID idempotency table (no `stripe_event_id`
+    anywhere). Both still gate live Stripe.
+  - `RESEND_API_KEY` unset means email is logged and NOT sent
+    (`email.ts:3`, `:339`). Whether production has the key **cannot be checked from
+    here** — `email.logOnly.test.ts` asserts it is unset in production, but that is
+    the repo's belief about production, not production.
 - `docs/` holds two conflicting whitepapers —
   `future-path-white-paper-2026-v1.1.docx` and
   `future-pathways-white-paper-2026-v1.1.docx`, the second under the old

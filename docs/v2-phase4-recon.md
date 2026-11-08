@@ -21,8 +21,13 @@
 > the suite wrote `curriculum` straight through to the row. The override is the only thing protecting
 > that field; the allowlist is not a second line of defence.
 >
+> **G4 is also partly stale (checked 2026-11-08).** The admin student-edit PATCH accepts
+> `fullName, grade, studentGender, studentId, dateOfBirth` (`admin.routes.ts:1105`), not "fullName and
+> grade only". Age is derived from `dateOfBirth`, so there is no `studentAge` for it to take. What is
+> genuinely still missing from G4 is the UI, not the handler's field list.
+>
 > Still open from this document: the **S14** per-student country/curriculum override (a product
-> decision, not a bug), G3's mandatory Basic Info fields, and G4's edit form for a school student.
+> decision, not a bug), G3's mandatory Basic Info fields, and G4's edit form UI.
 > Whether a SECONDARY school admin should be able to buy or configure a second school is a separate
 > open question, flagged at `storage.getOrganizationOwnedByUser`.
 
