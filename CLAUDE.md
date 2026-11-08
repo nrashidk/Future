@@ -402,9 +402,33 @@ chose to review would sit for ever with no one able to see it.
   both languages. The last career page fills the sheet and the footer
   overflows. Chromium honours `break-before: avoid` poorly, so this is
   pagination work across nine pages rather than a one-liner.
-- Migrations 029 (licence ledger), 030 (empty curricula), 031 (peer review),
-  032 (licence grants) and 033 (per-country pricing) are written and dry-run
-  but **have not been applied to staging or production**.
+- **Migrations are applied automatically at boot, so this list goes stale by
+  itself.** server/index.ts runs every pending migration on startup and a
+  failure is fatal, and Render auto-deploys on push to main — so a migration
+  is live within one deploy of being committed, whether or not anyone ran it.
+  029-033 reached production that way, and reading this section instead of
+  checking `schema_migrations` wasted a session's worth of instructions.
+  **Check the database, not this file:**
+  `SELECT name FROM schema_migrations ORDER BY name DESC LIMIT 12;`
+  Staging gets nothing automatically, because nothing deploys to it; as of
+  2026-11-08 it was behind by 024-033 and was caught up by hand with
+  `scripts/run-migrations.ts`. The side effect is that **029 reached production
+  with no before/after comparison**, which is the exact thing working rule 5
+  exists to prevent. Anything later that must be checked before it goes live
+  has to be held off main, not merely left unrun.
+- `scripts/verify-before.sql` and `scripts/verify-after.sql` are the read-only
+  checks for the licence migrations. Two files, not one: before the migrations
+  run, the new tables and the `countries.license_*` columns do not exist, and
+  SQL resolves names at parse time, so a single script fails outright on the
+  baseline run. Both follow `assessments.is_completed`, which is what 029's
+  backfill joins on — counting `completed_at` instead reports assessments as
+  uncovered that the migration skipped on purpose.
+- Four completed assessments in production have no ledger row and that is
+  correct: they are GUEST assessments with a null `user_id`, so there is no
+  pool to charge. A guest is not billed, is bounded by
+  `recommendationsLimiter` rather than `FREE_ASSESSMENT_CAP` (which counts per
+  authenticated account), and cannot download the PDF, which is tier-gated as
+  a sold feature.
 - Closed: a superadmin can now grant or comp licences, and both that route and
   school creation accept an optional amount so a sale made offline is recorded
   as revenue rather than as a giveaway. The Stripe webhook is still the only

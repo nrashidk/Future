@@ -267,9 +267,17 @@ export function registerRecommendationsRoutes(app: Express) {
          *
          * Idempotent. Regenerating a report re-scores and rewrites the matches
          * by design, and that must not bill twice -- the ledger's unique
-         * constraint on the assessment makes the second call a no-op. Free-tier
-         * and guest assessments return null here and are bounded by the free
-         * cap instead.
+         * constraint on the assessment makes the second call a no-op.
+         *
+         * FREE-TIER AND GUEST ASSESSMENTS ARE NOT BILLED, and they are bounded
+         * by DIFFERENT things -- this comment used to say both were held by
+         * "the free cap", which is wrong for guests and the kind of inaccuracy
+         * that gets acted on. FREE_ASSESSMENT_CAP counts lifetime completions
+         * per AUTHENTICATED account; a guest has no userId, so there is nothing
+         * to count against. What bounds a guest is recommendationsLimiter on
+         * this route (by address) plus the tier gate on the PDF, which is the
+         * sold artefact. Unlimited free on-screen reports per address is the
+         * accepted cost of an unpaid tier, not an oversight.
          */
         if (assessment.userId) {
           await storage.consumeLicense(tx, {
