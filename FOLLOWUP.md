@@ -946,6 +946,28 @@ dropped-completion sim); new-buyer auto-login (Set-Cookie -> /api/auth/user 200)
 response; idempotency (re-fire = no double-grant).
 
 ## Fix 4 (b′) — DESIGNED + re-anchored to current code (2026-08-21). NOT built. Touches auth.ts.
+> **SUPERSEDED IN PART, 2026-11-08 — READ THIS BEFORE BUILDING FIX 4.** Two things changed.
+>
+> 1. **The branch is GONE.** `fix4-oauth-grant` does not exist, local or remote; `main` is the only
+>    branch. Steps 3+3b (e827b69) are LOST — second time Codespace work vanished this way. Steps 1-2
+>    survive on main, which means `server/utils/oauthState.ts` is DEAD CODE: nothing imports it.
+> 2. **The money hole Fix 4 existed to close is now closed from the other side** (db8ba56):
+>    `POST /api/checkout/preflight` refuses the SSO-email buyer BEFORE the card is confirmed, so they
+>    are no longer charged-and-rejected. The same commit closes a second, unrecorded hole in the same
+>    shape — a buyer who already owns a school was charged and then met with the 409 from
+>    createGroupPurchaseTransaction, logged in or not.
+>
+> So Fix 4 is NO LONGER THE LIVE-STRIPE BLOCKER it is described as below. What remains of it is
+> CONVENIENCE: letting an SSO buyer complete a purchase in one pass instead of signing in first.
+> Weigh that against its cost, which has not changed — new middleware on EVERY OAuth login, the
+> highest blast radius in the codebase, unverifiable without a staging OAuth deploy with real Google
+> credentials. Do the staging deploy first or leave it alone; do NOT rebuild 3+3b on their own, for
+> the reason the branch note below already gives.
+>
+> Preflight is NOT a security control (the client can skip it) and NOT a replacement for the
+> post-charge refusals, which stay where they are as the backstop. It removes the money loss, not the
+> OAuth gap.
+
 Behavior: OAuth-existing buyer who pays is NOT rejected/double-charged. After charge they re-auth
 (Google/MS) the email they paid with; premium grants to that VERIFIED account. NEVER on unverified
 email match. ⚠️ HIGHEST BLAST RADIUS — new middleware runs on EVERY OAuth login; regression-test
@@ -1156,6 +1178,9 @@ tsc proves nothing here (both sites use `let browser: any`) — only a real rend
 ## Session 2026-08-24 (cont.) — Fix 4 (partial, on branch), Fix 3 v1 (shipped), org-name stamp
 
 ### Fix 4 (OAuth-existing double-charge) — PARTIAL. Steps 1-2 on main, 3+3b on BRANCH, 4-5 NOT built.
+> **2026-11-08: the BRANCH no longer exists — steps 3+3b are lost. See the superseded note on the
+> Fix 4 (b′) section above before acting on anything in here. oauthState.ts (Step 1) is on main with
+> no caller.**
 Decisions locked: carrier = signed OAuth state param (survives sameSite:strict; option b was a mirage —
 can't relax sameSite per-path). Scope = GOOGLE-ONLY v1 (Microsoft has no email_verified signal; MS buyers
 -> requiresManualClaim -> Fix 3 residual). upsertOAuthUser unverified-linking (1a) deliberately NOT bundled.
