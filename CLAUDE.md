@@ -73,10 +73,29 @@ allegation, never evidence. The app no longer runs on Replit.
    Label it for human review rather than "fixing" it.
 4. **One issue per commit.** Small, reviewable diffs. Never bundle unrelated
    changes, never do a sweeping "refactor for security".
-5. **Schema changes go to staging first.** Production is `ep-floral-rice-...`,
-   staging is `ep-soft-recipe-...`. Write a reversible migration, dry-run it
-   against data shaped like production, and show the before/after counts before
-   anything touches production.
+5. **Deploying straight to production is the owner's deliberate choice right
+   now, and that changes the day a real school signs up.** Production is
+   `ep-floral-rice-...`, staging is `ep-soft-recipe-...`, and a staging deploy
+   target does exist. It is not being used because production holds only the
+   owner's own test data — no real schools, no real students — so the extra
+   hop buys nothing and staging had drifted ten migrations behind by
+   2026-11-08.
+
+   Do not argue for staging-first while that is true. It was argued at the
+   owner this morning on the strength of the old wording here, and it cost him
+   the better part of an hour.
+
+   **THE TRIGGER: the first real school with real students.** From then on the
+   old rule applies in full — reversible migration, dry-run against data
+   shaped like production, before/after counts shown — and it needs enforcing
+   rather than writing down, because migrations apply themselves at boot and
+   Render deploys on every push to `main`. Nothing currently stops a migration
+   reaching live data within one deploy. A risky change has to wait on a
+   branch; leaving it unrun is not a hold.
+
+   Write the migration reversibly and dry-run it in the harness regardless.
+   That part is cheap and has caught real faults with no production data
+   involved at all.
 6. Never add a second SPF record to the domain. Never disable TLS verification
    or unset `HTTPS_PROXY`.
 
