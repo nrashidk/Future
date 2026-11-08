@@ -14,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest, serverErrorMessage } from "@/lib/queryClient";
 import { useTranslation } from "react-i18next";
+import { formatMoney, toMajor } from "@shared/pricing";
 import { ADD_BUTTON_CLASS, CARD_ACTIONS_CLASS } from "@/lib/adminActions";
 import { 
   Globe, Plus, Edit, Trash2, Sparkles, BookOpen,
@@ -44,6 +45,13 @@ interface Country {
   gradeLevels: string[] | null;
   isActive: boolean;
   llmPopulated: boolean;
+  /**
+   * MINOR UNITS — fils, halalas, cents — as a whole number, with the currency
+   * beside it. 3673 with AED is 36.73 dirhams. Never render this raw: pass it
+   * through formatMoney, which knows how many decimals the currency has.
+   */
+  licensePriceMinor?: number | null;
+  licenseCurrency?: string | null;
   createdAt: string;
   /**
    * Whether this country can actually produce a usable report.
@@ -68,11 +76,33 @@ const GRADES = ["8", "9", "10", "11", "12"];
 
 export default function CountryManagement() {
   const { toast } = useToast();
-  const { t } = useTranslation('admin');
+  const { t, i18n } = useTranslation('admin');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isGenerateQuestionsOpen, setIsGenerateQuestionsOpen] = useState(false);
   const [selectedCountry, setSelectedCountry] = useState<Country | null>(null);
+
+  /**
+   * THE PRICE EDITOR. Holds the figure as TEXT while it is being typed —
+   * "36." is a valid thing to be halfway through typing and not a valid
+   * number, so parsing on each keystroke would fight the person. It is
+   * converted once, on the server, which is also the only place that knows
+   * how many decimals the currency allows.
+   */
+  const [priceCountry, setPriceCountry] = useState<Country | null>(null);
+  const [priceInput, setPriceInput] = useState("");
+  const [priceCurrency, setPriceCurrency] = useState("AED");
+
+  const openPriceEditor = (country: Country) => {
+    setPriceCountry(country);
+    // Pre-filled in MAJOR units, the same way it is displayed, so the field
+    // shows what the person last meant rather than the stored integer.
+    setPriceInput(
+      country.licensePriceMinor && country.licenseCurrency
+        ? String(toMajor(country.licensePriceMinor, country.licenseCurrency))
+        : "");
+    setPriceCurrency(country.licenseCurrency ?? "AED");
+  };
   const [repopulatingCountryId, setRepopulatingCountryId] = useState<string | null>(null);
   
   const [newCountryForm, setNewCountryForm] = useState({
@@ -186,6 +216,43 @@ export default function CountryManagement() {
     },
     onError: () => {
       toast({ title: t('countries.errorTitle'), description: t('countries.updateError'), variant: "destructive" });
+    },
+  });
+
+  /**
+   * SAVE THE PRICE. Sends the figure as typed, in major units, and lets the
+   * server convert and validate — it is the only place that knows the
+   * currency's decimal places, and duplicating that here is how the two come
+   * to disagree.
+   *
+   * The server's error message is shown verbatim rather than a generic one: it
+   * names the currency and how many decimals it allows, which is the only
+   * thing a person needs to fix the entry.
+   */
+  const priceMutation = useMutation({
+    mutationFn: async ({ id, price, currency }: { id: string; price: string | null; currency?: string }) => {
+      return apiRequest('PATCH', `/api/admin/countries/${id}/license-price`,
+        price === null ? { price: null } : { price, currency });
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/countries'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/countries'] });
+      setPriceCountry(null);
+      toast({
+        title: t('countries.priceSaved'),
+        // The stored figure, formatted — so the person sees what a buyer will
+        // be charged and can spot a misplaced decimal immediately.
+        description: data?.formatted
+          ? t('countries.priceSavedDesc', { price: data.formatted })
+          : t('countries.priceClearedDesc'),
+      });
+    },
+    onError: (err: any) => {
+      toast({
+        title: t('countries.errorTitle'),
+        description: err?.message || t('countries.priceError'),
+        variant: "destructive",
+      });
     },
   });
 
@@ -384,6 +451,7 @@ export default function CountryManagement() {
                 <TableHead>{t('countries.codeCol')}</TableHead>
                 <TableHead>{t('countries.visionCol')}</TableHead>
                 <TableHead>{t('countries.curriculaCol')}</TableHead>
+                <TableHead>{t('countries.priceCol')}</TableHead>
                 <TableHead>{t('countries.statusCol')}</TableHead>
                 <TableHead className="text-right">{t('countries.actionsCol')}</TableHead>
               </TableRow>
@@ -448,6 +516,30 @@ export default function CountryManagement() {
                       </div>
                     ) : (
                       <span className="text-muted-foreground">{t('countries.notSet')}</span>
+                    )}
+                  </TableCell>
+                  {/* THE PRICE, IN NORMAL MONEY.
+                      The column stores minor units — fils, halalas — which is
+                      right for storage and wrong for a person. This shows the
+                      figure a buyer is charged, and the editor takes the same
+                      figure back. Nobody should ever type or read fils. */}
+                  <TableCell>
+                    {country.licensePriceMinor && country.licenseCurrency ? (
+                      <button
+                        className="font-medium underline decoration-dotted hover:text-primary"
+                        onClick={() => openPriceEditor(country)}
+                        data-testid={`button-edit-price-${country.id}`}
+                      >
+                        {formatMoney(country.licensePriceMinor, country.licenseCurrency, i18n.language)}
+                      </button>
+                    ) : (
+                      <button
+                        className="text-muted-foreground underline decoration-dotted hover:text-primary text-sm"
+                        onClick={() => openPriceEditor(country)}
+                        data-testid={`button-edit-price-${country.id}`}
+                      >
+                        {t('countries.priceFallback')}
+                      </button>
                     )}
                   </TableCell>
                   <TableCell>
@@ -1097,6 +1189,77 @@ export default function CountryManagement() {
                   {t('countries.renameBtn')}
                 </>
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ---------------------------------------------- THE PRICE EDITOR ---- */}
+      <Dialog open={!!priceCountry} onOpenChange={(open) => !open && setPriceCountry(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {t('countries.priceTitle', { country: priceCountry?.name ?? "" })}
+            </DialogTitle>
+            <DialogDescription>{t('countries.priceDesc')}</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="col-span-2 space-y-2">
+                <Label htmlFor="license-price">{t('countries.priceLabel')}</Label>
+                <Input
+                  id="license-price"
+                  type="text"
+                  inputMode="decimal"
+                  value={priceInput}
+                  onChange={(e) => setPriceInput(e.target.value)}
+                  placeholder="36.73"
+                  data-testid="input-license-price"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="license-currency">{t('countries.priceCurrencyLabel')}</Label>
+                <Input
+                  id="license-currency"
+                  type="text"
+                  maxLength={3}
+                  value={priceCurrency}
+                  onChange={(e) => setPriceCurrency(e.target.value.toUpperCase())}
+                  placeholder="AED"
+                  data-testid="input-license-currency"
+                />
+              </div>
+            </div>
+
+            {/* The figure as it will be charged, echoed live. A misplaced
+                decimal is obvious here and invisible in the field above. */}
+            <p className="text-sm text-muted-foreground" data-testid="text-price-preview">
+              {t('countries.pricePreview', {
+                price: priceInput.trim() === "" ? "—" : `${priceInput} ${priceCurrency}`,
+              })}
+            </p>
+          </div>
+
+          <DialogFooter className="gap-2">
+            {priceCountry?.licensePriceMinor ? (
+              <Button
+                variant="outline"
+                onClick={() => priceCountry && priceMutation.mutate({ id: priceCountry.id, price: null })}
+                disabled={priceMutation.isPending}
+                data-testid="button-clear-price"
+              >
+                {t('countries.priceClear')}
+              </Button>
+            ) : null}
+            <Button
+              onClick={() => priceCountry && priceMutation.mutate({
+                id: priceCountry.id, price: priceInput.trim(), currency: priceCurrency,
+              })}
+              disabled={priceMutation.isPending || priceInput.trim() === ""}
+              data-testid="button-save-price"
+            >
+              {priceMutation.isPending ? t('countries.priceSaving') : t('countries.priceSave')}
             </Button>
           </DialogFooter>
         </DialogContent>

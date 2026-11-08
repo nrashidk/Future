@@ -84,7 +84,10 @@ function captureRoutes() {
   const record = (method: string) => (path: string, ...rest: unknown[]) => {
     routes.set(`${method} ${path}`, rest[rest.length - 1] as Function);
   };
-  const app = { get: record("GET"), post: record("POST"), put: record("PUT"), delete: record("DELETE") };
+  // Every verb the real routes use. A missing one fails with "app.patch is not
+  // a function" from inside registerCountryRoutes, which reads like a bug in
+  // the route rather than a gap in this stub.
+  const app = { get: record("GET"), post: record("POST"), put: record("PUT"), patch: record("PATCH"), delete: record("DELETE") };
   registerCountryRoutes(app as never);
   return routes;
 }

@@ -294,6 +294,17 @@ Three things that fail SILENTLY and are handled centrally:
   "Minimum is $0.50 USD" is 0.50 AED against a dirham price — an amount it
   passes and Stripe then refuses, after the card is filled in.
 
+**A PRICE IS SET IN MAJOR UNITS, ALWAYS.** `PATCH
+/api/admin/countries/:id/license-price` takes 36.73 and stores 3673, and the
+superadmin country table shows and edits the same figure a buyer is charged.
+Nobody should type or read fils. Before that route existed the only way to
+change a price was editing an INTEGER column by hand, where typing the number
+you mean stores one hundredth of it — and 3673 was in fact read back as the
+price, which is what prompted it. `toMinor` rejects rather than rounds a
+figure finer than the currency allows (36.731 AED is not a price), and
+`price: null` CLEARS a price, which is not the same as zero: a cleared country
+falls back to USD and says so, while zero is refused by the constraint.
+
 Rounding happens once, at the end. Rounding per student and multiplying drifts
 a few fils on a large order, which surfaces as the page and the receipt
 disagreeing for no explicable reason.

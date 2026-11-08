@@ -4,6 +4,7 @@
  * Allows superadmins to add, update, and delete countries with LLM auto-population.
  */
 
+import { toMinor, toMajor, currencyExponent, formatMoney } from "@shared/pricing";
 import type { Express } from "express";
 import { z } from "zod";
 import { storage, SubjectNotInCatalogueError } from "../storage";
@@ -565,6 +566,96 @@ export function registerCountryRoutes(app: Express) {
     } catch (error) {
       console.error("Error creating country:", error);
       res.status(500).json({ message: "Failed to create country" });
+    }
+  });
+
+  /**
+   * SET A COUNTRY'S LICENCE PRICE, IN NORMAL MONEY.
+   *
+   * The price is taken as a major-unit figure — 36.73 — and converted here.
+   * The column holds minor units (fils, halalas), which is right for storage
+   * and wrong for a human: before this route existed the only way to change a
+   * price was editing an INTEGER column by hand, where typing the number you
+   * mean stores one hundredth of it and a licence silently costs 36 fils.
+   * Reading 3673 as the price has already happened once.
+   *
+   * `price: null` CLEARS the price, which is not the same as zero. A cleared
+   * country falls back to the USD default and says so; a zero price would be
+   * selling for nothing, and the database constraint refuses it.
+   *
+   * Superadmin only, and nationwide by design: a licence price is not a
+   * property of one school, so this is not scoped to an organization. It
+   * changes what every future buyer in that country pays, which is why it
+   * answers with the figure it stored for the caller to read back.
+   */
+  app.patch("/api/admin/countries/:id/license-price", isAuthenticated, async (req, res) => {
+    try {
+      if (!(await checkSuperadmin(req))) {
+        return res.status(403).json({ message: "Forbidden: Superadmin access required" });
+      }
+
+      const country = await storage.getCountryById(req.params.id);
+      if (!country) {
+        return res.status(404).json({ message: "Country not found" });
+      }
+
+      // Clearing is explicit: `price: null`. A missing field is a malformed
+      // request, not an instruction to wipe a price.
+      if (req.body?.price === null) {
+        const cleared = await storage.updateCountry(req.params.id, {
+          licensePriceMinor: null,
+          licenseCurrency: null,
+        });
+        return res.json({
+          countryId: cleared?.id ?? req.params.id,
+          price: null,
+          currency: null,
+          usesFallbackPrice: true,
+          message: "Price cleared. This country now falls back to the USD default.",
+        });
+      }
+
+      const currency = String(req.body?.currency ?? "").trim().toUpperCase();
+      if (!/^[A-Z]{3}$/.test(currency)) {
+        return res.status(400).json({
+          message: "A three-letter currency code is required, for example AED.",
+          code: "INVALID_CURRENCY",
+        });
+      }
+
+      /**
+       * REJECTED, NOT ROUNDED, when the figure is finer than the currency.
+       * 36.731 AED is not a price that exists, and rounding it would store a
+       * number nobody typed.
+       */
+      const minor = toMinor(req.body?.price, currency);
+      if (minor === null) {
+        return res.status(400).json({
+          message:
+            `Enter a price above zero with at most ${currencyExponent(currency)} decimal place(s) ` +
+            `for ${currency} — for example ${currency === "KWD" ? "36.730" : "36.73"}.`,
+          code: "INVALID_PRICE",
+        });
+      }
+
+      const updated = await storage.updateCountry(req.params.id, {
+        licensePriceMinor: minor,
+        licenseCurrency: currency,
+      });
+
+      // The stored figure is echoed back in BOTH units. The caller sees what a
+      // buyer will be charged, not the integer the column holds.
+      res.json({
+        countryId: updated?.id ?? req.params.id,
+        price: toMajor(minor, currency),
+        priceMinor: minor,
+        currency,
+        usesFallbackPrice: false,
+        formatted: formatMoney(minor, currency, "en"),
+      });
+    } catch (error) {
+      console.error("Error setting licence price:", error);
+      res.status(500).json({ message: "Failed to set licence price" });
     }
   });
 

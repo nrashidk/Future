@@ -186,6 +186,42 @@ export function toMajor(amountMinor: number, currency: string): number {
 }
 
 /**
+ * MAJOR UNITS IN, MINOR UNITS OUT — the only way a price should ever be set.
+ *
+ * Nobody thinks in fils. A person setting a licence price types 36.73, and
+ * the column holds 3673. Without this, the price can only be changed by
+ * editing an INTEGER column by hand, where typing the number you mean —
+ * 36.73 — stores 36, and a licence silently costs thirty-six fils. That
+ * confusion has already happened once, reading 3673 as the price.
+ *
+ * Returns null rather than throwing on anything it cannot trust, so a caller
+ * can answer 400 instead of storing a guess: a blank field, text, a negative,
+ * or a number with more decimal places than the currency has. That last one
+ * matters — 36.731 AED is not a price that exists, and silently rounding it
+ * would set a figure nobody typed.
+ */
+export function toMinor(amountMajor: unknown, currency: string): number | null {
+  const raw = typeof amountMajor === "string"
+    ? (amountMajor.trim() === "" ? NaN : Number(amountMajor.trim()))
+    : Number(amountMajor);
+
+  if (!Number.isFinite(raw) || raw <= 0) return null;
+
+  const e = currencyExponent(currency);
+  const scaled = raw * Math.pow(10, e);
+
+  /**
+   * Rejected, not rounded, when the input is finer than the currency. The
+   * tolerance is for binary floating point only: 36.73 * 100 is
+   * 3672.9999999999995, not 3673, so an exact-integer test would reject a
+   * perfectly good price.
+   */
+  if (Math.abs(scaled - Math.round(scaled)) > 1e-6) return null;
+
+  return Math.round(scaled);
+}
+
+/**
  * Formatted for a human, in their own locale, with the currency named.
  *
  * `Intl` is given the exponent explicitly rather than trusting it to know: a

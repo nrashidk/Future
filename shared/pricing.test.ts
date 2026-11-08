@@ -16,7 +16,7 @@
  */
 import { describe, it, expect } from "vitest";
 import {
-  quotePrice, countryPricing, currencyExponent, formatMoney, toMajor,
+  quotePrice, countryPricing, currencyExponent, formatMoney, toMajor, toMinor,
   stripeChargeableMinor, minimumChargeMinor,
   VOLUME_TIERS, DEFAULT_PRICE_MINOR, DEFAULT_CURRENCY,
 } from "./pricing";
@@ -165,6 +165,54 @@ describe("countryPricing", () => {
     // someone reads a receipt.
     expect(countryPricing({}).usedFallback).toBe(true);
     expect(countryPricing({ licensePriceMinor: 3700, licenseCurrency: "AED" }).usedFallback).toBe(false);
+  });
+});
+
+describe("toMinor — setting a price in normal money", () => {
+  /**
+   * The reason this exists: 3673 was read as the price when it is 36.73. The
+   * column is fils, nobody thinks in fils, and editing an INTEGER column by
+   * hand turns the number you mean into one hundredth of it.
+   */
+  it("turns the price a person types into the units the column stores", () => {
+    expect(toMinor("36.73", "AED")).toBe(3673);
+    expect(toMinor(37.5, "SAR")).toBe(3750);
+    expect(toMinor(10, "USD")).toBe(1000);
+  });
+
+  it("survives binary floating point", () => {
+    // 36.73 * 100 is 3672.9999999999995. An exact-integer test would reject
+    // a perfectly good price.
+    for (const [major, minor] of [[36.73, 3673], [0.07, 7], [1.15, 115], [99.99, 9999]] as const) {
+      expect(toMinor(major, "AED"), String(major)).toBe(minor);
+    }
+  });
+
+  it("uses the currency's own exponent, not a flat 100", () => {
+    // 1000 minor units is ten dirhams but ONE dinar.
+    expect(toMinor(10, "AED")).toBe(1000);
+    expect(toMinor(10, "KWD")).toBe(10000);
+    expect(toMinor(1.234, "KWD")).toBe(1234);
+  });
+
+  it("REJECTS a price finer than the currency rather than rounding it", () => {
+    // 36.731 AED is not a price that exists. Rounding would store a figure
+    // nobody typed.
+    expect(toMinor(36.731, "AED")).toBeNull();
+    expect(toMinor(1.2345, "KWD")).toBeNull();
+    expect(toMinor(10.5, "JPY")).toBeNull();
+  });
+
+  it("rejects anything it cannot trust instead of guessing", () => {
+    for (const bad of ["", "   ", "free", null, undefined, NaN, Infinity, 0, -5, "-5"]) {
+      expect(toMinor(bad, "AED"), JSON.stringify(bad)).toBeNull();
+    }
+  });
+
+  it("round-trips with toMajor", () => {
+    for (const [major, cur] of [[36.73, "AED"], [37.5, "SAR"], [1.234, "KWD"], [10, "USD"]] as const) {
+      expect(toMajor(toMinor(major, cur)!, cur), `${major} ${cur}`).toBeCloseTo(major, 6);
+    }
   });
 });
 

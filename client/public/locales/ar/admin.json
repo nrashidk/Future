@@ -1120,6 +1120,20 @@
     "csvRowAnswerMismatch": "الصف {{row}}: الإجابة الصحيحة لا تتطابق مع أي خيار"
   },
   "countries": {
+    "priceCol": "سعر الترخيص",
+    "priceFallback": "غير محدد (10.00 دولار)",
+    "priceTitle": "سعر الترخيص في {{country}}",
+    "priceDesc": "تكلفة الترخيص الواحد في هذه الدولة بعملتها. أدخله بالطريقة المعتادة — 36.73 لا 3673.",
+    "priceLabel": "السعر لكل ترخيص",
+    "priceCurrencyLabel": "العملة",
+    "pricePreview": "ستُحصَّل من المدرسة {{price}} لكل ترخيص.",
+    "priceSave": "حفظ السعر",
+    "priceSaving": "جارٍ الحفظ…",
+    "priceClear": "إلغاء السعر",
+    "priceSaved": "تم حفظ السعر",
+    "priceSavedDesc": "الآن {{price}} لكل ترخيص.",
+    "priceClearedDesc": "أُلغي. تعود هذه الدولة إلى سعر الدولار الافتراضي.",
+    "priceError": "تعذّر حفظ السعر.",
     "alreadyAdded": "مضافة بالفعل",
     "onboarding": {
       "title": "إعداد هذه الدولة",

@@ -1120,6 +1120,20 @@
     "csvRowAnswerMismatch": "Row {{row}}: Correct answer does not match any option"
   },
   "countries": {
+    "priceCol": "Licence price",
+    "priceFallback": "Not set (USD 10.00)",
+    "priceTitle": "Licence price for {{country}}",
+    "priceDesc": "What one licence costs in this country, in its own currency. Enter it the normal way — 36.73, not 3673.",
+    "priceLabel": "Price per licence",
+    "priceCurrencyLabel": "Currency",
+    "pricePreview": "A school will be charged {{price}} per licence.",
+    "priceSave": "Save price",
+    "priceSaving": "Saving…",
+    "priceClear": "Clear price",
+    "priceSaved": "Price saved",
+    "priceSavedDesc": "Now {{price}} per licence.",
+    "priceClearedDesc": "Cleared. This country falls back to the USD default.",
+    "priceError": "Could not save the price.",
     "alreadyAdded": "already added",
     "onboarding": {
       "title": "Set up this country",

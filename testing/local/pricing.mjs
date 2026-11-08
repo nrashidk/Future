@@ -49,7 +49,7 @@ const quote = async (qs) => {
   return { status: r.status, body };
 };
 
-await build();
+const { orgs } = await build();
 
 // Price the fixtures the way migration 033 does, plus two more countries to
 // prove the quote follows the ROW and not a hardcoded table.
@@ -165,6 +165,136 @@ for (const [id, code, name, price, cur] of [
       base.body?.currency === spoofed.body?.currency &&
       spoofed.body?.totalMinor === 36730,
     `clean ${base.body?.totalMinor} ${base.body?.currency} vs spoofed ${spoofed.body?.totalMinor} ${spoofed.body?.currency}`);
+}
+
+/**
+ * ============ SETTING A PRICE, IN NORMAL MONEY ============
+ *
+ * The column holds minor units, which is right for storage and wrong for a
+ * human. Before this route existed the only way to change a price was editing
+ * an INTEGER column by hand, where typing the figure you mean — 36.73 —
+ * stores 36, and a licence silently costs thirty-six fils. Reading 3673 as
+ * the price has already happened once in practice.
+ *
+ *   S-01  a superadmin sets 36.73 and the column holds 3673
+ *   S-02  the quote then charges that, so setting a price actually works
+ *   S-03  a figure finer than the currency is REFUSED, not rounded
+ *   S-04  zero and negative are refused — selling for nothing is not a price
+ *   S-05  a three-decimal currency takes three decimals
+ *   S-06  null CLEARS the price, which is not the same as zero
+ *   S-07  only a superadmin can change what a country charges
+ */
+{
+  const { Session, SUPERADMIN } = await import("./fixtures.mjs");
+  const sa = new Session("priceSa");
+  await sa.login(SUPERADMIN.username, SUPERADMIN.password);
+
+  const setPrice = (id, body) =>
+    sa.patch(`/api/admin/countries/${id}/license-price`, body);
+
+  // ----------------------------------------- S-01  normal money in, fils out
+  {
+    const r = await setPrice("uae", { price: "36.73", currency: "aed" });
+    const [row] = await sql(
+      `SELECT license_price_minor AS p, license_currency AS c FROM countries WHERE id = 'uae'`);
+    rec("S-01", "entering 36.73 stores 3673 fils",
+      r.status === 200 && Number(row?.p) === 3673 && row?.c === "AED" &&
+        r.body?.price === 36.73 && r.body?.priceMinor === 3673,
+      `HTTP ${r.status}, column=${row?.p} ${row?.c}, echoed back as ${r.body?.price} ` +
+      `(${r.body?.formatted})`);
+  }
+
+  // ------------------------------- S-02  and the quote charges what was set
+  {
+    const q = await quote("countryId=uae&students=1");
+    rec("S-02", "the quote then charges the price that was set",
+      q.body?.totalMinor === 3673 && q.body?.currency === "AED",
+      `${q.body?.totalMinor} ${q.body?.currency}`);
+  }
+
+  // ------------------ S-03  THE MISTAKE: 3673 entered as if it were the price
+  {
+    /**
+     * The exact confusion that prompted this route. 3673 AED is a real,
+     * well-formed price — a hundred times too big, and no validator can know
+     * that. What it MUST do is store 367300 fils, not 3673, so the figure the
+     * person typed is the figure that gets charged and the error is visible on
+     * the page rather than hidden in the column.
+     */
+    const r = await setPrice("uae", { price: "3673", currency: "AED" });
+    const [row] = await sql(
+      `SELECT license_price_minor AS p FROM countries WHERE id = 'uae'`);
+    rec("S-03", "3673 entered as a price means AED 3673, visibly",
+      r.status === 200 && Number(row?.p) === 367300 && r.body?.price === 3673,
+      `stored ${row?.p} fils, shown back as ${r.body?.formatted} — wrong, but not silently`);
+
+    // Put it back.
+    await setPrice("uae", { price: "36.73", currency: "AED" });
+  }
+
+  // --------------------------- S-04  finer than the currency is refused
+  {
+    const r = await setPrice("uae", { price: "36.731", currency: "AED" });
+    const [row] = await sql(
+      `SELECT license_price_minor AS p FROM countries WHERE id = 'uae'`);
+    // Refused AND unchanged. A 400 that still wrote would be worse than none.
+    rec("S-04", "a third decimal on a two-decimal currency is refused",
+      r.status === 400 && r.body?.code === "INVALID_PRICE" && Number(row?.p) === 3673,
+      `HTTP ${r.status} ${r.body?.code}, column still ${row?.p}`);
+  }
+
+  // ------------------------------- S-05  zero and negative are refused
+  {
+    const outcomes = [];
+    for (const bad of [0, -5, "", "free"]) {
+      const r = await setPrice("uae", { price: bad, currency: "AED" });
+      outcomes.push(`${JSON.stringify(bad)}:${r.status}`);
+    }
+    const [row] = await sql(`SELECT license_price_minor AS p FROM countries WHERE id = 'uae'`);
+    rec("S-05", "zero, negative and nonsense are all refused",
+      outcomes.every((o) => o.endsWith(":400")) && Number(row?.p) === 3673,
+      `${outcomes.join(" ")}, column still ${row?.p}`);
+  }
+
+  // ------------------------- S-06  a three-decimal currency takes three
+  {
+    await sql(
+      `INSERT INTO countries (id, code, name, mission, vision, priority_sectors, national_goals)
+       VALUES ('kwt2','KW2','Kuwait Two','t','t',ARRAY['Technology'],ARRAY['Growth'])
+       ON CONFLICT (id) DO NOTHING`);
+    const r = await setPrice("kwt2", { price: "1.234", currency: "KWD" });
+    const [row] = await sql(
+      `SELECT license_price_minor AS p FROM countries WHERE id = 'kwt2'`);
+    rec("S-06", "a dinar price keeps three decimals",
+      r.status === 200 && Number(row?.p) === 1234 && r.body?.price === 1.234,
+      `stored ${row?.p} (1.234 KWD); a flat /100 would have made this ${1234 / 100}`);
+  }
+
+  // ------------------------------------ S-07  null clears, and is not zero
+  {
+    const r = await setPrice("kwt2", { price: null });
+    const [row] = await sql(
+      `SELECT license_price_minor AS p, license_currency AS c FROM countries WHERE id = 'kwt2'`);
+    const q = await quote("countryId=kwt2&students=1");
+    rec("S-07", "null clears the price and falls back to USD",
+      r.status === 200 && row?.p === null && row?.c === null &&
+        q.body?.currency === "USD" && q.body?.usesFallbackPrice === true,
+      `column=${row?.p}/${row?.c}, quote now ${q.body?.totalMinor} ${q.body?.currency} ` +
+      `(fallback: ${q.body?.usesFallbackPrice})`);
+  }
+
+  // -------------------------- S-08  an org admin cannot reprice a country
+  {
+    const r = await orgs.A.session.patch("/api/admin/countries/uae/license-price",
+      { price: "0.01", currency: "AED" });
+    const [row] = await sql(`SELECT license_price_minor AS p FROM countries WHERE id = 'uae'`);
+    // By effect, not status: a 403 that still wrote would look safe.
+    rec("S-08", "an org admin cannot change what a country charges",
+      [401, 403].includes(r.status) && Number(row?.p) === 3673,
+      `HTTP ${r.status}, column still ${row?.p}`);
+  }
+
+  await sql(`DELETE FROM countries WHERE id = 'kwt2'`);
 }
 
 /**
