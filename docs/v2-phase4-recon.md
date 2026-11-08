@@ -2,6 +2,30 @@
 
 **Phase 4 recon — school country/curriculum locking (L10). Current vs. target.**
 
+> **OUT OF DATE, 2026-11-08. G9 and G10 ARE BUILT. Do not read the gap table below as a to-do list.**
+>
+> The server-side lock this document describes as missing now exists and is wired into BOTH verbs:
+> `SCHOOL_OWNED_ASSESSMENT_FIELDS` + `resolveSchoolOwnedFields` in `server/routes/assessment.routes.ts`,
+> called at `:400` (POST) and `:1089` (PATCH). All six fields — name, grade, gender, age, countryId,
+> curriculum — are overridden from the school's own rows, and it fails closed: a field the school owns
+> but has no value for is refused, not left as the student's input. Membership is read from the
+> `organization_members` row rather than `users.accountType`, and `role === 'student'` is the test, so a
+> school admin taking the assessment personally is not locked.
+>
+> Proved end-to-end, not just read: `testing/local/school-lock.mjs`, 9 cases, against a real logged-in
+> school student. Both sites mutation-tested — PATCH lock off and a student rewrote their own country,
+> grade, name, gender, curriculum and age to 99, all HTTP 200; POST lock off and K-01 fails.
+>
+> **One claim in here is now actively wrong.** §G9 says `curriculum` is safe on PATCH because it was
+> "accidentally absent from the PATCH allowlist". It is not absent any more — with the override disabled
+> the suite wrote `curriculum` straight through to the row. The override is the only thing protecting
+> that field; the allowlist is not a second line of defence.
+>
+> Still open from this document: the **S14** per-student country/curriculum override (a product
+> decision, not a bug), G3's mandatory Basic Info fields, and G4's edit form for a school student.
+> Whether a SECONDARY school admin should be able to buy or configure a second school is a separate
+> open question, flagged at `storage.getOrganizationOwnedByUser`.
+
 Recon date: 2026-09-04. Method: **read-only** — no code changes, no commits. The only database access
 was `SELECT`s against the **staging** Neon branch (`ep-soft-recipe-as…`; the prod endpoint guard in
 `drizzle.config.ts:17-18` names `ep-floral-rice-astfwiew`, which this is not). Every claim below is
