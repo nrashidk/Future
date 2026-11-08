@@ -128,6 +128,41 @@ function CheckoutForm({
     setIsProcessing(true);
 
     try {
+      /**
+       * ASK WHETHER THIS PURCHASE CAN COMPLETE, BEFORE CHARGING THE CARD.
+       *
+       * /api/checkout/complete refuses an SSO-registered email and a buyer who
+       * already owns a school — but only after Stripe has taken the money, so
+       * the buyer was charged and then told to log in. This asks the same
+       * question first.
+       *
+       * FAILS OPEN. Only an explicit { ok: false } stops the payment. A
+       * network error or a 503 falls through to confirmPayment, which is
+       * exactly today's behaviour: this exists to spare an honest buyer a
+       * useless charge, so it must never become a new way for checkout to
+       * break.
+       */
+      try {
+        const preflightRes = await apiRequest("POST", "/api/checkout/preflight", {
+          email,
+          studentCount,
+        });
+        const preflight = await preflightRes.json();
+        if (preflight && preflight.ok === false) {
+          toast({
+            title: t("checkout.cannotCompleteTitle"),
+            description:
+              preflight.code === "ORG_EXISTS"
+                ? t("checkout.orgExistsDesc")
+                : t("checkout.loginRequiredDesc"),
+            variant: "destructive",
+          });
+          return;
+        }
+      } catch (preflightErr) {
+        console.error("Checkout preflight unavailable, continuing:", preflightErr);
+      }
+
       // Stamp buyer identity onto the PaymentIntent before confirming, so a
       // backstop can complete the grant from metadata alone if
       // /api/checkout/complete never runs. Best-effort: never block payment.

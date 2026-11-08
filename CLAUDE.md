@@ -115,7 +115,7 @@ node testing/local/<suite>.mjs
 Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `progression`, `licences`, `new-country`, `contribution`, `crosscutting`,
 `school-setup`, `question-gaps`, `peer-review`, `grants`, `pricing`,
-`org-admin`, plus
+`org-admin`, `checkout-preflight`, plus
 `migration-029-dryrun`, `migration-030-dryrun`, `migration-032-dryrun` and
 `migration-033-dryrun`.
 

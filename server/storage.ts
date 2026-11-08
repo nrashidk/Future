@@ -393,6 +393,8 @@ export interface IStorage {
   getOrganizationsWithLogos(): Promise<Array<{ id: string; name: string; logoUrl: string | null }>>;
   getOrganizationById(id: string): Promise<Organization | undefined>;
   getOrganizationByAdminUserId(adminUserId: string): Promise<Organization | undefined>;
+  // Deliberately NARROWER than the above — see the impl for why.
+  getOrganizationOwnedByUser(userId: string): Promise<Organization | undefined>;
   updateOrganization(id: string, data: Partial<InsertOrganization>): Promise<Organization>;
   // Replaces updateOrganizationQuota and consumeLicenseWithRewardPriority. The
   // licence counters are SET from the roster, never adjusted — see the impl.
@@ -3120,6 +3122,32 @@ export class DatabaseStorage implements IStorage {
    * hand every student their school's full admin surface. The primary-admin
    * column is tried first so existing behaviour is unchanged for them.
    */
+  /**
+   * The organization this user OWNS, matching organizations.admin_user_id and
+   * nothing else.
+   *
+   * NOT a duplicate of getOrganizationByAdminUserId, and the difference is the
+   * point. That one also matches an "admin" membership row, because 27
+   * admin-scoped routes need a secondary admin to resolve their school. This
+   * one exists to answer one narrower question: would
+   * createGroupPurchaseTransaction refuse this user? That transaction checks
+   * admin_user_id ALONE, so this must too.
+   *
+   * Using the broader method here would refuse a group purchase the
+   * transaction would in fact allow — a secondary admin of some school, whose
+   * card we would decline for a reason that does not apply to them. Whether a
+   * secondary admin SHOULD be able to buy a second school is a real question
+   * and not one this method decides; it is flagged for review rather than
+   * settled here.
+   */
+  async getOrganizationOwnedByUser(userId: string): Promise<Organization | undefined> {
+    const [organization] = await db
+      .select()
+      .from(organizations)
+      .where(eq(organizations.adminUserId, userId));
+    return organization;
+  }
+
   async getOrganizationByAdminUserId(adminUserId: string): Promise<Organization | undefined> {
     const [byPrimaryColumn] = await db
       .select()

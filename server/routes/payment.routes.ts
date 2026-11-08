@@ -171,6 +171,130 @@ export function registerPaymentRoutes(app: Express) {
   // /api/checkout/complete after the card was already charged.
   // stampBuyerLimiter is a light abuse guard only - it keeps this unauthenticated
   // endpoint from being used to burn Stripe API quota.
+  /**
+   * ELIGIBILITY, DECIDED BEFORE THE CARD IS CHARGED.
+   *
+   * /api/checkout/complete has two refusals that only run once Stripe has
+   * already taken the money:
+   *
+   *   1. an email belonging to an OAuth account with no password -> 400
+   *      "login first" (the `!existingUser.passwordHash` branch below)
+   *   2. a buyer who already owns a school -> 409, because
+   *      createGroupPurchaseTransaction refuses to give one user a second
+   *      organization
+   *
+   * Both are correct refusals at the wrong moment. The charge has succeeded by
+   * the time either fires — PaymentIntent status and amount are verified at the
+   * top of /complete — so the buyer is charged, granted nothing, and told to go
+   * away. For a group purchase that is a school-sized amount of money.
+   *
+   * This is the same mistake, and the same fix, as the studentCount === 1 guard
+   * in /api/create-payment-intent above, which says it outright: refusing after
+   * the charge "would take a customer's money and hand back neither an account
+   * nor a refund". That one had no email to check at intent-creation time. This
+   * one does, because the client has the form filled in before it confirms.
+   *
+   * SCOPE: this refuses exactly what /complete refuses and NOTHING more. An
+   * existing local account without an organization still buys without logging
+   * in, because /complete still serves it. Widening this into "any known email
+   * must log in" would be a new product rule, not a bug fix.
+   *
+   * NOT A SECURITY CONTROL. The client can skip this call and confirm the card
+   * anyway, so the refusals in /complete stay exactly where they are as the
+   * backstop. This spares an honest buyer a charge they cannot use; it is not
+   * load-bearing against an attacker.
+   *
+   * It deliberately calls no Stripe API: there is no PaymentIntent to consult
+   * yet, and keeping it to database reads is what makes it testable offline.
+   * It writes nothing.
+   *
+   * DISCLOSURE ACCEPTED: answering this to an unauthenticated caller confirms
+   * an account exists for an email, and distinguishes an SSO account from a
+   * local one. Existence is already free to discover — parent registration
+   * answers "An account with this email already exists" to anyone
+   * (parentRegistration.routes.ts) — so this adds the auth method and nothing
+   * else, which is worth a school not being charged for nothing.
+   */
+  app.post("/api/checkout/preflight", stampBuyerLimiter, async (req: any, res) => {
+    try {
+      const { email, studentCount } = req.body || {};
+
+      const normalizedEmail =
+        typeof email === "string" ? email.trim().toLowerCase() : "";
+      if (!normalizedEmail) {
+        return res.status(400).json({ message: "Invalid request" });
+      }
+
+      // Floor, never round: this only ever selects a branch, but a fractional
+      // count must not read as a group purchase by rounding up.
+      const rawCount = Number(studentCount);
+      const count = Number.isFinite(rawCount)
+        ? Math.max(0, Math.floor(rawCount))
+        : 0;
+      const isGroupPurchase = count > 1;
+
+      /**
+       * An authenticated buyer is NOT exempt. /complete's logged-in branch
+       * skips the OAuth refusal — it never looks at passwordHash — but it still
+       * calls createGroupPurchaseTransaction, so a school owner buying a second
+       * time is charged and then met with the 409 like anybody else. Their own
+       * id is the right thing to check here; the typed email is not necessarily
+       * theirs.
+       */
+      if (req.isAuthenticated && req.isAuthenticated() && req.user) {
+        const userId = (req.user as any).userId;
+        if (isGroupPurchase) {
+          const owned = await storage.getOrganizationOwnedByUser(userId);
+          if (owned) {
+            return res.json({
+              ok: false,
+              code: "ORG_EXISTS",
+              organizationName: owned.name,
+            });
+          }
+        }
+        return res.json({ ok: true });
+      }
+
+      const existingUser = await storage.getUserByEmail(normalizedEmail);
+
+      // A brand-new email is the path /complete handles best — it creates the
+      // account. Nothing to refuse.
+      if (!existingUser) {
+        return res.json({ ok: true });
+      }
+
+      // Mirrors /complete's `!existingUser.passwordHash` branch. An account
+      // created through Google or Microsoft has no password to check, so
+      // self-service checkout cannot verify the buyer is its owner.
+      if (!existingUser.passwordHash) {
+        return res.json({ ok: false, code: "LOGIN_REQUIRED" });
+      }
+
+      if (isGroupPurchase) {
+        const owned = await storage.getOrganizationOwnedByUser(existingUser.id);
+        if (owned) {
+          return res.json({
+            ok: false,
+            code: "ORG_EXISTS",
+            organizationName: owned.name,
+          });
+        }
+      }
+
+      res.json({ ok: true });
+    } catch (error: any) {
+      console.error("Checkout preflight failed:", error);
+      /**
+       * FAILS OPEN, ON PURPOSE. This endpoint only ever spares a buyer a
+       * useless charge; it guards nothing. If it breaks, the right outcome is
+       * the behaviour we have today — the buyer proceeds and /complete decides
+       * — not a blocked checkout for everyone because a database read failed.
+       */
+      res.status(503).json({ message: "Eligibility check unavailable" });
+    }
+  });
+
   app.post("/api/checkout/stamp-buyer", stampBuyerLimiter, async (req: any, res) => {
     if (!stripe) {
       return res.status(503).json({
