@@ -107,6 +107,13 @@ no ledger row. Reconciliation then correctly flags a state that only exists
 here. Any suite that asserts on reconciliation needs to do the same.
 `testing/local/README.md` has the details.
 
+**`server/migrations/` is for migrations and nothing else.** The runner
+applies EVERY `.sql` file in that directory at boot and records it as applied,
+and a failure is fatal — so a stray file there is an outage, not a warning. A
+read-only verification script dropped in beside the migrations was picked up on
+the next boot, and `psql` meta-commands like `\echo` are rejected by the pg
+driver with a syntax error. Verification and one-off SQL belong in `scripts/`.
+
 **A suite that invents countries must delete them again.** `pricing` and
 `migration-033-dryrun` both create countries, and leaving them behind made
 `school-setup`'s catalogue count report 247 of 250 and fail — a true statement
