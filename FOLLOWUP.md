@@ -1236,6 +1236,24 @@ Best-effort + buyer-asserted (same trust tier as buyerEmail).
   is the charge object (latest_charge.billing_details.email / receipt_email) — nothing reads it today. Verify
   against a real PI before assuming it's recoverable.
 
+## EPHEMERAL DISK DATA-LOSS — ✅ CLOSED (verified 2026-11-08). Section below is history.
+> **FIXED. Do not go and check the Render dashboard for a persistent disk — it is irrelevant now.**
+>
+> Every multer config is `memoryStorage()`; there is **no `diskStorage` anywhere in `server/`**. Uploads
+> go from the request buffer straight to DigitalOcean Spaces: `@aws-sdk/client-s3` +
+> `@aws-sdk/s3-request-presigner` are dependencies, `server/services/fileStorage.ts` wraps them (with
+> tests), and `files.routes.ts`, `admin.routes.ts` and `superadmin.routes.ts` all use it. Two buckets —
+> a private one for student data and a public one for organization logos only.
+>
+> The claim below that there is "no object storage anywhere (verified: no S3/DigitalOcean/Spaces…)" and
+> that the DigitalOcean belief traced to the user's *other* projects is now WRONG. It was true when
+> written.
+>
+> **Whether production has the credentials needs no dashboard check either.** All six `SPACES_*` vars
+> are in `ENV.REQUIRED` (`server/config/constants.ts:95-109`) precisely because "an unset value is an
+> outage, not a degradation: fail at boot rather than at the first upload or download". Production is
+> serving, so they are set. Liveness is the proof.
+
 ## EPHEMERAL DISK DATA-LOSS — INVESTIGATED, NOT YET FIXED (2026-08-25)
 Confirmed: app writes all uploads to LOCAL ephemeral disk (multer.diskStorage). No object storage
 anywhere (verified: no S3/DigitalOcean/Spaces/MinIO/Cloudinary in deps, env, code, or git history —
