@@ -289,11 +289,41 @@ async function grantGuestPremiumFromMetadata(
       console.log(`[Webhook] Guest payment ${paymentIntent.id}: granted premium to user ${result.user.id}`);
     }
 
-    // Mark processed so the interactive path does not grant a second time
+    /**
+     * BEST EFFORT, AND DELIBERATELY NOT FATAL.
+     *
+     * This stamp used to sit in the outer try, so a failed
+     * `paymentIntents.update` threw and re-threw — and a re-throw tells Stripe
+     * to retry. That exact loop was observed in production: the grant
+     * SUCCEEDED, the update failed, `processed` was never written, and Stripe
+     * retried indefinitely against a payment that had already been honoured.
+     *
+     * The stamp was load-bearing when it was the only guard. It is not any
+     * more. Three things now stand between a redelivery and a second grant,
+     * and all of them are in our own database rather than in Stripe's
+     * metadata:
+     *
+     *   - `stripe_webhook_events` claims `event.id` before any work (034)
+     *   - `grantIndividualPremium` returns already_premium and writes nothing
+     *   - `license_grants` is uniquely indexed on the Stripe payment id
+     *
+     * So a failure here costs a convenience marker, not correctness. Losing
+     * the grant to an infinite retry would cost far more. Logged loudly,
+     * because an unstamped intent does show up in the reconciliation sweep and
+     * someone should be able to explain why.
+     */
     if (stripe) {
-      await stripe.paymentIntents.update(paymentIntent.id, {
-        metadata: { ...paymentIntent.metadata, processed: "true" }
-      });
+      try {
+        await stripe.paymentIntents.update(paymentIntent.id, {
+          metadata: { ...paymentIntent.metadata, processed: "true" }
+        });
+      } catch (stampError: any) {
+        console.error(
+          `[Webhook] Grant SUCCEEDED for ${paymentIntent.id} but stamping processed=true failed. ` +
+          `Not retrying — the grant stands and the database guards prevent a double grant. Cause:`,
+          stampError?.message ?? stampError,
+        );
+      }
     }
   } catch (error) {
     console.error(`[Webhook] Failed guest premium grant for ${paymentIntent.id}:`, error);
