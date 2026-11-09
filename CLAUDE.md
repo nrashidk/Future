@@ -116,7 +116,7 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `progression`, `licences`, `new-country`, `contribution`, `crosscutting`,
 `school-setup`, `question-gaps`, `peer-review`, `grants`, `pricing`,
 `org-admin`, `checkout-preflight`, `school-lock`, `webhook-idempotency`,
-`llm-gate`, plus
+`llm-gate`, `guest-claim`, plus
 `migration-029-dryrun`, `migration-030-dryrun`, `migration-032-dryrun`,
 `migration-033-dryrun` and `migration-034-dryrun`.
 
@@ -572,13 +572,28 @@ chose to review would sit for ever with no one able to see it.
     studentId, dateOfBirth`** (`admin.routes.ts:1105`). The recon's claim that it
     takes name and grade only is stale. Age is derived from `dateOfBirth`, so
     there is no `studentAge` to accept.
-  - **Guest → account claim IS built**: `storage.migrateGuestAssessments`
-    (`storage.ts:1438`) matches on `guestSessionId`, which IS stored
-    (`storage.ts:2578`), and `client/src/lib/claimGuestAssessments.ts` calls
-    `POST /api/assessments/migrate`. FOLLOWUP's "guestSessionId never stored" is
-    stale. **But no harness suite asserts it** — `guest.mjs` never exercises the
-    claim, so this is built-and-unproven, the same state the school-owned field
-    lock was in before `school-lock.mjs`.
+  - **Guest → account claim IS built AND NOW PROVEN** (`guest-claim.mjs`, 8
+    cases). FOLLOWUP's "guestSessionId never stored" is stale; it is stored
+    (`storage.ts:2578`) and `migrateGuestAssessments` (`storage.ts:1438`)
+    requires all three of: the row exists, has no `userId`, and its
+    `guestSessionId` equals the httpOnly `guest_token` cookie. **The ids in the
+    request body are a filter, not the credential** — the cookie is.
+    Mutation-tested by deleting that one comparison, and the result is the
+    reason the suite exists: an unrelated account claimed the victim's
+    assessment (`migrated=1`, victim row reassigned), and the rightful owner
+    could then neither claim nor see their own — six of eight cases fail, so
+    the mutation both steals a minor's data and breaks the feature.
+    Two things the suite had to learn the hard way, both recorded in it:
+    idempotency comes from the route CLEARING the guest cookie on success, so a
+    retry is a 400 with no session and never reaches the `!userId` check — that
+    check is the second line, not the first. And a validation case must run on
+    an AUTHENTICATED session, or `isAuthenticated` answers 401 first and the
+    case passes while proving nothing.
+    Only two flows reach this in the product: `RegisterParent.tsx` and
+    `AuthCallback.tsx`. `POST /api/register` is retired (410
+    `FREE_TIER_RETIRED`), so there is no free self-registration to claim
+    through, and **the OAuth path cannot be exercised offline** — it stays
+    unproven.
   - **15 high-severity advisories in PRODUCTION dependencies**, not the 4 that was
     recorded (`npm audit --omit=dev`; 18 high counting dev). Nine are the puppeteer
     chain — puppeteer, puppeteer-core, @puppeteer/browsers, chromium-bidi,
