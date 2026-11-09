@@ -4520,6 +4520,33 @@ export class DatabaseStorage implements IStorage {
         dateOfBirth: organizationMembers.dateOfBirth,
         grade: organizationMembers.grade,
         role: organizationMembers.role,
+        /**
+         * OMITTED FROM THIS LIST UNTIL 2026-11-09, and four callers read it
+         * off these rows — so each got `undefined` and the branch it guarded
+         * never ran. None of them errored and none logged:
+         *
+         *   - the promote route's demote (`superadmin.routes.ts:692`): the
+         *     previous primary was never cleared, so each promotion ADDED a
+         *     primary instead of moving it. The route still answered 200 and
+         *     the promoted admin really was primary, so it looked like it
+         *     worked.
+         *   - the remove-admin guard (`:644`): `if (adminToRemove.isPrimaryAdmin)`
+         *     was always false, so "Cannot remove primary admin. Transfer
+         *     primary admin role first." could not fire and a school's primary
+         *     admin was deletable.
+         *   - the admins listing (`:506`) returned `isPrimaryAdmin: undefined`,
+         *     so the superadmin UI showed no admin as primary and offered
+         *     Promote on every one of them.
+         *   - two `admins.find(a => a.isPrimaryAdmin) || admins[0]` fallbacks
+         *     (`:429`, `:1253`) always took the fallback and displayed an
+         *     arbitrary admin. That `|| admins[0]` is also why this survived:
+         *     it made the most visible symptom look plausible.
+         *
+         * Found by running the promote route and reading the rows back
+         * (`superadmin-writes.mjs` P-05/P-07), not by reading the handler —
+         * the handler is correct, and it is this list that was wrong.
+         */
+        isPrimaryAdmin: organizationMembers.isPrimaryAdmin,
         hasCompletedAssessment: organizationMembers.hasCompletedAssessment,
         assessmentCompletedAt: organizationMembers.assessmentCompletedAt,
         isLocked: organizationMembers.isLocked,

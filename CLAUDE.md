@@ -116,7 +116,8 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `progression`, `licences`, `new-country`, `contribution`, `crosscutting`,
 `school-setup`, `question-gaps`, `peer-review`, `grants`, `pricing`,
 `org-admin`, `checkout-preflight`, `school-lock`, `webhook-idempotency`,
-`llm-gate`, `guest-claim`, `admin-writes`, `webhook-group-backstop`, plus
+`llm-gate`, `guest-claim`, `admin-writes`, `webhook-group-backstop`,
+`superadmin-writes`, plus
 `migration-029-dryrun`, `migration-030-dryrun`, `migration-032-dryrun`,
 `migration-033-dryrun` and `migration-034-dryrun`.
 
@@ -603,8 +604,33 @@ chose to review would sit for ever with no one able to see it.
   guarded (the latter by `checkSuperadmin` → 403), but the shape means deleting
   four lines leaves a route that still reads as protected, which is why they
   are tested rather than reviewed.
-  Still uncovered: `PATCH /api/superadmin/quiz-questions/:id` and the
-  superadmin promote route.
+  `PATCH /api/superadmin/quiz-questions/:id` and the superadmin promote route
+  are covered now (`superadmin-writes.mjs`, 15 cases), and running them found
+  a real bug that reading could not — see the next bullet.
+- **`isPrimaryAdmin` was missing from `getOrganizationMembersByOrganizationId`'s
+  select list, and four callers read it off those rows.** Each got `undefined`,
+  so each guarded branch never ran. Nothing errored, nothing logged:
+  - the promote route's demote never fired, so every promotion ADDED a primary
+    admin instead of moving it. The route answered 200 and the promoted admin
+    really was primary, so it looked like it had worked.
+  - **the remove-admin guard could not fire**: `if (adminToRemove.isPrimaryAdmin)`
+    was always false, so "Cannot remove primary admin. Transfer primary admin
+    role first." was dead and a school's primary admin was deletable. Proved by
+    mutation, and the suite's own output says it — `P-07 … HTTP 200 row=GONE`.
+  - the admins listing returned `isPrimaryAdmin: undefined`, so the superadmin
+    UI marked no admin as primary and offered Promote on all of them.
+  - two `admins.find(a => a.isPrimaryAdmin) || admins[0]` fallbacks always took
+    the fallback. That `|| admins[0]` is why this survived: it made the most
+    visible symptom look plausible.
+  One line fixes all four. The HANDLERS were correct — the query was wrong —
+  which is why this is in the "executing something, not reading" column:
+  reading `superadmin.routes.ts:692` shows a correct demote.
+  Note for anyone writing a suite here: a never-used Session has no
+  `csrf_token` cookie, so its first state-changing request is refused **403
+  CSRF_MISSING** before authentication is consulted. A guest case must `GET`
+  something first or it asserts against the wrong guard — the first draft of
+  `superadmin-writes.mjs` had one case fail and another "pass" with a 401 it
+  only got because the earlier 403's Set-Cookie had supplied a token.
 - **Verified against the repo 2026-11-08, after five "open items" turned out to be
   stale.** Each line below was confirmed by reading the code on `main`, not by
   reading a document. Documents in this repo were wrong three times in one day.
