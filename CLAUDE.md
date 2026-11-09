@@ -850,6 +850,48 @@ chose to review would sit for ever with no one able to see it.
     wrong, unread, and "fixing" it would touch the live interactive money path
     for no behavioural gain. B-04 therefore asserts the DELTA (nothing moved)
     rather than an absolute figure.
+  - **A GROUP BUYER NOW GETS AN EMAIL, A PASSWORD AND AN ONBOARDING — built
+    2026-11-09 across five commits.** Before it, NO code path sent any mail on
+    purchase: the generated credentials were returned in the HTTP response and
+    rendered once on the checkout success screen, so a closed tab, or the
+    webhook completing the purchase while the browser never came back, left a
+    paying customer with an account they could not enter. The only route back
+    in was "Forgot password" — a recovery flow standing in for an onboarding
+    one, and the wording telling them so was mine. UAE Skool reached exactly
+    that state.
+    - `school_setup_tokens` (migration 035), deliberately NOT
+      `password_reset_tokens`: seven days rather than one hour, re-sendable by
+      a superadmin, and `sent_at`/`sent_count` are the only evidence the system
+      holds that the mail went out.
+    - `sendSchoolSetupInvite` is ONE helper called from both
+      `/api/checkout/complete` and the webhook, idempotent on the TOKEN rather
+      than on a flag, so a raced purchase mails one link and not two. It never
+      throws: the buyer is charged and the school exists, and an error escaping
+      inside the webhook would release the event claim and have Stripe retry a
+      grant that already succeeded.
+    - `/school/setup/:token` sets the password, spends the link and signs them
+      in. GET describes the link WITHOUT spending it, so opening the mail on a
+      phone and finishing on a laptop works.
+    - **THE ONBOARDING IS FOUR STEPS, NOT THREE.** Every enrolment route carries
+      TWO gates: `schoolSetupGate` (country, curriculum) AND `consentGate` (the
+      school's own guardian-consent attestation). A flow covering only the
+      first still ends in a 409 the buyer cannot interpret. Consent cannot be
+      moved or supplied for them — `POST /api/my-organization/consent` is
+      org_admin-only with no superadmin path, deliberately. The existing
+      `OrganizationConsentCard` is reused, because it posts the rendered
+      wording back and the record stores its hash.
+    - The superadmin directory shows a STAGE, not a tick
+      (`shared/schoolSetupStage.ts`, pure and tested): a yes/no cannot tell
+      "the mail never arrived" from "they got in and stopped", and those need
+      opposite actions. Resend is offered — and the route only permits it — for
+      `never_signed_in`.
+    - **Nothing here can tell DELIVERED from NOT-DELIVERED.** `used_at` proves
+      a click; a null covers a bounce, a spam folder and an unopened inbox
+      alike. Every label says "not used". Real delivery data needs Resend's
+      webhooks, which are not wired — that is the open follow-up.
+    Suites: `setup-invite` (5), `school-setup-link` (14, ending in a student
+    actually enrolled), `setup-stage` (9), `migration-035-dryrun` (9), plus
+    `schoolSetupStage.test.ts` (11) and `email.schoolSetup.test.ts` (5).
   - **There is NO in-account licence top-up, and the checkout refusals used to
     promise one.** `payment.routes.ts` has five POST routes and none of them
     sells licences to an existing school; `createGroupPurchaseTransaction`
