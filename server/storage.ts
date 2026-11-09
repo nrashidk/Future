@@ -38,6 +38,7 @@ import {
   childProfiles,
   licenseConsumptions,
   licenseGrants,
+  stripeWebhookEvents,
   contributionReviews,
   REVIEW_MAJORITY,
   childGuardianConsents,
@@ -3235,6 +3236,52 @@ export class DatabaseStorage implements IStorage {
    * message matching silently never fires. The duplicate-vote check in
    * recordContributionReview learned this the same way.
    */
+  /**
+   * CLAIM A STRIPE DELIVERY. Returns true if THIS call claimed it, false if it
+   * was already claimed by an earlier delivery.
+   *
+   * The whole guarantee is in `ON CONFLICT DO NOTHING ... RETURNING`: the
+   * insert either creates the row or does not, decided by the primary key
+   * inside one statement. A read-then-insert would let two concurrent retries
+   * both see "absent" and both proceed — the check-then-act trap this codebase
+   * has produced before, here with money attached.
+   *
+   * RETURNING is what makes the outcome legible. Without it the caller cannot
+   * tell "inserted" from "conflicted", and `rowCount` across drivers is not
+   * something to stake a double-charge on.
+   */
+  async claimStripeWebhookEvent(eventId: string, eventType: string): Promise<boolean> {
+    const claimed = await db
+      .insert(stripeWebhookEvents)
+      .values({ eventId, eventType })
+      .onConflictDoNothing({ target: stripeWebhookEvents.eventId })
+      .returning({ eventId: stripeWebhookEvents.eventId });
+
+    return claimed.length > 0;
+  }
+
+  /** Stamp a claim as finished. Called only after the handler succeeded. */
+  async markStripeWebhookEventProcessed(eventId: string): Promise<void> {
+    await db
+      .update(stripeWebhookEvents)
+      .set({ processedAt: new Date() })
+      .where(eq(stripeWebhookEvents.eventId, eventId));
+  }
+
+  /**
+   * Give the claim back after a failed handler, so Stripe's retry can run.
+   *
+   * Keeping it would mean the retry is skipped and a paid grant is lost for
+   * ever. Releasing it risks a retry re-running a handler that partly
+   * succeeded — which the inner guards already cover: the unique assessment id
+   * on the consumption ledger, the unique Stripe payment id on the grants
+   * ledger, and already_premium. An unexplained licence count is recoverable
+   * from Stripe; a lost sale is not.
+   */
+  async releaseStripeWebhookEventClaim(eventId: string): Promise<void> {
+    await db.delete(stripeWebhookEvents).where(eq(stripeWebhookEvents.eventId, eventId));
+  }
+
   async recordLicenseGrant(
     params: {
       organizationId: string;

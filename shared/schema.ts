@@ -535,6 +535,69 @@ export const licenseGrants = pgTable("license_grants", {
   ),
 ]);
 
+/**
+ * WHICH STRIPE DELIVERIES HAVE BEEN HANDLED.
+ *
+ * Stripe retries a webhook until it gets a 2xx, and it may deliver the same
+ * event more than once even on success. Before this table the only guard was
+ * `paymentIntent.metadata.processed === "true"`, read off the EVENT PAYLOAD —
+ * and an event payload carries the snapshot taken when the event was CREATED.
+ * So on a real retry that flag is absent even though we stamped the
+ * PaymentIntent on the first delivery, and the guard reads "not processed"
+ * every time. What actually prevented a second grant was
+ * grantIndividualPremium's already_premium no-op, which depends on isPremium
+ * having been flipped — nothing at the delivery level, and nothing at all for
+ * a path that does not set isPremium first.
+ *
+ * `event.id` is the only durable, delivery-level identity Stripe gives, and it
+ * was being logged and thrown away. This table stores it and makes the UNIQUE
+ * INDEX the arbiter: the handler INSERTs before doing any work, and a delivery
+ * that loses that insert is a duplicate and does nothing. Two concurrent
+ * retries cannot both win, which no amount of check-then-act in application
+ * code can promise.
+ *
+ * NO PERSONAL DATA, deliberately. An event id, a type, and two timestamps. The
+ * payload is not stored: it holds a buyer's email and a student's details, and
+ * this table exists to deduplicate deliveries, not to archive them.
+ *
+ * STATUS, AND THE ONE CASE IT DOES NOT COVER. A claim is written before
+ * processing and stamped `processed_at` after. If processing throws, the
+ * handler DELETES its own claim and returns 500 so Stripe retries — keeping
+ * the claim would skip the retry and lose a paid grant for ever, and an
+ * unexplained licence count is recoverable from Stripe while a lost sale is
+ * not. The case left open is a process that dies mid-handler: the claim
+ * survives with `processed_at` NULL and the retry is skipped. That is
+ * deliberately not solved with a lease or a timeout, both of which add a way
+ * to double-grant; it is instead VISIBLE, because a claim with a null
+ * `processed_at` is exactly the query that finds it, and
+ * `GET /api/superadmin/payments/unreconciled` already lists succeeded
+ * PaymentIntents that were never granted.
+ */
+export const stripeWebhookEvents = pgTable("stripe_webhook_events", {
+  /**
+   * Stripe's own event id (evt_...), and the primary key. Not a surrogate uuid:
+   * the whole point is that the identity comes from Stripe, so there is nothing
+   * to generate and nothing to get out of step.
+   */
+  eventId: varchar("event_id").primaryKey(),
+
+  /** e.g. payment_intent.succeeded. Kept for reading the log, not for logic. */
+  eventType: text("event_type").notNull(),
+
+  /** When this delivery was claimed. */
+  receivedAt: timestamp("received_at").notNull().defaultNow(),
+
+  /**
+   * When the handler finished successfully. NULL means claimed-but-unfinished:
+   * either in flight right now, or a handler that died. See the note above —
+   * this column is the query that finds the latter.
+   */
+  processedAt: timestamp("processed_at"),
+}, (table) => [
+  // Finding abandoned claims, and reading the delivery log in order.
+  index("stripe_webhook_events_received_idx").on(table.receivedAt),
+]);
+
 export const licenseGrantsRelations = relations(licenseGrants, ({ one }) => ({
   organization: one(organizations, {
     fields: [licenseGrants.organizationId],

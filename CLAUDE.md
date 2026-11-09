@@ -115,9 +115,26 @@ node testing/local/<suite>.mjs
 Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `progression`, `licences`, `new-country`, `contribution`, `crosscutting`,
 `school-setup`, `question-gaps`, `peer-review`, `grants`, `pricing`,
-`org-admin`, `checkout-preflight`, `school-lock`, plus
-`migration-029-dryrun`, `migration-030-dryrun`, `migration-032-dryrun` and
-`migration-033-dryrun`.
+`org-admin`, `checkout-preflight`, `school-lock`, `webhook-idempotency`, plus
+`migration-029-dryrun`, `migration-030-dryrun`, `migration-032-dryrun`,
+`migration-033-dryrun` and `migration-034-dryrun`.
+
+`webhook-idempotency` needs two environment variables, on `up.ts` AND on
+itself, or every case is answered by the route's own 503/500 and proves
+nothing. It refuses to run without the second rather than passing:
+
+```
+PGLITE_DIR=./.pgdata STRIPE_SECRET_KEY=sk_test_dummy \
+  STRIPE_WEBHOOK_SECRET=whsec_localtestsecret npx tsx testing/local/up.ts
+STRIPE_SECRET_KEY=sk_test_dummy STRIPE_WEBHOOK_SECRET=whsec_localtestsecret \
+  node testing/local/webhook-idempotency.mjs
+```
+
+`migration-034-dryrun` EXECUTES the .sql file, which nothing else does —
+`schema-push` marks every migration applied without running it, so a syntax
+error in a migration first runs at production boot, where a failure is fatal.
+It also runs the DOWN block from the file's trailing comment, since that block
+is written for a human to paste and nothing else ever checks that it works.
 
 `grants` runs migration 032 itself before asserting anything: schema-push
 creates the tables and marks migrations applied **without running them**, so
@@ -175,6 +192,15 @@ caught afterwards. A green test here means less than you think.
 - **One branch is not the behaviour.** A licence guard scoped to school
   students was tested with a school student, returned 403, and was written up
   as "the feature does not work for anyone". It worked for everyone else.
+- **A RACE CANNOT BE TESTED IN THIS HARNESS, and a concurrency test here will
+  pass whether the code is atomic or not.** PGlite allows a single connection,
+  so requests fired in parallel are serialized by the bridge and never overlap.
+  Proved by trying: `webhook-idempotency` W-07 sends eight simultaneous
+  deliveries of one event id, and replacing the atomic
+  `ON CONFLICT DO NOTHING ... RETURNING` with an explicit SELECT-then-INSERT
+  left it passing. Write the atomic statement anyway — it is correct on its own
+  terms — but verifying atomicity needs real Postgres with real concurrent
+  connections, and a green concurrency assertion here is not that verification.
 
 When a test passes, check the evidence in its own output — a count that moved,
 a status that is specific, a row that actually changed.
@@ -545,10 +571,26 @@ chose to review would sit for ever with no one able to see it.
     can cause is not. Converting the US figure at the dirham peg was considered and
     rejected: the peg makes the currency exact and leaves the number wrong, since
     American pay levels are not local ones.
-  - Confirmed genuinely ABSENT (grep + schema, not inference): email verification
-    on registration (no token column, `emailVerified` is only Google's OAuth
-    boolean), and any webhook event-ID idempotency table (no `stripe_event_id`
-    anywhere). Both still gate live Stripe.
+  - **Webhook event-ID idempotency: CLOSED** (migration 034,
+    `stripe_webhook_events`). The handler claims `event.id` with
+    `ON CONFLICT DO NOTHING ... RETURNING` before doing any work, after
+    signature verification so a forged request cannot pre-claim a real id. A
+    duplicate answers **200** with `duplicate: true` — not 409, because Stripe
+    retries anything non-2xx for ever. A claim that cannot be written fails
+    CLOSED with a 500; a handler that throws has its claim DELETED so the retry
+    can run, because an unexplained licence count is recoverable from Stripe and
+    a lost sale is not. The old guard, `paymentIntent.metadata.processed`, is
+    still in place but was never sufficient on its own: it is read off the EVENT
+    PAYLOAD, which carries the creation-time snapshot, so on a real retry it is
+    absent even after the first delivery stamped it. Proved by mutation —
+    disabling the dedupe fails W-03 and W-07. **Not covered:** that the route
+    calls the release on failure (no deterministic way to make a handler throw
+    without a network call), and atomicity under real concurrency — see the
+    harness note above. A claim stranded by a process that died shows up as a
+    row with a null `processed_at`.
+  - Still genuinely ABSENT and still gating live Stripe: email verification on
+    registration (no token column; `emailVerified` is only Google's OAuth
+    boolean).
   - `RESEND_API_KEY` unset means email is logged and NOT sent
     (`email.ts:3`, `:339`). Whether production has the key **cannot be checked from
     here** — `email.logOnly.test.ts` asserts it is unset in production, but that is

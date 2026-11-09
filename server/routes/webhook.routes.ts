@@ -77,6 +77,46 @@ export function registerWebhookRoutes(app: Express) {
     // Log event type for debugging (never log sensitive data)
     console.log(`[Webhook] Received event: ${event.type}, ID: ${event.id}`);
 
+    /**
+     * CLAIM THIS DELIVERY BEFORE DOING ANY WORK.
+     *
+     * Deliberately AFTER signature verification: an unsigned or forged request
+     * must not be able to write rows here, or anyone could fill the table and,
+     * worse, pre-claim a real event id so the genuine delivery is skipped.
+     *
+     * The insert is the guard, not a preceding read. `metadata.processed` on
+     * the PaymentIntent cannot do this job: it is read off the EVENT PAYLOAD,
+     * which carries the snapshot from when the event was CREATED, so on a real
+     * Stripe retry it is absent even though the first delivery stamped it. The
+     * only thing standing between a retry and a second grant was
+     * grantIndividualPremium's already_premium no-op, which depends on
+     * isPremium having been flipped first.
+     *
+     * A duplicate answers 200, not 409. Stripe retries anything that is not
+     * 2xx, and a duplicate delivery of an event we have already handled is a
+     * success from Stripe's point of view — answering 409 would keep it
+     * retrying for ever.
+     */
+    let claimed: boolean;
+    try {
+      claimed = await storage.claimStripeWebhookEvent(event.id, event.type);
+    } catch (claimError: any) {
+      /**
+       * FAILS CLOSED, and this is the one place in the file that does.
+       * Processing without a claim would reintroduce exactly the double-grant
+       * this exists to prevent, so a database that cannot be reached means we
+       * do not process. 500 makes Stripe retry, which is what we want: the
+       * event is still pending, not lost.
+       */
+      console.error(`[Webhook] Could not claim event ${event.id}:`, claimError);
+      return res.status(500).json({ error: "Webhook processing failed" });
+    }
+
+    if (!claimed) {
+      console.log(`[Webhook] Event ${event.id} already claimed — duplicate delivery, skipping`);
+      return res.json({ received: true, eventId: event.id, duplicate: true });
+    }
+
     try {
       switch (event.type) {
         case "payment_intent.succeeded":
@@ -96,10 +136,37 @@ export function registerWebhookRoutes(app: Express) {
           console.log(`[Webhook] Unhandled event type: ${event.type}`);
       }
 
+      // Stamped only now, after the handler actually succeeded. A claim with a
+      // null processed_at is therefore either in flight or abandoned, which is
+      // what makes an abandoned one findable.
+      await storage.markStripeWebhookEventProcessed(event.id);
+
       // Acknowledge receipt of the event
       res.json({ received: true, eventId: event.id });
     } catch (error: any) {
       console.error(`[Webhook] Error processing event ${event.id}:`, error);
+
+      /**
+       * GIVE THE CLAIM BACK, so Stripe's retry can run this event again.
+       *
+       * Holding it would mean the retry is skipped and a paid grant is lost for
+       * ever. Releasing it risks a retry re-entering a handler that partly
+       * succeeded, which the inner guards already cover — the unique assessment
+       * id on the consumption ledger, the unique Stripe payment id on the
+       * grants ledger, and already_premium. An unexplained licence count is
+       * recoverable from Stripe; a lost sale is not.
+       *
+       * Its own failure is swallowed on purpose: the response must still be a
+       * 500 so Stripe retries. A stranded claim then shows up as a row with a
+       * null processed_at, which is recoverable, whereas throwing here would
+       * lose the 500 and with it the retry.
+       */
+      try {
+        await storage.releaseStripeWebhookEventClaim(event.id);
+      } catch (releaseError: any) {
+        console.error(`[Webhook] Could not release claim on ${event.id}:`, releaseError);
+      }
+
       // Return 500 so Stripe will retry the webhook
       res.status(500).json({ error: "Webhook processing failed" });
     }
