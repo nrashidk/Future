@@ -214,9 +214,95 @@ try {
     rec("L-07", "the password logs in through the normal login route", ok,
       ok ? "200 from /api/login/username" : "login refused");
   }
+  // =================================================================
+  // THE WHOLE POINT: does the flow actually clear BOTH gates?
+  // =================================================================
+  // L-04 left this buyer signed in with a password. These cases walk the exact
+  // API sequence the onboarding page performs, and finish by enrolling a
+  // student — the operation that returned 409 before any of this existed, and
+  // the only assertion that proves the dead end is closed.
+  {
+    const s = new Session(`setup-flow-${tag}`);
+    await s.login(username, STRONG);
+
+    const student = (n) => ({
+      fullName: `Flow Student ${n}`, studentName: `Flow Student ${n}`,
+      grade: "10", dateOfBirth: `2010-04-0${n}`, studentGender: "female",
+      passwordComplexity: "medium",
+    });
+
+    // ---------------------------------------------------------------- L-08
+    const mine = await s.get("/api/my-organization");
+    rec("L-08", "the new session reads its own school",
+      mine.status === 200 && mine.body?.id === org.id,
+      `HTTP ${mine.status} org=${mine.body?.name}`);
+
+    // ---------------------------------------------------------------- L-09
+    // Enrolment BEFORE the setup is finished must be refused, or the cases
+    // below prove nothing: a route that never gated would pass L-13 whether
+    // the onboarding ran or not.
+    const blocked = await s.post(`/api/admin/organizations/${org.id}/members`, student(1));
+    rec("L-09", "enrolment is BLOCKED before the setup is finished",
+      blocked.status === 409, `HTTP ${blocked.status} code=${blocked.body?.code ?? "none"}`);
+
+    // ---------------------------------------------------------------- L-10
+    // The org admin fills in the curriculum themselves. null to a value is
+    // deliberately permitted, and is how a Stripe-created school becomes
+    // usable at all.
+    const patched = await s.patch(`/api/admin/organizations/${org.id}`, { curriculum: "MOE National" });
+    const [row] = await sql(`SELECT country_id, curriculum FROM organizations WHERE id = $1`, [org.id]);
+    rec("L-10", "the school admin can set its own curriculum",
+      patched.status === 200 && row.curriculum === "MOE National" && row.country_id === "uae",
+      `HTTP ${patched.status} country=${row.country_id} curriculum=${row.curriculum}`);
+
+    // ---------------------------------------------------------------- L-11
+    // THE SECOND GATE, which the approved mockups did not cover. Country and
+    // curriculum are set and enrolment is STILL refused, because consentGate
+    // wants the school's own attestation. Without this case the onboarding
+    // would have shipped still dead-ending.
+    const stillBlocked = await s.post(`/api/admin/organizations/${org.id}/members`, student(2));
+    rec("L-11", "setup alone is NOT enough — consent is a second gate",
+      stillBlocked.status === 409, `HTTP ${stillBlocked.status} code=${stillBlocked.body?.code ?? "none"}`);
+
+    // ---------------------------------------------------------------- L-12
+    const adminLocale = await (await fetch(`${BASE}/locales/en/admin.json`)).json().catch(() => null);
+    const attestationText = adminLocale
+      ? `${adminLocale.orgs?.consentProcessing ?? ""}\n${adminLocale.orgs?.consentGuardian ?? ""}`.trim()
+      : "";
+    const consent = await s.post("/api/my-organization/consent", {
+      consentsToProcessing: true,
+      attestsGuardianConsent: true,
+      attestationText: attestationText || "LOCAL FIXTURE: consent attestation wording unavailable",
+      locale: "en",
+    });
+    rec("L-12", "the school admin records its own consent", consent.status < 400, `HTTP ${consent.status}`);
+
+    // ---------------------------------------------------------------- L-13
+    // The assertion the whole feature exists for.
+    const enrolled = await s.post(`/api/admin/organizations/${org.id}/members`, student(3));
+    const members = await sql(
+      `SELECT COUNT(*)::int AS n FROM organization_members WHERE organization_id = $1 AND role = 'student'`,
+      [org.id],
+    );
+    rec("L-13", "after the FULL flow a student can finally be enrolled",
+      enrolled.status < 400 && Number(members[0].n) === 1,
+      `HTTP ${enrolled.status} students=${members[0].n}`);
+  }
+
 } finally {
   try {
     await sql(`DELETE FROM school_setup_tokens WHERE user_id = $1`, [user.id]);
+    await sql(`DELETE FROM organization_consents WHERE organization_id = $1`, [org.id]);
+    // Members BEFORE their users: organization_members references users, so
+    // the reverse order fails the foreign key and leaves the litter behind.
+    const studentIds = await sql(
+      `SELECT user_id FROM organization_members WHERE organization_id = $1 AND role = 'student'`, [org.id]);
+    await sql(`DELETE FROM organization_members WHERE organization_id = $1`, [org.id]);
+    for (const r of studentIds) await sql(`DELETE FROM users WHERE id = $1`, [r.user_id]);
+    // organization_events records the enrolment this suite performed, and it
+    // references the school. Eleven tables reference `organizations`; these
+    // are the ones this suite can create rows in.
+    await sql(`DELETE FROM organization_events WHERE organization_id = $1`, [org.id]);
     await sql(`DELETE FROM organizations WHERE id = $1`, [org.id]);
     await sql(`DELETE FROM users WHERE id = $1`, [user.id]);
   } catch (err) { console.error("cleanup:", String(err.message).slice(0, 80)); }

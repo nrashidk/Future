@@ -24,6 +24,7 @@ const Login = lazy(() => import("@/pages/Login"));
 const Register = lazy(() => import("@/pages/Register"));
 const ForgotPassword = lazy(() => import("@/pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("@/pages/ResetPassword"));
+const SchoolSetup = lazy(() => import("@/pages/SchoolSetup"));
 const AuthCallback = lazy(() => import("@/pages/AuthCallback"));
 const PrivacyPolicy = lazy(() => import("@/pages/PrivacyPolicy"));
 const TermsOfUse = lazy(() => import("@/pages/TermsOfUse"));
@@ -149,6 +150,7 @@ function Router() {
         <Route path="/register" component={Register} />
         <Route path="/forgot-password" component={ForgotPassword} />
         <Route path="/reset-password" component={ResetPassword} />
+        <Route path="/school/setup/:token" component={SchoolSetup} />
         <Route path="/auth/callback" component={AuthCallback} />
         <Route path="/privacy" component={PrivacyPolicy} />
         <Route path="/terms" component={TermsOfUse} />
