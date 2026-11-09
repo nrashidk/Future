@@ -117,7 +117,7 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `school-setup`, `question-gaps`, `peer-review`, `grants`, `pricing`,
 `org-admin`, `checkout-preflight`, `school-lock`, `webhook-idempotency`,
 `llm-gate`, `guest-claim`, `admin-writes`, `webhook-group-backstop`,
-`superadmin-writes`, plus
+`superadmin-writes`, `country-writes`, plus
 `migration-029-dryrun`, `migration-030-dryrun`, `migration-032-dryrun`,
 `migration-033-dryrun` and `migration-034-dryrun`.
 
@@ -609,13 +609,26 @@ chose to review would sit for ever with no one able to see it.
   `checkSuperadmin` → 403 as the first statement — but the shape means deleting
   four lines leaves a route that still reads as protected, which is why this
   shape gets tested rather than reviewed.
-  **The five country routes are NOT tested.** `new-country.mjs` has zero 403
-  assertions: it builds a country and a school in it and never asks whether a
-  non-superadmin is refused. That matters more than it looks —
-  `PUT /api/admin/countries/:id` writes `curricula`, `subjects` and
-  `gradeLevels`, which decide which quiz bank every student in that country
-  draws from, and the price route decides what a buyer is charged. Next
-  coverage gap to close.
+  **The five country routes are covered now** (`country-writes.mjs`, 12
+  cases). `new-country.mjs` has zero 403 assertions — it builds a country and
+  a school in it and never asks whether a non-superadmin is refused — and that
+  mattered more than it looked: `PUT /api/admin/countries/:id` writes
+  `curricula`, `subjects` and `gradeLevels`, which decide which quiz bank every
+  student in that country draws from. All five guards hold, and the PUT was
+  confirmed load-bearing by mutation: with its `if (!isSuperadmin)` disabled a
+  SCHOOL STUDENT rewrote the curricula, subjects and grades of their own
+  country, answered **200**. The guest case still passed under that mutation,
+  because `isAuthenticated` is a different guard — which is the reason the
+  student and org-admin rungs exist rather than a guest case alone.
+  Three things that suite had to learn, all recorded in it: `code` is REQUIRED
+  on create and must be 2–3 uppercase letters, and omitting it leaves the three
+  denial cases passing against a create route that cannot create anything —
+  green and worthless without the positive control. The two LLM routes are safe
+  to test offline because `checkSuperadmin` is the first statement, long before
+  any Anthropic call. And **eight tables reference `countries`**, not one:
+  offering a curriculum SEEDS ITS SIX SUBJECTS, so a country cannot be deleted
+  until its `subjects` rows are, and the suite's own leftover-country WARNING is
+  what caught that.
   `PATCH /api/superadmin/quiz-questions/:id` and the superadmin promote route
   are covered now (`superadmin-writes.mjs`, 15 cases), and running them found
   a real bug that reading could not — see the next bullet.
