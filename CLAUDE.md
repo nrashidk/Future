@@ -730,9 +730,38 @@ chose to review would sit for ever with no one able to see it.
     wrong, unread, and "fixing" it would touch the live interactive money path
     for no behavioural gain. B-04 therefore asserts the DELTA (nothing moved)
     rather than an absolute figure.
-  - Still genuinely ABSENT and still gating live Stripe: email verification on
-    registration (no token column; `emailVerified` is only Google's OAuth
-    boolean).
+  - **There is NO in-account licence top-up, and the checkout refusals used to
+    promise one.** `payment.routes.ts` has five POST routes and none of them
+    sells licences to an existing school; `createGroupPurchaseTransaction`
+    refuses a user a second organization, so a returning school cannot buy
+    through the public checkout at all. `/api/checkout/preflight` now catches
+    that before the charge (good) — but its copy said "sign in to add licences
+    to it" and "purchase from your dashboard", neither of which exists. That
+    was my wording and it sent a paying customer to a screen that is not
+    there. Both strings in both locales now point at `support@futurepath.ae`,
+    which is the real path: the superadmin licence add/remove route, with an
+    optional amount so a bank-transfer sale records as revenue rather than a
+    comp. Self-serve top-up is a genuine product gap, deliberately left open —
+    it needs decisions nobody has made (where it lives, whether volume tiers
+    apply to a second purchase, whether a cap applies), and the country must be
+    taken from the ORGANIZATION rather than client-selected, since for an
+    authenticated buyer it is finally server-derivable.
+  - Email verification on registration is still genuinely ABSENT (no token
+    column; `emailVerified` is only Google's OAuth boolean). **It does NOT gate
+    live Stripe, and an earlier version of this line saying so was my own
+    invention** — FOLLOWUP lists it as best practice 8.5 and a Phase 5 feature,
+    never as a payment prerequisite. Stripe activation waits on the trade
+    licence. Treat this as an ordinary product item, not a launch blocker.
+    Scope when it is built: exactly ONE self-service path creates an account,
+    `POST /api/register/parent`. `/api/register` is retired (410), group buyers
+    are evidenced by a card payment — stronger than a click-link — and student
+    accounts are admin-created. So verification guards the parent path alone,
+    where the thing worth protecting is that a child profile (a minor's name,
+    grade and school) gets stored against an address nobody proved they own.
+    Reuse `password_reset_tokens`' shape and `sendPasswordResetEmail`'s send
+    path rather than inventing a second token mechanism. What verification
+    BLOCKS is a product decision and has not been made — do not pick one
+    silently.
   - **`RESEND_API_KEY` IS set in production and WORKS — verified 2026-11-09** by
     requesting a password reset on futurepath.ae and receiving the mail from
     `noreply@futurepath.ae`. That single delivery proves the key is valid (not

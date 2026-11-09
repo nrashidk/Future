@@ -102,8 +102,8 @@
     "missingOrgDesc": "Please enter your school or organization name",
     "paymentFailedTitle": "Payment Failed",
     "cannotCompleteTitle": "This purchase cannot be completed",
-    "loginRequiredDesc": "This email is registered with Google or Microsoft sign-in. Please sign in first, then purchase from your dashboard. You have not been charged.",
-    "orgExistsDesc": "This account already manages a school, and an account can only hold one. Please sign in to add licences to it, or contact us. You have not been charged.",
+    "loginRequiredDesc": "This email is registered with Google or Microsoft sign-in, which self-service checkout cannot verify. Email support@futurepath.ae and we will complete the purchase for you. You have not been charged.",
+    "orgExistsDesc": "This account already manages a school, and an account can only hold one. To add licences to your existing school, email support@futurepath.ae and we will add them for you. You have not been charged.",
     "paymentSuccessTitle": "Payment Successful!",
     "errorTitle": "Error",
     "errorDesc": "An error occurred during payment"
