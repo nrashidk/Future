@@ -722,14 +722,26 @@ chose to review would sit for ever with no one able to see it.
       itself is not fetchable from the cloud container, so this came from a
       secondary summary. Verify before acting on it.)
       The mitigation that actually works needs no upgrade: **put explicit
-      upper bounds on array/record/set schemas**, which works on v3. The
-      exposure is small today — 13 `z.array(` in server/ and shared/, 5 already
-      bounded, and all 8 unbounded ones sit behind a superadmin check (the five
-      country write routes) or a school admin (`contribution.routes.ts:225`),
-      so the attack needs privileged credentials. The real limiter is the body
-      cap in `server/index.ts:132`: 512kb everywhere except
-      `/api/admin/questions/bulk` at 10mb, and that route is superadmin-gated
-      (proved in `admin-writes.mjs`).
+      upper bounds on array/record/set schemas**, which works on v3. **Done
+      2026-11-09 — there are now ZERO unbounded `z.array(` in server/ or
+      shared/.** The eight that were unbounded were the seven arrays on
+      `updateCountrySchema` and `contribution.routes.ts`'s
+      `approvedQuestionIds`; every scalar on that country schema was already
+      bounded, so the arrays were the only way in, and `curricula` was
+      `.max(20)` with `.max(100)` elements on CREATE while unbounded on
+      UPDATE — the same field, bounded on one verb and not its sibling.
+      `country-writes.mjs` C-12 asserts the bound FIRES (21 curricula → 400,
+      a 300-character name → 400, row untouched) and sends it as a
+      superadmin, because an unprivileged caller would be stopped by
+      `checkSuperadmin` first and the case would pass without testing the
+      bound at all. `approvedQuestionIds` was capped at
+      `MAX_QUESTIONS_PER_SUBMISSION` and deliberately NOT tightened to
+      `.int().nonnegative()` — correct for an index, but that rejects input
+      the route accepts today, so it is flagged rather than changed inside a
+      bounding commit.
+      The real limiter remains the body cap in `server/index.ts:132`: 512kb
+      everywhere except `/api/admin/questions/bulk` at 10mb, and that route is
+      superadmin-gated (proved in `admin-writes.mjs`).
       Neither major belongs on `main` unattended: Render auto-deploys every
       push, puppeteer drives a sold feature (PDF download), and zod v4 touches
       every validation schema. Branch them.

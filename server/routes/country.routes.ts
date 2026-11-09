@@ -58,16 +58,44 @@ const updateCountrySchema = z.object({
   vision: z.string().max(2000).optional(),
   visionAr: z.string().max(2000).nullable().optional(),
   visionPlan: z.string().max(100).nullable().optional(),
-  prioritySectors: z.array(z.string()).optional(),
-  prioritySectorsAr: z.array(z.string()).nullable().optional(),
-  nationalGoals: z.array(z.string()).optional(),
-  nationalGoalsAr: z.array(z.string()).nullable().optional(),
+  /**
+   * EVERY ARRAY HERE IS BOUNDED, in length and in element length.
+   *
+   * Two reasons, and the second is the one that made this worth a commit.
+   *
+   * 1. `curricula` is `.max(20)` with `.max(100)` elements on CREATE (above)
+   *    and was unbounded here — the same field, bounded on one verb and not
+   *    its sibling, which is a family this codebase keeps producing.
+   * 2. zod's `$ZodArray` accumulates one issue object per FAILING element
+   *    with no cap (GHSA-mrhx-c7xc-m3w5), so a large array whose elements all
+   *    fail validation grows memory until the process dies. Every scalar in
+   *    this schema was already bounded; the arrays were the only way in.
+   *    Bounding is the mitigation that actually works: per the advisory, no
+   *    released zod version fixes the UNBOUNDED case, and 4.6.6 only moved
+   *    the size check ahead of element parsing for schemas that declare an
+   *    upper bound. So a breaking v3→v4 migration would not have covered
+   *    these lines; declaring the bound does, on the version already here.
+   *
+   * The figures are the product's own: a country offers a handful of
+   * curricula, grades are Latin digits, and sectors and goals are short
+   * phrases. They are generous rather than tight, because the point is a
+   * ceiling that exists, not a limit anyone will meet.
+   */
+  prioritySectors: z.array(z.string().min(1).max(200)).max(50).optional(),
+  prioritySectorsAr: z.array(z.string().min(1).max(200)).max(50).nullable().optional(),
+  nationalGoals: z.array(z.string().min(1).max(500)).max(50).optional(),
+  nationalGoalsAr: z.array(z.string().min(1).max(500)).max(50).nullable().optional(),
   educationSystem: z.string().max(1000).nullable().optional(),
   universitiesLink: z.string().url().nullable().optional().or(z.literal("")),
   universitiesLinkLabel: z.string().max(100).nullable().optional(),
-  curricula: z.array(z.string()).nullable().optional(),
-  subjects: z.array(z.string()).nullable().optional(),
-  gradeLevels: z.array(z.string()).nullable().optional(),
+  // curricula mirrors createCountrySchema exactly — same field, same bound.
+  curricula: z.array(z.string().min(1).max(100)).max(20).nullable().optional(),
+  // Six canonical subjects per curriculum, so 200 is well clear of 20 × 6.
+  subjects: z.array(z.string().min(1).max(100)).max(200).nullable().optional(),
+  // Grade VALUES stay Latin digits (they are matched against
+  // quiz_questions.grade), so these are short strings and there are a dozen
+  // or so of them.
+  gradeLevels: z.array(z.string().min(1).max(20)).max(30).nullable().optional(),
   isActive: z.boolean().optional(),
 });
 

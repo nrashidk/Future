@@ -232,6 +232,32 @@ try {
     }
   }
 
+  // ------------------------------------------------------------------ C-12
+  // THE BOUNDS ARE REAL. Every array on updateCountrySchema is capped in
+  // length and element length, as the mitigation for zod's uncapped
+  // per-element issue accumulation (GHSA-mrhx-c7xc-m3w5) — and a declared
+  // bound with no negative case is a comment, not a control. 21 curricula is
+  // one past `.max(20)`; a 300-character curriculum name is past `.max(100)`.
+  // Sent by a SUPERADMIN, so the refusal can only be the bound: an unprivileged
+  // caller would be stopped by checkSuperadmin first and this would pass
+  // without testing anything.
+  if (baseline) {
+    const before = await countryRow(target);
+    const tooMany = await sa.put(`/api/admin/countries/${target}`, {
+      name: before.name, curricula: Array.from({ length: 21 }, (_, i) => `Curriculum ${i}`),
+    });
+    const tooLong = await sa.put(`/api/admin/countries/${target}`, {
+      name: before.name, curricula: ["x".repeat(300)],
+    });
+    const after = await countryRow(target);
+    rec("C-12", "superadmin: over-long arrays refused, row untouched",
+      tooMany.status === 400 && tooLong.status === 400
+        && JSON.stringify(after.curricula) === JSON.stringify(before.curricula),
+      `21-items=${tooMany.status} 300-chars=${tooLong.status} curricula unchanged=${JSON.stringify(after.curricula) === JSON.stringify(before.curricula)}`);
+  } else {
+    rec("C-12", "superadmin: over-long arrays refused, row untouched", false, "no country to test against");
+  }
+
   // =================================================================
   // The two LLM routes. The superadmin check is the FIRST statement in each
   // handler, so a denial is reached long before any Anthropic call — these are

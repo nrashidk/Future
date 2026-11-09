@@ -222,7 +222,21 @@ const submitQuestionsSchema = z.object({
 const reviewSubmissionSchema = z.object({
   status: z.enum(["approved", "rejected", "needs_changes"]),
   feedback: z.string().max(2000).optional(),
-  approvedQuestionIds: z.array(z.number()).optional(), // Indices of approved questions
+  /**
+   * Indices of approved questions, bounded by the same cap as the submission
+   * itself: a submission holds at most MAX_QUESTIONS_PER_SUBMISSION questions,
+   * so a longer list of indices into it cannot be legitimate. Unbounded, it
+   * was the one array in this file with no ceiling — and an unbounded array is
+   * what zod's uncapped per-element issue accumulation needs
+   * (GHSA-mrhx-c7xc-m3w5).
+   *
+   * NOT tightened to `.int().nonnegative()`, deliberately. That would be the
+   * correct shape for an index, but it rejects input the route accepts today
+   * and `indicesToApprove` is consumed below without me having traced every
+   * caller — so it is flagged for review rather than changed under cover of a
+   * bounding commit.
+   */
+  approvedQuestionIds: z.array(z.number()).max(MAX_QUESTIONS_PER_SUBMISSION).optional(),
 });
 
 // Sanitize question content
