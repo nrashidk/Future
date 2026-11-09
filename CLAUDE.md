@@ -116,7 +116,7 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `progression`, `licences`, `new-country`, `contribution`, `crosscutting`,
 `school-setup`, `question-gaps`, `peer-review`, `grants`, `pricing`,
 `org-admin`, `checkout-preflight`, `school-lock`, `webhook-idempotency`,
-`llm-gate`, `guest-claim`, plus
+`llm-gate`, `guest-claim`, `admin-writes`, plus
 `migration-029-dryrun`, `migration-030-dryrun`, `migration-032-dryrun`,
 `migration-033-dryrun` and `migration-034-dryrun`.
 
@@ -556,9 +556,31 @@ chose to review would sit for ever with no one able to see it.
   status-based test passes identically whether the guard works or is absent;
   proved by removing the per-member org check, which let school A reset school
   B's students' passwords while still returning 200. Judge that route by
-  whether the victim's password still logs in, never by its response. Still
-  uncovered: the question CRUD and bulk-upload routes, and most of the
-  organization PATCH surface.
+  whether the victim's password still logs in, never by its response.
+- **The question CRUD, bulk-upload and organization PATCH surfaces are covered
+  now** (`admin-writes.mjs`, 11 cases). Every guard held when read AND when
+  run, and each was confirmed load-bearing by removing it:
+  - dropping `isSuperadminOnly` from `POST /api/admin/questions` and
+    `/bulk-upload` let a school admin write to the national bank (201) and **a
+    school STUDENT write a question into the bank their own quiz is drawn
+    from** — bulk upload wrote two rows in one request
+  - removing the org-id comparison in `PATCH /api/admin/organizations/:id` let
+    school B rename school A
+  - making the licence fields writable by a non-superadmin let an org admin set
+    itself **99999 licences and unlimited**
+  **`totalLicenses` from a non-superadmin is answered 200 and silently
+  DROPPED**, so that case is 200 whether the drop happens or not — the same
+  shape as bulk-reset-passwords. Judge it by reading `total_licenses` before
+  and after, never by the status. W-08 is the control that keeps this honest: a
+  school can still rename itself.
+  Two middleware chains here carry only `isAuthenticated` with the real check
+  inside the handler — `PATCH /api/admin/organizations/:id` and
+  `POST /api/admin/countries/:id/generate-questions`. Both are genuinely
+  guarded (the latter by `checkSuperadmin` → 403), but the shape means deleting
+  four lines leaves a route that still reads as protected, which is why they
+  are tested rather than reviewed.
+  Still uncovered: `PATCH /api/superadmin/quiz-questions/:id` and the
+  superadmin promote route.
 - **Verified against the repo 2026-11-08, after five "open items" turned out to be
   stale.** Each line below was confirmed by reading the code on `main`, not by
   reading a document. Documents in this repo were wrong three times in one day.
