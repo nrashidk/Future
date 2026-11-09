@@ -161,6 +161,21 @@ function stickyLayout(opts: {
  * Where transforms are dropped, both land upright and the result is simply the
  * untilted version.
  */
+/**
+ * The school name is typed by the BUYER at checkout and interpolated into an
+ * HTML email. Unescaped, a name containing markup would be rendered by the
+ * recipient's mail client -- the organisation name is the one value in this
+ * message that nobody on our side chose.
+ */
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function stickyButton(href: string, label: string, font: string): string {
   return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0;transform:rotate(2deg);">
     <tr><td style="background-color:${PALETTE.primary};border-radius:8px;box-shadow:${PALETTE.shadow};">
@@ -379,6 +394,189 @@ export async function sendGuestReportRecoveryEmail(
  * @param userName - optional display name for personalisation
  * @param language - "en" or "ar" — controls email direction and language
  */
+/**
+ * THE FIRST-SIGN-IN EMAIL for a school bought through group checkout.
+ *
+ * Carries the receipt as well as the link, because this is the only message
+ * the buyer gets: before this existed, the generated credentials were rendered
+ * once on the success screen and sent nowhere, so a closed tab left a paying
+ * customer with an account they could not enter.
+ *
+ * Sticky YELLOW rather than the reset email's blue. Two different links to
+ * futurepath.ae arriving in one inbox, both about passwords, is exactly the
+ * pair a person mixes up — and the one that expires in an hour is not the one
+ * they want a week after buying.
+ */
+export function buildSchoolSetupHtmlEmail(args: {
+  setupUrl: string;
+  userName?: string;
+  username: string;
+  organizationName: string;
+  licenseCount: number;
+  amountLabel: string | null;
+  language: string;
+}): string {
+  const { setupUrl, userName, username, organizationName, licenseCount, amountLabel } = args;
+  const isAr = args.language === "ar";
+  const font = emailFont(args.language);
+  const greeting = userName
+    ? (isAr ? `مرحباً ${userName}،` : `Hello ${userName},`)
+    : (isAr ? "مرحباً،" : "Hello,");
+
+  const row = (label: string, value: string) =>
+    `<tr>
+       <td style="padding:6px 0;color:${PALETTE.muted};font-size:14px;">${label}</td>
+       <td style="padding:6px 0;color:${PALETTE.ink};font-size:14px;font-weight:600;text-align:${isAr ? "left" : "right"};">${value}</td>
+     </tr>`;
+
+  const receipt = `<table role="presentation" width="100%" style="border-collapse:collapse;margin:0 0 16px;">
+      ${row(isAr ? "المدرسة" : "School", escapeHtml(organizationName))}
+      ${row(isAr ? "تراخيص الطلاب" : "Student licences", String(licenseCount))}
+      ${amountLabel ? row(isAr ? "المبلغ المدفوع" : "Paid", escapeHtml(amountLabel)) : ""}
+      ${row(isAr ? "اسم الدخول" : "Your sign-in name", escapeHtml(username))}
+    </table>`;
+
+  const body = isAr
+    ? `<p style="margin:0 0 12px;">${greeting}</p>
+       <p style="margin:0 0 12px;">شكراً لشرائك. تم إنشاء <strong>${escapeHtml(organizationName)}</strong> وإضافة تراخيصك إليها. اختر كلمة مرور وسنرشدك إلى الإعدادات الثلاثة الأخيرة.</p>
+       ${receipt}
+       ${stickyButton(setupUrl, "تعيين كلمة المرور", font)}
+       <p style="margin:0 0 12px;">يعمل هذا الرابط مرة واحدة وتنتهي صلاحيته خلال سبعة أيام.</p>
+       <p style="margin:0;color:${PALETTE.muted};font-size:13px;">إذا لم يعمل الزر، انسخ هذا العنوان في متصفحك:<br>${escapeHtml(setupUrl)}</p>`
+    : `<p style="margin:0 0 12px;">${greeting}</p>
+       <p style="margin:0 0 12px;">Thank you for your purchase. <strong>${escapeHtml(organizationName)}</strong> has been created and your licences are on it. Choose a password and we will walk you through the last three settings.</p>
+       ${receipt}
+       ${stickyButton(setupUrl, "Set your password", font)}
+       <p style="margin:0 0 12px;">This link works once and expires in seven days.</p>
+       <p style="margin:0;color:${PALETTE.muted};font-size:13px;">If the button does not work, copy this address into your browser:<br>${escapeHtml(setupUrl)}</p>`;
+
+  return stickyLayout({
+    language: args.language,
+    title: isAr ? "إعداد مدرستك" : "Set up your school",
+    heading: isAr ? "مدرستك جاهزة" : "Your school is ready",
+    body,
+    color: "stickyYellow",
+  });
+}
+
+function buildSchoolSetupTextEmail(args: {
+  setupUrl: string;
+  userName?: string;
+  username: string;
+  organizationName: string;
+  licenseCount: number;
+  amountLabel: string | null;
+  language: string;
+}): string {
+  const { setupUrl, userName, username, organizationName, licenseCount, amountLabel } = args;
+  if (args.language === "ar") {
+    return [
+      "مدرستك جاهزة - مسار المستقبل",
+      "",
+      userName ? `مرحباً ${userName}،` : "مرحباً،",
+      "",
+      `تم إنشاء ${organizationName} وإضافة تراخيصك إليها.`,
+      "",
+      `المدرسة: ${organizationName}`,
+      `تراخيص الطلاب: ${licenseCount}`,
+      ...(amountLabel ? [`المبلغ المدفوع: ${amountLabel}`] : []),
+      `اسم الدخول: ${username}`,
+      "",
+      "لتعيين كلمة المرور وإكمال الإعداد:",
+      setupUrl,
+      "",
+      "يعمل هذا الرابط مرة واحدة وتنتهي صلاحيته خلال سبعة أيام.",
+    ].join("\n");
+  }
+  return [
+    "Your school is ready - Future Path",
+    "",
+    userName ? `Hello ${userName},` : "Hello,",
+    "",
+    `${organizationName} has been created and your licences are on it.`,
+    "",
+    `School: ${organizationName}`,
+    `Student licences: ${licenseCount}`,
+    ...(amountLabel ? [`Paid: ${amountLabel}`] : []),
+    `Your sign-in name: ${username}`,
+    "",
+    "To set your password and finish setup:",
+    setupUrl,
+    "",
+    "This link works once and expires in seven days.",
+  ].join("\n");
+}
+
+export async function sendSchoolSetupEmail(args: {
+  to: string;
+  token: string;
+  userName?: string;
+  username: string;
+  organizationName: string;
+  licenseCount: number;
+  amountLabel?: string | null;
+  language?: string;
+}): Promise<EmailResult> {
+  const language = args.language ?? "en";
+  if (!resend) {
+    if (!isLogOnlyMailEnvironment()) {
+      // LOUD: the buyer has paid and cannot get in. Unlike a password reset,
+      // nobody will request this again -- they do not know it was meant to
+      // arrive.
+      console.error(
+        `[Email] RESEND_API_KEY is not configured. SCHOOL SETUP email NOT sent to ${args.to} ` +
+        `for "${args.organizationName}" - this buyer has paid and has no way to sign in. Needs manual attention.`,
+      );
+      return { success: false, error: "Email service not configured." };
+    }
+    console.warn("[Email] Resend not configured. School setup email would be sent to:", args.to);
+    return { success: true, messageId: "dev-mode-no-email" };
+  }
+
+  const baseUrl = process.env.APP_URL || "https://futurepath.ae";
+  // The token goes in the PATH, not a query string: a path segment is not
+  // forwarded in a Referer header the way a query parameter is.
+  const setupUrl = `${baseUrl}/school/setup/${args.token}`;
+
+  const isAr = language === "ar";
+  const subject = isAr
+    ? `${args.organizationName} جاهزة - عيّن كلمة المرور`
+    : `${args.organizationName} is ready - set your password`;
+
+  const content = {
+    setupUrl,
+    userName: args.userName,
+    username: args.username,
+    organizationName: args.organizationName,
+    licenseCount: args.licenseCount,
+    amountLabel: args.amountLabel ?? null,
+    language,
+  };
+
+  try {
+    const { data, error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: [args.to],
+      replyTo: REPLY_TO_EMAIL,
+      subject,
+      html: buildSchoolSetupHtmlEmail(content),
+      text: buildSchoolSetupTextEmail(content),
+    });
+
+    if (error) {
+      console.error("[Email] Failed to send school setup email:", error);
+      return { success: false, error: error.message };
+    }
+
+    console.log("[Email] School setup email sent:", data?.id);
+    return { success: true, messageId: data?.id };
+  } catch (err) {
+    const error = err as Error;
+    console.error("[Email] Error sending school setup email:", error);
+    return { success: false, error: error.message };
+  }
+}
+
 export async function sendPasswordResetEmail(
   to: string,
   resetToken: string,

@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { storage } from "../storage";
 import { grantIndividualPremium } from "../services/premiumGrant";
 import { toMajor } from "@shared/pricing";
+import { sendSchoolSetupInvite } from "../services/schoolSetupInvite";
 
 // Initialize Stripe only if keys are configured
 let stripe: Stripe | null = null;
@@ -315,6 +316,7 @@ async function grantGuestPremiumFromMetadata(
      * Any other failure rethrows and Stripe retries.
      */
     const organizationName = (paymentIntent.metadata?.organizationName ?? "").trim();
+    let setupOrganizationId: string | null = null;
     if (licenseCount > 1 && organizationName) {
       const paidCurrency = (paymentIntent.currency ?? "usd").toUpperCase();
       try {
@@ -329,12 +331,17 @@ async function grantGuestPremiumFromMetadata(
           currency: paidCurrency,
           countryId: paymentIntent.metadata?.countryId || null,
         });
+        setupOrganizationId = group.organization.id;
         console.log(
           `[Webhook] Guest payment ${paymentIntent.id}: created school "${group.organization.name}" ` +
           `with ${licenseCount} licences`,
         );
       } catch (error: any) {
         if (String(error?.message ?? "").includes("already has an organization")) {
+          // The interactive path won the race and made the school. Resolve it
+          // so the setup link below still names the right organization.
+          const existing = await storage.getOrganizationOwnedByUser(result.user.id);
+          setupOrganizationId = existing?.id ?? null;
           console.log(
             `[Webhook] Guest payment ${paymentIntent.id}: school already exists for user ${result.user.id} — nothing to do`,
           );
@@ -350,6 +357,40 @@ async function grantGuestPremiumFromMetadata(
         `[Webhook] Guest payment ${paymentIntent.id}: ${licenseCount} licences but NO organizationName in ` +
         `metadata — granted to the individual account, no school created. Needs manual attention.`,
       );
+    }
+
+    /**
+     * THE LINK THE BUYER ACTUALLY NEEDS.
+     *
+     * This path creates the account server-side, so there is no password
+     * anybody chose and nothing has ever been emailed on purchase. Without
+     * this the buyer's only route in is "Forgot password" — a recovery flow
+     * standing in for an onboarding one, reached by a real buyer on
+     * 2026-11-09.
+     *
+     * Sent for a GROUP purchase only. A one-seat buyer gets premium on an
+     * account they reached through the browser, and the success screen still
+     * shows their credentials; a school is the case where nobody may ever see
+     * that screen.
+     *
+     * Never throws, and is not awaited for its result beyond logging: a mail
+     * failure must not fail a purchase that already succeeded, and an error
+     * escaping here would release the webhook event claim and have Stripe
+     * retry a grant that is already done.
+     */
+    if (licenseCount > 1 && organizationName) {
+      await sendSchoolSetupInvite({
+        userId: result.user.id,
+        email: stamped.buyerEmail,
+        username: result.user.username || stamped.buyerEmail,
+        firstName: result.user.firstName,
+        organizationId: setupOrganizationId,
+        organizationName,
+        licenseCount,
+        amountMinor: paymentIntent.amount,
+        currency: paymentIntent.currency,
+        language: result.user.preferredLanguage,
+      });
     }
 
     /**

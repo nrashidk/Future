@@ -117,11 +117,12 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `school-setup`, `question-gaps`, `peer-review`, `grants`, `pricing`,
 `org-admin`, `checkout-preflight`, `school-lock`, `webhook-idempotency`,
 `llm-gate`, `guest-claim`, `admin-writes`, `webhook-group-backstop`,
-`superadmin-writes`, `country-writes`, plus
+`superadmin-writes`, `country-writes`, `setup-invite`, plus
 `migration-029-dryrun`, `migration-030-dryrun`, `migration-032-dryrun`,
 `migration-033-dryrun`, `migration-034-dryrun` and `migration-035-dryrun`.
 
-`webhook-idempotency` and `webhook-group-backstop` need two environment
+`webhook-idempotency`, `webhook-group-backstop` and `setup-invite` need two
+environment
 variables, on `up.ts` AND on themselves, or every case is answered by the
 route's own 503/500 and proves nothing. They refuse to run without the second
 rather than passing:

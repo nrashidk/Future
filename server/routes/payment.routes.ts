@@ -3,6 +3,7 @@ import { storage } from "../storage";
 import { isAuthenticated } from "../auth";
 import { paymentLimiter, stampBuyerLimiter } from "../middleware/rateLimiter.middleware";
 import { grantIndividualPremium } from "../services/premiumGrant";
+import { sendSchoolSetupInvite } from "../services/schoolSetupInvite";
 import { toPublicUser } from "@shared/userPublic";
 import { quotePrice, minimumChargeMinor, formatMoney, toMajor, countryPricing } from "@shared/pricing";
 import Stripe from "stripe";
@@ -631,6 +632,35 @@ export function registerPaymentRoutes(app: Express) {
           }
           throw error;
         }
+      }
+
+      /**
+       * THE SAME SETUP LINK THE WEBHOOK SENDS.
+       *
+       * Sent here too, not only from the webhook, because whichever path runs
+       * first must produce the same outcome — that is the whole lesson of the
+       * 2026-11-09 race. The helper is idempotent on the TOKEN, not on a flag:
+       * if the webhook already issued and sent one, this finds the live token
+       * and sends nothing, so one purchase is one link in one inbox.
+       *
+       * Deliberately sent even though this branch may have just auto-logged
+       * the buyer in below. The session is in one browser on one device; the
+       * email is what gets them back in tomorrow, and a raced buyer
+       * (racedWithBackstop) has no password at all.
+       */
+      if (studentCount > 1 && organizationName && user?.email) {
+        await sendSchoolSetupInvite({
+          userId: user.id,
+          email: user.email,
+          username: username || user.email,
+          firstName: user.firstName,
+          organizationId: organization?.id ?? null,
+          organizationName,
+          licenseCount: studentCount,
+          amountMinor: paymentIntent.amount,
+          currency: paymentIntent.currency,
+          language: user.preferredLanguage,
+        });
       }
 
       // Auto-login for new local users only
