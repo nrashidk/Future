@@ -342,6 +342,32 @@ export default function SuperadminDashboard() {
 
   const selectedOrg = organizations.find(org => org.id === selectedOrgId);
 
+  /**
+   * Resend the first-sign-in link. Offered for ONE stage — never_signed_in —
+   * and the SERVER recomputes that before sending, so hiding the button is a
+   * convenience and not the control.
+   */
+  const resendSetup = useMutation({
+    mutationFn: async (orgId: string) => {
+      const res = await apiRequest('POST', `/api/superadmin/organizations/${orgId}/resend-setup`);
+      return res.json();
+    },
+    onSuccess: (data: any) => {
+      toast({
+        title: t('superadmin.setupResent'),
+        description: t('superadmin.setupResentTo', { email: data?.sentTo ?? "" }),
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations'] });
+    },
+    onError: (error: unknown) => {
+      toast({
+        title: t('superadmin.error'),
+        description: serverErrorMessage(error) ?? t('superadmin.setupResendFailed'),
+        variant: "destructive",
+      });
+    },
+  });
+
   const addAdminMutation = useMutation({
     mutationFn: async (data: typeof newAdminForm) => {
       const res = await apiRequest('POST', `/api/superadmin/organizations/${selectedOrgId}/admins`, data);
@@ -1194,6 +1220,7 @@ export default function SuperadminDashboard() {
                               {sortBy === "name" && (sortOrder === "asc" ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />)}
                             </div>
                           </TableHead>
+                          <TableHead>{t('superadmin.setupHeader')}</TableHead>
                           <TableHead>{t('superadmin.primaryAdminHeader')}</TableHead>
                           <TableHead 
                             className="cursor-pointer hover-elevate"
@@ -1246,6 +1273,9 @@ export default function SuperadminDashboard() {
                               <div className="text-xs text-muted-foreground">
                                 {t('superadmin.createdDate', { date: new Date(org.createdAt).toLocaleDateString() })}
                               </div>
+                            </TableCell>
+                            <TableCell>
+                              <SetupStageCell org={org} onResend={() => resendSetup.mutate(org.id)} pending={resendSetup.isPending} />
                             </TableCell>
                             <TableCell>
                               {org.primaryAdmin ? (
@@ -3004,6 +3034,79 @@ export default function SuperadminDashboard() {
           title={t('superadmin.studentCreatedTitle')}
           description={t('superadmin.studentCreatedDesc')}
         />
+      )}
+    </div>
+  );
+}
+
+/**
+ * WHERE A SCHOOL IS STUCK, AND THEREFORE WHAT TO DO ABOUT IT.
+ *
+ * A yes/no "setup complete" cannot tell "the email never arrived" from "they
+ * got in and stopped", and those need opposite actions — so this renders the
+ * stage the server computed, and offers Resend only where resending is the
+ * right move.
+ *
+ * The label says "not used", never "not delivered": a link neither used nor
+ * acknowledged covers a bounce, a spam folder and an unopened inbox alike, and
+ * telling those apart needs Resend's delivery webhooks, which are not wired.
+ *
+ * The four states differ in LIGHTNESS as well as hue, not colour alone.
+ */
+function SetupStageCell({
+  org,
+  onResend,
+  pending,
+}: {
+  org: any;
+  onResend: () => void;
+  pending: boolean;
+}) {
+  const { t } = useTranslation('admin');
+  const setup = org?.setup;
+  if (!setup) return <span className="text-muted-foreground">—</span>;
+
+  const dot: Record<string, string> = {
+    never_signed_in: "bg-[#a8430f]",
+    setup_incomplete: "bg-[#8a5a0b]",
+    ready: "bg-[#1f7a4d]",
+    ready_no_students: "bg-muted-foreground",
+  };
+
+  const detail =
+    setup.stage === "never_signed_in"
+      ? setup.linkSentAt
+        ? t('superadmin.setupLinkSentNotUsed', {
+            date: new Date(setup.linkSentAt).toLocaleDateString(),
+            count: setup.linkSentCount ?? 1,
+          })
+        : t('superadmin.setupLinkNeverSent')
+      : setup.stage === "setup_incomplete"
+        ? t('superadmin.setupMissing', {
+            items: (setup.missing ?? []).map((m: string) => t(`superadmin.setupGate_${m}`)).join(", "),
+          })
+        : setup.stage === "ready_no_students"
+          ? t('superadmin.setupNobodyEnrolled')
+          : `${org.countryId ?? ""}${org.curriculum ? ` · ${org.curriculum}` : ""}`;
+
+  return (
+    <div className="space-y-1.5" data-testid={`setup-stage-${org.id}`}>
+      <div className="flex items-center gap-2">
+        <span className={`h-2.5 w-2.5 rounded-full shrink-0 ${dot[setup.stage] ?? "bg-muted"}`} aria-hidden="true" />
+        <span className="font-medium text-sm">{t(`superadmin.setupStage_${setup.stage}`)}</span>
+      </div>
+      <div className="text-xs text-muted-foreground">{detail}</div>
+      {setup.canResend && (
+        <Button
+          size="sm"
+          variant="outline"
+          className="mt-1"
+          disabled={pending}
+          onClick={onResend}
+          data-testid={`button-resend-setup-${org.id}`}
+        >
+          {t('superadmin.resendSetupLink')}
+        </Button>
       )}
     </div>
   );

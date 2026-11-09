@@ -118,7 +118,7 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `org-admin`, `checkout-preflight`, `school-lock`, `webhook-idempotency`,
 `llm-gate`, `guest-claim`, `admin-writes`, `webhook-group-backstop`,
 `superadmin-writes`, `country-writes`, `setup-invite`, `school-setup-link`,
-plus
+`setup-stage`, plus
 `migration-029-dryrun`, `migration-030-dryrun`, `migration-032-dryrun`,
 `migration-033-dryrun`, `migration-034-dryrun` and `migration-035-dryrun`.
 
@@ -207,6 +207,13 @@ caught afterwards. A green test here means less than you think.
 - **One branch is not the behaviour.** A licence guard scoped to school
   students was tested with a school student, returned 403, and was written up
   as "the feature does not work for anyone". It worked for everyone else.
+- **PGlite has ONE connection and the APP holds it.** A suite that opens a
+  client per statement exhausts it partway with `read ECONNRESET`; a suite that
+  keeps one client open for its whole run starves the server instead, and
+  superadmin login answers 500. `setup-stage.mjs` builds each school in ONE
+  multi-statement call for exactly this reason. Neither failure names its
+  cause, and a server left in that state stays broken until it is restarted —
+  so restart `up.ts` before believing the next failure.
 - **A PARAMETERISED JS `Date` IS MIS-BOUND BY PGLITE, so a timestamp fixture
   written that way lies.** Proved with a temp table holding one past and one
   future row: `WHERE exp > NOW()` returns the future row correctly, and so does

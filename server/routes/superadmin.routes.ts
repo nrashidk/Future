@@ -5,6 +5,8 @@ import { z } from "zod";
 import { clearSubjectCache } from "../utils/subjects";
 import { dataExportLimiter, orgCreationLimiter } from "../middleware/rateLimiter.middleware";
 import { getSuperadminEmails } from "../middleware/auth.middleware";
+import { schoolSetupStage } from "@shared/schoolSetupStage";
+import { sendSchoolSetupInvite } from "../services/schoolSetupInvite";
 import { evaluateEmailChange, normalizeEmail } from "../utils/emailChange";
 import { decideGrantMoney } from "@shared/licenseGrants";
 import { toMajor } from "@shared/pricing";
@@ -446,7 +448,34 @@ export function registerSuperadminRoutes(app: Express) {
         const utilizationRate = org.isUnlimitedLicenses 
           ? null 
           : (org.totalLicenses > 0 ? Math.round((org.usedLicenses / org.totalLicenses) * 100) : 0);
-        
+
+        /**
+         * WHERE THIS SCHOOL IS STUCK, and therefore what to do about it.
+         *
+         * A yes/no "setup complete" cannot tell "the email never arrived" from
+         * "they got in and stopped", and those need opposite actions. The
+         * three inputs the columns cannot supply are read here: whether the
+         * admin has a password at all, whether the setup link was used, and
+         * whether the school recorded its own consent — which is a gate in its
+         * own right, so a school with country and curriculum set is STILL
+         * refused every enrolment without it.
+         */
+        const adminUserForStage = primaryAdmin ? await storage.getUser(primaryAdmin.userId) : null;
+        const setupToken = await storage.getSchoolSetupTokenForOrganization(org.id);
+        // getCurrentOrganizationConsent already filters on BOTH claims being
+        // true, so its mere presence is the attestation — the same reader
+        // consentGate uses, rather than a second interpretation of the rows.
+        const consent = await storage.getCurrentOrganizationConsent(org.id);
+        const setup = schoolSetupStage({
+          hasPassword: !!adminUserForStage?.passwordHash,
+          linkUsed: !!setupToken?.usedAt,
+          countryId: org.countryId,
+          curriculum: org.curriculum,
+          hasConsent: !!consent,
+          studentCount: students.length,
+          createdAt: org.createdAt,
+        });
+
         return {
           ...org,
           adminCount: admins.length,
@@ -454,6 +483,16 @@ export function registerSuperadminRoutes(app: Express) {
           completedCount: students.filter(s => s.hasCompletedAssessment).length,
           primaryAdmin: primaryAdminDetails,
           utilizationRate,
+          setup: {
+            ...setup,
+            // "not used", never "not delivered": a null usedAt covers a
+            // bounce, a spam folder and an unopened inbox alike, and telling
+            // them apart needs Resend's delivery webhooks, which are not wired.
+            linkSentAt: setupToken?.sentAt ?? null,
+            linkSentCount: setupToken?.sentCount ?? 0,
+            linkUsedAt: setupToken?.usedAt ?? null,
+            lastLoginAt: adminUserForStage?.lastLoginAt ?? null,
+          },
         };
       }));
       
@@ -673,6 +712,104 @@ export function registerSuperadminRoutes(app: Express) {
   });
 
   // Promote admin to primary
+  /**
+   * RESEND THE FIRST-SIGN-IN LINK.
+   *
+   * Offered for ONE stage: never_signed_in. A school that is already in does
+   * not need another copy of a link it has used, and sending one teaches its
+   * admin to ignore the mail — so this route refuses rather than trusting the
+   * client to have hidden the button. The stage is recomputed here from the
+   * database; `canResend` arriving in a request body would be the client
+   * claiming something the server derives.
+   *
+   * REUSES THE LIVE TOKEN rather than minting a new one. A buyer who finally
+   * opens the first mail must not find it dead because a resend replaced it.
+   * `issueSchoolSetupToken` returns the existing unused token, and only mints
+   * when there is none — which is also what makes this safe to press twice.
+   */
+  app.post("/api/superadmin/organizations/:id/resend-setup", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const org = await storage.getOrganizationById(req.params.id);
+      if (!org) return res.status(404).json({ message: "School not found" });
+
+      const members = await storage.getOrganizationMembersByOrganizationId(org.id);
+      const admins = members.filter((m: any) => m.role === "admin");
+      const primaryAdmin = admins.find((a: any) => a.isPrimaryAdmin) || admins[0];
+      if (!primaryAdmin) {
+        return res.status(409).json({ message: "This school has no administrator to send a link to.", code: "NO_ADMIN" });
+      }
+
+      const adminUser = await storage.getUser(primaryAdmin.userId);
+      if (!adminUser?.email) {
+        return res.status(409).json({
+          message: "This school's administrator has no email address on record.",
+          code: "NO_EMAIL",
+        });
+      }
+
+      const setupToken = await storage.getSchoolSetupTokenForOrganization(org.id);
+      const consent = await storage.getCurrentOrganizationConsent(org.id);
+      const students = members.filter((m: any) => m.role === "student");
+      const stage = schoolSetupStage({
+        hasPassword: !!adminUser.passwordHash,
+        linkUsed: !!setupToken?.usedAt,
+        countryId: org.countryId,
+        curriculum: org.curriculum,
+        hasConsent: !!consent,
+        studentCount: students.length,
+        createdAt: org.createdAt,
+      });
+
+      if (!stage.canResend) {
+        return res.status(409).json({
+          message:
+            "This administrator has already signed in, so another setup link would not help. " +
+            "What is outstanding is the setup itself.",
+          code: "RESEND_NOT_APPLICABLE",
+          stage: stage.stage,
+          missing: stage.missing,
+        });
+      }
+
+      const result = await sendSchoolSetupInvite({
+        userId: adminUser.id,
+        email: adminUser.email,
+        username: adminUser.username || adminUser.email,
+        firstName: adminUser.firstName,
+        organizationId: org.id,
+        organizationName: org.name,
+        licenseCount: org.totalLicenses ?? 0,
+        // No amount: this is a resend, not a sale. The licence model is
+        // explicit that a figure with no money behind it must not be presented
+        // as one, so the receipt line is omitted rather than guessed.
+        amountMinor: null,
+        currency: null,
+        language: adminUser.preferredLanguage,
+        // Sends for the EXISTING token. Without this the helper's
+        // purchase-time idempotency would make this route report success
+        // having sent nothing.
+        resend: true,
+      });
+
+      if (!result.sent) {
+        return res.status(502).json({
+          message: "The setup link could not be sent. Check the email service and try again.",
+          code: "SEND_FAILED",
+        });
+      }
+
+      const after = await storage.getSchoolSetupTokenForOrganization(org.id);
+      res.json({
+        success: true,
+        sentTo: adminUser.email,
+        sentCount: after?.sentCount ?? 0,
+      });
+    } catch (error) {
+      console.error("[Superadmin] Failed to resend the setup link:", error);
+      res.status(500).json({ message: "Failed to resend the setup link" });
+    }
+  });
+
   app.patch("/api/superadmin/organizations/:orgId/admins/:memberId/promote", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
     try {
       const { orgId, memberId } = req.params;

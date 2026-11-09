@@ -37,6 +37,18 @@ export async function sendSchoolSetupInvite(args: {
   amountMinor?: number | null;
   currency?: string | null;
   language?: string | null;
+  /**
+   * A DELIBERATE RESEND, which is the one case that must send for a token it
+   * did not just mint.
+   *
+   * The default is the opposite: on a purchase, both /api/checkout/complete
+   * and the webhook reach this, and the second must send nothing. A resend
+   * inverts that — the superadmin is pressing the button precisely because the
+   * existing link never got through. Without this flag the resend route would
+   * return success having sent no mail, which is the silent-success shape this
+   * repo keeps producing.
+   */
+  resend?: boolean;
 }): Promise<{ sent: boolean; reason?: string }> {
   try {
     const { token, created } = await storage.issueSchoolSetupToken(
@@ -44,11 +56,17 @@ export async function sendSchoolSetupInvite(args: {
       args.organizationId,
     );
 
-    if (!created) {
+    if (!created && !args.resend) {
       console.log(
         `[SetupInvite] A live setup link already exists for ${args.email} — not sending a second.`,
       );
       return { sent: false, reason: "already_issued" };
+    }
+
+    // The live token is REUSED, never replaced: a buyer who finally opens the
+    // first mail must not find it dead because a resend minted a new one.
+    if (!created && args.resend) {
+      console.log(`[SetupInvite] Resending the existing setup link to ${args.email}.`);
     }
 
     // toMajor, never `/ 100`: a three-decimal Gulf charge read as hundredths
