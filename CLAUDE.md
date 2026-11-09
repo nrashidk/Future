@@ -115,7 +115,8 @@ node testing/local/<suite>.mjs
 Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `progression`, `licences`, `new-country`, `contribution`, `crosscutting`,
 `school-setup`, `question-gaps`, `peer-review`, `grants`, `pricing`,
-`org-admin`, `checkout-preflight`, `school-lock`, `webhook-idempotency`, plus
+`org-admin`, `checkout-preflight`, `school-lock`, `webhook-idempotency`,
+`llm-gate`, plus
 `migration-029-dryrun`, `migration-030-dryrun`, `migration-032-dryrun`,
 `migration-033-dryrun` and `migration-034-dryrun`.
 
@@ -411,6 +412,40 @@ string. Superadmins read every curriculum of a country at
 at the same cells.
 
 ## Peer review of contributed questions
+
+**"Passing the automatic check" means the check RAN and scored >= 50.** It used
+to mean rather less. `verifyQuestionsWithLLM` has four return paths and three
+are failures — no usable Anthropic credential, a non-OK response from
+Anthropic, any thrown exception — and all three returned
+`{ overallScore: 100, verified: true }`. The routing gate
+(`result.verified && result.overallScore >= 50`) is real, so a fabricated 100
+cleared it every time: unchecked questions reached peer review labelled as
+having passed an automatic review, and approved ones earn reward credits that
+convert to free licences, in an assessment sat by 13–18 year olds.
+
+The trigger needed no code change. A rotated `DB_ENCRYPTION_KEY` makes every
+stored credential undecryptable, and `storage.getApiCredential` returns
+`undefined` on a decryption failure — **indistinguishable from "never
+configured"** — so the first path was taken silently. That is also the real
+explanation of the "vanishing Anthropic key": the key did not vanish, it became
+undecryptable, and three layers rendered that as absent (the getter returns
+undefined, `getAllApiCredentials` returns `apiKey: ''`, and the superadmin
+listing turns an empty string into `apiKeyMasked: null`). Re-entering it
+"fixed" it by re-encrypting under the new key.
+
+Now a failure reports score **0** and `llmVerificationStatus: "unavailable"` —
+a third state, because "failed" would tell a school its questions were reviewed
+and rejected, and it would rewrite work nobody read. Score 0 does not clear the
+threshold, so the submission keeps `pending` and a superadmin picks it up;
+`pending` is already in that queue, so it stays visible rather than
+disappearing. The threshold and the success path are untouched — the defect was
+failures claiming success, not the passing mark. `llm-gate.mjs` asserts it,
+including the rotated-key case with a credential genuinely encrypted under a
+different key. **The happy path cannot be tested in the harness** (no network),
+so that branch is reviewable by eye only.
+
+Still open there, and a product decision rather than a bug: nothing retries an
+`unavailable` submission once a credential works again.
 
 A submission passing the automatic LLM check goes to peer review, not to a
 superadmin queue: three other schools vote and two agreeing decides. Six

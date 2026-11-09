@@ -68,18 +68,66 @@ async function getMaxYearlyCredits(): Promise<number> {
   return DEFAULT_MAX_YEARLY_CREDITS;
 }
 
-// LLM Verification Service
+/**
+ * LLM VERIFICATION, AND WHAT IT MUST SAY WHEN IT DOES NOT HAPPEN.
+ *
+ * Three things can stop this check running: no Anthropic credential, a non-OK
+ * response from Anthropic, or a thrown exception. All three used to return
+ * `{ overallScore: 100, verified: true }` — a perfect score from a review that
+ * never took place.
+ *
+ * That mattered because the gate downstream is real: a submission is routed to
+ * peer review on `result.verified && result.overallScore >= 50`. A fabricated
+ * 100 cleared it every time, so unchecked questions reached peer review
+ * labelled as having passed an automatic review, and approved questions earn
+ * reward credits that convert to free licences. The content goes into an
+ * assessment sat by 13-18 year olds.
+ *
+ * The trigger needed no code change. A rotated `DB_ENCRYPTION_KEY` makes every
+ * stored credential undecryptable, and `storage.getApiCredential` returns
+ * `undefined` on a decryption failure — indistinguishable here from "never
+ * configured" — so the first path was taken silently. An expired key, a rate
+ * limit or an outage took the second.
+ *
+ * `checkRan` is now the difference between "the LLM read these questions" and
+ * "it did not". A failure reports score 0, which does not clear the threshold,
+ * so the submission keeps its `pending` status and a superadmin picks it up —
+ * and `pending` is already in the superadmin queue, so it stays visible rather
+ * than disappearing, which is the failure mode this codebase produced once
+ * before by routing submissions out of that queue.
+ *
+ * The score threshold and the success path are deliberately UNTOUCHED. The
+ * defect was failures claiming success, not the passing mark.
+ */
 async function verifyQuestionsWithLLM(questions: any[], subject: string, grade: number, curriculum: string): Promise<{
   overallScore: number;
   feedback: Array<{ index: number; isValid: boolean; score: number; issues: string[] }>;
   verified: boolean;
+  /** False when the check did not run at all. Never conflate with a low score. */
+  checkRan: boolean;
 }> {
+  /**
+   * Score 0 and an EMPTY feedback list. Not `isValid: true, score: 100` per
+   * question, which is what made this invisible: that shape is
+   * indistinguishable from a real pass, both to the routing gate and to the
+   * school reading its feedback.
+   */
+  const notChecked = (reason: string) => {
+    console.error(`[Contribution] LLM verification did NOT run (${reason}) — submission left for superadmin review`);
+    return { overallScore: 0, feedback: [], verified: false, checkRan: false };
+  };
+
   try {
     // Get Anthropic credentials
     const credential = await storage.getApiCredential("anthropic");
     if (!credential || !credential.apiKey) {
-      console.log("Anthropic API key not configured, skipping LLM verification");
-      return { overallScore: 100, feedback: questions.map((_, i) => ({ index: i, isValid: true, score: 100, issues: [] })), verified: true };
+      /**
+       * Covers BOTH "never configured" and "configured but undecryptable",
+       * because getApiCredential collapses them into undefined. They differ in
+       * cause and not in consequence: either way nothing read these questions,
+       * so neither may report a score.
+       */
+      return notChecked("no usable Anthropic credential");
     }
 
     const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -121,23 +169,34 @@ Be strict but fair. Educational quality matters.`,
     });
 
     if (!response.ok) {
+      // An expired or revoked key (401), a rate limit (429) or an outage (5xx).
+      // None of them is a verdict on the questions.
       console.error("Anthropic API error:", response.status, await response.text());
-      return { overallScore: 100, feedback: questions.map((_, i) => ({ index: i, isValid: true, score: 100, issues: [] })), verified: true };
+      return notChecked(`Anthropic HTTP ${response.status}`);
     }
 
     const data = await response.json();
     const rawText = data.content?.[0]?.text || "{}";
     const content = JSON.parse(rawText);
     
+    /**
+     * The check RAN. `|| 0` is deliberate and already correct: a missing or
+     * unparseable score fails the threshold rather than defaulting to a pass.
+     */
     return {
       overallScore: content.overallScore || 0,
       feedback: content.questions || [],
       verified: true,
+      checkRan: true,
     };
   } catch (error) {
+    // A network failure, or JSON.parse on a reply that was not JSON. The
+    // previous comment here said this let the submission "proceed to manual
+    // review" -- but score 100 routed it to PEER review instead, past the
+    // human it was meant to reach. Score 0 is what actually leaves it pending
+    // for a superadmin.
     console.error("LLM verification error:", error);
-    // If LLM fails, still allow submission to proceed to manual review
-    return { overallScore: 100, feedback: questions.map((_, i) => ({ index: i, isValid: true, score: 100, issues: [] })), verified: true };
+    return notChecked(error instanceof Error ? error.message : "unknown error");
   }
 }
 
@@ -654,7 +713,14 @@ router.post("/submit", isAuthenticated, checkOrgAdmin, async (req: Request, res:
     verifyQuestionsWithLLM(sanitizedQuestions, subject, grade, curriculum)
       .then(async (result) => {
         const updateData: any = {
-          llmVerificationStatus: result.verified ? "verified" : "failed",
+          /**
+           * THREE STATES, NOT TWO. "failed" would tell a school its questions
+           * were reviewed and rejected; "unavailable" says no review happened.
+           * A school told its work failed would rewrite questions nobody read.
+           */
+          llmVerificationStatus: !result.checkRan
+            ? "unavailable"
+            : result.verified ? "verified" : "failed",
           llmVerificationScore: result.overallScore,
           llmVerificationFeedback: result.feedback,
           llmVerifiedAt: new Date(),

@@ -2230,7 +2230,7 @@ export const contributionSubmissions = pgTable("contribution_submissions", {
   totalQuestions: integer("total_questions").notNull(),
   
   // LLM Pre-verification (automatic quality check)
-  llmVerificationStatus: text("llm_verification_status").default("pending"), // pending, verified, failed
+  llmVerificationStatus: text("llm_verification_status").default("pending"), // pending, verified, failed, unavailable (check did not run)
   llmVerificationScore: integer("llm_verification_score"), // 0-100 quality score
   llmVerificationFeedback: jsonb("llm_verification_feedback"), // Per-question feedback from LLM
   llmVerifiedAt: timestamp("llm_verified_at"),

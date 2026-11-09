@@ -57,7 +57,10 @@ interface Submission {
   createdAt: string;
   reviewedAt?: string;
   // LLM verification fields
-  llmVerificationStatus?: "pending" | "verified" | "failed";
+  /** "unavailable" means the automatic check did not run -- no usable
+   *  Anthropic credential, an API error, or an exception. Distinct from
+   *  "failed", which means it ran and rejected the questions. */
+  llmVerificationStatus?: "pending" | "verified" | "failed" | "unavailable";
   llmVerificationScore?: number;
   llmVerificationFeedback?: LlmQuestionFeedback[];
   llmVerifiedAt?: string;
