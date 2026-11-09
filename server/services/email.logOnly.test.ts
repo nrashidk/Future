@@ -11,8 +11,12 @@
  * for mail that was never sent — a silent lockout, since password reset is the
  * only account recovery a user with an email address has.
  *
- * RESEND_API_KEY is unset in production today, so that lenient path was one
- * changed start command away from being the live behaviour.
+ * NOTE (verified 2026-11-09): RESEND_API_KEY IS set in production and mail is
+ * delivering — a password reset arrived from noreply@futurepath.ae. An earlier
+ * version of this comment said it was unset. The assertions below are
+ * unaffected: they exercise isLogOnlyMailEnvironment() against NODE_ENV only
+ * and never read RESEND_API_KEY. The lenient path is still one changed start
+ * command away from being live behaviour, which is what this guards.
  *
  * The assertions that matter are "unset" and "staging": absence must be strict.
  * A test asserting only that development is lenient and production is strict

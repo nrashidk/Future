@@ -324,10 +324,24 @@ country is visible rather than discovered on a receipt.
 **Not a converter.** The dirham and the riyal are both pegged to the dollar, so
 a live rate buys nothing and adds a way for checkout to fail when a rate
 service is down, plus two identical sales a month apart recording different
-amounts. The opening prices are the exact peg conversion of the old $10 — AED
+amounts. The opening prices WERE the exact peg conversion of the old $10 — AED
 36.73, SAR 37.50 — rounded to the true figure rather than up to a presentable
-37.00, because rounding up is a price rise nobody asked for. Changing them is
-a one-row UPDATE.
+37.00, because rounding up is a price rise nobody asked for.
+
+**UAE is now AED 40.00, set deliberately on 2026-11-09** and verified live:
+`priceMinor` 4000, `usesFallbackPrice` false, and `/api/pricing/quote` returns
+40 / 36 / 34 / 32 per student across the 0/10/15/20% tiers (AED 17,000 for 500
+students). 36.73 was a conversion artifact rather than a chosen price, and it
+read as one in a quote. Changing it is a one-row UPDATE through
+`PATCH /api/admin/countries/:id/license-price`, which **requires `currency`
+alongside `price`** — sending `price` alone is refused with `INVALID_CURRENCY`,
+which is the both-or-neither constraint doing its job.
+
+**Production has exactly ONE country row: UAE.** There is no Saudi row, so
+SAR 37.50 is seed data that is not live and no buyer can select it. The
+client-selected-country arbitrage described below is therefore not reachable
+today — but it returns the moment a second country is added at a different
+peg-equivalent price.
 
 Three things that fail SILENTLY and are handled centrally:
 - **Currency exponents.** 1000 minor units is ten dirhams but ONE dinar. The
@@ -663,10 +677,16 @@ chose to review would sit for ever with no one able to see it.
   - Still genuinely ABSENT and still gating live Stripe: email verification on
     registration (no token column; `emailVerified` is only Google's OAuth
     boolean).
-  - `RESEND_API_KEY` unset means email is logged and NOT sent
-    (`email.ts:3`, `:339`). Whether production has the key **cannot be checked from
-    here** — `email.logOnly.test.ts` asserts it is unset in production, but that is
-    the repo's belief about production, not production.
+  - **`RESEND_API_KEY` IS set in production and WORKS — verified 2026-11-09** by
+    requesting a password reset on futurepath.ae and receiving the mail from
+    `noreply@futurepath.ae`. That single delivery proves the key is valid (not
+    merely present), the domain is verified in Resend, `EMAIL_FROM` is right, and
+    the templates render. `EMAIL_FROM` and `APP_URL` are set too.
+    The older claim here — and the rationale comment in
+    `email.logOnly.test.ts` — said the key was unset in production. Both were
+    wrong. The TEST itself is sound: its assertions only exercise
+    `isLogOnlyMailEnvironment()` against `NODE_ENV` and never read
+    `RESEND_API_KEY`, so only the comment was stale.
 - `docs/` holds two conflicting whitepapers —
   `future-path-white-paper-2026-v1.1.docx` and
   `future-pathways-white-paper-2026-v1.1.docx`, the second under the old
