@@ -39,6 +39,7 @@ import {
   licenseConsumptions,
   licenseGrants,
   stripeWebhookEvents,
+  schoolSetupTokens,
   contributionReviews,
   REVIEW_MAJORITY,
   childGuardianConsents,
@@ -136,7 +137,7 @@ import { assessmentIsChildOwned } from "@shared/childOwnership";
 import { decideGrantMoney } from "@shared/licenseGrants";
 import { splitStudentName } from "@shared/studentName";
 import { SUBJECT_IDS } from "@shared/subjects";
-import { eq, ne, and, or, desc, count, avg, sql, inArray, notInArray, isNotNull, isNull, gte, type SQL } from "drizzle-orm";
+import { eq, ne, and, or, desc, count, avg, sql, inArray, notInArray, isNotNull, isNull, gt, gte, type SQL } from "drizzle-orm";
 
 /**
  * One row of the VISION-ALIGNMENT sector <-> career-category map.
@@ -3250,6 +3251,95 @@ export class DatabaseStorage implements IStorage {
    * tell "inserted" from "conflicted", and `rowCount` across drivers is not
    * something to stake a double-charge on.
    */
+  /**
+   * THE FIRST-SIGN-IN LINK for an account whose password nobody chose.
+   *
+   * IDEMPOTENT BY DESIGN: a buyer gets ONE live token, not one per code path.
+   * Both /api/checkout/complete and the Stripe webhook act on the same
+   * payment, and on a raced purchase both reach this — minting a second token
+   * would mail the buyer two links, invalidate neither, and make `sentCount`
+   * meaningless. So an unused, unexpired token is RETURNED rather than
+   * replaced, and the caller decides whether to send it again.
+   *
+   * Returns `{ token, created }`: `created` false means a live token already
+   * existed, which is how the caller avoids sending a second mail for one
+   * purchase.
+   */
+  async issueSchoolSetupToken(
+    userId: string,
+    organizationId: string | null,
+    ttlDays = 7,
+  ): Promise<{ token: string; created: boolean }> {
+    const [live] = await db
+      .select({ token: schoolSetupTokens.token })
+      .from(schoolSetupTokens)
+      .where(and(
+        eq(schoolSetupTokens.userId, userId),
+        isNull(schoolSetupTokens.usedAt),
+        gt(schoolSetupTokens.expiresAt, new Date()),
+      ))
+      .limit(1);
+    if (live) return { token: live.token, created: false };
+
+    // Local import, matching generateShareToken below: the bare `crypto` in
+    // this file's scope is the Web Crypto global, which has no randomBytes.
+    const { randomBytes } = await import("crypto");
+    const token = randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000);
+    await db.insert(schoolSetupTokens).values({ userId, organizationId, token, expiresAt });
+    return { token, created: true };
+  }
+
+  /** Records that the mail went to Resend. Not that it arrived — see the migration. */
+  async markSchoolSetupTokenSent(token: string): Promise<void> {
+    await db
+      .update(schoolSetupTokens)
+      .set({ sentAt: new Date(), sentCount: sql`${schoolSetupTokens.sentCount} + 1` })
+      .where(eq(schoolSetupTokens.token, token));
+  }
+
+  /**
+   * The token's bearer, if the token is live. Unused AND unexpired both
+   * checked HERE rather than by the caller, so no route can forget one.
+   */
+  async getLiveSchoolSetupToken(token: string) {
+    const [row] = await db
+      .select()
+      .from(schoolSetupTokens)
+      .where(and(
+        eq(schoolSetupTokens.token, token),
+        isNull(schoolSetupTokens.usedAt),
+        gt(schoolSetupTokens.expiresAt, new Date()),
+      ))
+      .limit(1);
+    return row ?? null;
+  }
+
+  /**
+   * Spends the token. The WHERE repeats `usedAt IS NULL` so a replay cannot
+   * win: two requests carrying the same link produce one update, and the
+   * second gets zero rows back rather than a second session.
+   */
+  async consumeSchoolSetupToken(token: string): Promise<boolean> {
+    const spent = await db
+      .update(schoolSetupTokens)
+      .set({ usedAt: new Date() })
+      .where(and(eq(schoolSetupTokens.token, token), isNull(schoolSetupTokens.usedAt)))
+      .returning({ id: schoolSetupTokens.id });
+    return spent.length > 0;
+  }
+
+  /** The newest setup token for a school, for the superadmin setup column. */
+  async getSchoolSetupTokenForOrganization(organizationId: string) {
+    const [row] = await db
+      .select()
+      .from(schoolSetupTokens)
+      .where(eq(schoolSetupTokens.organizationId, organizationId))
+      .orderBy(desc(schoolSetupTokens.createdAt))
+      .limit(1);
+    return row ?? null;
+  }
+
   async claimStripeWebhookEvent(eventId: string, eventType: string): Promise<boolean> {
     const claimed = await db
       .insert(stripeWebhookEvents)

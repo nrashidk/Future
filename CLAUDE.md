@@ -119,7 +119,7 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `llm-gate`, `guest-claim`, `admin-writes`, `webhook-group-backstop`,
 `superadmin-writes`, `country-writes`, plus
 `migration-029-dryrun`, `migration-030-dryrun`, `migration-032-dryrun`,
-`migration-033-dryrun` and `migration-034-dryrun`.
+`migration-033-dryrun`, `migration-034-dryrun` and `migration-035-dryrun`.
 
 `webhook-idempotency` and `webhook-group-backstop` need two environment
 variables, on `up.ts` AND on themselves, or every case is answered by the
@@ -133,7 +133,8 @@ STRIPE_SECRET_KEY=sk_test_dummy STRIPE_WEBHOOK_SECRET=whsec_localtestsecret \
   node testing/local/webhook-idempotency.mjs
 ```
 
-`migration-034-dryrun` EXECUTES the .sql file, which nothing else does —
+`migration-034-dryrun` and `migration-035-dryrun` EXECUTE the .sql file,
+which nothing else does —
 `schema-push` marks every migration applied without running it, so a syntax
 error in a migration first runs at production boot, where a failure is fatal.
 It also runs the DOWN block from the file's trailing comment, since that block

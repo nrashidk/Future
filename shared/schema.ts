@@ -129,6 +129,62 @@ export const passwordResetTokensRelations = relations(passwordResetTokens, ({ on
   }),
 }));
 
+/**
+ * SCHOOL SETUP TOKENS — the first way into an account nobody chose a password
+ * for.
+ *
+ * A group purchase mints the buyer's account server-side, so there is no
+ * password they know. Until now the generated one was rendered once on the
+ * checkout success screen and never sent anywhere: close the tab, or have the
+ * webhook complete the purchase while the browser never came back, and the
+ * only route in was "Forgot password". That is a recovery flow standing in for
+ * an onboarding one, and it was reached by a real buyer on 2026-11-09.
+ *
+ * Deliberately NOT password_reset_tokens, though the shape is copied from it.
+ * Three differences that matter: this one lives 7 days rather than 1 hour,
+ * because it is sent before the buyer has any reason to be watching their
+ * inbox; it may be re-sent by a superadmin, which a reset token never is; and
+ * `sentAt`/`sentCount` are the only evidence the system holds about whether
+ * the mail went out at all, which is what the superadmin setup column reads.
+ * Overloading the reset table would have meant a reset request silently
+ * invalidating a setup link, or the reverse.
+ *
+ * WHAT IT CANNOT TELL YOU: that the mail was DELIVERED. `usedAt` proves the
+ * link was clicked; a null `usedAt` means unused, which covers a bounce, a
+ * spam folder and an unopened inbox alike. Distinguishing those needs Resend's
+ * delivery webhooks, which are not wired. The superadmin column says "not
+ * used" rather than "not delivered" for exactly this reason.
+ */
+export const schoolSetupTokens = pgTable("school_setup_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  // The organization this token sets up. Nullable because a token is minted
+  // inside the Stripe purchase transaction, where the organization may not
+  // exist yet on the individual path -- the same reason organizations.country_id
+  // is nullable.
+  organizationId: varchar("organization_id").references(() => organizations.id, { onDelete: "cascade" }),
+  token: varchar("token").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt: timestamp("used_at"),
+  // When the mail was last handed to Resend, and how many times. A resend
+  // updates these and leaves the token itself alone, so a buyer who finally
+  // opens the first mail is not sent to a dead link.
+  sentAt: timestamp("sent_at"),
+  sentCount: integer("sent_count").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const schoolSetupTokensRelations = relations(schoolSetupTokens, ({ one }) => ({
+  user: one(users, {
+    fields: [schoolSetupTokens.userId],
+    references: [users.id],
+  }),
+  organization: one(organizations, {
+    fields: [schoolSetupTokens.organizationId],
+    references: [organizations.id],
+  }),
+}));
+
 // Organizations (Schools/Institutions)
 export const organizations = pgTable("organizations", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),

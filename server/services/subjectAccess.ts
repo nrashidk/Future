@@ -26,6 +26,7 @@ import {
   users, assessments, recommendations, assessmentQuizzes, quizResponses,
   cvqResults, wefCompetencyResults, llmNarrativeCache, organizationMembers,
   organizations, organizationConsents, organizationEvents, passwordResetTokens,
+  schoolSetupTokens,
   organizationDeletions, childProfiles, childGuardianConsents, licenseConsumptions,
 } from "@shared/schema";
 import { eq, or, and, inArray, lte, desc } from "drizzle-orm";
@@ -41,6 +42,7 @@ export type SubjectSection =
   | "wefCompetencyResults"
   | "schoolEnrolment"
   | "passwordResetRequests"
+  | "schoolSetupRequests"
   | "consentAttestationsYouMade"
   | "organizationDeletionsYouPerformed"
   | "childProfile"
@@ -76,6 +78,16 @@ export const SUBJECT_ACCESS_REGISTRY: Array<
   { column: wefCompetencyResults.assessmentId, kind: "subject", section: "wefCompetencyResults" },
   { column: organizationMembers.userId, kind: "subject", section: "schoolEnrolment" },
   { column: passwordResetTokens.userId, kind: "subject", section: "passwordResetRequests" },
+  // The first-sign-in link issued when a group purchase minted this account.
+  // Same treatment as the reset entry above and for the same reason: that a
+  // setup link was issued, sent and used is this person's data; the TOKEN
+  // VALUE is a credential and is never returned.
+  { column: schoolSetupTokens.userId, kind: "subject", section: "schoolSetupRequests" },
+  // schoolSetupTokens.organizationId is deliberately NOT here. The registry
+  // traversal starts at `users` and follows foreign keys whose TARGET table it
+  // has reached; it never reaches `organizations`, so a reference to one is
+  // not a reference to a person and needs no classification.
+  // organizationMembers.organizationId is absent for the same reason.
   // The attester's own act. performed_by_name and performed_by_email survive
   // this person's erasure by design (schema.ts organizationConsents), so they
   // are data the system holds about them and will not delete. Returned in full:
@@ -217,6 +229,21 @@ export async function collectSubjectAccess(db: any, userId: string) {
     .from(passwordResetTokens)
     .where(eq(passwordResetTokens.userId, userId));
 
+  // Same rule as the reset tokens above: the VALUE is a credential and never
+  // leaves. That a first-sign-in link was issued for this person, when it was
+  // sent, how many times, and whether they used it, is data the system holds
+  // about them and is returned.
+  const schoolSetupRequests = await db
+    .select({
+      createdAt: schoolSetupTokens.createdAt,
+      expiresAt: schoolSetupTokens.expiresAt,
+      sentAt: schoolSetupTokens.sentAt,
+      sentCount: schoolSetupTokens.sentCount,
+      usedAt: schoolSetupTokens.usedAt,
+    })
+    .from(schoolSetupTokens)
+    .where(eq(schoolSetupTokens.userId, userId));
+
   const consentAttestationsYouMade = await db.select().from(organizationConsents)
     .where(eq(organizationConsents.performedBy, userId));
 
@@ -276,6 +303,7 @@ export async function collectSubjectAccess(db: any, userId: string) {
     schoolConsentCoveringYou,
     schoolRemovalRecords,
     passwordResetRequests,
+    schoolSetupRequests,
     consentAttestationsYouMade,
     childProfile: childProfile ?? null,
     consentYouGaveForYourChild,
@@ -287,6 +315,7 @@ export async function collectSubjectAccess(db: any, userId: string) {
     heldButNotIncluded: await heldButNotIncluded(db, userId, {
       hasPassword: passwordHash != null,
       resetRequests: passwordResetRequests.length,
+      setupRequests: schoolSetupRequests.length,
       resetByStaff,
     }),
   };
@@ -416,7 +445,7 @@ async function removalRecords(db: any, user: any) {
 async function heldButNotIncluded(
   db: any,
   userId: string,
-  { hasPassword, resetRequests, resetByStaff }: { hasPassword: boolean; resetRequests: number; resetByStaff: boolean },
+  { hasPassword, resetRequests, setupRequests, resetByStaff }: { hasPassword: boolean; resetRequests: number; setupRequests: number; resetByStaff: boolean },
 ) {
   const held: Array<{ category: string; count?: number; reason: string }> = [];
   if (hasPassword) {
@@ -430,6 +459,13 @@ async function heldButNotIncluded(
       category: "password reset link codes",
       count: resetRequests,
       reason: "The dates of each request are included above; the codes themselves are credentials and are withheld.",
+    });
+  }
+  if (setupRequests > 0) {
+    held.push({
+      category: "first sign-in link codes",
+      count: setupRequests,
+      reason: "The dates each link was issued, sent and used are included above; the codes themselves are credentials and are withheld.",
     });
   }
   if (resetByStaff) {
@@ -475,6 +511,7 @@ export function summarizeSubjectAccess(subject: NonNullable<Awaited<ReturnType<t
     schoolConsentCoveringYou: subject.schoolConsentCoveringYou?.attestation ? 1 : 0,
     schoolRemovalRecords: subject.schoolRemovalRecords.length,
     passwordResetRequests: subject.passwordResetRequests.length,
+    schoolSetupRequests: subject.schoolSetupRequests.length,
     consentAttestationsYouMade: subject.consentAttestationsYouMade.length,
     organizationDeletionsYouPerformed: subject.organizationDeletionsYouPerformed.length,
     childProfile: subject.childProfile ? 1 : 0,

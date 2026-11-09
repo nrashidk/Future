@@ -32,6 +32,7 @@ import {
   files, contributionSubmissions, contributionRewards, contributionReviews, scoringConfigChangeLog,
   systemAnnouncements, systemConfig, organizationDeletions,
   childProfiles, childGuardianConsents, licenseConsumptions, licenseGrants,
+  schoolSetupTokens,
 } from "@shared/schema";
 
 // Only the predicate builders are replaced, so the fake can read them.
@@ -81,6 +82,7 @@ const TABLES = [
   files, contributionSubmissions, contributionRewards, contributionReviews, scoringConfigChangeLog,
   systemAnnouncements, systemConfig, organizationDeletions,
   childProfiles, childGuardianConsents, licenseConsumptions, licenseGrants,
+  schoolSetupTokens,
 ];
 
 const COLS = new Map<any, { table: any; key: string }>();
@@ -185,6 +187,14 @@ function seedStudent(s: Store) {
     id: "t1", userId: "u-student", token: "reset-token-secret",
     createdAt: new Date("2026-04-01"), expiresAt: new Date("2026-04-01T01:00:00Z"), usedAt: null,
   });
+  // The first-sign-in link a group purchase mints. Seeded with a token VALUE
+  // so the export can be checked for leaking it, not merely for omitting a
+  // column it never had.
+  s.add(schoolSetupTokens, {
+    id: "st1", userId: "u-student", organizationId: "org-1", token: "setup-token-secret",
+    createdAt: new Date("2026-03-01"), expiresAt: new Date("2026-03-08"),
+    sentAt: new Date("2026-03-01"), sentCount: 1, usedAt: new Date("2026-03-02"),
+  });
 }
 
 function consent(id: string, createdAt: Date, extra: Row = {}): Row {
@@ -285,6 +295,7 @@ describe("SUBJECT_ACCESS_REGISTRY", () => {
       wefCompetencyResults: (o) => o.wefCompetencyResults,
       schoolEnrolment: (o) => (o.schoolEnrolment ? [o.schoolEnrolment] : []),
       passwordResetRequests: (o) => o.passwordResetRequests,
+      schoolSetupRequests: (o) => o.schoolSetupRequests,
       consentAttestationsYouMade: (o) => o.consentAttestationsYouMade,
       organizationDeletionsYouPerformed: (o) => o.organizationDeletionsYouPerformed,
       childProfile: (o) => (o.childProfile ? [o.childProfile] : []),
@@ -442,7 +453,7 @@ describe("collectSubjectAccess", () => {
       seedStudent(store);
       const { heldButNotIncluded: held }: any = await collectSubjectAccess(makeDb(store), "u-student");
       expect(held.map((h: any) => h.category)).toEqual([
-        "your password", "password reset link codes",
+        "your password", "password reset link codes", "first sign-in link codes",
         "which school staff member last reset your password", "any active login sessions",
       ]);
     });
@@ -502,8 +513,10 @@ describe("GET /api/users/me/export and /data-summary", () => {
     expect(summary.body.dataCategories).toMatchObject({ wefCompetencyResults: 1, schoolEnrolment: 1 });
     const { erasure, ...counts } = summary.body;
     expect(counts).toEqual(JSON.parse(JSON.stringify(summarizeSubjectAccess(exported.body))));
-    // account, a1, rec1, q1, r1, n1, c1, w1, m1, t1 — ten records seeded.
-    expect(summary.body.totalRecords).toBe(10);
+    // account, a1, rec1, q1, r1, n1, c1, w1, m1, t1, st1 — eleven records
+    // seeded. st1 is the school setup token: it counts here because the export
+    // returns its dates, exactly as it does for the reset token t1.
+    expect(summary.body.totalRecords).toBe(11);
   });
 
   it("returns 404 for a user that does not exist", async () => {
