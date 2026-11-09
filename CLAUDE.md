@@ -428,10 +428,33 @@ chose to review would sit for ever with no one able to see it.
 - Nothing about curricula: that gap is closed. Offering a curriculum now
   creates its six subjects, empty ones were removed, and `new-country.mjs`
   NC-09g enforces the invariant.
-- Every report PDF ends with a near-blank page carrying only the footer, in
-  both languages. The last career page fills the sheet and the footer
-  overflows. Chromium honours `break-before: avoid` poorly, so this is
-  pagination work across nine pages rather than a one-liner.
+- **Closed, and the diagnosis recorded here was wrong.** This said the
+  near-blank final page came from the last career page filling the sheet and the
+  footer overflowing, and that Chromium's poor `break-before: avoid` support made
+  it pagination work across nine pages. It was neither overflow nor a Chromium
+  quirk, and it was a one-liner. `ResultsPrint.tsx` carried
+  `.print-page-career:not(:last-of-type) { page-break-after: always }` alongside
+  `page-break-before: always` on the same class. The before-rule already
+  separates consecutive career pages, so the after-rule was redundant — and
+  `:last-of-type` means "last sibling of this ELEMENT type", not "last element
+  with this class", so the footer `div` was the last `div` and no career page ever
+  matched. The final career kept a trailing break with only the footer after it.
+  Deleting the rule fixed it: **English 9 → 8 pages, Arabic 8 → 7**, measured on
+  real renders. `report.mjs` RP-20 and RP-21 now assert it in both languages,
+  against the rendered PDF rather than the CSS, because the CSS reads as correct
+  — the fault was in which sibling a selector matched. Both mutation-tested by
+  restoring the rule: page 9 at 74 characters and Arabic page 8 at 90 come
+  straight back. Do not re-fix a recurrence with `break-before: avoid` on the
+  footer; the break should not be generated at all.
+  PDFs DO render in the cloud container: set
+  `PUPPETEER_EXECUTABLE_PATH=/opt/pw-browsers/chromium-1243/chrome-linux64/chrome`
+  before `up.ts`. FOLLOWUP's claim that renders need a staging deploy was about
+  the Codespace, not here.
+- **Run `report.mjs` on a FRESH `.pgdata`.** A second run against the same
+  database silently degrades the report — the English PDF came back 3 pages and
+  328 KB instead of 8 and 1.07 MB, with the career pages missing and the Arabic
+  render 500ing. Nothing about that output says "stale state"; it reads as a
+  layout regression, and it briefly looked like one.
 - **Migrations are applied automatically at boot, so this list goes stale by
   itself.** server/index.ts runs every pending migration on startup and a
   failure is fatal, and Render auto-deploys on push to main — so a migration

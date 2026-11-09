@@ -231,6 +231,71 @@ rec("RP-14", "school tier gets the premium cap of 5 matches", sRecs.length === 5
   }
 }
 
+/**
+ * THE LAST PAGE MUST CARRY CONTENT, NOT JUST THE FOOTER.
+ *
+ * Every report used to end on a near-blank sheet holding only "Generated on …
+ * | Future Path …". Cause: `.print-page-career:not(:last-of-type)` set
+ * page-break-after, and :last-of-type never matched any career page because
+ * the footer div is the last div among its siblings — so the final career kept
+ * a trailing break with nothing after it but the footer. Measured at the time:
+ * 9 pages English, page 9 = 74 characters; 8 Arabic, last page = 171.
+ *
+ * Asserted on the RENDERED PDF rather than on the CSS, because the CSS reads
+ * as correct — the bug is in which sibling a selector matches, which only a
+ * render shows.
+ *
+ * Language-neutral by design. It counts characters and looks for the
+ * futurepath.ae domain, which appears in the footer of both locales, so the
+ * same check works for Arabic without hardcoding Arabic footer text.
+ *
+ * Two assertions in one, and both are needed:
+ *   - the last page holds real content (>= 400 non-space chars; the content
+ *     pages ran 2400-2700 English and ~4800 Arabic, the footer-only page 74)
+ *   - the footer is still THERE. Without this, deleting the footer outright
+ *     would "fix" the blank page and pass.
+ *
+ * Returns null -> recorded as BLOCKED, never as a pass, when poppler is absent.
+ */
+async function lastPageCarriesContent(buf, label) {
+  const { writeFileSync, mkdtempSync } = await import("fs");
+  const { join } = await import("path");
+  const { tmpdir } = await import("os");
+  const { execFileSync } = await import("child_process");
+
+  const p = join(mkdtempSync(join(tmpdir(), "fp-pg-")), `${label}.pdf`);
+  writeFileSync(p, buf);
+
+  let pages;
+  try {
+    const info = execFileSync("pdfinfo", [p], { encoding: "utf8" });
+    pages = Number((info.match(/^Pages:\s+(\d+)/m) || [])[1]);
+  } catch {
+    return null; // poppler absent
+  }
+  if (!Number.isFinite(pages) || pages < 1) return null;
+
+  const pageChars = [];
+  for (let i = 1; i <= pages; i++) {
+    let t;
+    try {
+      t = execFileSync("pdftotext", ["-f", String(i), "-l", String(i), p, "-"], { encoding: "utf8" });
+    } catch {
+      return null;
+    }
+    pageChars.push({ page: i, chars: t.replace(/\s/g, "").length, text: t });
+  }
+
+  const last = pageChars[pageChars.length - 1];
+  const hasFooter = /futurepath\.ae/i.test(last.text);
+  const profile = pageChars.map((x) => `p${x.page}:${x.chars}`).join(" ");
+
+  return {
+    pass: last.chars >= 400 && hasFooter,
+    note: `${pages} pages | ${profile} | footer on last page: ${hasFooter}`,
+  };
+}
+
 // ----------------------------------------------------------------- the PDF
 {
   /**
@@ -271,6 +336,11 @@ rec("RP-14", "school tier gets the premium cap of 5 matches", sRecs.length === 5
     if (ok) {
       const { writeFileSync } = await import("fs");
       writeFileSync("/tmp/claude-0/-home-claude/02cff30d-f3af-5c58-9ad5-4dbfc039eb52/scratchpad/premium-report.pdf", buf);
+
+      const lp = await lastPageCarriesContent(buf, "report-en");
+      rec("RP-20", "the English PDF does not end on a footer-only page",
+        lp === null ? null : lp.pass,
+        lp === null ? "poppler unavailable" : lp.note);
     }
   }
 
@@ -316,6 +386,11 @@ rec("RP-14", "school tier gets the premium cap of 5 matches", sRecs.length === 5
       const { execFileSync } = await import("child_process");
       const arPath = join(mkdtempSync(join(tmpdir(), "fp-ar-")), "report-ar.pdf");
       writeFileSync(arPath, buf);
+
+      const lpAr = await lastPageCarriesContent(buf, "report-ar");
+      rec("RP-21", "the Arabic PDF does not end on a footer-only page",
+        lpAr === null ? null : lpAr.pass,
+        lpAr === null ? "poppler unavailable" : lpAr.note);
 
       let fonts = null;
       try {

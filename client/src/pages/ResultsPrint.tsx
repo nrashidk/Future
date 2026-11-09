@@ -552,9 +552,35 @@ export default function ResultsPrint() {
             padding: 2rem;
           }
 
-          .print-page-career:not(:last-of-type) {
-            page-break-after: always;
-          }
+          /* THERE IS NO page-break-after HERE, AND THAT IS THE FIX.
+             This rule used to read:
+
+               .print-page-career:not(:last-of-type) { page-break-after: always; }
+
+             and it produced the near-blank final page — a sheet carrying only
+             "Generated on … | Future Path …". Two things combined.
+
+             First, it was redundant. Every .print-page-career already carries
+             page-break-before: always just above, so consecutive career pages
+             are separated by the break BEFORE each one. A break after the same
+             element collapses with it and separates nothing extra.
+
+             Second, :last-of-type never matched. It means "last sibling of this
+             ELEMENT type", not "last element with this class", and the report
+             footer below is also a div — so the footer was the last div, no
+             career page was ever :last-of-type, and the final career kept its
+             trailing break. That break is the blank page: nothing follows it but
+             the footer, which gets a sheet of its own.
+
+             Measured, not reasoned about: 9 pages before, 8 after, with page 8
+             ending in the Next Steps list followed by the footer. Arabic the
+             same, one page shorter.
+
+             Do NOT "fix" a recurrence with break-before: avoid on the footer.
+             Chromium honours avoid-rules poorly, and nothing needs avoiding —
+             the break simply should not be generated. If a trailing break is
+             ever genuinely wanted, target the element by class, since
+             :last-of-type will go on quietly matching the wrong sibling. */
 
           /* A single career card must never split across a page break. */
           .career-card-print {
