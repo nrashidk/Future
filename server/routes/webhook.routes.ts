@@ -2,6 +2,7 @@ import type { Express, Request, Response } from "express";
 import Stripe from "stripe";
 import { storage } from "../storage";
 import { grantIndividualPremium } from "../services/premiumGrant";
+import { toMajor } from "@shared/pricing";
 
 // Initialize Stripe only if keys are configured
 let stripe: Stripe | null = null;
@@ -287,6 +288,68 @@ async function grantGuestPremiumFromMetadata(
       console.log(`[Webhook] Guest payment ${paymentIntent.id}: buyer already premium, no grant needed`);
     } else {
       console.log(`[Webhook] Guest payment ${paymentIntent.id}: granted premium to user ${result.user.id}`);
+    }
+
+    /**
+     * A GROUP PURCHASE MUST PRODUCE A SCHOOL, even when the browser never
+     * comes back.
+     *
+     * grantIndividualPremium is individual-only: it creates a user, marks them
+     * premium and sets purchasedLicenses, and creates no organization at all.
+     * That is correct for a one-seat purchase and wrong for a school. Until
+     * now this backstop stopped there, so a 100-student purchase whose
+     * /api/checkout/complete never ran — tab closed, network drop, or simply
+     * losing the create race, which is what happened on 2026-11-09 — produced
+     * an `individual` account holding 100 licences and NO SCHOOL. No
+     * organization to enrol students into, and invisible to licence
+     * reconciliation, which only looks at schools.
+     *
+     * Both signals come from the PaymentIntent's own metadata, stamped before
+     * confirmation: `studentCount` and `organizationName`. Neither is read
+     * from any request here — this runs on Stripe's say-so, not a caller's.
+     *
+     * IDEMPOTENT BY CONSTRUCTION. createGroupPurchaseTransaction locks the
+     * user row and refuses to give one user a second organization, so if
+     * /api/checkout/complete already created the school this throws and we
+     * treat that as success — the school exists, which is the whole objective.
+     * Any other failure rethrows and Stripe retries.
+     */
+    const organizationName = (paymentIntent.metadata?.organizationName ?? "").trim();
+    if (licenseCount > 1 && organizationName) {
+      const paidCurrency = (paymentIntent.currency ?? "usd").toUpperCase();
+      try {
+        const group = await storage.createGroupPurchaseTransaction({
+          userId: result.user.id,
+          organizationName,
+          studentCount: licenseCount,
+          paymentIntentId: paymentIntent.id,
+          // toMajor, never `/ 100`: a three-decimal Gulf charge recorded by
+          // hundredths overstates the ledger tenfold.
+          amountPaid: toMajor(paymentIntent.amount, paidCurrency),
+          currency: paidCurrency,
+          countryId: paymentIntent.metadata?.countryId || null,
+        });
+        console.log(
+          `[Webhook] Guest payment ${paymentIntent.id}: created school "${group.organization.name}" ` +
+          `with ${licenseCount} licences`,
+        );
+      } catch (error: any) {
+        if (String(error?.message ?? "").includes("already has an organization")) {
+          console.log(
+            `[Webhook] Guest payment ${paymentIntent.id}: school already exists for user ${result.user.id} — nothing to do`,
+          );
+        } else {
+          throw error;
+        }
+      }
+    } else if (licenseCount > 1) {
+      // Paid for many seats with no school name to create one under. The
+      // licences are granted and the buyer is not out of pocket, but nobody
+      // can enrol students until a human creates the school.
+      console.error(
+        `[Webhook] Guest payment ${paymentIntent.id}: ${licenseCount} licences but NO organizationName in ` +
+        `metadata — granted to the individual account, no school created. Needs manual attention.`,
+      );
     }
 
     /**

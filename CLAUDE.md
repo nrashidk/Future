@@ -116,13 +116,14 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `progression`, `licences`, `new-country`, `contribution`, `crosscutting`,
 `school-setup`, `question-gaps`, `peer-review`, `grants`, `pricing`,
 `org-admin`, `checkout-preflight`, `school-lock`, `webhook-idempotency`,
-`llm-gate`, `guest-claim`, `admin-writes`, plus
+`llm-gate`, `guest-claim`, `admin-writes`, `webhook-group-backstop`, plus
 `migration-029-dryrun`, `migration-030-dryrun`, `migration-032-dryrun`,
 `migration-033-dryrun` and `migration-034-dryrun`.
 
-`webhook-idempotency` needs two environment variables, on `up.ts` AND on
-itself, or every case is answered by the route's own 503/500 and proves
-nothing. It refuses to run without the second rather than passing:
+`webhook-idempotency` and `webhook-group-backstop` need two environment
+variables, on `up.ts` AND on themselves, or every case is answered by the
+route's own 503/500 and proves nothing. They refuse to run without the second
+rather than passing:
 
 ```
 PGLITE_DIR=./.pgdata STRIPE_SECRET_KEY=sk_test_dummy \
@@ -185,6 +186,15 @@ caught afterwards. A green test here means less than you think.
   `%PDF` header and 200 bytes for a one-megabyte file.
 - **An assertion that passes on an error is not an assertion.** A consent-gate
   test once passed on a missing-field validation error.
+- **A webhook fixture missing one metadata field proves nothing, with a 200.**
+  `handlePaymentIntentSucceeded` returns early — silently, 200 — on a missing
+  `userId`, and again if `expectedAmount` does not equal `amount`. A fixture
+  without `userId: "guest"` therefore never reaches the grant at all. The first
+  draft of `webhook-group-backstop.mjs` did that: signature verification passed,
+  the event claim was written, `duplicate: true` came back on redelivery, and
+  six assertions failed for the wrong reason while one passed. Build the fixture
+  from what `create-payment-intent` and `stamp-buyer` actually write, and make a
+  case assert something POSITIVE happened, not just a status.
 - **Do not "correct" a fixture to make a new test pass.** Deliberately invalid
   fixture data was once tidied up, and the test then passed while asserting
   nothing.
@@ -674,6 +684,52 @@ chose to review would sit for ever with no one able to see it.
     without a network call), and atomicity under real concurrency — see the
     harness note above. A claim stranded by a process that died shows up as a
     row with a null `processed_at`.
+  - **The checkout create race: CLOSED, and it was found by spending real money
+    on 2026-11-09, not by reading.** Both `/api/checkout/complete` and the
+    Stripe webhook act on the same payment, and Stripe calls the webhook the
+    instant the card clears while the browser still has to round-trip, so the
+    webhook usually wins. Both read "no such user", both inserted, and the
+    loser threw on `users_email_unique` — the buyer was charged AED 3,600 and
+    told "Checkout failed, please try again", which invites a second charge.
+    No check before the insert can close it; every check-then-act leaves the
+    same window. `grantIndividualPremium` now ACCEPTS the unique index's
+    verdict: on 23505 (including wrapped as `.cause`, which is the shape
+    Drizzle actually threw) it re-reads by email and returns
+    `already_premium`, whose contract is already "grant nothing, change
+    nothing" — the winner granted the full `studentCount`, so writing the
+    figure again would double it. Narrowed by OUTCOME, not constraint name: a
+    unique violation that finds no account by email is rethrown.
+    `premiumGrant.race.test.ts` covers it with storage mocked, because the
+    harness runs PGlite on ONE connection and cannot produce this race at all.
+  - **A group purchase must produce a SCHOOL even if the browser never comes
+    back: CLOSED** (`webhook-group-backstop.mjs`, 7 cases). The same live
+    purchase exposed a second defect with the same cause: the webhook backstop
+    called `grantIndividualPremium`, which is individual-only, so a
+    100-student purchase whose `/api/checkout/complete` never landed produced
+    an `individual` account holding 100 licences and **no organization** —
+    nothing to enrol into, and invisible to licence reconciliation, which only
+    looks at schools. The webhook now runs the same group block the
+    interactive path does, gated on `studentCount > 1 && organizationName`.
+    Mutation-tested both ways: disabling the block reproduces the production
+    shape exactly (`orgs=0`, `account_type=individual`, 100 licences, no
+    ledger row, B-01/02/03/04 fail), and widening it to every payment with a
+    name fails B-05, the control that a one-seat purchase gets no school.
+    Two things recorded in the suite rather than rediscovered:
+    **the fixture must carry `userId: "guest"`** or `handlePaymentIntentSucceeded`
+    returns at its first check and every case answers 200 having done nothing —
+    the first draft did exactly that, and `expectedAmount` must equal `amount`
+    for the same reason. And a completed group purchase leaves
+    `users.purchased_licenses` at **2 × studentCount**:
+    `grantIndividualPremium` SETS it and `createGroupPurchaseTransaction` then
+    ADDS it (`storage.ts:2985`). The interactive path has always done the same
+    two steps in the same order, so that is the product's existing shape, and
+    the figure is provably unread for an org admin — `getLicensePoolForUser`
+    reaches `purchasedLicenses` only for a PARENT pool, gated on a
+    `child_profiles.guardian_user_id` row, while enrolment reads
+    `organizations.total_licenses`. Left alone deliberately: cosmetically
+    wrong, unread, and "fixing" it would touch the live interactive money path
+    for no behavioural gain. B-04 therefore asserts the DELTA (nothing moved)
+    rather than an absolute figure.
   - Still genuinely ABSENT and still gating live Stripe: email verification on
     registration (no token column; `emailVerified` is only Google's OAuth
     boolean).
