@@ -117,7 +117,8 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `school-setup`, `question-gaps`, `peer-review`, `grants`, `pricing`,
 `org-admin`, `checkout-preflight`, `school-lock`, `webhook-idempotency`,
 `llm-gate`, `guest-claim`, `admin-writes`, `webhook-group-backstop`,
-`superadmin-writes`, `country-writes`, `setup-invite`, plus
+`superadmin-writes`, `country-writes`, `setup-invite`, `school-setup-link`,
+plus
 `migration-029-dryrun`, `migration-030-dryrun`, `migration-032-dryrun`,
 `migration-033-dryrun`, `migration-034-dryrun` and `migration-035-dryrun`.
 
@@ -206,6 +207,19 @@ caught afterwards. A green test here means less than you think.
 - **One branch is not the behaviour.** A licence guard scoped to school
   students was tested with a school student, returned 403, and was written up
   as "the feature does not work for anyone". It worked for everyone else.
+- **A PARAMETERISED JS `Date` IS MIS-BOUND BY PGLITE, so a timestamp fixture
+  written that way lies.** Proved with a temp table holding one past and one
+  future row: `WHERE exp > NOW()` returns the future row correctly, and so does
+  `WHERE exp > $1::timestamp` with an ISO string — but `WHERE exp > $1` with a
+  JS Date returns NOTHING. Writing the column the same way is worse: an
+  `expires_at` inserted as a past JS Date was read back by the database as
+  still live, and `school-setup-link.mjs` reported an expired sign-in link
+  being accepted. That was the FIXTURE, not the product — the routes read
+  through drizzle, which serialises timestamps itself, and the identical
+  `gt(expiresAt, new Date())` in `password-reset.routes.ts` works against real
+  Postgres. **Write timestamps in a suite as SQL (`NOW() - INTERVAL '1 hour'`),
+  never as a bound Date**, and confirm any expiry failure against the real
+  product path before believing it.
 - **A RACE CANNOT BE TESTED IN THIS HARNESS, and a concurrency test here will
   pass whether the code is atomic or not.** PGlite allows a single connection,
   so requests fired in parallel are serialized by the bridge and never overlap.

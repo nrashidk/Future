@@ -6,6 +6,7 @@ import { registerAuthRoutes } from "./routes/auth.routes";
 import { registerParentRegistrationRoutes } from "./routes/parentRegistration.routes";
 import { registerUserRoutes } from "./routes/user.routes";
 import { registerPasswordResetRoutes } from "./routes/password-reset.routes";
+import { registerSchoolSetupRoutes } from "./routes/schoolSetup.routes";
 import { registerCountriesRoutes } from "./routes/countries.routes";
 import { registerAssessmentRoutes } from "./routes/assessment.routes";
 import { registerQuizRoutes } from "./routes/quiz.routes";
@@ -37,6 +38,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerParentRegistrationRoutes(app); // Parent-registers-for-child account creation
   registerUserRoutes(app); // GDPR compliance: data export and deletion
   registerPasswordResetRoutes(app); // Password reset flow
+  registerSchoolSetupRoutes(app); // First sign-in for a school bought through group checkout
   registerCountriesRoutes(app);
   registerAssessmentRoutes(app);
   registerQuizRoutes(app);
