@@ -598,12 +598,24 @@ chose to review would sit for ever with no one able to see it.
   shape as bulk-reset-passwords. Judge it by reading `total_licenses` before
   and after, never by the status. W-08 is the control that keeps this honest: a
   school can still rename itself.
-  Two middleware chains here carry only `isAuthenticated` with the real check
-  inside the handler — `PATCH /api/admin/organizations/:id` and
-  `POST /api/admin/countries/:id/generate-questions`. Both are genuinely
-  guarded (the latter by `checkSuperadmin` → 403), but the shape means deleting
-  four lines leaves a route that still reads as protected, which is why they
-  are tested rather than reviewed.
+  **At least SEVEN chains carry only `isAuthenticated` with the real check
+  inside the handler, not the two this said.** `PATCH /api/admin/organizations/:id`
+  and, in `country.routes.ts`, all five write routes: `POST /api/admin/countries`
+  (:333), `PATCH /api/admin/countries/:id/license-price` (:591),
+  `PUT /api/admin/countries/:id` (:662),
+  `POST /api/admin/countries/:id/generate-questions` (:754) and
+  `POST /api/admin/countries/:id/repopulate` (:879). Every one was read on
+  `main` 2026-11-09 and every one is genuinely guarded —
+  `checkSuperadmin` → 403 as the first statement — but the shape means deleting
+  four lines leaves a route that still reads as protected, which is why this
+  shape gets tested rather than reviewed.
+  **The five country routes are NOT tested.** `new-country.mjs` has zero 403
+  assertions: it builds a country and a school in it and never asks whether a
+  non-superadmin is refused. That matters more than it looks —
+  `PUT /api/admin/countries/:id` writes `curricula`, `subjects` and
+  `gradeLevels`, which decide which quiz bank every student in that country
+  draws from, and the price route decides what a buyer is charged. Next
+  coverage gap to close.
   `PATCH /api/superadmin/quiz-questions/:id` and the superadmin promote route
   are covered now (`superadmin-writes.mjs`, 15 cases), and running them found
   a real bug that reading could not — see the next bullet.
@@ -666,14 +678,48 @@ chose to review would sit for ever with no one able to see it.
     `FREE_TIER_RETIRED`), so there is no free self-registration to claim
     through, and **the OAuth path cannot be exercised offline** — it stays
     unproven.
-  - **15 high-severity advisories in PRODUCTION dependencies**, not the 4 that was
-    recorded (`npm audit --omit=dev`; 18 high counting dev). Nine are the puppeteer
-    chain — puppeteer, puppeteer-core, @puppeteer/browsers, chromium-bidi,
-    extract-zip, basic-ftp, get-uri, pac-proxy-agent, proxy-agent. **The other six
-    are not, and sit in the live request path**: `body-parser`, `compression`,
-    `multer`, `brace-expansion`, `source-map-js`, `zod`. Multer and body-parser
-    deserve attention ahead of the puppeteer bump, which is the one everybody
-    reaches for because it is the one that was written down.
+  - **Dependency advisories: run the tool, the figures here go stale fast.**
+    As of 2026-11-09, `npm audit --omit=dev` reports **10 high, 8 moderate, 1
+    low**. The six that the previous version of this bullet called out as "in
+    the live request path" — `body-parser`, `compression`, `multer`,
+    `brace-expansion`, `source-map-js` — are **all clean now** (body-parser
+    1.20.9, compression 1.8.2, multer 2.5.0), so its advice to do multer and
+    body-parser first now points at nothing. That is the second time a
+    written-down audit figure has misdirected work here; check the command.
+    What remains needs a MAJOR bump either way, and the reachability is not
+    equal:
+    - **Nine are the puppeteer chain** (puppeteer, puppeteer-core,
+      @puppeteer/browsers, chromium-bidi, extract-zip, basic-ftp, get-uri,
+      pac-proxy-agent, proxy-agent) and the two that carry real weight —
+      extract-zip symlink traversal, basic-ftp quadratic `Client.list()` — sit
+      in the **browser download and extraction** path, not the PDF render path.
+      Exploiting them means controlling the archive or FTP server puppeteer
+      fetches from, i.e. Chrome's own download host at deploy time. Not
+      reachable by a user of the app. Build-time supply chain, not request path.
+    - **One is `zod`** (GHSA-mrhx-c7xc-m3w5 / CVE-2023-54404), and it IS in the
+      request path: `$ZodArray` accumulates an issue object per failing element
+      with no cap, so a large array of elements that all fail validation grows
+      memory until the process dies.
+      **The audit's own advice is wrong for this repo.** Per the advisory
+      write-up, 4.6.6 only moved the size check ahead of element parsing for
+      schemas that declare an explicit upper bound, and **no released version
+      remediates the unbounded default case** — so migrating zod v3→v4 across
+      every schema in the repo, which is a breaking major, would fix this only
+      where `.max()` is already present. (Single-sourced: the GitHub advisory
+      itself is not fetchable from the cloud container, so this came from a
+      secondary summary. Verify before acting on it.)
+      The mitigation that actually works needs no upgrade: **put explicit
+      upper bounds on array/record/set schemas**, which works on v3. The
+      exposure is small today — 13 `z.array(` in server/ and shared/, 5 already
+      bounded, and all 8 unbounded ones sit behind a superadmin check (the five
+      country write routes) or a school admin (`contribution.routes.ts:225`),
+      so the attack needs privileged credentials. The real limiter is the body
+      cap in `server/index.ts:132`: 512kb everywhere except
+      `/api/admin/questions/bulk` at 10mb, and that route is superadmin-gated
+      (proved in `admin-writes.mjs`).
+      Neither major belongs on `main` unattended: Render auto-deploys every
+      push, puppeteer drives a sold feature (PDF download), and zod v4 touches
+      every validation schema. Branch them.
   - **US salaries do NOT reach students. An earlier version of this very bullet
     said they did, and it was wrong** — a good example of why a claim here needs
     a grep behind it. `seed.ts:965+` does seed US dollar strings into
