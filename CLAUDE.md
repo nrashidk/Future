@@ -118,7 +118,8 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `org-admin`, `checkout-preflight`, `school-lock`, `webhook-idempotency`,
 `llm-gate`, `guest-claim`, `admin-writes`, `webhook-group-backstop`,
 `superadmin-writes`, `country-writes`, `setup-invite`, `school-setup-link`,
-`setup-stage`, `superadmin-delete-user`, `resend-webhook`, `guest-sweep`, plus
+`setup-stage`, `superadmin-delete-user`, `resend-webhook`, `guest-sweep`,
+`guest-identity`, plus
 `migration-029-dryrun`, `migration-030-dryrun`, `migration-032-dryrun`,
 `migration-033-dryrun`, `migration-034-dryrun`, `migration-035-dryrun` and
 `migration-036-dryrun`.
@@ -645,6 +646,62 @@ chose to review would sit for ever with no one able to see it.
   **Still unknown and needs a database look:** whether expired guest rows were
   actually sitting in production during those fourteen days. No superadmin
   endpoint exposes guest assessments.
+- **A GUEST IS NO LONGER ASKED FOR NAME, AGE OR GENDER — only grade.** Until
+  2026-11-10 an anonymous visitor with no account had to enter all four before
+  they could continue, so a thirteen-year-old could type their real name and
+  age into a public form, with nobody's permission, and it was stored. The
+  Terms said a parent, guardian or school consents before any assessment; on
+  this path none of the three does. What exists is a tick saying the STUDENT
+  agrees to the Terms — a terms acceptance, not a guardian's consent, and a
+  minor cannot give the second by making the first. **An earlier note here
+  claimed there was no consent control at all on the guest path. That was
+  wrong** — the tick is real and gates Continue.
+  **THE FIX WAS TO ASK FOR LESS, not to add a checkbox.** A tick saying "my
+  parent agreed" is unverifiable: it stores evidence of a click and changes
+  nothing about who decided. Removing the fields removes the thing consent
+  would have been needed FOR, and costs nothing — nothing is addressed to a
+  guest, the PDF is tier-gated away from them, and the row is deleted within
+  72 hours anyway.
+  **GRADE STAYS and is still required**: it selects the question pool
+  (`quiz_questions.grade`), so without it the quiz cannot be built, and
+  "someone in Grade 10" names nobody. **AGE WAS NEVER USED FOR ANYTHING** —
+  grep `assessment.age` outside storage and the only reads are the gate and
+  the card that displays it back. Gender the same.
+  `shared/guestIdentity.ts` holds the rule, pure and tested, because FOUR
+  places have to agree about it: the form, the resume step, the report gate
+  and the two routes. `basicInfoComplete(a, isGuest)` takes `isGuest` as a
+  REQUIRED argument and never derives it from a `userId` on the assessment —
+  an absent-because-not-selected column read as "guest" would let an
+  authenticated student skip the step that collects their own details, which
+  is the dangerous direction. The compiler found both call sites when the
+  argument was added, which is the point.
+  **THE SERVER DOES THE WITHHOLDING, not the form.** Hiding three inputs is
+  UX; `withholdGuestIdentity` on POST and PATCH is the control. It writes
+  NULLs rather than dropping the keys — a dropped key on a PATCH means "leave
+  the column alone", so a value written before this change would survive by
+  being omitted. Guest-ness is read from the ROW (`!userId`), never from the
+  request.
+  `guest-identity.mjs` (7 cases) SENDS the fields anyway and judges the stored
+  ROW, never the response. **GI-03 is the case that matters** (a crafted POST
+  stores nothing); GI-01 passes under mutation too, because a plain payload
+  sends nothing to discard. **GI-06 is the control**: an org student keeps the
+  SCHOOL's details — asserted as "not the crafted name", which is stronger
+  than non-null — or everything above would pass against code that wiped the
+  columns for everybody. Mutation-tested by disabling both withholdings:
+  GI-03, GI-04 and GI-05 fail with the crafted name and age stored.
+  **The under-18 note was gated on `data.age < 18`** and would have silently
+  stopped appearing to exactly the population it is written for. It now shows
+  ALWAYS for a guest — the product is for 13-18s by its own Terms, and an
+  age-gated note that can never fire is dead markup. Still unbacked, still in
+  FOLLOWUP.
+  `guest.mjs` G-05 used to type an age of 15; it now asserts the three fields
+  are absent (G-05a), the note still reaches a guest (G-05), and grade is
+  still collected (G-05b). **G-05b's first draft looked for `#grade` and
+  failed** — that id is only on the plain `<select>` rendered for mobile;
+  on desktop it is a Radix Select whose trigger is a button, so the locator
+  must use `data-testid="select-grade"`.
+  Terms §2 and Privacy §5 now describe what actually happens, which they could
+  not before this change.
 - Four completed assessments in production have no ledger row and that is
   correct: they are GUEST assessments with a null `user_id`, so there is no
   pool to charge. A guest is not billed, is bounded by

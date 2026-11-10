@@ -106,6 +106,8 @@ export interface ResumableAssessment {
   careerAspirations?: string[] | null;
 }
 
+import { basicInfoComplete } from "./guestIdentity";
+
 const hasItems = (v: unknown[] | null | undefined): boolean => Array.isArray(v) && v.length > 0;
 
 /**
@@ -144,14 +146,15 @@ const hasItems = (v: unknown[] | null | undefined): boolean => Array.isArray(v) 
  * Premium is NOT covered by this and must not use it: premium's step numbering
  * is unchanged by Phase 3, so its stored `currentStep` stays valid.
  */
-export function deriveFreeResumeStep(assessment: ResumableAssessment): number {
-  const basicInfoComplete =
-    !!assessment.name &&
-    assessment.age !== null && assessment.age !== undefined &&
-    !!assessment.grade &&
-    !!assessment.gender;
-
-  if (!basicInfoComplete) return stepNumberOf(false, 'basicInfo')!;      // 1
+export function deriveFreeResumeStep(assessment: ResumableAssessment, isGuest: boolean): number {
+  /**
+   * `isGuest` is REQUIRED, not optional with a default, and that is the whole
+   * safety of this change. A guest is no longer asked for name, age or gender
+   * (shared/guestIdentity.ts), so the old four-field check would find them
+   * missing on every resume and pin every guest at step 1 for ever — a loop
+   * with no error anywhere. A required argument makes the compiler ask.
+   */
+  if (!basicInfoComplete(assessment, isGuest)) return stepNumberOf(false, 'basicInfo')!;  // 1
   if (!assessment.countryId) return stepNumberOf(false, 'country')!;     // 2
   if (!hasItems(assessment.favoriteSubjects)) return stepNumberOf(false, 'subjects')!;  // 3
 

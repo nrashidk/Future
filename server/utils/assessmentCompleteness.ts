@@ -32,14 +32,26 @@ const isEmptyList = (v: unknown): boolean => !Array.isArray(v) || v.length === 0
 
 export function collectMissingComponents(
   assessment: GateableAssessment,
-  opts: { isPremium: boolean; hasCvqResult: boolean },
+  opts: { isPremium: boolean; hasCvqResult: boolean; isGuest: boolean },
 ): string[] {
   const missing: string[] = [];
 
   // Core fields required for both tiers — these are the shared spine's output
   // (steps 1-3), so a student who reached the divergence has all of them.
-  if (!assessment.name) missing.push("Name");
-  if (!assessment.age) missing.push("Age");
+  //
+  // EXCEPT NAME AND AGE FOR A GUEST, who is never asked for either
+  // (shared/guestIdentity.ts). Requiring them here would 400 every guest
+  // report at the last step, after the student had answered everything —
+  // which is the most expensive place in the flow to refuse someone.
+  //
+  // `isGuest` is required on the options object rather than defaulted, so the
+  // compiler asks the one caller instead of this failing in production.
+  if (!opts.isGuest) {
+    if (!assessment.name) missing.push("Name");
+    if (!assessment.age) missing.push("Age");
+  }
+  // Grade is required of EVERYONE: it selects the question pool, so a report
+  // without it was built from a quiz that could not be assembled.
   if (!assessment.grade) missing.push("Grade");
   if (isEmptyList(assessment.favoriteSubjects)) missing.push("Favorite Subjects");
   if (!assessment.countryId) missing.push("Country Selection");

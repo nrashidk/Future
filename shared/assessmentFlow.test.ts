@@ -152,21 +152,42 @@ describe('deriveFreeResumeStep — free resume ignores the stored step', () => {
   };
 
   it('sends an empty assessment to step 1', () => {
-    expect(deriveFreeResumeStep({})).toBe(1);
-    expect(deriveFreeResumeStep({ name: 'A' })).toBe(1);
+    expect(deriveFreeResumeStep({}, false)).toBe(1);
+    expect(deriveFreeResumeStep({ name: 'A' }, false)).toBe(1);
   });
 
   it('treats age 0 as present, not missing', () => {
     // Explicit null/undefined checks matter: `!age` would send a 0-year-old back.
-    expect(deriveFreeResumeStep({ ...complete, age: 0 })).toBe(6);
+    expect(deriveFreeResumeStep({ ...complete, age: 0 }, false)).toBe(6);
+  });
+
+  it('A GUEST resumes past step 1 on GRADE alone', () => {
+    // A guest is never asked for name, age or gender (shared/guestIdentity.ts).
+    // The four-field check would find them missing on every resume and pin
+    // every guest at step 1 for ever — a loop with no error anywhere.
+    expect(deriveFreeResumeStep({ grade: 'grade10' }, true)).toBe(2);
+  });
+
+  it('a guest with NO grade still stops at step 1 — the quiz needs it', () => {
+    expect(deriveFreeResumeStep({}, true)).toBe(1);
+  });
+
+  it('a guest is not sent back by the three fields it never collected', () => {
+    const guestComplete = {
+      grade: 'grade10', favoriteSubjects: ['Science'], countryId: 'uae',
+      interests: ['space'], careerAspirations: ['pilot'],
+    };
+    expect(deriveFreeResumeStep(guestComplete, true)).toBe(6);
+    // The control: the SAME row read as an account still owes step 1.
+    expect(deriveFreeResumeStep(guestComplete, false)).toBe(1);
   });
 
   it('walks forward one step per completed section', () => {
-    expect(deriveFreeResumeStep({ ...complete, favoriteSubjects: [], countryId: '', interests: [], careerAspirations: [] })).toBe(2);
-    expect(deriveFreeResumeStep({ ...complete, favoriteSubjects: [], interests: [], careerAspirations: [] })).toBe(3);
-    expect(deriveFreeResumeStep({ ...complete, interests: [], careerAspirations: [] })).toBe(4);
-    expect(deriveFreeResumeStep({ ...complete, careerAspirations: [] })).toBe(6);
-    expect(deriveFreeResumeStep(complete)).toBe(6);
+    expect(deriveFreeResumeStep({ ...complete, favoriteSubjects: [], countryId: '', interests: [], careerAspirations: [] }, false)).toBe(2);
+    expect(deriveFreeResumeStep({ ...complete, favoriteSubjects: [], interests: [], careerAspirations: [] }, false)).toBe(3);
+    expect(deriveFreeResumeStep({ ...complete, interests: [], careerAspirations: [] }, false)).toBe(4);
+    expect(deriveFreeResumeStep({ ...complete, careerAspirations: [] }, false)).toBe(6);
+    expect(deriveFreeResumeStep(complete, false)).toBe(6);
   });
 
   it('checks country BEFORE subjects, matching the step order', () => {
@@ -182,14 +203,14 @@ describe('deriveFreeResumeStep — free resume ignores the stored step', () => {
     // The quiz is skippable and leaves no trace, so its completion cannot be
     // observed. Step 4 is the earlier of the two possible positions and
     // re-entering it is idempotent — QuizStep auto-advances when already done.
-    expect(deriveFreeResumeStep({ ...complete, interests: [] })).toBe(4);
+    expect(deriveFreeResumeStep({ ...complete, interests: [] }, false)).toBe(4);
   });
 
   it('never pins a student who skipped the quiz', () => {
     // A student with no questions available for their country skips the quiz.
     // Nothing in the record records that, so the derivation must not depend on
     // it — once they have interests, they move past step 4 for good.
-    expect(deriveFreeResumeStep({ ...complete, interests: ['space'], careerAspirations: [] })).toBe(6);
+    expect(deriveFreeResumeStep({ ...complete, interests: ['space'], careerAspirations: [] }, false)).toBe(6);
   });
 
   it('rescues a student stranded by the OLD numbering', () => {

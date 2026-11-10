@@ -21,8 +21,8 @@ const premiumComplete = {
   quizScore: 72, riasecScores: { R: 10, I: 8 },
 };
 
-const free = (a: object) => collectMissingComponents(a, { isPremium: false, hasCvqResult: false });
-const premium = (a: object) => collectMissingComponents(a, { isPremium: true, hasCvqResult: true });
+const free = (a: object) => collectMissingComponents(a, { isPremium: false, hasCvqResult: false, isGuest: false });
+const premium = (a: object) => collectMissingComponents(a, { isPremium: true, hasCvqResult: true, isGuest: false });
 
 describe('free tier no longer requires Personality Traits', () => {
   it('passes a free assessment that has NO personalityTraits at all', () => {
@@ -87,7 +87,7 @@ describe('premium requirements are unchanged by Phase 3', () => {
   it('still requires the quiz, RIASEC and CVQ', () => {
     expect(premium({ ...premiumComplete, quizScore: null })).toEqual(['Subject Competency Quiz']);
     expect(premium({ ...premiumComplete, riasecScores: {} })).toEqual(['Interest Inventory (RIASEC)']);
-    expect(collectMissingComponents(premiumComplete, { isPremium: true, hasCvqResult: false }))
+    expect(collectMissingComponents(premiumComplete, { isPremium: true, hasCvqResult: false, isGuest: false }))
       .toEqual(['Work Values Assessment (CVQ)']);
   });
 
@@ -97,5 +97,36 @@ describe('premium requirements are unchanged by Phase 3', () => {
 
   it('treats quizScore 0 as present, not missing', () => {
     expect(premium({ ...premiumComplete, quizScore: 0 })).toEqual([]);
+  });
+});
+
+describe("a guest is never asked for name or age, so the gate must not require them", () => {
+  const guest = (a: object) =>
+    collectMissingComponents(a, { isPremium: false, hasCvqResult: false, isGuest: true });
+
+  const guestComplete = {
+    grade: "grade10", favoriteSubjects: ["Science"], countryId: "uae",
+    interests: ["space"], careerAspirations: ["pilot"], quizScore: 70,
+  };
+
+  it("lets a guest report generate with no name and no age", () => {
+    // The expensive place to refuse someone: generation fires at the LAST
+    // step, after every answer has been given.
+    expect(guest(guestComplete)).toEqual([]);
+  });
+
+  it("THE CONTROL: the same row as an account is still missing both", () => {
+    // Without this, the case above would pass against a gate that had simply
+    // stopped checking anything.
+    expect(collectMissingComponents(guestComplete, { isPremium: false, hasCvqResult: false, isGuest: false }))
+      .toEqual(["Name", "Age"]);
+  });
+
+  it("still requires GRADE of a guest — it selects the question pool", () => {
+    expect(guest({ ...guestComplete, grade: null })).toContain("Grade");
+  });
+
+  it("still requires the answers a guest DOES give", () => {
+    expect(guest({ ...guestComplete, countryId: null })).toContain("Country Selection");
   });
 });

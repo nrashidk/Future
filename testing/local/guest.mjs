@@ -89,19 +89,38 @@ for (const lang of ["en", "ar"]) {
   rec("G-04a", "a consent control is present on demographics",
     checkboxes > 0 && consentText, `${checkboxes} checkbox(es), consent wording ${consentText}`);
 
-  // The under-18 note is conditional on the age entered, so the form has to be
-  // filled before it can be judged. It is the sentence server-side comments
-  // flag as unbacked ("no parental mechanism exists behind it"), so what it
-  // says to a 15 year old matters.
-  await p.getByPlaceholder(/full name/i).fill("Test Student").catch(() => {});
-  await p.getByPlaceholder(/your age/i).fill("15").catch(() => {});
-  await p.waitForTimeout(1200);
+  /**
+   * A GUEST IS NEVER ASKED FOR NAME, AGE OR GENDER (shared/guestIdentity.ts).
+   * This case used to type an age of 15 and check the under-18 note appeared;
+   * those fields no longer exist on this step, so it now asserts the two
+   * things that replaced them.
+   */
+  const nameBoxes = await p.getByPlaceholder(/full name/i).count();
+  const ageBoxes = await p.getByPlaceholder(/your age/i).count();
+  const genderBoxes = await p.locator('[data-testid="select-gender"]').count();
+  rec("G-05a", "a guest is NOT asked for name, age or gender",
+    nameBoxes === 0 && ageBoxes === 0 && genderBoxes === 0,
+    `name=${nameBoxes} age=${ageBoxes} gender=${genderBoxes}`);
+
+  // The note is written for exactly this population and used to be gated on an
+  // age the guest no longer supplies — so it had to stop being conditional
+  // rather than silently stop appearing.
+  await p.screenshot({ path: `${SHOTS}/g-demographics-guest.png` });
   const afterAge = await p.locator("body").innerText();
-  await p.screenshot({ path: `${SHOTS}/g-demographics-under18.png` });
   const under18 = /under 18|parental|institutional/i.test(afterAge);
   const noteLine = (afterAge.split("\n").find((l) => /under 18|parental|institutional/i.test(l)) || "").trim();
-  rec("G-05", "under-18 consent note appears for age 15", under18,
-    under18 ? `"${noteLine.slice(0, 90)}"` : "no note shown after entering age 15");
+  rec("G-05", "the under-18 consent note still reaches a guest", under18,
+    under18 ? `"${noteLine.slice(0, 90)}"` : "NOTE VANISHED with the age field");
+
+  // Grade is the one identity-ish field that stays: it selects the question
+  // pool, so without it the quiz cannot be built at all.
+  // data-testid, not `#grade`: the id is only on the plain <select> rendered
+  // for mobile, and on desktop this is a Radix Select whose trigger is a
+  // button. The first draft looked for the id, found nothing, and reported a
+  // missing grade field on a step that has one.
+  const gradeBoxes = await p.locator('[data-testid="select-grade"], #grade').count();
+  rec("G-05b", "grade is still collected — the quiz pool needs it", gradeBoxes > 0,
+    `${gradeBoxes} grade control(s)`);
 
   // G-04: the consent tick must be a real gate, not decoration.
   const nextBtn = p.getByRole("button", { name: /continue|next|التالي/i }).first();

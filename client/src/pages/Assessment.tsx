@@ -562,9 +562,13 @@ export default function Assessment() {
         // step from the data actually present, which is correct under either
         // numbering. PREMIUM's order is unchanged by Phase 3, so its stored
         // currentStep stays valid and is used as-is.
+        // A guest is never asked for name, age or gender, so the resume rule
+        // must know which population this is or it would find them missing and
+        // return step 1 for ever. `isAuthenticated` is the honest source here:
+        // the assessment row's own userId is not reliably on the client copy.
         const resumeStep = isPremiumFlow
           ? inProgress.currentStep
-          : deriveFreeResumeStep(inProgress);
+          : deriveFreeResumeStep(inProgress, !isAuthenticated);
 
         setResumePrompt({
           assessmentId: inProgress.id,
@@ -1461,6 +1465,13 @@ export default function Assessment() {
             predefinedName={(user as any)?.predefinedName}
             predefinedAge={(user as any)?.predefinedAge}
             predefinedGender={(user as any)?.predefinedGender}
+            /* An anonymous visitor with no account. Deliberately
+               !isAuthenticated rather than the `isGuest` state above, which is
+               set from a ?guest=true URL parameter and describes which FLOW
+               was entered, not whether an account exists. The server decides
+               the same question with `!userId`, and the two must agree or the
+               form would ask for fields the server then discards. */
+            isGuest={!isAuthenticated}
           />
         )}
         

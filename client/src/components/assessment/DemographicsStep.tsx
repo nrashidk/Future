@@ -11,6 +11,8 @@ import { useTranslation } from "react-i18next";
 import { SchoolConsentNotice } from "./SchoolConsentNotice";
 import { ParentConsentNotice } from "./ParentConsentNotice";
 
+import { basicInfoComplete } from "@shared/guestIdentity";
+
 interface DemographicsStepProps {
   data: any;
   onUpdate: (field: string, value: any) => void;
@@ -19,6 +21,14 @@ interface DemographicsStepProps {
   predefinedName?: string | null;
   predefinedAge?: number | null;
   predefinedGender?: string | null;
+  /**
+   * An anonymous visitor with no account. NOT the same as `subjectSource ===
+   * 'free'`, which also covers a legacy free ACCOUNT — that population has a
+   * userId, so the server stores their details and this step must keep asking
+   * for them. Derived from `!isAuthenticated` by the caller, which is the same
+   * thing the server's `!userId` means.
+   */
+  isGuest?: boolean;
   /**
    * Which population owns these fields — served by /api/auth/user, derived
    * from an organization_members row with role 'student' ('org') or a
@@ -35,7 +45,7 @@ interface DemographicsStepProps {
   organizationName?: string | null;
 }
 
-export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, predefinedName, predefinedAge, predefinedGender, subjectSource, organizationName }: DemographicsStepProps) {
+export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, predefinedName, predefinedAge, predefinedGender, subjectSource, organizationName, isGuest = false }: DemographicsStepProps) {
   const { t } = useTranslation('assessment');
 
   const [isMobile, setIsMobile] = useState(false);
@@ -132,9 +142,16 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
    * entry point with an explanation (Assessment.tsx), rather than at a
    * locked empty field with a dead Next button.
    */
+  /**
+   * A GUEST IS GATED ON GRADE AND THE TICK, and nothing else — they are not
+   * asked for the other three, so waiting for them would disable Continue for
+   * ever with no visible reason. `basicInfoComplete` is the shared rule
+   * (shared/guestIdentity.ts), so this form, the resume step and the
+   * report gate cannot disagree about what "filled in" means.
+   */
   const canProceed = fieldsAreLocked
-    ? Boolean(data.name && data.age && data.grade && data.gender)
-    : Boolean(data.name && data.age && data.grade && data.gender && data.consentGiven);
+    ? basicInfoComplete(data, false)
+    : Boolean(basicInfoComplete(data, isGuest) && data.consentGiven);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -158,7 +175,14 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
         </p>
       )}
 
-      <div className="grid md:grid-cols-2 gap-6">
+      <div className={isGuest ? "grid gap-6 max-w-xl mx-auto" : "grid md:grid-cols-2 gap-6"}>
+        {/* NAME, AGE AND GENDER ARE NOT ASKED OF A GUEST. An anonymous
+            visitor with no account could type their real name and age into a
+            public form with nobody's permission, and it was stored. Removing
+            the fields removes the thing consent would have been needed for —
+            see shared/guestIdentity.ts. The server nulls them regardless;
+            this only stops asking. */}
+        {!isGuest && (
         <StickyNote color="yellow" rotation="-1">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
@@ -181,7 +205,9 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
             data-testid="input-name"
           />
         </StickyNote>
+        )}
 
+        {!isGuest && (
         <StickyNote color="pink" rotation="1">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
@@ -243,6 +269,7 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
             data-testid="input-age"
           />
         </StickyNote>
+        )}
 
         <StickyNote color="blue" rotation="2">
           <div className="flex items-center gap-3 mb-4">
@@ -289,6 +316,11 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
           )}
         </StickyNote>
 
+        {/* Gender: collected, gated on, stored — and read by nothing. A grep
+            for it across server, client and shared finds the step that asks,
+            the gate that required it, and the card that displays it back.
+            It fed no score, no prompt and no recommendation. */}
+        {!isGuest && (
         <StickyNote color="green" rotation="-2">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
@@ -325,6 +357,7 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
             </Select>
           )}
         </StickyNote>
+        )}
       </div>
 
       {/* CONSENT SECTION — three different things, not three labels for one
@@ -377,15 +410,28 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
                 </div>
               </div>
 
-              {/* UNCHANGED, AND STILL UNBACKED. This note promises parental or
-                  institutional consent for an under-18 self-paid student, and no
-                  parental mechanism exists behind it. The school attestation
-                  covers the institutional half for school students, who never
-                  see this branch. Tracked in FOLLOWUP.md as its own item; not
-                  fixed here, because what a 13-year-old self-consenting should
-                  actually require is undecided. */}
-              {data.age && data.age < 18 && (
-                <p className="text-xs text-muted-foreground font-body mt-2 ms-7">
+              {/* STILL UNBACKED — this note promises parental or institutional
+                  consent for an under-18 self-paid student, and no parental
+                  mechanism exists behind it. The school attestation covers the
+                  institutional half for school students, who never see this
+                  branch. Tracked in FOLLOWUP.md; not fixed here, because what a
+                  13-year-old self-consenting should actually require is
+                  undecided.
+
+                  WHAT CHANGED IS WHEN IT SHOWS. The condition used to be
+                  `data.age < 18`, and a guest no longer supplies an age — so
+                  the note would have silently stopped appearing to exactly the
+                  population it is written for, which is a worse outcome than
+                  the note being imperfect.
+
+                  For a guest it now shows ALWAYS. That is not a guess dressed
+                  up as a condition: the product is for students aged 13 to 18
+                  (the Terms say so), the guest path is the one with nobody
+                  vouching for them, and an age-gated note that can never fire
+                  is just dead markup. An account still gets the age-conditional
+                  version, because there the age is known. */}
+              {(isGuest || (data.age && data.age < 18)) && (
+                <p className="text-xs text-muted-foreground font-body mt-2 ms-7" data-testid="note-under18">
                   {t('demographics.under18Note')}
                 </p>
               )}

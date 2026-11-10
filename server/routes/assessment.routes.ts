@@ -13,6 +13,7 @@ import { ageOnDate, toDateOnlyString } from "@shared/dateOfBirth";
 import { FREE_ASSESSMENT_CAP, isFreeTierCapReached, requiresPaymentBeforeAssessment } from "@shared/assessmentLimits";
 import { assessmentIsChildOwned } from "@shared/childOwnership";
 import { guestAssessmentExpiresAt, GUEST_COOKIE_MAX_AGE_MS } from "@shared/guestAssessmentExpiry";
+import { withholdGuestIdentity } from "@shared/guestIdentity";
 import { sweepExpiredGuestAssessmentsIfDue } from "../services/guestAssessmentExpiry";
 import { sendGuestReportRecoveryEmail } from "../services/email";
 import { recoveryEmailLimiter } from "../middleware/rateLimiter.middleware";
@@ -304,6 +305,24 @@ export function registerAssessmentRoutes(app: Express) {
         ? (req.user.userId) 
         : null;
       const isGuest = !userId;
+
+      /**
+       * THE SAME WITHHOLDING AS THE PATCH BELOW, applied at creation.
+       *
+       * validatedData has already been through zod; these three are nullable
+       * columns, so nulling them cannot fail validation. Done here rather than
+       * before `insertAssessmentSchema.parse` deliberately — the schema is the
+       * contract for the SHAPE of a payload, and silently rewriting values
+       * before it would make a validation error describe something the caller
+       * never sent.
+       */
+      const identity = withholdGuestIdentity(
+        { name: validatedData.name, age: validatedData.age, gender: validatedData.gender },
+        isGuest,
+      );
+      validatedData.name = identity.name;
+      validatedData.age = identity.age;
+      validatedData.gender = identity.gender;
 
       // For guest users, generate a cryptographically secure unique guest token
       const guestToken = isGuest ? `guest_${Date.now()}_${randomBytes(16).toString('hex')}` : null;
@@ -1002,6 +1021,31 @@ export function registerAssessmentRoutes(app: Express) {
         if (sanitizedBody[field] !== undefined) {
           filteredBody[field] = sanitizedBody[field];
         }
+      }
+
+      /**
+       * A GUEST'S NAME, AGE AND GENDER ARE NEVER STORED, and this is the line
+       * that enforces it — not the form.
+       *
+       * The demographics step no longer shows those three inputs to a guest,
+       * but that is UX: a crafted PATCH would still write whatever it liked,
+       * and the whole point of the change is that a minor's identity is not
+       * sitting in the database with nobody's consent behind it.
+       *
+       * Guest-ness comes from the ROW (`existingAssessment.userId`), already
+       * checked by the ownership gate above, never from the request. Reading
+       * it from the caller would let anyone claim to be a guest — harmless
+       * here, since the result is storing LESS — but it would also let an
+       * authenticated student's details be wiped by a forged flag.
+       *
+       * withholdGuestIdentity writes nulls rather than dropping the keys, so
+       * a value set before this change is actively cleared on the next write
+       * instead of surviving because the field was merely omitted.
+       */
+      const guestOwned = !existingAssessment.userId;
+      const identityFiltered = withholdGuestIdentity(filteredBody, guestOwned);
+      for (const key of Object.keys(identityFiltered)) {
+        filteredBody[key] = identityFiltered[key];
       }
 
       // Same prompt-field bounds/whitelist as POST. PATCH runs no zod, so this

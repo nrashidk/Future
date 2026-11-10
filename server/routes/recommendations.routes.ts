@@ -160,7 +160,16 @@ export function registerRecommendationsRoutes(app: Express) {
         ? !!(await storage.getCvqResultByAssessmentId(req.params.assessmentId))
         : false;
 
-      const missingComponents = collectMissingComponents(assessment, { isPremium, hasCvqResult });
+      /**
+       * Guest-ness comes from the ROW, never from the request. `userId` is the
+       * column that decides who owns this assessment and it was already
+       * checked by the ownership gate above; a guest is simply a row with
+       * none. Reading it from the caller would let anyone claim to be a guest
+       * and skip the name/age requirement on a school student's report.
+       */
+      const isGuest = !assessment.userId;
+
+      const missingComponents = collectMissingComponents(assessment, { isPremium, hasCvqResult, isGuest });
 
       if (missingComponents.length > 0) {
         return res.status(400).json({ 
