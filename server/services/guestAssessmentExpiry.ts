@@ -128,6 +128,44 @@ export function shouldRunSweep(lastRunAt: string | null, now: Date, throttleMs: 
  */
 const SWEEP_THROTTLE_MS = 30 * 60 * 1000;
 
+/**
+ * How long a silence stops being normal.
+ *
+ * THIS EXISTS BECAUSE THE SILENCE WAS ALREADY VISIBLE AND NOBODY SUBTRACTED.
+ * /health has always reported `lastRunAt`, and its own comment called a long
+ * gap "fine — no guest traffic has hit the trigger route". That is fine for
+ * the SWEEP. It is not fine for the DATA: the 72-hour window is a promise in
+ * the privacy policy, and a deletion that only happens when an unrelated
+ * stranger starts an assessment is not time-bound at all. On 2026-11-10
+ * production's last run was 2026-10-27 — fourteen days, not failing, just
+ * never triggered.
+ *
+ * Four hours is eight throttle intervals. Anything that pings /health even
+ * once every couple of hours keeps this false; a value this generous means a
+ * `true` is a real signal rather than a flapping one.
+ */
+export const SWEEP_STALE_AFTER_MS = 4 * 60 * 60 * 1000;
+
+/**
+ * Has the sweep stopped running? Pure, for the same reason shouldRunSweep is:
+ * it is the assertion a monitor acts on, and it must be testable without a
+ * database.
+ *
+ * Reads lastSuccessAt, NOT lastRunAt. A sweep failing every 30 minutes keeps
+ * lastRunAt fresh while deleting nothing, which is precisely the state that
+ * must not read as healthy.
+ */
+export function isSweepStale(
+  lastSuccessAt: string | null,
+  now: Date,
+  staleAfterMs: number = SWEEP_STALE_AFTER_MS,
+): boolean {
+  if (!lastSuccessAt) return true;
+  const last = new Date(lastSuccessAt).getTime();
+  if (Number.isNaN(last)) return true;
+  return now.getTime() - last >= staleAfterMs;
+}
+
 /** Single system_config row holding this process-independent, cross-instance status — see readSweepStatus. */
 const SWEEP_STATUS_CONFIG_KEY = "guest_assessment_sweep_status";
 

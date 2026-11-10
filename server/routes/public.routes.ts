@@ -40,9 +40,11 @@ export function registerPublicRoutes(app: Express) {
     // check lastError). Read from system_config, not in-process memory, so
     // it reflects every instance's last attempt, not just this one's.
     let guestSweep: Record<string, unknown> = { state: "unavailable" };
+    let sweepReadable = false;
     try {
-      const { readSweepStatus } = await import("../services/guestAssessmentExpiry");
+      const { readSweepStatus, isSweepStale } = await import("../services/guestAssessmentExpiry");
       const status = await readSweepStatus();
+      sweepReadable = true;
       guestSweep = {
         lastRunAt: status.lastRunAt,
         lastSuccessAt: status.lastSuccessAt,
@@ -50,6 +52,14 @@ export function registerPublicRoutes(app: Express) {
         // Presence only, not the message — this route stays non-disclosing,
         // same reasoning as the seed failure message above.
         lastAttemptFailed: status.lastError !== null,
+        // THE SUBTRACTION, DONE HERE RATHER THAN BY WHOEVER READS THIS.
+        // lastRunAt was always reported and the comment above used to call a
+        // long gap "fine". It is not fine: on 2026-11-10 the last run was
+        // 2026-10-27, not failing, just never triggered — and the privacy
+        // policy promises guest data is deleted within 72 hours. A boolean
+        // is something a monitor can alert on; a timestamp is something a
+        // human has to notice.
+        stale: isSweepStale(status.lastSuccessAt, new Date()),
       };
     } catch {
       // Reading the status is best-effort for this endpoint; its own
@@ -66,6 +76,39 @@ export function registerPublicRoutes(app: Express) {
     } catch (error) {
       console.error("Health check failed:", error);
       res.status(503).json({ status: "unhealthy", seed, guestSweep });
+    }
+
+    /**
+     * THE SECOND TRIGGER, and the one that does not depend on strangers.
+     *
+     * POST /api/assessments still carries the primary trigger and keeps its
+     * stated virtue — cleanup frequency tracking guest traffic. What that
+     * design missed is the other half: NO traffic means NO cleanup, and the
+     * 72-hour window is a promise in the privacy policy rather than a
+     * nice-to-have. Production proved it, sitting fourteen days without a
+     * sweep while reporting lastAttemptFailed: false.
+     *
+     * A health check is normally expected to be free of side effects, and
+     * this one deliberately is not. The trade is explicit: /health is the one
+     * request that arrives on a schedule whether or not anyone is using the
+     * product — uptime monitoring, the load balancer, Render itself — which
+     * is exactly the property a retention deadline needs and that guest
+     * traffic does not have. The alternatives were a boot-time sweep (tracks
+     * deploy cadence, no better) or external cron (infrastructure this repo
+     * does not have).
+     *
+     * Costs this route nothing: it runs AFTER the response is sent, is never
+     * awaited, never rejects, and the 30-minute throttle inside means a
+     * monitor pinging every 60 seconds performs one sweep an hour at most.
+     * It is also fired after the 503 branch on purpose — a failed `SELECT 1`
+     * is the moment cleanup matters most, and the sweep has its own error
+     * handling.
+     */
+    try {
+      const { sweepExpiredGuestAssessmentsIfDue } = await import("../services/guestAssessmentExpiry");
+      void sweepExpiredGuestAssessmentsIfDue();
+    } catch {
+      // Importing it must never turn a health check into a failure.
     }
   });
 

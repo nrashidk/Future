@@ -118,7 +118,7 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `org-admin`, `checkout-preflight`, `school-lock`, `webhook-idempotency`,
 `llm-gate`, `guest-claim`, `admin-writes`, `webhook-group-backstop`,
 `superadmin-writes`, `country-writes`, `setup-invite`, `school-setup-link`,
-`setup-stage`, `superadmin-delete-user`, `resend-webhook`, plus
+`setup-stage`, `superadmin-delete-user`, `resend-webhook`, `guest-sweep`, plus
 `migration-029-dryrun`, `migration-030-dryrun`, `migration-032-dryrun`,
 `migration-033-dryrun`, `migration-034-dryrun`, `migration-035-dryrun` and
 `migration-036-dryrun`.
@@ -603,6 +603,48 @@ chose to review would sit for ever with no one able to see it.
   baseline run. Both follow `assessments.is_completed`, which is what 029's
   backfill joins on — counting `completed_at` instead reports assessments as
   uncovered that the migration skipped on purpose.
+- **THE GUEST-DATA SWEEP ONLY RAN WHEN A STRANGER STARTED AN ASSESSMENT, and
+  production went fourteen days without one.** Found on 2026-11-10 by reading
+  `/health` on futurepath.ae: `lastRunAt` 2026-10-27, `lastAttemptFailed:
+  false`. Not broken — never triggered. The only call site was
+  `POST /api/assessments` (`assessment.routes.ts:665`), and its comment calls
+  that a virtue: "cleanup frequency tracks actual guest traffic". The other
+  half of that sentence is the defect — **no traffic means no cleanup**, so a
+  deadline that the privacy policy states as 72 hours depended on unrelated
+  people showing up. An unclaimed guest row holds an unaccompanied minor's
+  name, age, grade, gender and career-personality profile, which is the exact
+  thing `guestAssessmentExpiry.ts`'s own header says it exists to prevent.
+  **The silence was already visible and nobody subtracted.** `/health` had
+  always reported the raw timestamp, and the comment beside it called a long
+  gap "fine — no guest traffic has hit the trigger route". Fine for the SWEEP;
+  not fine for the DATA. So `isSweepStale` (pure, tested) now does the
+  subtraction and `/health` reports `stale` as a BOOLEAN a monitor can alert
+  on. It reads `lastSuccessAt`, never `lastRunAt`: a sweep failing every 30
+  minutes keeps `lastRunAt` fresh while deleting nothing, and that state is
+  the one shaped most like success.
+  `/health` now ALSO TRIGGERS the sweep, fire-and-forget after the response.
+  A health check is normally expected to be side-effect-free and this one
+  deliberately is not: it is the one request that arrives on a schedule
+  whether or not anyone is using the product (uptime monitoring, the load
+  balancer, Render itself), which is the property a retention deadline needs
+  and guest traffic does not have. The 30-minute throttle means a monitor
+  pinging every 60 seconds sweeps at most once an hour. The assessment-route
+  trigger is KEPT — two independent triggers, not a replacement.
+  `guest-sweep.mjs` (8 cases). **GS-05 is the one that matters**: a moved
+  timestamp proves the trigger ran, only a deleted row proves it did anything,
+  so GS-05 plants a guest assessment 100 hours old and asserts the row is
+  GONE after a single `/health` ping. GS-06 is its control — a 2-hour-old one
+  must survive, or GS-05 would pass against a sweep that deletes everything.
+  Mutation-tested by removing the `/health` call: GS-02, GS-03 and GS-05 fail.
+  **The suite waits 2.5s before its first fixture, and that is not padding.**
+  On a FRESH `.pgdata` there is no stored status, so GS-00's own `/health`
+  ping starts a sweep that nothing throttles; it writes a fresh timestamp a
+  moment later and lands on top of GS-01's stale fixture, failing GS-01, GS-02
+  and GS-03 against a product that works. It passed on a dirty database
+  because an existing status throttled that sweep away.
+  **Still unknown and needs a database look:** whether expired guest rows were
+  actually sitting in production during those fourteen days. No superadmin
+  endpoint exposes guest assessments.
 - Four completed assessments in production have no ledger row and that is
   correct: they are GUEST assessments with a null `user_id`, so there is no
   pool to charge. A guest is not billed, is bounded by

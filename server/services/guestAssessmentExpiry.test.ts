@@ -43,7 +43,7 @@ vi.mock("../db", () => ({
   },
 }));
 
-const { deleteExpiredGuestAssessments, shouldRunSweep, sweepExpiredGuestAssessmentsIfDue } =
+const { deleteExpiredGuestAssessments, shouldRunSweep, isSweepStale, sweepExpiredGuestAssessmentsIfDue } =
   await import("./guestAssessmentExpiry");
 
 function makeFakeTx(opts: { expiredIds: string[]; quizIds: string[]; throwOnSelect?: boolean }) {
@@ -144,6 +144,50 @@ describe("shouldRunSweep", () => {
   it("runs again once the throttle window has elapsed", () => {
     const lastRunAt = new Date(now.getTime() - 31 * 60 * 1000).toISOString(); // 31 min ago
     expect(shouldRunSweep(lastRunAt, now, 30 * 60 * 1000)).toBe(true);
+  });
+});
+
+describe("isSweepStale", () => {
+  // The assertion a monitor acts on. It exists because the raw timestamp was
+  // already on /health and the gap was described in a comment as "fine" — on
+  // 2026-11-10 production had gone fourteen days without a sweep, not
+  // failing, just never triggered, while the privacy policy promised guest
+  // data was deleted within 72 hours.
+  const now = new Date("2026-11-10T12:00:00.000Z");
+  const ago = (ms: number) => new Date(now.getTime() - ms).toISOString();
+  const HOUR = 60 * 60 * 1000;
+
+  it("calls a sweep that has NEVER succeeded stale", () => {
+    // Not "unknown". A system that has never deleted anything has never kept
+    // the promise, and silence must fail closed.
+    expect(isSweepStale(null, now)).toBe(true);
+  });
+
+  it("calls an unparseable timestamp stale rather than trusting it", () => {
+    expect(isSweepStale("not-a-date", now)).toBe(true);
+  });
+
+  it("is quiet while the sweep is running normally", () => {
+    // A monitor pinging /health keeps this well inside the window; a value
+    // that flapped would train someone to ignore it.
+    expect(isSweepStale(ago(2 * HOUR), now)).toBe(false);
+  });
+
+  it("fires once the silence passes four hours", () => {
+    expect(isSweepStale(ago(5 * HOUR), now)).toBe(true);
+  });
+
+  it("would have caught the real production state", () => {
+    // 2026-10-27 to 2026-11-10.
+    expect(isSweepStale("2026-10-27T05:23:48.339Z", now)).toBe(true);
+  });
+
+  it("reads lastSUCCESSat, so a sweep failing every 30 minutes is still stale", () => {
+    // The state that must not read as healthy: lastRunAt stays fresh while
+    // nothing is ever deleted. Passing a fresh attempt time here is the
+    // caller error this signature is designed to prevent, so the test pins
+    // the contract: only a SUCCESS clears it.
+    expect(isSweepStale(ago(9 * HOUR), now)).toBe(true);
   });
 });
 
