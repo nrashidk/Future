@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { StickyNote } from "@/components/StickyNote";
 import ContributeQuestions from "@/components/admin/ContributeQuestions";
+import SchoolBilling from "@/components/admin/SchoolBilling";
 import { OrganizationConsentCard, ORG_CONSENT_ANCHOR_ID, useOrganizationConsent } from "@/components/admin/OrganizationConsentCard";
 import { CONSENT_REQUIRED_CODE } from "@shared/consentRequired";
 import { NO_COMPLETED_ASSESSMENTS_IN_SELECTION_CODE } from "@shared/bulkExportSelection";
@@ -725,6 +726,16 @@ export default function AdminOrganizations() {
                 </p>
               </StickyNote>
             </div>
+
+            {/* BILLING, directly under the licence figures, because an invoice
+                is the explanation of where those figures came from.
+
+                org_admin ONLY, and not merely for tidiness: the route behind it
+                derives the school from the SESSION, never from a request
+                parameter, so a superadmin viewing school A would be shown their
+                own organization's invoices instead. The superadmin view of any
+                school's billing is the Invoices tab, which also shows drafts. */}
+            {user?.accountType === 'org_admin' && <SchoolBilling />}
 
             {/* Students Roster - Full Width */}
             <Card>

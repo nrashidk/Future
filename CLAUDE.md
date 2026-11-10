@@ -1161,6 +1161,47 @@ chose to review would sit for ever with no one able to see it.
   `RESEND_WEBHOOK_SECRET` the setup-invite delivery tracking needs. Until
   both, every invoice delivery status stays null, which is indistinguishable
   from a working webhook with nothing to report.
+- **THE TWO INVOICE SCREENS ARE BUILT** — a superadmin Invoices tab
+  (`InvoiceManagement.tsx`, beside Licences, because an invoice marked paid IS
+  a licence grant) and a school-side Billing card (`SchoolBilling.tsx`, under
+  the licence figures on the roster page, org_admin ONLY).
+  The school card is gated on `accountType === 'org_admin'` not for tidiness:
+  `/api/my-organization/invoices` derives the school from the SESSION, so a
+  superadmin viewing school A would be shown their OWN organization's
+  invoices.
+  **THE PRICE IS NOT AN INPUT.** The raise dialog QUOTES from
+  `/api/pricing/quote` before anything is written, so the figure on screen and
+  the figure a buyer would be charged come from one calculation. Its parameter
+  is `students`, NOT `studentCount` — the route defaults to 1 on a wrong name,
+  so a 500-licence order would silently quote one licence's price.
+  **OVERDUE IS DERIVED, never stored.** Nothing has to be swept at midnight,
+  and a stored column would be wrong between sweeps.
+  **TWO FAULTS FOUND BY LOOKING AT THE RENDERED PAGE, neither visible in the
+  code and neither caught by tsc or any test:**
+  - The school card read `outstandingMinor`, the SUPERADMIN route's name for
+    the figure; the school route answers `awaitingMinor`. The value came back
+    undefined, `?? 0` turned it into zero, and the card announced **"Awaiting
+    payment AED 0.00" directly above a table listing AED 17,000.00 awaiting
+    payment.** Now read with a typeof check — absent means the tile is not
+    drawn, because a missing number must not render as a confident zero on a
+    screen about money — and `invoices.mjs` V-18 pins the field name and its
+    arithmetic so a rename breaks a test rather than a screen.
+  - **ISO DATES REVERSE UNDER ARABIC.** The bidi algorithm reorders runs of
+    neutral characters, and a date is nothing but digits and hyphens, so
+    `2026-11-10` rendered as `10-11-2026` — a DIFFERENT DATE to anyone reading
+    day-month-year, on a screen about when money is due. `−10%` came out as
+    `10%−` the same way. Fixed with U+2066/U+2069 isolates inside `dateOnly`
+    rather than a wrapper element, because these go into translated sentences
+    ("Issued {{date}}") where there is nothing to wrap and splitting the
+    sentence would make it untranslatable.
+  **Locale keys follow the repo's plural convention**: a BASE key beside the
+  `_one`/`_other` (and Arabic `_two`/`_few`/`_many`) suffixes, as
+  `assessment.json`'s `subjects.selected` does. Without the base,
+  `i18nKeys.test.ts` fails — and that test is right to: it checks the literal
+  a component passes.
+  **Deliberately NOT built:** the purchase-order field from the approved
+  mockup. It needs its own column and its own place on the document, and
+  working rule 4 says that is its own commit.
 - **A SUPERADMIN CAN NOW DELETE AN ACCOUNT — there was no way to, before
     2026-11-10.** The only deletion path in the product was
     `DELETE /api/users/me`, self-service erasure needing that account's own

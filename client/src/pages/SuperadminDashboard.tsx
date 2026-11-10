@@ -29,6 +29,7 @@ import { SCORING_ESTATE_STATES, type ScoringEstateState } from "@shared/schema";
 import ScoringConfigEditor from "@/components/admin/ScoringConfigEditor";
 import CountryManagement from "@/components/admin/CountryManagement";
 import LicenseAnalytics from "@/components/admin/LicenseAnalytics";
+import InvoiceManagement from "@/components/admin/InvoiceManagement";
 import ContributionReviewQueue from "@/components/admin/ContributionReviewQueue";
 import SubjectManagement from "@/components/admin/SubjectManagement";
 import TranslationManager from "@/components/admin/TranslationManager";
@@ -1085,6 +1086,12 @@ export default function SuperadminDashboard() {
             <TabsTrigger value="licenses" data-testid="tab-licenses">
               {t('superadmin.tabLicenses')}
             </TabsTrigger>
+            {/* Beside Licences, because an invoice marked paid IS a licence
+                grant — the two tabs read as one subject, and the figures on
+                Licences move the moment something here is settled. */}
+            <TabsTrigger value="invoices" data-testid="tab-invoices">
+              {t('invoices.tab')}
+            </TabsTrigger>
             <TabsTrigger value="activity" data-testid="tab-activity">{t('superadmin.tabActivity')}</TabsTrigger>
             <TabsTrigger value="files" data-testid="tab-files">
               {t('superadmin.tabFiles')}
@@ -1865,6 +1872,10 @@ export default function SuperadminDashboard() {
 
           <TabsContent value="licenses" className="space-y-4">
             <LicenseAnalytics />
+          </TabsContent>
+
+          <TabsContent value="invoices" className="space-y-4">
+            <InvoiceManagement />
           </TabsContent>
 
           <TabsContent value="countries" className="space-y-4">

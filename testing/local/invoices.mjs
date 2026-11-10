@@ -373,6 +373,30 @@ try {
       r.status === 403 && (r.body?.invoices ?? undefined) === undefined,
       `HTTP ${r.status} invoices=${r.body?.invoices ? "LEAKED" : "absent"}`);
   }
+
+  // --------------------------------------------------------------------- V-18
+  // THE FIELD NAMES, asserted because a screen read the wrong ones.
+  //
+  // The school route answers `awaitingMinor`; the superadmin route answers
+  // `outstandingMinor`. SchoolBilling.tsx read the superadmin's name, got
+  // undefined, and `?? 0` rendered "Awaiting payment AED 0.00" above a table
+  // listing AED 17,000.00 awaiting payment. Nothing failed — not tsc, not a
+  // test, not the server. Only looking at the page found it.
+  //
+  // So the name and the arithmetic are both pinned here: a rename on either
+  // side now breaks a test rather than a screen.
+  {
+    const r = await A.session.get("/api/my-organization/invoices");
+    const rows = r.body?.invoices ?? [];
+    const expected = rows.filter((i) => i.status === "issued")
+      .reduce((n, i) => n + i.totalMinor, 0);
+    const got = r.body?.awaitingMinor;
+    const currencies = r.body?.awaitingCurrencies;
+    rec("V-18", "the school route answers awaitingMinor, and it matches its own rows",
+      typeof got === "number" && got === expected && Array.isArray(currencies)
+        && expected > 0,
+      `awaitingMinor=${got} expected=${expected} currencies=${JSON.stringify(currencies)}`);
+  }
 } finally {
   for (const id of made) { try { await sql(`DELETE FROM invoices WHERE id = $1`, [id]); } catch {} }
 }
