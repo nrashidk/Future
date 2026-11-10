@@ -39,6 +39,11 @@ export default function PrivacyPolicy() {
               <li>{t("privacy.s2li1")}</li>
               <li>{t("privacy.s2li2")}</li>
               <li>{t("privacy.s2li3")}</li>
+              {/* Consent evidence. organization_consents really does store the
+                  attester's name, email, IP and user agent alongside a hash of
+                  the wording — it is the record a school's attestation rests
+                  on — and none of that was disclosed here. */}
+              <li>{t("privacy.s2li4")}</li>
             </ul>
             <p className="text-muted-foreground font-body">{t("privacy.s2note")}</p>
           </section>
