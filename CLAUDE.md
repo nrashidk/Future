@@ -120,9 +120,10 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `superadmin-writes`, `country-writes`, `setup-invite`, `school-setup-link`,
 `setup-stage`, `superadmin-delete-user`, `resend-webhook`, `guest-sweep`,
 `guest-identity`, `invoices`, `invoice-pdf`, plus
+`invoice-send`, plus
 `migration-029-dryrun`, `migration-030-dryrun`, `migration-032-dryrun`,
 `migration-033-dryrun`, `migration-034-dryrun`, `migration-035-dryrun`,
-`migration-036-dryrun` and `migration-037-dryrun`.
+`migration-036-dryrun`, `migration-037-dryrun` and `migration-038-dryrun`.
 
 `webhook-idempotency`, `webhook-group-backstop` and `setup-invite` need two
 environment
@@ -137,8 +138,8 @@ STRIPE_SECRET_KEY=sk_test_dummy STRIPE_WEBHOOK_SECRET=whsec_localtestsecret \
   node testing/local/webhook-idempotency.mjs
 ```
 
-`resend-webhook` needs `RESEND_WEBHOOK_SECRET` the same way, on `up.ts` AND on
-itself, and refuses to run without it — the route answers 503 with no secret,
+`resend-webhook` and `invoice-send` need `RESEND_WEBHOOK_SECRET` the same way,
+on `up.ts` AND on themselves, and refuse to run without it — the route answers 503 with no secret,
 so every case would "pass" against a handler it never reached:
 
 ```
@@ -168,6 +169,11 @@ no ledger row. Reconciliation then correctly flags a state that only exists
 here. Any suite that asserts on reconciliation needs to do the same.
 `testing/local/README.md` has the details.
 
+`invoice-send` needs, on `up.ts`, the five `INVOICE_*` supplier variables as
+well — the send route refuses with `SUPPLIER_DETAILS_MISSING` rather than
+mailing a school a bill carrying `[YOUR IBAN]`, so without them E-06 onward
+fail for that reason and not a real one.
+
 `invoice-pdf` needs a Chromium: `PUPPETEER_EXECUTABLE_PATH` on `up.ts`, the
 same one `report.mjs` needs. It reads every response as BYTES — `res.text()`
 on a PDF reports a valid `%PDF` header and ~200 bytes for a megabyte file —
@@ -185,6 +191,14 @@ invoice transition guard let a DRAFT be marked paid, and
 `invoices_issued_has_date` should have refused that row at the database and
 did not. **Declare checks in BOTH places, with the same constraint name** so
 `db:push` sees no drift; `invoices` and `organization_members` both do.
+
+**THE SAME IS TRUE OF INDEXES, and one was missing.** Found on 2026-11-10 by
+inserting two rows: `school_setup_tokens_provider_msg_idx` (unique, partial)
+existed only in `036.sql`, so production refused a duplicate
+`provider_message_id` with 23505 and the harness accepted it. Every assertion
+in `resend-webhook.mjs` had been passing against a table more permissive than
+the real one. Both tables that carry delivery columns now declare the index on
+the drizzle table too, with `.where()` matching the .sql exactly.
 
 **`server/migrations/` is for migrations and nothing else.** The runner
 applies EVERY `.sql` file in that directory at boot and records it as applied,
@@ -1089,7 +1103,65 @@ chose to review would sit for ever with no one able to see it.
     `resend-webhook` (11), `migration-036-dryrun` (8), plus
     `schoolSetupStage.test.ts` (11), `emailDelivery.test.ts` (17) and
     `email.schoolSetup.test.ts` (5).
-  - **A SUPERADMIN CAN NOW DELETE AN ACCOUNT — there was no way to, before
+  - **THE INVOICE IS NOW EMAILED, WITH THE PDF ATTACHED** (migration 038,
+  `POST /api/superadmin/invoices/:id/send`). 037 gave the invoice a number,
+  figures and a lifecycle but no way to record that it had been SENT to
+  anyone, which leaves the chase conversation unanswerable: a school that has
+  not paid and a school that never received the bill look identical from this
+  end, and only one of them is ignoring you.
+  `email_sent_at` is deliberately NOT `issued_at` — an invoice can be issued
+  and handed over on paper, or issued now and emailed a week later, so one
+  column cannot express "issued but never emailed", which is the state worth
+  seeing. The four delivery columns are IDENTICAL to `school_setup_tokens`' in
+  name and meaning, joined on the provider's message id and written by the
+  SAME Resend webhook under the same forward-only rule
+  (`shared/emailDelivery.ts`) — the route falls through to `invoices` when a
+  message id matches no setup token. One handler, because the rule is the part
+  that must not drift. **Null still means UNKNOWN, not failed.**
+  The PDF is ATTACHED, never linked: a finance officer forwards the attachment
+  to whoever releases the payment, and a link would send that person to a
+  login they do not have. No pay button — settlement is a bank transfer and
+  the details are on the document.
+  **A DRAFT IS REFUSED**, because emailing one is what issuing means; so is a
+  cancelled invoice. The recipient is the invoice's own `bill_to_email`, then
+  the school's registered administrator, and an explicit `email` in the body
+  overrides both — **and an override is NOT written back**, or the rendered PDF
+  and the row would disagree about who was billed. A resend is allowed, unlike
+  the setup link's, and `email_sent_count` is what tells a superadmin whether
+  chasing has already happened.
+  **THE SEND REFUSES OUTRIGHT WHEN THE SUPPLIER'S PAYMENT DETAILS ARE UNSET**
+  (`SUPPLIER_DETAILS_MISSING`). The payment panel is the one part of this
+  document a school acts on, and a bill carrying `[YOUR IBAN]` into a finance
+  inbox is worse than no bill — it cannot be paid, and it gets a supplier
+  queried rather than settled. **Still needs setting on Render:**
+  `INVOICE_ADDRESS`, `INVOICE_BANK_NAME`, `INVOICE_BANK_ACCOUNT_NAME`,
+  `INVOICE_IBAN`, `INVOICE_SWIFT` — and `INVOICE_TRN` ONLY once VAT
+  registration is actually in effect, since that one variable is what turns a
+  proforma into a tax invoice.
+  **A REAL DEFECT CAUGHT BY MUTATION, and it was mine.** A log-only
+  environment answers `{ success: true, messageId: "dev-mode-no-email" }`, and
+  storing that sentinel in `provider_message_id` fills the one slot the unique
+  index allows — so **exactly ONE invoice per database could ever be emailed**,
+  and every send after the first answered 500 for a mail that had in fact gone
+  out. `sendSchoolSetupInvite` had the same shape, where its own outer catch
+  rendered it as "could not send". `providerMessageIdOrNull`
+  (`shared/emailDelivery.ts`, 5 tests) is now called at every site that writes
+  one; never `?? null`. Reverting it fails E-06 through E-09.
+  Suites: `invoice-send` (13), `migration-038-dryrun` (9). **E-07 is the case
+  that matters** (a resend does not collide); **E-12 is the control** — a
+  bounce for an invoice must touch no setup token, or a fall-through that wrote
+  both tables would pass everything above it. Removing the fall-through fails
+  E-10, E-11 and E-12.
+  **Not covered:** that a real provider message id is captured from the send
+  (no provider offline, so E-10 onward plant the id in SQL), and the
+  supplier-details refusal, which reads the environment the server booted with
+  and so cannot be toggled from a suite — `supplierDetailsMissing` is
+  unit-tested and the branch is two lines.
+  **Also needs doing on the Resend side:** the same endpoint registration and
+  `RESEND_WEBHOOK_SECRET` the setup-invite delivery tracking needs. Until
+  both, every invoice delivery status stays null, which is indistinguishable
+  from a working webhook with nothing to report.
+- **A SUPERADMIN CAN NOW DELETE AN ACCOUNT — there was no way to, before
     2026-11-10.** The only deletion path in the product was
     `DELETE /api/users/me`, self-service erasure needing that account's own
     password, so a test purchase or a checkout that stranded a premium account

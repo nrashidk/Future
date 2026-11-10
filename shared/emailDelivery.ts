@@ -118,3 +118,33 @@ export function isUndeliverable(status: string | null | undefined): boolean {
 export function isDelivered(status: string | null | undefined): boolean {
   return status === "delivered";
 }
+
+/**
+ * THE SENTINEL A LOG-ONLY ENVIRONMENT RETURNS INSTEAD OF A MESSAGE ID.
+ *
+ * `sendEmail` and its siblings answer `{ success: true, messageId:
+ * "dev-mode-no-email" }` when no Resend key is configured, so a route can
+ * treat development as a successful send. That value is NOT a provider message
+ * id and must never be stored in a column whose only purpose is to join real
+ * Resend events: no event can ever carry it, and it occupies the one slot a
+ * UNIQUE index allows — so the SECOND mail of a run collides with 23505, which
+ * `sendSchoolSetupInvite`'s outer catch then reports as "could not send" for a
+ * mail that was in fact sent.
+ */
+export const LOG_ONLY_MESSAGE_ID = "dev-mode-no-email";
+
+/**
+ * Null unless this is a real provider message id.
+ *
+ * Called at every site that WRITES one, rather than at the one place that
+ * produces it, because the sentinel is part of the send result's contract: a
+ * route may want to know the send was accepted while the id is not something
+ * to persist. Returning null is the honest value — nothing is known about
+ * delivery, which is exactly what null means everywhere else here.
+ */
+export function providerMessageIdOrNull(messageId: string | null | undefined): string | null {
+  if (typeof messageId !== "string") return null;
+  const trimmed = messageId.trim();
+  if (trimmed.length === 0) return null;
+  return trimmed === LOG_ONLY_MESSAGE_ID ? null : trimmed;
+}

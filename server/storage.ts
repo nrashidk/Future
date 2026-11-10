@@ -3648,6 +3648,70 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
+  /**
+   * Records that the invoice was emailed, and to which provider message.
+   *
+   * SAME SHAPE AS markSchoolSetupTokenSent, for the same reason: a resend
+   * OVERWRITES the message id and CLEARS the delivery columns. The status
+   * describes the message currently in flight, so leaving the previous
+   * attempt's bounce in place would have the superadmin surface report an old
+   * failure against a new mail and send someone chasing a problem that has
+   * already been dealt with.
+   *
+   * `emailSentCount` increments in SQL rather than from a read: two sends
+   * racing would otherwise both write 1.
+   */
+  async markInvoiceEmailed(id: string, providerMessageId?: string | null): Promise<void> {
+    await db
+      .update(invoices)
+      .set({
+        emailSentAt: new Date(),
+        emailSentCount: sql`${invoices.emailSentCount} + 1`,
+        providerMessageId: providerMessageId ?? null,
+        deliveryStatus: null,
+        deliveryStatusAt: null,
+        deliveryDetail: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(invoices.id, id));
+  }
+
+  /**
+   * Applies one Resend delivery event to an INVOICE.
+   *
+   * Identical rule and identical single-statement shape as
+   * recordSetupEmailDelivery — the forward-only WHERE clause, not a read
+   * before the write — because `email.sent` and `email.delivered` travel
+   * separately and either order is ordinary. Two tables rather than one
+   * because an invoice and a setup link are different things with different
+   * lifecycles; the RULE is shared in shared/emailDelivery.ts, which is the
+   * part that must not drift.
+   */
+  async recordInvoiceEmailDelivery(args: {
+    providerMessageId: string;
+    status: EmailDeliveryStatus;
+    at: Date;
+    detail?: string | null;
+  }): Promise<boolean> {
+    const blocked = blockingStatuses(args.status);
+    const moved = await db
+      .update(invoices)
+      .set({
+        deliveryStatus: args.status,
+        deliveryStatusAt: args.at,
+        deliveryDetail: args.detail ?? null,
+      })
+      .where(and(
+        eq(invoices.providerMessageId, args.providerMessageId),
+        or(
+          isNull(invoices.deliveryStatus),
+          notInArray(invoices.deliveryStatus, blocked),
+        ),
+      ))
+      .returning({ id: invoices.id });
+    return moved.length > 0;
+  }
+
   async claimStripeWebhookEvent(eventId: string, eventType: string): Promise<boolean> {
     const claimed = await db
       .insert(stripeWebhookEvents)

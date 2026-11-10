@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { LOG_ONLY_MESSAGE_ID } from "@shared/emailDelivery";
 
 const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
@@ -355,7 +356,7 @@ export async function sendGuestReportRecoveryEmail(
       return { success: false, error: "Email service not configured. Please contact support." };
     }
     console.warn("[Email] Resend not configured. Recovery email would be sent to:", to);
-    return { success: true, messageId: "dev-mode-no-email" };
+    return { success: true, messageId: LOG_ONLY_MESSAGE_ID };
   }
 
   const isAr = language === "ar";
@@ -530,7 +531,7 @@ export async function sendSchoolSetupEmail(args: {
       return { success: false, error: "Email service not configured." };
     }
     console.warn("[Email] Resend not configured. School setup email would be sent to:", args.to);
-    return { success: true, messageId: "dev-mode-no-email" };
+    return { success: true, messageId: LOG_ONLY_MESSAGE_ID };
   }
 
   const baseUrl = process.env.APP_URL || "https://futurepath.ae";
@@ -590,7 +591,7 @@ export async function sendPasswordResetEmail(
     }
     console.warn("[Email] Resend not configured. Email would be sent to:", to);
     console.warn("[Email] Configure RESEND_API_KEY for actual email delivery");
-    return { success: true, messageId: "dev-mode-no-email" };
+    return { success: true, messageId: LOG_ONLY_MESSAGE_ID };
   }
 
   const baseUrl = process.env.APP_URL || "https://futurepath.ae";
@@ -752,4 +753,177 @@ export function isEmailConfigured(): boolean {
  */
 export function isLogOnlyMailEnvironment(): boolean {
   return process.env.NODE_ENV === "development";
+}
+
+/**
+ * THE INVOICE EMAIL.
+ *
+ * THE PDF IS ATTACHED, NOT LINKED. A finance officer forwards the attachment
+ * to whoever releases the payment, and a link would send that person to a
+ * login they do not have. The same document is still downloadable from the
+ * school's Billing screen; the attachment is what makes the email usable on
+ * its own.
+ *
+ * NO BUTTON TO PAY. Settlement is a bank transfer and the account details are
+ * on the PDF. A call-to-action that cannot take money teaches a reader that
+ * our buttons do nothing.
+ *
+ * The amount and the due date are in the BODY as well as the attachment: a
+ * reader triaging an inbox on a phone decides from the preview text whether
+ * this needs opening today.
+ */
+export function buildInvoiceHtmlEmail(args: {
+  invoiceNumber: string;
+  organizationName: string;
+  amountLabel: string;
+  dueLabel: string | null;
+  licenseCount: number;
+  isProforma: boolean;
+  language: string;
+}): string {
+  const isAr = args.language === "ar";
+  const font = emailFont(args.language);
+  const docName = args.isProforma
+    ? (isAr ? "فاتورة مبدئية" : "proforma invoice")
+    : (isAr ? "فاتورة ضريبية" : "tax invoice");
+
+  const body = isAr
+    ? `
+      <p style="margin:0 0 16px;font-size:16px;line-height:1.8">
+        مرفق ${docName} رقم <strong dir="ltr">${escapeHtml(args.invoiceNumber)}</strong>
+        لـ ${escapeHtml(args.organizationName)}.
+      </p>
+      <table role="presentation" style="width:100%;border-collapse:collapse;margin:0 0 18px;font-size:15px">
+        <tr><td style="padding:6px 0;color:#57534e">التراخيص</td><td style="padding:6px 0;text-align:left"><strong>${args.licenseCount}</strong></td></tr>
+        <tr><td style="padding:6px 0;color:#57534e">المبلغ</td><td style="padding:6px 0;text-align:left"><strong>${escapeHtml(args.amountLabel)}</strong></td></tr>
+        ${args.dueLabel ? `<tr><td style="padding:6px 0;color:#57534e">تاريخ الاستحقاق</td><td style="padding:6px 0;text-align:left"><strong>${escapeHtml(args.dueLabel)}</strong></td></tr>` : ""}
+      </table>
+      <p style="margin:0 0 16px;font-size:15px;line-height:1.8">
+        تفاصيل التحويل البنكي مذكورة في المرفق. يُرجى ذكر رقم الفاتورة كمرجع للتحويل،
+        وتُضاف التراخيص إلى حساب المدرسة فور استلام التحويل.
+      </p>`
+    : `
+      <p style="margin:0 0 16px;font-size:16px;line-height:1.7">
+        Attached is ${docName} <strong dir="ltr">${escapeHtml(args.invoiceNumber)}</strong>
+        for ${escapeHtml(args.organizationName)}.
+      </p>
+      <table role="presentation" style="width:100%;border-collapse:collapse;margin:0 0 18px;font-size:15px">
+        <tr><td style="padding:6px 0;color:#57534e">Licences</td><td style="padding:6px 0;text-align:right"><strong>${args.licenseCount}</strong></td></tr>
+        <tr><td style="padding:6px 0;color:#57534e">Amount</td><td style="padding:6px 0;text-align:right"><strong>${escapeHtml(args.amountLabel)}</strong></td></tr>
+        ${args.dueLabel ? `<tr><td style="padding:6px 0;color:#57534e">Payment due</td><td style="padding:6px 0;text-align:right"><strong>${escapeHtml(args.dueLabel)}</strong></td></tr>` : ""}
+      </table>
+      <p style="margin:0 0 16px;font-size:15px;line-height:1.7">
+        Bank transfer details are on the attachment. Please quote the invoice number
+        as the transfer reference; licences are added to the school's account once
+        the transfer is received.
+      </p>`;
+
+  return stickyLayout({
+    language: args.language,
+    title: args.invoiceNumber,
+    heading: isAr ? `فاتورة ${args.invoiceNumber}` : `Invoice ${args.invoiceNumber}`,
+    body,
+    color: "stickyYellow",
+  });
+}
+
+export function buildInvoiceTextEmail(args: {
+  invoiceNumber: string;
+  organizationName: string;
+  amountLabel: string;
+  dueLabel: string | null;
+  licenseCount: number;
+  language: string;
+}): string {
+  const isAr = args.language === "ar";
+  const lines = isAr
+    ? [
+      `فاتورة ${args.invoiceNumber} — ${args.organizationName}`,
+      ``,
+      `التراخيص: ${args.licenseCount}`,
+      `المبلغ: ${args.amountLabel}`,
+      ...(args.dueLabel ? [`تاريخ الاستحقاق: ${args.dueLabel}`] : []),
+      ``,
+      `الفاتورة مرفقة بصيغة PDF وتتضمن تفاصيل التحويل البنكي.`,
+      `يُرجى ذكر ${args.invoiceNumber} كمرجع للتحويل.`,
+    ]
+    : [
+      `Invoice ${args.invoiceNumber} — ${args.organizationName}`,
+      ``,
+      `Licences: ${args.licenseCount}`,
+      `Amount: ${args.amountLabel}`,
+      ...(args.dueLabel ? [`Payment due: ${args.dueLabel}`] : []),
+      ``,
+      `The invoice is attached as a PDF and carries the bank transfer details.`,
+      `Please quote ${args.invoiceNumber} as the transfer reference.`,
+    ];
+  return lines.join("\n");
+}
+
+/**
+ * Sends it, with the PDF attached.
+ *
+ * Returns the provider's message id on success, because that is what the
+ * Resend delivery webhook joins back on. Without it every later bounce or
+ * delivery event matches no row and the column stays null — indistinguishable
+ * from an unconfigured webhook.
+ */
+export async function sendInvoiceEmail(args: {
+  to: string;
+  invoiceNumber: string;
+  organizationName: string;
+  amountLabel: string;
+  dueLabel: string | null;
+  licenseCount: number;
+  isProforma: boolean;
+  pdf: Buffer;
+  language?: string;
+}): Promise<EmailResult> {
+  const language = args.language ?? "en";
+  if (!resend) {
+    if (!isLogOnlyMailEnvironment()) {
+      // LOUD: a school is waiting for a bill it will never receive, and from
+      // this end that is indistinguishable from a school declining to pay.
+      console.error(
+        `[Email] RESEND_API_KEY is not configured. INVOICE ${args.invoiceNumber} NOT sent to ` +
+        `${args.to} for "${args.organizationName}". Needs manual attention.`,
+      );
+      return { success: false, error: "Email service not configured." };
+    }
+    console.warn("[Email] Resend not configured. Invoice email would be sent to:", args.to);
+    return { success: true, messageId: LOG_ONLY_MESSAGE_ID };
+  }
+
+  const isAr = language === "ar";
+  const subject = isAr
+    ? `فاتورة ${args.invoiceNumber} — ${args.organizationName}`
+    : `Invoice ${args.invoiceNumber} — ${args.organizationName}`;
+
+  try {
+    const { data, error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: [args.to],
+      replyTo: REPLY_TO_EMAIL,
+      subject,
+      html: buildInvoiceHtmlEmail({ ...args, language }),
+      text: buildInvoiceTextEmail({ ...args, language }),
+      attachments: [{
+        // The invoice NUMBER as the filename, not a uuid: this lands in a
+        // finance folder beside a dozen others and has to be findable.
+        filename: `${args.invoiceNumber}.pdf`,
+        content: args.pdf,
+      }],
+    });
+
+    if (error) {
+      console.error(`[Email] Failed to send invoice ${args.invoiceNumber}:`, error);
+      return { success: false, error: error.message };
+    }
+    console.log(`[Email] Invoice ${args.invoiceNumber} sent:`, data?.id);
+    return { success: true, messageId: data?.id };
+  } catch (err) {
+    const error = err as Error;
+    console.error(`[Email] Error sending invoice ${args.invoiceNumber}:`, error);
+    return { success: false, error: error.message };
+  }
 }

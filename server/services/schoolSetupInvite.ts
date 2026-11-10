@@ -1,4 +1,5 @@
 import { storage } from "../storage";
+import { providerMessageIdOrNull } from "@shared/emailDelivery";
 import { sendSchoolSetupEmail } from "./email";
 import { toMajor } from "@shared/pricing";
 
@@ -106,7 +107,11 @@ export async function sendSchoolSetupInvite(args: {
     // on. Without it every later bounce or delivery event matches no row and
     // the column stays null — indistinguishable from "the webhook is not
     // configured", which is the exact ambiguity this was built to end.
-    await storage.markSchoolSetupTokenSent(token, result.messageId ?? null);
+    // providerMessageIdOrNull, never `?? null`: a log-only environment answers
+    // with a fixed sentinel that is not a provider id, and storing it fills the
+    // one slot the unique index allows — the second mail of a run then fails
+    // with 23505 and this function's own catch reports a sent mail as unsent.
+    await storage.markSchoolSetupTokenSent(token, providerMessageIdOrNull(result.messageId));
     console.log(`[SetupInvite] Setup link sent to ${args.email} for "${args.organizationName}".`);
     return { sent: true };
   } catch (error: any) {

@@ -6,6 +6,7 @@
 import { describe, it, expect } from "vitest";
 import {
   statusFromProviderEvent, shouldAdvance, blockingStatuses, isUndeliverable, isDelivered,
+  providerMessageIdOrNull, LOG_ONLY_MESSAGE_ID,
 } from "./emailDelivery";
 
 describe("statusFromProviderEvent", () => {
@@ -125,5 +126,39 @@ describe("isUndeliverable / isDelivered", () => {
     expect(isDelivered("delivered")).toBe(true);
     expect(isDelivered("sent")).toBe(false);
     expect(isDelivered(null)).toBe(false);
+  });
+});
+
+/**
+ * THE LOG-ONLY SENTINEL. These exist because storing it is a 23505 waiting for
+ * the second mail of a run, and the failure surfaces as "could not send" for a
+ * mail that was sent — found on 2026-11-10 while adding the invoices' copy of
+ * the unique index.
+ */
+describe("providerMessageIdOrNull", () => {
+  it("keeps a real Resend id", () => {
+    expect(providerMessageIdOrNull("4ef9a417-02e9-4d39-ad75-9611e0e73a05"))
+      .toBe("4ef9a417-02e9-4d39-ad75-9611e0e73a05");
+  });
+
+  it("DISCARDS the log-only sentinel", () => {
+    expect(providerMessageIdOrNull(LOG_ONLY_MESSAGE_ID)).toBeNull();
+  });
+
+  it("treats the sentinel's own spelling as the only sentinel", () => {
+    // A near-miss is a real id as far as this is concerned. The point is not
+    // to guess at fakes, only to refuse the one value we ourselves produce.
+    expect(providerMessageIdOrNull("dev-mode-no-email-2")).toBe("dev-mode-no-email-2");
+  });
+
+  it("is null for absent, empty and whitespace", () => {
+    expect(providerMessageIdOrNull(null)).toBeNull();
+    expect(providerMessageIdOrNull(undefined)).toBeNull();
+    expect(providerMessageIdOrNull("")).toBeNull();
+    expect(providerMessageIdOrNull("   ")).toBeNull();
+  });
+
+  it("trims, because a stored id with whitespace joins nothing", () => {
+    expect(providerMessageIdOrNull("  abc-123  ")).toBe("abc-123");
   });
 });

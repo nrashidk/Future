@@ -189,7 +189,30 @@ export const schoolSetupTokens = pgTable("school_setup_tokens", {
   /** The provider's reason on a bounce or complaint. Null otherwise. */
   deliveryDetail: varchar("delivery_detail"),
   createdAt: timestamp("created_at").defaultNow(),
-});
+}, (table) => [
+  /**
+   * DECLARED HERE AS WELL AS IN MIGRATION 036, with the same name, for the
+   * reason CLAUDE.md records about CHECK constraints — and it applies to
+   * indexes identically. `schema-push.mjs` builds the harness from THESE
+   * definitions and marks every migration applied without running it, so an
+   * index that lives only in the .sql is live in production and ABSENT from
+   * the harness.
+   *
+   * It was absent. Found on 2026-11-10 by inserting two rows with the same
+   * provider_message_id against the harness: production refuses the second
+   * with 23505 and the harness accepted it. Every assertion in
+   * resend-webhook.mjs had been passing against a table more permissive than
+   * the real one — the dangerous direction.
+   *
+   * PARTIAL, and the `.where` is not decoration: every token minted but not
+   * yet sent carries a null here. Postgres permits many nulls under a plain
+   * unique index too, so the behaviour is the same — but the predicate states
+   * the intent and keeps the index to the rows that have an id.
+   */
+  uniqueIndex("school_setup_tokens_provider_msg_idx")
+    .on(table.providerMessageId)
+    .where(sql`${table.providerMessageId} IS NOT NULL`),
+]);
 
 export const schoolSetupTokensRelations = relations(schoolSetupTokens, ({ one }) => ({
   user: one(users, {
@@ -763,6 +786,30 @@ export const invoices = pgTable("invoices", {
   licenseGrantId: varchar("license_grant_id").references(() => licenseGrants.id, { onDelete: "set null" }),
 
   notes: text("notes"),
+
+  /**
+   * WHEN THE INVOICE WAS EMAILED, and what happened to that mail.
+   *
+   * SEPARATE FROM `issued_at`, which is a different fact: an invoice can be
+   * issued and handed over printed, or issued now and emailed later. Folding
+   * them together would make "sent but never emailed" unrepresentable, and
+   * that is the state a superadmin most needs to see.
+   *
+   * The delivery columns are the SAME four as `school_setup_tokens`, joined
+   * the same way on the provider's message id and written by the same Resend
+   * webhook under the same forward-only rule (shared/emailDelivery.ts). A
+   * bounced invoice matters more than a bounced sign-in link: the school is
+   * waiting for a bill that never arrived, and the chase looks like them
+   * ignoring it.
+   */
+  emailSentAt: timestamp("email_sent_at"),
+  emailSentCount: integer("email_sent_count").notNull().default(0),
+  providerMessageId: varchar("provider_message_id"),
+  /** null = UNKNOWN, never "failed". See shared/emailDelivery.ts. */
+  deliveryStatus: varchar("delivery_status"),
+  deliveryStatusAt: timestamp("delivery_status_at"),
+  deliveryDetail: varchar("delivery_detail"),
+
   /**
    * The superadmin who raised it. A blocking audit source (accountErasure.ts),
    * for the same reason `license_grants.performed_by` is one: these rows are
@@ -778,6 +825,14 @@ export const invoices = pgTable("invoices", {
   unique("invoices_year_sequence_unique").on(table.year, table.sequence),
   index("invoices_organization_idx").on(table.organizationId),
   index("invoices_status_idx").on(table.status),
+  // The Resend webhook's only lookup into this table, and the reason a
+  // redelivered event cannot attach itself to two invoices.
+  // Partial, matching migration 038 exactly: an invoice not yet emailed has a
+  // null here. See the note on school_setup_tokens' copy of this index for why
+  // it is declared in both places.
+  uniqueIndex("invoices_provider_msg_idx")
+    .on(table.providerMessageId)
+    .where(sql`${table.providerMessageId} IS NOT NULL`),
   /**
    * THE SAME CHECKS AS MIGRATION 037, DECLARED HERE TOO — and the names match
    * that migration exactly, so db:push sees no drift.
@@ -806,6 +861,11 @@ export const invoices = pgTable("invoices", {
     "invoices_issued_has_date",
     sql`${table.status} NOT IN ('issued', 'paid') OR ${table.issuedAt} IS NOT NULL`,
   ),
+  // From migration 038, and declared here for the same reason as the five
+  // above: a check that lives only in the .sql is live in production and
+  // absent from the harness. Not merely tidy — the superadmin surface prints
+  // "emailed N times" straight off this column.
+  check("invoices_email_sent_count_non_negative", sql`${table.emailSentCount} >= 0`),
 ]);
 
 export const invoicesRelations = relations(invoices, ({ one }) => ({

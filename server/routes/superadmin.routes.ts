@@ -10,10 +10,11 @@ import { sendSchoolSetupInvite } from "../services/schoolSetupInvite";
 import { eraseUserData, collectBlockingAuditRecords } from "../services/accountErasure";
 import { evaluateEmailChange, normalizeEmail } from "../utils/emailChange";
 import { decideGrantMoney } from "@shared/licenseGrants";
-import { toMajor, countryPricing } from "@shared/pricing";
+import { toMajor, countryPricing, formatMoney } from "@shared/pricing";
 import { canTransition, invoiceDocumentType } from "@shared/invoice";
-import { renderInvoicePdf } from "../services/invoicePdf";
-import { sendEmailChangeNotifications } from "../services/email";
+import { providerMessageIdOrNull } from "@shared/emailDelivery";
+import { renderInvoicePdf, supplierFromEnv, supplierDetailsMissing } from "../services/invoicePdf";
+import { sendEmailChangeNotifications, sendInvoiceEmail } from "../services/email";
 import { toPublicUser } from "@shared/userPublic";
 import type { User } from "@shared/schema";
 import { isOnetGrowthBand, growthOutlookFor, ONET_GROWTH_BANDS } from "@shared/growthBands";
@@ -2257,6 +2258,131 @@ export function registerSuperadminRoutes(app: Express) {
     } catch (error: any) {
       console.error("Error rendering invoice PDF:", error);
       return res.status(500).json({ message: "Failed to render the invoice" });
+    }
+  });
+
+  /**
+   * EMAIL THE INVOICE, with the PDF attached.
+   *
+   * REFUSES A DRAFT. A draft is a figure somebody is still checking; emailing
+   * one is what ISSUE means, and letting this route do it silently would make
+   * the lifecycle a description of nothing. The refusal names the remedy.
+   * Cancelled is refused for the opposite reason — the school was told it does
+   * not owe this.
+   *
+   * THE RECIPIENT IS THE INVOICE'S OWN billToEmail when it has one, because
+   * that is the finance contact the invoice was addressed to and is
+   * snapshotted on the row. Only when it is absent does this fall back to the
+   * school's registered administrator, who is whoever bought the licences —
+   * usually a head teacher rather than the person who pays bills. An explicit
+   * `email` in the body overrides both, for the case the address was wrong.
+   *
+   * It does NOT write billToEmail back from an override: the document has
+   * already been rendered and possibly sent once with the address it carries,
+   * and quietly rewriting it would make the PDF and the row disagree about who
+   * was billed. Correcting the address on the invoice is a separate edit.
+   *
+   * RESENDING IS ALLOWED, unlike the setup link's resend. A finance officer
+   * asking for the invoice again is routine, and the count is what tells a
+   * superadmin whether chasing has already happened.
+   */
+  app.post("/api/superadmin/invoices/:id/send", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const invoice = await storage.getInvoiceById(req.params.id);
+      if (!invoice) return res.status(404).json({ message: "Invoice not found" });
+
+      if (invoice.status === "draft") {
+        return res.status(409).json({
+          message: "This invoice is still a draft. Issue it first — sending it is what issuing means.",
+          code: "INVOICE_NOT_ISSUED",
+        });
+      }
+      if (invoice.status === "cancelled") {
+        return res.status(409).json({
+          message: "This invoice was cancelled, so the school has been told it does not owe it.",
+          code: "INVOICE_CANCELLED",
+        });
+      }
+
+      const override = typeof req.body?.email === "string" ? req.body.email.trim() : "";
+      let to = override || invoice.billToEmail || "";
+      let adminLanguage: string | null = null;
+
+      if (!to && invoice.organizationId) {
+        const org = await storage.getOrganizationById(invoice.organizationId);
+        const adminUser = org?.adminUserId ? await storage.getUser(org.adminUserId) : null;
+        to = adminUser?.email ?? "";
+        adminLanguage = adminUser?.preferredLanguage ?? null;
+      }
+      if (!to) {
+        return res.status(409).json({
+          message:
+            "There is no address to send this to. Add a billing contact to the invoice, " +
+            "or pass one with the request.",
+          code: "NO_RECIPIENT",
+        });
+      }
+
+      const language = req.body?.language === "ar" || req.body?.language === "en"
+        ? req.body.language
+        : (adminLanguage === "ar" ? "ar" : "en");
+
+      // Rendered BEFORE the send, so a render failure is reported as a render
+      // failure instead of an email that went out with nothing attached.
+      const pdf = await renderInvoicePdf({ invoice, language });
+
+      const supplier = supplierFromEnv(language);
+      const missing = supplierDetailsMissing(supplier);
+      if (missing.length > 0) {
+        // Hard refusal, not a warning. The payment panel is the one part of
+        // this document a school ACTS on, and a bill carrying "[YOUR IBAN]"
+        // into a finance inbox is worse than no bill: it cannot be paid, and
+        // it is the kind of thing that gets a supplier queried rather than
+        // settled.
+        return res.status(409).json({
+          message:
+            "The invoice is missing supplier payment details, so the school would receive " +
+            "a bill it cannot pay. Set these on the server first: " + missing.join(", ") + ".",
+          code: "SUPPLIER_DETAILS_MISSING",
+          missing,
+        });
+      }
+
+      const amountLabel = formatMoney(invoice.totalMinor, invoice.currency, language);
+      const dueLabel = invoice.dueAt
+        ? new Date(invoice.dueAt).toISOString().slice(0, 10)
+        : null;
+
+      const result = await sendInvoiceEmail({
+        to,
+        invoiceNumber: invoice.number,
+        organizationName: invoice.billToName,
+        amountLabel,
+        dueLabel,
+        licenseCount: invoice.studentCount,
+        isProforma: invoiceDocumentType(invoice.supplierTrn) === "proforma",
+        pdf,
+        language,
+      });
+
+      if (!result.success) {
+        // NOT recorded as sent. A failed send that stamped email_sent_at would
+        // make the one surface that answers "did they get the bill?" lie in
+        // the direction that stops anyone chasing it.
+        return res.status(502).json({
+          message: "The invoice could not be emailed. Check the email service and try again.",
+          code: "SEND_FAILED",
+          error: result.error,
+        });
+      }
+
+      // providerMessageIdOrNull, never `?? null` — see shared/emailDelivery.ts.
+      await storage.markInvoiceEmailed(invoice.id, providerMessageIdOrNull(result.messageId));
+      const updated = await storage.getInvoiceById(invoice.id);
+      return res.json({ sent: true, to, language, invoice: updated ?? invoice });
+    } catch (error: any) {
+      console.error("Error emailing invoice:", error);
+      return res.status(500).json({ message: "Failed to email the invoice" });
     }
   });
 

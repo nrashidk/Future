@@ -10,7 +10,9 @@ import { statusFromProviderEvent } from "@shared/emailDelivery";
  * a gateway that dropped it and an inbox nobody opened were one
  * indistinguishable null, and they need opposite actions from a superadmin —
  * correct the address, or resend and telephone. This route is the only writer
- * of the delivery columns 036 added.
+ * of the delivery columns 036 added, and of the identical ones 038 added to
+ * `invoices` — one route for both, because the forward-only rule is the part
+ * that must not drift and a second handler is how it would.
  *
  * MOUNTED UNDER /api/webhook/ ON PURPOSE. csrf.middleware exempts that prefix
  * because webhooks carry their own signature instead, and `express.json`'s
@@ -170,24 +172,54 @@ export function registerResendWebhookRoutes(app: Express) {
       return Number.isFinite(parsed.getTime()) ? parsed : new Date();
     })();
 
+    const detail = detailFrom(event?.data);
+
     try {
-      const moved = await storage.recordSetupEmailDelivery({
-        providerMessageId: messageId,
-        status,
-        at,
-        detail: detailFrom(event?.data),
+      /**
+       * TWO TABLES CARRY DELIVERY COLUMNS, and one message id belongs to at
+       * most one row in one of them, because the id is unique in each. So this
+       * tries the setup tokens and then FALLS THROUGH to the invoices.
+       *
+       * Not run in parallel and not run unconditionally: a second UPDATE
+       * against a table that cannot hold the id is wasted work on every
+       * password-reset event, which is the commonest event here.
+       *
+       * `applied: false` from BOTH is ordinary, not an error — the id belongs
+       * to a password reset or some other mail, or the event is stale under
+       * the forward-only rule. 200 either way: there is nothing to retry.
+       */
+      let subject: "school_setup" | "invoice" | null = null;
+      let moved = await storage.recordSetupEmailDelivery({
+        providerMessageId: messageId, status, at, detail,
       });
+      if (moved) {
+        subject = "school_setup";
+      } else {
+        moved = await storage.recordInvoiceEmailDelivery({
+          providerMessageId: messageId, status, at, detail,
+        });
+        if (moved) subject = "invoice";
+      }
+
       if (moved && (status === "bounced" || status === "complained")) {
         // The one case a human must act on, and the reason this route exists.
-        console.error(
-          `[ResendWebhook] A school setup invite was ${status} (message ${messageId}). ` +
-          `The buyer has paid and cannot sign in; the address needs checking before any resend.`,
-        );
+        // Two messages because the remedies differ: a school that cannot sign
+        // in has already paid, while a school that never received its bill has
+        // not been asked for the money at all.
+        if (subject === "invoice") {
+          console.error(
+            `[ResendWebhook] An INVOICE email was ${status} (message ${messageId}). ` +
+            `The school has not received the bill, so an unpaid invoice here means nothing yet; ` +
+            `correct the billing address before chasing payment.`,
+          );
+        } else {
+          console.error(
+            `[ResendWebhook] A school setup invite was ${status} (message ${messageId}). ` +
+            `The buyer has paid and cannot sign in; the address needs checking before any resend.`,
+          );
+        }
       }
-      // `moved: false` is ordinary, not an error: the id belongs to a password
-      // reset or another mail, or the event is stale under the forward-only
-      // rule. Either way there is nothing to retry.
-      return res.status(200).json({ applied: moved });
+      return res.status(200).json({ applied: moved, ...(subject ? { subject } : {}) });
     } catch (error: any) {
       // A storage failure IS worth retrying, so this one is a 500.
       console.error(`[ResendWebhook] Failed to record ${status} for ${messageId}:`, error?.message ?? error);
