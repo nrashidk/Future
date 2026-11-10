@@ -3066,21 +3066,48 @@ function SetupStageCell({
   const setup = org?.setup;
   if (!setup) return <span className="text-muted-foreground">—</span>;
 
+  // Five states, differing in LIGHTNESS as well as hue: a red/green pair alone
+  // is the one distinction a red-green colour-blind reader cannot make, and
+  // the dot is the fastest thing on the row to scan.
   const dot: Record<string, string> = {
+    invite_undeliverable: "bg-[#7a1f1f]",
     never_signed_in: "bg-[#a8430f]",
     setup_incomplete: "bg-[#8a5a0b]",
     ready: "bg-[#1f7a4d]",
     ready_no_students: "bg-muted-foreground",
   };
 
+  /**
+   * NEVER SIGNED IN NOW SPLITS THREE WAYS, because "the link is unused" was
+   * one label covering three situations with three different next actions:
+   *   bounced   → the address is wrong. Fix it, THEN resend.
+   *   delivered → it arrived and they have not acted. Telephone them.
+   *   unknown   → we genuinely do not know. Resend is a reasonable first try.
+   * The third is not a failure state and must not read as one: every invite
+   * sent before migration 036, and every one sent while the Resend webhook is
+   * unregistered, lands here.
+   */
+  const notSignedInDetail = () => {
+    if (setup.delivery === "undeliverable") {
+      return setup.deliveryDetail
+        ? t('superadmin.setupBouncedWithReason', { reason: setup.deliveryDetail })
+        : t('superadmin.setupBounced');
+    }
+    if (!setup.linkSentAt) return t('superadmin.setupLinkNeverSent');
+    if (setup.delivery === "delivered") {
+      return t('superadmin.setupDeliveredNotUsed', {
+        date: new Date(setup.deliveryStatusAt ?? setup.linkSentAt).toLocaleDateString(),
+      });
+    }
+    return t('superadmin.setupLinkSentNotUsed', {
+      date: new Date(setup.linkSentAt).toLocaleDateString(),
+      count: setup.linkSentCount ?? 1,
+    });
+  };
+
   const detail =
-    setup.stage === "never_signed_in"
-      ? setup.linkSentAt
-        ? t('superadmin.setupLinkSentNotUsed', {
-            date: new Date(setup.linkSentAt).toLocaleDateString(),
-            count: setup.linkSentCount ?? 1,
-          })
-        : t('superadmin.setupLinkNeverSent')
+    setup.stage === "never_signed_in" || setup.stage === "invite_undeliverable"
+      ? notSignedInDetail()
       : setup.stage === "setup_incomplete"
         ? t('superadmin.setupMissing', {
             items: (setup.missing ?? []).map((m: string) => t(`superadmin.setupGate_${m}`)).join(", "),
@@ -3097,16 +3124,27 @@ function SetupStageCell({
       </div>
       <div className="text-xs text-muted-foreground">{detail}</div>
       {setup.canResend && (
-        <Button
-          size="sm"
-          variant="outline"
-          className="mt-1"
-          disabled={pending}
-          onClick={onResend}
-          data-testid={`button-resend-setup-${org.id}`}
-        >
-          {t('superadmin.resendSetupLink')}
-        </Button>
+        <>
+          {/* The button stays available on a bounce — correcting the address
+              and resending is the remedy — but the label stops being a plain
+              instruction, because sending the same mail to the same dead
+              address twice is the failure this column exists to prevent. */}
+          <Button
+            size="sm"
+            variant="outline"
+            className="mt-1"
+            disabled={pending}
+            onClick={onResend}
+            data-testid={`button-resend-setup-${org.id}`}
+          >
+            {setup.stage === "invite_undeliverable"
+              ? t('superadmin.resendAfterFixingAddress')
+              : t('superadmin.resendSetupLink')}
+          </Button>
+          {setup.stage === "invite_undeliverable" && (
+            <div className="text-xs text-[#7a1f1f]">{t('superadmin.setupCheckAddressFirst')}</div>
+          )}
+        </>
       )}
     </div>
   );

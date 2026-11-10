@@ -90,6 +90,60 @@ describe("schoolSetupStage", () => {
     expect(s.canResend).toBe(true);
   });
 
+  it("a BOUNCED invite outranks never_signed_in — the address is the problem", () => {
+    // Resending to an address that hard bounced produces a second bounce and
+    // no progress, and the superadmin watches nothing happen twice.
+    const s = schoolSetupStage({
+      ...base, hasPassword: false, linkUsed: false, countryId: null, curriculum: null,
+      hasConsent: false, studentCount: 0, deliveryStatus: "bounced",
+    });
+    expect(s.stage).toBe("invite_undeliverable");
+    expect(s.delivery).toBe("undeliverable");
+  });
+
+  it("STILL offers the resend button on a bounce — fixing the address then resending is the remedy", () => {
+    // The stage carries the warning; canResend only says the button exists.
+    // Forbidding it would leave no way to finish the job after a correction.
+    const s = schoolSetupStage({ ...base, hasPassword: false, deliveryStatus: "bounced" });
+    expect(s.canResend).toBe(true);
+  });
+
+  it("treats a spam complaint as undeliverable too", () => {
+    const s = schoolSetupStage({ ...base, hasPassword: false, deliveryStatus: "complained" });
+    expect(s.stage).toBe("invite_undeliverable");
+  });
+
+  it("DELIVERED but not signed in stays never_signed_in, and says so", () => {
+    // The genuinely useful combination: the mail arrived and they have not
+    // acted, so the next move is a telephone call, not another email.
+    const s = schoolSetupStage({ ...base, hasPassword: false, deliveryStatus: "delivered" });
+    expect(s.stage).toBe("never_signed_in");
+    expect(s.delivery).toBe("delivered");
+    expect(s.canResend).toBe(true);
+  });
+
+  it("a NULL delivery status is unknown, never a failure", () => {
+    // Every invite sent before migration 036, and every one where the webhook
+    // is unregistered or the secret unset, has a null here. Reporting those as
+    // "did not arrive" is the old defect pointing the other way.
+    const s = schoolSetupStage({ ...base, hasPassword: false, deliveryStatus: null });
+    expect(s.stage).toBe("never_signed_in");
+    expect(s.delivery).toBe("unknown");
+  });
+
+  it("IGNORES a bounce once they have a password — they got in another way", () => {
+    // A superadmin may have set a password for them. Reporting the old
+    // invite's bounce would send someone chasing a problem that resolved.
+    const s = schoolSetupStage({ ...base, curriculum: null, studentCount: 0, deliveryStatus: "bounced" });
+    expect(s.stage).toBe("setup_incomplete");
+    expect(s.canResend).toBe(false);
+  });
+
+  it("'sent' is not 'delivered' — handed to Resend is not arrived", () => {
+    const s = schoolSetupStage({ ...base, hasPassword: false, deliveryStatus: "sent" });
+    expect(s.delivery).toBe("unknown");
+  });
+
   it("survives a missing createdAt rather than reporting dormant", () => {
     // An unparseable date must not become "nobody enrolled in 30 days", which
     // would send a human chasing a school that is fine.

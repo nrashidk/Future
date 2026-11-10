@@ -236,6 +236,74 @@ try {
       r.status === 403 && Number(after[0].sent_count) === Number(before[0].sent_count),
       `HTTP ${r.status} count=${before[0]?.sent_count}→${after[0]?.sent_count}`);
   }
+
+  // ------------------------------------------------------------------ S-09
+  // A BOUNCED INVITE IS ITS OWN STAGE, through the real listing route rather
+  // than the pure function. Before migration 036 this school was reported as
+  // never_signed_in with "Resend setup link" offered — and pressing it sends a
+  // second mail to the same dead address, which bounces again while the
+  // superadmin watches nothing happen twice.
+  {
+    await sql(
+      `UPDATE school_setup_tokens
+          SET provider_message_id = $2, delivery_status = 'bounced',
+              delivery_status_at = NOW(), delivery_detail = 'Permanent — NoEmail'
+        WHERE organization_id = $1`,
+      [neverIn, `msg_stage_${tag}`],
+    );
+    const s = await stageOf(neverIn);
+    rec("S-09", "a bounced invite reads as invite_undeliverable, with the reason",
+      s.stage === "invite_undeliverable" && s.delivery === "undeliverable"
+        && (s.deliveryDetail ?? "").includes("NoEmail"),
+      `stage=${s.stage} delivery=${s.delivery} detail=${(s.deliveryDetail ?? "").slice(0, 30)}`);
+  }
+
+  // ------------------------------------------------------------------ S-10
+  // THE RESEND IS STILL PERMITTED after a bounce, because correcting the
+  // address and then resending is the remedy. The stage carries the warning;
+  // the route must not take the action away. Judged by the send count moving,
+  // not by the status — S-07 proves a 409 is the shape of a refusal here.
+  {
+    const before = await sql(`SELECT sent_count FROM school_setup_tokens WHERE organization_id = $1`, [neverIn]);
+    const r = await sa.post(`/api/superadmin/organizations/${neverIn}/resend-setup`);
+    const after = await sql(
+      `SELECT sent_count, delivery_status FROM school_setup_tokens WHERE organization_id = $1`, [neverIn]);
+    rec("S-10", "a bounce does NOT block the resend, and clears the stale status",
+      r.status === 200
+        && Number(after[0].sent_count) === Number(before[0].sent_count) + 1
+        && after[0].delivery_status === null,
+      `HTTP ${r.status} count=${before[0]?.sent_count}→${after[0]?.sent_count} status=${after[0]?.delivery_status}`);
+  }
+
+  // ------------------------------------------------------------------ S-11
+  // DELIVERED BUT NOT USED is the third case the old single label hid, and it
+  // points at a different action again: the mail arrived, so telephone them
+  // rather than send it a third time. It must NOT read as a failure.
+  {
+    await sql(
+      `UPDATE school_setup_tokens
+          SET delivery_status = 'delivered', delivery_status_at = NOW(), delivery_detail = NULL
+        WHERE organization_id = $1`, [neverIn]);
+    const s = await stageOf(neverIn);
+    rec("S-11", "delivered-but-unused is never_signed_in with delivery=delivered",
+      s.stage === "never_signed_in" && s.delivery === "delivered" && s.canResend === true,
+      `stage=${s.stage} delivery=${s.delivery} canResend=${s.canResend}`);
+  }
+
+  // ------------------------------------------------------------------ S-12
+  // NULL IS UNKNOWN, NOT FAILED. Every invite sent before 036, and every one
+  // sent while the Resend webhook is unregistered or its secret unset, lands
+  // here — so this is the common case, not an edge one, and rendering it as
+  // "did not arrive" would be the old defect pointing the other way.
+  {
+    await sql(
+      `UPDATE school_setup_tokens SET delivery_status = NULL, delivery_status_at = NULL
+        WHERE organization_id = $1`, [neverIn]);
+    const s = await stageOf(neverIn);
+    rec("S-12", "no delivery event is 'unknown' — never reported as a failure",
+      s.stage === "never_signed_in" && s.delivery === "unknown",
+      `stage=${s.stage} delivery=${s.delivery}`);
+  }
 } finally {
   for (const { orgId, userId } of made) {
     try {

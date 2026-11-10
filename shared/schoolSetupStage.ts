@@ -13,14 +13,30 @@
  * subtly wrong branch would send that human to the wrong place with no error
  * anywhere.
  *
- * WHAT IT CANNOT KNOW: whether the mail was DELIVERED. `linkUsed` proves the
- * link was clicked and `hasPassword` proves they got in; a link neither sent
- * nor used covers a bounce, a spam folder and an unopened inbox alike. Telling
- * those apart needs Resend's delivery webhooks, which are not wired. Every
- * label here says "not used", never "not delivered".
+ * DELIVERY IS NOW PART OF IT, and it changes the recommended action rather
+ * than decorating it. Migration 036 records what Resend reports about the
+ * invite, and a hard bounce means the ADDRESS is wrong: resending to it is a
+ * second mail to the same dead inbox, and the superadmin watches nothing
+ * happen twice. So an undeliverable invite is its own stage, ranked above
+ * "never signed in", and the action it implies is "check the address, then
+ * resend" rather than "resend".
+ *
+ * NULL DELIVERY STILL MEANS UNKNOWN, NOT FAILED. An unregistered webhook, an
+ * unset `RESEND_WEBHOOK_SECRET` and Resend being down all produce nulls, and
+ * so does every invite sent before 036. Rendering any of those as "did not
+ * arrive" would be the same confident-but-wrong claim the old single null
+ * made, pointing the other way — so `delivery` has three values and the
+ * middle one is the default.
  */
 
+import { isUndeliverable, isDelivered } from "./emailDelivery";
+
 export type SchoolSetupStage =
+  /**
+   * The invite bounced or was marked as spam, and nobody has signed in. The
+   * address is the problem; another copy of the link is not the fix.
+   */
+  | "invite_undeliverable"
   /** No password was ever chosen: the link is unused, so nobody has signed in. */
   | "never_signed_in"
   /** Signed in, but a gate is still unsatisfied — enrolment is refused. */
@@ -41,20 +57,48 @@ export interface SchoolSetupInputs {
   hasConsent: boolean;
   studentCount: number;
   createdAt: Date | string | null | undefined;
+  /**
+   * What Resend last reported about the invite — the raw column, so this
+   * module owns the interpretation. Null for every invite sent before
+   * migration 036, and for every one where the webhook is not wired.
+   */
+  deliveryStatus?: string | null;
   /** Evaluation time, injected so the 30-day rule is testable. */
   now?: Date;
 }
+
+/**
+ * Three values, because two cannot carry "we do not know". The whole defect
+ * this replaces was one null standing for a bounce, a spam folder and an
+ * unopened inbox at once.
+ */
+export type SetupDelivery = "unknown" | "delivered" | "undeliverable";
 
 export interface SchoolSetupStatus {
   stage: SchoolSetupStage;
   /** Which gates are still unsatisfied. Empty once the school can enrol. */
   missing: Array<"country" | "curriculum" | "consent">;
   /**
-   * Whether resending the setup link is the right move. TRUE only for
-   * never_signed_in: a school that is already in does not need another copy
-   * of a link it has used.
+   * Whether resending the setup link is the right move.
+   *
+   * TRUE for never_signed_in AND for invite_undeliverable — in the second case
+   * because correcting the address and then resending is the actual remedy,
+   * and a flag that forbade it would leave the superadmin with no way to
+   * finish the job. The STAGE is what tells them to fix the address first;
+   * this only says the button should exist.
+   *
+   * FALSE for a school that is already in: another copy of a link they have
+   * used achieves nothing and teaches them to ignore the mail.
    */
   canResend: boolean;
+  /**
+   * What is known about the invite reaching an inbox. Informational — it
+   * never contradicts `stage`, it explains it. `delivered` alongside
+   * never_signed_in is the genuinely useful combination: the mail arrived and
+   * they have simply not acted, so the next move is a telephone call rather
+   * than a resend.
+   */
+  delivery: SetupDelivery;
 }
 
 /** A school with nobody enrolled this long after creation is a sales follow-up. */
@@ -86,13 +130,32 @@ export function schoolSetupStage(input: SchoolSetupInputs): SchoolSetupStatus {
    * thing that actually gates entry, so it is what this branch reads;
    * `linkUsed` only sharpens the label.
    */
+  const delivery: SetupDelivery = isUndeliverable(input.deliveryStatus)
+    ? "undeliverable"
+    : isDelivered(input.deliveryStatus)
+      ? "delivered"
+      : "unknown";
+
   if (!input.hasPassword) {
-    return { stage: "never_signed_in", missing, canResend: true };
+    /**
+     * A BOUNCE OUTRANKS "never signed in", because the two imply different
+     * actions and only one of them works. Resending to an address that hard
+     * bounced produces a second bounce and no progress, and the superadmin has
+     * no way to tell that from a buyer who is simply slow.
+     *
+     * Deliberately NOT applied once they have a password: a bounce on an old
+     * invite is irrelevant to a school that got in some other way, and
+     * reporting it would send someone chasing a problem that resolved itself.
+     */
+    if (delivery === "undeliverable") {
+      return { stage: "invite_undeliverable", missing, canResend: true, delivery };
+    }
+    return { stage: "never_signed_in", missing, canResend: true, delivery };
   }
 
   if (missing.length > 0) {
     // They are IN. Another copy of the link changes nothing.
-    return { stage: "setup_incomplete", missing, canResend: false };
+    return { stage: "setup_incomplete", missing, canResend: false, delivery };
   }
 
   const created = input.createdAt ? new Date(input.createdAt) : null;
@@ -106,5 +169,5 @@ export function schoolSetupStage(input: SchoolSetupInputs): SchoolSetupStatus {
   // Nothing is broken here, which is the point of separating it: mixing a
   // dormant school in with the stuck ones means chasing support tickets that
   // do not exist.
-  return { stage: dormant ? "ready_no_students" : "ready", missing: [], canResend: false };
+  return { stage: dormant ? "ready_no_students" : "ready", missing: [], canResend: false, delivery };
 }

@@ -475,6 +475,7 @@ export function registerSuperadminRoutes(app: Express) {
           hasConsent: !!consent,
           studentCount: students.length,
           createdAt: org.createdAt,
+          deliveryStatus: setupToken?.deliveryStatus ?? null,
         });
 
         return {
@@ -486,12 +487,18 @@ export function registerSuperadminRoutes(app: Express) {
           utilizationRate,
           setup: {
             ...setup,
-            // "not used", never "not delivered": a null usedAt covers a
-            // bounce, a spam folder and an unopened inbox alike, and telling
-            // them apart needs Resend's delivery webhooks, which are not wired.
+            // usedAt proves a CLICK and nothing more. What happened to the
+            // mail itself is `setup.delivery`, written by Resend's webhook
+            // (migration 036) — and its "unknown" is a real third state, not
+            // a failure: an unregistered webhook and an unset secret both
+            // produce it, as does every invite sent before 036.
             linkSentAt: setupToken?.sentAt ?? null,
             linkSentCount: setupToken?.sentCount ?? 0,
             linkUsedAt: setupToken?.usedAt ?? null,
+            deliveryStatusAt: setupToken?.deliveryStatusAt ?? null,
+            // The provider's own words on a bounce, so a superadmin can tell a
+            // misspelled domain from a full mailbox without leaving the page.
+            deliveryDetail: setupToken?.deliveryDetail ?? null,
             lastLoginAt: adminUserForStage?.lastLoginAt ?? null,
           },
         };
@@ -887,6 +894,7 @@ export function registerSuperadminRoutes(app: Express) {
         hasConsent: !!consent,
         studentCount: students.length,
         createdAt: org.createdAt,
+        deliveryStatus: setupToken?.deliveryStatus ?? null,
       });
 
       if (!stage.canResend) {

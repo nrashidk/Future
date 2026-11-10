@@ -932,10 +932,20 @@ chose to review would sit for ever with no one able to see it.
       `email.opened`/`email.clicked` are deliberately IGNORED — open tracking
       is a pixel that Apple MPP and Gmail's proxy fire or suppress on the
       recipient's behalf, so a status built on it is wrong in both directions.
-      **Still open:** nothing reads these columns yet. `schoolSetupStage` does
-      not know about a bounce, so a hard-bounced invite is still reported as
-      `never_signed_in` with Resend offered — which sends a second mail to the
-      same dead address. Surfacing it is the next step.
+      **SURFACED, and it splits the old "never signed in" THREE ways**, because
+      that one label covered three situations with three different next
+      actions: `invite_undeliverable` (the address is wrong — correct it, then
+      resend), delivered-but-unused (it arrived; telephone them), and unknown
+      (resend is a reasonable first try). `invite_undeliverable` is a fifth
+      stage ranked ABOVE `never_signed_in`, and it is deliberately NOT applied
+      once the admin has a password — a bounce on an old invite is irrelevant
+      to a school that got in another way, and reporting it would send someone
+      chasing a problem that resolved itself. **`canResend` stays TRUE on a
+      bounce**: correcting the address and resending is the remedy, so the
+      stage carries the warning and the route keeps the action. A resend
+      CLEARS the delivery columns, or the previous attempt's bounce would be
+      reported against the new mail. `setup-stage.mjs` S-09 to S-12 assert all
+      four states through the real listing route, not the pure function.
       **Also needs doing on the Resend side:** the endpoint must be registered
       in the Resend dashboard and `RESEND_WEBHOOK_SECRET` set on Render.
       Until both, every status stays null and that is indistinguishable from
