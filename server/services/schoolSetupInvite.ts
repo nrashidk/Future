@@ -102,7 +102,11 @@ export async function sendSchoolSetupInvite(args: {
       return { sent: false, reason: result.error };
     }
 
-    await storage.markSchoolSetupTokenSent(token);
+    // The provider's message id is what Resend's delivery webhook joins back
+    // on. Without it every later bounce or delivery event matches no row and
+    // the column stays null — indistinguishable from "the webhook is not
+    // configured", which is the exact ambiguity this was built to end.
+    await storage.markSchoolSetupTokenSent(token, result.messageId ?? null);
     console.log(`[SetupInvite] Setup link sent to ${args.email} for "${args.organizationName}".`);
     return { sent: true };
   } catch (error: any) {

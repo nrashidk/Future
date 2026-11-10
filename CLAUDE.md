@@ -118,9 +118,10 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `org-admin`, `checkout-preflight`, `school-lock`, `webhook-idempotency`,
 `llm-gate`, `guest-claim`, `admin-writes`, `webhook-group-backstop`,
 `superadmin-writes`, `country-writes`, `setup-invite`, `school-setup-link`,
-`setup-stage`, `superadmin-delete-user`, plus
+`setup-stage`, `superadmin-delete-user`, `resend-webhook`, plus
 `migration-029-dryrun`, `migration-030-dryrun`, `migration-032-dryrun`,
-`migration-033-dryrun`, `migration-034-dryrun` and `migration-035-dryrun`.
+`migration-033-dryrun`, `migration-034-dryrun`, `migration-035-dryrun` and
+`migration-036-dryrun`.
 
 `webhook-idempotency`, `webhook-group-backstop` and `setup-invite` need two
 environment
@@ -135,7 +136,24 @@ STRIPE_SECRET_KEY=sk_test_dummy STRIPE_WEBHOOK_SECRET=whsec_localtestsecret \
   node testing/local/webhook-idempotency.mjs
 ```
 
-`migration-034-dryrun` and `migration-035-dryrun` EXECUTE the .sql file,
+`resend-webhook` needs `RESEND_WEBHOOK_SECRET` the same way, on `up.ts` AND on
+itself, and refuses to run without it — the route answers 503 with no secret,
+so every case would "pass" against a handler it never reached:
+
+```
+PGLITE_DIR=./.pgdata RESEND_WEBHOOK_SECRET=whsec_bG9jYWx0ZXN0c2VjcmV0 \
+  npx tsx testing/local/up.ts
+RESEND_WEBHOOK_SECRET=whsec_bG9jYWx0ZXN0c2VjcmV0 \
+  node testing/local/resend-webhook.mjs
+```
+
+**Run `migration-036-dryrun` AFTER `migration-035-dryrun`, never before.** 035's
+suite ends by re-running its own UP, which leaves `school_setup_tokens` without
+036's four delivery columns — so anything reading delivery status after a 035
+run fails for that reason and not a real one. 036's suite leaves them in place.
+
+`migration-034-dryrun`, `migration-035-dryrun` and `migration-036-dryrun`
+EXECUTE the .sql file,
 which nothing else does —
 `schema-push` marks every migration applied without running it, so a syntax
 error in a migration first runs at production boot, where a failure is fatal.
@@ -890,13 +908,49 @@ chose to review would sit for ever with no one able to see it.
       "the mail never arrived" from "they got in and stopped", and those need
       opposite actions. Resend is offered — and the route only permits it — for
       `never_signed_in`.
-    - **Nothing here can tell DELIVERED from NOT-DELIVERED.** `used_at` proves
-      a click; a null covers a bounce, a spam folder and an unopened inbox
-      alike. Every label says "not used". Real delivery data needs Resend's
-      webhooks, which are not wired — that is the open follow-up.
+    - **DELIVERED vs NOT-DELIVERED: CLOSED at the data layer** (migration 036,
+      `POST /api/webhook/resend`), **still unsurfaced**. `used_at` proves a
+      click; a null used to cover a bounce, a spam folder and an unopened inbox
+      alike, and those need opposite actions — correct the address, or resend
+      and telephone. Four columns on `school_setup_tokens` now record what
+      Resend reports, joined on `provider_message_id`, which is captured from
+      the send call and is UNIQUE (partial, since an unsent token has none).
+      **Null still means UNKNOWN, not failed** — an unset secret, an
+      unconfigured webhook and Resend being down all produce nulls, so no
+      surface may render one as "did not arrive".
+      `shared/emailDelivery.ts` holds the rule that matters: **Resend emits
+      `email.sent` and `email.delivered` milliseconds apart and they travel
+      separately, so `sent` arriving AFTER `delivered` is ordinary.** A handler
+      writing the latest event would downgrade rows at random and the
+      superadmin column would flicker with nothing in the product changing.
+      Statuses are ranked and an event may only move a row FORWARD; the rule
+      lives in the UPDATE's own WHERE clause (`blockingStatuses`), not in a
+      read before the write, so two events racing are arbitrated by the
+      database — the check-then-act family that produced the checkout create
+      race. Mutation-tested: removing that clause fails R-05 (a late `sent`
+      downgraded `delivered`) and R-07 (a redelivery overwrote a bounce).
+      `email.opened`/`email.clicked` are deliberately IGNORED — open tracking
+      is a pixel that Apple MPP and Gmail's proxy fire or suppress on the
+      recipient's behalf, so a status built on it is wrong in both directions.
+      **Still open:** nothing reads these columns yet. `schoolSetupStage` does
+      not know about a bounce, so a hard-bounced invite is still reported as
+      `never_signed_in` with Resend offered — which sends a second mail to the
+      same dead address. Surfacing it is the next step.
+      **Also needs doing on the Resend side:** the endpoint must be registered
+      in the Resend dashboard and `RESEND_WEBHOOK_SECRET` set on Render.
+      Until both, every status stays null and that is indistinguishable from
+      a working webhook with nothing to report.
+      Password-reset delivery is a DELIBERATE non-goal: a reset is requested by
+      someone already watching their inbox, who retries by themselves, so the
+      information has no action attached to it. A general `email_deliveries`
+      table was the first design and was dropped — it added a second
+      person-referencing column (its own subject-access classification, its own
+      erasure ordering) to serve one surface.
     Suites: `setup-invite` (5), `school-setup-link` (14, ending in a student
-    actually enrolled), `setup-stage` (9), `migration-035-dryrun` (9), plus
-    `schoolSetupStage.test.ts` (11) and `email.schoolSetup.test.ts` (5).
+    actually enrolled), `setup-stage` (9), `migration-035-dryrun` (9),
+    `resend-webhook` (11), `migration-036-dryrun` (8), plus
+    `schoolSetupStage.test.ts` (11), `emailDelivery.test.ts` (17) and
+    `email.schoolSetup.test.ts` (5).
   - **A SUPERADMIN CAN NOW DELETE AN ACCOUNT — there was no way to, before
     2026-11-10.** The only deletion path in the product was
     `DELETE /api/users/me`, self-service erasure needing that account's own

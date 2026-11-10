@@ -171,6 +171,22 @@ export const schoolSetupTokens = pgTable("school_setup_tokens", {
   // opens the first mail is not sent to a dead link.
   sentAt: timestamp("sent_at"),
   sentCount: integer("sent_count").notNull().default(0),
+  // WHAT HAPPENED TO THE MAIL AFTER RESEND TOOK IT, which `sentAt` cannot say.
+  // `sentAt` records that Resend ACCEPTED the message; a bounce, a spam folder
+  // and an unopened inbox were all indistinguishable from each other and from
+  // delivery. These three are filled by Resend's webhook and by nothing else.
+  //
+  // providerMessageId is the join key: Resend's own id for the message,
+  // captured at send. A webhook event for an id we do not hold is another
+  // mail entirely (a password reset, say) and is ignored.
+  providerMessageId: varchar("provider_message_id"),
+  // null = no webhook event has arrived. See shared/emailDelivery.ts for the
+  // values and, more importantly, for the rule about which one may replace
+  // which: Resend does not guarantee event order.
+  deliveryStatus: varchar("delivery_status"),
+  deliveryStatusAt: timestamp("delivery_status_at"),
+  /** The provider's reason on a bounce or complaint. Null otherwise. */
+  deliveryDetail: varchar("delivery_detail"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 

@@ -19,6 +19,7 @@ import { registerAdminRoutes } from "./routes/admin.routes";
 import { registerSuperadminRoutes } from "./routes/superadmin.routes";
 import { registerPaymentRoutes } from "./routes/payment.routes";
 import { registerWebhookRoutes } from "./routes/webhook.routes";
+import { registerResendWebhookRoutes } from "./routes/resendWebhook.routes";
 import { registerPublicRoutes } from "./routes/public.routes";
 import { registerFilesRoutes } from "./routes/files.routes";
 import { registerCountryRoutes } from "./routes/country.routes";
@@ -51,6 +52,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerSuperadminRoutes(app);
   registerPaymentRoutes(app);
   registerWebhookRoutes(app); // Stripe webhooks (signature verified)
+  registerResendWebhookRoutes(app); // Resend delivery events (Svix signature verified)
   registerFilesRoutes(app);
   registerCountryRoutes(app); // Country management (superadmin)
   registerProgressRoutes(app); // Multi-grade progress tracking

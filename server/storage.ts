@@ -135,6 +135,7 @@ import { db } from "./db";
 import { collapseToLatestPerGrade, gradeSortKey, mergeGradeCounts, toCanonicalGrade } from "@shared/grade";
 import { assessmentIsChildOwned } from "@shared/childOwnership";
 import { decideGrantMoney } from "@shared/licenseGrants";
+import { blockingStatuses, type EmailDeliveryStatus } from "@shared/emailDelivery";
 import { splitStudentName } from "@shared/studentName";
 import { SUBJECT_IDS } from "@shared/subjects";
 import { eq, ne, and, or, desc, count, avg, sql, inArray, notInArray, isNotNull, isNull, gt, gte, type SQL } from "drizzle-orm";
@@ -3290,12 +3291,68 @@ export class DatabaseStorage implements IStorage {
     return { token, created: true };
   }
 
-  /** Records that the mail went to Resend. Not that it arrived — see the migration. */
-  async markSchoolSetupTokenSent(token: string): Promise<void> {
+  /**
+   * Records that the mail went to Resend. NOT that it arrived — whether it did
+   * is written later, by the webhook, through recordSetupEmailDelivery below.
+   *
+   * `providerMessageId` is what joins the two. A resend OVERWRITES it and
+   * clears the delivery columns: the status describes the message currently in
+   * flight, and leaving a previous bounce in place would have the superadmin
+   * surface report the old attempt's failure against the new attempt.
+   */
+  async markSchoolSetupTokenSent(token: string, providerMessageId?: string | null): Promise<void> {
     await db
       .update(schoolSetupTokens)
-      .set({ sentAt: new Date(), sentCount: sql`${schoolSetupTokens.sentCount} + 1` })
+      .set({
+        sentAt: new Date(),
+        sentCount: sql`${schoolSetupTokens.sentCount} + 1`,
+        providerMessageId: providerMessageId ?? null,
+        deliveryStatus: null,
+        deliveryStatusAt: null,
+        deliveryDetail: null,
+      })
       .where(eq(schoolSetupTokens.token, token));
+  }
+
+  /**
+   * Applies one Resend delivery event, and returns whether it changed anything.
+   *
+   * ONE STATEMENT, deliberately. The rule "an event may only move a row
+   * forward" needs the stored value to decide, and reading it first would
+   * decide from a snapshot taken outside the write — the check-then-act family
+   * that produced the checkout create race and that consumeLicense documents.
+   * `blockingStatuses` turns the rule into a WHERE clause instead, so the
+   * database arbitrates between two events arriving at once.
+   *
+   * Returns false for an unknown message id as well as for a stale event. The
+   * caller answers 200 either way: an id we do not hold is another mail
+   * entirely (a password reset), and a non-2xx has Svix retry for ever.
+   */
+  async recordSetupEmailDelivery(args: {
+    providerMessageId: string;
+    status: EmailDeliveryStatus;
+    at: Date;
+    detail?: string | null;
+  }): Promise<boolean> {
+    const blocked = blockingStatuses(args.status);
+    const moved = await db
+      .update(schoolSetupTokens)
+      .set({
+        deliveryStatus: args.status,
+        deliveryStatusAt: args.at,
+        deliveryDetail: args.detail ?? null,
+      })
+      .where(and(
+        eq(schoolSetupTokens.providerMessageId, args.providerMessageId),
+        // NULL must pass: a column with no event yet is not "not in the list",
+        // because NOT IN against NULL is NULL and would exclude the row.
+        or(
+          isNull(schoolSetupTokens.deliveryStatus),
+          notInArray(schoolSetupTokens.deliveryStatus, blocked),
+        ),
+      ))
+      .returning({ id: schoolSetupTokens.id });
+    return moved.length > 0;
   }
 
   /**
