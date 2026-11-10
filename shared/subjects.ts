@@ -130,3 +130,39 @@ export function gradeLabelFor(grade: string, lang: string): string {
   if (!n) return String(grade);
   return lang === "ar" ? `الصف ${n}` : `Grade ${n}`;
 }
+
+/**
+ * A CURRICULUM's name in the requested language.
+ *
+ * Curricula live on each country as a plain string array
+ * (`countries.curricula`) with no Arabic column, and `GET /api/reference`
+ * returned `nameAr: null` for every one of them. The reasoning recorded there
+ * was that most curriculum names are proper nouns which stay in Latin script
+ * inside Arabic text — "IB", "British", "CBSE" — and that is true and is why
+ * the fallback below returns the name unchanged.
+ *
+ * IT IS NOT TRUE OF THE ONE CURRICULUM IN PRODUCTION. "MOE National" is the
+ * UAE Ministry of Education's national curriculum, which has an ordinary
+ * Arabic name, and an Arabic-language school administrator was being shown an
+ * English string in the one field they must choose correctly before they can
+ * enrol anybody.
+ *
+ * SAME SHAPE AS subjectNameFor ABOVE, and for the same reason: the server
+ * cannot read the client's locale bundle, and a second copy of these strings
+ * on the client is the drift this codebase keeps producing. Anything not
+ * listed falls through to its own name, which is correct for a proper noun and
+ * more honest than a placeholder for anything else.
+ *
+ * NO CURRICULUM_IDS CONSTANT, deliberately — the same trap gradeLabelFor
+ * documents. Curricula are per-country data; a hardcoded list of them beside
+ * the column that holds them would be a second source of truth for which
+ * curricula exist, which is a different question from what they are called.
+ */
+export const CURRICULUM_NAMES_AR: Record<string, string> = {
+  "MOE National": "المنهاج الوطني (وزارة التربية والتعليم)",
+};
+
+export function curriculumNameFor(name: string, lang: string): string {
+  if (lang !== "ar") return name;
+  return CURRICULUM_NAMES_AR[name] ?? name;
+}

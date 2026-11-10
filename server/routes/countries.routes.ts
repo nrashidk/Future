@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { countryPricing, quotePrice, toMajor } from "@shared/pricing";
 import { storage } from "../storage";
-import { SUBJECT_IDS, subjectNameFor, gradeLabelFor } from "@shared/subjects";
+import { SUBJECT_IDS, subjectNameFor, curriculumNameFor, gradeLabelFor } from "@shared/subjects";
 import { createRequire } from "module";
 import isoCountries from "i18n-iso-countries";
 
@@ -250,11 +250,20 @@ export function registerCountriesRoutes(app: Express) {
           const rows = await storage.getSubjectsByCurriculum(country.id, curriculum);
           curricula.push({
             name: curriculum,
-            // No Arabic column exists for a curriculum name, and most are
-            // proper nouns that stay in Latin script in Arabic text anyway
-            // ("IB", "British"). Stated as null rather than echoed in English,
-            // so a caller can tell "not translated" from "same in both".
-            nameAr: null,
+            // No Arabic COLUMN exists for a curriculum name, and most names
+            // are proper nouns that stay in Latin script inside Arabic text
+            // anyway ("IB", "British", "CBSE"). That was the reasoning for a
+            // flat null here, and it is right for those — but it was wrong for
+            // the one curriculum in production: "MOE National" is the UAE
+            // Ministry of Education's national curriculum and has an ordinary
+            // Arabic name, so an Arabic-speaking administrator was shown an
+            // English string in the one field they must get right before they
+            // can enrol anybody.
+            //
+            // curriculumNameFor returns the name UNCHANGED for anything it
+            // does not know, so a caller can still tell "not translated" from
+            // "same in both" by comparing the two fields.
+            nameAr: curriculumNameFor(curriculum, "ar"),
             subjects: rows
               .filter((s: any) => s.isActive)
               .map((s: any) => ({
