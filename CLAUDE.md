@@ -643,9 +643,16 @@ chose to review would sit for ever with no one able to see it.
   moment later and lands on top of GS-01's stale fixture, failing GS-01, GS-02
   and GS-03 against a product that works. It passed on a dirty database
   because an existing status throttled that sweep away.
-  **Still unknown and needs a database look:** whether expired guest rows were
-  actually sitting in production during those fourteen days. No superadmin
-  endpoint exposes guest assessments.
+  **ANSWERED, AND THE ANSWER IS FOUR.** Within minutes of the fix deploying,
+  production's `/health` reported `lastDeletedCount: 4` — so four expired
+  guest assessments really had been sitting there, each holding an
+  unaccompanied minor's name, age, grade, gender and career-personality
+  profile, past a 72-hour deletion the privacy policy states as a promise.
+  The count matches the four guest assessments the bullet below used to
+  describe as permanent fixtures of the database; that identification is an
+  inference from the number and the shape, not from reading the rows, which
+  are now gone. **The bullet below is therefore stale and has been corrected.**
+  This is also the answer to "was it only latent": no.
 - **A GUEST IS NO LONGER ASKED FOR NAME, AGE OR GENDER — only grade.** Until
   2026-11-10 an anonymous visitor with no account had to enter all four before
   they could continue, so a thirteen-year-old could type their real name and
@@ -702,12 +709,16 @@ chose to review would sit for ever with no one able to see it.
   must use `data-testid="select-grade"`.
   Terms §2 and Privacy §5 now describe what actually happens, which they could
   not before this change.
-- Four completed assessments in production have no ledger row and that is
-  correct: they are GUEST assessments with a null `user_id`, so there is no
-  pool to charge. A guest is not billed, is bounded by
-  `recommendationsLimiter` rather than `FREE_ASSESSMENT_CAP` (which counts per
-  authenticated account), and cannot download the PDF, which is tier-gated as
-  a sold feature.
+- **The four guest assessments that used to sit in production are GONE** —
+  swept on 2026-11-10 the moment the `/health` trigger deployed
+  (`lastDeletedCount: 4`). They were correct to have no ledger row while they
+  existed: a GUEST assessment has a null `user_id`, so there is no pool to
+  charge. A guest is not billed, is bounded by `recommendationsLimiter`
+  rather than `FREE_ASSESSMENT_CAP` (which counts per authenticated account),
+  and cannot download the PDF, which is tier-gated as a sold feature. What
+  was NOT correct is that they outlived their 72-hour window by at least a
+  fortnight. Reconciliation figures that assumed those four rows exist are
+  now stale.
 - Closed: a superadmin can now grant or comp licences, and both that route and
   school creation accept an optional amount so a sale made offline is recorded
   as revenue rather than as a giveaway. The Stripe webhook is still the only
