@@ -288,6 +288,91 @@ try {
       moved === 7 * 4000,
       `outstanding moved by ${moved} on issuing a 7-student invoice (expected ${7 * 4000})`);
   }
+  // --------------------------------------------------------------------- V-12
+  // THE SCHOOL'S OWN VIEW. The organization is derived from the SESSION, so
+  // there is no id in the URL to tamper with — but the listing must still
+  // show this school's invoices and only this school's.
+  {
+    const r = await A.session.get("/api/my-organization/invoices");
+    const rows = r.body?.invoices ?? [];
+    const allOurs = rows.length > 0 && rows.every((i) => i.organizationId === A.orgId);
+    rec("V-12", "a school admin sees its OWN invoices through the derived route",
+      r.status === 200 && allOurs,
+      `HTTP ${r.status} rows=${rows.length} all ours=${allOurs}`);
+  }
+
+  // --------------------------------------------------------------------- V-13
+  // DRAFTS ARE INVISIBLE TO THE SCHOOL. One exists (V-11 left a 7-licence
+  // draft, and V-05's is still there), so this is a real exclusion rather
+  // than an empty list passing by accident — which is why the count of drafts
+  // in the database is asserted too.
+  {
+    const draftsInDb = Number((await sql(
+      `SELECT COUNT(*)::int n FROM invoices WHERE organization_id = $1 AND status = 'draft'`,
+      [A.orgId]))[0].n);
+    const r = await A.session.get("/api/my-organization/invoices");
+    const rows = r.body?.invoices ?? [];
+    const anyDraft = rows.some((i) => i.status === "draft");
+    rec("V-13", "a school NEVER sees a draft, and drafts really do exist",
+      draftsInDb > 0 && !anyDraft,
+      `drafts in db=${draftsInDb} drafts returned=${rows.filter((i) => i.status === "draft").length}`);
+  }
+
+  // --------------------------------------------------------------------- V-14
+  // THE CROSS-TENANT CASE, judged by whether the ROW COMES BACK — not by a
+  // status code. School B asks for one of school A's invoices by id.
+  //
+  // 404 rather than 403 on purpose: a 403 confirms the invoice exists, which
+  // turns this into an oracle for how many sales a competitor has made. The
+  // assertion that matters is `body.invoice === undefined`; the code is
+  // checked second.
+  {
+    const B = orgs.B;
+    const [mine] = await sql(
+      `SELECT id FROM invoices WHERE organization_id = $1 AND status <> 'draft' LIMIT 1`, [A.orgId]);
+    const r = await B.session.get(`/api/my-organization/invoices/${mine.id}`);
+    rec("V-14", "school B cannot read school A's invoice — no row, and a 404 not a 403",
+      r.body?.invoice === undefined && r.status === 404,
+      `HTTP ${r.status} invoice=${r.body?.invoice ? "LEAKED" : "absent"}`);
+  }
+
+  // --------------------------------------------------------------------- V-15
+  // THE POSITIVE CONTROL FOR V-14. Without it, V-14 passes against a route
+  // that returns nothing to anybody.
+  {
+    const [mine] = await sql(
+      `SELECT id, number FROM invoices WHERE organization_id = $1 AND status <> 'draft' LIMIT 1`, [A.orgId]);
+    const r = await A.session.get(`/api/my-organization/invoices/${mine.id}`);
+    rec("V-15", "school A CAN read its own invoice by id",
+      r.status === 200 && r.body?.invoice?.number === mine.number,
+      `HTTP ${r.status} number=${r.body?.invoice?.number}`);
+  }
+
+  // --------------------------------------------------------------------- V-16
+  // A school's own DRAFT is 404 to it as well — the exclusion is on the
+  // single-invoice route too, not just the listing. "A control applied to one
+  // verb and not its sibling" is the family this repo keeps producing.
+  {
+    const [draft] = await sql(
+      `SELECT id FROM invoices WHERE organization_id = $1 AND status = 'draft' LIMIT 1`, [A.orgId]);
+    const r = await A.session.get(`/api/my-organization/invoices/${draft.id}`);
+    rec("V-16", "a school's OWN draft is 404 on the single-invoice route too",
+      r.status === 404 && r.body?.invoice === undefined,
+      `HTTP ${r.status} invoice=${r.body?.invoice ? "LEAKED" : "absent"}`);
+  }
+
+  // --------------------------------------------------------------------- V-17
+  // A STUDENT is not an org admin. Judged by the absence of rows, because a
+  // 403 from the accountType check and a 403 from somewhere else look alike.
+  {
+    const student = orgs.A.students?.[0];
+    const s = new Session(`inv-stu-${tag}`);
+    await s.login(student.username, student.password);
+    const r = await s.get("/api/my-organization/invoices");
+    rec("V-17", "a STUDENT of the school cannot read its invoices",
+      r.status === 403 && (r.body?.invoices ?? undefined) === undefined,
+      `HTTP ${r.status} invoices=${r.body?.invoices ? "LEAKED" : "absent"}`);
+  }
 } finally {
   for (const id of made) { try { await sql(`DELETE FROM invoices WHERE id = $1`, [id]); } catch {} }
 }

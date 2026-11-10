@@ -241,4 +241,94 @@ export function registerOrganizationRoutes(app: Express) {
       res.status(500).json({ message: "Failed to fetch organization stats" });
     }
   });
+
+  /**
+   * THE SCHOOL'S OWN INVOICES.
+   *
+   * THE ORGANIZATION IS DERIVED FROM THE SESSION, never taken from the
+   * request — `getOrganizationByAdminUserId(userId)`, exactly as every other
+   * route in this file does it. There is no organization id in the URL to
+   * tamper with, which is the strongest version of the control: the leak this
+   * screen could produce is not prevented by a check, it is unreachable by
+   * construction.
+   *
+   * DRAFTS ARE EXCLUDED. A draft has not been sent to anybody, so showing one
+   * would have a school querying a bill nobody raised — and "outstanding" on
+   * their side must mean the same thing it means on ours.
+   */
+  const SCHOOL_VISIBLE_INVOICE_STATUSES = ["issued", "paid", "cancelled"];
+
+  app.get("/api/my-organization/invoices", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).userId;
+      const user = await storage.getUser(userId);
+      if (!user || user.accountType !== 'org_admin') {
+        return res.status(403).json({ message: "Access denied: Organization admin only" });
+      }
+      const organization = await storage.getOrganizationByAdminUserId(userId);
+      if (!organization) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+
+      const rows = await storage.listInvoices({
+        organizationId: organization.id,
+        statuses: SCHOOL_VISIBLE_INVOICE_STATUSES,
+      });
+
+      /**
+       * "Awaiting payment" counts ISSUED only, and is the same arithmetic the
+       * superadmin screen does — a school and the person chasing them must not
+       * read different numbers off the same rows.
+       */
+      const awaiting = rows.filter((i) => i.status === "issued");
+      res.json({
+        invoices: rows,
+        awaitingMinor: awaiting.reduce((n, i) => n + i.totalMinor, 0),
+        awaitingCurrencies: [...new Set(awaiting.map((i) => i.currency))],
+      });
+    } catch (error) {
+      console.error("Error fetching organization invoices:", error);
+      res.status(500).json({ message: "Failed to fetch invoices" });
+    }
+  });
+
+  /**
+   * ONE INVOICE, and the only route here that takes an id — so the only one
+   * where a school could ask for someone else's.
+   *
+   * THE CHECK IS A COMPARISON AGAINST THE DERIVED ORG, and it answers 404
+   * rather than 403. A 403 confirms the invoice exists, which turns this into
+   * an enumeration oracle for how many sales a competitor has made; 404 says
+   * only "not one of yours". The same reasoning as the anti-enumeration 200s
+   * elsewhere in this codebase.
+   *
+   * A DRAFT is 404 here too, for the same reason it is absent from the list.
+   */
+  app.get("/api/my-organization/invoices/:id", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).userId;
+      const user = await storage.getUser(userId);
+      if (!user || user.accountType !== 'org_admin') {
+        return res.status(403).json({ message: "Access denied: Organization admin only" });
+      }
+      const organization = await storage.getOrganizationByAdminUserId(userId);
+      if (!organization) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+
+      const invoice = await storage.getInvoiceById(req.params.id);
+      if (
+        !invoice ||
+        invoice.organizationId !== organization.id ||
+        !SCHOOL_VISIBLE_INVOICE_STATUSES.includes(invoice.status)
+      ) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+
+      res.json({ invoice });
+    } catch (error) {
+      console.error("Error fetching organization invoice:", error);
+      res.status(500).json({ message: "Failed to fetch the invoice" });
+    }
+  });
 }

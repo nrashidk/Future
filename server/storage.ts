@@ -3493,10 +3493,25 @@ export class DatabaseStorage implements IStorage {
     return row ?? null;
   }
 
-  async listInvoices(filters: { organizationId?: string; status?: string } = {}): Promise<Invoice[]> {
+  async listInvoices(
+    filters: { organizationId?: string; status?: string; statuses?: string[] } = {},
+  ): Promise<Invoice[]> {
     const conds = [];
     if (filters.organizationId) conds.push(eq(invoices.organizationId, filters.organizationId));
     if (filters.status) conds.push(eq(invoices.status, filters.status));
+    /**
+     * `statuses` is what the SCHOOL-FACING listing uses, to exclude drafts.
+     * An empty array would be a WHERE that matches nothing, and drizzle's
+     * inArray with one is a runtime error rather than an empty result — so a
+     * caller that computed an empty list gets every row, which is the wrong
+     * direction. Refused explicitly instead.
+     */
+    if (filters.statuses) {
+      if (filters.statuses.length === 0) {
+        throw new Error("listInvoices: an empty `statuses` filter is never what the caller meant");
+      }
+      conds.push(inArray(invoices.status, filters.statuses));
+    }
     const q = db.select().from(invoices);
     const rows = conds.length ? await q.where(and(...conds)) : await q;
     // Newest first, and by SEQUENCE rather than createdAt: two invoices raised
