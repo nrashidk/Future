@@ -119,7 +119,7 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `llm-gate`, `guest-claim`, `admin-writes`, `webhook-group-backstop`,
 `superadmin-writes`, `country-writes`, `setup-invite`, `school-setup-link`,
 `setup-stage`, `superadmin-delete-user`, `resend-webhook`, `guest-sweep`,
-`guest-identity`, `invoices`, plus
+`guest-identity`, `invoices`, `invoice-pdf`, plus
 `migration-029-dryrun`, `migration-030-dryrun`, `migration-032-dryrun`,
 `migration-033-dryrun`, `migration-034-dryrun`, `migration-035-dryrun`,
 `migration-036-dryrun` and `migration-037-dryrun`.
@@ -167,6 +167,12 @@ the backfill never happens in the harness and schools created by `seed.ts` have
 no ledger row. Reconciliation then correctly flags a state that only exists
 here. Any suite that asserts on reconciliation needs to do the same.
 `testing/local/README.md` has the details.
+
+`invoice-pdf` needs a Chromium: `PUPPETEER_EXECUTABLE_PATH` on `up.ts`, the
+same one `report.mjs` needs. It reads every response as BYTES — `res.text()`
+on a PDF reports a valid `%PDF` header and ~200 bytes for a megabyte file —
+and counts pages from the rendered file, because the report's pagination bug
+was in the CSS reading as correct while a selector matched the wrong sibling.
 
 **A CHECK CONSTRAINT THAT LIVES ONLY IN THE .sql DOES NOT EXIST IN THE
 HARNESS.** `schema-push` builds the tables from the DRIZZLE definitions and

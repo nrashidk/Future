@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { storage } from "../storage";
+import { renderInvoicePdf } from "../services/invoicePdf";
 import { isAuthenticated } from "../auth";
 import { getPolicyVersion, hashAttestationText, POLICY_LOCALES, type PolicyLocale } from "../utils/policyVersion";
 
@@ -329,6 +330,53 @@ export function registerOrganizationRoutes(app: Express) {
     } catch (error) {
       console.error("Error fetching organization invoice:", error);
       res.status(500).json({ message: "Failed to fetch the invoice" });
+    }
+  });
+
+  /**
+   * THE SCHOOL'S OWN PDF.
+   *
+   * THE ACCESS CHECK IS REPEATED IN FULL, not inherited from the route above.
+   * A download is a different verb on the same resource, and "a control
+   * applied to one verb and not its sibling" is the bug family this codebase
+   * keeps producing — the version of it that matters here would hand a
+   * competitor's invoice to anyone who guessed an id.
+   *
+   * 404, not 403, for the same anti-enumeration reason as the JSON route.
+   */
+  app.get("/api/my-organization/invoices/:id/pdf", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).userId;
+      const user = await storage.getUser(userId);
+      if (!user || user.accountType !== 'org_admin') {
+        return res.status(403).json({ message: "Access denied: Organization admin only" });
+      }
+      const organization = await storage.getOrganizationByAdminUserId(userId);
+      if (!organization) {
+        return res.status(404).json({ message: "Organization not found" });
+      }
+
+      const invoice = await storage.getInvoiceById(req.params.id);
+      if (
+        !invoice ||
+        invoice.organizationId !== organization.id ||
+        !SCHOOL_VISIBLE_INVOICE_STATUSES.includes(invoice.status)
+      ) {
+        return res.status(404).json({ message: "Invoice not found" });
+      }
+
+      // The school's own language, not the superadmin's.
+      const language = req.query.lang === "ar"
+        ? "ar"
+        : (req.query.lang === "en" ? "en" : (user.preferredLanguage === "ar" ? "ar" : "en"));
+      const pdf = await renderInvoicePdf({ invoice, language });
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `inline; filename="${invoice.number}.pdf"`);
+      res.setHeader("Content-Length", String(pdf.length));
+      return res.end(pdf);
+    } catch (error) {
+      console.error("Error rendering organization invoice PDF:", error);
+      return res.status(500).json({ message: "Failed to render the invoice" });
     }
   });
 }

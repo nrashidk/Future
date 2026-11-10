@@ -12,6 +12,7 @@ import { evaluateEmailChange, normalizeEmail } from "../utils/emailChange";
 import { decideGrantMoney } from "@shared/licenseGrants";
 import { toMajor, countryPricing } from "@shared/pricing";
 import { canTransition, invoiceDocumentType } from "@shared/invoice";
+import { renderInvoicePdf } from "../services/invoicePdf";
 import { sendEmailChangeNotifications } from "../services/email";
 import { toPublicUser } from "@shared/userPublic";
 import type { User } from "@shared/schema";
@@ -2242,6 +2243,22 @@ export function registerSuperadminRoutes(app: Express) {
       }
     });
   }
+
+  app.get("/api/superadmin/invoices/:id/pdf", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const invoice = await storage.getInvoiceById(req.params.id);
+      if (!invoice) return res.status(404).json({ message: "Invoice not found" });
+      const language = req.query.lang === "ar" ? "ar" : "en";
+      const pdf = await renderInvoicePdf({ invoice, language });
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader("Content-Disposition", `inline; filename="${invoice.number}.pdf"`);
+      res.setHeader("Content-Length", String(pdf.length));
+      return res.end(pdf);
+    } catch (error: any) {
+      console.error("Error rendering invoice PDF:", error);
+      return res.status(500).json({ message: "Failed to render the invoice" });
+    }
+  });
 
   /**
    * MARK PAID — the only route that changes what a school is entitled to.
