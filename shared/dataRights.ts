@@ -26,6 +26,11 @@ export const ERASURE_BLOCK_CODES = [
   // accounting record money reconciles against, and a person told their
   // erasure is held up deserves to know it is that rather than a log entry.
   "license_grants_performed",
+  // Invoices you raised against a school. Its own code rather than folded into
+  // the grant above: an invoice can exist unpaid, with no grant row behind it
+  // at all, so "you issued a bill that is still outstanding" and "you granted
+  // entitlement" are different facts and the person deserves to be told which.
+  "invoices_raised",
   "scoring_config_changes",
   "system_announcements",
   "system_settings",

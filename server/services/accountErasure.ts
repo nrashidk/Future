@@ -14,7 +14,7 @@
 import {
   users, assessments, recommendations, assessmentQuizzes, quizResponses,
   cvqResults, organizationMembers, wefCompetencyResults,
-  organizations, organizationEvents, contributionSubmissions, contributionRewards, contributionReviews,
+  organizations, organizationEvents, contributionSubmissions, contributionRewards, contributionReviews, invoices,
   licenseGrants,
   files, scoringConfigChangeLog, systemAnnouncements, systemConfig,
   childProfiles,
@@ -203,6 +203,21 @@ export const BLOCKING_AUDIT_SOURCES: Array<{ table: any; column: any; code: Eras
    * drift apart.
    */
   { table: licenseGrants, column: licenseGrants.performedBy, code: "license_grants_performed", label: "licence grants, comps and adjustments you made to a school's entitlement" },
+  /**
+   * INVOICES you raised against a school.
+   *
+   * ACTOR, not subject, for the same reason the licence grant below is: the
+   * row is a fact about the SCHOOL — what it was billed, for how many
+   * licences, and whether it has paid — and that you were the one who raised
+   * it says nothing about you beyond the act.
+   *
+   * It blocks erasure for the stronger reason too: an invoice is the billing
+   * record a sale reconciles against, and one that lost its creator would
+   * leave an outstanding balance with nobody attached to it. Separate code
+   * from `license_grants_performed` because an invoice can sit unpaid with no
+   * grant row behind it at all — the two are different facts.
+   */
+  { table: invoices, column: invoices.createdBy, code: "invoices_raised", label: "invoices you raised against a school" },
   { table: scoringConfigChangeLog, column: scoringConfigChangeLog.changedBy, code: "scoring_config_changes", label: "scoring-configuration changes you made" },
   { table: systemAnnouncements, column: systemAnnouncements.createdByUserId, code: "system_announcements", label: "system announcements you created" },
   { table: systemConfig, column: systemConfig.updatedByUserId, code: "system_settings", label: "system settings you updated" },

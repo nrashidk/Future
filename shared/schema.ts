@@ -3,6 +3,7 @@ import {
   check,
   date,
   index,
+  unique,
   uniqueIndex,
   integer,
   jsonb,
@@ -682,6 +683,119 @@ export const licenseGrantsRelations = relations(licenseGrants, ({ one }) => ({
 }));
 
 export type LicenseGrant = typeof licenseGrants.$inferSelect;
+
+/**
+ * INVOICES — the sale a school actually makes, which is by bank transfer
+ * against a purchase order, not by card on a web form.
+ *
+ * Until this existed that sale lived nowhere: a superadmin typed a licence
+ * count and an amount into the grant route and the only trace was a ledger row
+ * with a note. There was nothing to send the school, nothing to chase, and no
+ * way to answer "what is outstanding".
+ *
+ * NOT A SECOND SOURCE OF ENTITLEMENT. Marking an invoice paid calls
+ * `recordLicenseGrant` inside the same transaction, so `license_grants` stays
+ * the one ledger that reconciliation reads. An invoice is the paper; the grant
+ * is the fact.
+ *
+ * THE BILL-TO FIELDS ARE A SNAPSHOT, not a join. An invoice is a historical
+ * document: if a school renames itself, or is deleted, the invoice it was
+ * already sent must not quietly change. `organization_id` is therefore
+ * nullable and SET NULL on delete — the invoice outlives the school, which is
+ * what an accounting record is for.
+ *
+ * MONEY IN MINOR UNITS, like every other price in this codebase, with the
+ * currency stored beside it. `shared/invoice.ts` holds the arithmetic and
+ * takes its subtotal straight from `quotePrice`, so the figure on the document
+ * cannot disagree with the one checkout would charge.
+ *
+ * VAT IS BUILT AND DORMANT: `vat_rate_bp` defaults to 0 and `supplier_trn` is
+ * null, which makes every invoice a PROFORMA. Without a trade licence there is
+ * no TRN, and a document headed "Tax Invoice" without one is a compliance
+ * problem rather than a cosmetic one. The TRN is stored ON THE INVOICE rather
+ * than read from a setting at display time, so adding one later does not
+ * retitle every historical proforma.
+ */
+export const invoices = pgTable("invoices", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+
+  /** FP-2026-0001. Unique, and the thing a finance department quotes back. */
+  number: varchar("number").notNull().unique(),
+  /** Kept as columns too, so next year's sequence is a MAX() rather than a parse. */
+  year: integer("year").notNull(),
+  sequence: integer("sequence").notNull(),
+
+  organizationId: varchar("organization_id").references(() => organizations.id, { onDelete: "set null" }),
+
+  // --- bill-to, snapshotted at issue ---
+  billToName: varchar("bill_to_name").notNull(),
+  billToEmail: varchar("bill_to_email"),
+  billToAddress: text("bill_to_address"),
+
+  // --- the sale ---
+  studentCount: integer("student_count").notNull(),
+  /** Per licence before the volume discount. */
+  unitPriceMinor: integer("unit_price_minor").notNull(),
+  /** Per licence after it — the line rate, kept so the document is readable. */
+  perStudentMinor: integer("per_student_minor").notNull(),
+  discountPercent: integer("discount_percent").notNull().default(0),
+  subtotalMinor: integer("subtotal_minor").notNull(),
+  /** Basis points: 500 = 5%. An integer, because 0.05 is not representable. */
+  vatRateBp: integer("vat_rate_bp").notNull().default(0),
+  vatMinor: integer("vat_minor").notNull().default(0),
+  totalMinor: integer("total_minor").notNull(),
+  currency: varchar("currency", { length: 3 }).notNull(),
+  /** Null makes this a proforma. See the header. */
+  supplierTrn: varchar("supplier_trn"),
+
+  // --- lifecycle ---
+  /** draft | issued | paid | cancelled. shared/invoice.ts owns the transitions. */
+  status: varchar("status").notNull().default("draft"),
+  issuedAt: timestamp("issued_at"),
+  dueAt: timestamp("due_at"),
+  paidAt: timestamp("paid_at"),
+  /** The bank transfer reference — the only evidence this system holds of payment. */
+  paymentReference: varchar("payment_reference"),
+  /**
+   * The ledger row this invoice produced when it was paid. SET NULL rather
+   * than cascade: losing the grant must not silently un-bill a school.
+   */
+  licenseGrantId: varchar("license_grant_id").references(() => licenseGrants.id, { onDelete: "set null" }),
+
+  notes: text("notes"),
+  /**
+   * The superadmin who raised it. A blocking audit source (accountErasure.ts),
+   * for the same reason `license_grants.performed_by` is one: these rows are
+   * what revenue reconciles against, and losing one leaves a figure
+   * unexplainable.
+   */
+  createdBy: varchar("created_by").references(() => users.id),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+}, (table) => [
+  // One sequence per year, enforced rather than hoped for: a repeated invoice
+  // number is the one defect a finance department cannot work around.
+  unique("invoices_year_sequence_unique").on(table.year, table.sequence),
+  index("invoices_organization_idx").on(table.organizationId),
+  index("invoices_status_idx").on(table.status),
+]);
+
+export const invoicesRelations = relations(invoices, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [invoices.organizationId],
+    references: [organizations.id],
+  }),
+  licenseGrant: one(licenseGrants, {
+    fields: [invoices.licenseGrantId],
+    references: [licenseGrants.id],
+  }),
+  creator: one(users, {
+    fields: [invoices.createdBy],
+    references: [users.id],
+  }),
+}));
+
+export type Invoice = typeof invoices.$inferSelect;
 
 // Countries with mission/vision data
 export const countries = pgTable("countries", {

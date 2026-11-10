@@ -36,7 +36,7 @@ import {
   cvqResults, organizationMembers, wefCompetencyResults,
   organizations, organizationEvents, files, contributionSubmissions,
   contributionRewards, contributionReviews, scoringConfigChangeLog, systemAnnouncements, systemConfig,
-  childProfiles, licenseGrants,
+  childProfiles, licenseGrants, invoices,
 } from "@shared/schema";
 import { ERASURE_BLOCK_CODES } from "@shared/dataRights";
 
@@ -103,7 +103,7 @@ const TABLES = [
   cvqResults, organizationMembers, wefCompetencyResults, organizations,
   organizationEvents, files, contributionSubmissions, contributionRewards, contributionReviews,
   scoringConfigChangeLog, systemAnnouncements, systemConfig, childProfiles,
-  licenseGrants,
+  licenseGrants, invoices,
 ];
 
 /** column object -> {table, key}, by reference, built from the real schema. */
@@ -130,6 +130,9 @@ const FKS: Array<{ child: any; childKey: string; parent: any; parentKey: string 
   // record a school's entitlement reconciles against, so deleting the
   // superadmin who made it must be refused rather than quietly cascade.
   { child: licenseGrants, childKey: "performedBy", parent: users, parentKey: "id" },
+  // Same reasoning as the grant above: an invoice is the billing record a sale
+  // reconciles against, and one can sit unpaid with no grant row behind it.
+  { child: invoices, childKey: "createdBy", parent: users, parentKey: "id" },
 ];
 
 type Row = Record<string, any>;

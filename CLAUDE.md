@@ -121,8 +121,8 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `setup-stage`, `superadmin-delete-user`, `resend-webhook`, `guest-sweep`,
 `guest-identity`, plus
 `migration-029-dryrun`, `migration-030-dryrun`, `migration-032-dryrun`,
-`migration-033-dryrun`, `migration-034-dryrun`, `migration-035-dryrun` and
-`migration-036-dryrun`.
+`migration-033-dryrun`, `migration-034-dryrun`, `migration-035-dryrun`,
+`migration-036-dryrun` and `migration-037-dryrun`.
 
 `webhook-idempotency`, `webhook-group-backstop` and `setup-invite` need two
 environment

@@ -31,7 +31,7 @@ import {
   organizations, organizationConsents, organizationEvents, passwordResetTokens,
   files, contributionSubmissions, contributionRewards, contributionReviews, scoringConfigChangeLog,
   systemAnnouncements, systemConfig, organizationDeletions,
-  childProfiles, childGuardianConsents, licenseConsumptions, licenseGrants,
+  childProfiles, childGuardianConsents, licenseConsumptions, licenseGrants, invoices,
   schoolSetupTokens,
 } from "@shared/schema";
 
@@ -82,7 +82,7 @@ const TABLES = [
   files, contributionSubmissions, contributionRewards, contributionReviews, scoringConfigChangeLog,
   systemAnnouncements, systemConfig, organizationDeletions,
   childProfiles, childGuardianConsents, licenseConsumptions, licenseGrants,
-  schoolSetupTokens,
+  schoolSetupTokens, invoices,
 ];
 
 const COLS = new Map<any, { table: any; key: string }>();

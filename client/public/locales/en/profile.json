@@ -150,6 +150,7 @@
         "contributions_peer_reviewed": "Peer reviews you cast on other schools' question contributions",
         "contribution_rewards_awarded": "Contribution rewards you awarded",
         "license_grants_performed": "Licence grants, comps and adjustments you made to a school's entitlement",
+        "invoices_raised": "Invoices you raised against a school, including any still unpaid",
         "scoring_config_changes": "Scoring-configuration changes you made",
         "system_announcements": "System announcements you created",
         "system_settings": "System settings you updated"
