@@ -118,7 +118,7 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `org-admin`, `checkout-preflight`, `school-lock`, `webhook-idempotency`,
 `llm-gate`, `guest-claim`, `admin-writes`, `webhook-group-backstop`,
 `superadmin-writes`, `country-writes`, `setup-invite`, `school-setup-link`,
-`setup-stage`, plus
+`setup-stage`, `superadmin-delete-user`, plus
 `migration-029-dryrun`, `migration-030-dryrun`, `migration-032-dryrun`,
 `migration-033-dryrun`, `migration-034-dryrun` and `migration-035-dryrun`.
 
@@ -897,6 +897,38 @@ chose to review would sit for ever with no one able to see it.
     Suites: `setup-invite` (5), `school-setup-link` (14, ending in a student
     actually enrolled), `setup-stage` (9), `migration-035-dryrun` (9), plus
     `schoolSetupStage.test.ts` (11) and `email.schoolSetup.test.ts` (5).
+  - **A SUPERADMIN CAN NOW DELETE AN ACCOUNT — there was no way to, before
+    2026-11-10.** The only deletion path in the product was
+    `DELETE /api/users/me`, self-service erasure needing that account's own
+    password, so a test purchase or a checkout that stranded a premium account
+    with no school left a row nobody could clear. Deleting that account's
+    school does not help: `deleteOrganizationWithDependents` deliberately
+    leaves admin users alone, so it creates another stranded account.
+    `DELETE /api/superadmin/users/:id` REUSES `eraseUserData`, the same
+    implementation the data subject's own erasure and a school's student
+    removal both call — a second erasure written beside the route would drift,
+    and accountErasure.ts lives in services/ precisely so "erasure" cannot mean
+    different things depending on who asked.
+    Four refusals, each for its own reason: a STUDENT is sent to the school's
+    removal endpoints, because a minor's record carries an erase/detach choice
+    this route cannot express; a SUPERADMIN is refused outright, since an
+    endpoint that deletes the people holding the keys is a privilege surface;
+    YOURSELF is refused and pointed at `/api/users/me`, which asks for the
+    password again; and AUDIT RECORDS block exactly as they block self-erasure.
+    **That last one forces the order**: `organizations.admin_user_id` is a
+    blocking source, so a school's registered administrator cannot be erased
+    while the school exists — cleaning up a stranded school is two acts, school
+    first.
+    Confirmed by EMAIL, not by id: the body must echo the account's own
+    address, because a UUID in a URL is unreadable and one wrong character is a
+    different person.
+    `superadmin-delete-user.mjs` (11 cases) judges every denial by whether the
+    ROW IS STILL THERE, never by status. Mutation-tested by disabling the
+    superadmin guard and the email comparison together: D-03 deletes with NO
+    confirmation, D-04 deletes on the WRONG email, and D-05b deletes another
+    superadmin. D-05b exists because D-05 cannot reach that branch — when the
+    target is the caller the self-check fires first, and the first draft's
+    assertion accepted either code and so tested neither.
   - **There is NO in-account licence top-up, and the checkout refusals used to
     promise one.** `payment.routes.ts` has five POST routes and none of them
     sells licences to an existing school; `createGroupPurchaseTransaction`

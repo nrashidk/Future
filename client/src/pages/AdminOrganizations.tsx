@@ -1731,6 +1731,11 @@ function EditOrganizationForm({ organization, studentCount, onSuccess }: { organ
 
         <div>
           <Label htmlFor="edit-org-country">{t('orgs.defaultCountryLabel')}</Label>
+          {/* Country is NOT optional, whatever the old label said: schoolSetupGate
+              refuses every enrolment until country and curriculum are both set,
+              so a school labelled "(Optional)" here is one a buyer leaves blank
+              and then cannot use. The hint says what the gate does rather than
+              only marking the field. */}
           <Select 
             value={formData.countryId} 
             onValueChange={(value) => setFormData(f => ({ ...f, countryId: value, curriculum: "" }))}
@@ -1747,6 +1752,14 @@ function EditOrganizationForm({ organization, studentCount, onSuccess }: { organ
               ))}
             </SelectContent>
           </Select>
+          {/* Shown while either gate is unmet, so the consequence is on screen
+              at the moment it can be fixed — not discovered later as a 409 the
+              school admin cannot interpret. */}
+          {(!formData.countryId || !formData.curriculum) && (
+            <p className="text-xs text-muted-foreground mt-1.5" data-testid="note-edit-org-setup-required">
+              {t('orgs.countryGateHint')}
+            </p>
+          )}
         </div>
 
         {/* Said rather than merely done: a select that will not open reads as a

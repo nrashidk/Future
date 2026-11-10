@@ -229,9 +229,9 @@
     "unlimitedLicensesToggle": "Unlimited Licenses",
     "unlimitedLicensesToggleDesc": "Allow unlimited student assessments (superadmin only)",
     "totalLicensesRequired": "Total Licenses *",
-    "defaultCountryLabel": "Default Country (Optional)",
+    "defaultCountryLabel": "Country *",
     "countryRequired": "Country *",
-    "selectCountryOptional": "Select country (optional)",
+    "selectCountryOptional": "Select country",
     "selectCountryReq": "Select country",
     "noneOption": "None",
     "defaultCountryHint": "If set, all students will automatically use this country and skip the country selection step",
@@ -393,7 +393,8 @@
     "removalEraseBtn": "Delete record permanently",
     "removalEraseBulkBtn": "Delete selected records permanently",
     "removalHasReport": "This student has a completed report. Keeping the account leaves them their report and removes them from the school; deleting the record removes both permanently.",
-    "removalNoReport": "This student has no completed report — their account holds only login credentials."
+    "removalNoReport": "This student has no completed report — their account holds only login credentials.",
+    "countryGateHint": "Required. Students cannot be enrolled until the country and curriculum are both set."
   },
   "superadmin": {
     "title": "Super Admin Dashboard",

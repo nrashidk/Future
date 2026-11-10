@@ -229,9 +229,9 @@
     "unlimitedLicensesToggle": "تراخيص غير محدودة",
     "unlimitedLicensesToggleDesc": "السماح بتقييمات غير محدودة للطلاب (للمدير العام فقط)",
     "totalLicensesRequired": "إجمالي التراخيص *",
-    "defaultCountryLabel": "الدولة الافتراضية (اختياري)",
+    "defaultCountryLabel": "الدولة *",
     "countryRequired": "الدولة *",
-    "selectCountryOptional": "اختر الدولة (اختياري)",
+    "selectCountryOptional": "اختر الدولة",
     "selectCountryReq": "اختر الدولة",
     "noneOption": "لا شيء",
     "defaultCountryHint": "عند التحديد، سيستخدم الطلاب هذه الدولة تلقائياً ويتجاوزون خطوة اختيار الدولة",
@@ -393,7 +393,8 @@
     "removalEraseBtn": "حذف السجل نهائيًا",
     "removalEraseBulkBtn": "حذف سجلات الطلاب المحددين نهائيًا",
     "removalHasReport": "لدى هذا الطالب تقرير مكتمل. الاحتفاظ بالحساب يترك له تقريره ويزيله من المدرسة، وحذف السجل يزيل الاثنين نهائيًا.",
-    "removalNoReport": "ليس لدى هذا الطالب تقرير مكتمل — حسابه يحتوي على بيانات الدخول فقط."
+    "removalNoReport": "ليس لدى هذا الطالب تقرير مكتمل — حسابه يحتوي على بيانات الدخول فقط.",
+    "countryGateHint": "مطلوب. لا يمكن تسجيل الطلاب حتى يتم تحديد الدولة والمنهج معاً."
   },
   "superadmin": {
     "title": "لوحة المدير العام",

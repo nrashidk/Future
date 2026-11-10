@@ -7,6 +7,7 @@ import { dataExportLimiter, orgCreationLimiter } from "../middleware/rateLimiter
 import { getSuperadminEmails } from "../middleware/auth.middleware";
 import { schoolSetupStage } from "@shared/schoolSetupStage";
 import { sendSchoolSetupInvite } from "../services/schoolSetupInvite";
+import { eraseUserData, collectBlockingAuditRecords } from "../services/accountErasure";
 import { evaluateEmailChange, normalizeEmail } from "../utils/emailChange";
 import { decideGrantMoney } from "@shared/licenseGrants";
 import { toMajor } from "@shared/pricing";
@@ -727,6 +728,134 @@ export function registerSuperadminRoutes(app: Express) {
    * `issueSchoolSetupToken` returns the existing unused token, and only mints
    * when there is none — which is also what makes this safe to press twice.
    */
+  /**
+   * DELETE AN ACCOUNT A SUPERADMIN CREATED, OR THAT A FAILED PURCHASE LEFT
+   * BEHIND.
+   *
+   * Until this existed there was NO way to remove a user account: the only
+   * deletion path in the product was `DELETE /api/users/me`, self-service
+   * erasure needing that account's own password. So a test purchase, or a
+   * checkout that stranded a premium account with no school, left a row nobody
+   * could clear — and deleting that account's school creates another one,
+   * because `deleteOrganizationWithDependents` deliberately leaves admin users
+   * alone.
+   *
+   * REUSES `eraseUserData`, the same implementation the data subject's own
+   * erasure and a school's student removal both call. A second erasure written
+   * here would drift from that one, and the whole reason accountErasure.ts
+   * lives in services/ is that "erasure" must not mean different things
+   * depending on who asked. The dependent list is derived there, not
+   * remembered, which is what stops this reintroducing the short-list bug that
+   * made the right-to-erasure endpoint 500 for every premium student.
+   *
+   * FOUR REFUSALS, each for a different reason:
+   *
+   *   - a STUDENT is refused and the caller is sent to the school's own
+   *     removal endpoints. A student is a minor whose record carries
+   *     assessments and results, and removing them is the school's act with
+   *     'erase' or 'detach' semantics that this route cannot express. One path
+   *     for minors' records, not two.
+   *   - a SUPERADMIN is refused outright. An endpoint that can delete the
+   *     people who hold the keys is a privilege surface, and this product
+   *     recomputes superadmin status by email on every request — so an account
+   *     whose email is in SUPERADMIN_EMAILS stays.
+   *   - YOURSELF is refused, and pointed at /api/users/me. That route asks for
+   *     the password again precisely because a session proves a browser and not
+   *     a person; deleting your own account should clear that bar, not this
+   *     lower one.
+   *   - AUDIT RECORDS block, exactly as they block self-erasure, including
+   *     `organizations.admin_user_id`. That last one is why the order is
+   *     forced: a school's registered administrator cannot be erased while the
+   *     school exists, so the school goes first and the admin second.
+   *
+   * CONFIRMED BY EMAIL, not by id alone. The body must echo the account's own
+   * email address. A UUID in a URL is unreadable and one wrong character is a
+   * different person; typing the address is the step that makes the act
+   * deliberate. An account with no email can be deleted by echoing its
+   * username instead.
+   */
+  app.delete("/api/superadmin/users/:id", isAuthenticated, isSuperadminMiddleware, async (req: any, res) => {
+    try {
+      const targetId = req.params.id;
+      const currentUser = await storage.getUser(req.user.userId);
+
+      const target = await storage.getUser(targetId);
+      if (!target) return res.status(404).json({ message: "User not found" });
+
+      if (currentUser && target.id === currentUser.id) {
+        return res.status(409).json({
+          message: "Delete your own account from your profile, where it asks for your password.",
+          code: "USE_SELF_ERASURE",
+        });
+      }
+
+      const superadminEmails = getSuperadminEmails();
+      const targetIsSuperadmin =
+        target.role === "superadmin" ||
+        (!!target.email && superadminEmails.includes(target.email.toLowerCase()));
+      if (targetIsSuperadmin) {
+        return res.status(409).json({
+          message: "This account is a superadmin and cannot be deleted here. Remove it from SUPERADMIN_EMAILS first.",
+          code: "TARGET_IS_SUPERADMIN",
+        });
+      }
+
+      if (target.accountType === "student") {
+        return res.status(409).json({
+          message:
+            "This is a student account. Remove the student from their school instead, which asks whether to erase or detach their records.",
+          code: "USE_STUDENT_REMOVAL",
+        });
+      }
+
+      // The deliberate step. Echo the address, not the id.
+      const expected = (target.email || target.username || "").trim().toLowerCase();
+      const supplied = String(req.body?.confirmEmail ?? "").trim().toLowerCase();
+      if (!expected || supplied !== expected) {
+        return res.status(400).json({
+          message: "Type this account's email address to confirm the deletion.",
+          code: "CONFIRMATION_REQUIRED",
+        });
+      }
+
+      // The blocking check runs INSIDE the transaction, on the same snapshot
+      // the deletes would use, so a concurrent write cannot slip an audit row
+      // in between the check and the erasure.
+      let blocking: string[] = [];
+      await db.transaction(async (tx) => {
+        blocking = await collectBlockingAuditRecords(tx, targetId);
+        if (blocking.length > 0) return; // nothing written; the tx commits empty
+        await eraseUserData(tx, targetId);
+      });
+
+      if (blocking.length > 0) {
+        return res.status(409).json({
+          message:
+            "This account holds records of actions it performed on other people's data, which cannot be deleted without destroying their audit trail.",
+          code: "ERASURE_BLOCKED_BY_AUDIT_RECORDS",
+          blockingRecords: blocking,
+        });
+      }
+
+      console.log(
+        `[Superadmin] Account ${targetId} (${expected}) permanently deleted by ${currentUser?.id ?? "unknown"}`,
+      );
+
+      // Enumerated, not "everything": organization_consents keeps
+      // performed_by_name and performed_by_email by design, so a superlative
+      // here would be untrue for anyone who had attested.
+      res.json({
+        success: true,
+        deletedEmail: expected,
+        message:
+          "Account permanently deleted, along with its assessments, quiz responses, recommendations, career values results, WEF competency results and school enrolment record.",
+      });
+    } catch (error) {
+      console.error("[Superadmin] Failed to delete user:", error);
+      res.status(500).json({ message: "Failed to delete the account" });
+    }
+  });
+
   app.post("/api/superadmin/organizations/:id/resend-setup", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
     try {
       const org = await storage.getOrganizationById(req.params.id);
