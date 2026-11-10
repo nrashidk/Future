@@ -40,6 +40,8 @@ import {
   licenseGrants,
   stripeWebhookEvents,
   schoolSetupTokens,
+  invoices,
+  type Invoice,
   contributionReviews,
   REVIEW_MAJORITY,
   childGuardianConsents,
@@ -136,6 +138,7 @@ import { collapseToLatestPerGrade, gradeSortKey, mergeGradeCounts, toCanonicalGr
 import { assessmentIsChildOwned } from "@shared/childOwnership";
 import { decideGrantMoney } from "@shared/licenseGrants";
 import { blockingStatuses, type EmailDeliveryStatus } from "@shared/emailDelivery";
+import { invoiceTotals, formatInvoiceNumber, canTransition, grantAmountMajor } from "@shared/invoice";
 import { splitStudentName } from "@shared/studentName";
 import { SUBJECT_IDS } from "@shared/subjects";
 import { eq, ne, and, or, desc, count, avg, sql, inArray, notInArray, isNotNull, isNull, gt, gte, type SQL } from "drizzle-orm";
@@ -3395,6 +3398,239 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(schoolSetupTokens.createdAt))
       .limit(1);
     return row ?? null;
+  }
+
+  // ===========================================================================
+  // INVOICES
+  // ===========================================================================
+
+  /**
+   * Raises a draft invoice, allocating the next number for the year.
+   *
+   * THE SEQUENCE IS ALLOCATED BY INSERTING AND ACCEPTING THE INDEX'S VERDICT,
+   * not by reading a maximum and trusting it. `SELECT MAX(sequence) + 1` is
+   * check-then-act: two requests a millisecond apart read the same maximum and
+   * one of them produces a duplicate invoice number, which is the single
+   * defect a finance department cannot work around. The unique constraint on
+   * (year, sequence) is the real arbiter, so a collision is RETRIED rather
+   * than prevented — the same shape as grantIndividualPremium accepting
+   * `users_email_unique`'s verdict instead of checking first.
+   *
+   * Bounded at five attempts. An unbounded retry against a genuinely broken
+   * constraint would spin; five covers any realistic contention on a route
+   * only superadmins can reach.
+   */
+  async createInvoice(params: {
+    organizationId: string | null;
+    billToName: string;
+    billToEmail?: string | null;
+    billToAddress?: string | null;
+    studentCount: number;
+    unitPriceMinor?: number;
+    currency?: string;
+    vatRateBp?: number;
+    supplierTrn?: string | null;
+    dueAt?: Date | null;
+    notes?: string | null;
+    createdBy?: string | null;
+  }): Promise<Invoice> {
+    const totals = invoiceTotals({
+      studentCount: params.studentCount,
+      unitPriceMinor: params.unitPriceMinor,
+      currency: params.currency,
+      vatRateBp: params.vatRateBp,
+    });
+    const year = new Date().getUTCFullYear();
+
+    let lastError: any = null;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const [{ next }] = await db
+        .select({ next: sql<number>`COALESCE(MAX(${invoices.sequence}), 0) + 1` })
+        .from(invoices)
+        .where(eq(invoices.year, year));
+      const sequence = Number(next);
+      try {
+        const [row] = await db
+          .insert(invoices)
+          .values({
+            number: formatInvoiceNumber(year, sequence),
+            year,
+            sequence,
+            organizationId: params.organizationId,
+            billToName: params.billToName,
+            billToEmail: params.billToEmail ?? null,
+            billToAddress: params.billToAddress ?? null,
+            studentCount: totals.studentCount,
+            unitPriceMinor: totals.unitPriceMinor,
+            perStudentMinor: totals.perStudentMinor,
+            discountPercent: totals.discountPercent,
+            subtotalMinor: totals.subtotalMinor,
+            vatRateBp: totals.vatRateBp,
+            vatMinor: totals.vatMinor,
+            totalMinor: totals.totalMinor,
+            currency: totals.currency,
+            supplierTrn: params.supplierTrn ?? null,
+            status: "draft",
+            dueAt: params.dueAt ?? null,
+            notes: params.notes ?? null,
+            createdBy: params.createdBy ?? null,
+          })
+          .returning();
+        return row;
+      } catch (e: any) {
+        // 23505 on (year, sequence) means someone took this number between
+        // the read and the write. Anything else is a real failure.
+        const code = e?.code ?? e?.cause?.code;
+        if (code !== "23505") throw e;
+        lastError = e;
+      }
+    }
+    throw lastError ?? new Error("Could not allocate an invoice number");
+  }
+
+  async getInvoiceById(id: string): Promise<Invoice | null> {
+    const [row] = await db.select().from(invoices).where(eq(invoices.id, id)).limit(1);
+    return row ?? null;
+  }
+
+  async listInvoices(filters: { organizationId?: string; status?: string } = {}): Promise<Invoice[]> {
+    const conds = [];
+    if (filters.organizationId) conds.push(eq(invoices.organizationId, filters.organizationId));
+    if (filters.status) conds.push(eq(invoices.status, filters.status));
+    const q = db.select().from(invoices);
+    const rows = conds.length ? await q.where(and(...conds)) : await q;
+    // Newest first, and by SEQUENCE rather than createdAt: two invoices raised
+    // in the same second must still read in the order they were numbered.
+    return rows.sort((a, b) => (b.year - a.year) || (b.sequence - a.sequence));
+  }
+
+  /**
+   * Moves an invoice between the states shared/invoice.ts permits, for every
+   * transition EXCEPT payment — which is markInvoicePaid below, because it
+   * also changes what a school is entitled to.
+   *
+   * THE CURRENT STATUS IS IN THE WHERE CLAUSE, not read first. A status read
+   * and then written is check-then-act, and this route is reachable by a
+   * double-click: two requests would both see `issued`, both pass
+   * canTransition, and both write. Letting the UPDATE decide means the second
+   * one changes zero rows and is told so.
+   */
+  async setInvoiceStatus(
+    id: string,
+    from: string,
+    to: "issued" | "cancelled",
+    extra: { issuedAt?: Date | null } = {},
+  ): Promise<Invoice | null> {
+    if (!canTransition(from, to)) return null;
+    const [row] = await db
+      .update(invoices)
+      .set({
+        status: to,
+        // A CHECK constraint refuses an issued invoice with no issued_at, so
+        // this is not merely tidy — omitting it aborts the statement.
+        ...(to === "issued" ? { issuedAt: extra.issuedAt ?? new Date() } : {}),
+        updatedAt: new Date(),
+      })
+      .where(and(eq(invoices.id, id), eq(invoices.status, from)))
+      .returning();
+    return row ?? null;
+  }
+
+  /**
+   * SETTLES AN INVOICE AND GRANTS THE LICENCES, in one transaction.
+   *
+   * This is the only place the two meet, and it is deliberately not two
+   * routes. A school that has paid and holds no licences, or holds licences
+   * against an invoice still showing unpaid, are both states somebody has to
+   * untangle by hand — and the second one is invisible to every report.
+   *
+   * THE INVOICE IS CLAIMED BY THE UPDATE'S OWN WHERE CLAUSE, before the grant
+   * is written. `WHERE id = ? AND status = 'issued'` returning zero rows means
+   * another request already settled it, and the transaction is abandoned
+   * having granted nothing. Reading the status first and deciding would leave
+   * the window that lets a double-click grant twice — the check-then-act
+   * family that produced the checkout create race.
+   *
+   * EVERYTHING READS ON `tx`. A balance read on the pooled handle and written
+   * inside a transaction decides from a snapshot taken outside it, and takes a
+   * second connection while one is held. storage.consumeLicense documents the
+   * same rule.
+   *
+   * The grant records the SUBTOTAL, not the total: VAT is collected for the
+   * tax authority and is not revenue, so booking it as licence revenue would
+   * overstate every figure reconciliation produces.
+   */
+  async markInvoicePaid(params: {
+    id: string;
+    paymentReference?: string | null;
+    paidAt?: Date | null;
+    performedBy?: string | null;
+  }): Promise<
+    | { ok: true; invoice: Invoice }
+    | { ok: false; reason: "not_found" | "wrong_status" | "no_organization" | "unlimited" }
+  > {
+    return await db.transaction(async (tx: any) => {
+      const [invoice] = await tx.select().from(invoices).where(eq(invoices.id, params.id)).limit(1);
+      if (!invoice) return { ok: false as const, reason: "not_found" as const };
+      if (!canTransition(invoice.status, "paid")) {
+        return { ok: false as const, reason: "wrong_status" as const };
+      }
+      // An invoice raised against no school has nowhere to put the licences.
+      // Refused rather than marked paid: a settled invoice that granted
+      // nothing is the invisible half of the problem this method exists for.
+      if (!invoice.organizationId) {
+        return { ok: false as const, reason: "no_organization" as const };
+      }
+
+      const [org] = await tx
+        .select()
+        .from(organizations)
+        .where(eq(organizations.id, invoice.organizationId))
+        .limit(1);
+      if (!org) return { ok: false as const, reason: "no_organization" as const };
+      // An unlimited school's total is a number with no meaning, and adding to
+      // it would make reconciliation report a difference that is not real.
+      if (org.isUnlimitedLicenses) return { ok: false as const, reason: "unlimited" as const };
+
+      // THE CLAIM. Zero rows means someone else settled it first.
+      const [claimed] = await tx
+        .update(invoices)
+        .set({
+          status: "paid",
+          paidAt: params.paidAt ?? new Date(),
+          paymentReference: params.paymentReference ?? null,
+          updatedAt: new Date(),
+        })
+        .where(and(eq(invoices.id, params.id), eq(invoices.status, invoice.status)))
+        .returning();
+      if (!claimed) return { ok: false as const, reason: "wrong_status" as const };
+
+      const grant = await this.recordLicenseGrant({
+        organizationId: invoice.organizationId,
+        kind: "purchase",
+        licensesDelta: invoice.studentCount,
+        amountPaid: grantAmountMajor(invoice.subtotalMinor, invoice.currency),
+        currency: invoice.currency,
+        performedBy: params.performedBy ?? null,
+        note: `Invoice ${invoice.number}${params.paymentReference ? ` (ref ${params.paymentReference})` : ""}`,
+      }, tx);
+
+      await tx
+        .update(organizations)
+        .set({
+          totalLicenses: (org.totalLicenses ?? 0) + invoice.studentCount,
+          updatedAt: new Date(),
+        })
+        .where(eq(organizations.id, invoice.organizationId));
+
+      const [final] = await tx
+        .update(invoices)
+        .set({ licenseGrantId: grant?.id ?? null })
+        .where(eq(invoices.id, params.id))
+        .returning();
+
+      return { ok: true as const, invoice: final ?? claimed };
+    });
   }
 
   async claimStripeWebhookEvent(eventId: string, eventType: string): Promise<boolean> {

@@ -119,7 +119,7 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `llm-gate`, `guest-claim`, `admin-writes`, `webhook-group-backstop`,
 `superadmin-writes`, `country-writes`, `setup-invite`, `school-setup-link`,
 `setup-stage`, `superadmin-delete-user`, `resend-webhook`, `guest-sweep`,
-`guest-identity`, plus
+`guest-identity`, `invoices`, plus
 `migration-029-dryrun`, `migration-030-dryrun`, `migration-032-dryrun`,
 `migration-033-dryrun`, `migration-034-dryrun`, `migration-035-dryrun`,
 `migration-036-dryrun` and `migration-037-dryrun`.
@@ -167,6 +167,18 @@ the backfill never happens in the harness and schools created by `seed.ts` have
 no ledger row. Reconciliation then correctly flags a state that only exists
 here. Any suite that asserts on reconciliation needs to do the same.
 `testing/local/README.md` has the details.
+
+**A CHECK CONSTRAINT THAT LIVES ONLY IN THE .sql DOES NOT EXIST IN THE
+HARNESS.** `schema-push` builds the tables from the DRIZZLE definitions and
+marks every migration applied without running it — so a constraint written in
+`server/migrations/NNN.sql` and not also declared on the drizzle table is live
+in production and absent here. The gap is invisible and it lies in the
+dangerous direction: a suite passes against a table that accepts a row
+production would refuse. Found on 2026-11-10 by mutation — removing the
+invoice transition guard let a DRAFT be marked paid, and
+`invoices_issued_has_date` should have refused that row at the database and
+did not. **Declare checks in BOTH places, with the same constraint name** so
+`db:push` sees no drift; `invoices` and `organization_members` both do.
 
 **`server/migrations/` is for migrations and nothing else.** The runner
 applies EVERY `.sql` file in that directory at boot and records it as applied,

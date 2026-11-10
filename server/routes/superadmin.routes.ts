@@ -10,7 +10,8 @@ import { sendSchoolSetupInvite } from "../services/schoolSetupInvite";
 import { eraseUserData, collectBlockingAuditRecords } from "../services/accountErasure";
 import { evaluateEmailChange, normalizeEmail } from "../utils/emailChange";
 import { decideGrantMoney } from "@shared/licenseGrants";
-import { toMajor } from "@shared/pricing";
+import { toMajor, countryPricing } from "@shared/pricing";
+import { canTransition, invoiceDocumentType } from "@shared/invoice";
 import { sendEmailChangeNotifications } from "../services/email";
 import { toPublicUser } from "@shared/userPublic";
 import type { User } from "@shared/schema";
@@ -2087,6 +2088,200 @@ export function registerSuperadminRoutes(app: Express) {
     } catch (error) {
       console.error("Error fetching scoring config changelog:", error);
       res.status(500).json({ message: "Failed to fetch changelog" });
+    }
+  });
+
+  // ===============================
+  // INVOICES
+  // ===============================
+
+  /**
+   * RAISE A DRAFT INVOICE.
+   *
+   * THE PRICE IS DERIVED FROM THE SCHOOL, never sent by the caller. Public
+   * checkout has to take a country id from the request because a group buyer
+   * has no account to derive one from — and CLAUDE.md records that as the
+   * reason real regional pricing is not yet safe there. An invoice does not
+   * have that problem: the school exists, it has a country, and the country
+   * has a price. Accepting a price here would reintroduce the one gap that
+   * path is waiting on, in the one place it does not need to exist.
+   *
+   * A school with no country falls back to the USD default and SAYS SO in the
+   * response (`usesFallbackPrice`), rather than quietly billing a UAE school
+   * in dollars — the same reporting `countryPricing` already does for the
+   * pricing page.
+   */
+  const invoiceCreateSchema = z.object({
+    organizationId: z.string().min(1).max(64),
+    studentCount: z.number().int().positive().max(100000),
+    // Bounded, because every string that reaches a zod schema in this repo is:
+    // an unbounded array or string is the live-request-path half of the zod
+    // advisory (CLAUDE.md).
+    billToName: z.string().trim().min(1).max(200).optional(),
+    billToEmail: z.string().trim().max(320).optional(),
+    billToAddress: z.string().trim().max(2000).optional(),
+    notes: z.string().trim().max(2000).optional(),
+    dueInDays: z.number().int().min(0).max(365).optional(),
+  });
+
+  app.post("/api/superadmin/invoices", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const parsed = invoiceCreateSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ message: "Invalid invoice", code: "INVALID_INVOICE", errors: parsed.error.errors });
+      }
+      const input = parsed.data;
+
+      const org = await storage.getOrganizationById(input.organizationId);
+      if (!org) return res.status(404).json({ message: "School not found", code: "ORG_NOT_FOUND" });
+
+      const country = org.countryId ? await storage.getCountryById(org.countryId) : null;
+      const pricing = countryPricing(country);
+
+      const currentUser = (req as any).currentUser;
+      const invoice = await storage.createInvoice({
+        organizationId: org.id,
+        // Snapshotted now, so a later rename does not rewrite a document the
+        // school was already sent.
+        billToName: input.billToName ?? org.name,
+        billToEmail: input.billToEmail ?? null,
+        billToAddress: input.billToAddress ?? null,
+        studentCount: input.studentCount,
+        unitPriceMinor: pricing.unitPriceMinor,
+        currency: pricing.currency,
+        // Dormant until a TRN exists. Deliberately not read from a setting:
+        // see shared/invoice.ts.
+        vatRateBp: 0,
+        supplierTrn: null,
+        dueAt: input.dueInDays != null
+          ? new Date(Date.now() + input.dueInDays * 24 * 60 * 60 * 1000)
+          : null,
+        notes: input.notes ?? null,
+        createdBy: currentUser?.id ?? null,
+      });
+
+      return res.status(201).json({
+        invoice,
+        // Surfaced rather than swallowed: an unpriced country billing in
+        // dollars should be visible here, not discovered on a receipt.
+        usesFallbackPrice: pricing.usedFallback,
+      });
+    } catch (error: any) {
+      console.error("Error creating invoice:", error);
+      return res.status(500).json({ message: "Failed to create invoice" });
+    }
+  });
+
+  app.get("/api/superadmin/invoices", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const organizationId = typeof req.query.organizationId === "string" ? req.query.organizationId : undefined;
+      const status = typeof req.query.status === "string" ? req.query.status : undefined;
+      const rows = await storage.listInvoices({ organizationId, status });
+      /**
+       * OUTSTANDING is what this screen exists to answer, and it counts
+       * ISSUED only. A draft has not been sent to anybody, so counting it
+       * would report money as owed that nobody has been asked for.
+       */
+      const outstanding = rows
+        .filter((i) => i.status === "issued")
+        .reduce((n, i) => n + i.totalMinor, 0);
+      return res.json({
+        invoices: rows,
+        outstandingMinor: outstanding,
+        // The currency of the outstanding figure, stated rather than assumed.
+        // Summing across currencies would be meaningless, so this reports the
+        // set and lets the screen refuse to add them up.
+        outstandingCurrencies: [...new Set(rows.filter((i) => i.status === "issued").map((i) => i.currency))],
+      });
+    } catch (error: any) {
+      console.error("Error listing invoices:", error);
+      return res.status(500).json({ message: "Failed to list invoices" });
+    }
+  });
+
+  app.get("/api/superadmin/invoices/:id", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const invoice = await storage.getInvoiceById(req.params.id);
+      if (!invoice) return res.status(404).json({ message: "Invoice not found" });
+      return res.json({ invoice, documentType: invoiceDocumentType(invoice.supplierTrn) });
+    } catch (error: any) {
+      console.error("Error reading invoice:", error);
+      return res.status(500).json({ message: "Failed to read invoice" });
+    }
+  });
+
+  /**
+   * ISSUE and CANCEL. Both go through storage.setInvoiceStatus, which puts the
+   * CURRENT status in the UPDATE's WHERE clause — a double-click changes zero
+   * rows and is told so, rather than both requests passing a check they each
+   * read a moment earlier.
+   */
+  for (const [path, to] of [["issue", "issued"], ["cancel", "cancelled"]] as const) {
+    app.post(`/api/superadmin/invoices/:id/${path}`, isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+      try {
+        const invoice = await storage.getInvoiceById(req.params.id);
+        if (!invoice) return res.status(404).json({ message: "Invoice not found" });
+        if (!canTransition(invoice.status, to)) {
+          return res.status(409).json({
+            message: `An invoice that is ${invoice.status} cannot be ${to}.`,
+            code: "INVALID_TRANSITION",
+            status: invoice.status,
+          });
+        }
+        const updated = await storage.setInvoiceStatus(req.params.id, invoice.status, to);
+        if (!updated) {
+          // The UPDATE matched nothing, which means the status moved between
+          // the read above and the write. Not an error — a race that the
+          // database arbitrated correctly.
+          return res.status(409).json({ message: "The invoice changed while you were working on it.", code: "INVALID_TRANSITION" });
+        }
+        return res.json({ invoice: updated });
+      } catch (error: any) {
+        console.error(`Error moving invoice to ${to}:`, error);
+        return res.status(500).json({ message: "Failed to update the invoice" });
+      }
+    });
+  }
+
+  /**
+   * MARK PAID — the only route that changes what a school is entitled to.
+   *
+   * Everything happens inside storage.markInvoicePaid's single transaction:
+   * the invoice is claimed by its own WHERE clause, the grant row is written
+   * on that transaction, and the school's total moves. A school that has paid
+   * and holds no licences, or holds licences against an invoice still showing
+   * unpaid, are both states somebody untangles by hand — and the second is
+   * invisible to every report.
+   */
+  app.post("/api/superadmin/invoices/:id/mark-paid", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
+    try {
+      const ref = typeof req.body?.paymentReference === "string"
+        ? req.body.paymentReference.trim().slice(0, 200)
+        : null;
+      const currentUser = (req as any).currentUser;
+      const result = await storage.markInvoicePaid({
+        id: req.params.id,
+        paymentReference: ref || null,
+        performedBy: currentUser?.id ?? null,
+      });
+
+      if (!result.ok) {
+        // A code per reason: "it did not work" is not actionable, and these
+        // four need four different next steps.
+        const map: Record<string, { status: number; message: string }> = {
+          not_found: { status: 404, message: "Invoice not found" },
+          wrong_status: { status: 409, message: "Only an issued invoice can be marked paid." },
+          no_organization: { status: 409, message: "This invoice has no school attached, so there is nowhere to grant the licences." },
+          unlimited: { status: 409, message: "This school has unlimited licences, so a grant would have no meaning. Record the payment another way." },
+        };
+        const r = map[result.reason];
+        return res.status(r.status).json({ message: r.message, code: result.reason.toUpperCase() });
+      }
+
+      return res.json({ invoice: result.invoice });
+    } catch (error: any) {
+      console.error("Error marking invoice paid:", error);
+      return res.status(500).json({ message: "Failed to mark the invoice paid" });
     }
   });
 

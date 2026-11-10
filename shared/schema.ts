@@ -778,6 +778,34 @@ export const invoices = pgTable("invoices", {
   unique("invoices_year_sequence_unique").on(table.year, table.sequence),
   index("invoices_organization_idx").on(table.organizationId),
   index("invoices_status_idx").on(table.status),
+  /**
+   * THE SAME CHECKS AS MIGRATION 037, DECLARED HERE TOO — and the names match
+   * that migration exactly, so db:push sees no drift.
+   *
+   * Not duplication for its own sake. `schema-push.mjs` builds the harness
+   * from THESE definitions and marks every migration applied without running
+   * it, so a constraint that lives only in the .sql exists in production and
+   * NOT in the harness. That gap is invisible and it lies in the dangerous
+   * direction: a suite passes against a table that accepts a row production
+   * would refuse. It was found by mutation — removing the transition guard let
+   * a DRAFT be marked paid, and `invoices_issued_has_date` should have refused
+   * that row at the database and did not, because the harness table had no
+   * such constraint.
+   */
+  check("invoices_status_valid", sql`${table.status} IN ('draft', 'issued', 'paid', 'cancelled')`),
+  check("invoices_student_count_positive", sql`${table.studentCount} > 0`),
+  check(
+    "invoices_amounts_non_negative",
+    sql`${table.unitPriceMinor} >= 0 AND ${table.perStudentMinor} >= 0 AND ${table.subtotalMinor} >= 0 AND ${table.vatMinor} >= 0 AND ${table.vatRateBp} >= 0`,
+  ),
+  // The arithmetic guarantee: a document whose total does not equal its own
+  // line items cannot be written, by anyone, through any path.
+  check("invoices_total_is_sum", sql`${table.totalMinor} = ${table.subtotalMinor} + ${table.vatMinor}`),
+  check("invoices_paid_has_date", sql`${table.status} <> 'paid' OR ${table.paidAt} IS NOT NULL`),
+  check(
+    "invoices_issued_has_date",
+    sql`${table.status} NOT IN ('issued', 'paid') OR ${table.issuedAt} IS NOT NULL`,
+  ),
 ]);
 
 export const invoicesRelations = relations(invoices, ({ one }) => ({
