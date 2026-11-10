@@ -804,12 +804,17 @@ chose to review would sit for ever with no one able to see it.
     without a network call), and atomicity under real concurrency — see the
     harness note above. A claim stranded by a process that died shows up as a
     row with a null `processed_at`.
-  - **The checkout create race: CLOSED, and it was found by spending real money
-    on 2026-11-09, not by reading.** Both `/api/checkout/complete` and the
+  - **The checkout create race: CLOSED, and it was found by making a real
+    purchase on 2026-11-09, not by reading.** (An earlier version of this line
+    said "by spending real money". That was wrong and the error was mine:
+    production runs `pk_test_`, verified in the deployed Checkout chunk, so the
+    charge was Stripe TEST mode and the buyer was the owner. The bug and the
+    transaction were real; the money was not.) Both `/api/checkout/complete` and the
     Stripe webhook act on the same payment, and Stripe calls the webhook the
     instant the card clears while the browser still has to round-trip, so the
     webhook usually wins. Both read "no such user", both inserted, and the
-    loser threw on `users_email_unique` — the buyer was charged AED 3,600 and
+    loser threw on `users_email_unique` — the buyer was charged AED 3,600 (test
+    mode) and
     told "Checkout failed, please try again", which invites a second charge.
     No check before the insert can close it; every check-then-act leaves the
     same window. `grantIndividualPremium` now ACCEPTS the unique index's
