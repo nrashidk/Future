@@ -986,6 +986,45 @@ chose to review would sit for ever with no one able to see it.
     unique violation that finds no account by email is rethrown.
     `premiumGrant.race.test.ts` covers it with storage mocked, because the
     harness runs PGlite on ONE connection and cannot produce this race at all.
+  - **THE WEBHOOK CREATING THE SCHOOL FIRST WAS ANSWERED 409: CLOSED
+    2026-11-11, found on the FIRST REAL GROUP PURCHASE ever put through the
+    site.** Two commits on 2026-11-09 each fixed one half of the same race and
+    between them opened this. The race fix made `already_premium` fall through
+    to the group block, with a comment saying that was safe "because the
+    webhook's grantIndividualPremium is individual-only and makes no
+    organization". The group backstop, committed hours later, made the webhook
+    run that same group block — so the webhook creates the SCHOOL too, and that
+    sentence became false with nobody editing it. The browser then arrived
+    second, `createGroupPurchaseTransaction` threw "already has an
+    organization", and the route turned it into **409 "This account already
+    manages a school"** for a purchase where the card had cleared, the school
+    existed, the licences were granted and the setup invite had been emailed.
+    Only the ANSWER was wrong — and it is the answer that invites a second
+    purchase, which is exactly what the 11-09 work existed to stop. The buyer
+    did try again; `/api/checkout/preflight` caught the retry, which is the
+    only reason this cost nothing.
+    **The distinguisher is the PAYMENT, not the timing.**
+    `organizations.stripe_payment_id` is written by
+    `createGroupPurchaseTransaction`, so a school created BY THIS payment is
+    adopted and anything else is still refused — narrowed by OUTCOME, exactly
+    as `grantIndividualPremium`'s 23505 recovery is. Nothing is granted again
+    (the winner wrote the full `studentCount`), and execution continues to
+    `sendSchoolSetupInvite`, which is idempotent on the token and so mails
+    nothing when the webhook already did.
+    `payment.webhookWonRace.test.ts` (6 cases). Route tests with Stripe and
+    storage mocked, because **the offline harness cannot run
+    `/api/checkout/complete` at all** — its first act is a live
+    `paymentIntents.retrieve` and there is no network. Mutation-tested by
+    restoring the unconditional 409: the first case fails with `expected 409 to
+    be 200`, the production symptom exactly. The three refusal cases are the
+    controls (different payment, null payment id, no school at all), plus a
+    positive control for the browser winning and an unrelated-failure case so
+    the narrowing cannot swallow a real error.
+    **The lesson is about the COMMENT, not the code.** A comment asserting what
+    a *different* component does is a fact with no test behind it, and the
+    second commit invalidated it silently. When one path's correctness depends
+    on another path's behaviour, assert that behaviour in a test — a sentence
+    cannot notice when it stops being true.
   - **A group purchase must produce a SCHOOL even if the browser never comes
     back: CLOSED** (`webhook-group-backstop.mjs`, 7 cases). The same live
     purchase exposed a second defect with the same cause: the webhook backstop
