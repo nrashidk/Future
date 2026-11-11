@@ -60,14 +60,15 @@
     "pendingAssessments": "Pending Assessments",
     "availableAssessments": "Available Assessments",
     "startPremium": "Start Premium Assessment",
-    "allUsed": "You've used all your licences. Purchase more to continue.",
-    "purchaseMore": "Purchase More Licences",
+    "allUsed": "You've used all your licences. We'll add more to your account — email us and we'll sort it out.",
     "studentAccess": "You have access to the premium assessment through your school.",
     "loadingStats": "Loading organization statistics...",
     "statsError": "Failed to load organization statistics",
     "statsErrorRetry": "Please try again later.",
     "upgradePrompt": "Upgrade to Premium for advanced career assessments and personalized insights!",
-    "upgrade": "Upgrade to Premium"
+    "upgrade": "Upgrade to Premium",
+    "requestMore": "Request more licences",
+    "requestSubject": "More licences for my Future Path account"
   },
   "assessment": {
     "title": "My Assessment History",

@@ -94,6 +94,8 @@ interface OrgStats {
   pendingAssessments: number;
 }
 
+const SUPPORT_EMAIL = "support@futurepath.ae";
+
 export default function Profile() {
   const { t } = useTranslation("profile");
   useEffect(() => { document.title = `${t("pageTitle")} | ${t("appName")}`; }, [t]);
@@ -673,15 +675,39 @@ export default function Profile() {
                     </div>
                   )}
 
+                  {/**
+                    * THIS USED TO BE A LINK INTO CHECKOUT, AND IT TOOK MONEY
+                    * FOR NOTHING.
+                    *
+                    * There is no self-serve top-up anywhere in this product.
+                    * For an account that is ALREADY premium, the old journey
+                    * ran: tier selection -> pricing -> card form -> charge ->
+                    * `grantIndividualPremium` sees `isPremium` and returns
+                    * `already_premium`, whose contract is "grant nothing,
+                    * change nothing" — and the buyer was told it succeeded.
+                    *
+                    * That contract is correct for the race it was written for
+                    * (the webhook granting this same payment first) and cannot
+                    * tell that case from a genuine second purchase, because
+                    * `users` carries no stripe payment id to compare against.
+                    * Until a real top-up exists — with somewhere to record
+                    * which payment granted what — the only safe surface is one
+                    * that does not take a card at all.
+                    *
+                    * The other two links into that journey are both gated on
+                    * `!user.isPremium`, so they are free users upgrading, which
+                    * works. This was the only one that invited a repeat.
+                    */}
                   {individualRemainingLicenses === 0 && (
                     <div className="pt-4 border-t">
                       <p className="text-sm text-muted-foreground text-center">
                         {t("premium.allUsed")}
                       </p>
-                      <Button asChild variant="outline" className="w-full mt-2" data-testid="button-purchase-more">
-                        <Link href={withReturnTo("/tier-selection", currentPathWithQuery())}>
-                          {t("premium.purchaseMore")}
-                        </Link>
+                      <Button asChild variant="outline" className="w-full mt-2" data-testid="button-request-licences">
+                        <a href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(t("premium.requestSubject"))}`}>
+                          <Mail className="w-4 h-4 me-2" />
+                          {t("premium.requestMore")}
+                        </a>
                       </Button>
                     </div>
                   )}

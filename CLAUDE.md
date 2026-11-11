@@ -1327,6 +1327,32 @@ chose to review would sit for ever with no one able to see it.
     superadmin. D-05b exists because D-05 cannot reach that branch — when the
     target is the caller the self-check fires first, and the first draft's
     assertion accepted either code and so tested neither.
+  - **"PURCHASE MORE LICENCES" TOOK THE MONEY AND GRANTED NOTHING. Removed
+    2026-11-11.** `Profile.tsx:681` offered an already-premium account a link
+    into tier selection → pricing → card form. Nothing stopped it: the
+    preflight only refuses an SSO email and a buyer who owns a SCHOOL, and this
+    buyer owns neither. The card cleared, `grantIndividualPremium` saw
+    `isPremium` and returned `already_premium` — whose contract is "grant
+    nothing, change nothing" — and the buyer was told it succeeded.
+    **That contract is correct for the race it was written for** (the webhook
+    granting this same payment first) **and cannot tell that case from a
+    genuine second purchase**, because `users` carries NO `stripe_payment_id`
+    to compare against — only `stripe_customer_id`. The school-side version of
+    this same ambiguity was closed earlier the same day using
+    `organizations.stripe_payment_id`; the individual side has no equivalent
+    column, so there is nothing to narrow on.
+    So the button is gone and the surface is a `mailto:` instead. **This was
+    the ONLY surface inviting a repeat**: the other two links into that journey
+    (`Profile.tsx:756`, `Assessment.tsx:1186`) are both gated on
+    `!user.isPremium`, so they are free users upgrading, which grants
+    correctly.
+    **Do not re-add a purchase link here without somewhere to record which
+    payment granted what.** A self-serve top-up needs that column first; until
+    then any card path for an existing premium account charges for nothing.
+    Note it was NEVER visible to a school admin — the block is gated
+    `!isOrgAdmin && !isOrgStudent`, which is also why schools were unaffected:
+    they pay by transfer against an invoice, which is what the invoicing exists
+    for.
   - **There is NO in-account licence top-up, and the checkout refusals used to
     promise one.** `payment.routes.ts` has five POST routes and none of them
     sells licences to an existing school; `createGroupPurchaseTransaction`
