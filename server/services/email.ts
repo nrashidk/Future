@@ -431,7 +431,7 @@ export function buildSchoolSetupHtmlEmail(args: {
      </tr>`;
 
   const receipt = `<table role="presentation" width="100%" style="border-collapse:collapse;margin:0 0 16px;">
-      ${row(isAr ? "المدرسة" : "School", escapeHtml(organizationName))}
+      ${row(isAr ? "اسم المدرسة" : "School name", escapeHtml(organizationName))}
       ${row(isAr ? "تراخيص الطلاب" : "Student licences", String(licenseCount))}
       ${amountLabel ? row(isAr ? "المبلغ المدفوع" : "Paid", escapeHtml(amountLabel)) : ""}
       ${row(isAr ? "اسم الدخول" : "Your sign-in name", escapeHtml(username))}
@@ -439,13 +439,13 @@ export function buildSchoolSetupHtmlEmail(args: {
 
   const body = isAr
     ? `<p style="margin:0 0 12px;">${greeting}</p>
-       <p style="margin:0 0 12px;">شكراً لشرائك. تم إنشاء <strong>${escapeHtml(organizationName)}</strong> وإضافة تراخيصك إليها. اختر كلمة مرور وسنرشدك إلى الإعدادات الثلاثة الأخيرة.</p>
+       <p style="margin:0 0 12px;">شكراً لشرائك. تم إنشاء <strong>${escapeHtml(organizationName)}</strong> وإضافة تراخيصك إليها. اختر كلمة مرور وأكمل عملية الإعداد.</p>
        ${receipt}
        ${stickyButton(setupUrl, "تعيين كلمة المرور", font)}
        <p style="margin:0 0 12px;">يعمل هذا الرابط مرة واحدة وتنتهي صلاحيته خلال سبعة أيام.</p>
        <p style="margin:0;color:${PALETTE.muted};font-size:13px;">إذا لم يعمل الزر، انسخ هذا العنوان في متصفحك:<br>${escapeHtml(setupUrl)}</p>`
     : `<p style="margin:0 0 12px;">${greeting}</p>
-       <p style="margin:0 0 12px;">Thank you for your purchase. <strong>${escapeHtml(organizationName)}</strong> has been created and your licences are on it. Choose a password and we will walk you through the last three settings.</p>
+       <p style="margin:0 0 12px;">Thank you for your purchase. <strong>${escapeHtml(organizationName)}</strong> has been created and your licences are on it. Choose a password and complete the onboarding process.</p>
        ${receipt}
        ${stickyButton(setupUrl, "Set your password", font)}
        <p style="margin:0 0 12px;">This link works once and expires in seven days.</p>
@@ -478,7 +478,7 @@ function buildSchoolSetupTextEmail(args: {
       "",
       `تم إنشاء ${organizationName} وإضافة تراخيصك إليها.`,
       "",
-      `المدرسة: ${organizationName}`,
+      `اسم المدرسة: ${organizationName}`,
       `تراخيص الطلاب: ${licenseCount}`,
       ...(amountLabel ? [`المبلغ المدفوع: ${amountLabel}`] : []),
       `اسم الدخول: ${username}`,
@@ -496,7 +496,7 @@ function buildSchoolSetupTextEmail(args: {
     "",
     `${organizationName} has been created and your licences are on it.`,
     "",
-    `School: ${organizationName}`,
+    `School name: ${organizationName}`,
     `Student licences: ${licenseCount}`,
     ...(amountLabel ? [`Paid: ${amountLabel}`] : []),
     `Your sign-in name: ${username}`,
