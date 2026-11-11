@@ -556,10 +556,14 @@ export function registerPaymentRoutes(app: Express) {
              * below increments, so routing a raced buyer through it would hand
              * out double what they paid for.
              *
-             * Execution continues to the group block, which is what creates the
-             * school — the webhook's grantIndividualPremium is individual-only
-             * and makes no organization, so this recovery is also what stops a
-             * group purchase ending up as an individual account with no school.
+             * Execution continues to the group block, which then either creates
+             * the school or ADOPTS the one the webhook's own group backstop
+             * already created for this payment. An earlier version of this
+             * comment said the webhook "is individual-only and makes no
+             * organization" — true when written, made false hours later by the
+             * backstop commit, and that stale sentence is why the group block
+             * below answered a succeeded purchase with a 409. See the note
+             * there.
              */
             user = grant.user;
             username = grant.user.username || grant.user.email || "user";
@@ -628,9 +632,57 @@ export function registerPaymentRoutes(app: Express) {
         } catch (error: any) {
           console.error("Group purchase transaction failed:", error);
           if (error.message.includes("already has an organization")) {
-            return res.status(409).json({ message: error.message });
+            /**
+             * THE WEBHOOK GOT HERE FIRST AGAIN — and so did this, in production
+             * on 2026-11-11, on the very first real group purchase anyone ever
+             * put through the site.
+             *
+             * The 2026-11-09 work fixed HALF of this race. `already_premium`
+             * above correctly treats a webhook-created ACCOUNT as success and
+             * falls through to here, and its comment says it must, "because the
+             * webhook's grantIndividualPremium is individual-only and makes no
+             * organization". That was true when it was written. The
+             * webhook-group-backstop commit, hours later, made the webhook run
+             * this same group block — so the webhook now creates the SCHOOL
+             * too, and the browser arriving second found one already there and
+             * was answered 409 "This account already manages a school".
+             *
+             * Everything had in fact worked: school created, licences granted,
+             * setup invite sent. Only the answer was wrong — and it is the same
+             * wrong answer that invites a second purchase, which is precisely
+             * what the 11-09 fix existed to stop. The buyer DID try again.
+             *
+             * THE DISTINGUISHER IS THE PAYMENT, NOT THE TIMING. A user who
+             * already runs a school and is buying a second one must still be
+             * refused; a user whose school was created BY THIS PAYMENT seconds
+             * ago has succeeded. `organizations.stripe_payment_id` is written
+             * by createGroupPurchaseTransaction and settles it with no
+             * guesswork — narrowed by OUTCOME, exactly as the 23505 recovery in
+             * grantIndividualPremium is.
+             *
+             * Nothing is granted again. The winner wrote the full studentCount
+             * and the licence ledger row carries this payment id uniquely, so
+             * re-running the transaction would double the entitlement. This
+             * only adopts what is already there and carries on — to
+             * sendSchoolSetupInvite, which is idempotent on the token and so
+             * sends nothing when the webhook has already mailed the link.
+             */
+            const existing = await storage.getOrganizationByAdminUserId(user.id);
+            if (existing && existing.stripePaymentId === paymentIntent.id) {
+              console.log(
+                `[Checkout] ${paymentIntent.id}: the webhook created "${existing.name}" first. ` +
+                `Adopting it rather than answering 409 for a purchase that succeeded.`,
+              );
+              organization = existing;
+            } else {
+              // A genuine second purchase: a different payment, or a school
+              // this payment did not create. The preflight normally catches
+              // this before any charge.
+              return res.status(409).json({ message: error.message });
+            }
+          } else {
+            throw error;
           }
-          throw error;
         }
       }
 
