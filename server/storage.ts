@@ -728,26 +728,19 @@ export class DatabaseStorage implements IStorage {
     stripeCustomerId?: string | null;
     passwordComplexity?: 'medium' | 'strong';
   }): Promise<{ user: User; username: string; password: string }> {
-    const { generateUsername, generatePassword } = await import("./utils/passwordGenerator");
+    const { generatePassword } = await import("./utils/passwordGenerator");
+    const { resolveUsername } = await import("@shared/username");
     const { hashPassword } = await import("./utils/passwordHash");
-    
-    // Generate username with collision handling
-    let username = generateUsername(userData.firstName, userData.lastName);
-    let attempts = 0;
-    const maxAttempts = 10;
-    
-    while (attempts < maxAttempts) {
-      const existing = await this.getUserByUsername(username);
-      if (!existing) break;
-      
-      // Collision detected - add random suffix
-      username = generateUsername(userData.firstName, userData.lastName, Math.random().toString(36).substring(2, 6));
-      attempts++;
-    }
-    
-    if (attempts >= maxAttempts) {
-      throw new Error("Failed to generate unique username after 10 attempts");
-    }
+
+    // One helper, one definition of the rule. This used to be a hand-rolled
+    // loop that answered a collision with a FRESH RANDOM SUFFIX — which is no
+    // more unique than numbering and unreadable to the person who has to sign
+    // in with it.
+    const username = await resolveUsername(
+      userData.firstName,
+      userData.lastName,
+      async (candidate) => !!(await this.getUserByUsername(candidate)),
+    );
     
     // Generate and hash password
     const password = generatePassword(userData.passwordComplexity ?? 'medium');

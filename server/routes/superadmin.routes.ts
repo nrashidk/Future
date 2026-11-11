@@ -588,7 +588,8 @@ export function registerSuperadminRoutes(app: Express) {
         return res.status(400).json({ message: "First name and last name are required" });
       }
       
-      const { generateUsername, generatePassword } = await import("../utils/passwordGenerator");
+      const { generatePassword } = await import("../utils/passwordGenerator");
+      const { resolveUsername } = await import("@shared/username");
       const { hashPassword } = await import("../utils/passwordHash");
 
       // Check for duplicate email before attempting insert
@@ -601,15 +602,16 @@ export function registerSuperadminRoutes(app: Express) {
       
       let finalUsername = username;
       if (!finalUsername) {
-        finalUsername = generateUsername(firstName, lastName);
-        let attempts = 0;
-        while (attempts < 10) {
-          const existing = await storage.getUserByUsername(finalUsername);
-          if (!existing) break;
-          finalUsername = generateUsername(firstName, lastName);
-          attempts++;
-        }
-        if (attempts >= 10) {
+        // The loop this replaces re-called the generator with the SAME
+        // arguments on collision, so it relied entirely on the random suffix
+        // that has now been removed — without this it would spin ten times on
+        // one name and then refuse.
+        try {
+          finalUsername = await resolveUsername(
+            firstName, lastName,
+            async (candidate) => !!(await storage.getUserByUsername(candidate)),
+          );
+        } catch {
           return res.status(400).json({ message: "Could not generate a unique username. Please provide one manually." });
         }
       } else {
@@ -1383,18 +1385,24 @@ export function registerSuperadminRoutes(app: Express) {
         }
       }
       
-      const { generateUsername, generatePassword } = await import("../utils/passwordGenerator");
+      const { generatePassword } = await import("../utils/passwordGenerator");
+      const { resolveUsername } = await import("@shared/username");
       const { hashPassword } = await import("../utils/passwordHash");
       
       let finalUsername = adminUsername;
       if (!finalUsername) {
-        finalUsername = generateUsername(adminFirstName, adminLastName);
-        let attempts = 0;
-        while (attempts < 10) {
-          const existing = await storage.getUserByUsername(finalUsername);
-          if (!existing) break;
-          finalUsername = generateUsername(adminFirstName, adminLastName);
-          attempts++;
+        // Same replacement as the sibling above — and this copy had NO
+        // give-up branch at all: after ten collisions it fell through and
+        // created the account with a username it had just confirmed was
+        // taken. The two copies had drifted, which is the argument for one
+        // helper rather than three loops.
+        try {
+          finalUsername = await resolveUsername(
+            adminFirstName, adminLastName,
+            async (candidate) => !!(await storage.getUserByUsername(candidate)),
+          );
+        } catch {
+          return res.status(400).json({ message: "Could not generate a unique username. Please provide one manually." });
         }
       } else {
         const existing = await storage.getUserByUsername(finalUsername);

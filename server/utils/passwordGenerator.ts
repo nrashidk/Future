@@ -91,14 +91,16 @@ export function generatePassword(complexity: PasswordComplexity = 'medium'): str
   return passwordArray.join('');
 }
 
-export function generateUsername(firstName: string, lastName: string, studentId?: string): string {
-  const cleanFirst = firstName.toLowerCase().replace(/[^a-z0-9]/g, '');
-  const cleanLast = lastName.toLowerCase().replace(/[^a-z0-9]/g, '');
-  
-  if (studentId) {
-    return `${cleanFirst}.${cleanLast}.${studentId}`;
-  }
-  
-  const randomSuffix = crypto.randomBytes(2).toString('hex');
-  return `${cleanFirst}.${cleanLast}.${randomSuffix}`;
-}
+/**
+ * Kept as a thin re-export so the three call sites have ONE definition to
+ * follow. The rule itself — transliteration, the no-bare-dot guarantee and the
+ * numbering — lives in shared/username.ts, pure and tested, because the old
+ * version of this function had none of those and the damage it did was
+ * invisible: every account carried four random hex characters it did not need,
+ * and an Arabic name produced "..36ad".
+ *
+ * The old third parameter (`studentId`) is GONE. Nothing ever passed a student
+ * id to it — the only callers passed a fresh random string on collision, which
+ * is the behaviour being removed.
+ */
+export { usernameBase as generateUsername, resolveUsername } from "@shared/username";

@@ -113,6 +113,7 @@ node testing/local/<suite>.mjs
 ```
 
 Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
+`username`,
 `progression`, `licences`, `new-country`, `contribution`, `crosscutting`,
 `school-setup`, `question-gaps`, `peer-review`, `grants`, `pricing`,
 `org-admin`, `checkout-preflight`, `school-lock`, `webhook-idempotency`,
@@ -1200,6 +1201,39 @@ chose to review would sit for ever with no one able to see it.
   `RESEND_WEBHOOK_SECRET` the setup-invite delivery tracking needs. Until
   both, every invoice delivery status stays null, which is indistinguishable
   from a working webhook with nothing to report.
+- **SIGN-IN NAMES NO LONGER CARRY FOUR RANDOM HEX CHARACTERS, and removing
+  them exposed what they were hiding.** `generateUsername` appended a 4-hex
+  suffix UNCONDITIONALLY, not on collision — so every account ever created was
+  `nasser.alali.36ad`, a string a school administrator has to read out to
+  staff. The collision loops existed at all three call sites and never fired,
+  because the base was always already unique.
+  **The generator kept only `[a-z0-9]`**, so on a bilingual product sold to UAE
+  schools: `ناصر العلي` produced `..36ad` — two dots — and `José Pérez` produced
+  `jos.prez` with the accented vowels DELETED. Dropping the suffix alone would
+  have made the Arabic case a username of `.`, so transliteration is the half
+  that makes the change safe, not a nicety beside it.
+  `shared/username.ts` (17 tests) holds it, pure: NFD first so a Latin diacritic
+  separates and only the mark is dropped; an Arabic map with harakat stripped,
+  so the same name typed with and without vowel marks gives the SAME username;
+  `usernameBase` never returns a leading or trailing dot and falls back to
+  `user`; `resolveUsername` takes the existence check as an argument and numbers
+  readably — `nasser.alali`, `nasser.alali2`, `nasser.alali3`.
+  **Transliteration is deliberately lossy and deterministic**: ناصر becomes
+  `nasr`, not `nasser`. A username is a credential; stable beats pretty, and a
+  scheme whose output changed between versions would be far worse.
+  **THE THREE LOOPS HAD DRIFTED, which is the argument for one helper.** One
+  retried with a fresh random suffix; one re-called the generator with the SAME
+  arguments, so it depended entirely on the randomness being removed; and the
+  third (`superadmin.routes.ts`, school creation) **had no give-up branch at
+  all** — after ten collisions it fell through and created the account with a
+  username it had just confirmed was taken.
+  `username.mjs` (6 cases) asserts it through the REAL route, because the unit
+  tests prove the rule and not that the product uses it. **U-00 exists because
+  the first draft hit the SPA catch-all** (200 with HTML) and then a 400 — the
+  create route is `/api/superadmin/organizations/create-with-admin` and its body
+  field is `organizationName`, not `name`.
+  Existing accounts keep their suffixed names: changing a live sign-in name is
+  not a cleanup, it is locking someone out.
 - **THE TWO INVOICE SCREENS ARE BUILT** — a superadmin Invoices tab
   (`InvoiceManagement.tsx`, beside Licences, because an invoice marked paid IS
   a licence grant) and a school-side Billing card (`SchoolBilling.tsx`, under
