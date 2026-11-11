@@ -1201,6 +1201,26 @@ chose to review would sit for ever with no one able to see it.
   `RESEND_WEBHOOK_SECRET` the setup-invite delivery tracking needs. Until
   both, every invoice delivery status stays null, which is indistinguishable
   from a working webhook with nothing to report.
+- **ENGLISH SPELLS IT "LICENCE" NOW — it used to spell it both ways, 42 and
+  30.** Not split by screen either: `admin.json` alone carried 37 British and
+  20 American, so the same word appeared two ways on one surface. 29 user-facing
+  strings were converted (admin 20, profile 8, assessment 1). British is the UAE
+  convention and was already the majority.
+  **VALUES ONLY.** i18n KEYS keep `license` (`orgs.licenseStatus`,
+  `premium.purchasedLicenses`) because a key is an identifier, not text, and
+  renaming one breaks every component that reads it. Database columns, API
+  fields and code identifiers keep `license_*` for the same reason — a rename
+  there is a migration that changes nothing anyone sees. **The Arabic needed no
+  spelling work**: ترخيص and تقييم were already used consistently throughout.
+  **LICENCE AND ASSESSMENT ARE NOT SYNONYMS and were deliberately NOT merged.**
+  A licence is entitlement a school holds and buys; an assessment is what a
+  student sits; one licence is spent when one assessment produces a report.
+  Collapsing them gives "250 assessments remaining, 88 assessments completed",
+  which reads as one number contradicting another. What WAS wrong is welding
+  them into one noun: `assessment.lock.orgStudentBody` said "your assessment
+  licence" (and the Arabic "ترخيص التقييم" did the same), which tells a student
+  they hold a licence for their own assessment. Both now name the two things
+  separately.
 - **SIGN-IN NAMES NO LONGER CARRY FOUR RANDOM HEX CHARACTERS, and removing
   them exposed what they were hiding.** `generateUsername` appended a 4-hex
   suffix UNCONDITIONALLY, not on collision — so every account ever created was
