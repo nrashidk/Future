@@ -731,7 +731,13 @@ approved and unpaid for next year, rather than closed with nothing paid;
 part-way there, what fits is paid. K-06 to K-08, where K-08 is the control
 that last year's count does not block this year. **Still flagged:**
 allocation will add credits beyond what is pending.
-**ON PRODUCTION THE AUTOMATIC CHECK IS NOT RUNNING (2026-11-12), cause
+**IT RUNS NOW (same evening): the owner pressed "Re-run check" on both and
+they came back 72% (routed to peer review) and 45% (stays awaiting review).**
+So the cause was transient or on the Anthropic side at the time, and remains
+unknown. The tiles above the queue went on reading "Pending 2 / In Review 0"
+over a row marked Peer review, because the re-check refreshed the list and not
+the stats; it refreshes both now. What follows is the record of the failure:
+**ON PRODUCTION THE AUTOMATIC CHECK WAS NOT RUNNING (2026-11-12), cause
 unknown.** Two submissions made as Test High School's admin both came back
 `unavailable`, score 0, within seconds. The reason was only a server log line
 (`[Contribution] LLM verification did NOT run (...)`), so the recheck's 503
@@ -942,6 +948,14 @@ so a student with one assessment in progress got a link to a raw 404.
   Arabic profile says "الرخص" where the rest of the product says "تراخيص";
   the deletion preview omits the password-reset requests the data summary
   counts.
+- **THE USERS TAB'S "EXPORT CSV" DOWNLOADED THE APP'S HTML.** Its link was
+  `/api/superadmin/export/students`, a route that does not exist; the SPA
+  catch-all answered 200 with the page, saved as a `.csv`. The route is
+  `/export/all-students`. Found 2026-11-12 while moving the button. The same
+  pass fixed two things the owner reported: a superadmin's "Schools" nav
+  button was labelled "Admin" on the Schools, Analytics and Profile pages, and
+  "Add Users" wrapped alone onto a second line (it sits with the title now and
+  the filters have their own row). Checked in a browser at 1400 and 1024 wide.
 - **THE SUPERADMIN USERS TAB FILTERS BY FINISHED ASSESSMENT**
   (`select-assessment-filter`: all / not finished yet / finished). FINISHED,
   not started — the question is who still has to do it. School admins are
