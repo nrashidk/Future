@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { validateEmail, validatePhone, sanitizePhone } from "@/lib/utils";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Link } from "wouter";
+import { Link, Redirect } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -230,7 +231,26 @@ interface Country {
   curricula?: string[] | null;
 }
 
+/**
+ * SUPERADMIN ONLY, at the page as well as the API. Seen on production
+ * 2026-11-12: a school admin who typed /superadmin got the whole dashboard —
+ * the "Superadmin" badge, every tab, an "Add School" button — over tiles
+ * reading zero, because each request behind it was (correctly) refused 403
+ * and a refusal rendered as an empty country. Nothing leaked; the routes are
+ * the control. Same wrapper as Admin.tsx, for the same reason: the page
+ * below calls hooks all the way down.
+ */
 export default function SuperadminDashboard() {
+  const { user, isLoading } = useAuth();
+  if (isLoading) return null;
+  if (!user) return <Redirect to="/login" replace />;
+  if (user.accountType !== 'superadmin') {
+    return <Redirect to={user.accountType === 'org_admin' ? "/admin/organizations" : "/"} replace />;
+  }
+  return <SuperadminDashboardPage />;
+}
+
+function SuperadminDashboardPage() {
   const { toast } = useToast();
   const { t } = useTranslation('admin');
   useEffect(() => { document.title = t('pageTitles.superadmin'); }, [t]);
