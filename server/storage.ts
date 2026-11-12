@@ -5290,12 +5290,19 @@ export class DatabaseStorage implements IStorage {
     const password = generatePassword(userData.passwordComplexity || 'medium');
     const passwordHash = await hashPassword(password);
 
-    let username = userData.username;
-    if (!username) {
-      const baseUsername = `${firstName.toLowerCase()}.${lastName.toLowerCase()}`.replace(/[^a-z.]/g, '');
-      const suffix = userData.studentId || Math.random().toString(36).substring(2, 8);
-      username = `${baseUsername}.${suffix}`;
-    }
+    // THE FOURTH USERNAME GENERATOR, and the one that mattered most: every
+    // STUDENT a school enrols comes through here, by hand or by CSV. The
+    // other three were moved to shared/username.ts and this one was missed,
+    // so on production (2026-11-12) a student named in Arabic was given the
+    // sign-in name "..ZZ-002" — two dots and the student id, because
+    // [^a-z.] deletes every Arabic letter — and everyone else got six random
+    // characters ("ali.mohammed.n6hgky") to be read aloud in a classroom.
+    // The student id is no longer part of it: it made the name's case and
+    // punctuation whatever the school's numbering happened to be.
+    const { resolveUsername } = await import("@shared/username");
+    const generated = !userData.username;
+    let username = userData.username
+      ?? await resolveUsername(firstName, lastName, async (c) => !!(await this.getUserByUsername(c)));
 
     let attempts = 0;
     while (attempts < 10) {
@@ -5425,8 +5432,13 @@ export class DatabaseStorage implements IStorage {
         // harmless, because the failed attempt's user row is now rolled back
         // instead of accumulating. Left alone to keep this commit to one change.
         if (error.code === '23505') {
-          username = `${username}.${Math.random().toString(36).substring(2, 5)}`;
+          // Lost a race for the name between the check and the insert (two
+          // rows of one CSV, or two admins). Number onward, readably, from
+          // wherever the first free candidate now is.
           attempts++;
+          username = generated
+            ? await resolveUsername(firstName, lastName, async (c) => c === username || !!(await this.getUserByUsername(c)))
+            : `${userData.username}${attempts + 1}`;
         } else {
           throw error;
         }
