@@ -47,8 +47,11 @@ interface Submission {
   curriculum: string;
   subject: string;
   grade: number;
-  status: "pending" | "llm_verified" | "in_review" | "approved" | "rejected" | "needs_changes";
-  questionCount: number;
+  status: "pending" | "peer_review" | "llm_verified" | "in_review" | "approved" | "rejected" | "needs_changes";
+  // The server's name. This read `questionCount`, which nothing sends, so the
+  // Questions column of a school's own submissions was blank.
+  totalQuestions: number;
+  llmVerificationStatus?: "pending" | "verified" | "failed" | "unavailable" | null;
   approvedCount: number;
   creditsAwarded: number;
   reviewerFeedback?: string;
@@ -78,10 +81,19 @@ interface Question {
 const COGNITIVE_LEVEL_KEYS = ["knowledge", "comprehension", "application", "analysis"] as const;
 const DIFFICULTY_KEYS = ["easy", "medium", "hard"] as const;
 
-function makeStatusBadge(status: string, t: (key: string) => string) {
+function makeStatusBadge(status: string, t: (key: string) => string, llmStatus?: string | null) {
   switch (status) {
     case "pending":
+      // "Pending LLM Check" is only true while the check has not answered.
+      // Once it ran (or could not run) the submission is waiting for a
+      // person, and saying the check is still pending tells a school to wait
+      // for something that already finished.
+      if (llmStatus && llmStatus !== "pending") {
+        return <Badge variant="secondary"><Clock className="w-3 h-3 me-1" />{t('contributions.awaitingManualReview')}</Badge>;
+      }
       return <Badge variant="secondary"><Clock className="w-3 h-3 me-1" />{t('contributions.reviewPending')}</Badge>;
+    case "peer_review":
+      return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200"><HelpCircle className="w-3 h-3 me-1" />{t('contributions.peerReview')}</Badge>;
     case "llm_verified":
       return <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200"><CheckCircle className="w-3 h-3 me-1" />{t('contributions.reviewLlmVerified')}</Badge>;
     case "in_review":
@@ -915,19 +927,19 @@ export default function ContributeQuestions() {
                   <TableRow key={sub.id} data-testid={`row-submission-${sub.id}`}>
                     <TableCell>
                       <div>
-                        <p className="font-medium">{sub.subject}</p>
+                        <p className="font-medium capitalize">{sub.subject}</p>
                         <p className="text-xs text-muted-foreground">{sub.curriculum}</p>
                       </div>
                     </TableCell>
                     <TableCell>{t('contributions.gradeN', { n: sub.grade })}</TableCell>
                     <TableCell>
                       {sub.status === 'approved' ? (
-                        <span className="text-green-600">{sub.approvedCount}/{sub.questionCount}</span>
+                        <span className="text-green-600">{sub.approvedCount}/{sub.totalQuestions}</span>
                       ) : (
-                        sub.questionCount
+                        sub.totalQuestions
                       )}
                     </TableCell>
-                    <TableCell>{makeStatusBadge(sub.status, t)}</TableCell>
+                    <TableCell>{makeStatusBadge(sub.status, t, sub.llmVerificationStatus)}</TableCell>
                     <TableCell>
                       {sub.creditsAwarded > 0 && (
                         <Badge className="bg-green-500">+{sub.creditsAwarded}</Badge>
