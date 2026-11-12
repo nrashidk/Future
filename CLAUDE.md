@@ -759,6 +759,53 @@ so a student with one assessment in progress got a link to a raw 404.
   The page gate has no harness suite; it was driven in a browser as five
   roles. A superadmin who is not a school admin can still start an
   assessment; nobody asked for that to change.
+- **THE STUDENT WALK ON PRODUCTION, 2026-11-12** (a Test High School student,
+  one full assessment, one licence, 47 → 46). What it found:
+  - **A DEPLOY MID-SESSION CRASHED THE NEXT PAGE.** Every page is a lazy file
+    with a hashed name; a deploy replaces them, so a browser loaded before it
+    asks for a file that is gone. The student pressed "Get My Report" and got
+    "Something went wrong" (`Failed to fetch dynamically imported module:
+    /assets/Results-….js`). The report HAD been generated. Render deploys on
+    every push, so this was every deploy, for whoever was mid-session.
+    `client/src/lib/lazyPage.ts` (7 tests) reloads ONCE — a timestamp stops a
+    genuinely missing file looping — and every route in `App.tsx` uses it.
+    **Not verified against a real deploy.**
+  - **THE RESULTS PAGE SHOWED US DOLLAR SALARIES. The bullet below that says
+    "US salaries do NOT reach students" WAS WRONG** — `Results.tsx` printed
+    `rec.career.averageSalary` on every premium career card ("Typical
+    $65,000 - $105,000"). The PDF never did. The tile is removed; the API
+    still sends the field. The growth figure beside it is still a US Bureau
+    of Labor Statistics projection, labelled as one.
+  - **"REPEATING A GRADE WARNS FIRST" WAS TRUE ONLY OF A HOOK.**
+    `useAssessmentAvailability` returned `sameGradeAlreadyCharged` "for the
+    warning before a repeat" and no screen read it, so a student with a
+    report who pressed Assessment was dropped into a new one that would
+    spend a second licence unannounced — and since the pool replaced the
+    one-per-student allocation, nothing stood between one student and the
+    school's whole balance. `/assessment` now shows the warning first, with
+    the existing report as the primary action. **A warning, not a limit:
+    whether a school student may repeat at will is a product decision nobody
+    has made.** Checked in a browser with `/api/licenses/me` intercepted both
+    ways; no harness suite.
+  - **Pages for staff rendered for anyone**: `/superadmin`, `/admin`,
+    `/admin/organizations` and `/analytics` drew their shells (badge, tabs,
+    Add School, a dashboard of zeros) for a school admin or a student. The
+    API refused every request; the pages rendered the refusal as emptiness.
+    `StaffOnly` and the two page wrappers redirect instead.
+  - The Next Steps list printed `**This Month:**` with its asterisks; it goes
+    through `ReportMarkdown` now, as the PDF did.
+  - Held: another student's assessment, quiz, values, PDF and the school's
+    roster are all refused to a student (403/404; recommendations answers
+    `200 []` by design). PDF: 7 pages, 1.46 MB.
+  - **Flagged, not changed:** quiz question "5 red and 3 blue balls" offers
+    BOTH 5/14 and 10/28, the same number; four of five recommended careers
+    have no Arabic description and the footer is English in Arabic; the
+    personality step labels each question with its theme and its last button
+    says "Complete Assessment" two steps before the end; the home page
+    offers a signed-in student "Explore as Guest" and "For schools"; the
+    student's profile shows the school's whole balance as "Available
+    Assessments 46"; leaving `/assessment` raises a native confirm even with
+    nothing entered.
 - Nothing about curricula: that gap is closed. Offering a curriculum now
   creates its six subjects, empty ones were removed, and `new-country.mjs`
   NC-09g enforces the invariant.
@@ -1146,7 +1193,8 @@ so a student with one assessment in progress got a link to a raw 404.
       That was a false negative of mine**: `/api/superadmin/students` nests
       the id at `user.id`, the probe read `id`, and every lookup answered 404
       — which was read as "none" instead of as a failed lookup.
-  - **US salaries do NOT reach students. An earlier version of this very bullet
+  - **WRONG AGAIN — SEE THE STUDENT WALK ABOVE: the results page DID print
+    the US figure until 2026-11-12.** What this said: US salaries do NOT reach students. An earlier version of this very bullet
     said they did, and it was wrong** — a good example of why a claim here needs
     a grep behind it. `seed.ts:965+` does seed US dollar strings into
     `careers.average_salary`, but **no client file reads either salary column**,

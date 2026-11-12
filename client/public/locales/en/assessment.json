@@ -12,6 +12,12 @@
     "orgStudentBody": "You've already used a licence for your report. To take another assessment, ask your school administrator to add a licence to your school's balance.",
     "viewReport": "View your report"
   },
+  "repeat": {
+    "title": "You already have a report for this grade",
+    "body": "Taking the assessment again for the same grade uses another assessment from your balance.",
+    "bodySchool": "Taking the assessment again for the same grade uses another of your school's licences. Check with your school before you repeat it.",
+    "continue": "Take it again anyway"
+  },
   "freeCap": {
     "title": "You've used your free assessments",
     "body": "Free accounts can complete up to {{cap}} assessments. Your reports are saved and you can revisit them any time.",

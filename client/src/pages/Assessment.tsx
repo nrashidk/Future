@@ -109,7 +109,10 @@ export default function Assessment() {
     completedReportId,
     isFreeCapReached,
     requiresPaymentToStart,
+    sameGradeAlreadyCharged,
   } = useAssessmentAvailability();
+  // The taker has read the repeat warning below and chosen to go on anyway.
+  const [repeatAcknowledged, setRepeatAcknowledged] = useState(false);
 
   // WHICH POPULATION OWNS THE LOCKED FIELDS — a second, narrower question
   // than isOrgStudent, which drives isPremiumFlow and the terminal screens
@@ -226,9 +229,22 @@ export default function Assessment() {
   // caller trying to start their first assessment with nothing paid yet.
   const showsPaymentRequired =
     !availLoading && requiresPaymentToStart && !hasInProgress;
+  // A REPORT FOR THIS GRADE ALREADY EXISTS AND WAS CHARGED FOR. Repeating is
+  // allowed and costs another licence — and "warns first" was true only of
+  // the hook: useAssessmentAvailability computed sameGradeAlreadyCharged "for
+  // the warning before a repeat" and no screen ever read it. Seen on
+  // production 2026-11-12: a student with a finished report pressed
+  // Assessment and was dropped straight into a new one at step 2, which at
+  // the end would have spent a second of the school's licences without a
+  // word. Since the pool replaced the one-per-student allocation, nothing
+  // else stood between a student and the school's whole balance.
+  // A warning, not a lock: repeating a year happens. Not shown mid-draft.
+  const showsRepeatWarning =
+    !availLoading && sameGradeAlreadyCharged && !hasInProgress && !repeatAcknowledged &&
+    !showsCompletionLock && !showsFreeCapReached && !showsPaymentRequired && !showsPollingScreen;
   const isOnTerminalScreen =
     showsPollingScreen || showsSchoolDataIncomplete || showsCompletionLock ||
-    showsFreeCapReached || showsPaymentRequired;
+    showsFreeCapReached || showsPaymentRequired || showsRepeatWarning;
 
   // True when the student has started filling in data and hasn't finished yet.
   //
@@ -1134,6 +1150,34 @@ export default function Assessment() {
               <h1 className="text-4xl md:text-5xl font-bold">{t("schoolDataIncomplete.title")}</h1>
               <p className="text-lg text-muted-foreground">{t("schoolDataIncomplete.body")}</p>
             </div>
+          </div>
+        </div>
+      </PageLayout>
+    );
+  }
+
+  if (showsRepeatWarning) {
+    return (
+      <PageLayout variant="gradient">
+        <div className="flex items-center justify-center px-4 py-12 min-h-[calc(100vh-12rem)]">
+          <div className="max-w-md w-full text-center space-y-6 rounded-xl p-8" data-testid="screen-repeat-warning">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10">
+              <ClipboardCheck className="w-8 h-8 text-primary" />
+            </div>
+            <div className="space-y-2">
+              <h1 className="text-3xl md:text-4xl font-bold">{t("repeat.title")}</h1>
+              <p className="text-lg text-muted-foreground">
+                {isOrgStudent ? t("repeat.bodySchool") : t("repeat.body")}
+              </p>
+            </div>
+            {completedReportId && (
+              <Button asChild size="lg" className="w-full text-lg px-8 py-6 rounded-full shadow-xl" data-testid="button-repeat-view-report">
+                <a href={`/results?assessmentId=${completedReportId}`}>{t("lock.viewReport")}</a>
+              </Button>
+            )}
+            <Button variant="outline" className="w-full rounded-full" onClick={() => setRepeatAcknowledged(true)} data-testid="button-repeat-continue">
+              {t("repeat.continue")}
+            </Button>
           </div>
         </div>
       </PageLayout>
