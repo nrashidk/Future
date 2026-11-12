@@ -265,6 +265,20 @@ let compOrgId = null;
     `granted ${body.platform?.granted}/${truth.granted}, consumed ` +
     `${body.platform?.totalConsumed}/${truth.consumed}, revenue ${revenueTotal}/${truth.revenue}, ` +
     `schools ${body.platform?.schools}/${truth.schools}`);
+
+  // A-01b: "of them granted free" is everything that was not bought, with
+  // reductions taken off. It used to add comps and backfill only, so a
+  // school cut from 153 to 108 read "108 granted, 153 of them free".
+  const [free] = await sql(`
+    SELECT COALESCE(SUM(licenses_delta) FILTER (WHERE kind <> 'purchase'),0)::int AS free,
+           (SELECT count(*)::int FROM license_grants WHERE kind = 'adjustment' AND licenses_delta < 0) AS cuts
+      FROM license_grants`);
+  rec("A-01b", "the free figure nets off reductions and never exceeds what was granted",
+    Number(free.cuts) > 0 &&
+      Number(body.platform?.grantedFree) === Number(free.free) &&
+      Number(body.platform?.grantedFree) <= Number(body.platform?.granted),
+    `free ${body.platform?.grantedFree}/${free.free} of ${body.platform?.granted} granted, ` +
+    `${free.cuts} reduction row(s) in the ledger`);
 }
 
 // --------------- A-02  several grants AND several consumptions on one school

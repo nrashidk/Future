@@ -3939,7 +3939,11 @@ export class DatabaseStorage implements IStorage {
         organizationId: licenseGrants.organizationId,
         granted: sql<number>`COALESCE(SUM(${licenseGrants.licensesDelta}), 0)::int`,
         purchases: sql<number>`count(*) FILTER (WHERE ${licenseGrants.kind} = 'purchase')::int`,
-        grantedFree: sql<number>`COALESCE(SUM(${licenseGrants.licensesDelta}) FILTER (WHERE ${licenseGrants.kind} IN ('comp', 'backfill')), 0)::int`,
+        // Everything that is not a purchase, NETTED: comps, carried-over
+        // balances AND the adjustments that take licences back. Summing comps
+        // alone counted 50 given and 50 taken away as 50 free, and the screen
+        // read "108 granted, 153 of them free".
+        grantedFree: sql<number>`COALESCE(SUM(${licenseGrants.licensesDelta}) FILTER (WHERE ${licenseGrants.kind} <> 'purchase'), 0)::int`,
       })
       .from(licenseGrants)
       .groupBy(licenseGrants.organizationId);
