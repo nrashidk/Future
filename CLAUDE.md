@@ -631,6 +631,17 @@ approved and unpaid for next year, rather than closed with nothing paid;
 part-way there, what fits is paid. K-06 to K-08, where K-08 is the control
 that last year's count does not block this year. **Still flagged:**
 allocation will add credits beyond what is pending.
+**ON PRODUCTION THE AUTOMATIC CHECK IS NOT RUNNING (2026-11-12), cause
+unknown.** Two submissions made as Test High School's admin both came back
+`unavailable`, score 0, within seconds. The reason was only a server log line
+(`[Contribution] LLM verification did NOT run (...)`), so the recheck's 503
+now carries it (`reason`) and the review queue shows it — re-run the check as
+superadmin to read it. Also hardened without knowing it is the cause: a reply
+wrapped in a markdown fence used to throw in `JSON.parse` and count as "did
+not run" (`contribution.recheck.test.ts` C-06). The school's own submissions
+table had the review queue's faults too: it read `questionCount` (blank
+column), said "Pending LLM Check" after the check had answered, and had no
+case for `peer_review`.
 **`llmVerificationStatus: "failed"` IS NEVER WRITTEN.** `verified` is true
 whenever the check ran, so a submission scored 31 is stored as "verified"
 with a score of 31. The routing gate reads the score, so behaviour is right
