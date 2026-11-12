@@ -126,7 +126,8 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `migration-029-dryrun`, `migration-030-dryrun`, `migration-032-dryrun`,
 `migration-033-dryrun`, `migration-034-dryrun`, `migration-035-dryrun`,
 `migration-036-dryrun`, `migration-037-dryrun`, `migration-038-dryrun` and
-`migration-039-dryrun`, plus `premium-solo` and `migration-041-dryrun`.
+`migration-039-dryrun`, plus `premium-solo`, `individual-licences` and
+`migration-041-dryrun`.
 
 `webhook-idempotency`, `webhook-group-backstop` and `setup-invite` need two
 environment
@@ -428,9 +429,33 @@ and a third assessment created. `migration-041-dryrun.mjs` (11 cases, six of
 them controls). **Not covered / still open:** the profile's "Used" figure is
 still counted in the browser from completed premium assessments rather than
 read from the ledger; an individual's own grade is typed per assessment, so
-there is no same-grade repeat warning for them; and **no superadmin route
-adds licences to an individual** — the screen says "contact us" and the only
-remedy today is a database edit.
+there is no same-grade repeat warning for them.
+
+**A SUPERADMIN GIVES AN INDIVIDUAL LICENCES FROM THE USERS TAB**
+(`POST /api/superadmin/users/:id/licences`, `{count}` 1–1000, the ticket
+button on an individual's row). Found the same evening: the owner made a test
+account with "Add Users", was told it was premium, and it was not. **"Add
+Users" creates a FREE account, and the Users directory listed premium
+individuals only — so the account vanished from the list the moment the
+dialog closed**, and nothing in the product could make it premium. The
+"accepted at creation, visible nowhere" family again. The list now shows every
+individual with a Free or Premium badge and its licence count, and the type
+filter has Free.
+The route ADDS and never sets or removes, in one UPDATE with the arithmetic
+in SQL and `account_type = 'individual'` in its WHERE clause. A school account
+is refused 409 `NOT_AN_INDIVIDUAL` (schools have their own route and ledger);
+a superadmin is refused because their account is on no pool. **There is no
+grants ledger for individuals**: the only record is the security log line
+(`Superadmin gave licences to an individual account`), so these are not
+revenue and not reportable. If they must be, that is a table.
+`individual-licences.mjs` (8 cases), judged by the stored figure. I-03 is the
+one that proves the licences are real (a report generated and charged, 2 → 1).
+Mutation-tested by dropping the role guard, the account-type checks and the
+list change: I-01, I-05, I-06 and I-07 fail, with a school admin and a student
+each adding 50. **Flagged, not changed:** the superadmin's own account now
+appears in the list as Free with a button the route refuses; and the edit-email
+dialog invalidates `/api/superadmin/all-students`, a query key nothing uses, so
+the list does not refresh after an email change.
 
 Stripe cannot answer any licence question. It knows amounts and customers, not
 licences, schools, countries or curricula, and reward credits never touch it

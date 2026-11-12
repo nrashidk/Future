@@ -20,6 +20,7 @@ import type { User } from "@shared/schema";
 import { isOnetGrowthBand, growthOutlookFor, ONET_GROWTH_BANDS } from "@shared/growthBands";
 import * as fileStorage from "../services/fileStorage";
 import { isUniqueViolation } from "../utils/pgErrors";
+import logger from "../utils/logger";
 import Stripe from "stripe";
 import { db } from "../db";
 // Both school-delete endpoints run this one sequence.
@@ -1014,6 +1015,57 @@ export function registerSuperadminRoutes(app: Express) {
    * guards below exist for that reason and are the point of this endpoint, not
    * decoration around it.
    */
+  /**
+   * GIVE LICENCES TO AN INDIVIDUAL ACCOUNT.
+   *
+   * Until this existed an individual's licences could only come from the card
+   * checkout: an account made with "Add Users" was free for ever, and a buyer
+   * who had used theirs was told to "contact us" by a screen whose only
+   * remedy was a database edit. Schools have their own route
+   * (/api/superadmin/organizations/:id/licenses), with a ledger; this is for
+   * the account that has no school.
+   *
+   * ADDS, never sets, and never takes away: a reduction below what has been
+   * used needs a decision about the reports already generated, which nobody
+   * has made. A school account is refused and pointed at the school's route;
+   * a superadmin is refused because their account is on no pool, so the
+   * number would be read by nothing.
+   */
+  app.post("/api/superadmin/users/:id/licences", isAuthenticated, isSuperadminMiddleware, async (req: any, res) => {
+    try {
+      const count = req.body?.count;
+      if (typeof count !== "number" || !Number.isInteger(count) || count < 1 || count > 1000) {
+        return res.status(400).json({ message: "Enter a whole number of licences between 1 and 1000.", code: "INVALID_COUNT" });
+      }
+      const target = await storage.getUser(req.params.id);
+      if (!target) return res.status(404).json({ message: "User not found" });
+      if (target.accountType !== "individual") {
+        return res.status(409).json({
+          message: "This account belongs to a school. Add licences to the school instead.",
+          code: "NOT_AN_INDIVIDUAL",
+        });
+      }
+      const targetIsSuperadmin =
+        target.role === "superadmin" ||
+        (!!target.email && getSuperadminEmails().includes(target.email.toLowerCase()));
+      if (targetIsSuperadmin) {
+        return res.status(409).json({
+          message: "A superadmin account does not use licences.",
+          code: "TARGET_IS_SUPERADMIN",
+        });
+      }
+      const total = await storage.grantIndividualLicences(target.id, count);
+      if (total === null) return res.status(409).json({ message: "This account could not be given licences.", code: "NOT_AN_INDIVIDUAL" });
+      logger.security("Superadmin gave licences to an individual account", {
+        superadminId: req.user.userId, targetUserId: target.id, added: count, newTotal: total,
+      });
+      res.json({ success: true, added: count, purchasedLicenses: total, isPremium: true });
+    } catch (error) {
+      console.error("Error giving licences to an individual:", error);
+      res.status(500).json({ message: "Failed to give licences" });
+    }
+  });
+
   app.patch("/api/superadmin/users/:id/email", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
     try {
       const parsed = z.object({ email: z.string().trim().email() }).safeParse(req.body);

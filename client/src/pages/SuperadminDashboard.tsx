@@ -22,7 +22,7 @@ import {
   Building2, Users, GraduationCap, Key, Search, Filter, 
   Plus, Download, Edit, Trash2, UserPlus, Crown, Shield,
   TrendingUp, AlertCircle, CheckCircle, Clock, Home, User, LogOut,
-  ChevronUp, ChevronDown, History, Infinity, BarChart, Copy, FileQuestion,
+  ChevronUp, ChevronDown, History, Infinity, BarChart, Copy, FileQuestion, Ticket,
   Settings, Globe, Gift, FileText, Megaphone, Briefcase, Eye, RefreshCw,
   Info, AlertTriangle, XCircle, Languages, Database, Layers
 } from "lucide-react";
@@ -160,6 +160,7 @@ interface StudentWithAssessment {
     lastName: string | null;
     accountType: string;
     isPremium: boolean;
+    purchasedLicenses?: number | null;
     createdAt: string;
   };
   organizationName: string | null;
@@ -570,6 +571,9 @@ function SuperadminDashboardPage() {
   const [resetPasswordResult, setResetPasswordResult] = useState<{ username: string; newPassword: string } | null>(null);
   const [editingEmailUser, setEditingEmailUser] = useState<{ id: string; name: string; email: string | null } | null>(null);
   const [emailDraft, setEmailDraft] = useState("");
+  // Giving licences to an individual account (schools have their own tab).
+  const [licenceUser, setLicenceUser] = useState<{ id: string; name: string; current: number } | null>(null);
+  const [licenceCount, setLicenceCount] = useState("1");
   const [userSearchQuery, setUserSearchQuery] = useState("");
   const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState<SystemAnnouncement | null>(null);
@@ -685,6 +689,21 @@ function SuperadminDashboardPage() {
     },
     onError: (error: unknown) => {
       toast({ title: t('superadmin.error'), description: serverErrorMessage(error) ?? t('superadmin.failedToUpdateEmail'), variant: "destructive" });
+    },
+  });
+
+  const giveLicencesMutation = useMutation({
+    mutationFn: async ({ userId, count }: { userId: string; count: number }) => {
+      const res = await apiRequest('POST', `/api/superadmin/users/${userId}/licences`, { count });
+      return res.json();
+    },
+    onSuccess: (data: { added: number; purchasedLicenses: number }) => {
+      setLicenceUser(null);
+      toast({ title: t('superadmin.licencesGiven'), description: t('superadmin.licencesGivenDesc', { added: data.added, total: data.purchasedLicenses }) });
+      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/students'] });
+    },
+    onError: (error: unknown) => {
+      toast({ title: t('superadmin.error'), description: serverErrorMessage(error) ?? t('superadmin.failedToGiveLicences'), variant: "destructive" });
     },
   });
 
@@ -1434,6 +1453,7 @@ function SuperadminDashboardPage() {
                         <SelectItem value="students">{t('superadmin.filterStudentsType')}</SelectItem>
                         <SelectItem value="org_admins">{t('superadmin.filterOrgAdminsType')}</SelectItem>
                         <SelectItem value="premium">{t('superadmin.filterPremiumType')}</SelectItem>
+                        <SelectItem value="free">{t('superadmin.filterFreeType')}</SelectItem>
                       </SelectContent>
                     </Select>
                     <Select value={assessmentFilter} onValueChange={setAssessmentFilter}>
@@ -1500,7 +1520,8 @@ function SuperadminDashboardPage() {
                     const matchesType = userTypeFilter === 'all' ||
                       (userTypeFilter === 'students' && s.user.accountType === 'org_student') ||
                       (userTypeFilter === 'org_admins' && s.user.accountType === 'org_admin') ||
-                      (userTypeFilter === 'premium' && s.user.accountType === 'individual' && s.user.isPremium);
+                      (userTypeFilter === 'premium' && s.user.accountType === 'individual' && s.user.isPremium) ||
+                      (userTypeFilter === 'free' && s.user.accountType === 'individual' && !s.user.isPremium);
                     const finished = s.completedAssessmentCount ?? 0;
                     const matchesAssessment = assessmentFilter === 'all' ||
                       // A school admin never takes one, so "not finished yet" would list
@@ -1568,14 +1589,20 @@ function SuperadminDashboardPage() {
                               <TableCell>
                                 <div className="flex flex-col">
                                   <Badge 
-                                    variant={student.user.accountType === 'org_admin' ? 'destructive' : student.user.accountType === 'org_student' ? 'secondary' : 'default'}
+                                    variant={student.user.accountType === 'org_admin' ? 'destructive' : student.user.accountType === 'org_student' ? 'secondary' : student.user.isPremium ? 'default' : 'outline'}
                                     className="w-fit"
+                                    data-testid={`badge-user-type-${student.user.id}`}
                                   >
-                                    {student.user.accountType === 'org_admin' ? t('superadmin.typeAdmin') : student.user.accountType === 'org_student' ? t('superadmin.typeStudent') : t('superadmin.typePremium')}
+                                    {student.user.accountType === 'org_admin' ? t('superadmin.typeAdmin') : student.user.accountType === 'org_student' ? t('superadmin.typeStudent') : student.user.isPremium ? t('superadmin.typePremium') : t('superadmin.typeFree')}
                                   </Badge>
                                   <span className="text-xs text-muted-foreground mt-1">
                                     {t('superadmin.schoolColon', { name: student.organizationName || t('superadmin.schoolIndividual') })}
                                   </span>
+                                  {student.user.accountType === 'individual' && (
+                                    <span className="text-xs text-muted-foreground" data-testid={`text-user-licences-${student.user.id}`}>
+                                      {t('superadmin.licencesHeld', { n: student.user.purchasedLicenses ?? 0 })}
+                                    </span>
+                                  )}
                                 </div>
                               </TableCell>
                               <TableCell>
@@ -1612,6 +1639,24 @@ function SuperadminDashboardPage() {
                                   >
                                     <Key className="w-4 h-4" />
                                   </Button>
+                                  {student.user.accountType === 'individual' && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={() => {
+                                      setLicenceUser({
+                                        id: student.user.id,
+                                        name: `${student.user.firstName || ""} ${student.user.lastName || ""}`.trim() || student.user.username || student.user.id,
+                                        current: student.user.purchasedLicenses ?? 0,
+                                      });
+                                      setLicenceCount("1");
+                                    }}
+                                    title={t('superadmin.giveLicences')}
+                                    data-testid={`button-give-licences-${student.user.id}`}
+                                  >
+                                    <Ticket className="w-4 h-4" />
+                                  </Button>
+                                  )}
                                   {(student.completedAssessmentCount ?? 0) > 0 && (
                                   <Button
                                     variant="ghost"
@@ -2656,6 +2701,42 @@ function SuperadminDashboardPage() {
               data-testid="button-save-edit-email"
             >
               {updateEmailMutation.isPending ? t('superadmin.saving') : t('superadmin.save')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!licenceUser} onOpenChange={(open) => !open && setLicenceUser(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('superadmin.giveLicencesTitle')}</DialogTitle>
+            <DialogDescription>
+              {t('superadmin.giveLicencesDesc', { name: licenceUser?.name ?? "", current: licenceUser?.current ?? 0 })}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="give-licences-input">{t('superadmin.giveLicencesLabel')}</Label>
+            <Input
+              id="give-licences-input"
+              type="number"
+              min={1}
+              max={1000}
+              dir="ltr"
+              value={licenceCount}
+              onChange={(e) => setLicenceCount(e.target.value)}
+              data-testid="input-give-licences"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setLicenceUser(null)} data-testid="button-cancel-give-licences">
+              {t('superadmin.cancel')}
+            </Button>
+            <Button
+              onClick={() => licenceUser && giveLicencesMutation.mutate({ userId: licenceUser.id, count: Number(licenceCount) })}
+              disabled={giveLicencesMutation.isPending || !/^[1-9][0-9]{0,3}$/.test(licenceCount.trim()) || Number(licenceCount) > 1000}
+              data-testid="button-confirm-give-licences"
+            >
+              {giveLicencesMutation.isPending ? t('superadmin.saving') : t('superadmin.giveLicencesConfirm')}
             </Button>
           </DialogFooter>
         </DialogContent>

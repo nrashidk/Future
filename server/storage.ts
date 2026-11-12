@@ -6446,6 +6446,31 @@ export class DatabaseStorage implements IStorage {
       .limit(limit);
   }
 
+  /**
+   * GIVE AN INDIVIDUAL ACCOUNT LICENCES, and make it premium.
+   *
+   * One statement, the arithmetic in SQL: a read-then-write here would lose a
+   * grant made at the same moment. The conditions are in the WHERE clause, so
+   * an account that is not an individual is refused by the database and not
+   * only by the route. Returns the new total, or null when nothing matched.
+   *
+   * There is NO grants ledger for individuals -- `license_grants` is a
+   * school's -- so the only record of who gave what is the route's security
+   * log line. If that ever has to be reportable, it is a table.
+   */
+  async grantIndividualLicences(userId: string, count: number): Promise<number | null> {
+    const [row] = await db
+      .update(users)
+      .set({
+        purchasedLicenses: sql`COALESCE(${users.purchasedLicenses}, 0) + ${count}`,
+        isPremium: true,
+        updatedAt: new Date(),
+      })
+      .where(and(eq(users.id, userId), eq(users.accountType, 'individual')))
+      .returning({ purchasedLicenses: users.purchasedLicenses });
+    return row ? Number(row.purchasedLicenses) : null;
+  }
+
   async getAllStudentsWithAssessments(): Promise<Array<{
     user: User;
     organizationName: string | null;
@@ -6473,7 +6498,11 @@ export class DatabaseStorage implements IStorage {
         or(
           eq(users.accountType, 'org_student'),
           eq(users.accountType, 'org_admin'),
-          and(eq(users.accountType, 'individual'), eq(users.isPremium, true))
+          // EVERY individual, free ones too. This used to list premium
+          // individuals only, so an account a superadmin had just created with
+          // "Add Users" -- which is free -- vanished from the directory the
+          // moment the dialog closed, with no screen anywhere that showed it.
+          eq(users.accountType, 'individual')
         )
       )
       .groupBy(users.id, organizations.name)
