@@ -1531,6 +1531,20 @@ so a student with one assessment in progress got a link to a raw 404.
   field is `organizationName`, not `name`.
   Existing accounts keep their suffixed names: changing a live sign-in name is
   not a cleanup, it is locking someone out.
+  **AND THE FOURTH GENERATOR WAS MISSED — the one every STUDENT goes
+  through.** `storage.createUserWithCredentials` (manual add and CSV) kept its
+  own: `[^a-z.]`, then the student id or six random characters. Found on
+  production 2026-11-12 by adding students as a school admin: an Arabic name
+  became `..ZZ-002`, the rest `ali.mohammed.n6hgky`. It now calls
+  `resolveUsername`; the student id is no longer part of the name.
+  `org-admin.mjs` O-15/O-16, through both real routes. **Run `username.mjs`
+  on a fresh database or before `org-admin`**: O-15 creates `nasr.alaly`, so
+  U-02 then correctly gets `nasr.alaly2` and fails.
+  The same walk found the bulk-upload dialog showing "Failed 2" and nothing
+  else, while the server had always returned each failed row with its reason;
+  the dialog lists them now. **Flagged, not changed:** the roster prints the
+  stored grade value ("grade10") rather than a label, and its "N members"
+  count includes the administrator.
 - **THE TWO INVOICE SCREENS ARE BUILT** — a superadmin Invoices tab
   (`InvoiceManagement.tsx`, beside Licences, because an invoice marked paid IS
   a licence grant) and a school-side Billing card (`SchoolBilling.tsx`, under

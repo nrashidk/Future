@@ -342,6 +342,38 @@ console.log(`B's student under test: ${bVictim.username}\n`);
     `HTTP ${ok.status} ${ok.body?.id ? "id returned" : JSON.stringify(ok.body).slice(0, 120)}`);
 }
 
+// ------------------------------------------------------------------ O-15, O-16
+/**
+ * A STUDENT'S SIGN-IN NAME. Seen on production 2026-11-12: a student named in
+ * Arabic was created as "..ZZ-002" and everyone else carried six random
+ * characters, because student creation had its own generator that the move to
+ * shared/username.ts missed. Through BOTH real routes, since the unit tests
+ * prove the rule and not that this path uses it.
+ */
+{
+  const base = { grade: "10", studentGender: "female", dateOfBirth: "2010-06-02" };
+  const one = await A.session.post(`/api/admin/organizations/${A.orgId}/members`,
+    { ...base, fullName: "ناصر العلي", studentId: "ZZ-002" });
+  const u1 = one.body?.user?.username;
+  rec("O-15", "a student named in Arabic gets a readable Latin sign-in name",
+    one.status === 201 && typeof u1 === "string" && /^[a-z0-9]+(\.[a-z0-9]+)*$/.test(u1) && !u1.includes("zz"),
+    `HTTP ${one.status} username=${JSON.stringify(u1)}`);
+
+  const bulk = await A.session.post(`/api/admin/organizations/${A.orgId}/members/bulk`, {
+    members: [
+      { ...base, fullName: "Twin Person" },
+      { ...base, fullName: "Twin Person" },
+      { ...base, fullName: "Bad Row", dateOfBirth: "14/03/2010" },
+    ],
+  });
+  const names = (bulk.body?.credentials ?? []).map((c) => c.username);
+  rec("O-16", "two students of one name in one file are numbered, not randomised; the bad row is named",
+    bulk.status === 200 && names[0] === "twin.person" && names[1] === "twin.person2"
+      && bulk.body?.failed === 1 && bulk.body?.errors?.[0]?.member?.fullName === "Bad Row"
+      && typeof bulk.body?.errors?.[0]?.error === "string",
+    `HTTP ${bulk.status} names=${JSON.stringify(names)} failed=${bulk.body?.failed} error=${JSON.stringify(bulk.body?.errors?.[0]?.error ?? null)}`);
+}
+
 const pass = results.filter((r) => r.pass).length;
 const fail = results.filter((r) => !r.pass);
 console.log(`\n${"=".repeat(78)}`);
