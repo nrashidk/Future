@@ -591,6 +591,7 @@ function SuperadminDashboardPage() {
   // called it, so a superadmin could not delete anyone from the product.
   const [deleteUser, setDeleteUser] = useState<{ id: string; name: string; email: string | null } | null>(null);
   const [deleteEmailDraft, setDeleteEmailDraft] = useState("");
+  const [resetPasswordFor, setResetPasswordFor] = useState("");
   const [userSearchQuery, setUserSearchQuery] = useState("");
   const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState<SystemAnnouncement | null>(null);
@@ -894,8 +895,9 @@ function SuperadminDashboardPage() {
     setIsDeleteOrgModalOpen(true);
   };
 
-  const openResetPasswordModal = (userId: string) => {
+  const openResetPasswordModal = (userId: string, name = "") => {
     setSelectedUserId(userId);
+    setResetPasswordFor(name);
     setResetPasswordResult(null);
     setIsResetPasswordModalOpen(true);
   };
@@ -1696,7 +1698,7 @@ function SuperadminDashboardPage() {
                                   <Button
                                     variant="ghost"
                                     size="icon"
-                                    onClick={() => openResetPasswordModal(student.user.id)}
+                                    onClick={() => openResetPasswordModal(student.user.id, student.user.username || `${student.user.firstName || ""} ${student.user.lastName || ""}`.trim())}
                                     title={t('superadmin.resetPassword')}
                                     data-testid={`button-reset-password-${student.user.id}`}
                                   >
@@ -2723,7 +2725,9 @@ function SuperadminDashboardPage() {
           <DialogHeader>
             <DialogTitle>{t('superadmin.resetUserPasswordTitle')}</DialogTitle>
             <DialogDescription>
-              {t('superadmin.resetUserPasswordDesc')}
+              {resetPasswordFor
+                ? t('superadmin.resetUserPasswordDescNamed', { name: resetPasswordFor })
+                : t('superadmin.resetUserPasswordDesc')}
             </DialogDescription>
           </DialogHeader>
           {resetPasswordResult ? (
@@ -3410,10 +3414,9 @@ function SuperadminDashboardPage() {
               <Label htmlFor="student-email">{t('superadmin.studentEmail')}</Label>
               <Input id="student-email" type="email" placeholder={t('superadmin.studentEmailPlaceholder')} value={newStudentForm.email} onChange={(e) => setNewStudentForm({ ...newStudentForm, email: e.target.value })} data-testid="input-student-email" />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="student-username">{t('superadmin.studentUsername')}</Label>
-              <Input id="student-username" placeholder={t('superadmin.adminUsername')} value={newStudentForm.username} onChange={(e) => setNewStudentForm({ ...newStudentForm, username: e.target.value })} data-testid="input-student-username" />
-            </div>
+            {/* There was a "Username (optional)" field here. The route never
+                read it, so whatever was typed was silently replaced by the
+                generated name. The name is generated; the field is gone. */}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsAddStudentOpen(false)}>{t('superadmin.cancel')}</Button>
