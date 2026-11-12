@@ -1428,19 +1428,29 @@ function SuperadminDashboardPage() {
           <TabsContent value="students" className="space-y-4">
             <Card>
               <CardHeader>
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                {/* Two rows. The controls are too wide to sit beside the title at
+                    any width, so "Add Users" used to wrap alone onto a second
+                    line under the search box. The action goes with the title;
+                    the filters get their own row. */}
+                <div className="flex items-start justify-between gap-4">
                   <div>
                     <CardTitle>{t('superadmin.usersDirectory')}</CardTitle>
                     <CardDescription>{t('superadmin.studentsDesc')}</CardDescription>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    <div className="relative">
+                  <Button onClick={() => setIsAddStudentOpen(true)} className={`${ADD_BUTTON_CLASS} shrink-0`} data-testid="button-add-student">
+                    <Plus className="w-4 h-4 me-2" />
+                    {t('superadmin.addStudent')}
+                  </Button>
+                </div>
+                <div className="pt-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative flex-1 min-w-[14rem]">
                       <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <Input
                         placeholder={t('superadmin.searchStudents')}
                         value={studentSearchQuery}
                         onChange={(e) => setStudentSearchQuery(e.target.value)}
-                        className="ps-9 w-64"
+                        className="ps-9 w-full"
                         data-testid="input-search-students"
                       />
                     </div>
@@ -1469,14 +1479,12 @@ function SuperadminDashboardPage() {
                       </SelectContent>
                     </Select>
                     <Button variant="outline" size="sm" asChild data-testid="button-export-students">
-                      <a href="/api/superadmin/export/students?format=csv" download>
+                      {/* /export/students does not exist; the SPA answered it with
+                          the app's HTML, saved as a .csv. */}
+                      <a href="/api/superadmin/export/all-students?format=csv" download>
                         <Download className="w-4 h-4 me-2" />
                         {t('superadmin.exportCSV')}
                       </a>
-                    </Button>
-                    <Button onClick={() => setIsAddStudentOpen(true)} className={ADD_BUTTON_CLASS} data-testid="button-add-student">
-                      <Plus className="w-4 h-4 me-2" />
-                      {t('superadmin.addStudent')}
                     </Button>
                   </div>
                 </div>
