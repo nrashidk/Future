@@ -232,8 +232,12 @@ export default function CountryManagement() {
    */
   const priceMutation = useMutation({
     mutationFn: async ({ id, price, currency }: { id: string; price: string | null; currency?: string }) => {
-      return apiRequest('PATCH', `/api/admin/countries/${id}/license-price`,
-        price === null ? { price: null } : { price, currency });
+      // .json(): apiRequest returns the Response. Without it `data.formatted`
+      // below was always undefined, so EVERY successful save announced
+      // "Cleared. This country falls back to the USD default" -- over a price
+      // that had just been stored correctly.
+      return (await apiRequest('PATCH', `/api/admin/countries/${id}/license-price`,
+        price === null ? { price: null } : { price, currency })).json();
     },
     onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/countries'] });
@@ -248,10 +252,12 @@ export default function CountryManagement() {
           : t('countries.priceClearedDesc'),
       });
     },
-    onError: (err: any) => {
+    onError: (err: unknown) => {
       toast({
         title: t('countries.errorTitle'),
-        description: err?.message || t('countries.priceError'),
+        // err.message is "400: {json}"; the sentence inside it is the part a
+        // person can act on.
+        description: serverErrorMessage(err) ?? t('countries.priceError'),
         variant: "destructive",
       });
     },
