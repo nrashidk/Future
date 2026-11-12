@@ -315,6 +315,8 @@
     "uploadCompleteDesc": "تم إنشاء {{n}} طالب بنجاح",
     "createdLabel": "تم الإنشاء",
     "failedLabel": "فشل",
+    "failedRowsTitle": "لم يتم إنشاؤهم — صحّح هذه الصفوف وأعد رفعها",
+    "failedRowUnnamed": "صف بلا اسم",
     "downloadCredentialsCSV": "تحميل بيانات الدخول (CSV)",
     "bulkUploadFormTitle": "رفع مجمّع للطلاب",
     "bulkUploadFormDesc": "ارفع ملف CSV لإضافة طلاب متعددين",

@@ -2254,7 +2254,7 @@ function BulkUploadForm({ organizationId, onSuccess }: { organizationId: string;
   const { t } = useTranslation('admin');
   const [file, setFile] = useState<File | null>(null);
   const [passwordComplexity, setPasswordComplexity] = useState<"easy" | "medium" | "strong">("medium");
-  const [uploadResult, setUploadResult] = useState<{ success: number; failed: number; credentials: any[] } | null>(null);
+  const [uploadResult, setUploadResult] = useState<{ success: number; failed: number; credentials: any[]; errors?: { member?: { fullName?: string }; error?: string }[] } | null>(null);
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -2365,6 +2365,24 @@ function BulkUploadForm({ organizationId, onSuccess }: { organizationId: string;
             <p className="text-3xl font-bold">{uploadResult.failed}</p>
           </StickyNote>
         </div>
+
+        {/* WHICH rows failed, and why. The server always sent this; the dialog
+            showed only the count, so an admin with a 300-row file and
+            "Failed 2" had no way to find the two. */}
+        {(uploadResult.errors?.length ?? 0) > 0 && (
+          <div className="rounded-md border border-destructive/40 p-3 space-y-2" data-testid="list-bulk-upload-errors">
+            <p className="text-sm font-medium">{t('orgs.failedRowsTitle')}</p>
+            <ul className="text-sm space-y-1 max-h-48 overflow-y-auto">
+              {uploadResult.errors!.map((e, i) => (
+                <li key={i} data-testid={`bulk-upload-error-${i}`}>
+                  <span className="font-medium" dir="auto">{e.member?.fullName || t('orgs.failedRowUnnamed')}</span>
+                  {' — '}
+                  <span className="text-muted-foreground">{e.error}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div className="flex gap-2 justify-end">
           <Button onClick={handleDownloadCredentials} data-testid="button-download-all-credentials">

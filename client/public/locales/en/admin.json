@@ -315,6 +315,8 @@
     "uploadCompleteDesc": "{{n}} students created successfully",
     "createdLabel": "Created",
     "failedLabel": "Failed",
+    "failedRowsTitle": "Not created — fix these rows and upload them again",
+    "failedRowUnnamed": "Unnamed row",
     "downloadCredentialsCSV": "Download Credentials CSV",
     "bulkUploadFormTitle": "Bulk Upload Students",
     "bulkUploadFormDesc": "Upload a CSV file with student information",
