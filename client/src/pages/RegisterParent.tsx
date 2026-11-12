@@ -63,12 +63,16 @@ export default function RegisterParent() {
     firstName: z.string().min(1, t("registerParent.validation.firstNameRequired")),
     lastName: z.string().min(1, t("registerParent.validation.lastNameRequired")),
     child: z.object({
-      name: z.string().min(1),
-      dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-      gender: z.string().min(1),
-      grade: z.string().min(1),
-      countryId: z.string().min(1),
-      curriculum: z.string().min(1),
+      // EVERY FIELD CARRIES ITS OWN SENTENCE. With none, the validator's
+      // built-in English text is what a parent reads -- "String must contain
+      // at least 1 character(s)", and on zod 4 the date pattern itself,
+      // printed as a regular expression -- in both languages.
+      name: z.string().min(1, t("registerParent.validation.childNameRequired")),
+      dateOfBirth: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, t("registerParent.validation.childDobRequired")),
+      gender: z.string().min(1, t("registerParent.validation.childGenderRequired")),
+      grade: z.string().min(1, t("registerParent.validation.childGradeRequired")),
+      countryId: z.string().min(1, t("registerParent.validation.childCountryRequired")),
+      curriculum: z.string().min(1, t("registerParent.validation.childCurriculumRequired")),
     }),
   }).refine(data => data.password === data.confirmPassword, {
     message: t("registerParent.validation.passwordsMismatch"),
