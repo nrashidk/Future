@@ -1916,15 +1916,15 @@ export const insertStudentMemberSchema = insertOrganizationMemberSchema.extend({
   // admin form simply omits gender when the Select is left untouched). Both
   // paths must produce the same sentence, because it is shown to the admin.
   studentName: z
-    .string({ required_error: "Student name is required" })
+    .string({ error: "Student name is required" })
     .trim()
     .min(1, "Student name is required"),
   studentGender: z
-    .string({ required_error: "Student gender is required" })
+    .string({ error: "Student gender is required" })
     .trim()
     .min(1, "Student gender is required"),
   grade: z
-    .string({ required_error: "Grade is required" })
+    .string({ error: "Grade is required" })
     .trim()
     .min(1, "Grade is required"),
   // Every message past the presence check comes FROM validateDateOfBirth rather
@@ -1947,7 +1947,7 @@ export const insertStudentMemberSchema = insertOrganizationMemberSchema.extend({
   // logic being deferred to is exhaustively tested with an injected asOf in
   // shared/dateOfBirth.test.ts; only the choice of "today" is untested here.
   dateOfBirth: z
-    .string({ required_error: "Date of birth is required" })
+    .string({ error: "Date of birth is required" })
     .trim()
     .min(1, "Date of birth is required")
     .superRefine((value, ctx) => {
