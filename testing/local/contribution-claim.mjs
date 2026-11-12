@@ -21,6 +21,9 @@
  *   K-04  THE CASE THAT MATTERS: a submission already paid by allocation is
  *         closed and pays NOTHING more
  *   K-05  a submission that is not approved is refused, nothing moves
+ *   K-06  at the school's yearly ceiling the claim is refused, nothing moves
+ *   K-07  part-way to the ceiling, only what fits is paid
+ *   K-08  control: last year's count does not block this year
  *
  * What this cannot show: two claims arriving at the same instant. PGlite has
  * one connection and serialises them (CLAUDE.md), so a concurrency case here
@@ -137,6 +140,58 @@ try {
     rec("K-05", "a submission that is not approved is refused",
       r.status === 400 && show(after) === show(before) && (await statusOf(pending)).status === "pending",
       `HTTP ${r.status} ${show(after)}`);
+  }
+
+  /**
+   * THE YEARLY CEILING. "Allocate reward" has always stopped at the school's
+   * yearly maximum (50 unless configured); the claim did not. Years are
+   * written as SQL so the fixture cannot disagree with the server's clock.
+   */
+  const YEAR = `EXTRACT(YEAR FROM NOW())::int`;
+
+  // ------------------------------------------------------------------ K-06
+  // AT the ceiling: refused, and the submission is left approved and unpaid
+  // -- not closed with nothing paid, which would forfeit an earned reward.
+  {
+    const id = await plant("approved", 3); made.push(id);
+    await sql(`UPDATE organizations SET pending_reward_credits = 3, reward_credits = 50,
+                      yearly_contribution_count = 50, last_contribution_reset_year = ${YEAR} WHERE id = $1`, [orgId]);
+    const before = await figures();
+    const r = await claim(sa, id);
+    const after = await figures(); const st = await statusOf(id);
+    rec("K-06", "at the yearly ceiling the claim is refused and nothing moves",
+      r.status === 400 && r.body?.code === "YEARLY_CAP_REACHED"
+        && show(after) === show(before) && st.status === "approved" && st.reward_allocated === false,
+      `HTTP ${r.status} code=${r.body?.code} ${show(after)} status=${st.status}`);
+  }
+
+  // ------------------------------------------------------------------ K-07
+  // Two short of the ceiling with five to give: two are paid.
+  {
+    const id = await plant("approved", 5); made.push(id);
+    await sql(`UPDATE organizations SET pending_reward_credits = 5, reward_credits = 48,
+                      yearly_contribution_count = 48, last_contribution_reset_year = ${YEAR} WHERE id = $1`, [orgId]);
+    const r = await claim(sa, id);
+    const after = await figures(); const st = await statusOf(id);
+    rec("K-07", "part-way to the ceiling, only what fits is paid",
+      r.status === 200 && r.body?.creditsAwarded === 2 && r.body?.creditsOverYearlyCap === 3
+        && after.reward === 50 && after.yearly === 50 && after.pending === 0 && st.status === "claimed",
+      `HTTP ${r.status} paid=${r.body?.creditsAwarded} over=${r.body?.creditsOverYearlyCap} ${show(after)}`);
+  }
+
+  // ------------------------------------------------------------------ K-08
+  // Control for K-06: the same full count, but LAST year's. The ceiling is
+  // yearly, so this pays in full -- or K-06 would pass against a ceiling that
+  // never resets.
+  {
+    const id = await plant("approved", 3); made.push(id);
+    await sql(`UPDATE organizations SET pending_reward_credits = 3, reward_credits = 50,
+                      yearly_contribution_count = 50, last_contribution_reset_year = ${YEAR} - 1 WHERE id = $1`, [orgId]);
+    const r = await claim(sa, id);
+    const after = await figures();
+    rec("K-08", "control: last year's count does not block this year",
+      r.status === 200 && r.body?.creditsAwarded === 3 && after.reward === 53 && after.yearly === 3,
+      `HTTP ${r.status} paid=${r.body?.creditsAwarded} ${show(after)}`);
   }
 } finally {
   for (const id of made) await sql(`DELETE FROM contribution_submissions WHERE id = $1`, [id]).catch(() => {});

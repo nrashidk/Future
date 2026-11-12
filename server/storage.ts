@@ -541,7 +541,7 @@ export interface IStorage {
   getAllPendingContributionSubmissions(): Promise<ContributionSubmission[]>;
   updateContributionSubmission(id: string, data: Partial<ContributionSubmission>): Promise<ContributionSubmission>;
   claimContributionRecheck(id: string, staleBefore: Date): Promise<ContributionSubmission | undefined>;
-  claimApprovedContribution(id: string): Promise<{ creditsMoved: number; alreadyPaid: boolean } | null>;
+  claimApprovedContribution(id: string, cap: { maxYearlyCredits: number; currentYear: number }): Promise<{ creditsMoved: number; alreadyPaid: boolean; capped: number } | { refused: "yearly_cap" } | null>;
   getOrganizationDailySubmissionCount(organizationId: string): Promise<number>;
   
   // Contribution Reward operations
@@ -5970,44 +5970,80 @@ export class DatabaseStorage implements IStorage {
    *
    * Returns null when the submission is not there to be claimed.
    */
-  async claimApprovedContribution(id: string): Promise<{ creditsMoved: number; alreadyPaid: boolean } | null> {
-    return db.transaction(async (tx) => {
-      const [paidNow] = await tx
-        .update(contributionSubmissions)
-        .set({ status: "claimed", rewardAllocated: true, updatedAt: new Date() })
-        .where(and(
-          eq(contributionSubmissions.id, id),
-          eq(contributionSubmissions.status, "approved"),
-          eq(contributionSubmissions.rewardAllocated, false),
-        ))
-        .returning();
-
-      if (!paidNow) {
-        // Approved and already paid by allocation: close it, move nothing.
-        const [closed] = await tx
+  /**
+   * THE YEARLY CEILING APPLIES HERE TOO. "Allocate reward" has always stopped
+   * at the school's yearly maximum; this path did not, so the ceiling held
+   * only for whoever used the other button. Same rule, same reset: the count
+   * starts again when the calendar year changes.
+   *
+   * At the ceiling the claim is REFUSED and rolled back -- the submission
+   * stays approved and unpaid, to be given next year -- rather than closed
+   * with nothing paid, which would quietly forfeit a reward the school
+   * earned. Part-way there, what fits is paid and the rest is dropped, which
+   * is what allocation does.
+   */
+  async claimApprovedContribution(
+    id: string,
+    cap: { maxYearlyCredits: number; currentYear: number },
+  ): Promise<{ creditsMoved: number; alreadyPaid: boolean; capped: number } | { refused: "yearly_cap" } | null> {
+    const CAP_REACHED = Symbol("yearly cap reached");
+    try {
+      return await db.transaction(async (tx) => {
+        const [paidNow] = await tx
           .update(contributionSubmissions)
-          .set({ status: "claimed", updatedAt: new Date() })
+          .set({ status: "claimed", rewardAllocated: true, updatedAt: new Date() })
           .where(and(
             eq(contributionSubmissions.id, id),
             eq(contributionSubmissions.status, "approved"),
+            eq(contributionSubmissions.rewardAllocated, false),
           ))
           .returning();
-        return closed ? { creditsMoved: 0, alreadyPaid: true } : null;
-      }
 
-      const credits = paidNow.creditsAwarded ?? 0;
-      if (credits > 0) {
+        if (!paidNow) {
+          // Approved and already paid by allocation: close it, move nothing.
+          const [closed] = await tx
+            .update(contributionSubmissions)
+            .set({ status: "claimed", updatedAt: new Date() })
+            .where(and(
+              eq(contributionSubmissions.id, id),
+              eq(contributionSubmissions.status, "approved"),
+            ))
+            .returning();
+          return closed ? { creditsMoved: 0, alreadyPaid: true, capped: 0 } : null;
+        }
+
+        const credits = paidNow.creditsAwarded ?? 0;
+        if (credits <= 0) return { creditsMoved: 0, alreadyPaid: false, capped: 0 };
+
+        // Read on `tx`, after the claim, so the figure this decides from is
+        // the one this transaction will write over.
+        const [org] = await tx
+          .select({
+            yearly: organizations.yearlyContributionCount,
+            resetYear: organizations.lastContributionResetYear,
+          })
+          .from(organizations)
+          .where(eq(organizations.id, paidNow.organizationId));
+        const yearlySoFar = org && org.resetYear === cap.currentYear ? (org.yearly ?? 0) : 0;
+        const room = cap.maxYearlyCredits - yearlySoFar;
+        if (room <= 0) throw CAP_REACHED; // rolls the claim back
+
+        const pay = Math.min(credits, room);
         await tx
           .update(organizations)
           .set({
             pendingRewardCredits: sql`GREATEST(0, ${organizations.pendingRewardCredits} - ${credits})`,
-            rewardCredits: sql`${organizations.rewardCredits} + ${credits}`,
-            yearlyContributionCount: sql`${organizations.yearlyContributionCount} + ${credits}`,
+            rewardCredits: sql`${organizations.rewardCredits} + ${pay}`,
+            yearlyContributionCount: yearlySoFar + pay,
+            lastContributionResetYear: cap.currentYear,
           })
           .where(eq(organizations.id, paidNow.organizationId));
-      }
-      return { creditsMoved: credits, alreadyPaid: false };
-    });
+        return { creditsMoved: pay, alreadyPaid: false, capped: credits - pay };
+      });
+    } catch (error) {
+      if (error === CAP_REACHED) return { refused: "yearly_cap" };
+      throw error;
+    }
   }
 
   async getOrganizationDailySubmissionCount(organizationId: string): Promise<number> {

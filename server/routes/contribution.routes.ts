@@ -1131,10 +1131,20 @@ router.post("/admin/:id/claim", isAuthenticated, checkSuperadmin, async (req: Re
 
     // The claim and the credit movement are ONE transaction, and the claim's
     // conditions are in its own WHERE clause: see storage.claimApprovedContribution.
-    const claimed = await storage.claimApprovedContribution(submissionId);
+    const maxYearlyCredits = await getMaxYearlyCredits();
+    const currentYear = new Date().getFullYear();
+    const claimed = await storage.claimApprovedContribution(submissionId, { maxYearlyCredits, currentYear });
     if (!claimed) {
       // Somebody else's request claimed it between the read above and here.
       return res.status(409).json({ error: "This submission has already been claimed", code: "ALREADY_CLAIMED" });
+    }
+    if ("refused" in claimed) {
+      // Same ceiling, same wording, as "Allocate reward". The submission is
+      // left approved and unpaid so the reward can be given next year.
+      return res.status(400).json({
+        error: `This school has reached the maximum ${maxYearlyCredits} reward credits for ${currentYear}`,
+        code: "YEARLY_CAP_REACHED",
+      });
     }
 
     res.json({
@@ -1142,6 +1152,7 @@ router.post("/admin/:id/claim", isAuthenticated, checkSuperadmin, async (req: Re
         ? "Submission closed. Its reward had already been given."
         : "Submission claimed and reward given to school",
       creditsAwarded: claimed.creditsMoved,
+      creditsOverYearlyCap: claimed.capped,
       alreadyPaid: claimed.alreadyPaid,
     });
   } catch (error) {

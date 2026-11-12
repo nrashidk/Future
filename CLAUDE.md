@@ -623,8 +623,13 @@ JavaScript. `storage.claimApprovedContribution` is now one transaction whose
 first statement is the conditional claim; a submission already paid is closed
 with nothing moved. `contribution-claim.mjs` (6 cases), judged by the
 school's three figures: against the old code K-04 reports `reward=8` where 5
-is right. The button now says "Give reward". **Flagged, not changed:** the
-claim does not apply the yearly credit cap that allocation applies, and
+is right. The button now says "Give reward".
+**The claim now stops at the yearly ceiling too** (owner's decision,
+2026-11-12), by the same rule and reset as allocation. AT the ceiling it is
+REFUSED and rolled back (`YEARLY_CAP_REACHED`), leaving the submission
+approved and unpaid for next year, rather than closed with nothing paid;
+part-way there, what fits is paid. K-06 to K-08, where K-08 is the control
+that last year's count does not block this year. **Still flagged:**
 allocation will add credits beyond what is pending.
 **`llmVerificationStatus: "failed"` IS NEVER WRITTEN.** `verified` is true
 whenever the check ran, so a submission scored 31 is stored as "verified"
