@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ADD_BUTTON_CLASS } from "@/lib/adminActions";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -575,6 +576,11 @@ function SuperadminDashboardPage() {
   // Giving licences to an individual account (schools have their own tab).
   const [licenceUser, setLicenceUser] = useState<{ id: string; name: string; current: number } | null>(null);
   const [licenceCount, setLicenceCount] = useState("1");
+  // ONE confirmation for every one-click action that cannot be taken back.
+  // Removing an admin, deleting a career or an announcement and resetting a
+  // batch of passwords all fired on a single click, and the two that did ask
+  // used the browser's native confirm().
+  const [pendingConfirm, setPendingConfirm] = useState<{ title: string; body: string; confirmLabel: string; run: () => void } | null>(null);
   const [userSearchQuery, setUserSearchQuery] = useState("");
   const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState<SystemAnnouncement | null>(null);
@@ -1217,9 +1223,13 @@ function SuperadminDashboardPage() {
                         size="sm"
                         variant="destructive"
                         onClick={() => {
-                          if (confirm(t('superadmin.bulkDeleteConfirm', { n: selectedOrgIds.size }))) {
-                            bulkDeleteOrgsMutation.mutate(Array.from(selectedOrgIds));
-                          }
+                          const ids = Array.from(selectedOrgIds);
+                          setPendingConfirm({
+                            title: t('superadmin.deleteSchools'),
+                            body: t('superadmin.bulkDeleteConfirm', { n: ids.length }),
+                            confirmLabel: t('superadmin.confirmDelete'),
+                            run: () => bulkDeleteOrgsMutation.mutate(ids),
+                          });
                         }}
                         disabled={bulkDeleteOrgsMutation.isPending}
                         data-testid="button-bulk-delete-orgs"
@@ -1497,7 +1507,15 @@ function SuperadminDashboardPage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => bulkResetPasswordsMutation.mutate(Array.from(selectedUserIds))}
+                        onClick={() => {
+                          const ids = Array.from(selectedUserIds);
+                          setPendingConfirm({
+                            title: t('superadmin.bulkResetBtn'),
+                            body: t('superadmin.confirmBulkResetBody', { n: ids.length }),
+                            confirmLabel: t('superadmin.bulkResetBtn'),
+                            run: () => bulkResetPasswordsMutation.mutate(ids),
+                          });
+                        }}
                         disabled={bulkResetPasswordsMutation.isPending}
                         data-testid="button-bulk-reset-passwords"
                       >
@@ -1869,7 +1887,12 @@ function SuperadminDashboardPage() {
                           <Button variant="ghost" size="icon" onClick={() => openEditAnnouncement(announcement)} title={t('superadmin.editAnnouncement')} data-testid={`button-edit-announcement-${announcement.id}`}>
                             <Edit className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={() => deleteAnnouncementMutation.mutate(announcement.id)} title={t('superadmin.deleteAnnouncement')} className="text-destructive hover:text-destructive" data-testid={`button-delete-announcement-${announcement.id}`}>
+                          <Button variant="ghost" size="icon" onClick={() => setPendingConfirm({
+                            title: t('superadmin.confirmDeleteAnnouncementTitle'),
+                            body: t('superadmin.confirmDeleteAnnouncementBody', { name: announcement.title }),
+                            confirmLabel: t('superadmin.confirmDelete'),
+                            run: () => deleteAnnouncementMutation.mutate(announcement.id),
+                          })} title={t('superadmin.deleteAnnouncement')} className="text-destructive hover:text-destructive" data-testid={`button-delete-announcement-${announcement.id}`}>
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         </div>
@@ -1953,7 +1976,12 @@ function SuperadminDashboardPage() {
                                 <Button variant="ghost" size="icon" onClick={() => openEditCareer(career)} title={t('superadmin.editCareer')} data-testid={`button-edit-career-${career.id}`}>
                                   <Edit className="w-4 h-4" />
                                 </Button>
-                                <Button variant="ghost" size="icon" onClick={() => deleteCareerMutation.mutate(career.id)} title={t('superadmin.deleteCareer')} className="text-destructive hover:text-destructive" data-testid={`button-delete-career-${career.id}`}>
+                                <Button variant="ghost" size="icon" onClick={() => setPendingConfirm({
+                                  title: t('superadmin.confirmDeleteCareerTitle'),
+                                  body: t('superadmin.confirmDeleteCareerBody', { name: career.title }),
+                                  confirmLabel: t('superadmin.confirmDelete'),
+                                  run: () => deleteCareerMutation.mutate(career.id),
+                                })} title={t('superadmin.deleteCareer')} className="text-destructive hover:text-destructive" data-testid={`button-delete-career-${career.id}`}>
                                   <Trash2 className="w-4 h-4" />
                                 </Button>
                               </div>
@@ -2185,7 +2213,12 @@ function SuperadminDashboardPage() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => removeAdminMutation.mutate(admin.memberId)}
+                                onClick={() => setPendingConfirm({
+                                  title: t('superadmin.confirmRemoveAdminTitle'),
+                                  body: t('superadmin.confirmRemoveAdminBody', { name: `${admin.user?.firstName || ""} ${admin.user?.lastName || ""}`.trim() || admin.user?.username || "" }),
+                                  confirmLabel: t('superadmin.removeAdmin'),
+                                  run: () => removeAdminMutation.mutate(admin.memberId),
+                                })}
                                 disabled={removeAdminMutation.isPending}
                                 title={t('superadmin.removeAdmin')}
                               >
@@ -2750,6 +2783,25 @@ function SuperadminDashboardPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+
+      <AlertDialog open={!!pendingConfirm} onOpenChange={(open) => !open && setPendingConfirm(null)}>
+        <AlertDialogContent data-testid="dialog-confirm-action">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{pendingConfirm?.title}</AlertDialogTitle>
+            <AlertDialogDescription>{pendingConfirm?.body}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-confirm-cancel">{t('superadmin.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => { const run = pendingConfirm?.run; setPendingConfirm(null); run?.(); }}
+              data-testid="button-confirm-ok"
+            >
+              {pendingConfirm?.confirmLabel}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Announcement Modal */}
       <Dialog open={isAnnouncementModalOpen} onOpenChange={setIsAnnouncementModalOpen}>
