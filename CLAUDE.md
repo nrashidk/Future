@@ -1201,6 +1201,41 @@ chose to review would sit for ever with no one able to see it.
   `RESEND_WEBHOOK_SECRET` the setup-invite delivery tracking needs. Until
   both, every invoice delivery status stays null, which is indistinguishable
   from a working webhook with nothing to report.
+- **THE HOME PAGE HAD NO DOOR, AND THAT IS WHY NOBODY HAD EVER BOUGHT.**
+  Until 2026-11-12 `Landing.tsx` had exactly two actions — sign in, and try it
+  as a guest — plus three footer links, and **nothing anywhere in the product
+  linked to `/group-pricing` or `/checkout`**. Both routes worked. Neither was
+  reachable. A school that heard about Future Path could not find out what it
+  cost, and the entire commercial pipeline (tiers, quotes, checkout, webhook
+  backstop, school onboarding, invoicing) sat behind a door with no handle on
+  the outside. The only public entry was the guest assessment, which is
+  deliberately stripped of identity and deleted within 72 hours.
+  **This is also the real answer to "nobody has walked a purchase end to end".**
+  That had been read as nobody getting round to it. It was not reachable.
+  A "For schools" action now sits in the hero and in the closing CTA, going
+  straight to `/group-pricing` — the figures, not a plan chooser. Schools are
+  the buyers; students arrive through their school, so it is the third action
+  rather than the first.
+  **THE PAGE OFFERS AN INVOICE, NOT A CARD FORM, AND THAT IS DERIVED.**
+  `shared/paymentsLive.ts` (4 tests) reads `VITE_STRIPE_PUBLIC_KEY` and is true
+  only for `pk_live_`. Production runs test keys, so today a real school's real
+  card is DECLINED and a test card takes licences for nothing — neither is
+  something to advertise to a head teacher. **Fails closed**: absent,
+  malformed or unrecognised is not live, because the dangerous direction is
+  offering a card form that cannot take money. **It changes the public OFFER,
+  never the route** — `/checkout` still works when reached directly, which is
+  how the purchase flow gets tested while the keys are test keys, and the day
+  live keys are set on Render this flips back with no code change.
+  Two faults the rendered page showed and the code did not:
+  - **`-10%` rendered as `10%-` in Arabic** — a minus, digits and a percent are
+    all neutral characters, so bidi reorders them. Same fault and same U+2066
+    isolate as the invoice screens. It will keep recurring wherever a signed or
+    punctuated number sits in translated text.
+  - **"Back to Plan Selection" pointed at `/tier-selection` unconditionally**,
+    a chooser written for individuals that a school arriving from the home page
+    has never seen — so "back" sent them somewhere new. Now `history.back()`
+    when there is history, with the old destination as the fallback for a tab
+    opened straight onto the URL.
 - **ENGLISH SPELLS IT "LICENCE" NOW — it used to spell it both ways, 42 and
   30.** Not split by screen either: `admin.json` alone carried 37 British and
   20 American, so the same word appeared two ways on one surface. 29 user-facing

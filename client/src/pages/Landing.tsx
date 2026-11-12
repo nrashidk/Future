@@ -74,6 +74,9 @@ export default function Landing() {
   // anyone, because this was the only way into guest mode. Both guest CTAs on this
   // page route through here, so this covers both.
   const handleGuestStart = () => setLocation("/assessment?guest=true");
+  // Straight to the figures. A school deciding whether to talk to us
+  // wants the price, not a plan-chooser written for individuals.
+  const handleSchoolPricing = () => setLocation("/group-pricing");
 
   return (
     <>
@@ -117,6 +120,31 @@ export default function Landing() {
               data-testid="button-guest"
             >
               {t("hero.exploreGuest")}
+            </Button>
+            {/**
+              * THE DOOR THAT WAS NOT THERE.
+              *
+              * Until 2026-11-12 this page had exactly two actions — sign in,
+              * and try it as a guest — and NOTHING anywhere linked to pricing
+              * or checkout. A school that heard about Future Path could not
+              * find out what it cost, let alone buy. The whole commercial
+              * pipeline (tiers, quotes, checkout, webhook, onboarding,
+              * invoicing) sat behind a door with no handle on the outside,
+              * which is also why nobody had ever walked a purchase end to end:
+              * it was not reachable.
+              *
+              * Schools are the buyers; students arrive through their school.
+              * So this is the third action, not the first.
+              */}
+            <Button
+              size="lg"
+              variant="ghost"
+              className="text-lg px-8 py-6 rounded-full"
+              onClick={handleSchoolPricing}
+              data-testid="button-for-schools"
+            >
+              <Building2 className={`w-5 h-5 ${isAr ? "ms-2" : "me-2"}`} />
+              {t("hero.forSchools")}
             </Button>
           </div>
 
@@ -383,6 +411,15 @@ export default function Landing() {
                   data-testid="button-cta-guest"
                 >
                   {t("cta.continueGuest")}
+                </Button>
+                <Button
+                  size="lg"
+                  variant="ghost"
+                  className="rounded-full"
+                  onClick={handleSchoolPricing}
+                  data-testid="button-cta-for-schools"
+                >
+                  {t("cta.forSchools")}
                 </Button>
               </div>
             </div>

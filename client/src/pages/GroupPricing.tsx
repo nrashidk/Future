@@ -3,10 +3,11 @@ import { useLocation } from "wouter";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { paymentsAreLive } from "@shared/paymentsLive";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Users, ArrowLeft } from "lucide-react";
+import { Users, ArrowLeft, Mail } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { quotePrice, formatMoney } from "@shared/pricing";
 import { useQuery } from "@tanstack/react-query";
@@ -25,6 +26,11 @@ interface ServerQuote {
   usesFallbackPrice: boolean;
 }
 
+const SUPPORT_EMAIL = "support@futurepath.ae";
+
+/** Read once at module load: the key cannot change without a redeploy. */
+const paymentsLive = paymentsAreLive(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
+
 export default function GroupPricing() {
   // i18n for the locale, so money is grouped the reader's way.
   const { t, i18n } = useTranslation("pricing");
@@ -32,6 +38,23 @@ export default function GroupPricing() {
   useEffect(() => { document.title = `${t("groupPricing.pageTitle")} | ${t("appName")}`; }, [t]);
 
   const [, setLocation] = useLocation();
+
+  /**
+   * BACK TO WHEREVER THEY CAME FROM, not to a fixed page.
+   *
+   * This used to go to /tier-selection unconditionally — a chooser between
+   * individual and group plans, written for individuals. A school arriving
+   * from the home page's "For schools" link has never seen that page, so
+   * offering to go "back" to it sends them somewhere new and irrelevant.
+   *
+   * history.length > 1 is the test for "there is something to go back to":
+   * on a tab opened straight onto this URL there is not, and the old
+   * destination is then the only sensible one.
+   */
+  const goBack = () => {
+    if (typeof window !== "undefined" && window.history.length > 1) window.history.back();
+    else setLocation("/tier-selection");
+  };
   const [studentCount, setStudentCount] = useState<number>(100);
   const [countryId, setCountryId] = useState<string>("");
 
@@ -184,7 +207,12 @@ export default function GroupPricing() {
               {pricing.discountPercent > 0 && (
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600 dark:text-gray-400">{t("groupPricing.bulkDiscount")}</span>
-                  <span className="text-green-600 font-semibold">-{pricing.discountPercent}%</span>
+                  {/* U+2066/U+2069 isolate: "-10%" is nothing but neutral characters, so
+                      the bidi algorithm renders it "10%-" inside Arabic text. Same
+                      fault and same fix as the invoice screens. */}
+                  <span className="text-green-600 font-semibold">
+                    {`\u2066-${pricing.discountPercent}%\u2069`}
+                  </span>
                 </div>
               )}
 
@@ -233,21 +261,63 @@ export default function GroupPricing() {
             <Button
               variant="outline"
               className="w-full sm:w-auto"
-              onClick={() => setLocation('/tier-selection')}
+              onClick={goBack}
               data-testid="button-back-to-plans"
             >
               <ArrowLeft className="w-4 h-4 me-2" />
               {t("groupPricing.back")}
             </Button>
-            <Button
-              className="w-full bg-blue-600 hover:bg-blue-700 flex-1"
-              onClick={() => setLocation(`/checkout?students=${studentCount}${countryId ? `&country=${encodeURIComponent(countryId)}` : ""}`)}
-              data-testid="button-continue-checkout"
-              disabled={!canContinue}
-            >
-              {t("groupPricing.continue", { amount: formatMoney(pricing.totalMinor, pricing.currency, i18n.language) })}
-            </Button>
+            {/**
+              * WHAT THIS BUTTON OFFERS DEPENDS ON WHETHER A CARD CAN ACTUALLY
+              * BE CHARGED.
+              *
+              * With test keys — which is production today — a real school's
+              * real card is declined and a test card takes licences for
+              * nothing. Advertising a card form in that state is advertising a
+              * rehearsal, so the page offers the way schools genuinely pay
+              * instead: an invoice settled by bank transfer.
+              *
+              * It is the PUBLIC OFFER that changes, not the route. /checkout
+              * still works when reached directly, which is how the purchase
+              * flow is tested while the keys are test keys. The day live keys
+              * are set on Render this flips back with no code change.
+              */}
+            {paymentsLive ? (
+              <Button
+                className="w-full bg-blue-600 hover:bg-blue-700 flex-1"
+                onClick={() => setLocation(`/checkout?students=${studentCount}${countryId ? `&country=${encodeURIComponent(countryId)}` : ""}`)}
+                data-testid="button-continue-checkout"
+                disabled={!canContinue}
+              >
+                {t("groupPricing.continue", { amount: formatMoney(pricing.totalMinor, pricing.currency, i18n.language) })}
+              </Button>
+            ) : (
+              <Button
+                asChild
+                className="w-full bg-blue-600 hover:bg-blue-700 flex-1"
+                data-testid="button-request-invoice"
+              >
+                <a href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent(
+                  t("groupPricing.enquirySubject"),
+                )}&body=${encodeURIComponent(
+                  t("groupPricing.enquiryBody", {
+                    students: studentCount,
+                    amount: formatMoney(pricing.totalMinor, pricing.currency, i18n.language),
+                  }),
+                )}`}>
+                  <Mail className="w-4 h-4 me-2" />
+                  {t("groupPricing.requestInvoice")}
+                </a>
+              </Button>
+            )}
           </CardFooter>
+          {!paymentsLive && (
+            <div className="px-6 pb-6 -mt-2">
+              <p className="text-sm text-gray-600 dark:text-gray-400 text-center">
+                {t("groupPricing.howSchoolsPay")}
+              </p>
+            </div>
+          )}
         </Card>
       </div>
     </PageLayout>

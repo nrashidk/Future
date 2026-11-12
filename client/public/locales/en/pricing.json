@@ -63,7 +63,11 @@
     "discount2": "15% off",
     "discount3": "20% off",
     "back": "Back to Plan Selection",
-    "continue": "Continue to Checkout – {{amount}}"
+    "continue": "Continue to Checkout – {{amount}}",
+    "requestInvoice": "Request an invoice",
+    "enquirySubject": "Future Path — licence enquiry",
+    "enquiryBody": "Hello,\n\nWe would like licences for our school.\n\nNumber of students: {{students}}\nIndicative total: {{amount}}\n\nSchool name:\nEmirate / city:\nContact name and role:\n\nPlease send us an invoice.\n\nThank you.",
+    "howSchoolsPay": "Schools settle by bank transfer against an invoice. Tell us how many students you need and we'll send one."
   },
   "checkout": {
     "pageTitle": "Checkout",

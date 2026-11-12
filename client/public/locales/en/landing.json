@@ -8,7 +8,8 @@
     "exploreGuest": "Explore as Guest →",
     "assessmentsCompleted": "{{count}} assessment completed",
     "assessmentsCompletedPlural": "{{count}} assessments completed",
-    "partnerSchools": "Partner Schools"
+    "partnerSchools": "Partner Schools",
+    "forSchools": "For schools"
   },
   "howItWorks": {
     "title": "How It Works",
@@ -41,7 +42,8 @@
     "subtitle": "Discover career paths that fit your subjects, interests and values. Start your assessment today.",
     "createAccount": "Create Account",
     "continueGuest": "Continue as Guest",
-    "methodNote": "Every match comes with the reasoning behind it — the subjects, interests and values that placed it there."
+    "methodNote": "Every match comes with the reasoning behind it — the subjects, interests and values that placed it there.",
+    "forSchools": "For schools"
   },
   "research": {
     "title": "Research-Backed Methodology",
