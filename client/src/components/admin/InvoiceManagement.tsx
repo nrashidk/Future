@@ -45,6 +45,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest, serverErrorMessage } from "@/lib/queryClient";
 import { formatMoney } from "@shared/pricing";
 import { AlertCircle, FileText, Mail, Plus, Send } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface InvoiceRow {
   id: string;
@@ -126,6 +127,9 @@ export default function InvoiceManagement() {
   const [createOpen, setCreateOpen] = useState(false);
   const [payFor, setPayFor] = useState<InvoiceRow | null>(null);
   const [paymentReference, setPaymentReference] = useState("");
+  // Issuing gives the invoice its date and makes it owed; cancelling cannot be
+  // reversed. Both fired on one click.
+  const [confirmFor, setConfirmFor] = useState<{ row: InvoiceRow; action: "issue" | "cancel" } | null>(null);
 
   const { data, isLoading } = useQuery<InvoiceList>({
     queryKey: ["/api/superadmin/invoices", statusFilter],
@@ -430,7 +434,7 @@ export default function InvoiceManagement() {
                           {row.status === "draft" && (
                             <Button
                               size="sm"
-                              onClick={() => transition.mutate({ id: row.id, action: "issue" })}
+                              onClick={() => setConfirmFor({ row, action: "issue" })}
                               disabled={transition.isPending}
                               data-testid={`button-issue-${row.id}`}
                             >
@@ -453,7 +457,9 @@ export default function InvoiceManagement() {
                                 disabled={send.isPending}
                                 data-testid={`button-send-${row.id}`}
                               >
-                                {row.emailSentAt
+                                {send.isPending && send.variables === row.id
+                                  ? t("invoices.sending")
+                                  : row.emailSentAt
                                   ? <><Send className="w-3.5 h-3.5 me-1.5" />{t("invoices.resend")}</>
                                   : <><Mail className="w-3.5 h-3.5 me-1.5" />{t("invoices.email")}</>}
                               </Button>
@@ -475,7 +481,7 @@ export default function InvoiceManagement() {
                             <button
                               type="button"
                               className="text-xs text-muted-foreground underline"
-                              onClick={() => transition.mutate({ id: row.id, action: "cancel" })}
+                              onClick={() => setConfirmFor({ row, action: "cancel" })}
                               disabled={transition.isPending}
                               data-testid={`button-cancel-${row.id}`}
                             >
@@ -490,6 +496,29 @@ export default function InvoiceManagement() {
               </Table>
             </div>
           )}
+          <AlertDialog open={!!confirmFor} onOpenChange={(open) => !open && setConfirmFor(null)}>
+            <AlertDialogContent data-testid="dialog-confirm-invoice">
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  {confirmFor?.action === "issue" ? t("invoices.confirmIssueTitle") : t("invoices.confirmCancelTitle")}
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  {confirmFor?.action === "issue"
+                    ? t("invoices.confirmIssueBody", { number: confirmFor?.row.number ?? "" })
+                    : t("invoices.confirmCancelBody", { number: confirmFor?.row.number ?? "" })}
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>{t("invoices.back")}</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => { const c = confirmFor; setConfirmFor(null); if (c) transition.mutate({ id: c.row.id, action: c.action }); }}
+                  data-testid="button-confirm-invoice"
+                >
+                  {confirmFor?.action === "issue" ? t("invoices.issue") : t("invoices.cancel")}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </CardContent>
       </Card>
 
