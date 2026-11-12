@@ -127,7 +127,7 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `migration-033-dryrun`, `migration-034-dryrun`, `migration-035-dryrun`,
 `migration-036-dryrun`, `migration-037-dryrun`, `migration-038-dryrun` and
 `migration-039-dryrun`, plus `premium-solo`, `individual-licences` and
-`migration-041-dryrun`.
+`migration-041-dryrun` and `migration-042-dryrun`.
 
 `webhook-idempotency`, `webhook-group-backstop` and `setup-invite` need two
 environment
@@ -460,8 +460,14 @@ owner gave the account 3 from the Users tab and it read premium, `onPool`,
 showed the all-used screen in English and in Arabic, its button opened the
 latest report, and the profile read 3 / 3 / 0. The three reports were driven
 through the API from the signed-in page, not through the form.
-**Flagged, not changed:** the superadmin's own account now
-appears in the list as Free with a button the route refuses; and the edit-email
+**A superadmin's row says "Superadmin"** (`isSuperadmin` on the list route,
+computed by role or configured email) and carries no licence count and no
+ticket button; it is left out of the Free and not-finished filters. It stays
+IN the list on purpose: that row's key button is how one superadmin resets
+another's password. I-09. **The price on `/tier-selection` is quoted as $10
+deliberately** (owner, 2026-11-12): a round approximation of AED 40, not a
+bug. **Licences given here are free by decision** — no revenue record wanted.
+**Flagged, not changed:** the edit-email
 dialog invalidates `/api/superadmin/all-students`, a query key nothing uses, so
 the list does not refresh after an email change.
 
@@ -923,8 +929,12 @@ so a student with one assessment in progress got a link to a raw 404.
   password, staff routes 403, and the report re-renders in Arabic.
   **Flagged, not changed:** Step 1 accepts an age of 45; the quiz asks "What
   role does the UAE play in OPEC?" and marks "Major oil producer and
-  influential member" correct — the UAE left OPEC on 1 May 2026, so the
-  marked answer is now wrong and the question needs rewriting or removing; the
+  influential member" correct — the UAE left OPEC on 1 May 2026 (**FIXED,
+  migration 042**: asked as history now, "a member from 1967 until it withdrew
+  in 2026", in the bank file, its Arabic content and the stored row;
+  `migration-042-dryrun`, 9 cases, M-09 checks all three carry the same text.
+  The old explanation also called the UAE a founding member, which it never
+  was); the
   next-steps templates read badly for some careers ("admission requirements
   for Entrepreneur programs", "documents for Varies (business education
   helpful but not required)", a step labelled "Next Steps" inside Next Steps,
