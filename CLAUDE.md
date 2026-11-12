@@ -452,7 +452,15 @@ revenue and not reportable. If they must be, that is a table.
 one that proves the licences are real (a report generated and charged, 2 → 1).
 Mutation-tested by dropping the role guard, the account-type checks and the
 list change: I-01, I-05, I-06 and I-07 fail, with a school admin and a student
-each adding 50. **Flagged, not changed:** the superadmin's own account now
+each adding 50.
+**BOTH VERIFIED ON PRODUCTION, 2026-11-12, build `6f38352`** (`ali.ali`): the
+owner gave the account 3 from the Users tab and it read premium, `onPool`,
+3 available; three reports were then generated and the balance went 3 → 2 →
+1 → 0, the fourth create answered 402 `NO_LICENCES_AVAILABLE`, `/assessment`
+showed the all-used screen in English and in Arabic, its button opened the
+latest report, and the profile read 3 / 3 / 0. The three reports were driven
+through the API from the signed-in page, not through the form.
+**Flagged, not changed:** the superadmin's own account now
 appears in the list as Free with a button the route refuses; and the edit-email
 dialog invalidates `/api/superadmin/all-students`, a query key nothing uses, so
 the list does not refresh after an email change.
