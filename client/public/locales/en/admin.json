@@ -1259,7 +1259,9 @@
       "curriculumAddedDesc": "Its subjects were created automatically. It still needs questions.",
       "finishLater": "Finish later",
       "done": "Done",
-      "finishSetup": "Finish setup"
+      "finishSetup": "Finish setup",
+      "sectorFailed": "The sector map was not generated",
+      "sectorFailedNoReason": "The server gave no reason. Try again, and if it repeats, check the Anthropic credential."
     },
     "notReady": "Not ready ({{count}})",
     "readyWithWarnings": "Ready, {{count}} warning(s)",

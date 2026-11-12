@@ -13,6 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest, serverErrorMessage } from "@/lib/queryClient";
+import { sectorGenerationFailure, type SectorGenerationOutcome } from "@shared/sectorGeneration";
 import { useTranslation } from "react-i18next";
 import { formatMoney, toMajor } from "@shared/pricing";
 import { ADD_BUTTON_CLASS, CARD_ACTIONS_CLASS } from "@/lib/adminActions";
@@ -276,11 +277,22 @@ export default function CountryManagement() {
 
   const repopulateMutation = useMutation({
     mutationFn: async (id: string) => {
-      return apiRequest('POST', `/api/admin/countries/${id}/repopulate`);
+      return (await apiRequest('POST', `/api/admin/countries/${id}/repopulate`)).json();
     },
-    onSuccess: () => {
+    onSuccess: (result: { sectorGeneration?: SectorGenerationOutcome }) => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/countries'] });
       setRepopulatingCountryId(null);
+      // The country's own data did refresh; the sector map is a second step
+      // that can fail on its own, and the route answers 200 either way.
+      const failure = sectorGenerationFailure(result?.sectorGeneration);
+      if (failure !== null) {
+        toast({
+          title: t('countries.onboarding.sectorFailed'),
+          description: failure || t('countries.onboarding.sectorFailedNoReason'),
+          variant: "destructive",
+        });
+        return;
+      }
       toast({ title: t('countries.updateSuccess'), description: t('countries.refreshSuccess') });
     },
     onError: (error: unknown) => {

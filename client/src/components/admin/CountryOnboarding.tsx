@@ -28,6 +28,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { apiRequest, serverErrorMessage } from "@/lib/queryClient";
+import { sectorGenerationFailure, type SectorGenerationOutcome } from "@shared/sectorGeneration";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -117,9 +118,22 @@ export default function CountryOnboarding({
   // a country whose research came back thin.
   const sectorMutation = useMutation({
     mutationFn: async () => (await apiRequest("POST", `/api/admin/countries/${countryId}/repopulate`)).json(),
-    onSuccess: () => {
+    onSuccess: (result: { sectorGeneration?: SectorGenerationOutcome }) => {
       invalidateAll();
       refetch();
+      // The route answers 200 whether or not a sector map was written, and
+      // this said "done" either way -- so pressing Generate three times on a
+      // country whose research was refused looked like three successes over
+      // a checklist that still said "Missing".
+      const failure = sectorGenerationFailure(result?.sectorGeneration);
+      if (failure !== null) {
+        toast({
+          title: t("countries.onboarding.sectorFailed"),
+          description: failure || t("countries.onboarding.sectorFailedNoReason"),
+          variant: "destructive",
+        });
+        return;
+      }
       toast({ title: t("countries.onboarding.sectorDone") });
     },
     onError: (e: unknown) =>

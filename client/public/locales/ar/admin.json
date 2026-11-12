@@ -1265,7 +1265,9 @@
       "curriculumAddedDesc": "أُنشئت مواده تلقائيًا، ولا يزال بحاجة إلى أسئلة.",
       "finishLater": "إكمال لاحقًا",
       "done": "تم",
-      "finishSetup": "إكمال الإعداد"
+      "finishSetup": "إكمال الإعداد",
+      "sectorFailed": "لم يتم إنشاء خريطة القطاعات",
+      "sectorFailedNoReason": "لم يذكر الخادم سببًا. حاول مرة أخرى، وإذا تكرر ذلك فتحقق من بيانات اعتماد Anthropic."
     },
     "notReady": "غير جاهز ({{count}})",
     "readyWithWarnings": "جاهز، {{count}} تنبيه",
