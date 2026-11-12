@@ -215,8 +215,12 @@ export default function CountryManagement() {
       setSelectedCountry(null);
       toast({ title: t('countries.updateSuccess'), description: t('countries.updateSuccessDesc') });
     },
-    onError: () => {
-      toast({ title: t('countries.errorTitle'), description: t('countries.updateError'), variant: "destructive" });
+    onError: (error: unknown) => {
+      // The server names the field and the limit ("visionPlan: Too big:
+      // expected string to have <=100 characters"). A country written by the
+      // AI research can arrive with a plan name longer than this form allows,
+      // and "Failed to update country" gave no way to find that out.
+      toast({ title: t('countries.errorTitle'), description: serverErrorMessage(error) ?? t('countries.updateError'), variant: "destructive" });
     },
   });
 
