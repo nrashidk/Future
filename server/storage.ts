@@ -1950,8 +1950,38 @@ export class DatabaseStorage implements IStorage {
       .select({ count: sql<number>`count(*)::int` })
       .from(assessments)
       .where(and(...conditions));
-    const totalStudents = totalResult[0]?.count || 0;
-    const completedAssessments = totalStudents; // All are completed due to filter
+    const assessedCount = totalResult[0]?.count || 0;
+    let totalStudents = assessedCount;
+    let completedAssessments = assessedCount;
+
+    /**
+     * FOR A SCHOOL, "total students" is the ROSTER, not the finished ones.
+     *
+     * Both figures used to be the count of completed assessments, with the
+     * line `completedAssessments = totalStudents`. So the school's analytics
+     * page showed "Total Students 3" for a school of six, and a "Completion
+     * Rate" that was 100% by construction -- it could never show anything
+     * else, which is the opposite of what a head teacher reads it for.
+     *
+     * Students who finished are counted as PEOPLE, not assessments: a student
+     * who repeats a grade has two, and would otherwise push the rate past
+     * 100%. Admin rows share organization_members and are excluded.
+     *
+     * Without an organization (the superadmin's nationwide view) there is no
+     * roster to divide by, so the old figures stand there; flagged in
+     * CLAUDE.md rather than guessed at.
+     */
+    if (organizationId) {
+      const roster = await db
+        .select({ hasCompleted: organizationMembers.hasCompletedAssessment })
+        .from(organizationMembers)
+        .where(and(
+          eq(organizationMembers.organizationId, organizationId),
+          eq(organizationMembers.role, "student"),
+        ));
+      totalStudents = roster.length;
+      completedAssessments = roster.filter((m) => m.hasCompleted).length;
+    }
 
     // Get countries breakdown with JOIN in a single query
     const countriesData = await db
@@ -5071,7 +5101,15 @@ export class DatabaseStorage implements IStorage {
         hasCompletedAssessment: organizationMembers.hasCompletedAssessment,
       })
       .from(organizationMembers)
-      .where(eq(organizationMembers.organizationId, organizationId));
+      // STUDENTS ONLY. Admins share this table (role 'admin'), and every
+      // surface that reads this figure labels it "students": the school's
+      // profile showed "Total Students 7 / Pending Assessments 4" for a
+      // school of six students, three of them finished. The seventh was the
+      // administrator, who is not pending anything.
+      .where(and(
+        eq(organizationMembers.organizationId, organizationId),
+        eq(organizationMembers.role, "student"),
+      ));
 
     const totalMembers = members.length;
     const completedAssessments = members.filter(m => m.hasCompletedAssessment).length;

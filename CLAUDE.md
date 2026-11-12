@@ -716,6 +716,27 @@ so a student with one assessment in progress got a link to a raw 404.
 
 ## Known open items
 
+- **A SCHOOL'S STUDENT COUNT DISAGREED ON THREE SCREENS.** Found on
+  production 2026-11-12, signed in as a school admin: a school of six
+  students, three finished. The roster said 6. The profile said "Total
+  Students 7 / Pending 4" — `getOrganizationStats` counted every
+  `organization_members` row, and the administrator is one. Analytics said
+  "Total Students 3 / Completion Rate 100%" — `getAnalyticsOverview` counted
+  finished assessments and then set `completedAssessments = totalStudents`,
+  so the rate was 100% by construction and could never show anything else.
+  Both now count STUDENT rows; for a school, analytics divides students who
+  finished (people, not assessments — a repeated grade is two) by the
+  roster. `org-admin.mjs` O-11/O-12, run with nobody finished so a rate
+  that is 100% by construction fails. **Not changed:** the superadmin's
+  nationwide analytics has no roster to divide by and still reports the old
+  pair.
+- **Seen on the same walk, flagged and not changed:** `/admin` (the quiz
+  bank, a superadmin page) renders for a school admin who types the URL —
+  the API refuses correctly (403) but the page then says "No questions
+  found. Create your first question", with Create and Import buttons that
+  cannot work. And the school admin's navigation offers "Assessment", which
+  opens the student form asking the ADMIN for a name, age, grade and gender.
+
 - Nothing about curricula: that gap is closed. Offering a curriculum now
   creates its six subjects, empty ones were removed, and `new-country.mjs`
   NC-09g enforces the invariant.

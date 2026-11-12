@@ -253,6 +253,48 @@ console.log(`B's student under test: ${bVictim.username}\n`);
     stillA, stillA ? "classmate's password still authenticates" : "A STUDENT RESET A CLASSMATE'S PASSWORD");
 }
 
+// ------------------------------------------------------------------ O-11, O-12
+/**
+ * A SCHOOL'S STUDENT COUNT, on the two screens that state it.
+ *
+ * Found on production on 2026-11-12, in a school of six students with three
+ * finished: the roster said 6, the profile said "Total Students 7 / Pending 4"
+ * (it counted the administrator), and analytics said "Total Students 3 /
+ * Completion Rate 100%" (it counted finished assessments and divided the
+ * number by itself). Three screens, three answers.
+ *
+ * Judged against the DATABASE's own count of student rows, and with nobody
+ * finished -- so a completion rate that is 100% "by construction" fails here
+ * rather than passing because everyone happened to be done.
+ */
+{
+  const { Client } = await import("pg");
+  const c = new Client({
+    connectionString: `postgres://postgres:postgres@127.0.0.1:${process.env.PGLITE_TCP_PORT ?? 55432}/postgres`,
+  });
+  await c.connect();
+  const { rows } = await c.query(
+    `SELECT COUNT(*) FILTER (WHERE role = 'student')::int AS students,
+            COUNT(*) FILTER (WHERE role = 'admin')::int AS admins,
+            COUNT(*) FILTER (WHERE role = 'student' AND has_completed_assessment)::int AS done
+       FROM organization_members WHERE organization_id = $1`, [A.orgId]);
+  await c.end();
+  const truth = rows[0];
+
+  const stats = await A.session.get("/api/my-organization/stats");
+  rec("O-11", "the profile's student count is the students, not students + admins",
+    stats.status === 200 && truth.students > 0
+      && stats.body?.totalMembers === truth.students
+      && stats.body?.pendingAssessments === truth.students - truth.done,
+    `db students=${truth.students} admins=${truth.admins} done=${truth.done} | route total=${stats.body?.totalMembers} pending=${stats.body?.pendingAssessments}`);
+
+  const ov = await A.session.get("/api/analytics/overview");
+  rec("O-12", "analytics counts the roster, and completion is not 100% by construction",
+    ov.status === 200 && ov.body?.totalStudents === truth.students
+      && ov.body?.completedAssessments === truth.done && truth.done < truth.students,
+    `route total=${ov.body?.totalStudents} completed=${ov.body?.completedAssessments} (db ${truth.students}/${truth.done})`);
+}
+
 const pass = results.filter((r) => r.pass).length;
 const fail = results.filter((r) => !r.pass);
 console.log(`\n${"=".repeat(78)}`);
