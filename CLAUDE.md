@@ -545,8 +545,40 @@ including the rotated-key case with a credential genuinely encrypted under a
 different key. **The happy path cannot be tested in the harness** (no network),
 so that branch is reviewable by eye only.
 
-Still open there, and a product decision rather than a bug: nothing retries an
-`unavailable` submission once a credential works again.
+**A superadmin can now RE-RUN the check** on a submission it never read
+(`POST /api/contributions/admin/:id/recheck`, a "Re-run check" button in the
+review queue). Before this nothing ever tried again: once the credential
+worked, an `unavailable` submission still sat until someone reviewed every
+question by hand, and it never reached peer review.
+**Superadmin-triggered, not automatic** — nothing in this app runs on a
+schedule, and the usual cause is a credential a person has to fix first.
+Two states qualify, both with review status still `pending`: `unavailable`,
+and a check stuck at `pending` with no result for ten minutes — the check is
+a background promise and Render restarts the process on every deploy, so one
+in flight at that moment is lost and the row says "in progress" for ever.
+**A verdict is REFUSED**: re-rolling a check that ran until it passes is not
+a retry. The claim is one UPDATE with the conditions in its WHERE clause
+(`storage.claimContributionRecheck`), so a double click is one Anthropic call
+and a submission decided in the meantime is not dragged into peer review by a
+late result. Still-unavailable answers **503 `CHECK_UNAVAILABLE`**, never a
+200 a client could read as a verdict.
+`applyVerificationResult` is the ONE place a result is written and routed,
+shared by the submit path and the re-check, so the two cannot disagree about
+what "passed" means.
+`llm-gate.mjs` L-06 to L-12 (13 cases in all). L-10 is the control for L-09:
+the same row an hour older IS re-run, or L-09 would pass against a route that
+refuses every `pending` for ever. Mutation-tested by dropping the guard and
+the claim's conditions: L-06, L-08, L-09 and L-11 fail. The suite still makes
+exactly TWO submissions — the new cases move submission 2 between states in
+SQL, because a school's daily limit is three.
+**The success branch IS covered now, outside the harness**:
+`contribution.recheck.test.ts` (5 cases) mocks `fetch` and storage. C-01
+asserts a passing re-check is routed to peer review; C-02 is its control (a
+check that runs and scores 31 stays `pending`).
+**`llmVerificationStatus: "failed"` IS NEVER WRITTEN.** `verified` is true
+whenever the check ran, so a submission scored 31 is stored as "verified"
+with a score of 31. The routing gate reads the score, so behaviour is right
+and only the label is odd. Flagged, not changed.
 
 A submission passing the automatic LLM check goes to peer review, not to a
 superadmin queue: three other schools vote and two agreeing decides. Six

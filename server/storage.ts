@@ -141,7 +141,7 @@ import { blockingStatuses, type EmailDeliveryStatus } from "@shared/emailDeliver
 import { invoiceTotals, formatInvoiceNumber, canTransition, grantAmountMajor } from "@shared/invoice";
 import { splitStudentName } from "@shared/studentName";
 import { SUBJECT_IDS } from "@shared/subjects";
-import { eq, ne, and, or, desc, count, avg, sql, inArray, notInArray, isNotNull, isNull, gt, gte, type SQL } from "drizzle-orm";
+import { eq, ne, and, or, desc, count, avg, sql, inArray, notInArray, isNotNull, isNull, gt, gte, lt, type SQL } from "drizzle-orm";
 
 /**
  * One row of the VISION-ALIGNMENT sector <-> career-category map.
@@ -540,6 +540,7 @@ export interface IStorage {
   getContributionSubmissionsByOrg(organizationId: string): Promise<ContributionSubmission[]>;
   getAllPendingContributionSubmissions(): Promise<ContributionSubmission[]>;
   updateContributionSubmission(id: string, data: Partial<ContributionSubmission>): Promise<ContributionSubmission>;
+  claimContributionRecheck(id: string, staleBefore: Date): Promise<ContributionSubmission | undefined>;
   getOrganizationDailySubmissionCount(organizationId: string): Promise<number>;
   
   // Contribution Reward operations
@@ -5909,6 +5910,41 @@ export class DatabaseStorage implements IStorage {
       .where(eq(contributionSubmissions.id, id))
       .returning();
     return updated;
+  }
+
+  /**
+   * Claims a submission for a re-run of the automatic check, in ONE statement.
+   *
+   * The conditions are in the WHERE clause rather than in a read before the
+   * write, so two requests racing are arbitrated by the database: one gets
+   * the row, the other gets nothing. Returns undefined when the submission
+   * does not qualify -- already checked, checked moments ago and still in
+   * flight, or no longer awaiting review.
+   *
+   * Setting the status back to "pending" and touching updated_at is what
+   * makes the claim exclusive: a second caller sees a fresh in-flight check
+   * and is refused until `staleBefore` has passed again.
+   */
+  async claimContributionRecheck(id: string, staleBefore: Date): Promise<ContributionSubmission | undefined> {
+    const [claimed] = await db
+      .update(contributionSubmissions)
+      .set({ llmVerificationStatus: "pending", llmVerifiedAt: null, updatedAt: new Date() })
+      .where(
+        and(
+          eq(contributionSubmissions.id, id),
+          eq(contributionSubmissions.status, "pending"),
+          or(
+            eq(contributionSubmissions.llmVerificationStatus, "unavailable"),
+            and(
+              eq(contributionSubmissions.llmVerificationStatus, "pending"),
+              isNull(contributionSubmissions.llmVerifiedAt),
+              lt(contributionSubmissions.updatedAt, staleBefore),
+            ),
+          ),
+        ),
+      )
+      .returning();
+    return claimed;
   }
 
   async getOrganizationDailySubmissionCount(organizationId: string): Promise<number> {

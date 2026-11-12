@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { 
   ClipboardCheck, Eye, CheckCircle, XCircle, AlertCircle, 
   Clock, Building2, User, Calendar, MessageSquare,
-  ChevronRight, ChevronDown, GraduationCap, HelpCircle, Settings, Save, X
+  ChevronRight, ChevronDown, GraduationCap, HelpCircle, Settings, Save, X, RefreshCw
 } from "lucide-react";
 
 interface Question {
@@ -88,6 +88,23 @@ interface RewardSettings {
   questionsPerCredit: number;
   maxQuestionsPerSubmission: number;
   maxSubmissionsPerDay: number;
+}
+
+/** Mirrors RECHECK_STALE_MS on the server: a check with no result for this
+ *  long is not coming -- the process restarted under it. */
+const RECHECK_STALE_MS = 10 * 60 * 1000;
+
+/**
+ * Whether to OFFER a re-run of the automatic check. Only for a submission
+ * still awaiting review whose check did not run, or never reported. A check
+ * that ran and gave a verdict is not offered: re-rolling a verdict is not a
+ * retry, and the server refuses it.
+ */
+function canRecheck(sub: Submission): boolean {
+  if (sub.status !== "pending") return false;
+  if (sub.llmVerificationStatus === "unavailable") return true;
+  return sub.llmVerificationStatus === "pending" && !sub.llmVerifiedAt
+    && Date.now() - new Date(sub.createdAt).getTime() > RECHECK_STALE_MS;
 }
 
 function makeStatusBadge(status: string, t: (key: string) => string) {
@@ -262,6 +279,34 @@ export default function ContributionReviewQueue() {
     },
     onError: (error: any) => {
       toast({ title: t('contributions.updateFailed'), description: error.message, variant: "destructive" });
+    },
+  });
+
+  /**
+   * Re-runs the automatic check on a submission it never read. The server
+   * decides whether the submission qualifies; `canRecheck` below only decides
+   * whether to OFFER it, so a stale screen gets a refusal and not a wrong
+   * result.
+   */
+  const recheckMutation = useMutation({
+    mutationFn: async (submissionId: string) => {
+      const res = await apiRequest('POST', `/api/contributions/admin/${submissionId}/recheck`);
+      return res.json();
+    },
+    onSuccess: (data: { llmVerificationScore?: number }) => {
+      toast({
+        title: t('contributions.recheckDone'),
+        description: t('contributions.recheckDoneDesc', { score: data?.llmVerificationScore ?? 0 }),
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/contributions/admin/pending'] });
+    },
+    onError: () => {
+      toast({
+        title: t('contributions.recheckFailed'),
+        description: t('contributions.recheckFailedDesc'),
+        variant: "destructive",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/contributions/admin/pending'] });
     },
   });
 
@@ -551,6 +596,18 @@ export default function ContributionReviewQueue() {
                           >
                             <Eye className="w-4 h-4 me-1" />
                             {t('contributions.reviewBtn')}
+                          </Button>
+                        )}
+                        {canRecheck(sub) && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => recheckMutation.mutate(sub.id)}
+                            disabled={recheckMutation.isPending}
+                            data-testid={`button-recheck-${sub.id}`}
+                          >
+                            <RefreshCw className="w-4 h-4 me-1" />
+                            {t('contributions.recheckBtn')}
                           </Button>
                         )}
                         {sub.status === "approved" && (

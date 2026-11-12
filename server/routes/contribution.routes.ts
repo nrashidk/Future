@@ -200,6 +200,52 @@ Be strict but fair. Educational quality matters.`,
   }
 }
 
+type VerificationResult = Awaited<ReturnType<typeof verifyQuestionsWithLLM>>;
+
+/**
+ * WRITES A VERIFICATION RESULT TO A SUBMISSION, AND ROUTES IT.
+ *
+ * One function because two callers must agree exactly: the background check
+ * that follows a submit, and a superadmin's re-check of a submission the first
+ * attempt could not read. A second copy of the routing gate is how the two
+ * would come to disagree about what "passed" means.
+ */
+async function applyVerificationResult(submissionId: string, result: VerificationResult) {
+  const updateData: any = {
+    /**
+     * THREE STATES, NOT TWO. "failed" would tell a school its questions
+     * were reviewed and rejected; "unavailable" says no review happened.
+     * A school told its work failed would rewrite questions nobody read.
+     */
+    llmVerificationStatus: !result.checkRan
+      ? "unavailable"
+      : result.verified ? "verified" : "failed",
+    llmVerificationScore: result.overallScore,
+    llmVerificationFeedback: result.feedback,
+    llmVerifiedAt: new Date(),
+  };
+
+  /**
+   * PASSING THE AUTOMATIC CHECK SENDS IT TO PEER REVIEW, not to a
+   * superadmin queue.
+   *
+   * Waiting for one person does not scale past a handful of schools, and
+   * it puts a single judgement behind every question in the bank.
+   * Schools teaching the curriculum are better placed to judge and there
+   * are many of them, so three of them decide by majority.
+   *
+   * A submission that FAILS the automatic check does not reach peer
+   * review at all -- it keeps its status and a superadmin picks it up.
+   * Reviewers' attention is the scarce resource here; spending it on
+   * questions a machine already rejected wastes it.
+   */
+  if (result.verified && result.overallScore >= 50) {
+    updateData.status = "peer_review";
+  }
+
+  return storage.updateContributionSubmission(submissionId, updateData);
+}
+
 // Validation schemas
 const questionSchema = z.object({
   question: z.string().min(10).max(1000),
@@ -726,39 +772,7 @@ router.post("/submit", isAuthenticated, checkOrgAdmin, async (req: Request, res:
     // Trigger LLM verification in background (non-blocking)
     verifyQuestionsWithLLM(sanitizedQuestions, subject, grade, curriculum)
       .then(async (result) => {
-        const updateData: any = {
-          /**
-           * THREE STATES, NOT TWO. "failed" would tell a school its questions
-           * were reviewed and rejected; "unavailable" says no review happened.
-           * A school told its work failed would rewrite questions nobody read.
-           */
-          llmVerificationStatus: !result.checkRan
-            ? "unavailable"
-            : result.verified ? "verified" : "failed",
-          llmVerificationScore: result.overallScore,
-          llmVerificationFeedback: result.feedback,
-          llmVerifiedAt: new Date(),
-        };
-        
-        /**
-         * PASSING THE AUTOMATIC CHECK SENDS IT TO PEER REVIEW, not to a
-         * superadmin queue.
-         *
-         * Waiting for one person does not scale past a handful of schools, and
-         * it puts a single judgement behind every question in the bank.
-         * Schools teaching the curriculum are better placed to judge and there
-         * are many of them, so three of them decide by majority.
-         *
-         * A submission that FAILS the automatic check does not reach peer
-         * review at all -- it keeps its status and a superadmin picks it up.
-         * Reviewers' attention is the scarce resource here; spending it on
-         * questions a machine already rejected wastes it.
-         */
-        if (result.verified && result.overallScore >= 50) {
-          updateData.status = "peer_review";
-        }
-        
-        await storage.updateContributionSubmission(submission.id, updateData);
+        await applyVerificationResult(submission.id, result);
         console.log(`LLM verification complete for submission ${submission.id}: score=${result.overallScore}`);
       })
       .catch((err) => {
@@ -824,6 +838,88 @@ router.get("/admin/submission/:id", isAuthenticated, checkSuperadmin, async (req
   } catch (error) {
     console.error("Error getting submission:", error);
     res.status(500).json({ error: "Failed to get submission" });
+  }
+});
+
+/**
+ * RE-RUN THE AUTOMATIC CHECK ON A SUBMISSION IT NEVER READ.
+ *
+ * A submission whose check could not run (no usable credential, Anthropic
+ * down, a rate limit) is left `pending` with llmVerificationStatus
+ * "unavailable" -- correctly, since nothing read it. But nothing ever tried
+ * again either, so once the credential worked the submission still sat there
+ * until a superadmin reviewed every question by hand, and it never reached
+ * peer review, which is where it would have gone had the check run.
+ *
+ * SUPERADMIN-TRIGGERED, NOT AUTOMATIC. A background retry needs a schedule,
+ * and nothing in this app runs on one. It would also spend Anthropic calls
+ * with no one watching, against a failure that is usually a credential a
+ * person has to fix first. The person who fixed it is the one pressing this.
+ *
+ * TWO STATES QUALIFY, both with the review status still `pending`:
+ *   - "unavailable": the check reported that it did not run
+ *   - "pending" with no result for RECHECK_STALE_MS: the check never reported
+ *     anything. It is a background promise, and Render restarts the process on
+ *     every deploy, so one in flight at that moment is simply lost and the row
+ *     says "check in progress" for ever
+ * A "failed" or "verified" submission is REFUSED: the check ran and gave a
+ * verdict, and re-rolling a verdict until it passes is not a retry.
+ *
+ * CLAIMED IN ONE STATEMENT before the call is made, so a double click costs
+ * one Anthropic call and not two, and a submission reviewed in the meantime
+ * is not dragged back into peer review by a late result.
+ *
+ * STILL UNAVAILABLE IS A 503, not a 200: the row goes back to "unavailable"
+ * and the caller is told the check did not run, in a status a client cannot
+ * mistake for a verdict.
+ */
+const RECHECK_STALE_MS = 10 * 60 * 1000;
+
+router.post("/admin/:id/recheck", isAuthenticated, checkSuperadmin, async (req: Request, res: Response) => {
+  try {
+    const submission = await storage.getContributionSubmission(req.params.id);
+    if (!submission) {
+      return res.status(404).json({ error: "Submission not found", code: "NOT_FOUND" });
+    }
+
+    const claimed = await storage.claimContributionRecheck(
+      submission.id,
+      new Date(Date.now() - RECHECK_STALE_MS),
+    );
+    if (!claimed) {
+      return res.status(409).json({
+        error: "The automatic check already ran on this submission, is still running, or the submission has been reviewed.",
+        code: "NOT_RECHECKABLE",
+        status: submission.status,
+        llmVerificationStatus: submission.llmVerificationStatus,
+      });
+    }
+
+    const result = await verifyQuestionsWithLLM(
+      claimed.questions as any[],
+      claimed.subject,
+      claimed.grade,
+      claimed.curriculum,
+    );
+    const updated = await applyVerificationResult(claimed.id, result);
+
+    if (!result.checkRan) {
+      return res.status(503).json({
+        error: "The automatic check still could not run. Check the Anthropic credential and try again.",
+        code: "CHECK_UNAVAILABLE",
+        llmVerificationStatus: updated.llmVerificationStatus,
+      });
+    }
+
+    res.json({
+      submissionId: updated.id,
+      status: updated.status,
+      llmVerificationStatus: updated.llmVerificationStatus,
+      llmVerificationScore: updated.llmVerificationScore,
+    });
+  } catch (error) {
+    console.error("Error re-running verification:", error);
+    res.status(500).json({ error: "Failed to re-run the automatic check" });
   }
 });
 

@@ -203,6 +203,130 @@ try {
     rec("L-05", "submit response leaks no credential material", s2ok && !leaks,
       `accepted=${s2ok} ${body.length} bytes leak=${leaks}`);
   }
+
+  /**
+   * THE RE-CHECK. `POST /api/contributions/admin/:id/recheck` re-runs the
+   * automatic check on a submission the first attempt never read.
+   *
+   * Every case REUSES submission 2 and moves it between states in SQL: a third
+   * submission would be the school's daily limit, and the fourth a 429 this
+   * suite has already been fooled by once. The credential is still the
+   * undecryptable one, so a re-check that RUNS answers 503 here -- there is no
+   * network, and the success branch is covered by
+   * `contribution.recheck.test.ts` with fetch mocked instead.
+   *
+   * Timestamps are written as SQL, never as a bound Date (see CLAUDE.md).
+   */
+  const id2 = s2ok ? s2.body.submissionId : null;
+  const rowOf = async () => (await sql(
+    `SELECT status, llm_verification_status AS llm, llm_verification_score AS score,
+            llm_verified_at::text AS at, updated_at::text AS upd
+       FROM contribution_submissions WHERE id = $1`, [id2]))[0];
+  const recheck = (session, id = id2) => session.post(`/api/contributions/admin/${id}/recheck`, {});
+
+  if (!id2) {
+    rec("L-06", "re-check cases", false, "submission 2 was not accepted — nothing to measure");
+  } else {
+    // ---------------------------------------------------------------- L-06
+    // A SCHOOL cannot re-run the check on its own work. Judged by the row:
+    // llm_verified_at must not move.
+    {
+      const before = await rowOf();
+      const r = await recheck(a);
+      const after = await rowOf();
+      rec("L-06", "a school admin cannot trigger a re-check",
+        r.status === 403 && !isHtml(r.body) && after.at === before.at && after.llm === "unavailable",
+        `HTTP ${r.status} verified_at moved=${after.at !== before.at}`);
+    }
+
+    // ---------------------------------------------------------------- L-07
+    // THE CASE THAT MATTERS. An "unavailable" submission IS re-checked: the
+    // timestamp MOVES (the check was attempted again), and because it still
+    // cannot run, the answer is 503 and the row is "unavailable" again -- not
+    // stuck at the "pending" the claim wrote, and not routed anywhere.
+    {
+      const before = await rowOf();
+      await new Promise((r) => setTimeout(r, 1100));
+      const r = await recheck(sa);
+      const after = await rowOf();
+      rec("L-07", "an unavailable submission is re-checked; still-down is a 503",
+        r.status === 503 && r.body?.code === "CHECK_UNAVAILABLE"
+          && after.llm === "unavailable" && after.status === "pending"
+          && Number(after.score) === 0 && after.at !== before.at,
+        `HTTP ${r.status} code=${r.body?.code} llm=${after.llm} status=${after.status} verified_at moved=${after.at !== before.at}`);
+    }
+
+    // ---------------------------------------------------------------- L-08
+    // A VERDICT IS NOT RE-ROLLED. "failed" means the check ran and scored the
+    // questions; asking again until it passes is not a retry.
+    {
+      await sql(`UPDATE contribution_submissions
+                    SET llm_verification_status = 'failed', llm_verification_score = 20
+                  WHERE id = $1`, [id2]);
+      const before = await rowOf();
+      const r = await recheck(sa);
+      const after = await rowOf();
+      rec("L-08", "a FAILED verdict is refused, and the row is untouched",
+        r.status === 409 && r.body?.code === "NOT_RECHECKABLE"
+          && after.llm === "failed" && Number(after.score) === 20 && after.at === before.at,
+        `HTTP ${r.status} code=${r.body?.code} llm=${after.llm} score=${after.score}`);
+    }
+
+    // ---------------------------------------------------------------- L-09
+    // A check IN FLIGHT is left alone, or a double click is two Anthropic
+    // calls and two results racing to write one row.
+    {
+      await sql(`UPDATE contribution_submissions
+                    SET llm_verification_status = 'pending', llm_verification_score = NULL,
+                        llm_verified_at = NULL, updated_at = NOW()
+                  WHERE id = $1`, [id2]);
+      const r = await recheck(sa);
+      const after = await rowOf();
+      rec("L-09", "a check still in flight is refused",
+        r.status === 409 && r.body?.code === "NOT_RECHECKABLE"
+          && after.llm === "pending" && after.at === null,
+        `HTTP ${r.status} code=${r.body?.code} llm=${after.llm} verified_at=${after.at}`);
+    }
+
+    // ---------------------------------------------------------------- L-10
+    // The control for L-09: the SAME row, an hour old. A check that never
+    // reported -- the process restarted under it -- must be re-runnable, or
+    // L-09 would pass against a route that refuses every "pending" for ever.
+    {
+      await sql(`UPDATE contribution_submissions
+                    SET updated_at = NOW() - INTERVAL '1 hour' WHERE id = $1`, [id2]);
+      const r = await recheck(sa);
+      const after = await rowOf();
+      rec("L-10", "a check that never reported (an hour stale) IS re-run",
+        r.status === 503 && r.body?.code === "CHECK_UNAVAILABLE"
+          && after.llm === "unavailable" && after.at !== null,
+        `HTTP ${r.status} code=${r.body?.code} llm=${after.llm} verified_at set=${after.at !== null}`);
+    }
+
+    // ---------------------------------------------------------------- L-11
+    // A submission a superadmin has ALREADY DECIDED is not touched, whatever
+    // its check status says: a late result must not drag a rejected
+    // submission into peer review.
+    {
+      await sql(`UPDATE contribution_submissions SET status = 'rejected' WHERE id = $1`, [id2]);
+      const before = await rowOf();
+      const r = await recheck(sa);
+      const after = await rowOf();
+      rec("L-11", "a submission already decided is refused",
+        r.status === 409 && r.body?.code === "NOT_RECHECKABLE"
+          && after.status === "rejected" && after.llm === "unavailable" && after.at === before.at,
+        `HTTP ${r.status} code=${r.body?.code} status=${after.status} llm=${after.llm}`);
+      await sql(`UPDATE contribution_submissions SET status = 'pending' WHERE id = $1`, [id2]);
+    }
+
+    // ---------------------------------------------------------------- L-12
+    // An unknown id is a JSON 404, not the SPA's 200.
+    {
+      const r = await recheck(sa, "00000000-0000-0000-0000-000000000000");
+      rec("L-12", "an unknown submission is a JSON 404",
+        r.status === 404 && r.body?.code === "NOT_FOUND", `HTTP ${r.status} code=${r.body?.code}`);
+    }
+  }
 } finally {
   await sql(`DELETE FROM api_credentials WHERE provider = 'anthropic'`);
 }
