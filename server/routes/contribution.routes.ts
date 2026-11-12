@@ -38,14 +38,48 @@ async function isSuperadmin(req: Request): Promise<boolean> {
   return (user.email && superadminEmails.includes(user.email.toLowerCase())) || user.role === "superadmin";
 }
 
+/**
+ * A GUARD THAT THROWS MUST ANSWER, NOT REJECT.
+ *
+ * Express 4 does not await middleware. An async guard whose database read
+ * fails returns a rejected promise that nothing is listening to, and this
+ * server installs no `unhandledRejection` handler -- so Node's default
+ * applies and THE PROCESS EXITS. One dropped connection during one request
+ * to a contribution route took the whole site down until Render restarted
+ * it, and any automatic check in flight at that moment was lost with it.
+ *
+ * Found in the harness on 2026-11-12, when a second database client took
+ * PGlite's only connection mid-request and the server died rather than
+ * answering 500. The two shared guards in auth.middleware.ts already catch;
+ * the two written locally in this file did not.
+ *
+ * FAILS CLOSED: an error is a 500, never `next()`. A guard that cannot tell
+ * who is asking has not established that they may proceed.
+ */
+function guarded(
+  name: string,
+  check: (req: Request, res: Response, next: NextFunction) => Promise<unknown>,
+) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      await check(req, res, next);
+    } catch (error) {
+      console.error(`[Contribution] ${name} failed:`, error);
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Authorization check failed" });
+      }
+    }
+  };
+}
+
 // Middleware to check superadmin
-async function checkSuperadmin(req: Request, res: Response, next: NextFunction) {
+const checkSuperadmin = guarded("checkSuperadmin", async (req, res, next) => {
   const isSuper = await isSuperadmin(req);
   if (!isSuper) {
     return res.status(403).json({ error: "Superadmin access required" });
   }
   next();
-}
+});
 
 // Reward configuration
 const QUESTIONS_PER_CREDIT = 5; // 5 approved questions = 1 assessment credit
@@ -298,7 +332,7 @@ function sanitizeQuestion(q: any) {
 }
 
 // Check if user is an org admin
-async function checkOrgAdmin(req: Request, res: Response, next: NextFunction) {
+const checkOrgAdmin = guarded("checkOrgAdmin", async (req, res, next) => {
   const user = req.user as any;
   if (!user) {
     return res.status(401).json({ error: "Not authenticated" });
@@ -343,7 +377,7 @@ async function checkOrgAdmin(req: Request, res: Response, next: NextFunction) {
   // Attach org info to request
   (req as any).orgMember = member;
   next();
-}
+});
 
 // Get organization's credit balance and submission history
 router.get("/balance", isAuthenticated, checkOrgAdmin, async (req: Request, res: Response) => {

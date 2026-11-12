@@ -295,6 +295,22 @@ a status that is specific, a row that actually changed.
 
 ## Bug families this codebase keeps producing
 
+- **An async guard with no catch takes the SERVER down, not the request.**
+  Express 4 does not await middleware, and `server/index.ts` installs no
+  `unhandledRejection` handler, so a rejected promise from a guard is Node's
+  default: the process exits. `checkSuperadmin` and `checkOrgAdmin` in
+  `contribution.routes.ts` were written locally without one — the shared
+  guards in `auth.middleware.ts` catch — so a single dropped database
+  connection during a contribution request stopped the site until Render
+  restarted it. Found 2026-11-12 when a second client took PGlite's only
+  connection and `up.ts` died instead of answering 500. Both now go through
+  `guarded()`, which answers 500 and never `next()`.
+  `contribution.guardFailure.test.ts` (4 cases); without the catch three of
+  them hang unanswered and vitest reports the unhandled rejection.
+  **Not swept:** route HANDLERS with an await outside a try/catch have the
+  same exposure, and nobody has counted them. A process-level handler that
+  logs instead of exiting would cover all of them at once; that changes what
+  a crash looks like in production and is the owner's decision.
 - **Substring instead of token.** Eight-plus instances. Matching `"Science"`
   inside `"Social Science"`, or a phrase inside a longer phrase that contains
   it. Match on tokens or whole strings, and assert the negative case.
