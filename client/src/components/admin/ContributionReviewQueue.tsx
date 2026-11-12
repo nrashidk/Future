@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, serverErrorMessage } from "@/lib/queryClient";
 import { useTranslation } from "react-i18next";
 import { StickyNote } from "@/components/StickyNote";
 import { Input } from "@/components/ui/input";
@@ -338,10 +338,12 @@ export default function ContributionReviewQueue() {
       });
       queryClient.invalidateQueries({ queryKey: ['/api/contributions/admin/pending'] });
     },
-    onError: () => {
+    onError: (error: unknown) => {
       toast({
         title: t('contributions.recheckFailed'),
-        description: t('contributions.recheckFailedDesc'),
+        // The server's sentence carries the reason (no credential, a refused
+        // key, a bad reply); the generic line is the fallback.
+        description: serverErrorMessage(error) ?? t('contributions.recheckFailedDesc'),
         variant: "destructive",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/contributions/admin/pending'] });

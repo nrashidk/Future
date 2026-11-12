@@ -139,6 +139,8 @@ async function verifyQuestionsWithLLM(questions: any[], subject: string, grade: 
   verified: boolean;
   /** False when the check did not run at all. Never conflate with a low score. */
   checkRan: boolean;
+  /** Why it did not run; null when it did. Shown to a superadmin, never a key. */
+  reason: string | null;
 }> {
   /**
    * Score 0 and an EMPTY feedback list. Not `isValid: true, score: 100` per
@@ -148,7 +150,7 @@ async function verifyQuestionsWithLLM(questions: any[], subject: string, grade: 
    */
   const notChecked = (reason: string) => {
     console.error(`[Contribution] LLM verification did NOT run (${reason}) — submission left for superadmin review`);
-    return { overallScore: 0, feedback: [], verified: false, checkRan: false };
+    return { overallScore: 0, feedback: [], verified: false, checkRan: false, reason };
   };
 
   try {
@@ -230,6 +232,7 @@ Be strict but fair. Educational quality matters.`,
       feedback: content.questions || [],
       verified: true,
       checkRan: true,
+      reason: null,
     };
   } catch (error) {
     // A network failure, or JSON.parse on a reply that was not JSON. The
@@ -947,7 +950,14 @@ router.post("/admin/:id/recheck", isAuthenticated, checkSuperadmin, async (req: 
 
     if (!result.checkRan) {
       return res.status(503).json({
-        error: "The automatic check still could not run. Check the Anthropic credential and try again.",
+        // The reason, to the superadmin who pressed the button. It was only
+        // ever a server log line, so on production (2026-11-12) every
+        // submission came back "unavailable" and nothing on any screen said
+        // whether that was a missing credential, a refused key or a bad
+        // reply. One of three short strings built here; never the key.
+        error: `The automatic check still could not run (${result.reason ?? "unknown"}).`,
+        reason: result.reason ?? null,
+        message: `The automatic check still could not run (${result.reason ?? "unknown"}).`,
         code: "CHECK_UNAVAILABLE",
         llmVerificationStatus: updated.llmVerificationStatus,
       });
