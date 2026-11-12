@@ -2394,10 +2394,10 @@ export function registerSuperadminRoutes(app: Express) {
         ? req.body.language
         : (adminLanguage === "ar" ? "ar" : "en");
 
-      // Rendered BEFORE the send, so a render failure is reported as a render
-      // failure instead of an email that went out with nothing attached.
-      const pdf = await renderInvoicePdf({ invoice, language });
-
+      // CHECKED BEFORE THE RENDER. The render starts a browser, which on
+      // production took 24 seconds -- so a refusal that needs nothing but the
+      // environment left the button disabled and the screen silent for that
+      // long before saying the details were missing.
       const supplier = supplierFromEnv(language);
       const missing = supplierDetailsMissing(supplier);
       if (missing.length > 0) {
@@ -2414,6 +2414,10 @@ export function registerSuperadminRoutes(app: Express) {
           missing,
         });
       }
+
+      // Rendered BEFORE the send, so a render failure is reported as a render
+      // failure instead of an email that went out with nothing attached.
+      const pdf = await renderInvoicePdf({ invoice, language });
 
       const amountLabel = formatMoney(invoice.totalMinor, invoice.currency, language);
       const dueLabel = invoice.dueAt
