@@ -24,6 +24,18 @@ export const RATE_LIMITS = {
   // one student can never exhaust another's budget. The ceiling is generous
   // because the bucket is cheap: re-rendering the same assessment hits the
   // LLM narrative cache, so repeats cost a headless Chrome and no LLM spend.
+  /**
+   * Assessments started WITHOUT an account, per address. Signed-in takers are
+   * not counted at all: a school lab is thirty students behind one address,
+   * and they are authenticated, so a per-address limit on everyone would lock
+   * a classroom out mid-lesson. 60 an hour still lets a whole class try the
+   * guest assessment from one room on an open day.
+   */
+  GUEST_ASSESSMENT: {
+    WINDOW_MS: 60 * 60 * 1000, // 1 hour
+    MAX_REQUESTS: 60,
+    MESSAGE: "Too many assessments started from this network. Please try again later.",
+  },
   PDF_REPORT: {
     WINDOW_MS: 60 * 60 * 1000, // 1 hour
     MAX_REQUESTS: 20,

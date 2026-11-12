@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { storage } from "../storage";
+import { buildInfo } from "../utils/buildInfo";
 import { db } from "../db";
 import { sql } from "drizzle-orm";
 
@@ -72,6 +73,8 @@ export function registerPublicRoutes(app: Express) {
         status: seed === "failed" || seed === "incomplete" ? "degraded" : "ok",
         seed,
         guestSweep,
+        // Which build is answering: see utils/buildInfo.ts.
+        build: buildInfo(),
       });
     } catch (error) {
       console.error("Health check failed:", error);

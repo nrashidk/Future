@@ -135,6 +135,33 @@ export const pdfLimiter = rateLimit({
 });
 
 /**
+ * GUEST ASSESSMENT CREATION, per address.
+ *
+ * `POST /api/assessments` needs no account and had no limit of any kind, so a
+ * stranger could write rows as fast as they could send them. Each row is now
+ * small (see shared/bodyShape.ts) and is swept after 72 hours, but "small and
+ * temporary" times "unlimited" is still a table somebody else controls the
+ * size of.
+ *
+ * SKIPS EVERY AUTHENTICATED REQUEST, and that is the whole design. Students
+ * sit this in school labs, thirty to an address, and they are signed in; the
+ * people this is aimed at are not. An authenticated taker is bounded by their
+ * licence pool instead.
+ *
+ * Refusals count too (`skipFailedRequests` is left off): a request refused
+ * for its shape was still a request.
+ */
+export const guestAssessmentLimiter = rateLimit({
+  windowMs: RATE_LIMITS.GUEST_ASSESSMENT.WINDOW_MS,
+  max: RATE_LIMITS.GUEST_ASSESSMENT.MAX_REQUESTS,
+  message: RATE_LIMITS.GUEST_ASSESSMENT.MESSAGE,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req: Request) => typeof (req as any).isAuthenticated === "function" && (req as any).isAuthenticated(),
+  handler: makeLoggingHandler("guestAssessment", RATE_LIMITS.GUEST_ASSESSMENT.MESSAGE),
+});
+
+/**
  * Rate limiting for data export endpoints
  * Prevents abuse of resource-intensive export operations
  */

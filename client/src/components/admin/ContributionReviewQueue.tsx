@@ -312,6 +312,8 @@ export default function ContributionReviewQueue() {
     onSuccess: () => {
       toast({ title: t('contributions.claimSuccess'), description: t('contributions.claimSuccessDesc') });
       queryClient.invalidateQueries({ queryKey: ['/api/contributions/admin/pending'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/contributions/admin/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/contributions/admin/pending-rewards'] });
     },
     onError: (error: any) => {
       toast({ title: t('contributions.updateFailed'), description: error.message, variant: "destructive" });

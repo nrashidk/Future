@@ -40,6 +40,16 @@ export const MAX_PRIORITY_SUBJECTS = 3;    // matches SubjectsStep's MAX_PRIORIT
 export const MAX_SUBJECT_LENGTH = 64;      // generous for any real subject name
 export const MAX_ASPIRATION_ENTRIES = 10;  // UI splits a textarea on \n (existing max: 1)
 export const MAX_ASPIRATION_LENGTH = 300;  // free-text dream; existing max element len: 61
+/**
+ * `interests` and `strengths` are TILE SELECTIONS -- the forms offer about ten
+ * of each -- and until 2026-11-12 they were the two array fields on this body
+ * with no bound at all. Their schema is derived by drizzle-zod from a text[]
+ * column, which has no upper limit, so a guest could store an array of any
+ * size in either. 30 is three times what the UI can produce; 64 characters is
+ * the same ceiling a subject name has.
+ */
+export const MAX_SELECTION_ENTRIES = 30;
+export const MAX_SELECTION_LENGTH = 64;
 
 // Truncate an offending value for a safe, bounded error message / log line.
 function previewValue(v: unknown): string {
@@ -151,6 +161,26 @@ export async function validatePromptInputFields(
       const orphan = normalizeSubjects(raw).find((s) => !favs.has(s));
       if (orphan) {
         return `Priority subject "${previewValue(orphan)}" is not one of the chosen subjects.`;
+      }
+    }
+  }
+
+  for (const field of ["interests", "strengths"] as const) {
+    const arr = body[field];
+    if (arr === undefined || arr === null) continue;
+    if (!Array.isArray(arr)) {
+      return `${field} must be an array.`;
+    }
+    if (arr.length > MAX_SELECTION_ENTRIES) {
+      return `Too many ${field} (max ${MAX_SELECTION_ENTRIES}).`;
+    }
+    for (const v of arr) {
+      // Not coerced: a number here used to be stored as its string form.
+      if (typeof v !== "string") {
+        return `${field} must contain only text.`;
+      }
+      if (v.length > MAX_SELECTION_LENGTH) {
+        return `${field} entry too long (max ${MAX_SELECTION_LENGTH} characters).`;
       }
     }
   }

@@ -120,7 +120,8 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `llm-gate`, `guest-claim`, `admin-writes`, `webhook-group-backstop`,
 `superadmin-writes`, `country-writes`, `setup-invite`, `school-setup-link`,
 `setup-stage`, `superadmin-delete-user`, `resend-webhook`, `guest-sweep`,
-`guest-identity`, `invoices`, `invoice-pdf`, plus
+`guest-identity`, `invoices`, `invoice-pdf`, `body-shape`,
+`contribution-claim`, `guest-rate`, plus
 `invoice-send`, plus
 `migration-029-dryrun`, `migration-030-dryrun`, `migration-032-dryrun`,
 `migration-033-dryrun`, `migration-034-dryrun`, `migration-035-dryrun`,
@@ -171,7 +172,8 @@ no ledger row. Reconciliation then correctly flags a state that only exists
 here. Any suite that asserts on reconciliation needs to do the same.
 `testing/local/README.md` has the details.
 
-`invoice-send` needs, on `up.ts`, the five `INVOICE_*` supplier variables as
+`invoice-send` needs, on `up.ts`, the `INVOICE_*` supplier variables
+(`INVOICE_LEGAL_NAME` and `INVOICE_LEGAL_NAME_AR` included) as
 well — the send route refuses with `SUPPLIER_DETAILS_MISSING` rather than
 mailing a school a bill carrying `[YOUR IBAN]`, so without them E-06 onward
 fail for that reason and not a real one.
@@ -307,10 +309,12 @@ a status that is specific, a row that actually changed.
   `guarded()`, which answers 500 and never `next()`.
   `contribution.guardFailure.test.ts` (4 cases); without the catch three of
   them hang unanswered and vitest reports the unhandled rejection.
-  **Not swept:** route HANDLERS with an await outside a try/catch have the
-  same exposure, and nobody has counted them. A process-level handler that
-  logs instead of exiting would cover all of them at once; that changes what
-  a crash looks like in production and is the owner's decision.
+  **And the default itself is replaced**: `utils/processGuards.ts` installs
+  an `unhandledRejection` listener that logs loudly and keeps serving, so the
+  next handler written with an await outside a try/catch costs ONE request
+  (it hangs until the client gives up) instead of the whole site. A log line
+  starting `[unhandledRejection]` is a handler that needs its own catch.
+  `uncaughtException` is deliberately left to exit.
 - **Substring instead of token.** Eight-plus instances. Matching `"Science"`
   inside `"Social Science"`, or a phrase inside a longer phrase that contains
   it. Match on tokens or whole strings, and assert the negative case.
@@ -607,8 +611,21 @@ And an unchecked submission showed **"LLM Score: 0%"**, which is the claim
 `unavailable` exists to avoid, resurfacing one layer up: the score badge now
 appears only when the check ran. Verified by driving it: Review → Approve →
 the row turns Approved and the tiles move. `llm-gate.mjs` L-13 pins the four
-stats names as numbers. Left alone and flagged: the button on an approved
-submission says "Claim for Review" and what it does is GIVE THE REWARD.
+stats names as numbers.
+**THE REWARD COULD BE PAID TWICE, and the button that paid it was labelled
+"Claim for Review".** Two superadmin actions give the same credits: the
+per-submission claim, and "Allocate reward" for the whole school, which marks
+its submissions `reward_allocated` and leaves them `approved`. The claim never
+read that flag, so allocate-then-claim added the credits again — reward
+credits are spent before paid licences, so that is free assessments. The
+claim was also four unjoined statements with the arithmetic done in
+JavaScript. `storage.claimApprovedContribution` is now one transaction whose
+first statement is the conditional claim; a submission already paid is closed
+with nothing moved. `contribution-claim.mjs` (6 cases), judged by the
+school's three figures: against the old code K-04 reports `reward=8` where 5
+is right. The button now says "Give reward". **Flagged, not changed:** the
+claim does not apply the yearly credit cap that allocation applies, and
+allocation will add credits beyond what is pending.
 **`llmVerificationStatus: "failed"` IS NEVER WRITTEN.** `verified` is true
 whenever the check ran, so a submission scored 31 is stored as "verified"
 with a score of 31. The routing gate reads the score, so behaviour is right
@@ -697,6 +714,12 @@ chose to review would sit for ever with no one able to see it.
   with no before/after comparison**, which is the exact thing working rule 5
   exists to prevent. Anything later that must be checked before it goes live
   has to be held off main, not merely left unrun.
+- **`/health` SAYS WHICH BUILD IS ANSWERING** (`build.commit`, seven
+  characters from Render's `RENDER_GIT_COMMIT`, and `build.startedAt`). Render
+  keeps serving the old build while a new one builds AND if the new one
+  fails, so after a push the site looks the same in all three states. Compare
+  `build.commit` with `git log --oneline -1` before believing a change is
+  live. Null locally and in the harness.
 - `scripts/verify-before.sql` and `scripts/verify-after.sql` are the read-only
   checks for the licence migrations. Two files, not one: before the migrations
   run, the new tables and the `countries.license_*` columns do not exist, and
@@ -964,35 +987,59 @@ chose to review would sit for ever with no one able to see it.
       request path: `$ZodArray` accumulates an issue object per failing element
       with no cap, so a large array of elements that all fail validation grows
       memory until the process dies.
-      **The audit's own advice is wrong for this repo.** Per the advisory
-      write-up, 4.6.6 only moved the size check ahead of element parsing for
-      schemas that declare an explicit upper bound, and **no released version
-      remediates the unbounded default case** — so migrating zod v3→v4 across
-      every schema in the repo, which is a breaking major, would fix this only
-      where `.max()` is already present. (Single-sourced: the GitHub advisory
-      itself is not fetchable from the cloud container, so this came from a
-      secondary summary. Verify before acting on it.)
-      The mitigation that actually works needs no upgrade: **put explicit
-      upper bounds on array/record/set schemas**, which works on v3. **Done
-      2026-11-09 — there are now ZERO unbounded `z.array(` in server/ or
-      shared/.** The eight that were unbounded were the seven arrays on
-      `updateCountrySchema` and `contribution.routes.ts`'s
-      `approvedQuestionIds`; every scalar on that country schema was already
-      bounded, so the arrays were the only way in, and `curricula` was
-      `.max(20)` with `.max(100)` elements on CREATE while unbounded on
-      UPDATE — the same field, bounded on one verb and not its sibling.
-      `country-writes.mjs` C-12 asserts the bound FIRES (21 curricula → 400,
-      a 300-character name → 400, row untouched) and sends it as a
-      superadmin, because an unprivileged caller would be stopped by
-      `checkSuperadmin` first and the case would pass without testing the
-      bound at all. `approvedQuestionIds` was capped at
-      `MAX_QUESTIONS_PER_SUBMISSION` and deliberately NOT tightened to
-      `.int().nonnegative()` — correct for an index, but that rejects input
-      the route accepts today, so it is flagged rather than changed inside a
-      bounding commit.
-      The real limiter remains the body cap in `server/index.ts:132`: 512kb
-      everywhere except `/api/admin/questions/bulk` at 10mb, and that route is
-      superadmin-gated (proved in `admin-writes.mjs`).
+      **EVERYTHING THIS BULLET USED TO SAY ABOUT THE FIX WAS WRONG, and it
+      was wrong because it was read rather than run.** It said bounding the
+      arrays "works on v3" and that the upgrade would buy nothing. Measured on
+      2026-11-12, the same parse on both versions,
+      `z.array(z.string().max(3)).max(20)` given 200,000 failing elements:
+      - **zod 3.25.76: 200,001 issues, 93 MB.** The `.max(20)` is checked
+        AFTER every element is parsed, so a bound on v3 stops nothing.
+      - **zod 4.6.7: 1 issue, 2 ms.** The bound short-circuits.
+      So the bounds added on 2026-11-09 take effect only on v4, and the
+      upgrade is what makes them real. An UNBOUNDED array accumulates on both.
+      **"ZERO unbounded `z.array(`" was true of the text and false of the
+      product.** `createInsertSchema` derives an unbounded array from every
+      `text[]` column, and `insertAssessmentSchema` is parsed on
+      `POST /api/assessments` — no account, no rate limit. Two of its array
+      fields (`interests`, `strengths`) had no pre-check, and running it
+      showed something worse than the advisory: **on `main` a stranger's
+      200,000-element array was ACCEPTED AND STORED**, 391 KB a request,
+      as often as they liked. On the zod 4 branch the same request was
+      refused after 0.9 s, ~250 MB and a **25 MB reply**; three took the
+      process from 550 MB to 1.1 GB.
+      **Closed at the door, not field by field**: `shared/bodyShape.ts`
+      (10 tests) checks the SHAPE of every parsed body once in
+      `server/index.ts`, before any handler or schema — 5,000 elements an
+      array, 1,000 keys an object, 32 deep, 50,000 values in all — and
+      answers **413 `BODY_TOO_COMPLEX`**. Iterative, because a recursive walk
+      of `[[[[…` is a stack overflow. The bulk question import is exempt by
+      the same path test that exempts it from the byte cap.
+      `body-shape.mjs` (7 cases) judges it by the DATABASE: B-02 asserts no
+      row was written. Mutation-tested — without the guard B-02 reports
+      `widest interests=200000`. B-06 is the control that the exemption is by
+      path and not by role. **B-03's first draft passed on the wrong 413**:
+      200,000 quoted strings exceed the BYTE cap, and express answers 413 for
+      that too, with no `reason`.
+      `interests` and `strengths` are also bounded where the other prompt
+      fields are (`assessmentValidation.ts`: 30 entries, 64 characters,
+      strings only — a number used to be stored as its string form).
+      `body-shape.mjs` B-07/B-08.
+      **Guest assessment creation is rate-limited per address: 60 an hour,
+      GUESTS ONLY** (`guestAssessmentLimiter`). Signed-in takers are skipped
+      entirely, because a school lab is thirty students behind one address
+      and a per-address limit on everyone would lock a classroom out
+      mid-lesson. `guest-rate.mjs` (5 cases): R-04 is the one that matters —
+      a signed-in student at the exhausted address still starts an
+      assessment — and R-03 is the control that the limit is per address.
+      The byte cap in `server/index.ts` (512kb; 10mb for
+      `/api/admin/questions/bulk`, superadmin-gated) is still there and is
+      not a shape cap.
+      **Both majors are on branches, verified as far as this container can**:
+      `deps/puppeteer-25` (no source change; report and invoice PDFs
+      byte-for-byte the same page counts; NOT verified: Render's browser
+      download, which this container cannot do) and `deps/zod-4` (with
+      drizzle-zod 0.8 and @hookform/resolvers 5; all 50 suites, 1,411 unit
+      tests, three forms driven in a browser).
       Neither major belongs on `main` unattended: Render auto-deploys every
       push, puppeteer drives a sold feature (PDF download), and zod v4 touches
       every validation schema. Branch them.
@@ -1240,8 +1287,16 @@ chose to review would sit for ever with no one able to see it.
   (`SUPPLIER_DETAILS_MISSING`). The payment panel is the one part of this
   document a school acts on, and a bill carrying `[YOUR IBAN]` into a finance
   inbox is worse than no bill — it cannot be paid, and it gets a supplier
-  queried rather than settled. **Still needs setting on Render:**
-  `INVOICE_ADDRESS`, `INVOICE_BANK_NAME`, `INVOICE_BANK_ACCOUNT_NAME`,
+  queried rather than settled.
+  **THE LEGAL NAME HAS NO DEFAULT ANY MORE.** `supplierFromEnv` used to fall
+  back to a company name written into the source from a DRAFT trade licence —
+  a name not yet issued. It is now `INVOICE_LEGAL_NAME` /
+  `INVOICE_LEGAL_NAME_AR` or nothing: the document prints
+  `[REGISTERED LEGAL NAME]`, and the send refuses with `legalName` in its
+  missing list. The Arabic name does not borrow the English one.
+  `invoicePdf.supplier.test.ts` (6).
+  **Still needs setting on Render:**
+  `INVOICE_LEGAL_NAME`, `INVOICE_LEGAL_NAME_AR`, `INVOICE_ADDRESS`, `INVOICE_ADDRESS_AR`, `INVOICE_BANK_NAME`, `INVOICE_BANK_ACCOUNT_NAME`,
   `INVOICE_IBAN`, `INVOICE_SWIFT` — and `INVOICE_TRN` ONLY once VAT
   registration is actually in effect, since that one variable is what turns a
   proforma into a tax invoice.

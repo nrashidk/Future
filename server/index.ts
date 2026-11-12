@@ -1,5 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import helmet from "helmet";
+import { checkBodyShape } from "@shared/bodyShape";
+import { installProcessGuards } from "./utils/processGuards";
 import morgan from "morgan";
 import compression from "compression";
 import cookieParser from "cookie-parser";
@@ -10,6 +12,10 @@ import { csrfProtection, validateCsrf, csrfTokenEndpoint } from "./middleware/cs
 
 // Validate environment variables before starting the application
 validateEnvironmentVariables();
+
+// A rejected promise with nothing awaiting it is logged instead of stopping
+// the site for everyone: see utils/processGuards.ts.
+installProcessGuards();
 
 const app = express();
 
@@ -145,6 +151,34 @@ app.use((req, res, next) => {
     return next();
   }
   express.urlencoded({ extended: false })(req, res, next);
+});
+
+/**
+ * THE SHAPE OF A BODY IS CHECKED HERE, ONCE, before any handler or schema.
+ *
+ * The byte cap above is not a shape cap: 391 KB is a 200,000-element array.
+ * `POST /api/assessments` -- no account, no rate limit -- accepted one and
+ * stored it, and under zod 4 the same request cost 250 MB and a 25 MB reply.
+ * See shared/bodyShape.ts for the measurements and the reasoning.
+ *
+ * AFTER the parsers, because it reads what they produced. The bulk question
+ * import is exempt by the same path test that exempts it from the byte cap:
+ * it legitimately carries thousands of rows, and it is superadmin-only.
+ *
+ * 413, not 400: the body is refused for its size, and a client that treats
+ * 400 as "fix a field" has no field to fix.
+ */
+app.use((req, res, next) => {
+  if (req.path.startsWith("/api/admin/questions/bulk")) return next();
+  const shape = checkBodyShape(req.body);
+  if (!shape.ok) {
+    return res.status(413).json({
+      message: "Request body is too large.",
+      code: "BODY_TOO_COMPLEX",
+      reason: shape.reason,
+    });
+  }
+  next();
 });
 app.use(cookieParser());
 

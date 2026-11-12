@@ -1129,32 +1129,20 @@ router.post("/admin/:id/claim", isAuthenticated, checkSuperadmin, async (req: Re
       return res.status(400).json({ error: "Only approved submissions can be claimed" });
     }
 
-    // Transfer pending credits to actual reward credits
-    const creditsToAward = submission.creditsAwarded || 0;
-    if (creditsToAward > 0) {
-      const org = await storage.getOrganizationById(submission.organizationId);
-      if (org) {
-        const currentPending = (org as any).pendingRewardCredits || 0;
-        const currentReward = (org as any).rewardCredits || 0;
-        const currentYearly = (org as any).yearlyContributionCount || 0;
-        
-        // Move from pending to actual reward credits
-        await storage.updateOrganization(org.id, {
-          pendingRewardCredits: Math.max(0, currentPending - creditsToAward),
-          rewardCredits: currentReward + creditsToAward,
-          yearlyContributionCount: currentYearly + creditsToAward,
-        } as any);
-      }
+    // The claim and the credit movement are ONE transaction, and the claim's
+    // conditions are in its own WHERE clause: see storage.claimApprovedContribution.
+    const claimed = await storage.claimApprovedContribution(submissionId);
+    if (!claimed) {
+      // Somebody else's request claimed it between the read above and here.
+      return res.status(409).json({ error: "This submission has already been claimed", code: "ALREADY_CLAIMED" });
     }
 
-    // Update status to "claimed" to remove from queue
-    await storage.updateContributionSubmission(submissionId, {
-      status: "claimed",
-    });
-
-    res.json({ 
-      message: "Submission claimed and reward given to school",
-      creditsAwarded: creditsToAward,
+    res.json({
+      message: claimed.alreadyPaid
+        ? "Submission closed. Its reward had already been given."
+        : "Submission claimed and reward given to school",
+      creditsAwarded: claimed.creditsMoved,
+      alreadyPaid: claimed.alreadyPaid,
     });
   } catch (error) {
     console.error("Error claiming submission:", error);

@@ -16,7 +16,7 @@ import { guestAssessmentExpiresAt, GUEST_COOKIE_MAX_AGE_MS } from "@shared/guest
 import { withholdGuestIdentity } from "@shared/guestIdentity";
 import { sweepExpiredGuestAssessmentsIfDue } from "../services/guestAssessmentExpiry";
 import { sendGuestReportRecoveryEmail } from "../services/email";
-import { recoveryEmailLimiter } from "../middleware/rateLimiter.middleware";
+import { recoveryEmailLimiter, guestAssessmentLimiter } from "../middleware/rateLimiter.middleware";
 
 /**
  * Normalize assessment payload before validation
@@ -247,7 +247,7 @@ export async function isEntitledForPremiumAssessment(userId: string | null): Pro
 }
 
 export function registerAssessmentRoutes(app: Express) {
-  app.post("/api/assessments", async (req: any, res) => {
+  app.post("/api/assessments", guestAssessmentLimiter, async (req: any, res) => {
     try {
       // Sanitize user input to prevent XSS
       const sanitizedBody = sanitizeRequestBody(req.body);
