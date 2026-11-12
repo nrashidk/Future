@@ -792,7 +792,9 @@ so a student with one assessment in progress got a link to a raw 404.
     every push, so this was every deploy, for whoever was mid-session.
     `client/src/lib/lazyPage.ts` (7 tests) reloads ONCE — a timestamp stops a
     genuinely missing file looping — and every route in `App.tsx` uses it.
-    **Not verified against a real deploy.**
+    **VERIFIED AGAINST A REAL DEPLOY the same afternoon**: a page loaded on
+    `df58e38`, a deploy to `786c4ae` landed, and the next in-app navigation
+    reloaded once and arrived on Profile with no error screen.
   - **THE RESULTS PAGE SHOWED US DOLLAR SALARIES. The bullet below that says
     "US salaries do NOT reach students" WAS WRONG** — `Results.tsx` printed
     `rec.career.averageSalary` on every premium career card ("Typical
@@ -829,6 +831,19 @@ so a student with one assessment in progress got a link to a raw 404.
     student's profile shows the school's whole balance as "Available
     Assessments 46"; leaving `/assessment` raises a native confirm even with
     nothing entered.
+- **THE ARABIC STUDENT WALK, 2026-11-12** (`salm.alktby`, Grade 11, one
+  licence, 46 → 45). Every step, the quiz and the generated report are in
+  Arabic and right-to-left, and the Likert labels sit under the right radios
+  (checked by value, since the row is laid out left-to-right). Fixed from it:
+  the vision sentence and the next-steps printed English subject and
+  category names inside Arabic prose (`shared/careerCategories.ts`, 4
+  tests), and "نمو 1–2%" / "2024–2034" rendered reversed (bidi isolates in
+  `ar/results.json`). **Flagged, not changed:** "Build on your strength"
+  names the FIRST favourite subject, not the highest-scoring one (it said
+  Mathematics at 80% over Computer Science at 100%); some careers have no
+  Arabic description; the locked country card says "United Arab Emirates"
+  and "MOE National"; Next/Back arrows do not flip in Arabic; the Arabic
+  PDF's content language was not inspected (7 pages, 1.46 MB).
 - Nothing about curricula: that gap is closed. Offering a curriculum now
   creates its six subjects, empty ones were removed, and `new-country.mjs`
   NC-09g enforces the invariant.
