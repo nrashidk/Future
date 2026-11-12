@@ -584,6 +584,10 @@ function SuperadminDashboardPage() {
   // A user's assessments, read in a dialog. The button used to open the raw
   // API response in a new tab.
   const [historyUser, setHistoryUser] = useState<{ id: string; name: string } | null>(null);
+  // Deleting an account. The route has existed since 2026-11-10 and no screen
+  // called it, so a superadmin could not delete anyone from the product.
+  const [deleteUser, setDeleteUser] = useState<{ id: string; name: string; email: string | null } | null>(null);
+  const [deleteEmailDraft, setDeleteEmailDraft] = useState("");
   const [userSearchQuery, setUserSearchQuery] = useState("");
   const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState<SystemAnnouncement | null>(null);
@@ -699,6 +703,23 @@ function SuperadminDashboardPage() {
     },
     onError: (error: unknown) => {
       toast({ title: t('superadmin.error'), description: serverErrorMessage(error) ?? t('superadmin.failedToUpdateEmail'), variant: "destructive" });
+    },
+  });
+
+  const deleteUserMutation = useMutation({
+    mutationFn: async ({ userId, confirmEmail }: { userId: string; confirmEmail: string }) => {
+      const res = await apiRequest('DELETE', `/api/superadmin/users/${userId}`, { confirmEmail });
+      return res.json();
+    },
+    onSuccess: () => {
+      setDeleteUser(null);
+      setDeleteEmailDraft("");
+      toast({ title: t('superadmin.userDeleted'), description: t('superadmin.userDeletedDesc') });
+      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/students'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations'] });
+    },
+    onError: (error: unknown) => {
+      toast({ title: t('superadmin.error'), description: serverErrorMessage(error) ?? t('superadmin.failedToDeleteUser'), variant: "destructive" });
     },
   });
 
@@ -1717,6 +1738,29 @@ function SuperadminDashboardPage() {
                                 >
                                   <History className="w-4 h-4" />
                                 </Button>
+                                {/* A school's student is removed by the school (erase or
+                                    keep-the-report is the school's choice); a superadmin is
+                                    refused by the route. Neither is offered a button that
+                                    could only answer with an error. */}
+                                {student.user.accountType !== 'org_student' && !student.isSuperadmin && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => {
+                                    setDeleteUser({
+                                      id: student.user.id,
+                                      name: `${student.user.firstName || ""} ${student.user.lastName || ""}`.trim() || student.user.username || student.user.id,
+                                      email: student.user.email ?? null,
+                                    });
+                                    setDeleteEmailDraft("");
+                                  }}
+                                  title={t('superadmin.deleteUser')}
+                                  className="text-destructive hover:text-destructive"
+                                  data-testid={`button-delete-user-${student.user.id}`}
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </Button>
+                                )}
                               </div>
                             </TableCell>
                           </TableRow>
@@ -2896,6 +2940,47 @@ function SuperadminDashboardPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Delete an account: confirmed by typing its email, which is what the
+          route checks. An account with no email cannot be confirmed here. */}
+      <Dialog open={!!deleteUser} onOpenChange={(open) => { if (!open) { setDeleteUser(null); setDeleteEmailDraft(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('superadmin.deleteUserTitle')}</DialogTitle>
+            <DialogDescription>
+              {t('superadmin.deleteUserDesc', { name: deleteUser?.name ?? "" })}
+            </DialogDescription>
+          </DialogHeader>
+          {deleteUser?.email ? (
+            <div className="space-y-2">
+              <Label htmlFor="delete-user-email">{t('superadmin.deleteUserConfirmLabel', { email: deleteUser.email })}</Label>
+              <Input
+                id="delete-user-email"
+                type="email"
+                dir="ltr"
+                value={deleteEmailDraft}
+                onChange={(e) => setDeleteEmailDraft(e.target.value)}
+                data-testid="input-delete-user-email"
+              />
+            </div>
+          ) : (
+            <p className="text-sm text-destructive">{t('superadmin.deleteUserNoEmail')}</p>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setDeleteUser(null); setDeleteEmailDraft(""); }}>{t('superadmin.cancel')}</Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteUser && deleteUserMutation.mutate({ userId: deleteUser.id, confirmEmail: deleteEmailDraft })}
+              disabled={
+                deleteUserMutation.isPending || !deleteUser?.email ||
+                deleteEmailDraft.trim().toLowerCase() !== (deleteUser?.email ?? "").toLowerCase()
+              }
+              data-testid="button-confirm-delete-user"
+            >
+              {deleteUserMutation.isPending ? t('superadmin.deleting') : t('superadmin.deleteUserConfirm')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={!!pendingConfirm} onOpenChange={(open) => !open && setPendingConfirm(null)}>
         <AlertDialogContent data-testid="dialog-confirm-action">
