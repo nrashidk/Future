@@ -697,6 +697,12 @@ chose to review would sit for ever with no one able to see it.
   with no before/after comparison**, which is the exact thing working rule 5
   exists to prevent. Anything later that must be checked before it goes live
   has to be held off main, not merely left unrun.
+- **`/health` SAYS WHICH BUILD IS ANSWERING** (`build.commit`, seven
+  characters from Render's `RENDER_GIT_COMMIT`, and `build.startedAt`). Render
+  keeps serving the old build while a new one builds AND if the new one
+  fails, so after a push the site looks the same in all three states. Compare
+  `build.commit` with `git log --oneline -1` before believing a change is
+  live. Null locally and in the harness.
 - `scripts/verify-before.sql` and `scripts/verify-after.sql` are the read-only
   checks for the licence migrations. Two files, not one: before the migrations
   run, the new tables and the `countries.license_*` columns do not exist, and
