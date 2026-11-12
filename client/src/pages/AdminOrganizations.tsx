@@ -24,7 +24,7 @@ import { Separator } from "@/components/ui/separator";
 import { 
   Home, Plus, Download, Upload, Edit, Trash2, GraduationCap, 
   Users, Building2, Key, RefreshCw, FileDown, Lock, LockOpen, User, LogOut, BarChart, Shield, FileQuestion, Gift,
-  Link as LinkIcon, X, ClipboardCheck, AlertTriangle, Eye
+  Link as LinkIcon, X, ClipboardCheck, AlertTriangle, Eye, RotateCcw
 } from "lucide-react";
 import { StickyNote } from "@/components/StickyNote";
 import ContributeQuestions from "@/components/admin/ContributeQuestions";
@@ -171,6 +171,7 @@ interface OrganizationMember {
   hasStartedAssessment: boolean;
   hasInProgressAssessment: boolean;
   isLocked: boolean;
+  repeatAllowed?: boolean;
   passwordLastReset?: string;
   passwordResetBy?: string;
   user: {
@@ -1137,6 +1138,12 @@ function AdminOrganizationsPage() {
                             <TableCell>{member.studentId || '-'}</TableCell>
                             <TableCell>
                               <div className="flex gap-1 flex-wrap">
+                                {member.repeatAllowed && (
+                                  <Badge variant="outline" className="text-xs" data-testid={`badge-repeat-${member.id}`}>
+                                    <RotateCcw className="w-3 h-3 me-1" />
+                                    {t('orgs.repeatAllowedLabel')}
+                                  </Badge>
+                                )}
                                 {member.isLocked && (
                                   <Badge variant="secondary" className="text-xs">
                                     <Lock className="w-3 h-3 me-1" />
@@ -2661,6 +2668,25 @@ function MemberActions({ member, organizationId }: { member: OrganizationMember;
     },
   });
 
+  // Allow, or withdraw, ONE repeat of the grade this student already has a
+  // report for. The repeat spends another of the school's licences.
+  const repeatMutation = useMutation({
+    mutationFn: async (allowed: boolean) => {
+      const res = await apiRequest('POST', `/api/admin/organizations/${organizationId}/members/${member.id}/repeat`, { allowed });
+      return await res.json();
+    },
+    onSuccess: (data: { repeatAllowed: boolean }) => {
+      toast({
+        title: t('superadmin.success'),
+        description: t(data.repeatAllowed ? 'orgs.repeatAllowedToast' : 'orgs.repeatWithdrawnToast', { name: memberDisplayName(member) }),
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/organizations', organizationId, 'members'] });
+    },
+    onError: (error: any) => {
+      toast({ title: t('superadmin.error'), description: serverErrorMessage(error) || t('orgs.repeatError'), variant: "destructive" });
+    },
+  });
+
   const resetPasswordMutation = useMutation({
     mutationFn: async (passwordComplexity: "easy" | "medium" | "strong") => {
       const response = await apiRequest(
@@ -2733,6 +2759,22 @@ function MemberActions({ member, organizationId }: { member: OrganizationMember;
           <a href={`/api/staff/students/${member.userId}/report`} target="_blank" rel="noopener noreferrer">
             <Eye className="w-4 h-4" />
           </a>
+        </Button>
+      )}
+      {/* Only for a student who HAS a report: with none there is nothing to
+          repeat. Filled when a repeat is currently allowed, so the state is
+          visible on the row and one more press withdraws it. */}
+      {member.role === 'student' && member.hasCompletedAssessment && (
+        <Button
+          variant={member.repeatAllowed ? "secondary" : "ghost"}
+          size="icon"
+          title={t(member.repeatAllowed ? 'orgs.repeatWithdraw' : 'orgs.repeatAllow')}
+          aria-pressed={!!member.repeatAllowed}
+          disabled={repeatMutation.isPending}
+          onClick={() => repeatMutation.mutate(!member.repeatAllowed)}
+          data-testid={`button-repeat-${member.id}`}
+        >
+          <RotateCcw className="w-4 h-4" />
         </Button>
       )}
       {/* Students only. An admin member row has no name, gender or grade — the

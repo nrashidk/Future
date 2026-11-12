@@ -141,6 +141,16 @@ await schoolStu.login(me.username, me.password);
   // "Assessment already completed for this allocation" -- with no route
   // anywhere able to grant another. The school has 50 licences; this is the
   // second.
+  //
+  // THE SCHOOL MOVES THE STUDENT UP FIRST, through its own edit route. This
+  // case used to send grade "11" in the student's payload and nothing else —
+  // but a school student's grade is the SCHOOL's record, so that assessment
+  // was created at grade 10 again: a same-grade repeat labelled as a second
+  // year. It passed only because nothing distinguished the two. Since
+  // 2026-11-12 a same-grade repeat needs the school's permission
+  // (repeat-grade.mjs), which is what made the mislabel visible.
+  const moved = await A.session.patch(`/api/admin/organizations/${A.orgId}/members/${me.memberId}`, { grade: "11" });
+  if (moved.status >= 400) console.log(`  (L-03 setup: moving the student up failed: HTTP ${moved.status} ${JSON.stringify(moved.body).slice(0, 100)})`);
   const r = await completeAssessment(schoolStu, { grade: "11", seed: 2, name: "Student A1" });
   const spent = await ledgerCount(`student_user_id = $1`, [me.userId]);
   rec("L-03", "a school student can sit a SECOND year (was impossible)",

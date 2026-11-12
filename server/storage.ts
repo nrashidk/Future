@@ -438,6 +438,7 @@ export interface IStorage {
     pendingAssessments: number;
   }>;
   updateOrganizationMember(id: string, data: Partial<InsertOrganizationMember>): Promise<OrganizationMember>;
+  setMemberRepeatAllowed(memberId: string, allowed: boolean): Promise<void>;
   deleteOrganizationMember(id: string): Promise<boolean>;
 
   // Combined operations
@@ -5011,6 +5012,9 @@ export class DatabaseStorage implements IStorage {
         dateOfBirth: organizationMembers.dateOfBirth,
         grade: organizationMembers.grade,
         role: organizationMembers.role,
+        // In the list on purpose: a column this function omits reads as
+        // undefined to every caller, silently (see isPrimaryAdmin below).
+        repeatAllowed: organizationMembers.repeatAllowed,
         /**
          * OMITTED FROM THIS LIST UNTIL 2026-11-09, and four callers read it
          * off these rows — so each got `undefined` and the branch it guarded
@@ -5119,6 +5123,12 @@ export class DatabaseStorage implements IStorage {
       completedAssessments,
       pendingAssessments: totalMembers - completedAssessments,
     };
+  }
+
+  /** Grant or withdraw one repeat of a grade. Its own statement, not a field of
+   *  the general member update, so no profile edit can carry it by accident. */
+  async setMemberRepeatAllowed(memberId: string, allowed: boolean): Promise<void> {
+    await db.update(organizationMembers).set({ repeatAllowed: allowed }).where(eq(organizationMembers.id, memberId));
   }
 
   async updateOrganizationMember(id: string, data: Partial<InsertOrganizationMember>): Promise<OrganizationMember> {

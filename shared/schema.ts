@@ -343,6 +343,13 @@ export const organizationMembers = pgTable("organization_members", {
   hasCompletedAssessment: boolean("has_completed_assessment").notNull().default(false),
   assessmentCompletedAt: timestamp("assessment_completed_at"),
   isLocked: boolean("is_locked").notNull().default(false),
+  /**
+   * The school has allowed this student ONE more assessment at a grade they
+   * already have a report for (migration 040). Cleared when that assessment
+   * is started. False for everyone by default: repeating spends a licence
+   * from the school's pool, so it is the school's decision, not the student's.
+   */
+  repeatAllowed: boolean("repeat_allowed").notNull().default(false),
   
   // Admin actions audit
   passwordLastResetBy: varchar("password_last_reset_by"),

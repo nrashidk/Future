@@ -76,6 +76,7 @@ export function useAssessmentAvailability() {
     available: number | null;
     isUnlimited: boolean;
     sameGradeAlreadyCharged: boolean;
+    repeatBlocked?: boolean;
     currentGrade: string | null;
   }>({
     queryKey: ["/api/licenses/me"],
@@ -168,5 +169,9 @@ export function useAssessmentAvailability() {
     completedReportId,
     // For the "this will use another licence" warning before a repeat.
     sameGradeAlreadyCharged,
+    // A school student with a report for this grade whose school has not
+    // allowed a repeat. The server refuses the create; this is so the page can
+    // say so first.
+    repeatBlocked: licenseBalance?.repeatBlocked === true,
   };
 }

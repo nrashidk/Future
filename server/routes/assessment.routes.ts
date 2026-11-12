@@ -374,6 +374,8 @@ export function registerAssessmentRoutes(app: Express) {
       // everyone else, so the spread below is a no-op for a guest or a
       // self-paid individual with no child profile.
       let lockedDemographicsValues: Partial<Record<string, unknown>> = {};
+      // Set only when a school student is using a repeat their school allowed.
+      let repeatPermissionToSpend: string | null = null;
       
       if (userId) {
         // MEMBERSHIP COMES FROM THE MEMBER ROW, NOT users.accountType — the last
@@ -468,6 +470,31 @@ export function registerAssessmentRoutes(app: Express) {
               code: "NO_LICENCES_AVAILABLE",
             });
           }
+
+          /**
+           * REPEATING A GRADE IS THE SCHOOL'S DECISION (owner, 2026-11-12).
+           *
+           * A student who already has a charged report for the grade they are
+           * in may start another only if their school has allowed it — one
+           * permission, one attempt, cleared below when the assessment is
+           * created. Before this the pool was the only limit, so one student
+           * could spend every licence a school held. A new grade is not a
+           * repeat and is untouched: hasConsumedLicenseForGrade compares the
+           * grade on the ledger with the school's current record.
+           *
+           * At CREATE, like the capacity check above: nothing has been spent
+           * yet and the student can still be told, before answering anything.
+           */
+          const isRepeat = await storage.hasConsumedLicenseForGrade(userId, orgMember.grade);
+          if (isRepeat && !orgMember.repeatAllowed) {
+            return res.status(403).json({
+              message: "You already have a report for this grade. Ask your school if you need to take the assessment again.",
+              code: "REPEAT_NOT_ALLOWED",
+            });
+          }
+          // Spent only by an actual repeat: a permission granted early is not
+          // used up by the student's first assessment.
+          repeatPermissionToSpend = isRepeat ? orgMember.id : null;
 
           // ALL FIVE SCHOOL-OWNED FIELDS, not just curriculum. This inherited
           // curriculum alone and accepted name, grade, gender and countryId from
@@ -673,6 +700,12 @@ export function registerAssessmentRoutes(app: Express) {
         assessmentType,
         riasecScores,
       });
+
+      // The repeat the school allowed has now been started: one permission is
+      // one attempt. After the insert, so a create that fails spends nothing.
+      if (repeatPermissionToSpend) {
+        await storage.setMemberRepeatAllowed(repeatPermissionToSpend, false);
+      }
 
       // Set guest token in httpOnly cookie for security (prevents XSS token theft)
       if (isGuest && guestToken) {
@@ -946,14 +979,17 @@ export function registerAssessmentRoutes(app: Express) {
       // the owning row rather than from any assessment, for the same reason the
       // create path resolves school-owned fields there.
       let currentGrade: string | null = null;
+      let repeatAllowed = true; // a parent's own pool: their balance, their call
       if (capacity.poolOwnerType === 'organization') {
         const member = await storage.getOrganizationMemberByUserId(userId);
         currentGrade = member?.grade ?? null;
+        repeatAllowed = member?.repeatAllowed === true;
       } else {
         const child = await storage.getChildProfileByGuardianUserId(userId);
         currentGrade = child?.grade ?? null;
       }
 
+      const sameGradeAlreadyCharged = await storage.hasConsumedLicenseForGrade(userId, currentGrade);
       res.json({
         onPool: true,
         poolOwnerType: capacity.poolOwnerType,
@@ -962,7 +998,11 @@ export function registerAssessmentRoutes(app: Express) {
         availablePaidLicenses: capacity.isUnlimited ? null : capacity.availablePaidLicenses,
         isUnlimited: capacity.isUnlimited,
         currentGrade,
-        sameGradeAlreadyCharged: await storage.hasConsumedLicenseForGrade(userId, currentGrade),
+        sameGradeAlreadyCharged,
+        // A school student with a report for this grade and no permission to
+        // repeat it. The create route is the control; this lets the page say
+        // so before the student answers anything.
+        repeatBlocked: sameGradeAlreadyCharged && !repeatAllowed,
       });
     } catch (error) {
       console.error("Error reading licence balance:", error);

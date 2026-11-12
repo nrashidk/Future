@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import multer from "multer";
 import path from "path";
+import logger from "../utils/logger";
 import { storage, SubjectNotInCatalogueError } from "../storage";
 import { isAuthenticated } from "../auth";
 import { isSuperadminOnly, isOrgAdmin, getSuperadminEmails } from "../middleware/auth.middleware";
@@ -1066,6 +1067,60 @@ export function registerAdminRoutes(app: Express) {
     } catch (error) {
       console.error("Error bulk creating members:", error);
       res.status(500).json({ message: "Failed to bulk create members" });
+    }
+  });
+
+  /**
+   * A SCHOOL ALLOWS (OR WITHDRAWS) ONE REPEAT OF A GRADE FOR ONE STUDENT.
+   *
+   * Its own route rather than a field on the PATCH below: that one edits a
+   * student's profile, and a permission that spends a licence should not be
+   * settable by a form that is resubmitting a name. Same two guards as the
+   * PATCH — the caller administers THIS school, and the member belongs to it
+   * — because "a control on one verb and not its siblings" is a family here.
+   * Students only: an administrator sits no assessment.
+   */
+  app.post("/api/admin/organizations/:id/members/:memberId/repeat", isAuthenticated, async (req, res) => {
+    try {
+      const userId = (req.user as any).userId;
+      const user = await storage.getUser(userId);
+      if (!user) return res.status(403).json({ message: "Forbidden" });
+
+      const superadminEmails = getSuperadminEmails();
+      const isSuperadmin =
+        (user.email && superadminEmails.includes(user.email.toLowerCase())) ||
+        user.role === "superadmin";
+      const isOrgAdminForThisOrg = user.accountType === "org_admin";
+      if (isOrgAdminForThisOrg) {
+        const userOrg = await storage.getOrganizationByAdminUserId(userId);
+        if (!userOrg || userOrg.id !== req.params.id) {
+          return res.status(403).json({ message: "Forbidden: Can only access your own organization" });
+        }
+      }
+      if (!isSuperadmin && !isOrgAdminForThisOrg) {
+        return res.status(403).json({ message: "Forbidden: Admin access required" });
+      }
+
+      const member = await storage.getOrganizationMemberById(req.params.memberId);
+      if (!member) return res.status(404).json({ message: "Member not found" });
+      if (member.organizationId !== req.params.id) {
+        return res.status(403).json({ message: "Forbidden: Member does not belong to this organization" });
+      }
+      if (member.role !== "student") {
+        return res.status(400).json({ message: "Only a student can be allowed a repeat.", code: "NOT_A_STUDENT" });
+      }
+      if (typeof req.body?.allowed !== "boolean") {
+        return res.status(400).json({ message: "allowed must be true or false.", code: "INVALID_ALLOWED" });
+      }
+
+      await storage.setMemberRepeatAllowed(member.id, req.body.allowed);
+      logger.security("School changed a student's repeat permission", {
+        organizationId: req.params.id, memberId: member.id, allowed: req.body.allowed, byUserId: userId,
+      });
+      res.json({ memberId: member.id, repeatAllowed: req.body.allowed });
+    } catch (error) {
+      console.error("Error setting repeat permission:", error);
+      res.status(500).json({ message: "Failed to update repeat permission" });
     }
   });
 

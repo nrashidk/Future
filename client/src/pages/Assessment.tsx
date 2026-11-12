@@ -110,6 +110,7 @@ export default function Assessment() {
     isFreeCapReached,
     requiresPaymentToStart,
     sameGradeAlreadyCharged,
+    repeatBlocked,
   } = useAssessmentAvailability();
   // The taker has read the repeat warning below and chosen to go on anyway.
   const [repeatAcknowledged, setRepeatAcknowledged] = useState(false);
@@ -239,12 +240,16 @@ export default function Assessment() {
   // word. Since the pool replaced the one-per-student allocation, nothing
   // else stood between a student and the school's whole balance.
   // A warning, not a lock: repeating a year happens. Not shown mid-draft.
+  // BLOCKED rather than warned: a school student whose school has not allowed
+  // a repeat (owner's decision, 2026-11-12). The create route refuses with
+  // REPEAT_NOT_ALLOWED; this is the screen that says so before any answering.
+  const showsRepeatBlocked = !availLoading && repeatBlocked && !hasInProgress;
   const showsRepeatWarning =
-    !availLoading && sameGradeAlreadyCharged && !hasInProgress && !repeatAcknowledged &&
+    !availLoading && sameGradeAlreadyCharged && !hasInProgress && !repeatAcknowledged && !showsRepeatBlocked &&
     !showsCompletionLock && !showsFreeCapReached && !showsPaymentRequired && !showsPollingScreen;
   const isOnTerminalScreen =
     showsPollingScreen || showsSchoolDataIncomplete || showsCompletionLock ||
-    showsFreeCapReached || showsPaymentRequired || showsRepeatWarning;
+    showsFreeCapReached || showsPaymentRequired || showsRepeatWarning || showsRepeatBlocked;
 
   // True when the student has started filling in data and hasn't finished yet.
   //
@@ -1150,6 +1155,29 @@ export default function Assessment() {
               <h1 className="text-4xl md:text-5xl font-bold">{t("schoolDataIncomplete.title")}</h1>
               <p className="text-lg text-muted-foreground">{t("schoolDataIncomplete.body")}</p>
             </div>
+          </div>
+        </div>
+      </PageLayout>
+    );
+  }
+
+  if (showsRepeatBlocked) {
+    return (
+      <PageLayout variant="gradient">
+        <div className="flex items-center justify-center px-4 py-12 min-h-[calc(100vh-12rem)]">
+          <div className="max-w-md w-full text-center space-y-6 rounded-xl p-8" data-testid="screen-repeat-blocked">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10">
+              <ClipboardCheck className="w-8 h-8 text-primary" />
+            </div>
+            <div className="space-y-2">
+              <h1 className="text-3xl md:text-4xl font-bold">{t("repeat.blockedTitle")}</h1>
+              <p className="text-lg text-muted-foreground">{t("repeat.blockedBody")}</p>
+            </div>
+            {completedReportId && (
+              <Button asChild size="lg" className="w-full text-lg px-8 py-6 rounded-full shadow-xl" data-testid="button-repeat-view-report">
+                <a href={`/results?assessmentId=${completedReportId}`}>{t("lock.viewReport")}</a>
+              </Button>
+            )}
           </div>
         </div>
       </PageLayout>

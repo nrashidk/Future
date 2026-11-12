@@ -121,7 +121,7 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `superadmin-writes`, `country-writes`, `setup-invite`, `school-setup-link`,
 `setup-stage`, `superadmin-delete-user`, `resend-webhook`, `guest-sweep`,
 `guest-identity`, `invoices`, `invoice-pdf`, `body-shape`,
-`contribution-claim`, `guest-rate`, plus
+`contribution-claim`, `guest-rate`, `repeat-grade`, plus
 `invoice-send`, plus
 `migration-029-dryrun`, `migration-030-dryrun`, `migration-032-dryrun`,
 `migration-033-dryrun`, `migration-034-dryrun`, `migration-035-dryrun`,
@@ -406,7 +406,30 @@ drift, and nothing should ever add to or subtract from those columns. The
 assessment id is unique on the ledger, which is what makes regenerating a
 report free instead of double-charging.
 
-Repeating a grade is allowed, costs a licence, and warns first. Reward credits
+**Repeating a grade is the SCHOOL's decision** (owner, 2026-11-12, migration
+040). A school student who already has a CHARGED report for the grade the
+school has them in is refused a new assessment — `POST /api/assessments`,
+**403 `REPEAT_NOT_ALLOWED`** — unless their school has allowed one:
+`organization_members.repeat_allowed`, set per student from the roster
+(`POST /api/admin/organizations/:id/members/:memberId/repeat`, the school's
+own admin or a superadmin, students only). **One permission is one attempt**:
+starting the repeat clears it. A new grade is not a repeat, so moving a
+student up needs no permission. Before this the pool was the only limit and
+one student could spend a school's whole balance. A parent's own pool is
+unchanged: allowed, costs a licence, and warns first (the warning screen is
+real now — see the student walk under open items). `/api/licenses/me` returns
+`repeatBlocked` so `/assessment` says so before any answering.
+`repeat-grade.mjs` (10 cases), judged by assessment rows and the flag: R-08
+is the control that a new grade is free, without which the suite passes
+against "one assessment for life"; R-04 includes another school reaching the
+member through its OWN organization id. Mutation-tested: without the guard
+R-02 and R-07 fail, without the member-belongs check R-04 reports
+`viaOwnOrg=200 flag=true`. The charge is planted on the ledger in SQL (no
+Anthropic offline). **`licences.mjs` L-03 had been a same-grade repeat
+labelled "a second year"** — it sent grade 11 in the student's payload while
+the school's record stayed at 10; it now moves the student up through the
+school's edit route first. **Not covered:** an assessment already in progress
+when the rule arrived can still be finished and charged. Reward credits
 — earned by schools contributing approved questions — are spent before paid
 licences. `shared/assessmentLimits.ts` holds the free-tier anti-abuse cap and
 nothing else: a pooled taker's limit is their balance, and an unknown balance
