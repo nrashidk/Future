@@ -1045,10 +1045,18 @@ chose to review would sit for ever with no one able to see it.
       One of the ten sites was `any`-typed and invisible to tsc; at runtime it
       would have been `undefined.map` inside a catch, a 500 where a 400
       belonged. `required_error` / `errorMap` are now `error`.
-      **STILL NOT VERIFIED: a real PDF on production under puppeteer 25.**
-      The build succeeded and `/health` reports it, but production held no
-      completed assessment and no invoice to render, and raising a test
-      invoice would permanently take invoice number 1.
+      **PUPPETEER 25 IS VERIFIED ON PRODUCTION** (2026-11-12, build
+      `16629c6`): the superadmin bulk report export for a school with three
+      completed assessments returned a 1.1 MB zip holding three PDFs, in 87
+      seconds, and the process did not restart. That exercises Render's
+      Chrome download, the launch, and the bulk path no harness suite
+      renders. The PDFs were counted, not opened. The single-report route is
+      owner-only and answers 403 to a superadmin, correctly, so it was not
+      the route used.
+      **An earlier note here said production had no completed assessment.
+      That was a false negative of mine**: `/api/superadmin/students` nests
+      the id at `user.id`, the probe read `id`, and every lookup answered 404
+      — which was read as "none" instead of as a failed lookup.
   - **US salaries do NOT reach students. An earlier version of this very bullet
     said they did, and it was wrong** — a good example of why a claim here needs
     a grep behind it. `seed.ts:965+` does seed US dollar strings into
