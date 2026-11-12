@@ -57,6 +57,31 @@ describe("validatePromptInputFields", () => {
   });
 
   // 3. Over-length aspiration -> 400
+  // interests and strengths: tile selections that had no bound at all.
+  for (const field of ["interests", "strengths"] as const) {
+    it(`accepts ${field} exactly at the entry cap`, async () => {
+      expect(await validatePromptInputFields({ [field]: Array(30).fill("technology") })).toBeNull();
+    });
+    it(`rejects ${field} one over the entry cap`, async () => {
+      expect(await validatePromptInputFields({ [field]: Array(31).fill("technology") }))
+        .toMatch(new RegExp(`Too many ${field}`));
+    });
+    it(`rejects a non-string ${field} entry rather than storing its string form`, async () => {
+      expect(await validatePromptInputFields({ [field]: [1] })).toMatch(/only text/);
+    });
+    it(`rejects a ${field} entry over 64 characters, and accepts one at 64`, async () => {
+      expect(await validatePromptInputFields({ [field]: ["x".repeat(65)] })).toMatch(/too long/);
+      expect(await validatePromptInputFields({ [field]: ["x".repeat(64)] })).toBeNull();
+    });
+    it(`rejects ${field} that is not an array`, async () => {
+      expect(await validatePromptInputFields({ [field]: "technology" })).toMatch(/must be an array/);
+    });
+    it(`leaves an absent or null ${field} alone`, async () => {
+      expect(await validatePromptInputFields({})).toBeNull();
+      expect(await validatePromptInputFields({ [field]: null })).toBeNull();
+    });
+  }
+
   it("rejects a careerAspirations element longer than the cap", async () => {
     const tooLong = "x".repeat(MAX_ASPIRATION_LENGTH + 1);
     const err = await validatePromptInputFields({ careerAspirations: [tooLong] });

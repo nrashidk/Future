@@ -997,6 +997,15 @@ chose to review would sit for ever with no one able to see it.
       path and not by role. **B-03's first draft passed on the wrong 413**:
       200,000 quoted strings exceed the BYTE cap, and express answers 413 for
       that too, with no `reason`.
+      `interests` and `strengths` are also bounded where the other prompt
+      fields are (`assessmentValidation.ts`: 30 entries, 64 characters,
+      strings only — a number used to be stored as its string form).
+      `body-shape.mjs` B-07/B-08.
+      **STILL OPEN, and the owner's call: `POST /api/assessments` has no rate
+      limit.** A guest can still create rows as fast as they can send them,
+      each now small. A per-IP limit is the obvious answer and the wrong one
+      to add silently: a school computer lab is thirty students behind one
+      address.
       The byte cap in `server/index.ts` (512kb; 10mb for
       `/api/admin/questions/bulk`, superadmin-gated) is still there and is
       not a shape cap.

@@ -15,6 +15,8 @@
  *   B-02  and NOTHING was stored -- no new row, no oversized array anywhere
  *   B-03  the same through a different column, so B-01 is not about one field
  *   B-04  100,000 levels of nesting is refused, and the server is still up
+ *   B-07  a smaller array the door allows is refused by the FIELD's own bound
+ *   B-08  and its control: exactly the bound is accepted
  *   B-05  THE EXEMPTION IS REAL: the superadmin bulk question import is not
  *         answered 413 for a 5,001-row body. Whatever it does answer, the
  *         shape guard was not what answered it
@@ -128,6 +130,30 @@ try {
     rec("B-04", "100,000 levels of nesting is refused and the server is up",
       (r.status === 413 || r.status === 400) && health === 200,
       `HTTP ${r.status} reason=${r.body?.reason ?? "-"} health=${health}`);
+  }
+
+  // ------------------------------------------------------------------ B-07
+  // UNDER the door's limit and still far more than the form can produce: 31
+  // interests. The door lets it through by design; the field's own bound
+  // refuses it. Judged by the row count again.
+  {
+    const b = await counts();
+    const r = await guestPost("/api/assessments",
+      JSON.stringify({ ...PAYLOAD, interests: Array(31).fill("technology") }));
+    if (r.body?.id) made.push(r.body.id);
+    const a = await counts();
+    rec("B-07", "31 interests pass the door and are refused by the field",
+      r.status === 400 && /Too many interests/.test(r.body?.message ?? "") && a.n === b.n,
+      `HTTP ${r.status} "${r.body?.message}" rows ${b.n}->${a.n}`);
+  }
+  // ------------------------------------------------------------------ B-08
+  // Control for B-07: 30 is accepted, or B-07 would pass against a bound of 1.
+  {
+    const r = await guestPost("/api/assessments",
+      JSON.stringify({ ...PAYLOAD, interests: Array(30).fill("technology") }));
+    if (r.body?.id) made.push(r.body.id);
+    rec("B-08", "control: exactly 30 interests are accepted",
+      (r.status === 200 || r.status === 201) && typeof r.body?.id === "string", `HTTP ${r.status}`);
   }
 
   // ------------------------------------------------------------- B-05, B-06
