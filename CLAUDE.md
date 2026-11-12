@@ -308,10 +308,12 @@ a status that is specific, a row that actually changed.
   `guarded()`, which answers 500 and never `next()`.
   `contribution.guardFailure.test.ts` (4 cases); without the catch three of
   them hang unanswered and vitest reports the unhandled rejection.
-  **Not swept:** route HANDLERS with an await outside a try/catch have the
-  same exposure, and nobody has counted them. A process-level handler that
-  logs instead of exiting would cover all of them at once; that changes what
-  a crash looks like in production and is the owner's decision.
+  **And the default itself is replaced**: `utils/processGuards.ts` installs
+  an `unhandledRejection` listener that logs loudly and keeps serving, so the
+  next handler written with an await outside a try/catch costs ONE request
+  (it hangs until the client gives up) instead of the whole site. A log line
+  starting `[unhandledRejection]` is a handler that needs its own catch.
+  `uncaughtException` is deliberately left to exit.
 - **Substring instead of token.** Eight-plus instances. Matching `"Science"`
   inside `"Social Science"`, or a phrase inside a longer phrase that contains
   it. Match on tokens or whole strings, and assert the negative case.

@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import helmet from "helmet";
 import { checkBodyShape } from "@shared/bodyShape";
+import { installProcessGuards } from "./utils/processGuards";
 import morgan from "morgan";
 import compression from "compression";
 import cookieParser from "cookie-parser";
@@ -11,6 +12,10 @@ import { csrfProtection, validateCsrf, csrfTokenEndpoint } from "./middleware/cs
 
 // Validate environment variables before starting the application
 validateEnvironmentVariables();
+
+// A rejected promise with nothing awaiting it is logged instead of stopping
+// the site for everyone: see utils/processGuards.ts.
+installProcessGuards();
 
 const app = express();
 
