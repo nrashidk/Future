@@ -257,6 +257,10 @@ function SuperadminDashboardPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [studentSearchQuery, setStudentSearchQuery] = useState("");
   const [userTypeFilter, setUserTypeFilter] = useState<string>("all");
+  // Who has, and who has not, finished an assessment. FINISHED, not started:
+  // the question this answers is "who still has to do it", and a student who
+  // opened one and stopped still has to.
+  const [assessmentFilter, setAssessmentFilter] = useState<string>("all");
   const [licenseFilter, setLicenseFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("name");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
@@ -1432,6 +1436,17 @@ function SuperadminDashboardPage() {
                         <SelectItem value="premium">{t('superadmin.filterPremiumType')}</SelectItem>
                       </SelectContent>
                     </Select>
+                    <Select value={assessmentFilter} onValueChange={setAssessmentFilter}>
+                      <SelectTrigger className="w-48" data-testid="select-assessment-filter">
+                        <Filter className="w-4 h-4 me-2" />
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">{t('superadmin.filterAnyAssessment')}</SelectItem>
+                        <SelectItem value="none">{t('superadmin.filterNotFinished')}</SelectItem>
+                        <SelectItem value="done">{t('superadmin.filterFinished')}</SelectItem>
+                      </SelectContent>
+                    </Select>
                     <Button variant="outline" size="sm" asChild data-testid="button-export-students">
                       <a href="/api/superadmin/export/students?format=csv" download>
                         <Download className="w-4 h-4 me-2" />
@@ -1486,7 +1501,13 @@ function SuperadminDashboardPage() {
                       (userTypeFilter === 'students' && s.user.accountType === 'org_student') ||
                       (userTypeFilter === 'org_admins' && s.user.accountType === 'org_admin') ||
                       (userTypeFilter === 'premium' && s.user.accountType === 'individual' && s.user.isPremium);
-                    return matchesSearch && matchesType;
+                    const finished = s.completedAssessmentCount ?? 0;
+                    const matchesAssessment = assessmentFilter === 'all' ||
+                      // A school admin never takes one, so "not finished yet" would list
+                      // every admin for ever among the people who still have to.
+                      (assessmentFilter === 'none' && finished === 0 && s.user.accountType !== 'org_admin') ||
+                      (assessmentFilter === 'done' && finished > 0);
+                    return matchesSearch && matchesType && matchesAssessment;
                   });
                   const allFilteredSelected = filteredStudents.length > 0 && filteredStudents.every(s => selectedUserIds.has(s.user.id));
                   
