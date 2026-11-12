@@ -1,4 +1,5 @@
 import { useAuth } from "@/hooks/useAuth";
+import { subjectNameFor } from "@shared/subjects";
 import { pickLatestForGrade, toCanonicalGrade } from "@shared/grade";
 import { subjectLabelKey } from "@shared/subjects";
 import { PageLayout } from "@/components/layout/PageLayout";
@@ -291,7 +292,9 @@ function mapSubjectsToVisionSectors(
 
   // Translate raw category keys to localized display labels
   const andWord = tFn('and');
-  const subjectsText = topSubjects.join(` ${andWord} `);
+  // In the reader's language: the keys are canonical English names, and this
+  // sentence printed "في Computer Science و Science" in an Arabic report.
+  const subjectsText = topSubjects.map((s) => subjectNameFor(s, lang)).join(` ${andWord} `);
   const rawArray = Array.from(matchedRawCategories).slice(0, 2);
   const localizedArray = rawArray.map(raw => localizeCategory(raw, tFn));
   const categoriesText = localizedArray.length === 1
