@@ -270,7 +270,7 @@ export function registerAdminRoutes(app: Express) {
       }
       console.error("Error creating quiz question:", error);
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid question data", errors: error.errors });
+        return res.status(400).json({ message: "Invalid question data", errors: error.issues });
       }
       res.status(500).json({ message: "Failed to create quiz question" });
     }
@@ -294,7 +294,7 @@ export function registerAdminRoutes(app: Express) {
       }
       console.error("Error updating quiz question:", error);
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid question data", errors: error.errors });
+        return res.status(400).json({ message: "Invalid question data", errors: error.issues });
       }
       res.status(500).json({ message: "Failed to update quiz question" });
     }
@@ -731,7 +731,7 @@ export function registerAdminRoutes(app: Express) {
   // else, which keeps the 500 for genuine server faults.
   const studentValidationMessage = (error: unknown): string | null => {
     if (error instanceof z.ZodError) {
-      return error.errors.map((e) => e.message).join("; ");
+      return error.issues.map((e) => e.message).join("; ");
     }
     if (error instanceof Error && error.message.startsWith("School setup incomplete:")) {
       return error.message;
@@ -877,7 +877,7 @@ export function registerAdminRoutes(app: Express) {
       // a fixable form mistake.
       const invalid = studentValidationMessage(error);
       if (invalid) {
-        return res.status(400).json({ message: invalid, errors: error.errors });
+        return res.status(400).json({ message: invalid, errors: error.issues });
       }
       if (error.message?.includes('Quota exceeded') || error.message?.includes('capacity')) {
         return res.status(400).json({ message: error.message });
@@ -1139,7 +1139,7 @@ export function registerAdminRoutes(app: Express) {
         field: "studentName" | "studentGender" | "grade" | "dateOfBirth",
       ): string => {
         const parsed = studentDemographicsSchema.shape[field].safeParse("");
-        return parsed.success ? `${field} is required` : parsed.error.errors[0].message;
+        return parsed.success ? `${field} is required` : parsed.error.issues[0].message;
       };
 
       const rejectsAsCleared = (value: unknown) =>

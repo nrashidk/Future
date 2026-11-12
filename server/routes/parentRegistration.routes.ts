@@ -54,10 +54,10 @@ const registerParentSchema = z.object({
   // a partial affirmation is rejected rather than stored as a row that would
   // gate nothing while looking, to a later reader, like a consent record.
   consentsToProcessing: z.literal(true, {
-    errorMap: () => ({ message: "Consent to processing must be affirmed." }),
+    error: "Consent to processing must be affirmed.",
   }),
   attestsGuardianRelationship: z.literal(true, {
-    errorMap: () => ({ message: "The guardian-relationship attestation must be affirmed." }),
+    error: "The guardian-relationship attestation must be affirmed.",
   }),
   attestationText: z.string().min(1, "Missing attestationText: the exact wording shown to the parent."),
   locale: z.string().optional(),
@@ -68,7 +68,7 @@ export function registerParentRegistrationRoutes(app: Express) {
     try {
       const result = registerParentSchema.safeParse(req.body);
       if (!result.success) {
-        return res.status(400).json({ message: result.error.errors[0]?.message || "Invalid input" });
+        return res.status(400).json({ message: result.error.issues[0]?.message || "Invalid input" });
       }
       const { email, password, firstName, lastName, child, attestationText, locale } = result.data;
       const normalizedEmail = email.toLowerCase();

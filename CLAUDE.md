@@ -1034,15 +1034,21 @@ chose to review would sit for ever with no one able to see it.
       The byte cap in `server/index.ts` (512kb; 10mb for
       `/api/admin/questions/bulk`, superadmin-gated) is still there and is
       not a shape cap.
-      **Both majors are on branches, verified as far as this container can**:
-      `deps/puppeteer-25` (no source change; report and invoice PDFs
-      byte-for-byte the same page counts; NOT verified: Render's browser
-      download, which this container cannot do) and `deps/zod-4` (with
-      drizzle-zod 0.8 and @hookform/resolvers 5; all 50 suites, 1,411 unit
-      tests, three forms driven in a browser).
-      Neither major belongs on `main` unattended: Render auto-deploys every
-      push, puppeteer drives a sold feature (PDF download), and zod v4 touches
-      every validation schema. Branch them.
+      **BOTH MAJORS ARE MERGED (2026-11-12).** puppeteer 25 first, with no
+      source change; then zod 4 with drizzle-zod 0.8 and @hookform/resolvers
+      5. On the merged tree: 53 harness suites, the unit tests, a production
+      build, and all four zod-resolver forms driven in a browser — login,
+      forgot-password, parent registration, and reset-password end to end
+      (token planted in SQL, weak and mismatched passwords refused with the
+      form's own wording, the new password then signs in).
+      `ZodError.errors` is GONE in v4 — use `.issues`, which exists on both.
+      One of the ten sites was `any`-typed and invisible to tsc; at runtime it
+      would have been `undefined.map` inside a catch, a 500 where a 400
+      belonged. `required_error` / `errorMap` are now `error`.
+      **STILL NOT VERIFIED: a real PDF on production under puppeteer 25.**
+      The build succeeded and `/health` reports it, but production held no
+      completed assessment and no invoice to render, and raising a test
+      invoice would permanently take invoice number 1.
   - **US salaries do NOT reach students. An earlier version of this very bullet
     said they did, and it was wrong** — a good example of why a claim here needs
     a grep behind it. `seed.ts:965+` does seed US dollar strings into

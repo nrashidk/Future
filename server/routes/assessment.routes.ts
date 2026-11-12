@@ -684,7 +684,7 @@ export function registerAssessmentRoutes(app: Express) {
       void sweepExpiredGuestAssessmentsIfDue();
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+        return res.status(400).json({ message: "Invalid data", errors: error.issues });
       }
       console.error("Error creating assessment:", error);
       res.status(500).json({ message: "Failed to create assessment" });

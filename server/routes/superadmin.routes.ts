@@ -2142,7 +2142,7 @@ export function registerSuperadminRoutes(app: Express) {
     try {
       const parsed = invoiceCreateSchema.safeParse(req.body);
       if (!parsed.success) {
-        return res.status(400).json({ message: "Invalid invoice", code: "INVALID_INVOICE", errors: parsed.error.errors });
+        return res.status(400).json({ message: "Invalid invoice", code: "INVALID_INVOICE", errors: parsed.error.issues });
       }
       const input = parsed.data;
 
@@ -2533,7 +2533,7 @@ export function registerSuperadminRoutes(app: Express) {
     try {
       const validation = bulkUserIdsSchema.safeParse(req.body);
       if (!validation.success) {
-        return res.status(400).json({ message: validation.error.errors[0]?.message || "Invalid request body" });
+        return res.status(400).json({ message: validation.error.issues[0]?.message || "Invalid request body" });
       }
       const { userIds } = validation.data;
       
@@ -2588,7 +2588,7 @@ export function registerSuperadminRoutes(app: Express) {
     try {
       const validation = bulkOrgIdsSchema.safeParse(req.body);
       if (!validation.success) {
-        return res.status(400).json({ message: validation.error.errors[0]?.message || "Invalid request body" });
+        return res.status(400).json({ message: validation.error.issues[0]?.message || "Invalid request body" });
       }
       const { orgIds } = validation.data;
       
