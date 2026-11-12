@@ -581,6 +581,9 @@ function SuperadminDashboardPage() {
   // batch of passwords all fired on a single click, and the two that did ask
   // used the browser's native confirm().
   const [pendingConfirm, setPendingConfirm] = useState<{ title: string; body: string; confirmLabel: string; run: () => void } | null>(null);
+  // A user's assessments, read in a dialog. The button used to open the raw
+  // API response in a new tab.
+  const [historyUser, setHistoryUser] = useState<{ id: string; name: string } | null>(null);
   const [userSearchQuery, setUserSearchQuery] = useState("");
   const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState<SystemAnnouncement | null>(null);
@@ -697,6 +700,11 @@ function SuperadminDashboardPage() {
     onError: (error: unknown) => {
       toast({ title: t('superadmin.error'), description: serverErrorMessage(error) ?? t('superadmin.failedToUpdateEmail'), variant: "destructive" });
     },
+  });
+
+  const { data: historyData, isLoading: historyLoading } = useQuery<{ assessments: Array<{ id: string; grade?: string | null; assessmentType?: string | null; isCompleted?: boolean | null; createdAt?: string | null; completedAt?: string | null }> }>({
+    queryKey: ['/api/superadmin/students', historyUser?.id, 'assessments'],
+    enabled: !!historyUser,
   });
 
   const giveLicencesMutation = useMutation({
@@ -1700,13 +1708,14 @@ function SuperadminDashboardPage() {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  asChild
+                                  onClick={() => setHistoryUser({
+                                    id: student.user.id,
+                                    name: `${student.user.firstName || ""} ${student.user.lastName || ""}`.trim() || student.user.username || student.user.id,
+                                  })}
                                   title={t('superadmin.viewHistory')}
                                   data-testid={`button-view-assessments-${student.user.id}`}
                                 >
-                                  <a href={`/api/superadmin/students/${student.user.id}/assessments`} target="_blank" rel="noopener noreferrer">
-                                    <History className="w-4 h-4" />
-                                  </a>
+                                  <History className="w-4 h-4" />
                                 </Button>
                               </div>
                             </TableCell>
@@ -2829,6 +2838,60 @@ function SuperadminDashboardPage() {
             <Button onClick={() => { setIsBulkResultsModalOpen(false); setBulkResetResults(null); }} data-testid="button-close-bulk-reset">
               {t('superadmin.done')}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* A user's assessments */}
+      <Dialog open={!!historyUser} onOpenChange={(open) => !open && setHistoryUser(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{t('superadmin.userHistoryTitle', { name: historyUser?.name ?? "" })}</DialogTitle>
+            <DialogDescription>{t('superadmin.userHistoryDesc')}</DialogDescription>
+          </DialogHeader>
+          {historyLoading ? (
+            <p className="text-sm text-muted-foreground py-4">{t('superadmin.loading')}</p>
+          ) : (historyData?.assessments ?? []).length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4" data-testid="text-history-empty">{t('superadmin.userHistoryEmpty')}</p>
+          ) : (
+            <div className="max-h-[50vh] overflow-y-auto rounded-lg border" data-testid="list-user-history">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{t('superadmin.historyStarted')}</TableHead>
+                    <TableHead>{t('superadmin.historyGrade')}</TableHead>
+                    <TableHead>{t('superadmin.historyStatus')}</TableHead>
+                    <TableHead />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {(historyData?.assessments ?? []).map((a) => (
+                    <TableRow key={a.id}>
+                      <TableCell>{a.createdAt ? new Date(a.createdAt).toLocaleDateString() : "—"}</TableCell>
+                      <TableCell>{a.grade ?? "—"}</TableCell>
+                      <TableCell>
+                        <Badge variant={a.isCompleted ? 'default' : 'outline'}>
+                          {a.isCompleted ? t('superadmin.historyFinished') : t('superadmin.historyInProgress')}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {a.isCompleted && (
+                          <Button variant="ghost" size="sm" asChild>
+                            <a href={`/results?assessmentId=${a.id}`} target="_blank" rel="noopener noreferrer">
+                              <Eye className="w-4 h-4 me-2" />
+                              {t('superadmin.viewResults')}
+                            </a>
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+          <DialogFooter>
+            <Button onClick={() => setHistoryUser(null)}>{t('superadmin.done')}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
