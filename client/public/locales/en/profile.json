@@ -91,6 +91,7 @@
     "goToAdmin": "Go to Admin Dashboard"
   },
   "nav": {
+    "schools": "Schools",
     "superadmin": "Super Admin",
     "admin": "Admin",
     "quiz": "Quiz",

@@ -342,7 +342,7 @@ export default function Profile() {
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-admin">
                   <Link href="/admin/organizations">
                     <Building2 className="w-4 h-4 me-2" />
-                    {t("nav.admin")}
+                    {t("nav.schools")}
                   </Link>
                 </Button>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-questions">
