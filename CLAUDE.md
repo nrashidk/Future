@@ -126,7 +126,7 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `migration-029-dryrun`, `migration-030-dryrun`, `migration-032-dryrun`,
 `migration-033-dryrun`, `migration-034-dryrun`, `migration-035-dryrun`,
 `migration-036-dryrun`, `migration-037-dryrun`, `migration-038-dryrun` and
-`migration-039-dryrun`.
+`migration-039-dryrun`, plus `premium-solo` and `migration-041-dryrun`.
 
 `webhook-idempotency`, `webhook-group-backstop` and `setup-invite` need two
 environment
@@ -151,6 +151,11 @@ PGLITE_DIR=./.pgdata RESEND_WEBHOOK_SECRET=whsec_bG9jYWx0ZXN0c2VjcmV0 \
 RESEND_WEBHOOK_SECRET=whsec_bG9jYWx0ZXN0c2VjcmV0 \
   node testing/local/resend-webhook.mjs
 ```
+
+**Never run anything that reads the licence ledger after
+`migration-029-dryrun` on the same database.** 029's suite ends with its DOWN,
+which DROPS `license_consumptions`; `migration-041-dryrun` run next fails with
+"relation does not exist", which reads like a broken migration and is not one.
 
 **Run `migration-036-dryrun` AFTER `migration-035-dryrun`, never before.** 035's
 suite ends by re-running its own UP, which leaves `school_setup_tokens` without
@@ -393,6 +398,39 @@ in Postgres a failed statement aborts the surrounding transaction regardless —
 so the kind must be decided correctly before the insert. `NaN` from a Stripe
 payload with no `amount` is the case that matters. An unexplained licence count
 is recoverable from Stripe; a lost sale is not.
+
+**THREE KINDS OF TAKER ARE ON A POOL, and until 2026-11-12 the code knew
+two.** A school student (the school's pool), an account with a child profile
+(its own), and — the one that was missing — **a premium account with no child
+profile and no school, which is what the public checkout creates for a single
+buyer.** That account was on NO pool: `consumeLicense` returned null and
+`getLicenseCapacityForStudent` returned null, the free cap excludes premium
+accounts, so nothing charged it and nothing refused it. **One licence bought
+any number of premium reports.** This file said that hole was closed ("The
+Infinity ... gone"); it was closed for the child-profile account only, and
+`licences.mjs` L-06 gives its "self-payer" a child profile precisely so that
+it reads as one — the account without one was never tested. Found on the
+premium walk (three licences, a report generated, `/api/licenses/me`
+answering `onPool: false`), then proved by running: one licence, three
+reports, ledger 0.
+`shared/licensePool.ts` (9 tests) is the rule, pure because the charge runs
+inside the generation transaction and the capacity read runs outside it.
+A superadmin stays off every pool (their premium flag is not a purchase), and
+so does a school admin. Creation refuses an exhausted buyer **402
+`NO_LICENCES_AVAILABLE`**, and `/assessment` has a screen for it
+(`screen-personal-pool-empty`) that offers the existing reports and a mailto —
+NOT checkout, where a card payment by a premium account grants nothing.
+Migration 041 backfills the premium reports these accounts had already
+generated, so the ledger and the profile's own count agree.
+`premium-solo.mjs` (5 cases; S-05 is the control that a free account is still
+on no pool). Against the old code S-01 to S-04 fail with `ledger 0 -> 0 -> 0`
+and a third assessment created. `migration-041-dryrun.mjs` (11 cases, six of
+them controls). **Not covered / still open:** the profile's "Used" figure is
+still counted in the browser from completed premium assessments rather than
+read from the ledger; an individual's own grade is typed per assessment, so
+there is no same-grade repeat warning for them; and **no superadmin route
+adds licences to an individual** — the screen says "contact us" and the only
+remedy today is a database edit.
 
 Stripe cannot answer any licence question. It knows amounts and customers, not
 licences, schools, countries or curricula, and reward credits never touch it
@@ -844,6 +882,27 @@ so a student with one assessment in progress got a link to a raw 404.
   Arabic description; the locked country card says "United Arab Emirates"
   and "MOE National"; Next/Back arrows do not flip in Arabic; the Arabic
   PDF's content language was not inspected (7 pages, 1.46 MB).
+- **THE PREMIUM (INDIVIDUAL BUYER) WALK, 2026-11-12** (`fix.onebuyer.4ecb`,
+  Grade 12, MOE National). The unmetered pool above is what it found. Held:
+  three-to-five subjects enforced, the quiz and each personality page refuse
+  to advance unanswered, the report needs a strength chosen, 5 careers, PDF 7
+  pages 1.2 MB, data export 200, the three-step account deletion stops at a
+  password, staff routes 403, and the report re-renders in Arabic.
+  **Flagged, not changed:** Step 1 accepts an age of 45; the quiz asks "What
+  role does the UAE play in OPEC?" and marks "Major oil producer and
+  influential member" correct — the UAE left OPEC on 1 May 2026, so the
+  marked answer is now wrong and the question needs rewriting or removing; the
+  next-steps templates read badly for some careers ("admission requirements
+  for Entrepreneur programs", "documents for Varies (business education
+  helpful but not required)", a step labelled "Next Steps" inside Next Steps,
+  and "Keep your Mathematics ... grades high" for a Social Worker); the
+  Arabic profile says "الرخص" where the rest of the product says "تراخيص";
+  the deletion preview omits the password-reset requests the data summary
+  counts.
+- **THE SUPERADMIN USERS TAB FILTERS BY FINISHED ASSESSMENT**
+  (`select-assessment-filter`: all / not finished yet / finished). FINISHED,
+  not started — the question is who still has to do it. School admins are
+  left out of "not finished yet": they never take one.
 - Nothing about curricula: that gap is closed. Offering a curriculum now
   creates its six subjects, empty ones were removed, and `new-country.mjs`
   NC-09g enforces the invariant.
