@@ -211,7 +211,15 @@ Be strict but fair. Educational quality matters.`,
 
     const data = await response.json();
     const rawText = data.content?.[0]?.text || "{}";
-    const content = JSON.parse(rawText);
+    // The prompt asks for bare JSON and the model does not always oblige: a
+    // reply wrapped in a ```json fence, or with a sentence before it, made
+    // JSON.parse throw, and a throw here is "the check did not run" -- so a
+    // review that HAD happened was discarded and the submission left for a
+    // person. Take the outermost object; anything with no object in it still
+    // throws and is still, correctly, not a verdict.
+    const open = rawText.indexOf("{");
+    const close = rawText.lastIndexOf("}");
+    const content = JSON.parse(open >= 0 && close > open ? rawText.slice(open, close + 1) : rawText);
     
     /**
      * The check RAN. `|| 0` is deliberate and already correct: a missing or

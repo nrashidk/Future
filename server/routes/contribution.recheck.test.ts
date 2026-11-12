@@ -128,6 +128,21 @@ describe("re-running the automatic check", () => {
     });
   });
 
+  it("C-06 a verdict wrapped in a markdown fence is still a verdict", async () => {
+    // The prompt asks for bare JSON; the model sometimes fences it anyway.
+    // That used to throw in JSON.parse and be recorded as "did not run".
+    const inner = JSON.stringify({ overallScore: 77, questions: [{ index: 0, isValid: true, score: 77, issues: [] }] });
+    anthropicFetch.mockResolvedValue({
+      ok: true, status: 200, text: async () => "",
+      json: async () => ({ content: [{ text: "Here is my review:\n```json\n" + inner + "\n```" }] }),
+    });
+
+    const r = await recheck();
+
+    expect(r.status).toBe(200);
+    expect(r.body).toMatchObject({ status: "peer_review", llmVerificationStatus: "verified", llmVerificationScore: 77 });
+  });
+
   it("C-02 one that runs and scores below the threshold stays pending", async () => {
     anthropicFetch.mockResolvedValue(anthropicReply(31));
 
