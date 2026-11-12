@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -148,6 +148,32 @@ export default function CountryManagement() {
     count: 10,
   });
   
+  /**
+   * The subjects a question can actually be generated FOR: the rows registered
+   * for this country and curriculum, which is what the route resolves against.
+   * The dialog used to list `country.subjects`, the country's own free-text
+   * list -- for a country written by the AI research that is "Icelandic
+   * Language and Literature" and friends, every one of which the route
+   * refuses ("does not match anything in the catalogue").
+   */
+  const { data: registeredSubjects = [] } = useQuery<Array<{ id: string; name: string; code: string; curriculum: string }>>({
+    queryKey: ['/api/superadmin/subjects', selectedCountry?.id, generateForm.curriculum],
+    queryFn: async () => {
+      const params = new URLSearchParams({ countryId: selectedCountry!.id, curriculum: generateForm.curriculum });
+      const res = await fetch(`/api/superadmin/subjects?${params.toString()}`, { credentials: "include" });
+      return res.ok ? res.json() : [];
+    },
+    enabled: isGenerateQuestionsOpen && !!selectedCountry?.id && !!generateForm.curriculum,
+  });
+  const generatableSubjects = Array.from(new Set(registeredSubjects.map((r) => r.name)));
+  useEffect(() => {
+    if (!isGenerateQuestionsOpen || generatableSubjects.length === 0) return;
+    if (!generatableSubjects.includes(generateForm.subject)) {
+      setGenerateForm((f) => ({ ...f, subject: generatableSubjects[0] }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isGenerateQuestionsOpen, generatableSubjects.join("|")]);
+
   const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
   const [renameForm, setRenameForm] = useState({
     countryId: "",
@@ -1054,7 +1080,7 @@ export default function CountryManagement() {
                   <SelectValue placeholder={t('countries.selectSubjectPlaceholder')} />
                 </SelectTrigger>
                 <SelectContent>
-                  {(selectedCountry?.subjects || ["Mathematics", "Science", "English", "Social Studies", "Computer Science"]).map((s) => (
+                  {generatableSubjects.map((s) => (
                     <SelectItem key={s} value={s}>{s}</SelectItem>
                   ))}
                 </SelectContent>
