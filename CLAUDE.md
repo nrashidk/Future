@@ -121,7 +121,7 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `superadmin-writes`, `country-writes`, `setup-invite`, `school-setup-link`,
 `setup-stage`, `superadmin-delete-user`, `resend-webhook`, `guest-sweep`,
 `guest-identity`, `invoices`, `invoice-pdf`, `body-shape`,
-`contribution-claim`, plus
+`contribution-claim`, `guest-rate`, plus
 `invoice-send`, plus
 `migration-029-dryrun`, `migration-030-dryrun`, `migration-032-dryrun`,
 `migration-033-dryrun`, `migration-034-dryrun`, `migration-035-dryrun`,
@@ -1021,11 +1021,13 @@ chose to review would sit for ever with no one able to see it.
       fields are (`assessmentValidation.ts`: 30 entries, 64 characters,
       strings only — a number used to be stored as its string form).
       `body-shape.mjs` B-07/B-08.
-      **STILL OPEN, and the owner's call: `POST /api/assessments` has no rate
-      limit.** A guest can still create rows as fast as they can send them,
-      each now small. A per-IP limit is the obvious answer and the wrong one
-      to add silently: a school computer lab is thirty students behind one
-      address.
+      **Guest assessment creation is rate-limited per address: 60 an hour,
+      GUESTS ONLY** (`guestAssessmentLimiter`). Signed-in takers are skipped
+      entirely, because a school lab is thirty students behind one address
+      and a per-address limit on everyone would lock a classroom out
+      mid-lesson. `guest-rate.mjs` (5 cases): R-04 is the one that matters —
+      a signed-in student at the exhausted address still starts an
+      assessment — and R-03 is the control that the limit is per address.
       The byte cap in `server/index.ts` (512kb; 10mb for
       `/api/admin/questions/bulk`, superadmin-gated) is still there and is
       not a shape cap.
