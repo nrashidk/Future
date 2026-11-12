@@ -26,7 +26,6 @@ import {
   Sparkles,
   Shield,
   Crown,
-  DollarSign,
   Loader2,
   User
 } from "lucide-react";
@@ -1217,7 +1216,7 @@ export default function Results() {
                 {/* Salary & Growth Info — PREMIUM ONLY. Omitted from the free
                     report, not fogged: see isPremiumReport above. */}
                 {isPremiumReport && (
-                  <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="grid grid-cols-1 gap-3 mb-4">
                     <div className="p-3 bg-background/30 rounded-lg text-center">
                       <TrendingUp className="w-5 h-5 mx-auto mb-1 text-primary" />
                       <p className="text-xs text-muted-foreground mb-1">{t('growthOutlook')}</p>
@@ -1226,13 +1225,14 @@ export default function Results() {
                         {growthOutlookWatchNote(rec.career?.onetGrowthBand, t) ?? t('growthSource')}
                       </p>
                     </div>
-                    {rec.career?.averageSalary && (
-                      <div className="p-3 bg-background/30 rounded-lg text-center">
-                        <DollarSign className="w-5 h-5 mx-auto mb-1 text-primary" />
-                        <p className="text-xs text-muted-foreground mb-1">{t('avgSalary')}</p>
-                        <p className="font-bold text-sm">{t('typical')} {rec.career.averageSalary}</p>
-                      </div>
-                    )}
+                    {/* THE LOCAL FIGURE OR NOTHING. This tile printed
+                        `averageSalary`, which is seeded from US data in US
+                        dollars — so a Grade 10 student in the UAE was told an
+                        environmental engineer earns "$65,000 - $105,000".
+                        American pay is not local pay, and converting it at
+                        the peg makes the currency right and the number still
+                        wrong. The PDF never showed it, and there is no local
+                        figure to show instead, so the tile is gone. */}
                   </div>
                 )}
 
@@ -1392,7 +1392,9 @@ export default function Results() {
                       {(rec.premiumActionSteps || rec.actionSteps).map((step: string, i: number) => (
                         <li key={i} className="flex items-start gap-2 text-sm font-body">
                           <span className="text-primary font-bold flex-shrink-0">{i + 1}.</span>
-                          <span className="whitespace-pre-line">{step}</span>
+                          {/* Markdown, as the PDF renders them: the steps carry
+                              **bold** lead-ins that this printed as asterisks. */}
+                          <ReportMarkdown className="flex-1 min-w-0">{step}</ReportMarkdown>
                         </li>
                       ))}
                     </ul>
