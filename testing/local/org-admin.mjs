@@ -295,6 +295,53 @@ console.log(`B's student under test: ${bVictim.username}\n`);
     `route total=${ov.body?.totalStudents} completed=${ov.body?.completedAssessments} (db ${truth.students}/${truth.done})`);
 }
 
+// ------------------------------------------------------------------ O-13, O-14
+/**
+ * A SCHOOL ADMINISTRATOR DOES NOT SIT AN ASSESSMENT (owner's decision,
+ * 2026-11-12). The payload is a VALID one -- validation runs before the role
+ * check, so a malformed body would be refused 400 and "pass" having never
+ * reached the guard. Judged by the code AND by the table: no assessment row
+ * for the admin's user.
+ *
+ * O-14 is the control: the SAME payload from a student of the same school is
+ * accepted, or O-13 would pass against a route that refuses everybody.
+ */
+{
+  const payload = {
+    favoriteSubjects: ["Mathematics", "Science", "English"],
+    interests: ["technology"],
+    assessmentType: "basic",
+    name: "Whoever", grade: "11", gender: "female",
+    countryId: "uae", curriculum: "MOE National",
+  };
+  const count = async () => {
+    const { Client } = await import("pg");
+    const c = new Client({
+      connectionString: `postgres://postgres:postgres@127.0.0.1:${process.env.PGLITE_TCP_PORT ?? 55432}/postgres`,
+    });
+    await c.connect();
+    const { rows } = await c.query(
+      `SELECT COUNT(*)::int AS n FROM assessments a
+         JOIN organization_members m ON m.user_id = a.user_id
+        WHERE m.organization_id = $1 AND m.role = 'admin'`, [A.orgId]);
+    await c.end();
+    return rows[0].n;
+  };
+  const before = await count();
+  const r = await A.session.post("/api/assessments", payload);
+  const after = await count();
+  rec("O-13", "a school admin cannot start an assessment",
+    r.status === 403 && r.body?.code === "SCHOOL_ADMIN_NO_ASSESSMENT" && after === before,
+    `HTTP ${r.status} code=${r.body?.code ?? "-"} admin assessments ${before}->${after}`);
+
+  const stu = new Session("aStudentTakes");
+  await stu.login(A.students[1].username, A.students[1].password);
+  const ok = await stu.post("/api/assessments", payload);
+  rec("O-14", "control: a student of the same school still can",
+    typeof ok.body?.id === "string",
+    `HTTP ${ok.status} ${ok.body?.id ? "id returned" : JSON.stringify(ok.body).slice(0, 120)}`);
+}
+
 const pass = results.filter((r) => r.pass).length;
 const fail = results.filter((r) => !r.pass);
 console.log(`\n${"=".repeat(78)}`);

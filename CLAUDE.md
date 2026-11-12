@@ -730,13 +730,24 @@ so a student with one assessment in progress got a link to a raw 404.
   that is 100% by construction fails. **Not changed:** the superadmin's
   nationwide analytics has no roster to divide by and still reports the old
   pair.
-- **Seen on the same walk, flagged and not changed:** `/admin` (the quiz
-  bank, a superadmin page) renders for a school admin who types the URL —
-  the API refuses correctly (403) but the page then says "No questions
-  found. Create your first question", with Create and Import buttons that
-  cannot work. And the school admin's navigation offers "Assessment", which
-  opens the student form asking the ADMIN for a name, age, grade and gender.
-
+- **A SCHOOL ADMIN NO LONGER TAKES THE ASSESSMENT OR REACHES THE QUIZ BANK**
+  (owner's decision, 2026-11-12: a school admin adds students and nothing
+  else). Both were seen on the walk above.
+  `POST /api/assessments` refuses a member row with role `admin` — **403
+  `SCHOOL_ADMIN_NO_ASSESSMENT`** — read from the member row like the student
+  test beside it. Creation only. The "Assessment" nav entry is gone for org
+  admins on all four screens that drew it, and `/assessment` sends them to
+  the roster. `org-admin.mjs` O-13 sends a VALID payload (validation runs
+  before the role check, so a malformed one passes on a 400) and counts the
+  admin's assessment rows; O-14 is the control that a student of the same
+  school still can. Mutation-tested: without the guard O-13 reports
+  `HTTP 200 ... 0->1`.
+  `/admin` (the quiz bank) is wrapped in `Admin.tsx`: superadmin or
+  redirected. **The API was always the control and still is** — the page
+  used to render a 403 as "No questions found. Create your first question".
+  The page gate has no harness suite; it was driven in a browser as five
+  roles. A superadmin who is not a school admin can still start an
+  assessment; nobody asked for that to change.
 - Nothing about curricula: that gap is closed. Offering a curriculum now
   creates its six subjects, empty ones were removed, and `new-country.mjs`
   NC-09g enforces the invariant.
