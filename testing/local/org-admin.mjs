@@ -353,7 +353,11 @@ console.log(`B's student under test: ${bVictim.username}\n`);
 {
   const base = { grade: "10", studentGender: "female", dateOfBirth: "2010-06-02" };
   const one = await A.session.post(`/api/admin/organizations/${A.orgId}/members`,
-    { ...base, fullName: "ناصر العلي", studentId: "ZZ-002" });
+    { ...base, fullName: "ناصر العلي", studentId: "ZZ-002",
+      // What the real Add Student form sends when its optional username field
+      // is left blank. Omitting it here is how an EMPTY sign-in name reached
+      // production past this very case.
+      username: "" });
   const u1 = one.body?.user?.username;
   rec("O-15", "a student named in Arabic gets a readable Latin sign-in name",
     one.status === 201 && typeof u1 === "string" && /^[a-z0-9]+(\.[a-z0-9]+)*$/.test(u1) && !u1.includes("zz"),

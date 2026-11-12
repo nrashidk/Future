@@ -5310,8 +5310,15 @@ export class DatabaseStorage implements IStorage {
     // The student id is no longer part of it: it made the name's case and
     // punctuation whatever the school's numbering happened to be.
     const { resolveUsername } = await import("@shared/username");
-    const generated = !userData.username;
-    let username = userData.username
+    // `||`, NOT `??`. The Add Student form posts its optional username field
+    // as an EMPTY STRING when left blank, and `"" ?? generated` is "": the
+    // first version of this change created a student whose sign-in name was
+    // empty, on production, and showed the admin a credentials card with
+    // nothing beside "Username". The suites passed because their fixtures
+    // omit the field instead of sending it blank.
+    const supplied = userData.username?.trim() || undefined;
+    const generated = !supplied;
+    let username = supplied
       ?? await resolveUsername(firstName, lastName, async (c) => !!(await this.getUserByUsername(c)));
 
     let attempts = 0;
@@ -5448,7 +5455,7 @@ export class DatabaseStorage implements IStorage {
           attempts++;
           username = generated
             ? await resolveUsername(firstName, lastName, async (c) => c === username || !!(await this.getUserByUsername(c)))
-            : `${userData.username}${attempts + 1}`;
+            : `${supplied}${attempts + 1}`;
         } else {
           throw error;
         }

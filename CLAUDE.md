@@ -1619,7 +1619,15 @@ so a student with one assessment in progress got a link to a raw 404.
   production 2026-11-12 by adding students as a school admin: an Arabic name
   became `..ZZ-002`, the rest `ali.mohammed.n6hgky`. It now calls
   `resolveUsername`; the student id is no longer part of the name.
-  `org-admin.mjs` O-15/O-16, through both real routes. **Run `username.mjs`
+  `org-admin.mjs` O-15/O-16, through both real routes. **THAT FIX SHIPPED A WORSE
+  BUG FOR TWO HOURS, and it was mine**: it read `userData.username ??
+  generated`, the Add Student form posts a blank optional field as `""`, and
+  `"" ?? x` is `""` — so a student added by hand got an EMPTY sign-in name
+  and a credentials card with nothing beside "Username". One such student was
+  created on production and removed. O-15 passed throughout because the
+  fixture omitted the field; it now sends `username: ""` exactly as the form
+  does, and fails with `username=""` against the old line. **A fixture has
+  to send what the real form sends, including the blanks.** **Run `username.mjs`
   on a fresh database or before `org-admin`**: O-15 creates `nasr.alaly`, so
   U-02 then correctly gets `nasr.alaly2` and fails.
   The same walk found the bulk-upload dialog showing "Failed 2" and nothing
