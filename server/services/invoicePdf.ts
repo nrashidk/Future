@@ -35,14 +35,20 @@ const executablePath = () => process.env.PUPPETEER_EXECUTABLE_PATH;
  * only when VAT registration is actually in effect — the document states a
  * legal position, and the environment is what decides which.
  */
+const clean = (v: string | undefined): string | null => {
+  const t = (v ?? "").trim();
+  return t.length > 0 ? t : null;
+};
+
 export function supplierFromEnv(language: string): InvoiceDocumentSupplier {
   const ar = language === "ar";
   return {
-    legalName: ar
-      ? (process.env.INVOICE_LEGAL_NAME_AR
-        || "خدمات مسار المستقبل للبحث والتطوير في مجال تقنيات التعليم (ذ.م.م – ش.ش.و)")
-      : (process.env.INVOICE_LEGAL_NAME
-        || "Future Path Services for Research and development in the field of educational technologies (S.P.S - L.L.C)"),
+    // NO DEFAULT. This used to fall back to a company name written into the
+    // source from a DRAFT trade licence -- a name that had not been issued
+    // and could change before it is. A document that names a legal entity
+    // states who is owed the money; printing one that does not exist yet is
+    // worse than printing a placeholder a reader recognises as unfinished.
+    legalName: clean(ar ? process.env.INVOICE_LEGAL_NAME_AR : process.env.INVOICE_LEGAL_NAME),
     tradingName: ar ? "مسار المستقبل" : "Future Path",
     address: ar ? (process.env.INVOICE_ADDRESS_AR ?? null) : (process.env.INVOICE_ADDRESS ?? null),
     email: process.env.EMAIL_REPLY_TO || "support@futurepath.ae",
@@ -58,6 +64,7 @@ export function supplierFromEnv(language: string): InvoiceDocumentSupplier {
 /** Whether anything on the payment block is still a placeholder. */
 export function supplierDetailsMissing(s: InvoiceDocumentSupplier): string[] {
   const missing: string[] = [];
+  if (!s.legalName) missing.push("legalName");
   if (!s.address) missing.push("address");
   if (!s.bankAccountName) missing.push("bankAccountName");
   if (!s.bankName) missing.push("bankName");

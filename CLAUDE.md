@@ -172,7 +172,8 @@ no ledger row. Reconciliation then correctly flags a state that only exists
 here. Any suite that asserts on reconciliation needs to do the same.
 `testing/local/README.md` has the details.
 
-`invoice-send` needs, on `up.ts`, the five `INVOICE_*` supplier variables as
+`invoice-send` needs, on `up.ts`, the `INVOICE_*` supplier variables
+(`INVOICE_LEGAL_NAME` and `INVOICE_LEGAL_NAME_AR` included) as
 well — the send route refuses with `SUPPLIER_DETAILS_MISSING` rather than
 mailing a school a bill carrying `[YOUR IBAN]`, so without them E-06 onward
 fail for that reason and not a real one.
@@ -1286,8 +1287,16 @@ chose to review would sit for ever with no one able to see it.
   (`SUPPLIER_DETAILS_MISSING`). The payment panel is the one part of this
   document a school acts on, and a bill carrying `[YOUR IBAN]` into a finance
   inbox is worse than no bill — it cannot be paid, and it gets a supplier
-  queried rather than settled. **Still needs setting on Render:**
-  `INVOICE_ADDRESS`, `INVOICE_BANK_NAME`, `INVOICE_BANK_ACCOUNT_NAME`,
+  queried rather than settled.
+  **THE LEGAL NAME HAS NO DEFAULT ANY MORE.** `supplierFromEnv` used to fall
+  back to a company name written into the source from a DRAFT trade licence —
+  a name not yet issued. It is now `INVOICE_LEGAL_NAME` /
+  `INVOICE_LEGAL_NAME_AR` or nothing: the document prints
+  `[REGISTERED LEGAL NAME]`, and the send refuses with `legalName` in its
+  missing list. The Arabic name does not borrow the English one.
+  `invoicePdf.supplier.test.ts` (6).
+  **Still needs setting on Render:**
+  `INVOICE_LEGAL_NAME`, `INVOICE_LEGAL_NAME_AR`, `INVOICE_ADDRESS`, `INVOICE_ADDRESS_AR`, `INVOICE_BANK_NAME`, `INVOICE_BANK_ACCOUNT_NAME`,
   `INVOICE_IBAN`, `INVOICE_SWIFT` — and `INVOICE_TRN` ONLY once VAT
   registration is actually in effect, since that one variable is what turns a
   proforma into a tax invoice.

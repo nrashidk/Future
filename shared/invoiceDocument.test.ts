@@ -163,3 +163,16 @@ describe("Arabic", () => {
     expect(html).not.toMatch(/[٠-٩]/);
   });
 });
+
+describe("the supplier's legal name", () => {
+  it("renders a visible placeholder when it is not set, in both places it appears", () => {
+    const html = buildInvoiceDocument({ invoice: base(), supplier: { ...supplier, legalName: null }, language: "en" });
+    expect(html.match(/\[REGISTERED LEGAL NAME\]/g)?.length).toBe(2);
+    expect(html).not.toContain("null");
+  });
+  it("never falls back to a name of its own", () => {
+    const html = buildInvoiceDocument({ invoice: base(), supplier: { ...supplier, legalName: null }, language: "ar" });
+    expect(html).toContain("[الاسم القانوني المسجَّل]");
+    expect(html).not.toMatch(/S\.P\.S|ذ\.م\.م/);
+  });
+});

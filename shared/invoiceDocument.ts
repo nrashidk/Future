@@ -34,7 +34,8 @@ import { invoiceDocumentType } from "./invoice";
 
 export interface InvoiceDocumentSupplier {
   /** Registered trade name, in the document's language. */
-  legalName: string;
+  /** Null until the registered name is set: never defaulted, see invoicePdf.ts. */
+  legalName: string | null;
   /** The brand the school recognises. */
   tradingName: string;
   address?: string | null;
@@ -206,7 +207,7 @@ export function buildInvoiceDocument(args: {
   <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:28px;padding-bottom:18px;border-bottom:2px solid #1c1917">
     <div>
       <div style="font-size:21px;font-weight:700;margin-bottom:6px">${esc(sup.tradingName)}</div>
-      <div style="font-size:9.5px;line-height:1.6;color:#57534e;max-width:330px">${esc(sup.legalName)}</div>
+      <div style="font-size:9.5px;line-height:1.6;color:#57534e;max-width:330px">${orPlaceholder(sup.legalName, lang === "ar" ? "[الاسم القانوني المسجَّل]" : "[REGISTERED LEGAL NAME]")}</div>
       <div style="font-size:9.5px;line-height:1.7;color:#57534e;margin-top:7px">
         ${orPlaceholder(sup.address, lang === "ar" ? "[العنوان المسجَّل]" : "[REGISTERED ADDRESS]")}<br>
         <span dir="ltr">${esc(sup.email ?? "")}${sup.website ? " · " + esc(sup.website) : ""}</span>
@@ -320,7 +321,7 @@ export function buildInvoiceDocument(args: {
 
   <div style="border-top:1px solid #e7e5e4;padding-top:12px">
     ${isTax ? "" : `<p style="margin:0 0 6px;font-size:9.5px;color:#44403c;line-height:1.7">${t.proformaNote}</p>`}
-    <p style="margin:0;font-size:9.5px;color:#78716c;line-height:1.7">${t.questions} <span dir="ltr">${esc(sup.email ?? "")}</span> · ${t.issuedBy} ${esc(sup.legalName)}</p>
+    <p style="margin:0;font-size:9.5px;color:#78716c;line-height:1.7">${t.questions} <span dir="ltr">${esc(sup.email ?? "")}</span> · ${t.issuedBy} ${orPlaceholder(sup.legalName, lang === "ar" ? "[الاسم القانوني المسجَّل]" : "[REGISTERED LEGAL NAME]")}</p>
   </div>
 
 </div>
