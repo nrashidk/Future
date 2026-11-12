@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { SUBJECT_IDS } from "@shared/subjects";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, Redirect } from "wouter";
@@ -88,6 +89,9 @@ function AdminQuizBank() {
   const [editingQuestion, setEditingQuestion] = useState<QuizQuestion | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  // Deleting a question from the national bank fired on one click, with no
+  // way back. It asks first now, naming the question.
+  const [deletingQuestion, setDeletingQuestion] = useState<QuizQuestion | null>(null);
 
   const { data: questions = [], isLoading } = useQuery<QuizQuestion[]>({
     queryKey: ['/api/admin/questions', filters],
@@ -429,7 +433,7 @@ function AdminQuizBank() {
                       <Button 
                         variant="ghost" 
                         size="icon"
-                        onClick={() => deleteMutation.mutate(question.id)}
+                        onClick={() => setDeletingQuestion(question)}
                         data-testid={`button-delete-${index}`}
                       >
                         <Trash2 className="w-4 h-4 text-destructive" />
@@ -474,6 +478,26 @@ function AdminQuizBank() {
           );
         })()}
       </div>
+      <AlertDialog open={!!deletingQuestion} onOpenChange={(open) => !open && setDeletingQuestion(null)}>
+        <AlertDialogContent data-testid="dialog-confirm-delete-question">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('quiz.confirmDeleteTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('quiz.confirmDeleteBody', { question: (deletingQuestion?.question ?? "").slice(0, 140) })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('quiz.confirmDeleteCancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => { const q = deletingQuestion; setDeletingQuestion(null); if (q) deleteMutation.mutate(q.id); }}
+              data-testid="button-confirm-delete-question"
+            >
+              {t('quiz.confirmDeleteOk')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

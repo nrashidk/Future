@@ -71,7 +71,11 @@
     "saveSuccess": "تم {{action}} السؤال بنجاح",
     "saveError": "فشل {{action}} السؤال",
     "updated": "تحديث",
-    "created": "إضافة"
+    "created": "إضافة",
+    "confirmDeleteTitle": "حذف هذا السؤال؟",
+    "confirmDeleteBody": "سيُحذف «{{question}}» من بنك الأسئلة لجميع الطلاب. لا يمكن التراجع عن ذلك.",
+    "confirmDeleteCancel": "إبقاء السؤال",
+    "confirmDeleteOk": "حذف السؤال"
   },
   "analytics": {
     "title": "لوحة التحليلات",

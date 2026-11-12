@@ -71,7 +71,11 @@
     "saveSuccess": "Question {{action}} successfully",
     "saveError": "Failed to {{action}} question",
     "updated": "updated",
-    "created": "created"
+    "created": "created",
+    "confirmDeleteTitle": "Delete this question?",
+    "confirmDeleteBody": "\"{{question}}\" will be removed from the question bank for every student. This cannot be undone.",
+    "confirmDeleteCancel": "Keep it",
+    "confirmDeleteOk": "Delete question"
   },
   "analytics": {
     "title": "Analytics Dashboard",
