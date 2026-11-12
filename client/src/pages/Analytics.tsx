@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Link } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
+import { StaffOnly } from "@/components/StaffOnly";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { gradeToNumber, gradeSortKey } from "@shared/grade";
@@ -81,6 +82,10 @@ interface Organization {
 }
 
 export default function Analytics() {
+  return <StaffOnly><AnalyticsPage /></StaffOnly>;
+}
+
+function AnalyticsPage() {
   const { user } = useAuth();
   const { t } = useTranslation('admin');
   const { language } = useLanguage();

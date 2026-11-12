@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { StaffOnly } from "@/components/StaffOnly";
 import { queryClient, apiRequest, serverErrorMessage, serverErrorCode } from "@/lib/queryClient";
 import { validateEmail } from "@/lib/utils";
 import { BULK_REQUIRED_COLUMNS, parseBulkStudentCsv } from "@/lib/bulkStudentCsv";
@@ -217,6 +218,10 @@ function getMemberStatus(member: OrganizationMember, t: (key: string) => string)
 }
 
 export default function AdminOrganizations() {
+  return <StaffOnly><AdminOrganizationsPage /></StaffOnly>;
+}
+
+function AdminOrganizationsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const { t } = useTranslation('admin');
