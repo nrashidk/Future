@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { isArabicText } from "@shared/arabicText";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -298,9 +299,18 @@ export default function TranslationManager() {
 
   const currentCoverage = coverage?.namespaces.find(n => n.namespace === selectedNs);
 
+  // "Has a value" is not "is translated". 31 of 68 careers carry their ENGLISH
+  // description in description_ar -- a deliberate placeholder in
+  // career-arabic-content.ts -- and this screen counted every one as done, so
+  // it read "All careers have Arabic translations" over reports that printed
+  // English paragraphs to Arabic readers. A field counts when it has Arabic
+  // letters in it.
+  const careerArComplete = (c: { titleAr?: string | null; descriptionAr?: string | null; requiredSkillsAr?: string[] | null }) =>
+    isArabicText(c.titleAr) && isArabicText(c.descriptionAr) && !!c.requiredSkillsAr?.length;
+
   const careersWithMissingAr = useMemo(() => {
     if (!Array.isArray(careers)) return [];
-    return careers.filter(c => !c.titleAr || !c.descriptionAr || !c.requiredSkillsAr?.length);
+    return careers.filter(c => !careerArComplete(c));
   }, [careers]);
 
   const cvqWithMissingAr = useMemo(() => {
@@ -605,7 +615,7 @@ export default function TranslationManager() {
                           ) : (
                             <div className="grid grid-cols-[auto_1fr_1fr_auto] gap-3 items-center p-3">
                               <div className="w-8">
-                                {career.titleAr && career.descriptionAr && career.requiredSkillsAr?.length
+                                {careerArComplete(career)
                                   ? <CheckCircle className="w-4 h-4 text-green-500" />
                                   : <AlertCircle className="w-4 h-4 text-amber-500" />
                                 }
