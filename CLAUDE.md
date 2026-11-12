@@ -989,6 +989,42 @@ so a student with one assessment in progress got a link to a raw 404.
     cannot get a sector map from the product today. **Each attempt also
     renames the national curriculum** — Iceland ended with four spellings of
     one curriculum, 24 subject rows, from four presses.
+  - **THE "CAREERS WITH NO ARABIC DESCRIPTION" HAVE A CAUSE, AND IT IS 31 OF
+    68.** `career-arabic-content.ts` stores the ENGLISH description in
+    `description_ar` for 31 careers as a deliberate `TODO(i18n)` placeholder
+    (titles, skills and education level are real Arabic). The Translation
+    Manager counted any non-empty value as translated and read "All careers
+    have Arabic translations — 100%". `shared/arabicText.ts` (2 tests): a
+    field counts when it contains Arabic letters; the screen says 31 missing.
+    **The 31 descriptions are still untranslated** — that is content, not
+    code, and it is the owner's call who writes them.
+  - **Every successful price save said "Cleared. This country falls back to
+    the USD default"** — `apiRequest` returns the Response and the handler
+    read `.formatted` off it. The price WAS stored (ISK 1,500 verified).
+  - Saving a country failed with "Failed to update country" and no reason.
+    The reason on production: the AI research wrote a 162-character plan name
+    and the edit form's limit is 100. The server's sentence is shown now.
+  - **The generate-questions dialog offered subjects the route refuses.** It
+    listed `countries.subjects` (free text: "Icelandic Language and
+    Literature"); the route resolves against registered subject rows. It
+    lists those now. Not exercised with a real generation.
+  - **Deleting a question from the national bank was one click.** It asks.
+  **Pressed and held (2026-11-12, builds `833390b`–`b359f63`):** scoring
+  weights refuse a total other than 100%; the Anthropic key test passes;
+  an empty key cannot be submitted; reward settings refuse a negative figure
+  (the toast is raw JSON — the body has `error`/`details`, no `message`);
+  a rejection requires feedback; approve, give reward and reject move the
+  tiles; curriculum rename moves its 6 subject rows and refuses an existing
+  name; subject add/edit/delete/clone; question export (240 rows, JSON and
+  CSV), import, edit; delete school by typed name; delete account by typed
+  email. **NOT pressed:** the delete button on the Anthropic key (it cannot
+  be re-entered by me), "Refresh with AI" on UAE (on Iceland each press
+  renamed the curriculum, and UAE's 240 questions hang off that name),
+  "Needs Changes" on a submission, and the school roster page's buttons as a
+  superadmin (the browser link dropped).
+  **Saving a prompt template UNCHANGED clears the narrative cache** — 65
+  cached narratives on production were cleared that way during this walk;
+  they regenerate on next view at the cost of the calls.
   **Flagged, not changed:**
   - **The superadmin account's email is the literal string `superadmin`**, so
     "Forgot password" can never reach it. The only recovery is another
@@ -1011,6 +1047,21 @@ so a student with one assessment in progress got a link to a raw 404.
     behind a spinner, and the sector map was still empty afterwards and
     after two repopulates** — not investigated.
   - The invoice row does not show the PO reference.
+  - "School Deleted — the school and all its members have been deleted" is
+    untrue of its administrators, who stay as accounts with no school; its
+    invoices stay too, by design.
+  - A country cannot be deleted while it has subject rows, the refusal names
+    "users, schools, assessments, or questions" and not subjects, and there
+    is no bulk way to remove them (Iceland needed 24 deletes).
+  - A contributed question enters the bank with no explanation and no Arabic.
+  - Translation editing answers "Failed to save translation" on every key
+    (it is disabled, 501) without saying it is disabled.
+  - The question import reports any failure as "Failed to import questions";
+    creating a question with an empty form shows no field errors.
+  - At 800 pixels wide the dashboard header overflows sideways.
+  - **Left on production:** invoices FP-2026-0001 (paid) and FP-2026-0002
+    (cancelled), billed to the deleted ZZ Walk School, and the student
+    `zz.testmanual.q7m7dm` in Test High School.
 - **THE USERS TAB'S "EXPORT CSV" DOWNLOADED THE APP'S HTML.** Its link was
   `/api/superadmin/export/students`, a route that does not exist; the SPA
   catch-all answered 200 with the page, saved as a `.csv`. The route is
