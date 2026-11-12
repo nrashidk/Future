@@ -137,6 +137,7 @@ import { db } from "./db";
 import { collapseToLatestPerGrade, gradeSortKey, mergeGradeCounts, toCanonicalGrade } from "@shared/grade";
 import { assessmentIsChildOwned } from "@shared/childOwnership";
 import { decideGrantMoney } from "@shared/licenseGrants";
+import { isOnPersonalPool, isSuperadminAccount } from "@shared/licensePool";
 import { blockingStatuses, type EmailDeliveryStatus } from "@shared/emailDelivery";
 import { invoiceTotals, formatInvoiceNumber, canTransition, grantAmountMajor } from "@shared/invoice";
 import { splitStudentName } from "@shared/studentName";
@@ -692,6 +693,14 @@ function resolveAgainstUmbrellaSix(raw: string, lower: string): string | undefin
     return SUBJECT_IDS.find(id => id === target);
   }
   return undefined;
+}
+
+/** SUPERADMIN_EMAILS, read the way auth.middleware.ts reads it (which imports this file, so it cannot be imported here). */
+function superadminEmailsFromEnv(): string[] {
+  return (process.env.SUPERADMIN_EMAILS || "")
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter((e) => e.length > 0);
 }
 
 export class DatabaseStorage implements IStorage {
@@ -4222,9 +4231,18 @@ export class DatabaseStorage implements IStorage {
       .select({ guardianUserId: childProfiles.guardianUserId })
       .from(childProfiles)
       .where(eq(childProfiles.guardianUserId, userId));
-    if (!child) return null;
 
+    // ...or a premium account that bought for itself through the public
+    // checkout: no child profile, no school. shared/licensePool.ts has the
+    // rule and why "has a child profile" alone left this account unmetered.
     const user = await this.getUser(userId);
+    if (!isOnPersonalPool({
+      hasChildProfile: !!child,
+      hasSchoolRow: !!orgMember,
+      isPremium: !!user?.isPremium,
+      isSuperadmin: isSuperadminAccount(user, superadminEmailsFromEnv()),
+    })) return null;
+
     const purchased = user?.purchasedLicenses ?? 0;
 
     const [spent] = await db
@@ -4345,8 +4363,20 @@ export class DatabaseStorage implements IStorage {
         .from(childProfiles)
         .where(eq(childProfiles.guardianUserId, params.studentUserId));
       // Free tier and guests are on no pool at all; they are bounded by the
-      // free cap, which counts completed assessments directly.
-      if (!child) return null;
+      // free cap, which counts completed assessments directly. A premium
+      // account with no child profile and no school IS on one -- its own --
+      // and used to fall out here uncharged (shared/licensePool.ts). Read on
+      // `tx`, like everything else in this function.
+      const [buyer] = await tx
+        .select({ isPremium: users.isPremium, role: users.role, email: users.email })
+        .from(users)
+        .where(eq(users.id, params.studentUserId));
+      if (!isOnPersonalPool({
+        hasChildProfile: !!child,
+        hasSchoolRow: !!member,
+        isPremium: !!buyer?.isPremium,
+        isSuperadmin: isSuperadminAccount(buyer, superadminEmailsFromEnv()),
+      })) return null;
       poolOwnerType = 'user';
       guardianUserId = params.studentUserId;
     }

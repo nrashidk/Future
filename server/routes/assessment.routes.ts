@@ -672,6 +672,25 @@ export function registerAssessmentRoutes(app: Express) {
           // recommendations.routes.ts, which is where the authoritative check
           // lives. Two tabs opened at cap-1 both pass here; only that one keeps
           // the count exact.
+          /**
+           * A PREMIUM ACCOUNT WITH NO CHILD PROFILE: the same pool check the
+           * two branches above make. This population bought through the public
+           * checkout as an individual and was metered by nothing at all -- the
+           * free cap below excludes it, and the pool lookup used to know only
+           * child profiles (shared/licensePool.ts). `capacity` is null for
+           * anyone not on a pool, so a superadmin and a free account pass
+           * through untouched. 402, as for the parent pool.
+           */
+          if (!childProfile && account?.isPremium) {
+            const capacity = await storage.getLicenseCapacityForStudent(userId);
+            if (capacity && !capacity.isUnlimited && capacity.totalAvailable <= 0) {
+              return res.status(402).json({
+                message: "You have used all your assessment licences. Contact support to add more.",
+                code: "NO_LICENCES_AVAILABLE",
+              });
+            }
+          }
+
           if (!account?.isPremium) {
             const completedCount = await storage.countCompletedAssessmentsByUser(userId);
             // isSchoolStudent false: this is the else of `orgMember?.role === 'student'`.
