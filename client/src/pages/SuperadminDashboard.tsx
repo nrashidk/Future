@@ -2784,6 +2784,55 @@ function SuperadminDashboardPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Bulk password reset results. The mutation has always stored these and
+          opened this modal's flag -- and the modal was never written, so every
+          account in the batch got a password nobody was ever shown. */}
+      <Dialog open={isBulkResultsModalOpen && !!bulkResetResults} onOpenChange={(open) => { if (!open) { setIsBulkResultsModalOpen(false); setBulkResetResults(null); } }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{t('superadmin.bulkResetResultsTitle')}</DialogTitle>
+            <DialogDescription>{t('superadmin.bulkResetResultsDesc')}</DialogDescription>
+          </DialogHeader>
+          <div className="max-h-[50vh] overflow-y-auto rounded-lg border" data-testid="list-bulk-reset-results">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>{t('superadmin.colUsername')}</TableHead>
+                  <TableHead>{t('superadmin.colNewPassword')}</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {(bulkResetResults ?? []).map((r) => (
+                  <TableRow key={r.userId}>
+                    <TableCell className="font-mono" dir="ltr">{r.username || r.userId}</TableCell>
+                    <TableCell className="font-mono" dir="ltr">
+                      {r.success ? r.newPassword : <span className="text-destructive">{r.error || t('superadmin.bulkResetRowFailed')}</span>}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                const lines = (bulkResetResults ?? []).filter((r) => r.success).map((r) => `${r.username}\t${r.newPassword}`);
+                navigator.clipboard.writeText(lines.join("\n"));
+                toast({ title: t('superadmin.copied'), description: t('superadmin.credentialsCopied') });
+              }}
+              data-testid="button-copy-bulk-reset"
+            >
+              <Copy className="w-4 h-4 me-2" />
+              {t('superadmin.copyToClipboard')}
+            </Button>
+            <Button onClick={() => { setIsBulkResultsModalOpen(false); setBulkResetResults(null); }} data-testid="button-close-bulk-reset">
+              {t('superadmin.done')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
       <AlertDialog open={!!pendingConfirm} onOpenChange={(open) => !open && setPendingConfirm(null)}>
         <AlertDialogContent data-testid="dialog-confirm-action">
