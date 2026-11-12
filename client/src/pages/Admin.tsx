@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { SUBJECT_IDS } from "@shared/subjects";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Link } from "wouter";
+import { Link, Redirect } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,7 +51,29 @@ const normalizeCountryId = (value: string): string | null => {
   return value === "all" ? null : value;
 };
 
+/**
+ * THE QUIZ BANK IS A SUPERADMIN PAGE, and this is what makes that true of the
+ * page and not only of the API. Every route it calls is isSuperadminOnly, so
+ * a school admin who typed /admin was refused the data (403) — and then shown
+ * "No questions found. Create your first question" with Create and Import
+ * buttons that could not work. A refusal rendered as an empty bank.
+ *
+ * A wrapper rather than an early return because the page below calls hooks
+ * all the way down, and a return above them breaks the rules of hooks.
+ * Anyone else is sent where they belong; nothing here is the control — the
+ * routes are.
+ */
 export default function Admin() {
+  const { user, isLoading } = useAuth();
+  if (isLoading) return null;
+  if (!user) return <Redirect to="/login" replace />;
+  if (user.accountType !== 'superadmin') {
+    return <Redirect to={user.accountType === 'org_admin' ? "/admin/organizations" : "/"} replace />;
+  }
+  return <AdminQuizBank />;
+}
+
+function AdminQuizBank() {
   const { user } = useAuth();
   const { toast } = useToast();
   const { t } = useTranslation('admin');
