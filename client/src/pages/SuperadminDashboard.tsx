@@ -1207,19 +1207,25 @@ function SuperadminDashboardPage() {
           <TabsContent value="organizations" className="space-y-4">
             <Card>
               <CardHeader>
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex items-start justify-between gap-4">
                   <div>
                     <CardTitle>{t('superadmin.schoolsDirectory')}</CardTitle>
                     <CardDescription>{t('superadmin.schoolsDirectoryDesc')}</CardDescription>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    <div className="relative">
+                  <Button onClick={() => setIsCreateOrgModalOpen(true)} className={`${ADD_BUTTON_CLASS} shrink-0`} data-testid="button-create-school">
+                    <Plus className="w-4 h-4 me-2" />
+                    {t('superadmin.addSchool')}
+                  </Button>
+                </div>
+                <div className="pt-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative flex-1 min-w-[14rem]">
                       <Search className="absolute start-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <Input
                         placeholder={t('superadmin.searchSchools')}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="ps-9 w-64"
+                        className="ps-9 w-full"
                         data-testid="input-search-orgs"
                       />
                     </div>
@@ -1240,10 +1246,6 @@ function SuperadminDashboardPage() {
                         <Download className="w-4 h-4 me-2" />
                         {t('superadmin.exportCSV')}
                       </a>
-                    </Button>
-                    <Button onClick={() => setIsCreateOrgModalOpen(true)} className={ADD_BUTTON_CLASS} data-testid="button-create-school">
-                      <Plus className="w-4 h-4 me-2" />
-                      {t('superadmin.addSchool')}
                     </Button>
                   </div>
                 </div>
@@ -1499,7 +1501,7 @@ function SuperadminDashboardPage() {
                       />
                     </div>
                     <Select value={userTypeFilter} onValueChange={setUserTypeFilter}>
-                      <SelectTrigger className="w-40" data-testid="select-user-type-filter">
+                      <SelectTrigger className="w-48" data-testid="select-user-type-filter">
                         <Filter className="w-4 h-4 me-2" />
                         <SelectValue placeholder={t('superadmin.filterPlaceholder')} />
                       </SelectTrigger>
@@ -2203,7 +2205,9 @@ function SuperadminDashboardPage() {
       </main>
 
       <Dialog open={isAdminsModalOpen} onOpenChange={setIsAdminsModalOpen}>
-        <DialogContent className="max-w-2xl">
+        {/* max-w-2xl was narrower than the table: the Actions column and its
+            promote and remove buttons drew outside the dialog, over the page. */}
+        <DialogContent className="max-w-4xl overflow-x-auto">
           <DialogHeader>
             <DialogTitle>{t('superadmin.manageAdminsTitle')} — {selectedOrg?.name}</DialogTitle>
             <DialogDescription>{t('superadmin.adminsDesc')}</DialogDescription>
