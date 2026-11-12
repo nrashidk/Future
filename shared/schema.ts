@@ -811,6 +811,17 @@ export const invoices = pgTable("invoices", {
   deliveryDetail: varchar("delivery_detail"),
 
   /**
+   * The SCHOOL's own purchase-order reference (migration 039), supplied by
+   * them and printed on the document so their finance system can match it.
+   *
+   * Deliberately NOT `paymentReference`, which is OUR record of THEIR bank
+   * transfer and is written only when the invoice is marked paid — so it
+   * cannot be on an invoice at the moment a school needs a reference in order
+   * to pay it.
+   */
+  purchaseOrderRef: varchar("purchase_order_ref", { length: 100 }),
+
+  /**
    * The superadmin who raised it. A blocking audit source (accountErasure.ts),
    * for the same reason `license_grants.performed_by` is one: these rows are
    * what revenue reconciles against, and losing one leaves a figure
@@ -866,6 +877,12 @@ export const invoices = pgTable("invoices", {
   // absent from the harness. Not merely tidy — the superadmin surface prints
   // "emailed N times" straight off this column.
   check("invoices_email_sent_count_non_negative", sql`${table.emailSentCount} >= 0`),
+  // From migration 039, same reason again: a check in the .sql alone is
+  // live in production and absent from the harness.
+  check(
+    "invoices_po_ref_length",
+    sql`${table.purchaseOrderRef} IS NULL OR char_length(${table.purchaseOrderRef}) <= 100`,
+  ),
 ]);
 
 export const invoicesRelations = relations(invoices, ({ one }) => ({

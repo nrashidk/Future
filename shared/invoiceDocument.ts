@@ -50,6 +50,8 @@ export interface InvoiceDocumentSupplier {
 
 export interface InvoiceDocumentData {
   number: string;
+  /** The SCHOOL's own purchase-order reference, if they gave one. */
+  purchaseOrderRef?: string | null;
   issuedAt?: Date | string | null;
   dueAt?: Date | string | null;
   billToName: string;
@@ -91,7 +93,8 @@ const orPlaceholder = (v: string | null | undefined, placeholder: string) =>
 const EN = {
   proforma: "Proforma invoice", tax: "Tax invoice", notTax: "Not a tax invoice",
   billedTo: "Billed to", details: "Details", issueDate: "Issue date",
-  due: "Payment due", reference: "Your reference", currencyLabel: "Currency",
+  due: "Payment due", reference: "Your reference", paymentRef: "Payment received",
+  currencyLabel: "Currency",
   description: "Description", qty: "Qty", unit: "Unit", amount: "Amount",
   lineTitle: "Student assessment licences",
   lineBody: "One licence covers one completed career assessment and its report. Licences do not expire and are not tied to a named student.",
@@ -108,7 +111,8 @@ const EN = {
 const AR = {
   proforma: "فاتورة مبدئية", tax: "فاتورة ضريبية", notTax: "ليست فاتورة ضريبية",
   billedTo: "الفاتورة إلى", details: "التفاصيل", issueDate: "تاريخ الإصدار",
-  due: "تاريخ الاستحقاق", reference: "مرجعكم", currencyLabel: "العملة",
+  due: "تاريخ الاستحقاق", reference: "مرجعكم", paymentRef: "مرجع السداد",
+  currencyLabel: "العملة",
   description: "البيان", qty: "الكمية", unit: "سعر الوحدة", amount: "المبلغ",
   lineTitle: "تراخيص تقييم الطلبة",
   lineBody: "يغطي الترخيص الواحد تقييماً مهنياً مكتملاً وتقريره. التراخيص لا تنتهي صلاحيتها وليست مرتبطة بطالب بعينه.",
@@ -231,7 +235,28 @@ export function buildInvoiceDocument(args: {
       <table style="font-size:10.5px;width:100%"><tbody>
         ${row(t.issueDate, `<span class="num">${esc(fmtDate(inv.issuedAt, lang))}</span>`)}
         ${row(t.due, `<span class="num" style="font-weight:600">${esc(fmtDate(inv.dueAt, lang))}</span>`)}
-        ${inv.paymentReference ? row(t.reference, `<span dir="ltr">${esc(inv.paymentReference)}</span>`) : ""}
+        ${/**
+           * TWO REFERENCES, TWO LABELS, because they are two different facts
+           * owned by two different parties.
+           *
+           * `purchaseOrderRef` is the SCHOOL'S — the number their finance
+           * system matches this invoice against, supplied before payment and
+           * the whole reason a bill gets settled rather than queried.
+           *
+           * `paymentReference` is OURS — the bank's reference for a transfer
+           * we have received, written when the invoice is marked paid. It
+           * cannot exist while the invoice is outstanding.
+           *
+           * Until 2026-11-12 the document rendered `paymentReference` under
+           * "Your reference", so the field a school needs in order to pay was
+           * absent from every unpaid invoice and appeared only after the money
+           * had arrived, labelled as theirs.
+           *
+           * Both are kept `dir="ltr"`: a PO number is digits and hyphens, and
+           * bidi reorders a run of those inside Arabic text.
+           */""}
+        ${inv.purchaseOrderRef ? row(t.reference, `<span dir="ltr">${esc(inv.purchaseOrderRef)}</span>`) : ""}
+        ${inv.paymentReference ? row(t.paymentRef, `<span dir="ltr">${esc(inv.paymentReference)}</span>`) : ""}
         ${row(t.currencyLabel, esc(inv.currency))}
       </tbody></table>
     </div>

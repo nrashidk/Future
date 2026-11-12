@@ -124,7 +124,8 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `invoice-send`, plus
 `migration-029-dryrun`, `migration-030-dryrun`, `migration-032-dryrun`,
 `migration-033-dryrun`, `migration-034-dryrun`, `migration-035-dryrun`,
-`migration-036-dryrun`, `migration-037-dryrun` and `migration-038-dryrun`.
+`migration-036-dryrun`, `migration-037-dryrun`, `migration-038-dryrun` and
+`migration-039-dryrun`.
 
 `webhook-idempotency`, `webhook-group-backstop` and `setup-invite` need two
 environment
@@ -1201,6 +1202,34 @@ chose to review would sit for ever with no one able to see it.
   `RESEND_WEBHOOK_SECRET` the setup-invite delivery tracking needs. Until
   both, every invoice delivery status stays null, which is indistinguishable
   from a working webhook with nothing to report.
+- **THE INVOICE CARRIES THE SCHOOL'S OWN REFERENCE** (migration 039,
+  `invoices.purchase_order_ref`). A school's finance department raises a
+  purchase order before it settles anything, and its accounting system matches
+  the invoice to that number. Without it the bill is matched by hand or queried
+  back to us — the friction that turns a settled invoice into a chased one.
+  **THE DOCUMENT ALREADY HAD A "Your reference" ROW, AND IT WAS RENDERING THE
+  WRONG COLUMN.** It printed `payment_reference`, which is OUR record of THEIR
+  bank transfer, written only when the invoice is marked PAID. So the one field
+  a school needs in order to pay was absent from every unpaid invoice and
+  appeared only after the money had arrived — labelled as theirs. Two facts,
+  two owners, two labels now: `reference` / "مرجعكم" for the school's PO, and
+  `paymentRef` / "مرجع السداد" for a transfer we received.
+  Both are rendered `dir="ltr"`: a PO number is digits and hyphens, which bidi
+  reorders inside Arabic text.
+  **Nullable, free text, length-bounded, NOT unique.** A PO reference has no
+  format anyone agrees on, so only length is validated (100, enforced at the
+  database as well as in zod). Not unique because one school may put one PO
+  against several invoices when it orders in instalments, and two schools may
+  number the same way. An empty string is stored as NULL so the document's
+  "render only when present" check has one value to test, not two.
+  `migration-039-dryrun` (9 cases). **M-04 is the boundary from the permitted
+  side** — exactly 100 accepted — without which M-03 would pass against a
+  constraint accidentally set to any lower number. **M-05 asserts the absence
+  of a unique index**, which is a deliberate property rather than an omission.
+  `invoice-pdf` P-09 proves it reaches the RENDERED page and the document is
+  still one page; **P-10 is its control** — an invoice with no PO prints no
+  reference row, or P-09 would pass against a document that prints the row
+  unconditionally with an empty value.
 - **THE HOME PAGE HAD NO DOOR, AND THAT IS WHY NOBODY HAD EVER BOUGHT.**
   Until 2026-11-12 `Landing.tsx` had exactly two actions — sign in, and try it
   as a guest — plus three footer links, and **nothing anywhere in the product
@@ -1327,9 +1356,7 @@ chose to review would sit for ever with no one able to see it.
   `assessment.json`'s `subjects.selected` does. Without the base,
   `i18nKeys.test.ts` fails — and that test is right to: it checks the literal
   a component passes.
-  **Deliberately NOT built:** the purchase-order field from the approved
-  mockup. It needs its own column and its own place on the document, and
-  working rule 4 says that is its own commit.
+  **The purchase-order field is now built** — migration 039, see below.
 - **A SUPERADMIN CAN NOW DELETE AN ACCOUNT — there was no way to, before
     2026-11-10.** The only deletion path in the product was
     `DELETE /api/users/me`, self-service erasure needing that account's own

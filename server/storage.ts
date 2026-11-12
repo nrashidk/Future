@@ -3425,6 +3425,8 @@ export class DatabaseStorage implements IStorage {
     supplierTrn?: string | null;
     dueAt?: Date | null;
     notes?: string | null;
+    /** The school's own PO reference, printed on the document (migration 039). */
+    purchaseOrderRef?: string | null;
     createdBy?: string | null;
   }): Promise<Invoice> {
     const totals = invoiceTotals({
@@ -3466,6 +3468,7 @@ export class DatabaseStorage implements IStorage {
             status: "draft",
             dueAt: params.dueAt ?? null,
             notes: params.notes ?? null,
+            purchaseOrderRef: params.purchaseOrderRef ?? null,
             createdBy: params.createdBy ?? null,
           })
           .returning();

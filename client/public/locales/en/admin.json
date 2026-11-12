@@ -1554,7 +1554,9 @@
     "markPaidConfirm": "Yes, mark it paid",
     "paymentRefLabel": "Transfer reference",
     "paymentRefPlaceholder": "TT-884120",
-    "paymentRefHint": "The bank's reference for the transfer. This is the only evidence the system holds that the money arrived, so it is worth recording."
+    "paymentRefHint": "The bank's reference for the transfer. This is the only evidence the system holds that the money arrived, so it is worth recording.",
+    "poLabel": "Their purchase order",
+    "poHint": "The school's own reference. Printed on the invoice so their finance system can match it — ask for it if they have one."
   },
   "billing": {
     "title": "Billing",

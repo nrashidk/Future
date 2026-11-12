@@ -566,6 +566,7 @@ function RaiseInvoiceDialog({ open, onOpenChange, orgs, onCreated }: {
   const [organizationId, setOrganizationId] = useState("");
   const [studentCount, setStudentCount] = useState("50");
   const [billToEmail, setBillToEmail] = useState("");
+  const [purchaseOrderRef, setPurchaseOrderRef] = useState("");
   const [dueInDays, setDueInDays] = useState("30");
 
   const org = orgs.find((o) => o.id === organizationId) ?? null;
@@ -596,6 +597,7 @@ function RaiseInvoiceDialog({ open, onOpenChange, orgs, onCreated }: {
         organizationId,
         studentCount: count,
         billToEmail: billToEmail.trim() || undefined,
+        purchaseOrderRef: purchaseOrderRef.trim() || undefined,
         dueInDays: Number(dueInDays),
       });
       return await res.json();
@@ -605,6 +607,7 @@ function RaiseInvoiceDialog({ open, onOpenChange, orgs, onCreated }: {
       onOpenChange(false);
       setOrganizationId("");
       setBillToEmail("");
+      setPurchaseOrderRef("");
       toast({
         title: t("invoices.createdToast", { number: d?.invoice?.number ?? "" }),
         // Surfaced rather than swallowed: an unpriced country bills in dollars,
@@ -678,6 +681,25 @@ function RaiseInvoiceDialog({ open, onOpenChange, orgs, onCreated }: {
               data-testid="input-invoice-email"
             />
             <p className="text-xs text-muted-foreground">{t("invoices.billToEmailHint")}</p>
+          </div>
+
+          {/* Beside the billing contact, because both are things the SCHOOL
+              tells us and both decide whether the invoice can be acted on
+              rather than queried. */}
+          <div className="space-y-2">
+            <Label htmlFor="invoice-po">
+              {t("invoices.poLabel")}
+              <span className="font-normal text-muted-foreground"> — {t("invoices.optional")}</span>
+            </Label>
+            <Input
+              id="invoice-po"
+              value={purchaseOrderRef}
+              onChange={(e) => setPurchaseOrderRef(e.target.value)}
+              placeholder="PO-2026-114"
+              maxLength={100}
+              data-testid="input-invoice-po"
+            />
+            <p className="text-xs text-muted-foreground">{t("invoices.poHint")}</p>
           </div>
 
           {/* THE QUOTE, read-only. Server-calculated, not reproduced here. */}

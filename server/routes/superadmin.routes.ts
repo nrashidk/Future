@@ -2131,6 +2131,10 @@ export function registerSuperadminRoutes(app: Express) {
     billToEmail: z.string().trim().max(320).optional(),
     billToAddress: z.string().trim().max(2000).optional(),
     notes: z.string().trim().max(2000).optional(),
+    // Free text and bounded, because a PO reference has no format anyone
+    // agrees on — digits, "PO-2026-114", a cost-centre code, Arabic. 100
+    // matches the column's own CHECK; validating only length is the point.
+    purchaseOrderRef: z.string().trim().max(100).optional(),
     dueInDays: z.number().int().min(0).max(365).optional(),
   });
 
@@ -2167,6 +2171,9 @@ export function registerSuperadminRoutes(app: Express) {
           ? new Date(Date.now() + input.dueInDays * 24 * 60 * 60 * 1000)
           : null,
         notes: input.notes ?? null,
+        // An empty string is not a reference. Stored as NULL so the document's
+        // "render only when present" check works on one value, not two.
+        purchaseOrderRef: input.purchaseOrderRef || null,
         createdBy: currentUser?.id ?? null,
       });
 

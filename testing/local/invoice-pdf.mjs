@@ -188,6 +188,55 @@ try {
       `sizes differ=${!same} arabic text=${text ? hasArabic : "pdftotext unavailable"}`);
   }
 
+  // ---------------------------------------------------------------------- P-09
+  // THE SCHOOL'S OWN REFERENCE, on the RENDERED page.
+  //
+  // Migration 039. The document already had a "Your reference" row, but it
+  // rendered `payment_reference` — OUR record of THEIR bank transfer, written
+  // only when the invoice is marked paid. So the one field a school needs in
+  // order to pay was absent from every unpaid invoice and appeared only after
+  // the money had arrived, labelled as theirs.
+  //
+  // Asserted in the render rather than the source, because a value present in
+  // the HTML and clipped off the sheet is the failure this distinguishes.
+  {
+    const created = await sa.post("/api/superadmin/invoices", {
+      organizationId: A.orgId, studentCount: 30, dueInDays: 30,
+      purchaseOrderRef: "PO-2026-114",
+    });
+    const poId = created.body?.invoice?.id;
+    if (poId) made.push(poId);
+    await sa.post(`/api/superadmin/invoices/${poId}/issue`, {});
+    const r = await fetchBytes(sa, `/api/superadmin/invoices/${poId}/pdf`);
+    const text = await textOf(r.bytes);
+    if (!text) {
+      rec("P-09", "the purchase order is ON the rendered page", false,
+        "pdftotext unavailable — cannot read the render, so this proves nothing");
+    } else {
+      // And STILL one page: a new meta row must not push the document over.
+      rec("P-09", "the school's purchase order is on the rendered page",
+        text.includes("PO-2026-114") && pageCount(r.bytes) === 1,
+        `po=${text.includes("PO-2026-114")} pages=${pageCount(r.bytes)}`);
+    }
+  }
+
+  // ---------------------------------------------------------------------- P-10
+  // THE CONTROL. Without it P-09 passes against a document that prints a
+  // "Your reference" row unconditionally, empty label and all.
+  {
+    const created = await sa.post("/api/superadmin/invoices", {
+      organizationId: A.orgId, studentCount: 30, dueInDays: 30,
+    });
+    const noPoId = created.body?.invoice?.id;
+    if (noPoId) made.push(noPoId);
+    await sa.post(`/api/superadmin/invoices/${noPoId}/issue`, {});
+    const r = await fetchBytes(sa, `/api/superadmin/invoices/${noPoId}/pdf`);
+    const text = await textOf(r.bytes);
+    rec("P-10", "an invoice with NO purchase order prints no reference row",
+      text ? !/Your reference/i.test(text) : false,
+      text ? `row absent=${!/Your reference/i.test(text)}` : "pdftotext unavailable");
+  }
+
   // ---------------------------------------------------------------------- P-08
   {
     const r = await fetchBytes(A.session, `/api/my-organization/invoices/${invoiceId}/pdf`);
