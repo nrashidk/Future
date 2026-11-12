@@ -120,7 +120,8 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `llm-gate`, `guest-claim`, `admin-writes`, `webhook-group-backstop`,
 `superadmin-writes`, `country-writes`, `setup-invite`, `school-setup-link`,
 `setup-stage`, `superadmin-delete-user`, `resend-webhook`, `guest-sweep`,
-`guest-identity`, `invoices`, `invoice-pdf`, `body-shape`, plus
+`guest-identity`, `invoices`, `invoice-pdf`, `body-shape`,
+`contribution-claim`, plus
 `invoice-send`, plus
 `migration-029-dryrun`, `migration-030-dryrun`, `migration-032-dryrun`,
 `migration-033-dryrun`, `migration-034-dryrun`, `migration-035-dryrun`,
@@ -607,8 +608,21 @@ And an unchecked submission showed **"LLM Score: 0%"**, which is the claim
 `unavailable` exists to avoid, resurfacing one layer up: the score badge now
 appears only when the check ran. Verified by driving it: Review → Approve →
 the row turns Approved and the tiles move. `llm-gate.mjs` L-13 pins the four
-stats names as numbers. Left alone and flagged: the button on an approved
-submission says "Claim for Review" and what it does is GIVE THE REWARD.
+stats names as numbers.
+**THE REWARD COULD BE PAID TWICE, and the button that paid it was labelled
+"Claim for Review".** Two superadmin actions give the same credits: the
+per-submission claim, and "Allocate reward" for the whole school, which marks
+its submissions `reward_allocated` and leaves them `approved`. The claim never
+read that flag, so allocate-then-claim added the credits again — reward
+credits are spent before paid licences, so that is free assessments. The
+claim was also four unjoined statements with the arithmetic done in
+JavaScript. `storage.claimApprovedContribution` is now one transaction whose
+first statement is the conditional claim; a submission already paid is closed
+with nothing moved. `contribution-claim.mjs` (6 cases), judged by the
+school's three figures: against the old code K-04 reports `reward=8` where 5
+is right. The button now says "Give reward". **Flagged, not changed:** the
+claim does not apply the yearly credit cap that allocation applies, and
+allocation will add credits beyond what is pending.
 **`llmVerificationStatus: "failed"` IS NEVER WRITTEN.** `verified` is true
 whenever the check ran, so a submission scored 31 is stored as "verified"
 with a score of 31. The routing gate reads the score, so behaviour is right

@@ -541,6 +541,7 @@ export interface IStorage {
   getAllPendingContributionSubmissions(): Promise<ContributionSubmission[]>;
   updateContributionSubmission(id: string, data: Partial<ContributionSubmission>): Promise<ContributionSubmission>;
   claimContributionRecheck(id: string, staleBefore: Date): Promise<ContributionSubmission | undefined>;
+  claimApprovedContribution(id: string): Promise<{ creditsMoved: number; alreadyPaid: boolean } | null>;
   getOrganizationDailySubmissionCount(organizationId: string): Promise<number>;
   
   // Contribution Reward operations
@@ -5945,6 +5946,67 @@ export class DatabaseStorage implements IStorage {
       )
       .returning();
     return claimed;
+  }
+
+  /**
+   * GIVES AN APPROVED SUBMISSION'S REWARD, ONCE.
+   *
+   * The route used to read the submission, read the school's three credit
+   * figures, add to them in JavaScript and write them back, then mark the
+   * submission claimed -- four statements with nothing joining them. Two
+   * things followed. A second request arriving before the last write saw
+   * `approved` again and paid again. And "Allocate reward" on the same school
+   * pays the same credits and marks the submission `rewardAllocated` while
+   * leaving it `approved`, so claiming it afterwards PAID IT A SECOND TIME:
+   * the claim never looked at that flag. Reward credits are spent before paid
+   * licences, so a double payment is free assessments.
+   *
+   * Now the CLAIM is the first statement and carries its own conditions, so
+   * exactly one caller gets the row; the credits move in the same
+   * transaction, as arithmetic in SQL rather than values read earlier. A
+   * submission already paid through allocation is still closed, with nothing
+   * moved.
+   *
+   * Returns null when the submission is not there to be claimed.
+   */
+  async claimApprovedContribution(id: string): Promise<{ creditsMoved: number; alreadyPaid: boolean } | null> {
+    return db.transaction(async (tx) => {
+      const [paidNow] = await tx
+        .update(contributionSubmissions)
+        .set({ status: "claimed", rewardAllocated: true, updatedAt: new Date() })
+        .where(and(
+          eq(contributionSubmissions.id, id),
+          eq(contributionSubmissions.status, "approved"),
+          eq(contributionSubmissions.rewardAllocated, false),
+        ))
+        .returning();
+
+      if (!paidNow) {
+        // Approved and already paid by allocation: close it, move nothing.
+        const [closed] = await tx
+          .update(contributionSubmissions)
+          .set({ status: "claimed", updatedAt: new Date() })
+          .where(and(
+            eq(contributionSubmissions.id, id),
+            eq(contributionSubmissions.status, "approved"),
+          ))
+          .returning();
+        return closed ? { creditsMoved: 0, alreadyPaid: true } : null;
+      }
+
+      const credits = paidNow.creditsAwarded ?? 0;
+      if (credits > 0) {
+        await tx
+          .update(organizations)
+          .set({
+            pendingRewardCredits: sql`GREATEST(0, ${organizations.pendingRewardCredits} - ${credits})`,
+            rewardCredits: sql`${organizations.rewardCredits} + ${credits}`,
+            yearlyContributionCount: sql`${organizations.yearlyContributionCount} + ${credits}`,
+          })
+          .where(eq(organizations.id, paidNow.organizationId));
+      }
+      return { creditsMoved: credits, alreadyPaid: false };
+    });
   }
 
   async getOrganizationDailySubmissionCount(organizationId: string): Promise<number> {
