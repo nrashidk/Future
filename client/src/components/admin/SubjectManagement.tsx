@@ -119,8 +119,15 @@ export default function SubjectManagement() {
     },
   });
 
+  // quiz_questions.subject holds the subject's NAME ("Social Studies") and a
+  // subject row is identified by its CODE ("social_studies"). Comparing the
+  // two directly never matched, so every subject showed 0 questions -- over
+  // a bank of 240 -- and every one of them was offered as "unregistered".
+  const subjectKey = (v: string) => v.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
   const getQuestionCount = (code: string, curriculum: string) =>
-    questionCounts.find(c => c.subject === code && c.curriculum === curriculum)?.count ?? 0;
+    questionCounts
+      .filter(c => subjectKey(c.subject) === subjectKey(code) && c.curriculum === curriculum)
+      .reduce((n, c) => n + c.count, 0);
 
   const createSubjectMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
@@ -244,7 +251,7 @@ export default function SubjectManagement() {
   const unregisteredSubjects = questionCounts.filter(qc =>
     qc.count > 0 &&
     (!selectedCurriculum || qc.curriculum === selectedCurriculum) &&
-    !subjects.some(s => s.code === qc.subject && s.curriculum === qc.curriculum)
+    !subjects.some(s => subjectKey(s.code) === subjectKey(qc.subject) && s.curriculum === qc.curriculum)
   );
 
   const registerSubjectMutation = useMutation({
