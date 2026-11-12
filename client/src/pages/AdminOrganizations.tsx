@@ -515,7 +515,7 @@ function AdminOrganizationsPage() {
           <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 pb-4">
             <div>
               <CardTitle className="text-lg">{t('orgs.selectSchool')}</CardTitle>
-              <CardDescription>{organizations.length} school{organizations.length !== 1 ? 's' : ''}</CardDescription>
+              <CardDescription>{t('orgs.schoolCount', { count: organizations.length })}</CardDescription>
             </div>
             {user?.accountType !== 'org_admin' && (
               <Dialog open={isCreateOrgDialogOpen} onOpenChange={setIsCreateOrgDialogOpen}>
@@ -682,7 +682,7 @@ function AdminOrganizationsPage() {
                     )}
                     <div>
                       <CardTitle className="text-2xl">{selectedOrg.name}</CardTitle>
-                      <CardDescription>School ID: {selectedOrg.id}</CardDescription>
+                      <CardDescription>{t('orgs.schoolIdLabel')} <span dir="ltr">{selectedOrg.id}</span></CardDescription>
                     </div>
                   </div>
                   <Dialog open={isEditOrgDialogOpen} onOpenChange={setIsEditOrgDialogOpen}>
@@ -745,8 +745,8 @@ function AdminOrganizationsPage() {
                     <CardTitle className="text-lg">{t('orgs.roster')}</CardTitle>
                     <CardDescription>
                       {filteredMembers.length === members.length 
-                        ? `${members.length} members`
-                        : `Showing ${filteredMembers.length} of ${members.length} members`}
+                        ? t('orgs.memberCount', { count: members.length })
+                        : t('orgs.memberCountFiltered', { shown: filteredMembers.length, total: members.length })}
                       {selectedMemberIds.length > 0 && (
                         <span className="text-primary font-medium ml-2">
                           ({selectedMemberIds.length} selected)
@@ -1124,7 +1124,7 @@ function AdminOrganizationsPage() {
                               {memberDisplayName(member)}
                             </TableCell>
                             <TableCell>{member.user.username}</TableCell>
-                            <TableCell className="capitalize">{member.studentGender || '-'}</TableCell>
+                            <TableCell>{member.studentGender === 'male' ? t('orgs.maleOption') : member.studentGender === 'female' ? t('orgs.femaleOption') : '-'}</TableCell>
                             {/* Derived against today, not stored. This is the
                                 roster's live view of how old a student is now,
                                 which is a different question from assessments.age
@@ -1134,7 +1134,8 @@ function AdminOrganizationsPage() {
                                 of birth yet, and the admin rows, which never have
                                 one. */}
                             <TableCell>{ageOnDate(member.dateOfBirth, toDateOnlyString(new Date())) ?? '-'}</TableCell>
-                            <TableCell>{member.grade || '-'}</TableCell>
+                            {/* The stored value is "grade10"; the roster printed it raw. */}
+                            <TableCell>{member.grade ? t('orgs.gradeLabelN', { n: String(member.grade).replace(/^grade/i, '') }) : '-'}</TableCell>
                             <TableCell>{member.studentId || '-'}</TableCell>
                             <TableCell>
                               <div className="flex gap-1 flex-wrap">
