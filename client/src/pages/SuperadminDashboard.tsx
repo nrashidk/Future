@@ -403,6 +403,7 @@ function SuperadminDashboardPage() {
       return res.json();
     },
     onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/students'] });
       setCreatedAdminCredentials({ 
         username: data.credentials.username, 
         password: data.credentials.password,
@@ -427,6 +428,7 @@ function SuperadminDashboardPage() {
       toast({ title: t('superadmin.adminRemoved'), description: t('superadmin.adminRemovedDesc') });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations', selectedOrgId, 'admins'] });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/students'] });
     },
     onError: (error: unknown) => {
       toast({ title: t('superadmin.error'), description: serverErrorMessage(error) ?? t('superadmin.failedToRemoveAdmin'), variant: "destructive" });
@@ -518,6 +520,7 @@ function SuperadminDashboardPage() {
       return res.json();
     },
     onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/students'] });
       setIsCreateOrgModalOpen(false);
       setNewOrgForm({
         organizationName: "",
@@ -698,7 +701,9 @@ function SuperadminDashboardPage() {
     onSuccess: () => {
       setEditingEmailUser(null);
       toast({ title: t('superadmin.emailUpdated'), description: t('superadmin.emailUpdatedDesc') });
-      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/all-students'] });
+      // '/api/superadmin/all-students' is a key nothing uses, so the row went
+      // on showing the old address after a successful change.
+      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/students'] });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations'] });
     },
     onError: (error: unknown) => {
