@@ -337,6 +337,10 @@ export default function ContributionReviewQueue() {
         description: t('contributions.recheckDoneDesc', { score: data?.llmVerificationScore ?? 0 }),
       });
       queryClient.invalidateQueries({ queryKey: ['/api/contributions/admin/pending'] });
+      // The tiles too: a check that passes moves the submission from Pending
+      // to In Review, and the tiles went on saying "Pending 2 / In Review 0"
+      // over a row marked Peer review.
+      queryClient.invalidateQueries({ queryKey: ['/api/contributions/admin/stats'] });
     },
     onError: (error: unknown) => {
       toast({
@@ -347,6 +351,7 @@ export default function ContributionReviewQueue() {
         variant: "destructive",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/contributions/admin/pending'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/contributions/admin/stats'] });
     },
   });
 
