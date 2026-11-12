@@ -531,11 +531,17 @@ export const socialStudies: SubjectQuestionBank = {
         curriculum: "MOE National"
       },
       {
-        question: "What role does the UAE play in OPEC?",
+        // Rewritten 2026-11-12. This asked "What role does the UAE play in
+        // OPEC?" and marked "Major oil producer and influential member"
+        // correct -- the UAE withdrew with effect from 1 May 2026, and its
+        // explanation called it a founding member, which it never was (Abu
+        // Dhabi joined in 1967; OPEC was founded in 1960). Asked as history
+        // now, so it stays true. Migration 042 rewrites the stored row.
+        question: "Which statement about the UAE and OPEC is correct?",
         questionType: "multiple_choice",
-        options: ["Major oil producer and influential member", "Observer status only", "Not a member", "Founding member only with no current role"],
-        correctAnswer: "Major oil producer and influential member",
-        explanation: "The UAE is a founding OPEC member and one of the largest oil producers, playing a key role in global energy markets",
+        options: ["It was a member from 1967 until it withdrew in 2026", "It is a founding member and still belongs", "It has never been a member", "It has only ever had observer status"],
+        correctAnswer: "It was a member from 1967 until it withdrew in 2026",
+        explanation: "Abu Dhabi joined OPEC in 1967 and the membership passed to the UAE when the federation formed in 1971. The UAE withdrew with effect from 1 May 2026 and remains a major oil producer.",
         subject: "Social Studies",
         grade: "12",
         countryId: "uae",
