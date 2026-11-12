@@ -164,6 +164,7 @@ interface StudentWithAssessment {
     createdAt: string;
   };
   organizationName: string | null;
+  isSuperadmin?: boolean;
   assessmentCount: number;
   completedAssessmentCount?: number;
   latestAssessmentDate: string | null;
@@ -1521,12 +1522,12 @@ function SuperadminDashboardPage() {
                       (userTypeFilter === 'students' && s.user.accountType === 'org_student') ||
                       (userTypeFilter === 'org_admins' && s.user.accountType === 'org_admin') ||
                       (userTypeFilter === 'premium' && s.user.accountType === 'individual' && s.user.isPremium) ||
-                      (userTypeFilter === 'free' && s.user.accountType === 'individual' && !s.user.isPremium);
+                      (userTypeFilter === 'free' && s.user.accountType === 'individual' && !s.user.isPremium && !s.isSuperadmin);
                     const finished = s.completedAssessmentCount ?? 0;
                     const matchesAssessment = assessmentFilter === 'all' ||
                       // A school admin never takes one, so "not finished yet" would list
                       // every admin for ever among the people who still have to.
-                      (assessmentFilter === 'none' && finished === 0 && s.user.accountType !== 'org_admin') ||
+                      (assessmentFilter === 'none' && finished === 0 && s.user.accountType !== 'org_admin' && !s.isSuperadmin) ||
                       (assessmentFilter === 'done' && finished > 0);
                     return matchesSearch && matchesType && matchesAssessment;
                   });
@@ -1589,16 +1590,16 @@ function SuperadminDashboardPage() {
                               <TableCell>
                                 <div className="flex flex-col">
                                   <Badge 
-                                    variant={student.user.accountType === 'org_admin' ? 'destructive' : student.user.accountType === 'org_student' ? 'secondary' : student.user.isPremium ? 'default' : 'outline'}
+                                    variant={student.isSuperadmin || student.user.accountType === 'org_admin' ? 'destructive' : student.user.accountType === 'org_student' ? 'secondary' : student.user.isPremium ? 'default' : 'outline'}
                                     className="w-fit"
                                     data-testid={`badge-user-type-${student.user.id}`}
                                   >
-                                    {student.user.accountType === 'org_admin' ? t('superadmin.typeAdmin') : student.user.accountType === 'org_student' ? t('superadmin.typeStudent') : student.user.isPremium ? t('superadmin.typePremium') : t('superadmin.typeFree')}
+                                    {student.isSuperadmin ? t('superadmin.typeSuperadmin') : student.user.accountType === 'org_admin' ? t('superadmin.typeAdmin') : student.user.accountType === 'org_student' ? t('superadmin.typeStudent') : student.user.isPremium ? t('superadmin.typePremium') : t('superadmin.typeFree')}
                                   </Badge>
                                   <span className="text-xs text-muted-foreground mt-1">
                                     {t('superadmin.schoolColon', { name: student.organizationName || t('superadmin.schoolIndividual') })}
                                   </span>
-                                  {student.user.accountType === 'individual' && (
+                                  {student.user.accountType === 'individual' && !student.isSuperadmin && (
                                     <span className="text-xs text-muted-foreground" data-testid={`text-user-licences-${student.user.id}`}>
                                       {t('superadmin.licencesHeld', { n: student.user.purchasedLicenses ?? 0 })}
                                     </span>
@@ -1639,7 +1640,7 @@ function SuperadminDashboardPage() {
                                   >
                                     <Key className="w-4 h-4" />
                                   </Button>
-                                  {student.user.accountType === 'individual' && (
+                                  {student.user.accountType === 'individual' && !student.isSuperadmin && (
                                   <Button
                                     variant="ghost"
                                     size="icon"

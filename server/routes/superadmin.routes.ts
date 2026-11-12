@@ -2708,7 +2708,18 @@ export function registerSuperadminRoutes(app: Express) {
   app.get("/api/superadmin/students", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
     try {
       const students = await storage.getAllStudentsWithAssessments();
-      res.json(students.map(s => ({ ...s, user: toPublicUser(s.user) })));
+      // A superadmin is an `individual` account too, so without this flag
+      // the directory showed the owner's own account as a Free user with a
+      // "give licences" button the route then refused. Computed the way every
+      // request computes it -- role, or the configured emails.
+      const superadminEmails = getSuperadminEmails();
+      res.json(students.map(s => ({
+        ...s,
+        isSuperadmin:
+          s.user.role === "superadmin" ||
+          (!!s.user.email && superadminEmails.includes(s.user.email.toLowerCase())),
+        user: toPublicUser(s.user),
+      })));
     } catch (error) {
       console.error("Error fetching students:", error);
       res.status(500).json({ message: "Failed to fetch students" });

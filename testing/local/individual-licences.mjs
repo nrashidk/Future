@@ -15,6 +15,7 @@
  *   I-06  a school account as the TARGET is refused, figure unmoved
  *   I-07  zero, a negative, a fraction, a string and 1001 are refused
  *   I-08  an unknown user is 404 JSON, not the SPA's 200
+ *   I-09  a superadmin is marked as one in the list, and refused licences
  *
  * Every refusal is judged by the stored figure, not the status.
  */
@@ -122,6 +123,16 @@ const f0 = await figure();
 rec("I-01", "a new Add Users account is free, on no pool, and listed",
   f0.p === false && Number(f0.n ?? 0) === 0 && bal0.body?.onPool === false && !!listed && listed.user.isPremium === false && Array.isArray(list0.body),
   `premium=${f0.p} licences=${f0.n} onPool=${bal0.body?.onPool} listed=${!!listed} keys=${listed ? Object.keys(listed.user).includes('purchasedLicenses') : '-'}`);
+
+// The superadmin's own account is an `individual` too: it must be marked,
+// or the screen offers it a button I-09's refusal then has to explain.
+const saRow = (list0.body ?? []).find((r) => r.user?.username === SUPERADMIN.username);
+const saGive = saRow ? await give(sa, saRow.user.id, 5) : { status: 0 };
+const [saFig] = saRow ? await sql(`SELECT purchased_licenses AS n FROM users WHERE id = $1`, [saRow.user.id]) : [{}];
+rec("I-09", "a superadmin is marked in the list, and refused licences",
+  !!saRow && saRow.isSuperadmin === true && listed.isSuperadmin === false &&
+  saGive.status === 409 && saGive.body?.code === "TARGET_IS_SUPERADMIN" && Number(saFig.n ?? 0) === 0,
+  `marked=${saRow?.isSuperadmin} other=${listed?.isSuperadmin} give=${saGive.status} ${saGive.body?.code ?? ""} stored=${saFig.n ?? 0}`);
 
 const g1 = await give(sa, u.id, 2);
 const f1 = await figure();

@@ -680,6 +680,7 @@
     "licencesGivenDesc": "أُضيف {{added}}. أصبح لدى الحساب {{total}} في المجموع.",
     "failedToGiveLicences": "تعذّرت إضافة التراخيص.",
     "licencesHeld": "التراخيص: {{n}}",
+    "typeSuperadmin": "مشرف عام",
     "typePremium": "مميز",
     "schoolColon": "المدرسة: {{name}}",
     "lastDate": "الأخير: {{date}}",
