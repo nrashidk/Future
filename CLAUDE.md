@@ -948,6 +948,53 @@ so a student with one assessment in progress got a link to a raw 404.
   Arabic profile says "الرخص" where the rest of the product says "تراخيص";
   the deletion preview omits the password-reset requests the data summary
   counts.
+- **THE SUPERADMIN WALK ON PRODUCTION, 2026-11-12** (build `2a503aa`, every
+  button pressed, on a throwaway school, users, invoices and a country).
+  Fixed from it, each checked in a browser against the harness:
+  - **Bulk Reset Passwords showed nobody the passwords.** The mutation stored
+    the results and opened a modal flag; the modal was never written. Every
+    account in a batch got a password that existed nowhere a person could
+    read. The dialog exists now and the password it lists signs in.
+  - **No screen could delete an account**, though
+    `DELETE /api/superadmin/users/:id` has existed since 11-10. The Users row
+    has the button now (not on a school's student or a superadmin — the route
+    refuses both), confirmed by typing the account's email.
+  - One in-app confirmation (`dialog-confirm-action`) gates remove-admin,
+    delete-announcement, delete-career, bulk-delete-schools (was a native
+    `confirm()`) and bulk reset; invoices ask before Issue and Cancel.
+  - The email edit refreshed a query key nothing uses, so the row kept the
+    old address; admin and school changes did not refresh the Users list.
+  - "Add Users" had a username field **the route never read**; it is gone.
+  - History opened the raw API response in a new tab; it is a dialog.
+  - **The invoice send refused after 24 seconds**: it rendered the PDF and
+    then checked the supplier details. The check is first now (95 ms).
+  - **"108 granted, 153 of them granted free"**: the free figure added comps
+    and backfill and ignored reductions. It is every non-purchase delta,
+    signed. `grants.mjs` A-01b (asserted against the ledger; not
+    mutation-run).
+  - Manage Admins' action buttons drew outside the dialog; Add School wrapped.
+  **Flagged, not changed:**
+  - **The superadmin account's email is the literal string `superadmin`**, so
+    "Forgot password" can never reach it. The only recovery is another
+    superadmin's key button, and there is one superadmin.
+  - A removed school admin stays as an `org_admin` account with no school.
+  - A licence reduction saved together with switching unlimited off is
+    missing from the school's activity history; Recent Activity has no
+    invoice events.
+  - The header tiles do not refresh after an invoice is marked paid.
+  - The Files tab says "No files found" and has no upload control.
+  - A school created by a superadmin reads "Signed in, unfinished" before
+    anyone has signed in.
+  - Dates are M/D/Y on the dashboard and D/M/Y on the profile.
+  - A new career stores its education level as a code and has no
+    personality or values mapping, so nothing can recommend it; the form
+    still has "Average Salary".
+  - "Apply Arabic Translations" rewrites the Arabic of every seeded career in
+    one click with no confirmation.
+  - **Add Country with AI research is one request of about five minutes
+    behind a spinner, and the sector map was still empty afterwards and
+    after two repopulates** — not investigated.
+  - The invoice row does not show the PO reference.
 - **THE USERS TAB'S "EXPORT CSV" DOWNLOADED THE APP'S HTML.** Its link was
   `/api/superadmin/export/students`, a route that does not exist; the SPA
   catch-all answered 200 with the page, saved as a `.csv`. The route is
