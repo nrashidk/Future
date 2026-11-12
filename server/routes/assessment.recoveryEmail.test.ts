@@ -40,6 +40,8 @@ vi.mock("../services/email", () => ({
 // sharing 127.0.0.1; the guard under test is the route body, not the limiter.
 vi.mock("../middleware/rateLimiter.middleware", () => ({
   recoveryEmailLimiter: (_req: any, _res: any, next: any) => next(),
+  // Imported by the same routes file; not under test here.
+  guestAssessmentLimiter: (_req: any, _res: any, next: any) => next(),
 }));
 
 const { registerAssessmentRoutes } = await import("./assessment.routes");
