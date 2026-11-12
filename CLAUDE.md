@@ -973,6 +973,22 @@ so a student with one assessment in progress got a link to a raw 404.
     signed. `grants.mjs` A-01b (asserted against the ledger; not
     mutation-run).
   - Manage Admins' action buttons drew outside the dialog; Add School wrapped.
+  - **The Subjects tab showed 0 questions for every subject, over a bank of
+    240**, and offered all six UAE subjects as "detected from quiz bank but
+    not yet registered" with a Register button each. `quiz_questions.subject`
+    holds the NAME ("Social Studies"), a subject row is found by its CODE
+    ("social_studies"), and the screen compared the two directly — the
+    name-on-one-side, code-on-the-other drift again. Matched on a normalised
+    key now. The Register buttons were NOT pressed on production.
+  - **"Generate" for a country's sector map said done when nothing was
+    written.** The route answers 200 either way; the real answer on
+    production was `Anthropic API request timed out after 240 seconds`.
+    `shared/sectorGeneration.ts` (5 tests) decides, and both country screens
+    show the reason. **The timeout itself is NOT fixed**: one HTTP exchange
+    with up to 12 web searches does not finish in 240 s, so a new country
+    cannot get a sector map from the product today. **Each attempt also
+    renames the national curriculum** — Iceland ended with four spellings of
+    one curriculum, 24 subject rows, from four presses.
   **Flagged, not changed:**
   - **The superadmin account's email is the literal string `superadmin`**, so
     "Forgot password" can never reach it. The only recovery is another
