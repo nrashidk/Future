@@ -48,8 +48,18 @@ interface Submission {
   subject: string;
   grade: number;
   questions: Question[];
-  status: "pending" | "llm_verified" | "in_review" | "approved" | "rejected" | "needs_changes";
-  questionCount: number;
+  /**
+   * `pending` and `peer_review` are the two the server actually produces for a
+   * submission awaiting a decision. `llm_verified` and `in_review` are kept
+   * for rows written before peer review existed; nothing writes them now.
+   */
+  status: "pending" | "peer_review" | "llm_verified" | "in_review" | "approved" | "rejected" | "needs_changes";
+  /** The server's name for the count. This screen used to read
+   *  `questionCount`, which the server never sent, so the column was blank. */
+  totalQuestions?: number;
+  /** Same story: the server sends `submitterName`. */
+  submitterName?: string;
+  questionCount?: number;
   approvedCount: number;
   creditsAwarded: number;
   reviewerFeedback?: string;
@@ -107,10 +117,28 @@ function canRecheck(sub: Submission): boolean {
     && Date.now() - new Date(sub.createdAt).getTime() > RECHECK_STALE_MS;
 }
 
-function makeStatusBadge(status: string, t: (key: string) => string) {
-  switch (status) {
+/**
+ * A submission awaiting a decision can be reviewed by a superadmin, whatever
+ * stage it is at. The server has always accepted a decision on all four; the
+ * screen only offered it for the two legacy statuses nothing writes any more,
+ * so no submission could be reviewed from here at all.
+ */
+const REVIEWABLE: ReadonlyArray<Submission["status"]> = ["pending", "peer_review", "llm_verified", "in_review"];
+
+function makeStatusBadge(sub: Submission, t: (key: string) => string) {
+  switch (sub.status) {
     case "pending":
+      // Three different things share the status `pending`, and they need
+      // different actions: re-run the check, wait, or review by hand.
+      if (sub.llmVerificationStatus === "unavailable") {
+        return <Badge variant="outline" className="bg-amber-50 text-amber-800 border-amber-200"><AlertCircle className="w-3 h-3 me-1" />{t('contributions.notChecked')}</Badge>;
+      }
+      if (sub.llmVerificationStatus === "verified" || sub.llmVerificationStatus === "failed") {
+        return <Badge variant="secondary"><Clock className="w-3 h-3 me-1" />{t('contributions.awaitingManualReview')}</Badge>;
+      }
       return <Badge variant="secondary"><Clock className="w-3 h-3 me-1" />{t('contributions.pendingLlm')}</Badge>;
+    case "peer_review":
+      return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200"><User className="w-3 h-3 me-1" />{t('contributions.peerReview')}</Badge>;
     case "llm_verified":
       return <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200"><CheckCircle className="w-3 h-3 me-1" />{t('contributions.llmVerified')}</Badge>;
     case "in_review":
@@ -122,12 +150,20 @@ function makeStatusBadge(status: string, t: (key: string) => string) {
     case "needs_changes":
       return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200"><AlertCircle className="w-3 h-3 me-1" />{t('contributions.reviewNeedsChanges')}</Badge>;
     default:
-      return <Badge variant="secondary">{status}</Badge>;
+      return <Badge variant="secondary">{sub.status}</Badge>;
   }
 }
 
-function makeLlmScoreBadge(score: number | undefined, t: (key: string, opts?: any) => string) {
-  if (score === undefined) return null;
+/**
+ * A score is shown ONLY when the check ran. A check that did not run stores a
+ * score of 0 so that it cannot clear the routing threshold -- and rendering
+ * that as "LLM Score: 0%" tells a superadmin the questions were read and
+ * found worthless, which is the exact claim "unavailable" exists to avoid.
+ */
+function makeLlmScoreBadge(sub: Submission, t: (key: string, opts?: any) => string) {
+  const ran = sub.llmVerificationStatus === "verified" || sub.llmVerificationStatus === "failed";
+  const score = sub.llmVerificationScore;
+  if (!ran || typeof score !== "number") return null;
   const color = score >= 80 ? "bg-green-100 text-green-800" : score >= 50 ? "bg-yellow-100 text-yellow-800" : "bg-red-100 text-red-800";
   return <Badge variant="outline" className={color}>{t('contributions.llmScore', { score })}</Badge>;
 }
@@ -560,7 +596,7 @@ export default function ContributionReviewQueue() {
                         <Building2 className="w-4 h-4 text-muted-foreground" />
                         <div>
                           <p className="font-medium">{sub.organizationName || sub.organizationId}</p>
-                          <p className="text-xs text-muted-foreground">{sub.submittedByName || "—"}</p>
+                          <p className="text-xs text-muted-foreground">{sub.submitterName || sub.submittedByName || "—"}</p>
                         </div>
                       </div>
                     </TableCell>
@@ -576,11 +612,11 @@ export default function ContributionReviewQueue() {
                         {t('contributions.gradeN', { n: sub.grade })}
                       </Badge>
                     </TableCell>
-                    <TableCell>{sub.questionCount}</TableCell>
+                    <TableCell>{sub.totalQuestions ?? sub.questionCount ?? sub.questions?.length ?? 0}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        {makeStatusBadge(sub.status, t)}
-                        {makeLlmScoreBadge(sub.llmVerificationScore, t)}
+                        {makeStatusBadge(sub, t)}
+                        {makeLlmScoreBadge(sub, t)}
                       </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">
@@ -588,7 +624,7 @@ export default function ContributionReviewQueue() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        {(sub.status === "llm_verified" || sub.status === "in_review") && (
+                        {REVIEWABLE.includes(sub.status) && (
                           <Button
                             size="sm"
                             onClick={() => openReviewDialog(sub)}

@@ -319,6 +319,22 @@ try {
       await sql(`UPDATE contribution_submissions SET status = 'pending' WHERE id = $1`, [id2]);
     }
 
+    // ---------------------------------------------------------------- L-13
+    // THE TILES' FIELD NAMES, pinned. The superadmin screen reads
+    // totalPending / totalInReview / totalApproved / totalRejected, the route
+    // used to send none of them, and `?? 0` drew four zeros above a queue with
+    // submissions in it. Asserted as NUMBERS, and totalPending as at least the
+    // two this suite made, so an absent field cannot pass as a zero.
+    {
+      const r = await sa.get("/api/contributions/admin/stats");
+      const b = r.body ?? {};
+      const names = ["totalPending", "totalInReview", "totalApproved", "totalRejected"];
+      const allNumbers = names.every((n) => typeof b[n] === "number");
+      rec("L-13", "the stats route sends the four figures the tiles read",
+        r.status === 200 && !isHtml(r.body) && allNumbers && b.totalPending >= 2,
+        `HTTP ${r.status} ${names.map((n) => `${n}=${b[n]}`).join(" ")}`);
+    }
+
     // ---------------------------------------------------------------- L-12
     // An unknown id is a JSON 404, not the SPA's 200.
     {

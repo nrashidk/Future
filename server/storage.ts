@@ -5985,6 +5985,10 @@ export class DatabaseStorage implements IStorage {
     totalQuestionsApproved: number;
     totalCreditsAwarded: number;
     topContributors: Array<{ organizationId: string; organizationName: string; questionsApproved: number; creditsEarned: number }>;
+    totalPending: number;
+    totalInReview: number;
+    totalApproved: number;
+    totalRejected: number;
   }> {
     const allSubmissions = await db.select().from(contributionSubmissions);
     const allRewards = await db.select().from(contributionRewards);
@@ -6017,6 +6021,19 @@ export class DatabaseStorage implements IStorage {
       .sort((a, b) => b.questionsApproved - a.questionsApproved)
       .slice(0, 10);
 
+    /**
+     * THE FOUR FIGURES THE SUPERADMIN TILES READ, under the names they read.
+     * The screen asked for totalPending / totalInReview / totalApproved /
+     * totalRejected and this returned none of them, so `?? 0` drew four
+     * confident zeros above a queue with submissions in it.
+     *
+     * "In review" is peer review (plus the legacy `in_review`): work that is
+     * with reviewers rather than waiting on a superadmin. "Approved" includes
+     * `claimed`, which is an approved submission whose reward has been given.
+     */
+    const countOf = (...statuses: string[]) =>
+      allSubmissions.filter((s) => statuses.includes(s.status)).length;
+
     return {
       totalSubmissions,
       pendingSubmissions,
@@ -6024,6 +6041,10 @@ export class DatabaseStorage implements IStorage {
       totalQuestionsApproved,
       totalCreditsAwarded,
       topContributors,
+      totalPending: countOf("pending", "llm_verified"),
+      totalInReview: countOf("peer_review", "in_review"),
+      totalApproved: countOf("approved", "claimed"),
+      totalRejected: countOf("rejected", "needs_changes"),
     };
   }
 

@@ -575,6 +575,24 @@ SQL, because a school's daily limit is three.
 `contribution.recheck.test.ts` (5 cases) mocks `fetch` and storage. C-01
 asserts a passing re-check is routed to peer review; C-02 is its control (a
 check that runs and scores 31 stays `pending`).
+**THE SUPERADMIN REVIEW QUEUE COULD NOT REVIEW ANYTHING, and nobody knew,
+because no submission had ever reached it.** Found 2026-11-12 by rendering
+the screen with two submissions in it: both rows, no buttons. The Review
+button was offered only for `llm_verified` and `in_review`, and **nothing in
+the server writes either status** — the two a submission awaiting a decision
+actually has are `pending` and `peer_review`. So "superadmins can override at
+any point" was true of the route and false of the product. The same screen
+read four more names the server never sent: `questionCount` (it is
+`totalQuestions`) left the column blank, `submittedByName` (`submitterName`)
+printed a dash, and the four tiles read `totalPending` and friends from a
+stats route that returned none of them, so `?? 0` drew **four confident zeros
+above a queue with submissions in it** — the invoice card's AED 0.00 again.
+And an unchecked submission showed **"LLM Score: 0%"**, which is the claim
+`unavailable` exists to avoid, resurfacing one layer up: the score badge now
+appears only when the check ran. Verified by driving it: Review → Approve →
+the row turns Approved and the tiles move. `llm-gate.mjs` L-13 pins the four
+stats names as numbers. Left alone and flagged: the button on an approved
+submission says "Claim for Review" and what it does is GIVE THE REWARD.
 **`llmVerificationStatus: "failed"` IS NEVER WRITTEN.** `verified` is true
 whenever the check ran, so a submission scored 31 is stored as "verified"
 with a score of 31. The routing gate reads the score, so behaviour is right
