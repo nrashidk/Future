@@ -61,12 +61,6 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
               {t("nav.admin")}
             </Link>
           </Button>
-          <Button variant="outline" size="sm" asChild className={navBtnClass} data-testid="button-nav-assessment">
-            <Link href="/assessment" aria-current={onAssessment ? "page" : undefined} onClick={onNavigate} className={linkClass}>
-              <ClipboardCheck className="w-4 h-4" aria-hidden="true" />
-              {t("nav.assessment")}
-            </Link>
-          </Button>
           <Button variant="outline" size="sm" asChild className={navBtnClass} data-testid="button-nav-analytics">
             <Link href="/analytics" aria-current={onAnalytics ? "page" : undefined} onClick={onNavigate} className={linkClass}>
               <BarChart className="w-4 h-4" aria-hidden="true" />

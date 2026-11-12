@@ -417,6 +417,22 @@ export function registerAssessmentRoutes(app: Express) {
           });
         }
 
+        // A SCHOOL ADMINISTRATOR DOES NOT SIT AN ASSESSMENT (owner's decision,
+        // 2026-11-12). Their job is the roster. Before this the admin's own
+        // navigation offered "Assessment" and the student form asked the
+        // ADMIN for a name, age, grade and gender — and what they created was
+        // an assessment belonging to an adult staff member, outside the
+        // school's licence pool, in a product whose reports are about 13-18
+        // year olds. Read from the member ROW for the same reason the student
+        // test below is. Creation only: an assessment an admin already made
+        // stays readable.
+        if (orgMember?.role === 'admin') {
+          return res.status(403).json({
+            message: "School administrators manage students and do not take the assessment.",
+            code: "SCHOOL_ADMIN_NO_ASSESSMENT",
+          });
+        }
+
         if (orgMember?.role === 'student') {
           /**
            * LICENCE GUARD — does the school's pool still have something to

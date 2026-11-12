@@ -384,6 +384,14 @@ export default function Assessment() {
   // to /tier-selection. That redirect is gone (free accounts may take the
   // assessment, capped at FREE_ASSESSMENT_CAP), so this flag no longer decides
   // who may be on the page — only how their work is attributed.
+  // A school administrator does not sit the assessment — they manage the
+  // roster. The server refuses the create (SCHOOL_ADMIN_NO_ASSESSMENT); this
+  // keeps them from filling in a form that would end in that refusal.
+  const isSchoolAdmin = user?.accountType === 'org_admin';
+  useEffect(() => {
+    if (!isLoading && isSchoolAdmin) setLocation("/admin/organizations", { replace: true });
+  }, [isLoading, isSchoolAdmin]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (isLoading) return;
     const params = new URLSearchParams(window.location.search);
@@ -1035,7 +1043,7 @@ export default function Assessment() {
     setLocation("/register/parent");
   };
 
-  if (isLoading) {
+  if (isLoading || isSchoolAdmin) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">

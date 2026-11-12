@@ -460,12 +460,6 @@ export default function AdminOrganizations() {
                     {t('nav.admin')}
                   </Link>
                 </Button>
-                <Button variant="outline" size="sm" asChild data-testid="button-nav-assessment">
-                  <Link href="/assessment">
-                    <ClipboardCheck className="w-4 h-4 me-2" />
-                    {t('nav.assessment')}
-                  </Link>
-                </Button>
                 <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">
                   <Link href="/analytics">
                     <BarChart className="w-4 h-4 me-2" />
