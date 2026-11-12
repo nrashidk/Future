@@ -1,4 +1,6 @@
 {
+  "staffViewBanner": "Administrator view: {{name}}'s report",
+  "staffViewUnnamed": "student",
   "pageTitle": "Your Career Pathways!",
   "pageSubtitle": "Based on your interests, skills, and country's vision, here are your perfect matches",
   "loading": "Analyzing your profile...",

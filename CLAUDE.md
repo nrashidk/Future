@@ -668,6 +668,47 @@ Superadmins still see `peer_review` submissions and can override at any point.
 Removing that was worse than the bottleneck it replaced: a submission nobody
 chose to review would sit for ever with no one able to see it.
 
+## Who may read a student's report
+
+The student, always. Since 2026-11-12 also a **superadmin** (any student) and
+a **school admin** (a student OF THAT SCHOOL, never another's). Before that
+every single-report route was owner-only, which was stricter than the product:
+both roles could already download the same reports as a zip. The block
+protected nothing and broke something — the superadmin's "view results" link
+opened a page that could load none of its data, so it rendered what it shows
+when it knows nothing about a report: **the FREE layout with an "unlock"
+offer, over a school's paid report.** The owner found it by clicking.
+
+`server/utils/staffReportAccess.ts` is the ONE rule, consulted by all seven
+read routes (assessment, recommendations, quiz, values profile, the two
+narrative routes, the PDF). One function because the cross-tenant line is the
+whole risk and "a control on one verb and not its siblings" is a family here.
+Roles are read from the database per call; a lookup that throws is a refusal.
+
+- **READ ONLY.** The generate route does not consult it: generating spends a
+  licence, and staff opening a report must not cause that.
+- **Guest assessments are never staff-readable** — no account, no school,
+  nothing to authorise on.
+- A view is recorded ONCE per open (`SECURITY: Staff viewed a student
+  report`), from the assessment read, not from each of the seven routes.
+  **It is a log line, not a table.** If the record has to be queryable or
+  shown to a school, that is a new table and a subject-access classification.
+- `GET /api/staff/students/:userId/report` opens the latest finished report
+  and answers **404 identically** for "no report" and "not yours".
+- The results page shows an "Administrator view" label and drops the offers
+  addressed to the student as a buyer.
+
+`report.mjs` SV-01 to SV-06, run there because that suite already holds a
+REAL finished school report — on a planted row "recommendations came back
+empty" is also what a refusal looks like. **SV-03 is the case that matters**
+(another school's admin reads none of it); SV-04 is the control that a
+classmate is still refused. Mutation-tested by dropping the school
+comparison: SV-03 and SV-06 fail with the other school reading everything.
+
+The superadmin dashboard now offers the link only where a FINISHED
+assessment exists (`completedAssessmentCount`). It used to key off the total,
+so a student with one assessment in progress got a link to a raw 404.
+
 ## Known open items
 
 - Nothing about curricula: that gap is closed. Offering a curriculum now

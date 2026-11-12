@@ -163,6 +163,7 @@ interface StudentWithAssessment {
   };
   organizationName: string | null;
   assessmentCount: number;
+  completedAssessmentCount?: number;
   latestAssessmentDate: string | null;
 }
 
@@ -1570,6 +1571,7 @@ export default function SuperadminDashboard() {
                                   >
                                     <Key className="w-4 h-4" />
                                   </Button>
+                                  {(student.completedAssessmentCount ?? 0) > 0 && (
                                   <Button
                                     variant="ghost"
                                     size="icon"
@@ -1581,6 +1583,7 @@ export default function SuperadminDashboard() {
                                       <Eye className="w-4 h-4" />
                                     </a>
                                   </Button>
+                                  )}
                                 <Button
                                   variant="ghost"
                                   size="icon"

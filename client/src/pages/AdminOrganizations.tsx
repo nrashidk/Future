@@ -23,7 +23,7 @@ import { Separator } from "@/components/ui/separator";
 import { 
   Home, Plus, Download, Upload, Edit, Trash2, GraduationCap, 
   Users, Building2, Key, RefreshCw, FileDown, Lock, LockOpen, User, LogOut, BarChart, Shield, FileQuestion, Gift,
-  Link as LinkIcon, X, ClipboardCheck, AlertTriangle
+  Link as LinkIcon, X, ClipboardCheck, AlertTriangle, Eye
 } from "lucide-react";
 import { StickyNote } from "@/components/StickyNote";
 import ContributeQuestions from "@/components/admin/ContributeQuestions";
@@ -2702,6 +2702,22 @@ function MemberActions({ member, organizationId }: { member: OrganizationMember;
 
   return (
     <div className="flex gap-1 justify-end">
+      {/* Open this student's report. Offered only when one exists; the server
+          decides whether THIS viewer may read it (staffReportAccess.ts), so the
+          button is a convenience and never the control. */}
+      {member.role === 'student' && member.hasCompletedAssessment && (
+        <Button
+          variant="ghost"
+          size="icon"
+          asChild
+          title={t('orgs.viewResults')}
+          data-testid={`button-view-report-${member.id}`}
+        >
+          <a href={`/api/staff/students/${member.userId}/report`} target="_blank" rel="noopener noreferrer">
+            <Eye className="w-4 h-4" />
+          </a>
+        </Button>
+      )}
       {/* Students only. An admin member row has no name, gender or grade — the
           CHECK exempts it and no admin-creating path collects them — so this
           form would ask an admin to invent demographics for themselves, and the

@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { storage } from "../storage";
+import { staffMayReadAssessment } from "../utils/staffReportAccess";
 import { generateRecommendations } from "../services/matching";
 import { syncWEFSkillsProfile } from "../services/wefOrchestrator";
 import {
@@ -376,6 +377,10 @@ export function registerRecommendationsRoutes(app: Express) {
         ) {
           owns = true;
         }
+        // Staff of this student's school, or a superadmin: read-only.
+        if (!owns && (await staffMayReadAssessment(req, assessment))) {
+          owns = true;
+        }
       }
       if (!assessment || !owns) {
         return res.json([]);
@@ -727,6 +732,11 @@ export function registerRecommendationsRoutes(app: Express) {
       } else {
         owns = !!guestToken && guestToken === assessment.guestSessionId;
       }
+      // Staff of this student's school, or a superadmin, may download the one
+      // report they can already get inside the bulk export.
+      if (!owns && (await staffMayReadAssessment(req, assessment))) {
+        owns = true;
+      }
       if (!owns) {
         return res.status(403).json({ message: "Unauthorized to access this report" });
       }
@@ -1020,6 +1030,10 @@ export function registerRecommendationsRoutes(app: Express) {
         isAuthorized = true;
       }
 
+      if (!isAuthorized && (await staffMayReadAssessment(req, assessment))) {
+        isAuthorized = true;
+      }
+
       if (!isAuthorized) {
         if (assessment.userId) {
           return res.status(401).json({ message: "Authentication required to access this assessment" });
@@ -1150,6 +1164,10 @@ export function registerRecommendationsRoutes(app: Express) {
       }
 
       // If neither authenticated user nor valid guest, require auth
+      if (!isAuthorized && (await staffMayReadAssessment(req, assessment))) {
+        isAuthorized = true;
+      }
+
       if (!isAuthorized) {
         // Determine appropriate error based on context
         if (assessment.userId) {

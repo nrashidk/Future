@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { randomBytes } from "crypto";
+import { staffMayReadAssessment, recordStaffReportView } from "../utils/staffReportAccess";
 import { storage } from "../storage";
 import { isAuthenticated } from "../auth";
 import { insertAssessmentSchema, type InsertAssessment } from "@shared/schema";
@@ -707,6 +708,35 @@ export function registerAssessmentRoutes(app: Express) {
   });
 
   // Get a single assessment by ID (supports guest token auth)
+  /**
+   * OPEN A STUDENT'S LATEST REPORT, for staff. One route for both roles: the
+   * decision is staffMayReadAssessment's, so a school admin reaches only its
+   * own students and a superadmin any student. Redirects to the ordinary
+   * results page, which then reads through the same rule.
+   *
+   * 404 for "no report" AND for "not yours", identically: a school admin must
+   * not be able to learn which user ids belong to another school's students.
+   */
+  app.get("/api/staff/students/:userId/report", async (req: any, res) => {
+    try {
+      const notFound = () => res.status(404).json({ message: "No report found for this student", code: "NO_REPORT" });
+      if (typeof req.isAuthenticated !== "function" || !req.isAuthenticated()) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      const all = await storage.getAssessmentsByUser(req.params.userId);
+      const completed = all
+        .filter((a) => a.isCompleted)
+        .sort((a, b) =>
+          new Date(b.completedAt ?? b.createdAt ?? 0).getTime() - new Date(a.completedAt ?? a.createdAt ?? 0).getTime());
+      if (!completed.length) return notFound();
+      if (!(await staffMayReadAssessment(req, completed[0]))) return notFound();
+      return res.redirect(`/results?assessmentId=${completed[0].id}`);
+    } catch (error) {
+      console.error("Error opening student report:", error);
+      res.status(500).json({ message: "Failed to open report" });
+    }
+  });
+
   app.get("/api/assessments/:id", async (req: any, res) => {
     try {
       const assessment = await storage.getAssessmentById(req.params.id);
@@ -733,7 +763,14 @@ export function registerAssessmentRoutes(app: Express) {
       // Ownership check: authenticated user must own it, or guest token must match
       if (assessment.userId) {
         if (!isTokenAuthorized && (!req.isAuthenticated() || req.user.userId !== assessment.userId)) {
-          return res.status(403).json({ message: "Unauthorized to access this assessment" });
+          // Not the owner. A superadmin, or an admin of THIS student's school,
+          // may still read it: see utils/staffReportAccess.ts. Recorded here,
+          // once, because this is the one request every report view makes.
+          const staff = await staffMayReadAssessment(req, assessment);
+          if (!staff) {
+            return res.status(403).json({ message: "Unauthorized to access this assessment" });
+          }
+          recordStaffReportView(req, staff, assessment);
         }
       } else {
         // Guest assessment: verify via cookie or query param

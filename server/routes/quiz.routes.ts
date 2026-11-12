@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import { storage } from "../storage";
+import { staffMayReadAssessment } from "../utils/staffReportAccess";
 import { transformQuizQuestionForFrontend, shuffleQuestions } from "../utils/quiz";
 import { normalizeSubjectsAsync } from "../utils/subjects";
 import { printTokenAuthorizes } from "../utils/printToken";
@@ -577,7 +578,8 @@ export function registerQuizRoutes(app: Express) {
       const isTokenAuthorized =
         printTokenAuthorizes(req.query.printToken, assessmentId) ||
         printTokenAuthorizes(req.query.recoveryToken, assessmentId);
-      if (!isOwner && !isGuestOwner && !isTokenAuthorized) {
+      if (!isOwner && !isGuestOwner && !isTokenAuthorized
+          && !(await staffMayReadAssessment(req, assessment))) {
         return res.status(403).json({ message: "Unauthorized to view this quiz" });
       }
       

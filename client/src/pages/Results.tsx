@@ -440,6 +440,12 @@ export default function Results() {
   // that has since lapsed.
   const isPremiumReport = isPremiumAssessment(assessment?.assessmentType);
 
+  // STAFF VIEW: a school admin or superadmin reading a student's report. The
+  // server authorised the read (utils/staffReportAccess.ts); this only changes
+  // what the page OFFERS. Everything addressed to the student as a buyer --
+  // "get the PDF", "upgrade" -- is wrong when the reader is the school.
+  const isStaffView = !!user && !!assessment?.userId && assessment.userId !== (user as any).id;
+
   // Fetch country data for vision linkage
   const { data: country } = useQuery<any>({
     queryKey: [`/api/countries/${assessment?.countryId}`],
@@ -576,6 +582,14 @@ export default function Results() {
       {/* Header */}
       <div className="bg-gradient-to-r from-primary to-primary/80 text-primary-foreground py-12 px-4">
         <div className="max-w-6xl mx-auto text-center">
+          {isStaffView && (
+            <div
+              className="block w-fit mx-auto mb-4 rounded-full bg-white/20 px-4 py-1.5 text-sm font-medium"
+              data-testid="banner-staff-view"
+            >
+              {t('staffViewBanner', { name: assessment?.name || t('staffViewUnnamed') })}
+            </div>
+          )}
           <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-white/20 mb-4">
             <Star className="w-10 h-10" />
           </div>
@@ -586,7 +600,7 @@ export default function Results() {
           {/* Download moved up here so it's reachable without scrolling to the
               bottom. Secondary variant contrasts against the primary gradient. */}
           <div className="mt-6 flex justify-center">
-            {reportLocked ? (
+            {reportLocked ? (isStaffView ? null : (
               // Free tier: the PDF route 403s, so route to the upgrade flow
               // instead of calling handleDownloadPDF. Premium keeps the download.
               // Copy names the PDF specifically — "Unlock full report" was
@@ -601,7 +615,7 @@ export default function Results() {
                 <Sparkles className="w-5 h-5 me-2" />
                 {t('btnGetPdf')}
               </Button>
-            ) : (
+            )) : (
               <Button
                 size="lg"
                 variant="secondary"
@@ -1059,7 +1073,7 @@ export default function Results() {
       )}
 
       {/* Upgrade Prompt (Free Users Only - hide for premium users and premium assessments) */}
-      {!isPremiumAssessment(assessment?.assessmentType) && !user?.isPremium && (
+      {!isPremiumAssessment(assessment?.assessmentType) && !user?.isPremium && !isStaffView && (
         <div className="max-w-4xl mx-auto px-4 mb-8">
           <StickyNote color="purple" rotation="1" className="p-8">
             <div className="text-center mb-6">

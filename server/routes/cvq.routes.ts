@@ -1,5 +1,6 @@
 import type { Express, RequestHandler } from "express";
 import { storage } from "../storage";
+import { staffMayReadAssessment } from "../utils/staffReportAccess";
 import { isUniqueViolation } from "../utils/pgErrors";
 import { isAuthenticated } from "../auth";
 import { printTokenAuthorizes } from "../utils/printToken";
@@ -262,7 +263,11 @@ export function registerCvqRoutes(app: Express) {
       // assessment IDs map to real students (mirrors the C2 gate).
       const isOwner = req.isAuthenticated() && !!result && result.userId === req.user.userId;
       const isPrintTokenOwner = printTokenAuthorizes(req.query.printToken, req.params.assessmentId);
-      if (!result || (!isOwner && !isPrintTokenOwner)) {
+      // Staff of this student's school, or a superadmin. Authorised on the
+      // RESULT's own user, which is who the profile is about.
+      const isStaff = !!result && !isOwner && !isPrintTokenOwner
+        && !!(await staffMayReadAssessment(req, { id: req.params.assessmentId, userId: result.userId }));
+      if (!result || (!isOwner && !isPrintTokenOwner && !isStaff)) {
         return res.status(404).json({ message: "No CVQ result found for this assessment" });
       }
 

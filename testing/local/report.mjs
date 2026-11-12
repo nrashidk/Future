@@ -429,6 +429,99 @@ async function lastPageCarriesContent(buf, label) {
   }
 }
 
+// ------------------------------------------------------------- staff view
+/**
+ * WHO ELSE MAY READ THIS REPORT. Until 2026-11-12 nobody could: every
+ * single-report route was owner-only, so the superadmin's "view results" link
+ * opened a page that could load nothing and fell back to the FREE layout with
+ * an "unlock" offer -- over a school's paid report. A school admin and a
+ * superadmin may now read it (server/utils/staffReportAccess.ts).
+ *
+ * Run here because this suite already holds a REAL finished school report:
+ * five recommendations, a quiz, a values profile and a renderable PDF. A
+ * planted row would have none of those, and "the recommendations came back
+ * empty" is also what a refusal looks like on that route.
+ *
+ *   SV-01  the school's OWN admin reads all of it, PDF included
+ *   SV-02  a superadmin reads all of it
+ *   SV-03  THE CASE THAT MATTERS: ANOTHER school's admin reads NONE of it
+ *   SV-04  a classmate reads none of it -- or SV-01 would pass against a
+ *          rule that admits anyone signed in
+ *   SV-05  reading is all staff can do: generating is still refused
+ *   SV-06  the "open report" link redirects the right people and answers the
+ *          wrong ones exactly as it answers "no such student"
+ */
+if (s.id) {
+  console.log("\n--- staff view ---\n");
+  const owner = orgs.A.students[0];
+  const sa2 = new Session("reportSuper");
+  await sa2.login("superadmin", "LocalTest!Super1");
+  const mate = new Session("reportClassmate");
+  await mate.login(orgs.A.students[1].username, orgs.A.students[1].password);
+
+  /** What one viewer gets from each of the five reads a report page makes. */
+  async function view(session) {
+    const a = await session.get(`/api/assessments/${s.id}`);
+    const r = await session.get(`/api/recommendations?assessmentId=${s.id}&lang=en`);
+    const q = await session.get(`/api/assessments/${s.id}/quiz`);
+    const c = await session.get(`/api/cvq/result/${s.id}`);
+    const res = await fetch(`${BASE}/api/recommendations/pdf/${s.id}`, {
+      headers: { cookie: session.cookie, "x-forwarded-for": session.clientIp },
+    });
+    const buf = Buffer.from(await res.arrayBuffer());
+    return {
+      assessment: a.status === 200 && a.body?.id === s.id,
+      recs: Array.isArray(r.body) ? r.body.length : -1,
+      quiz: q.status, cvq: c.status,
+      pdf: res.status === 200 && buf.subarray(0, 5).toString("latin1") === "%PDF-" ? buf.length : 0,
+      pdfStatus: res.status, aStatus: a.status,
+    };
+  }
+  const show = (v) => `assessment=${v.aStatus} recs=${v.recs} quiz=${v.quiz} cvq=${v.cvq} pdf=${v.pdfStatus}/${v.pdf}b`;
+  const readsAll = (v) => v.assessment && v.recs === 5 && v.quiz === 200 && v.cvq === 200 && v.pdf > 100000;
+  const readsNothing = (v) => !v.assessment && v.recs === 0 && v.quiz !== 200 && v.cvq !== 200 && v.pdf === 0;
+
+  const own = await view(orgs.A.session);
+  rec("SV-01", "the school's own admin reads the whole report", readsAll(own), show(own));
+
+  const sup = await view(sa2);
+  rec("SV-02", "a superadmin reads the whole report", readsAll(sup), show(sup));
+
+  const other = await view(orgs.B.session);
+  rec("SV-03", "ANOTHER school's admin reads none of it", readsNothing(other), show(other));
+
+  const peer = await view(mate);
+  rec("SV-04", "a classmate reads none of it", readsNothing(peer), show(peer));
+
+  // Generating spends a licence. Staff may read; they may not cause that.
+  {
+    const before = await orgs.A.session.get("/api/my-organization");
+    const g = await orgs.A.session.post(`/api/recommendations/generate/${s.id}`, {});
+    const after = await orgs.A.session.get("/api/my-organization");
+    rec("SV-05", "staff cannot GENERATE: still refused, no licence spent",
+      g.status === 403 && before.body?.usedLicenses === after.body?.usedLicenses,
+      `HTTP ${g.status} used ${before.body?.usedLicenses}->${after.body?.usedLicenses}`);
+  }
+
+  // The link. Read with redirects off, so the Location is what is judged.
+  {
+    const open = async (session, userId) => {
+      const res = await fetch(`${BASE}/api/staff/students/${userId}/report`, {
+        headers: { cookie: session.cookie ?? "", "x-forwarded-for": session.clientIp }, redirect: "manual",
+      });
+      return { status: res.status, to: res.headers.get("location") ?? "" };
+    };
+    const a = await open(orgs.A.session, owner.userId);
+    const b = await open(orgs.B.session, owner.userId);
+    const nobody = await open(orgs.B.session, "00000000-0000-0000-0000-000000000000");
+    const m = await open(mate, owner.userId);
+    rec("SV-06", "the open-report link: own admin redirected, others 404 like no-one",
+      a.status === 302 && a.to.includes(s.id)
+        && b.status === 404 && nobody.status === 404 && m.status === 404,
+      `own=${a.status} ${a.to.includes(s.id) ? "->this report" : a.to} | other school=${b.status} | unknown=${nobody.status} | classmate=${m.status}`);
+  }
+}
+
 const pass = results.filter((r) => r.pass === true).length;
 const fail = results.filter((r) => r.pass === false);
 const skip = results.filter((r) => r.pass === null);

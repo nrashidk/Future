@@ -591,6 +591,7 @@ export interface IStorage {
     user: User;
     organizationName: string | null;
     assessmentCount: number;
+    completedAssessmentCount: number;
     latestAssessmentDate: Date | null;
   }>>;
   
@@ -6316,6 +6317,7 @@ export class DatabaseStorage implements IStorage {
     user: User;
     organizationName: string | null;
     assessmentCount: number;
+    completedAssessmentCount: number;
     latestAssessmentDate: Date | null;
   }>> {
     const results = await db
@@ -6324,6 +6326,11 @@ export class DatabaseStorage implements IStorage {
         organizationName: organizations.name,
         assessmentCount: count(assessments.id),
         latestAssessmentDate: sql<Date | null>`MAX(${assessments.createdAt})`,
+        // How many of those are FINISHED. The dashboard offers "view results"
+        // from this, not from assessmentCount: a student with one assessment
+        // still in progress has a count of 1 and no report to open, and the
+        // link then answered a raw 404 in a new tab.
+        completedAssessmentCount: sql<number>`COUNT(${assessments.id}) FILTER (WHERE ${assessments.isCompleted} = true)`,
       })
       .from(users)
       .leftJoin(organizationMembers, eq(users.id, organizationMembers.userId))
@@ -6343,6 +6350,7 @@ export class DatabaseStorage implements IStorage {
       user: r.user,
       organizationName: r.organizationName,
       assessmentCount: Number(r.assessmentCount),
+      completedAssessmentCount: Number(r.completedAssessmentCount),
       latestAssessmentDate: r.latestAssessmentDate,
     }));
   }
