@@ -111,6 +111,7 @@ export default function Assessment() {
     requiresPaymentToStart,
     sameGradeAlreadyCharged,
     repeatBlocked,
+    personalPoolEmpty,
   } = useAssessmentAvailability();
   // The taker has read the repeat warning below and chosen to go on anyway.
   const [repeatAcknowledged, setRepeatAcknowledged] = useState(false);
@@ -230,6 +231,12 @@ export default function Assessment() {
   // caller trying to start their first assessment with nothing paid yet.
   const showsPaymentRequired =
     !availLoading && requiresPaymentToStart && !hasInProgress;
+  // A BUYER'S OWN LICENCES ARE ALL USED. The server refuses the create with
+  // 402 NO_LICENCES_AVAILABLE; without this screen the buyer filled in the
+  // first step and got a generic error. NOT a link to checkout: a card
+  // payment by an already-premium account grants nothing (see Profile.tsx).
+  const showsPersonalPoolEmpty =
+    !availLoading && personalPoolEmpty && !requiresPaymentToStart && !hasInProgress;
   // A REPORT FOR THIS GRADE ALREADY EXISTS AND WAS CHARGED FOR. Repeating is
   // allowed and costs another licence — and "warns first" was true only of
   // the hook: useAssessmentAvailability computed sameGradeAlreadyCharged "for
@@ -249,7 +256,8 @@ export default function Assessment() {
     !showsCompletionLock && !showsFreeCapReached && !showsPaymentRequired && !showsPollingScreen;
   const isOnTerminalScreen =
     showsPollingScreen || showsSchoolDataIncomplete || showsCompletionLock ||
-    showsFreeCapReached || showsPaymentRequired || showsRepeatWarning || showsRepeatBlocked;
+    showsFreeCapReached || showsPaymentRequired || showsRepeatWarning || showsRepeatBlocked ||
+    showsPersonalPoolEmpty;
 
   // True when the student has started filling in data and hasn't finished yet.
   //
@@ -1154,6 +1162,36 @@ export default function Assessment() {
             <div className="space-y-2">
               <h1 className="text-4xl md:text-5xl font-bold">{t("schoolDataIncomplete.title")}</h1>
               <p className="text-lg text-muted-foreground">{t("schoolDataIncomplete.body")}</p>
+            </div>
+          </div>
+        </div>
+      </PageLayout>
+    );
+  }
+
+  if (showsPersonalPoolEmpty) {
+    return (
+      <PageLayout variant="gradient">
+        <div className="flex items-center justify-center px-4 py-12 min-h-[calc(100vh-12rem)]">
+          <div className="max-w-md w-full text-center space-y-6 rounded-xl p-8" data-testid="screen-personal-pool-empty">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10">
+              <ClipboardCheck className="w-8 h-8 text-primary" />
+            </div>
+            <div className="space-y-2">
+              <h1 className="text-4xl md:text-5xl font-bold">{t("personalPoolEmpty.title")}</h1>
+              <p className="text-lg text-muted-foreground">{t("personalPoolEmpty.body")}</p>
+            </div>
+            <div className="space-y-3">
+              <Button asChild size="lg" className="w-full text-lg px-8 py-6 rounded-full shadow-xl" data-testid="button-pool-empty-view-reports">
+                <a href={completedReportId ? `/results?assessmentId=${completedReportId}` : "/profile"}>
+                  {t("personalPoolEmpty.viewReports")}
+                </a>
+              </Button>
+              <Button asChild variant="ghost" size="sm" className="w-full" data-testid="link-pool-empty-request">
+                <a href={`mailto:support@futurepath.ae?subject=${encodeURIComponent(t("personalPoolEmpty.requestSubject"))}`}>
+                  {t("personalPoolEmpty.request")}
+                </a>
+              </Button>
             </div>
           </div>
         </div>

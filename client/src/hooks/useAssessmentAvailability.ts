@@ -52,7 +52,10 @@ export function useAssessmentAvailability() {
 
   const { data: assessments = [], isLoading: assessmentsLoading } = useQuery<Assessment[]>({
     queryKey: ["/api/assessments/my"],
-    enabled: isCapCounted === true,
+    // Premium accounts too: an individual buyer's own pool can run out, and
+    // the screen that says so needs to know whether a draft is still open
+    // (which may be finished) and which report to offer instead.
+    enabled: isCapCounted === true || isPremiumUser === true,
   });
 
   /**
@@ -173,5 +176,14 @@ export function useAssessmentAvailability() {
     // allowed a repeat. The server refuses the create; this is so the page can
     // say so first.
     repeatBlocked: licenseBalance?.repeatBlocked === true,
+    // A buyer's OWN pool (a parent's, or an individual's) with nothing left.
+    // Read from the server's answer and nothing else: `onPool` must be true,
+    // so an account the server keeps off every pool is never locked out by a
+    // balance it does not have.
+    personalPoolEmpty:
+      isOrgStudent === false &&
+      licenseBalance?.onPool === true &&
+      licenseBalance.isUnlimited !== true &&
+      licenseBalance.available === 0,
   };
 }

@@ -12,6 +12,13 @@
     "orgStudentBody": "You've already used a licence for your report. To take another assessment, ask your school administrator to add a licence to your school's balance.",
     "viewReport": "View your report"
   },
+  "personalPoolEmpty": {
+    "title": "You've used all your assessments",
+    "body": "Every assessment you bought has been used for a report. Your reports stay available. To take another, contact us and we'll add one to your account.",
+    "viewReports": "View your reports",
+    "request": "Request more assessments",
+    "requestSubject": "More assessments for my account"
+  },
   "repeat": {
     "title": "You already have a report for this grade",
     "body": "Taking the assessment again for the same grade uses another assessment from your balance.",
