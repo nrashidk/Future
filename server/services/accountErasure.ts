@@ -19,7 +19,7 @@ import {
   files, scoringConfigChangeLog, systemAnnouncements, systemConfig,
   childProfiles,
 } from "@shared/schema";
-import { eq, or, inArray } from "drizzle-orm";
+import { and, eq, or, inArray } from "drizzle-orm";
 import type { ErasureBlockCode } from "@shared/dataRights";
 import { storage } from "../storage";
 
@@ -106,9 +106,29 @@ export async function eraseUserData(tx: any, userId: string): Promise<void> {
   // roster, so the fix is to recompute the roster this row just left rather than
   // to add a matching decrement somewhere.
   const memberships = await tx
-    .select({ organizationId: organizationMembers.organizationId })
+    .select({ organizationId: organizationMembers.organizationId, role: organizationMembers.role })
     .from(organizationMembers)
     .where(eq(organizationMembers.userId, userId));
+
+  // A STUDENT IS NEVER HELD BY A LOG ROW ABOUT THEM. organization_events
+  // .affected_user_id exists for actions on ADMIN accounts, and for those it
+  // is an audit record that blocks erasure (BLOCKING_AUDIT_SOURCES). Until
+  // 2026-11-13 the superadmin email-change route also wrote it for students,
+  // so a student whose email had once been corrected could not be erased by
+  // their school at all -- the users delete below hit the foreign key and the
+  // route answered 500. The event stays, as a fact about the school; the
+  // pointer to the student, and the two addresses, go with the student.
+  if (memberships.some((m: { role: string | null }) => m.role === "student")) {
+    await tx
+      .update(organizationEvents)
+      .set({
+        affectedUserId: null,
+        previousValue: null,
+        newValue: null,
+        eventDescription: "Changed a student's account email",
+      })
+      .where(and(eq(organizationEvents.affectedUserId, userId), eq(organizationEvents.eventType, "user_email_changed")));
+  }
 
   await tx.delete(organizationMembers).where(eq(organizationMembers.userId, userId));
 

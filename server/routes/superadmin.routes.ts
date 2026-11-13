@@ -1118,7 +1118,21 @@ export function registerSuperadminRoutes(app: Express) {
       // saying so here is better than implying coverage that does not exist.
       const currentUser = (req as any).currentUser;
       const membership = await storage.getOrganizationMemberByUserId(target.id);
-      if (membership?.organizationId) {
+      if (membership?.organizationId && membership.role === "student") {
+        // A STUDENT IS NOT NAMED. affected_user_id is a foreign key to users
+        // with no cascade, so naming a student here made them impossible to
+        // erase afterwards: the school's "Delete record permanently" answered
+        // 500. Same rule as the removal events in admin.routes.ts -- the row
+        // records that it happened and who did it, not the student's name or
+        // either address.
+        await storage.createOrganizationEvent({
+          organizationId: membership.organizationId,
+          eventType: "user_email_changed",
+          eventDescription: "Changed a student's account email",
+          performedBy: currentUser.id,
+          performedByRole: "superadmin",
+        });
+      } else if (membership?.organizationId) {
         await storage.createOrganizationEvent({
           organizationId: membership.organizationId,
           eventType: "user_email_changed",
