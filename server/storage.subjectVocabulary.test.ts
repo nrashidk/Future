@@ -174,8 +174,30 @@ describe("the resolve is wired into both writers", () => {
   });
 
   it("updateQuizQuestion resolves a subject it is given", async () => {
+    questionRows = [{ id: "q1", subject: "Mathematics", countryId: null, curriculum: null }];
     const out = await storage.updateQuizQuestion("q1", { subject: "science" } as any);
     expect(out?.subject).toBe("Science");
+  });
+
+  /**
+   * A subject-only edit is checked against the QUESTION'S OWN catalogue. The
+   * row used to be left unread here, so the check ran against the global six:
+   * "Maltese" was refused for a Malta question, with a message saying the
+   * question had no country or curriculum.
+   */
+  it("checks a subject-only edit against the row's own country and curriculum", async () => {
+    questionRows = [{ id: "q1", subject: "Mathematics", countryId: "mt", curriculum: "Maltese National Curriculum" }];
+    subjectRows = [{ name: "Maltese", code: "maltese", aliases: null }];
+    const out = await storage.updateQuizQuestion("q1", { subject: "maltese" } as any);
+    expect(out?.subject).toBe("Maltese");
+  });
+
+  it("refuses a subject the row's own catalogue does not have, though the global list does", async () => {
+    questionRows = [{ id: "q1", subject: "Maltese", countryId: "mt", curriculum: "Maltese National Curriculum" }];
+    subjectRows = [{ name: "Maltese", code: "maltese", aliases: null }];
+    await expect(
+      storage.updateQuizQuestion("q1", { subject: "Science" } as any),
+    ).rejects.toBeInstanceOf(SubjectNotInCatalogueError);
   });
 
   it("leaves an update that touches neither subject nor scope alone", async () => {

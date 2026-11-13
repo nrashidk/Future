@@ -1898,10 +1898,16 @@ export class DatabaseStorage implements IStorage {
 
     let values = data;
     if (touchesSubject || touchesScope) {
-      const [existing] = touchesSubject && !touchesScope
-        ? [undefined]
-        : await db.select().from(quizQuestions).where(eq(quizQuestions.id, id));
-      if (touchesScope && !existing) return undefined; // 404, decided below by the caller
+      // THE ROW IS READ EVEN WHEN ONLY THE SUBJECT CHANGES. It used to be
+      // skipped in that case, so countryId and curriculum were undefined and
+      // the new subject was checked against the GLOBAL six instead of the
+      // question's own catalogue: a country whose subjects are not those six
+      // could not have a question's subject corrected at all, and the refusal
+      // described the question as having "no country or curriculum". Found
+      // 2026-11-13 on a Malta question. Invisible on UAE, whose catalogue
+      // happens to be the six.
+      const [existing] = await db.select().from(quizQuestions).where(eq(quizQuestions.id, id));
+      if (!existing) return undefined; // 404, decided below by the caller
 
       const countryId = data.countryId !== undefined ? data.countryId : existing?.countryId;
       const curriculum = data.curriculum !== undefined ? data.curriculum : existing?.curriculum;
