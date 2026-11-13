@@ -985,8 +985,22 @@ so a student with one assessment in progress got a link to a raw 404.
     tab; from the wizard (state in memory, link spent) Back then showed
     "link no longer valid" and a button to a sign-in form, with a working
     session. The links open a new tab, and a used link shows a signed-in
-    visitor "Go to my school". **None of these three has been seen
-    rendered**; the next live purchase is the check.
+    visitor "Go to my school".
+  - **A SECOND PURCHASE THE SAME NIGHT, build `dfb91a9`, CHECKED THE FIXES
+    LIVE** ("ZZ Second Purchase School", `nasser.secondcheck`): ONE mail and
+    one link, though the browser again arrived second (the check-your-email
+    screen is that branch) — one sample, not proof of the lock; the
+    check-your-email screen names the school and the address; both eye
+    buttons are there; the owner set the password, chose the curriculum,
+    recorded consent, pressed Continue and reached step 4 of 4; a used link
+    opened while signed in says "You are already signed in". The owner was
+    asked to open Terms from the wizard and did not report a problem; the
+    new tab itself was not observed by me.
+    **THE FIRST PURCHASE'S SPARE LINK IS STILL LIVE**: its password was set
+    before the fix deployed, and the fix retires siblings at that moment
+    only. It goes when that throwaway school's admin account is deleted.
+    **Left on production until a superadmin deletes them:** both ZZ purchase
+    schools, their two admins, and student `zz.purchasestudent`.
   - **FLAGGED, NOT CHANGED — A SCHOOL PAYS ABOUT 8% LESS WITHOUT `country`
     IN THE URL.** `/checkout?students=100` quotes and would charge **$900**
     (the USD fallback, about AED 3,305) where `&country=uae` charges AED
