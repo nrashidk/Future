@@ -26,6 +26,7 @@ import {
   users, assessments, recommendations, assessmentQuizzes, quizResponses,
   cvqResults, wefCompetencyResults, llmNarrativeCache, organizationMembers,
   organizations, organizationConsents, organizationEvents, passwordResetTokens,
+  emailConfirmationTokens,
   schoolSetupTokens,
   organizationDeletions, childProfiles, childGuardianConsents, licenseConsumptions,
 } from "@shared/schema";
@@ -43,6 +44,7 @@ export type SubjectSection =
   | "schoolEnrolment"
   | "passwordResetRequests"
   | "schoolSetupRequests"
+  | "emailConfirmationRequests"
   | "consentAttestationsYouMade"
   | "organizationDeletionsYouPerformed"
   | "childProfile"
@@ -83,6 +85,9 @@ export const SUBJECT_ACCESS_REGISTRY: Array<
   // setup link was issued, sent and used is this person's data; the TOKEN
   // VALUE is a credential and is never returned.
   { column: schoolSetupTokens.userId, kind: "subject", section: "schoolSetupRequests" },
+  // The link mailed to a parent who registered. Same treatment again: that a
+  // link was issued and whether it was used is theirs; the hash is not returned.
+  { column: emailConfirmationTokens.userId, kind: "subject", section: "emailConfirmationRequests" },
   // schoolSetupTokens.organizationId is deliberately NOT here. The registry
   // traversal starts at `users` and follows foreign keys whose TARGET table it
   // has reached; it never reaches `organizations`, so a reference to one is
@@ -244,6 +249,15 @@ export async function collectSubjectAccess(db: any, userId: string) {
     .from(schoolSetupTokens)
     .where(eq(schoolSetupTokens.userId, userId));
 
+  const emailConfirmationRequests = await db
+    .select({
+      createdAt: emailConfirmationTokens.createdAt,
+      expiresAt: emailConfirmationTokens.expiresAt,
+      usedAt: emailConfirmationTokens.usedAt,
+    })
+    .from(emailConfirmationTokens)
+    .where(eq(emailConfirmationTokens.userId, userId));
+
   const consentAttestationsYouMade = await db.select().from(organizationConsents)
     .where(eq(organizationConsents.performedBy, userId));
 
@@ -304,6 +318,7 @@ export async function collectSubjectAccess(db: any, userId: string) {
     schoolRemovalRecords,
     passwordResetRequests,
     schoolSetupRequests,
+    emailConfirmationRequests,
     consentAttestationsYouMade,
     childProfile: childProfile ?? null,
     consentYouGaveForYourChild,
@@ -512,6 +527,7 @@ export function summarizeSubjectAccess(subject: NonNullable<Awaited<ReturnType<t
     schoolRemovalRecords: subject.schoolRemovalRecords.length,
     passwordResetRequests: subject.passwordResetRequests.length,
     schoolSetupRequests: subject.schoolSetupRequests.length,
+    emailConfirmationRequests: subject.emailConfirmationRequests.length,
     consentAttestationsYouMade: subject.consentAttestationsYouMade.length,
     organizationDeletionsYouPerformed: subject.organizationDeletionsYouPerformed.length,
     childProfile: subject.childProfile ? 1 : 0,

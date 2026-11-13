@@ -38,6 +38,15 @@ vi.mock("../utils/policyVersion", () => ({
   POLICY_LOCALES: ["en", "ar"],
 }));
 
+// The real one opens the database and sends mail. What this file pins is
+// that registration ASKS for a confirmation link, for the right account.
+const issueEmailConfirmation = vi.fn();
+vi.mock("../services/emailConfirmation", () => ({
+  issueEmailConfirmation: (...a: any[]) => issueEmailConfirmation(...a),
+  confirmEmailByToken: vi.fn(),
+}));
+vi.mock("../auth", () => ({ isAuthenticated: (_req: any, _res: any, next: any) => next() }));
+
 const { registerParentRegistrationRoutes } = await import("./parentRegistration.routes");
 
 const VALID_BODY = {
@@ -65,6 +74,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   getUserByEmail.mockResolvedValue(undefined);
   getPolicyVersion.mockReturnValue(POLICY);
+  issueEmailConfirmation.mockResolvedValue({ sent: true });
   createParentRegistration.mockResolvedValue({
     user: { id: "u-1", email: "parent@example.com" },
     childProfile: { id: "cp-1", name: "Khaled" },
@@ -104,6 +114,17 @@ describe("POST /api/register/parent", () => {
       success: true,
       user: { id: "u-1", email: "parent@example.com" },
       child: { id: "cp-1", name: "Khaled" },
+      confirmationEmailSent: true,
+    });
+
+    // The account is created owing a confirmation, about 72 hours out, and a
+    // link is issued for THAT account and address.
+    const due = createParentRegistration.mock.calls[0][0].emailConfirmationDueAt as Date;
+    const hours = (due.getTime() - Date.now()) / 3_600_000;
+    expect(hours).toBeGreaterThan(71.9);
+    expect(hours).toBeLessThanOrEqual(72);
+    expect(issueEmailConfirmation).toHaveBeenCalledWith({
+      userId: "u-1", email: "parent@example.com", name: "Amina", language: "en",
     });
 
     expect(createParentRegistration).toHaveBeenCalledTimes(1);
@@ -186,5 +207,13 @@ describe("POST /api/register/parent", () => {
     }
     await postWithCapture();
     expect(loggedIn).toEqual({ userId: "u-1", isLocal: true });
+  });
+
+  it("still registers when the confirmation mail could not be sent, and says so", async () => {
+    issueEmailConfirmation.mockResolvedValue({ sent: false });
+    const { status, body } = await post(VALID_BODY);
+    expect(status).toBe(200);
+    expect(body.success).toBe(true);
+    expect(body.confirmationEmailSent).toBe(false);
   });
 });

@@ -37,6 +37,10 @@ export const PUBLIC_USER_FIELDS = [
   // student tries to start an assessment.
   "detachedAt",
   "detachedFromOrganizationName",
+  // Account status too: the client shows "confirm your email" from these two
+  // (shared/emailConfirmation.ts). Dates only, no credential.
+  "emailConfirmationDueAt",
+  "emailConfirmedAt",
   "isPremium",
   "purchasedLicenses",
   "preferredLanguage",

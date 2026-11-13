@@ -627,6 +627,113 @@ export async function sendPasswordResetEmail(
 }
 
 /**
+ * THE CONFIRMATION MAIL for an account a parent registered.
+ *
+ * Says what happens if the link is NOT used, with the figure: the account
+ * and the child's details are deleted. A parent who never sees this mail
+ * (a mistyped address) loses nothing they could have reached anyway; one who
+ * sees it and ignores it has been told.
+ */
+export function buildEmailConfirmationHtml(confirmUrl: string, userName: string | undefined, language: string, hours: number): string {
+  const isAr = language === "ar";
+  const font = emailFont(language);
+  const greeting = userName
+    ? (isAr ? `مرحباً ${userName}،` : `Hi ${userName},`)
+    : (isAr ? "مرحباً،" : "Hi,");
+  const body = isAr
+    ? `<p style="margin:0 0 12px;">${greeting}</p>
+       <p style="margin:0 0 12px;">أُنشئ حساب طالب في مسار المستقبل باستخدام هذا البريد الإلكتروني. يُرجى تأكيد أن هذا العنوان لك:</p>
+       ${stickyButton(confirmUrl, "تأكيد البريد الإلكتروني", font)}
+       <p style="margin:0 0 12px;">إذا لم يُؤكَّد العنوان خلال <span dir="ltr">${hours}</span> ساعة، يُحذف الحساب وبيانات الطالب المسجّلة فيه.</p>
+       <p style="margin:0;color:${PALETTE.muted};font-size:13px;">إذا لم تنشئ هذا الحساب، تجاهل هذه الرسالة وسيُحذف تلقائياً.</p>`
+    : `<p style="margin:0 0 12px;">${greeting}</p>
+       <p style="margin:0 0 12px;">A student account was created on Future Path with this email address. Please confirm the address is yours:</p>
+       ${stickyButton(confirmUrl, "Confirm my email", font)}
+       <p style="margin:0 0 12px;">If it is not confirmed within ${hours} hours, the account and the student details in it are deleted.</p>
+       <p style="margin:0;color:${PALETTE.muted};font-size:13px;">If you did not create this account, ignore this email and it will be deleted automatically.</p>`;
+  return stickyLayout({
+    language,
+    title: isAr ? "تأكيد البريد الإلكتروني" : "Confirm Your Email",
+    heading: isAr ? "تأكيد البريد الإلكتروني" : "Confirm your email",
+    body,
+    color: "stickyBlue",
+  });
+}
+
+export function buildEmailConfirmationText(confirmUrl: string, userName: string | undefined, language: string, hours: number): string {
+  if (language === "ar") {
+    return `
+تأكيد البريد الإلكتروني - مسار المستقبل
+
+${userName ? `مرحباً ${userName}،` : "مرحباً،"}
+
+أُنشئ حساب طالب في مسار المستقبل باستخدام هذا البريد الإلكتروني. يُرجى تأكيد أن هذا العنوان لك:
+${confirmUrl}
+
+إذا لم يُؤكَّد العنوان خلال ${hours} ساعة، يُحذف الحساب وبيانات الطالب المسجّلة فيه.
+
+إذا لم تنشئ هذا الحساب، تجاهل هذه الرسالة وسيُحذف تلقائياً.
+    `.trim();
+  }
+  return `
+Confirm Your Email - Future Path
+
+${userName ? `Hi ${userName},` : "Hi,"}
+
+A student account was created on Future Path with this email address. Please confirm the address is yours:
+${confirmUrl}
+
+If it is not confirmed within ${hours} hours, the account and the student details in it are deleted.
+
+If you did not create this account, ignore this email and it will be deleted automatically.
+  `.trim();
+}
+
+export async function sendEmailConfirmationEmail(
+  to: string,
+  token: string,
+  userName: string | undefined,
+  language: string,
+  hours: number,
+): Promise<EmailResult> {
+  const baseUrl = process.env.APP_URL || "https://futurepath.ae";
+  const confirmUrl = `${baseUrl}/confirm-email/${token}`;
+
+  if (!resend) {
+    if (!isLogOnlyMailEnvironment()) {
+      console.error("[Email] RESEND_API_KEY is not configured. Confirmation email NOT sent.");
+      return { success: false, error: "Email service not configured." };
+    }
+    console.warn("[Email] Resend not configured. Confirmation email would be sent.");
+    return { success: true, messageId: LOG_ONLY_MESSAGE_ID };
+  }
+
+  const subject = language === "ar"
+    ? "تأكيد البريد الإلكتروني - مسار المستقبل"
+    : "Confirm Your Email - Future Path";
+  try {
+    const { data, error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: [to],
+      replyTo: REPLY_TO_EMAIL,
+      subject,
+      html: buildEmailConfirmationHtml(confirmUrl, userName, language, hours),
+      text: buildEmailConfirmationText(confirmUrl, userName, language, hours),
+    });
+    if (error) {
+      console.error("[Email] Failed to send confirmation email:", error);
+      return { success: false, error: error.message };
+    }
+    console.log("[Email] Confirmation email sent:", data?.id);
+    return { success: true, messageId: data?.id };
+  } catch (err) {
+    const error = err as Error;
+    console.error("[Email] Error sending confirmation email:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * Check if email service is configured
  */
 /**

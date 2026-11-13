@@ -493,6 +493,7 @@ export interface IStorage {
     firstName: string;
     lastName: string;
     role: string;
+    emailConfirmationDueAt?: Date | null;
     child: Omit<InsertChildProfile, "guardianUserId">;
     consent: Omit<InsertChildGuardianConsent, "performedBy">;
   }): Promise<{ user: User; childProfile: ChildProfile; consent: ChildGuardianConsent }>;
@@ -5740,6 +5741,7 @@ export class DatabaseStorage implements IStorage {
     firstName: string;
     lastName: string;
     role: string;
+    emailConfirmationDueAt?: Date | null;
     child: Omit<InsertChildProfile, "guardianUserId">;
     consent: Omit<InsertChildGuardianConsent, "performedBy">;
   }): Promise<{ user: User; childProfile: ChildProfile; consent: ChildGuardianConsent }> {
@@ -5753,6 +5755,7 @@ export class DatabaseStorage implements IStorage {
           lastName: params.lastName,
           role: params.role,
           accountType: "public",
+          emailConfirmationDueAt: params.emailConfirmationDueAt ?? null,
         })
         .returning();
 

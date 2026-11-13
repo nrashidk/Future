@@ -92,6 +92,28 @@ export const users = pgTable("users", {
   
   // Language preference
   preferredLanguage: varchar("preferred_language", { length: 5 }).default("en"), // 'en' or 'ar'
+
+  /**
+   * EMAIL CONFIRMATION, for an account a parent registered themselves.
+   *
+   * `emailConfirmationDueAt` is set by POST /api/register/parent and by
+   * nothing else: the moment by which the parent must have clicked the link
+   * in the confirmation mail. NULL on every other account -- school students,
+   * school admins, buyers and every account older than 2026-11-13 -- and NULL
+   * means "confirmation was never asked of this account", NOT "unconfirmed".
+   * `emailConfirmedAt` is when the link was used.
+   *
+   * WHY IT EXISTS. This account holds a minor's name, date of birth and
+   * grade against an address nobody has proved they own. A mistyped address
+   * is a child's record nobody can ever recover or erase by themselves. So
+   * an account that is past its due date, still unconfirmed, and has not
+   * paid is ERASED by the same sweep that removes expired guest assessments
+   * (services/emailConfirmation.ts). A paid account is never swept: a card
+   * payment is stronger evidence of a real person than a clicked link.
+   * shared/emailConfirmation.ts is the rule.
+   */
+  emailConfirmationDueAt: timestamp("email_confirmation_due_at"),
+  emailConfirmedAt: timestamp("email_confirmed_at"),
   
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
@@ -129,6 +151,29 @@ export const passwordResetTokensRelations = relations(passwordResetTokens, ({ on
     references: [users.id],
   }),
 }));
+
+/**
+ * EMAIL CONFIRMATION TOKENS — the link a parent clicks to keep the account.
+ *
+ * Deliberately NOT password_reset_tokens with a purpose column: a
+ * confirmation link is mailed to an address nobody has verified, and a row
+ * in that table is what the reset route accepts to SET A PASSWORD. Two
+ * tables means a confirmation link can never be spent as a reset.
+ *
+ * Only the SHA-256 of the token is stored. The value is in the mail and
+ * nowhere else, so a read of this table cannot confirm anybody.
+ * Cascades with the user, like the reset tokens above.
+ */
+export const emailConfirmationTokens = pgTable("email_confirmation_tokens", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  tokenHash: varchar("token_hash").notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  usedAt: timestamp("used_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("email_confirmation_tokens_user_idx").on(table.userId),
+]);
 
 /**
  * SCHOOL SETUP TOKENS — the first way into an account nobody chose a password

@@ -252,6 +252,17 @@ export async function sweepExpiredGuestAssessmentsIfDue(): Promise<void> {
       lastDeletedCount: deletedCount,
       lastError: null,
     });
+
+    // THE SAME DEADLINE, THE SAME TRIGGER: accounts a parent registered and
+    // never confirmed (services/emailConfirmation.ts). After the status
+    // write and in its own try, so a failure here cannot make a guest sweep
+    // that succeeded read as one that failed -- and is logged, not silent.
+    try {
+      const { eraseUnconfirmedAccounts } = await import("./emailConfirmation");
+      await eraseUnconfirmedAccounts(startedAt);
+    } catch (error) {
+      console.error("[guestAssessmentSweep] unconfirmed-account sweep failed:", error);
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     console.error("[guestAssessmentSweep] sweep failed:", error);

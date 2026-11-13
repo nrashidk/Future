@@ -89,6 +89,8 @@ const fullRow = () => ({
   isOrgGenerated: true,
   detachedAt: null,
   detachedFromOrganizationName: null,
+  emailConfirmationDueAt: new Date("2026-11-16T00:00:00Z"),
+  emailConfirmedAt: null,
   isPremium: false,
   purchasedLicenses: 0,
   stripeCustomerId: "cus_ABC123",

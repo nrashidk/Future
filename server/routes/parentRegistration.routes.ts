@@ -5,6 +5,33 @@ import { hashPassword } from "../utils/passwordHash";
 import { getPolicyVersion, hashAttestationText } from "../utils/policyVersion";
 import { derivePerformedByName, resolvePolicyLocale } from "./organization.routes";
 import { registerParentLimiter } from "../middleware/rateLimiter.middleware";
+import rateLimit from "express-rate-limit";
+import { isAuthenticated } from "../auth";
+import { confirmationDueAt, needsConfirmation } from "@shared/emailConfirmation";
+import { confirmEmailByToken, issueEmailConfirmation } from "../services/emailConfirmation";
+
+/**
+ * Resend is the only way to make this server send mail to an address on
+ * demand, so it is bounded per ACCOUNT: five an hour is more than a parent
+ * hunting through a spam folder needs and too few to use as a mail cannon.
+ */
+const resendConfirmationLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  keyGenerator: (req: any) => `confirm-resend:${req.user?.userId ?? "anon"}`,
+  message: { message: "Too many confirmation emails requested. Please try again later.", code: "RESEND_LIMIT" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+/** A link is guessed, not typed: bound guessing per address. */
+const confirmLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  message: { message: "Too many attempts. Please try again later.", code: "CONFIRM_LIMIT" },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 /**
  * THE PARENT-REGISTERS ROUTE'S ACCOUNT CREATION — account, child profile and
@@ -98,6 +125,9 @@ export function registerParentRegistrationRoutes(app: Express) {
         firstName,
         lastName,
         role: "user",
+        // The parent has this long to click the link in the mail sent below,
+        // or the account is erased (shared/emailConfirmation.ts).
+        emailConfirmationDueAt: confirmationDueAt(new Date()),
         child,
         consent: {
           consentsToProcessing: true,
@@ -113,6 +143,16 @@ export function registerParentRegistrationRoutes(app: Express) {
         },
       });
 
+      // Never throws and never fails the registration: the account exists.
+      // Awaited so the response can say whether the mail went, and the page
+      // can tell the parent to use Resend instead of waiting for nothing.
+      const confirmation = await issueEmailConfirmation({
+        userId: user.id,
+        email: normalizedEmail,
+        name: firstName,
+        language: policyLocale,
+      });
+
       req.logIn({ userId: user.id, isLocal: true }, (err) => {
         if (err) {
           return res.status(500).json({ message: "Account created but login failed" });
@@ -121,11 +161,61 @@ export function registerParentRegistrationRoutes(app: Express) {
           success: true,
           user: { id: user.id, email: user.email },
           child: { id: childProfile.id, name: childProfile.name },
+          confirmationEmailSent: confirmation.sent,
         });
       });
     } catch (error) {
       console.error("Error registering parent account:", error);
       res.status(500).json({ message: "Registration failed" });
+    }
+  });
+
+  /**
+   * SPEND A CONFIRMATION LINK. POST, not GET: mail scanners and link
+   * previews fetch every URL in a message, and a GET that confirmed would
+   * let a scanner confirm an address its owner never saw. The page at
+   * /confirm-email/:token posts this when it loads in a real browser.
+   *
+   * No session is needed or consulted: the parent may open the mail on a
+   * different device from the one they registered on. The token is the
+   * credential.
+   */
+  app.post("/api/email-confirmation/confirm", confirmLimiter, async (req, res) => {
+    try {
+      const outcome = await confirmEmailByToken(String(req.body?.token ?? ""));
+      if (outcome === "confirmed" || outcome === "already_confirmed") {
+        return res.json({ success: true, outcome });
+      }
+      if (outcome === "expired") {
+        return res.status(410).json({ message: "This confirmation link has expired.", code: "LINK_EXPIRED" });
+      }
+      return res.status(404).json({ message: "This confirmation link is not valid.", code: "LINK_INVALID" });
+    } catch (error) {
+      console.error("Error confirming email:", error);
+      res.status(500).json({ message: "Could not confirm the email address" });
+    }
+  });
+
+  app.post("/api/email-confirmation/resend", isAuthenticated, resendConfirmationLimiter, async (req: any, res) => {
+    try {
+      const user = await storage.getUser(req.user.userId);
+      if (!user || !user.email) return res.status(404).json({ message: "Account not found" });
+      if (!needsConfirmation(user, new Date())) {
+        return res.status(409).json({ message: "This account has nothing to confirm.", code: "NOT_PENDING" });
+      }
+      const { sent } = await issueEmailConfirmation({
+        userId: user.id,
+        email: user.email,
+        name: user.firstName ?? undefined,
+        language: resolvePolicyLocale(req.body?.locale ?? user.preferredLanguage ?? undefined),
+      });
+      if (!sent) {
+        return res.status(503).json({ message: "The confirmation email could not be sent. Please try again.", code: "MAIL_NOT_SENT" });
+      }
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error resending confirmation email:", error);
+      res.status(500).json({ message: "Could not resend the confirmation email" });
     }
   });
 }

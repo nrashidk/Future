@@ -32,7 +32,7 @@ import {
   files, contributionSubmissions, contributionRewards, contributionReviews, scoringConfigChangeLog,
   systemAnnouncements, systemConfig, organizationDeletions,
   childProfiles, childGuardianConsents, licenseConsumptions, licenseGrants, invoices,
-  schoolSetupTokens,
+  schoolSetupTokens, emailConfirmationTokens,
 } from "@shared/schema";
 
 // Only the predicate builders are replaced, so the fake can read them.
@@ -82,7 +82,7 @@ const TABLES = [
   files, contributionSubmissions, contributionRewards, contributionReviews, scoringConfigChangeLog,
   systemAnnouncements, systemConfig, organizationDeletions,
   childProfiles, childGuardianConsents, licenseConsumptions, licenseGrants,
-  schoolSetupTokens, invoices,
+  schoolSetupTokens, invoices, emailConfirmationTokens,
 ];
 
 const COLS = new Map<any, { table: any; key: string }>();
@@ -195,6 +195,12 @@ function seedStudent(s: Store) {
     createdAt: new Date("2026-03-01"), expiresAt: new Date("2026-03-08"),
     sentAt: new Date("2026-03-01"), sentCount: 1, usedAt: new Date("2026-03-02"),
   });
+  // The parent's confirmation link. Seeded with a hash so the export can be
+  // checked for leaking it.
+  s.add(emailConfirmationTokens, {
+    id: "ec1", userId: "u-student", tokenHash: "confirm-hash-secret",
+    createdAt: new Date("2026-03-01"), expiresAt: new Date("2026-03-04"), usedAt: null,
+  });
 }
 
 function consent(id: string, createdAt: Date, extra: Row = {}): Row {
@@ -296,6 +302,7 @@ describe("SUBJECT_ACCESS_REGISTRY", () => {
       schoolEnrolment: (o) => (o.schoolEnrolment ? [o.schoolEnrolment] : []),
       passwordResetRequests: (o) => o.passwordResetRequests,
       schoolSetupRequests: (o) => o.schoolSetupRequests,
+      emailConfirmationRequests: (o) => o.emailConfirmationRequests,
       consentAttestationsYouMade: (o) => o.consentAttestationsYouMade,
       organizationDeletionsYouPerformed: (o) => o.organizationDeletionsYouPerformed,
       childProfile: (o) => (o.childProfile ? [o.childProfile] : []),
@@ -350,6 +357,7 @@ describe("collectSubjectAccess", () => {
     const text = JSON.stringify(await collectSubjectAccess(makeDb(store), "u-student"));
     expect(text).not.toContain("$2b$10$hashhashhash");
     expect(text).not.toContain("reset-token-secret");
+    expect(text).not.toContain("confirm-hash-secret");
   });
 
   it("returns a cvq row with no assessment and a wef row from a guest assessment", async () => {
@@ -513,10 +521,11 @@ describe("GET /api/users/me/export and /data-summary", () => {
     expect(summary.body.dataCategories).toMatchObject({ wefCompetencyResults: 1, schoolEnrolment: 1 });
     const { erasure, ...counts } = summary.body;
     expect(counts).toEqual(JSON.parse(JSON.stringify(summarizeSubjectAccess(exported.body))));
-    // account, a1, rec1, q1, r1, n1, c1, w1, m1, t1, st1 — eleven records
-    // seeded. st1 is the school setup token: it counts here because the export
-    // returns its dates, exactly as it does for the reset token t1.
-    expect(summary.body.totalRecords).toBe(11);
+    // account, a1, rec1, q1, r1, n1, c1, w1, m1, t1, st1, ec1 — twelve records
+    // seeded. st1 is the school setup token and ec1 the email confirmation
+    // link: they count here because the export returns their dates, exactly
+    // as it does for the reset token t1.
+    expect(summary.body.totalRecords).toBe(12);
   });
 
   it("returns 404 for a user that does not exist", async () => {
