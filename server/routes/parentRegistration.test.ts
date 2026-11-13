@@ -15,7 +15,9 @@ import type { AddressInfo } from "net";
 
 const getUserByEmail = vi.fn();
 const createParentRegistration = vi.fn();
+const emailIsReserved = vi.fn((_e?: string) => false);
 vi.mock("../storage", () => ({
+  emailIsReserved: (e: string) => emailIsReserved(e),
   storage: { getUserByEmail: (...a: any[]) => getUserByEmail(...a), createParentRegistration: (...a: any[]) => createParentRegistration(...a) },
 }));
 
@@ -215,5 +217,15 @@ describe("POST /api/register/parent", () => {
     expect(status).toBe(200);
     expect(body.success).toBe(true);
     expect(body.confirmationEmailSent).toBe(false);
+  });
+
+  it("refuses a RESERVED address in the same words as a taken one, and creates nothing", async () => {
+    getUserByEmail.mockResolvedValue(undefined);
+    emailIsReserved.mockReturnValueOnce(true);
+    const { status, body } = await post(VALID_BODY);
+    expect(status).toBe(400);
+    expect(body).toEqual({ message: "An account with this email already exists" });
+    expect(createParentRegistration).not.toHaveBeenCalled();
+    expect(issueEmailConfirmation).not.toHaveBeenCalled();
   });
 });
