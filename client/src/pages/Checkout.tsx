@@ -480,9 +480,18 @@ export default function Checkout() {
     }
   }, [authLoading, isAuthenticated, studentCount, setLocation]);
 
+  // A school order with no country in the address goes back to the pricing
+  // page, which chooses one. The server refuses it too (COUNTRY_REQUIRED);
+  // this only spares the visitor an error screen.
+  const groupWithoutCountry = studentCount > 1 && !countryId;
+  useEffect(() => {
+    if (groupWithoutCountry) setLocation("/group-pricing");
+  }, [groupWithoutCountry, setLocation]);
+
   useEffect(() => {
     if (authLoading) return;
     if (studentCount === 1 && !isAuthenticated) return; // redirecting above
+    if (groupWithoutCountry) return; // redirecting above
 
     if (!getStripe()) {
       console.error("Stripe not configured");

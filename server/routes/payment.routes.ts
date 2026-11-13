@@ -38,6 +38,25 @@ export function registerPaymentRoutes(app: Express) {
       }
 
       /**
+       * A SCHOOL PURCHASE NAMES ITS COUNTRY, OR IT IS REFUSED.
+       *
+       * Found on production 2026-11-14: `/checkout?students=100` with no
+       * `country` quoted and would have charged $900 (the USD default, about
+       * AED 3,305) where `&country=uae` charges AED 3,600 — an 8% discount for
+       * deleting a word from the address. An UNKNOWN country was already
+       * refused below; an ABSENT one fell through to the dollar price.
+       *
+       * Group purchases only. A single buyer is quoted the dollar price on
+       * purpose (owner, 2026-11-12) and arrives with no country.
+       */
+      if (studentCount > 1 && !countryId) {
+        return res.status(400).json({
+          message: "Please choose your country before paying.",
+          code: "COUNTRY_REQUIRED",
+        });
+      }
+
+      /**
        * THE ACTUAL ENFORCEMENT OF "the self-pay route is parent-registers-only"
        * (docs/parent-registers-scoping.md) — HERE, not in /api/checkout/complete.
        * That endpoint runs AFTER Stripe has already charged the card; refusing
