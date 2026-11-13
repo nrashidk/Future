@@ -85,6 +85,10 @@ Both are the guards working. The order that works: take `superadmin` out of
 the variable (the account stays superadmin by ROLE), set the address through
 the edit route, then put the address into the variable. The AD School admin
 was moved off the owner's Gmail to its `+adschool` form the same day.
+**DONE on production 2026-11-13**: the owner changed the variable, the edit
+route answered 200, and the account still reads the staff list. Whether the
+address has since been put INTO the variable is the owner's to say; if it is,
+the edit route will refuse to change it again, by design.
 
 `isSuperadminOnly` (in `server/middleware/auth.middleware.ts`) means nationwide
 superadmin, not "any admin". `isOrgAdmin` is the one scoped to a single school.
