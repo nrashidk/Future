@@ -1107,10 +1107,12 @@ so a student with one assessment in progress got a link to a raw 404.
     Manager counted any non-empty value as translated and read "All careers
     have Arabic translations — 100%". `shared/arabicText.ts` (2 tests): a
     field counts when it contains Arabic letters; the screen says 31 missing.
-    **The 31 descriptions are still untranslated in the product.** Drafts
-    were written on 2026-11-13 and are with the owner for review (a Claude
-    doc, "Arabic career descriptions — drafts for review"); nothing goes into
-    `career-arabic-content.ts` until he approves.
+    **THE 31 ARE TRANSLATED (2026-11-13, owner-approved).** The Arabic is in
+    `career-arabic-content.ts`, which `seedDatabase` applies at every boot, so
+    a deploy writes it. `career-arabic-content.test.ts` (4 cases) reads the
+    file and fails if any of the 68 descriptions has no Arabic letters or is
+    mostly Latin. Masculine imperative, to match the first 37. The careers'
+    Arabic flagged on the two student walks was this.
   - **Every successful price save said "Cleared. This country falls back to
     the USD default"** — `apiRequest` returns the Response and the handler
     read `.formatted` off it. The price WAS stored (ISK 1,500 verified).
