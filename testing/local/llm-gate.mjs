@@ -328,7 +328,7 @@ try {
     {
       const r = await sa.get("/api/contributions/admin/stats");
       const b = r.body ?? {};
-      const names = ["totalPending", "totalInReview", "totalApproved", "totalRejected"];
+      const names = ["totalPending", "totalInReview", "totalApproved", "totalRejected", "totalNeedsChanges"];
       const allNumbers = names.every((n) => typeof b[n] === "number");
       rec("L-13", "the stats route sends the four figures the tiles read",
         r.status === 200 && !isHtml(r.body) && allNumbers && b.totalPending >= 2,
@@ -341,6 +341,24 @@ try {
       const r = await recheck(sa, "00000000-0000-0000-0000-000000000000");
       rec("L-12", "an unknown submission is a JSON 404",
         r.status === 404 && r.body?.code === "NOT_FOUND", `HTTP ${r.status} code=${r.body?.code}`);
+    }
+
+    // ---------------------------------------------------------------- L-14
+    // "NEEDS CHANGES" IS NOT A REJECTION (owner, 2026-11-14). A rejection is
+    // final; needs-changes goes back to the school and returns. They were one
+    // figure. Judged by BOTH tiles: needs-changes moves by one and rejected
+    // does not move, or this passes against a route that counts it twice.
+    {
+      const before = (await sa.get("/api/contributions/admin/stats")).body ?? {};
+      const picked = await sql(`UPDATE contribution_submissions SET status = 'needs_changes'
+        WHERE id = (SELECT id FROM contribution_submissions WHERE status NOT IN ('rejected','needs_changes') LIMIT 1)
+        RETURNING id`);
+      const after = (await sa.get("/api/contributions/admin/stats")).body ?? {};
+      rec("L-14", "needs-changes has its own figure and is not counted as rejected",
+        typeof after.totalNeedsChanges === "number" &&
+        after.totalNeedsChanges === before.totalNeedsChanges + 1 &&
+        after.totalRejected === before.totalRejected,
+        `needsChanges ${before.totalNeedsChanges}->${after.totalNeedsChanges} rejected ${before.totalRejected}->${after.totalRejected} picked=${JSON.stringify(picked?.rows ?? picked).slice(0,60)}`);
     }
   }
 } finally {

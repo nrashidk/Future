@@ -6282,6 +6282,7 @@ export class DatabaseStorage implements IStorage {
     totalInReview: number;
     totalApproved: number;
     totalRejected: number;
+    totalNeedsChanges: number;
   }> {
     const allSubmissions = await db.select().from(contributionSubmissions);
     const allRewards = await db.select().from(contributionRewards);
@@ -6337,7 +6338,12 @@ export class DatabaseStorage implements IStorage {
       totalPending: countOf("pending", "llm_verified"),
       totalInReview: countOf("peer_review", "in_review"),
       totalApproved: countOf("approved", "claimed"),
-      totalRejected: countOf("rejected", "needs_changes"),
+      // A rejection is final. "Needs changes" is not: the school amends and
+      // sends it back, to be approved or rejected then. Counting the two
+      // together reported work still in play as work thrown away (owner,
+      // 2026-11-14).
+      totalRejected: countOf("rejected"),
+      totalNeedsChanges: countOf("needs_changes"),
     };
   }
 
