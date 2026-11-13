@@ -133,6 +133,10 @@ try {
   // GET describes the link WITHOUT spending it. A buyer who opens the mail on
   // a phone and finishes on a laptop must not find a dead link.
   const liveToken = await mkToken();
+  // A SECOND live link for the same account, which is what production made on
+  // a real purchase (2026-11-14): the webhook and /api/checkout/complete each
+  // minted one in the same second. L-05b asserts it dies with the first.
+  const siblingToken = await mkToken();
   {
     const r = await req("GET", `/api/school/setup/${liveToken}`);
     const [row] = await tokenRow(liveToken);
@@ -167,6 +171,14 @@ try {
       `HTTP ${r.status} used=${row.used_at !== null} hash=${u.password_hash === null ? "none" : "SET"}`);
   }
 
+  // ----------------------------------------------------------------- L-05a
+  // Control for L-05b, run BEFORE the password is set.
+  {
+    const g = await req("GET", `/api/school/setup/${siblingToken}`);
+    rec("L-05a", "control: the second link is live before any password is set",
+      g.status === 200, `GET=${g.status}`);
+  }
+
   // ------------------------------------------------------------------ L-04
   {
     const r = await req("POST", `/api/school/setup/${liveToken}/password`, { password: STRONG });
@@ -189,6 +201,23 @@ try {
     rec("L-05", "a replayed link is refused and the first password still works",
       r.status === 410 && stillWorks,
       `HTTP ${r.status} original password still logs in=${stillWorks}`);
+  }
+
+  // ----------------------------------------------------------------- L-05b
+  // THE SPARE KEY. Setting the password with one link must retire every other
+  // unspent link of that account, or the second mail is a way to overwrite a
+  // school administrator's password for seven days. L-05a is the control:
+  // before the password was set the sibling WAS live (L-03 ran in between and
+  // spent nothing), or this would pass against a fixture that never worked.
+  {
+    const g = await req("GET", `/api/school/setup/${siblingToken}`);
+    const p = await req("POST", `/api/school/setup/${siblingToken}/password`, { password: `spare-key-${tag}-chosen` });
+    const s2 = new Session(`setup-sibling-${tag}`);
+    let stillWorks = false;
+    try { await s2.login(username, STRONG); stillWorks = true; } catch { stillWorks = false; }
+    rec("L-05b", "the account's OTHER link died with the first; the password is unchanged",
+      g.status === 410 && p.status === 410 && stillWorks,
+      `GET=${g.status} POST=${p.status} original password still logs in=${stillWorks}`);
   }
 
   // ------------------------------------------------------------------ L-06

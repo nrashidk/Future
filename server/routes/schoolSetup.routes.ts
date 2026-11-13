@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { storage } from "../storage";
 import { db } from "../db";
 import { users, schoolSetupTokens } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { hashPassword } from "../utils/passwordHash";
 import rateLimit from "express-rate-limit";
 import zxcvbn from "zxcvbn";
@@ -165,10 +165,26 @@ export function registerSchoolSetupRoutes(app: Express) {
         const spent = await tx
           .update(schoolSetupTokens)
           .set({ usedAt: new Date() })
-          .where(eq(schoolSetupTokens.id, row.id))
+          .where(and(eq(schoolSetupTokens.id, row.id), isNull(schoolSetupTokens.usedAt)))
           .returning({ id: schoolSetupTokens.id });
         if (spent.length === 0) return;
         claimed = true;
+
+        /**
+         * EVERY OTHER UNSPENT LINK OF THIS ACCOUNT DIES WITH THIS ONE.
+         *
+         * Found on production 2026-11-14, on a real group purchase: the
+         * webhook and /api/checkout/complete each minted a token in the same
+         * second, two mails went out, and after the buyer set a password
+         * with one link the other still answered 200 — a spare key, good for
+         * seven days, that overwrites a school administrator's password and
+         * signs its holder in. One account has one password to set; once it
+         * is set, no setup link for that account has any business working.
+         */
+        await tx
+          .update(schoolSetupTokens)
+          .set({ usedAt: new Date() })
+          .where(and(eq(schoolSetupTokens.userId, row.userId), isNull(schoolSetupTokens.usedAt)));
 
         await tx
           .update(users)
