@@ -978,7 +978,26 @@ so a student with one assessment in progress got a link to a raw 404.
     **VERIFIED LIVE on build `2a6ff7d`:** the Schools label, the subject
     delete warning ("10 questions..."), the Apply Arabic confirmation, no
     `public` account left after migration 045, `purchaseOrderRef` on the
-    invoice list. The Arabic footer was seen on the harness only.
+    invoice list.
+    **RE-CHECKED LIVE AS SUPERADMIN, 2026-11-13 late, build `3ac34c9`** (what
+    had only been seen on the harness): the footer and header in Arabic; the
+    refused translation save shows the server's sentence; bulk-added students
+    store `male`/`female` from "Male" and "أنثى", and "robot" is refused with
+    its reason; bulk reset asks first and then lists the new passwords; a
+    question in a non-UAE country (throwaway `zz-check`, no AI) takes a
+    subject from its own catalogue (200) and refuses one outside it (400,
+    naming that catalogue); the price save says "Price saved"; an invoice
+    with a PO shows it on the row, Issue asks, and marking it paid moved the
+    header tile 5/105 -> 5/106 with no reload; History is a dialog; deleting a
+    career or a bank question asks; the Users export is a real CSV.
+    **Left on production by that pass:** invoice FP-2026-0003 (paid, 1
+    licence, Test High School) and the -1 adjustment that put the school
+    back to 50. The throwaway country, question and two students are gone.
+    **STILL HARNESS-ONLY, because they need another sign-in:** the whole
+    free sign-up path (register, confirmation mail and link, banner, the
+    unconfirmed badge, Upgrade), "Needs Changes" (no live submission), and
+    anything seen as a school admin, student or guest since their last live
+    walk on 2026-11-12.
   - "Refresh with AI" on Malta left its one curriculum alone (no re-spelled
     duplicate), and UAE was not touched.
   - Real question generation works: 10 Grade 9 Mathematics questions for
