@@ -970,7 +970,9 @@ so a student with one assessment in progress got a link to a raw 404.
     one success in three on production. The failure IS reported correctly
     (status `failed`, the reason on the checklist). The cause is not known;
     a longer limit is not the fix. A second Malta run was started by Refresh
-    with AI — see the next line for how it ended.
+    with AI at 18:23Z; **its outcome was NOT read** (the browser link
+    dropped before it ended, and the deploy that followed wiped the in-memory
+    record). Malta is still on production and still to be deleted.
   - "Refresh with AI" on Malta left its one curriculum alone (no re-spelled
     duplicate), and UAE was not touched.
   - Real question generation works: 10 Grade 9 Mathematics questions for
