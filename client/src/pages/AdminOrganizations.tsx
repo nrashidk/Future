@@ -506,7 +506,7 @@ function AdminOrganizationsPage() {
           <div className="flex items-center justify-center gap-3 mb-4">
             <Building2 className="w-12 h-12 text-primary" />
             <h1 className="text-4xl md:text-5xl font-bold" data-testid="text-school-page-title">
-              {isOrgAdmin ? (selectedOrg?.name ?? t('orgs.titleMine')) : t('orgs.title')}
+              {isOrgAdmin ? t('orgs.titleMine') : t('orgs.title')}
             </h1>
           </div>
           <p className="text-muted-foreground text-lg">{t('orgs.orgAdminDesc')}</p>
