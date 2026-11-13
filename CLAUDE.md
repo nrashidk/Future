@@ -167,7 +167,7 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `migration-039-dryrun`, plus `premium-solo`, `individual-licences` and
 `migration-041-dryrun` and `migration-042-dryrun`, plus
 `erase-after-email-change`, `erase-charged-student` and `country-delete`, plus
-`reserved-email`, `free-signup` and `migration-044-dryrun` (run the dry-run LAST: between its
+`reserved-email`, `free-signup`, `migration-045-dryrun` and `migration-044-dryrun` (run 044's dry-run LAST: between its
 DOWN and UP the app's schema is missing two `users` columns).
 
 `webhook-idempotency`, `webhook-group-backstop` and `setup-invite` need two
@@ -948,6 +948,66 @@ so a student with one assessment in progress got a link to a raw 404.
 
 ## Known open items
 
+- **THE SUPERADMIN WALK, SECOND PASS, PRODUCTION 2026-11-13** (build
+  `d0355ed`; a throwaway country "Malta", `mt`, and throwaway students on
+  Test High School). What the first pass had not reached.
+  - **AN ACCOUNT A PARENT REGISTERED WAS IN NO LIST A SUPERADMIN COULD OPEN.**
+    `createParentRegistration` stored `account_type = 'public'`, a value
+    nothing reads; the Users directory lists `org_student`, `org_admin` and
+    `individual`. So the accounts the free sign-up creates were invisible to
+    the directory and its filters, and "give licences" refused them
+    (`NOT_AN_INDIVIDUAL`). It writes `individual` now; migration 045 moves the
+    stored rows (`migration-045-dryrun`, 6 cases, M-03 the control). The row
+    carries a badge while the address is unconfirmed, with the hours left
+    before the account is erased. Seen in a browser against the harness.
+  - **A BULK-UPLOADED STUDENT'S GENDER WAS STORED AS TYPED** ("Male"), and
+    the roster, which knows `male`/`female`, printed a dash.
+    `shared/gender.ts` normalises English and Arabic at the schema, in
+    `createUserWithCredentials` and in the edit route. `org-admin.mjs` O-17.
+  - **THE SECTOR-MAP RESEARCH FAILS MORE OFTEN THAN IT WORKS.** Malta's first
+    run ended `Anthropic API request timed out after 1800 seconds`. With
+    Portugal (848 s, worked) and the 301 s transit failure before it, that is
+    one success in three on production. The failure IS reported correctly
+    (status `failed`, the reason on the checklist). The cause is not known;
+    a longer limit is not the fix. A second Malta run was started by Refresh
+    with AI — see the next line for how it ended.
+  - "Refresh with AI" on Malta left its one curriculum alone (no re-spelled
+    duplicate), and UAE was not touched.
+  - Real question generation works: 10 Grade 9 Mathematics questions for
+    Malta, each with an explanation. **None has Arabic.**
+  - The Subjects "Register" prompt is genuine now: it appeared only after a
+    subject with questions was deleted, and Register restored it (at sort
+    order 0, not its old place). **The delete dialog gave no warning that ten
+    questions hung off the subject**; it states the count now.
+  - The school roster as a superadmin: add, edit, reset password, allow
+    repeat (on and off), bulk upload (2 made, 1 refused with its reason), CSV
+    export (no password column), delete permanently, and "keep account and
+    report" all work. A detached student appears in Users as a Free
+    individual and could be deleted once given an email to type.
+  - "Needs Changes" works (harness; production's queue was empty): status
+    `needs_changes`, the feedback stored. **It is counted under the
+    "Rejected" tile** (`storage.ts`, `totalRejected: countOf("rejected",
+    "needs_changes")`). Flagged, not changed.
+  - **A QUESTION'S SUBJECT COULD NOT BE CORRECTED IN ANY COUNTRY BUT UAE.**
+    `updateQuizQuestion` skipped reading the row when only `subject` was
+    sent, so the new subject was checked against the global six and not the
+    question's own catalogue; the refusal said the question had "no country
+    or curriculum". Invisible on UAE, whose catalogue is the six. The row is
+    always read now. `storage.subjectVocabulary.test.ts`, two cases, both
+    failing against the old line.
+  - The footer was English under every Arabic page, a student's Arabic
+    report included; the header still said "Admin" for a superadmin's Schools
+    link outside the dashboard pages. Both fixed.
+  - Superadmin "Forgot password" delivers to the owner's Gmail.
+  - **Flagged, not changed:**
+    - A superadmin's edit of a seeded career's Arabic in the Translation
+      Manager saves, and is overwritten at the next boot by
+      `applyCareerArabicContent`.
+    - Add Country: choosing the country name overwrote a typed id and code,
+      and the auto-populate switch read off afterwards.
+    - Malta was given "Arabic" among its six seeded subjects.
+    - A new career still has no personality or values mapping.
+
 - **A SCHOOL'S STUDENT COUNT DISAGREED ON THREE SCREENS.** Found on
   production 2026-11-12, signed in as a school admin: a school of six
   students, three finished. The roster said 6. The profile said "Total
@@ -1225,7 +1285,8 @@ so a student with one assessment in progress got a link to a raw 404.
   - A licence reduction saved together with switching unlimited off is
     missing from the school's activity history; Recent Activity has no
     invoice events.
-  - The header tiles do not refresh after an invoice is marked paid.
+  - (FIXED 2026-11-13) The header tiles did not refresh after an invoice was
+    marked paid.
   - The Files tab says "No files found" and has no upload control.
   - A school created by a superadmin reads "Signed in, unfinished" before
     anyone has signed in.
@@ -1233,17 +1294,17 @@ so a student with one assessment in progress got a link to a raw 404.
   - A new career stores its education level as a code and has no
     personality or values mapping, so nothing can recommend it; the form
     still has "Average Salary".
-  - "Apply Arabic Translations" rewrites the Arabic of every seeded career in
+  - (FIXED 2026-11-13: it asks first.) "Apply Arabic Translations" rewrites the Arabic of every seeded career in
     one click with no confirmation.
   - **Add Country with AI research is one request of about five minutes
     behind a spinner, and the sector map was still empty afterwards and
     after two repopulates** — not investigated.
-  - The invoice row does not show the PO reference.
+  - (FIXED 2026-11-13) The invoice row did not show the PO reference.
   - "School Deleted — the school and all its members have been deleted" is
     untrue of its administrators, who stay as accounts with no school; its
     invoices stay too, by design.
   - A contributed question enters the bank with no explanation and no Arabic.
-  - Translation editing answers "Failed to save translation" on every key
+  - (FIXED 2026-11-13: the toast carries the server's sentence.) Translation editing answers "Failed to save translation" on every key
     (it is disabled, 501) without saying it is disabled.
   - The question import reports any failure as "Failed to import questions";
     creating a question with an empty form shows no field errors.
