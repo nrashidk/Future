@@ -1068,7 +1068,10 @@ so a student with one assessment in progress got a link to a raw 404.
     the debounced auto-save that writes the real step**, or for good if that
     auto-save fails, which it does silently. The form now sends the step with
     the create (`Assessment.tsx`, `backendData.currentStep`). No harness
-    suite: it is one line of a page. **Left on production:** his unfinished
+    suite: it is one line of a page. **SEEN LIVE, build `8f0a685`**, as a
+    guest through the real form: the create sent step 4 and the row came
+    back at step 4, read before the auto-save could have run. Not re-seen
+    as a school student on a repeat (his permission is spent). **Left on production:** his unfinished
     assessment `23cfa171` (grade 11, step 2) and a spent permission.
   - **A SCHOOL ADMIN IS REFUSED ANOTHER SCHOOL, LIVE** (Test High School's
     admin against AD School, build `feda372`): roster, add student and
