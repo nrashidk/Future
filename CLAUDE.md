@@ -1027,7 +1027,8 @@ so a student with one assessment in progress got a link to a raw 404.
     `payment.createIntent.test.ts` asserts the refusal, the amount sent to
     Stripe for a UAE order (360000 aed) and the single-buyer control.
     **SEEN LIVE, build `8330456`**: the no-country order answers 400
-    `COUNTRY_REQUIRED`. The redirect in the checkout page was not looked at.
+    `COUNTRY_REQUIRED`, and `/checkout?students=100` signed out lands on
+    `/group-pricing`.
   - **THE GUEST, LIVE AND SIGNED OUT, the same night:** the form asks grade
     only; a crafted name, age and gender on POST and PATCH were stored as
     null; 15 questions; free report with 2 careers; PDF 403.
@@ -1036,8 +1037,9 @@ so a student with one assessment in progress got a link to a raw 404.
     it.** `Results.tsx` already prints `guestExpiryNotice` with the computed
     date ("This report will be deleted on ... unless you create an account")
     once `completedAt` is set, which generation does. My page read was taken
-    before the report's own refetch. Nothing was added. **Not yet re-seen
-    live as a guest.**
+    before the report's own refetch. Nothing was added. **RE-SEEN LIVE AS A
+    GUEST, build `0e756b0`**: "This report will be deleted on 17/11/2026
+    unless you create an account to save it", 72 hours after it was made.
   - **THE STUDENT, LIVE, build `8330456`** (`salm.alktby`, Grade 11, one
     charged report): `/api/licenses/me` says `repeatBlocked: true`;
     `/assessment` shows `screen-repeat-blocked` ("You already have your
