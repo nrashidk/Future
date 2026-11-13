@@ -37,6 +37,8 @@ import { ShieldCheck, AlertTriangle } from "lucide-react";
 
 interface ConsentRecord {
   id: string;
+  consentsToProcessing: boolean;
+  attestsGuardianConsent: boolean;
   performedByName: string;
   policyVersion: string;
   policyLastUpdated: string;

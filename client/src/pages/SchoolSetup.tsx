@@ -104,8 +104,13 @@ export default function SchoolSetup() {
   // Read from the server, never a local boolean: the Continue button must be
   // gated on the RECORD existing, which is what consentGate actually checks.
   const { data: consentRecord } = useOrganizationConsent(step === "consent");
-  const hasConsent = !!(consentRecord as any)?.consentsToProcessing
-    && !!(consentRecord as any)?.attestsGuardianConsent;
+  // The route answers `{ consent: {...} | null, ... }`. This read the two
+  // flags off the ENVELOPE, behind an `as any` that hid it from the compiler,
+  // so it was false for ever and Continue never enabled: no buyer could get
+  // past step three on this screen. Found by the owner pressing it on the
+  // first live purchase (2026-11-14); the harness walks this step by API.
+  const hasConsent = !!consentRecord?.consent?.consentsToProcessing
+    && !!consentRecord?.consent?.attestsGuardianConsent;
 
   const countries = reference?.countries ?? [];
   const selectedCountry = countries.find((c) => c.id === countryId);
