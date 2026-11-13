@@ -50,6 +50,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 interface InvoiceRow {
   id: string;
   number: string;
+  purchaseOrderRef?: string | null;
   organizationId: string | null;
   billToName: string;
   billToEmail: string | null;
@@ -151,6 +152,10 @@ export default function InvoiceManagement() {
     // every figure on the Licences tab and the schools directory moves with it.
     queryClient.invalidateQueries({ queryKey: ["/api/admin/organizations"] });
     queryClient.invalidateQueries({ queryKey: ["/api/superadmin/licenses/analytics"] });
+    // The four tiles at the top of the dashboard: they went on showing the
+    // old licence figures after an invoice was marked paid.
+    queryClient.invalidateQueries({ queryKey: ["/api/superadmin/metrics"] });
+    queryClient.invalidateQueries({ queryKey: ["/api/superadmin/organizations"] });
   };
 
   const transition = useMutation({
@@ -357,6 +362,13 @@ export default function InvoiceManagement() {
                         {/* nowrap: this is the identifier a finance department quotes back,
                             and "FP-2026-\n0004" is not that identifier. */}
                         <div className="font-semibold tabular-nums whitespace-nowrap">{row.number}</div>
+                        {/* The school's own purchase-order number: what its finance
+                            office quotes when it rings about this invoice. */}
+                        {row.purchaseOrderRef && (
+                          <div className="text-xs text-muted-foreground mt-1" data-testid={`text-invoice-po-${row.id}`}>
+                            {t("invoices.poRef")} <span dir="ltr">{row.purchaseOrderRef}</span>
+                          </div>
+                        )}
                         <div className="text-xs text-muted-foreground mt-1">
                           {row.status === "paid" && row.paidAt
                             ? t("invoices.datePaid", { date: dateOnly(row.paidAt) })

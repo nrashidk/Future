@@ -1643,7 +1643,8 @@
     "confirmIssueTitle": "Issue this invoice?",
     "confirmIssueBody": "{{number}} gets today's date and becomes owed. It can still be cancelled, but not returned to a draft.",
     "confirmCancelTitle": "Cancel this invoice?",
-    "confirmCancelBody": "{{number}} will be marked cancelled and keeps its number. This cannot be undone."
+    "confirmCancelBody": "{{number}} will be marked cancelled and keeps its number. This cannot be undone.",
+    "poRef": "PO"
   },
   "billing": {
     "title": "Billing",
