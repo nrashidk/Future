@@ -1015,9 +1015,24 @@ so a student with one assessment in progress got a link to a raw 404.
     unconfirmed; its deadline is 2026-11-16T19:45:33Z. After that it should
     be gone from the Users list, and "Nasser Free Check" (confirmed) should
     still be there. Nobody must open its confirmation link.
-    **STILL HARNESS-ONLY:** "Needs Changes" (no live submission), that a
-    guest's crafted name is discarded, the 72-hour erasure itself, and
-    anything seen as a school admin or student since 2026-11-12.
+    **THE SCHOOL ADMIN WAS WALKED LIVE AGAIN, 2026-11-14 (build `2fcbdfe`)**,
+    Test High School: nav is Admin / Analytics / Profile; `/superadmin`,
+    `/admin` and `/assessment` all land back on the school page; the
+    superadmin lists answer 403; creating an assessment answers 403
+    `SCHOOL_ADMIN_NO_ASSESSMENT`; a bulk-added "Male" shows Male on the
+    roster; the Billing card shows the school's own invoice with its PO.
+    **"NEEDS CHANGES" WAS PRESSED LIVE** on a two-question submission made
+    for it: the automatic check ran and scored 45% (one question had two
+    correct options), the press without feedback was refused ("Feedback
+    Required"), with feedback it answered "Review Complete", Pending went
+    1 -> 0 and **Rejected 1 -> 2** (the tile still counts it as rejected),
+    and the bank stayed at 240. Not seen: the feedback on the school's side.
+    **Flagged, not changed:** the school's submissions table prints the raw
+    status `claimed`; the Billing card says "1 licences added"; the review
+    queue prints the subject code `mathematics`.
+    **STILL HARNESS-ONLY:** that a guest's crafted name is discarded, the
+    72-hour erasure itself (test running), a school admin refused ANOTHER
+    school's roster, and anything seen as a student since 2026-11-12.
   - "Refresh with AI" on Malta left its one curriculum alone (no re-spelled
     duplicate), and UAE was not touched.
   - Real question generation works: 10 Grade 9 Mathematics questions for
