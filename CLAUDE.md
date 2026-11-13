@@ -1026,7 +1026,8 @@ so a student with one assessment in progress got a link to a raw 404.
     single buyer has no country and is quoted dollars by decision.
     `payment.createIntent.test.ts` asserts the refusal, the amount sent to
     Stripe for a UAE order (360000 aed) and the single-buyer control.
-    **Not yet seen live.**
+    **SEEN LIVE, build `8330456`**: the no-country order answers 400
+    `COUNTRY_REQUIRED`. The redirect in the checkout page was not looked at.
   - **THE GUEST, LIVE AND SIGNED OUT, the same night:** the form asks grade
     only; a crafted name, age and gender on POST and PATCH were stored as
     null; 15 questions; free report with 2 careers; PDF 403.
@@ -1037,6 +1038,20 @@ so a student with one assessment in progress got a link to a raw 404.
     once `completedAt` is set, which generation does. My page read was taken
     before the report's own refetch. Nothing was added. **Not yet re-seen
     live as a guest.**
+  - **THE STUDENT, LIVE, build `8330456`** (`salm.alktby`, Grade 11, one
+    charged report): `/api/licenses/me` says `repeatBlocked: true`;
+    `/assessment` shows `screen-repeat-blocked` ("You already have your
+    report for this grade ... ask your school") with "View your report",
+    which opens it; a VALID create is **403 `REPEAT_NOT_ALLOWED`**, rows
+    1 -> 1, balance 45 -> 45 (an incomplete payload is a 400 first, which
+    proves nothing); `/superadmin`, `/admin`, `/admin/organizations` and
+    `/analytics` all land on `/`; six staff routes 403, his own school's
+    roster included; the report is in Arabic with no dollar figure, no
+    unlock offer, an Arabic footer and no mostly-English paragraph among 91;
+    the PDF is 200, 1.4 MB. **Not seen live:** the school ALLOWING a repeat
+    and the student then starting one; another student's report refused
+    (seen 2026-11-12). **Flagged:** the Arabic page still carries an English
+    "Skip to main content" beside the Arabic one.
   - **A SCHOOL ADMIN IS REFUSED ANOTHER SCHOOL, LIVE** (Test High School's
     admin against AD School, build `feda372`): roster, add student and
     report export 403 "Can only access your own school"; read and rename of
