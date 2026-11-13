@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { needsConfirmation, hoursLeftToConfirm } from "@shared/emailConfirmation";
 import { validateEmail, validatePhone, sanitizePhone } from "@/lib/utils";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, Redirect } from "wouter";
@@ -1663,6 +1664,16 @@ function SuperadminDashboardPage() {
                                   <span className="text-xs text-muted-foreground mt-1">
                                     {t('superadmin.schoolColon', { name: student.organizationName || t('superadmin.schoolIndividual') })}
                                   </span>
+                                  {/* An account a parent registered and has not confirmed yet
+                                      (shared/emailConfirmation.ts). Unpaid ones are erased when
+                                      the time runs out, so the row says so before it vanishes. */}
+                                  {needsConfirmation(student.user, new Date()) && (
+                                    <Badge variant="outline" className="w-fit mt-1 border-amber-400 text-amber-700" data-testid={`badge-unconfirmed-${student.user.id}`}>
+                                      {student.user.isPremium
+                                        ? t('superadmin.emailUnconfirmedPaid')
+                                        : t('superadmin.emailUnconfirmed', { hours: hoursLeftToConfirm(student.user, new Date()) ?? 0 })}
+                                    </Badge>
+                                  )}
                                   {student.user.accountType === 'individual' && !student.isSuperadmin && (
                                     <span className="text-xs text-muted-foreground" data-testid={`text-user-licences-${student.user.id}`}>
                                       {t('superadmin.licencesHeld', { n: student.user.purchasedLicenses ?? 0 })}

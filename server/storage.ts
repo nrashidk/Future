@@ -5778,7 +5778,12 @@ export class DatabaseStorage implements IStorage {
           firstName: params.firstName,
           lastName: params.lastName,
           role: params.role,
-          accountType: "public",
+          // 'individual', the documented type for an account with no school.
+          // This wrote "public" until 2026-11-13 -- a value nothing else in
+          // the product reads -- so a registered account was in NO list a
+          // superadmin could open: not the Users directory, not its filters,
+          // and refused licences by the route that requires 'individual'.
+          accountType: "individual",
           emailConfirmationDueAt: params.emailConfirmationDueAt ?? null,
         })
         .returning();
