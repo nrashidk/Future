@@ -825,6 +825,14 @@ export default function Assessment() {
     try { sessionStorage.removeItem(DRAFT_KEY); } catch {}
     try { sessionStorage.removeItem("riasec_draft"); } catch {}
     try { sessionStorage.removeItem("cvq_draft"); } catch {}
+    // "START OVER" WAS A TRAP FOR A SCHOOL STUDENT ON AN ALLOWED REPEAT.
+    // Starting over abandons the row and the form creates a new one before
+    // the quiz. But starting the repeat spent the school's one permission,
+    // so that create is refused (403 REPEAT_NOT_ALLOWED) and the student
+    // sat on the subjects step unable to go on. Seen on production
+    // 2026-11-14. For them the answers start over and the ATTEMPT is kept:
+    // the form writes into the row they already have.
+    if (repeatBlocked && resumePrompt) setAssessmentId(resumePrompt.assessmentId);
     setResumePrompt(null);
   };
 
