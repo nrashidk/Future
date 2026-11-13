@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, CheckCircle2, AlertTriangle, GraduationCap, Users, FileSpreadsheet } from "lucide-react";
+import { Loader2, CheckCircle2, AlertTriangle, GraduationCap, Users, FileSpreadsheet, Eye, EyeOff } from "lucide-react";
 import { OrganizationConsentCard, useOrganizationConsent } from "@/components/admin/OrganizationConsentCard";
 
 /**
@@ -81,6 +81,7 @@ export default function SchoolSetup() {
   const [step, setStep] = useState<Step>("password");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [countryId, setCountryId] = useState("");
   const [curriculum, setCurriculum] = useState("");
   const [orgId, setOrgId] = useState<string | null>(null);
@@ -218,26 +219,50 @@ export default function SchoolSetup() {
 
               <div className="space-y-2">
                 <Label htmlFor="setup-password">{t("schoolSetup.newPassword")}</Label>
-                <Input
-                  id="setup-password"
-                  type="password"
-                  autoComplete="new-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  data-testid="input-setup-password"
-                />
+                <div className="relative">
+                  <Input
+                    id="setup-password"
+                    type={showPassword ? "text" : "password"}
+                    className="pe-10"
+                    autoComplete="new-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    data-testid="input-setup-password"
+                  />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 end-0 flex items-center justify-center w-10 text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? t("resetPassword.hidePassword") : t("resetPassword.showPassword")}
+                    data-testid="button-toggle-setup-password"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="setup-confirm">{t("schoolSetup.confirmPassword")}</Label>
-                <Input
-                  id="setup-confirm"
-                  type="password"
-                  autoComplete="new-password"
-                  value={confirm}
-                  onChange={(e) => setConfirm(e.target.value)}
-                  data-testid="input-setup-confirm"
-                />
+                <div className="relative">
+                  <Input
+                    id="setup-confirm"
+                    type={showPassword ? "text" : "password"}
+                    className="pe-10"
+                    autoComplete="new-password"
+                    value={confirm}
+                    onChange={(e) => setConfirm(e.target.value)}
+                    data-testid="input-setup-confirm"
+                  />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 end-0 flex items-center justify-center w-10 text-muted-foreground hover:text-foreground transition-colors"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? t("resetPassword.hidePassword") : t("resetPassword.showPassword")}
+                    data-testid="button-toggle-setup-confirm"
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
+                  </button>
+                </div>
               </div>
 
               <ul className="space-y-2 text-sm text-muted-foreground">
