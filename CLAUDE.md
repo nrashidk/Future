@@ -1016,17 +1016,31 @@ so a student with one assessment in progress got a link to a raw 404.
     still reads "Admin" (drawn separately on five screens); the superadmin
     sees the school admin's subtitle "Manage your school's students and
     settings".
-  - **FLAGGED, NOT CHANGED — A SCHOOL PAYS ABOUT 8% LESS WITHOUT `country`
-    IN THE URL.** `/checkout?students=100` quotes and would charge **$900**
+  - **A SCHOOL PAID ABOUT 8% LESS WITHOUT `country` IN THE URL. FIXED
+    (owner said fix, 2026-11-14).** `/checkout?students=100` quoted **$900**
     (the USD fallback, about AED 3,305) where `&country=uae` charges AED
-    3,600. `create-payment-intent` refuses an UNKNOWN country and accepts an
-    ABSENT one. Low today (the card form is not offered publicly, test keys);
-    real the day live keys are set. The fix proposed to the owner: refuse a
-    group purchase that names no country.
+    3,600: `create-payment-intent` refused an UNKNOWN country and accepted an
+    ABSENT one. A group order with no country is now **400
+    `COUNTRY_REQUIRED`** before any PaymentIntent exists, and the checkout
+    sends that visitor back to `/group-pricing`. **Group orders only**: a
+    single buyer has no country and is quoted dollars by decision.
+    `payment.createIntent.test.ts` asserts the refusal, the amount sent to
+    Stripe for a UAE order (360000 aed) and the single-buyer control.
+    **Not yet seen live.**
   - **THE GUEST, LIVE AND SIGNED OUT, the same night:** the form asks grade
     only; a crafted name, age and gender on POST and PATCH were stored as
-    null; 15 questions; free report with 2 careers; PDF 403. **Flagged:** the
-    guest's results page does not say the report is deleted after 72 hours.
+    null; 15 questions; free report with 2 careers; PDF 403.
+    **I REPORTED THAT THE GUEST'S RESULTS PAGE DOES NOT MENTION THE 72-HOUR
+    DELETION. THAT WAS WRONG, and the owner said "add" on the strength of
+    it.** `Results.tsx` already prints `guestExpiryNotice` with the computed
+    date ("This report will be deleted on ... unless you create an account")
+    once `completedAt` is set, which generation does. My page read was taken
+    before the report's own refetch. Nothing was added. **Not yet re-seen
+    live as a guest.**
+  - **A SCHOOL ADMIN IS REFUSED ANOTHER SCHOOL, LIVE** (Test High School's
+    admin against AD School, build `feda372`): roster, add student and
+    report export 403 "Can only access your own school"; read and rename of
+    the school 403. This was harness-only until now.
 - **THE SUPERADMIN WALK, SECOND PASS, PRODUCTION 2026-11-13** (build
   `d0355ed`; a throwaway country "Malta", `mt`, and throwaway students on
   Test High School). What the first pass had not reached.
