@@ -128,7 +128,7 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `migration-036-dryrun`, `migration-037-dryrun`, `migration-038-dryrun` and
 `migration-039-dryrun`, plus `premium-solo`, `individual-licences` and
 `migration-041-dryrun` and `migration-042-dryrun`, plus
-`erase-after-email-change` and `erase-charged-student`.
+`erase-after-email-change`, `erase-charged-student` and `country-delete`.
 
 `webhook-idempotency`, `webhook-group-backstop` and `setup-invite` need two
 environment
@@ -994,10 +994,29 @@ so a student with one assessment in progress got a link to a raw 404.
     says how it ended. The setup checklist shows "researching", then the
     result or the reason. **In memory by design** — a deploy loses the
     record, the checklist still says the map is missing, and Generate starts
-    it again. `country.repopulate.test.ts` (8 cases). **NOT YET SEEN TO
-    SUCCEED ON PRODUCTION**: whether fifteen minutes is enough is unknown
-    until a real run finishes; the browser link dropped as the first one was
-    started (a throwaway country `zzportugal` may exist).
+    it again. `country.repopulate.test.ts` (8 cases).
+    **SEEN TO WORK ON PRODUCTION, 2026-11-13, build `8b62173`, at the second
+    attempt.** The first background run died at 301 s with a bare "fetch
+    failed": Node's fetch gives up after 300 s without response HEADERS, and
+    this request is not streamed, so nothing arrives until the whole answer is
+    ready. The old 240 s limit had only ever been the first of two ceilings.
+    A long call now goes through an undici dispatcher sized to its limit
+    (undici is a direct dependency, at the version jsdom already installs),
+    and a transit failure names its cause. The second run, on a throwaway
+    "Portugal", ran **848 seconds** and wrote 7 sectors, 38 skill rows and 22
+    category rules; the checklist went from "researching" to "22 mappings /
+    Ready" on its own. 848 s was 52 s inside the limit, so the limit is now
+    THIRTY minutes. Creating that country answered in 19 s (it was ~5 min).
+    **A deploy during a run kills it** — do not push while one is in flight.
+    **A COUNTRY WITH A SECTOR MAP COULD NOT BE DELETED** (found clearing that
+    test country up): four tables of the country's own configuration
+    reference it with no cascade and nothing removed them. `deleteCountry`
+    now removes the sector map and the subjects with the country, in one
+    transaction. **`organizations.country_id` is NOT a foreign key** — the
+    subjects' key had been the only thing stopping a country with schools in
+    it from being deleted, by accident — so that refusal is explicit now.
+    `country-delete.mjs` (3 cases; D-02/D-03 are that control, and D-02
+    failed with HTTP 200 until the explicit check was written).
     **"Refresh with AI" ADDED a re-spelled national curriculum each time**
     (it was described here as renaming; it was adding). The route added the
     model's name for the national curriculum whenever that exact string was
@@ -1107,9 +1126,6 @@ so a student with one assessment in progress got a link to a raw 404.
   - "School Deleted — the school and all its members have been deleted" is
     untrue of its administrators, who stay as accounts with no school; its
     invoices stay too, by design.
-  - A country cannot be deleted while it has subject rows, the refusal names
-    "users, schools, assessments, or questions" and not subjects, and there
-    is no bulk way to remove them (Iceland needed 24 deletes).
   - A contributed question enters the bank with no explanation and no Arabic.
   - Translation editing answers "Failed to save translation" on every key
     (it is disabled, 501) without saying it is disabled.
@@ -1117,8 +1133,9 @@ so a student with one assessment in progress got a link to a raw 404.
     creating a question with an empty form shows no field errors.
   - At 800 pixels wide the dashboard header overflows sideways.
   - **Left on production:** invoices FP-2026-0001 (paid) and FP-2026-0002
-    (cancelled), billed to the deleted ZZ Walk School, and the student
-    `zz.testmanual.q7m7dm` in Test High School.
+    (cancelled), billed to the deleted ZZ Walk School. The test student was
+    erased on 2026-11-13 ("Student deleted successfully", licences used
+    stayed 5 of 50).
 - **THE USERS TAB'S "EXPORT CSV" DOWNLOADED THE APP'S HTML.** Its link was
   `/api/superadmin/export/students`, a route that does not exist; the SPA
   catch-all answered 200 with the page, saved as a `.csv`. The route is
