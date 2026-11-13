@@ -128,7 +128,9 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `migration-036-dryrun`, `migration-037-dryrun`, `migration-038-dryrun` and
 `migration-039-dryrun`, plus `premium-solo`, `individual-licences` and
 `migration-041-dryrun` and `migration-042-dryrun`, plus
-`erase-after-email-change`, `erase-charged-student` and `country-delete`.
+`erase-after-email-change`, `erase-charged-student` and `country-delete`, plus
+`free-signup` and `migration-044-dryrun` (run the dry-run LAST: between its
+DOWN and UP the app's schema is missing two `users` columns).
 
 `webhook-idempotency`, `webhook-group-backstop` and `setup-invite` need two
 environment
@@ -790,6 +792,80 @@ rules, each of which fails silently if broken, so each has an assertion in
 Superadmins still see `peer_review` submissions and can override at any point.
 Removing that was worse than the bottleneck it replaced: a submission nobody
 chose to review would sit for ever with no one able to see it.
+
+## A parent may register a student account and stay free (2026-11-13)
+
+**This REVERSES the owner's own decision of 2026-09-16**, "zero assessments
+before payment". The September reasoning was that a guest already gets the
+same free report. What a guest cannot do is KEEP it (72-hour deletion), and
+keeping it is the reason to register. There is no "parent account": it is the
+STUDENT's account, created and consented by a parent.
+
+- **An unpaid account with a child profile is an ordinary free account**:
+  `FREE_ASSESSMENT_CAP` (3 completed), basic report, no PDF.
+  `requiresPaymentBeforeAssessment` and 402 `PAYMENT_REQUIRED` are gone from
+  both guards and from the client.
+- **THE POOL RULE HAD TO MOVE WITH IT, and reading alone would have missed
+  it.** `isOnPersonalPool` put every child profile on a pool "whether or not
+  it has paid", at a balance of zero. `consumeLicense` does not check a
+  balance — it writes the row — so a free report would have been CHARGED, and
+  the licence bought later would have arrived already spent. An unpaid child
+  profile is on no pool; a paid one is, as before.
+- **Registering no longer leads to payment.** `RegisterParent` ended in an
+  unconditional redirect to Checkout. It now returns to where the visitor
+  came from, or the assessment in progress, or the report just claimed. Only
+  `?next=checkout` (set by TierSelection and Checkout) goes on to pay.
+- The home page has the door ("Parent or guardian? Create a free account for
+  your child"); its closing "Create Account" button had been going to the
+  SIGN-IN page. The sign-in page links to registration too.
+- **A signed-in free account pressing Upgrade was sent to register again**
+  (free-cap screen → `/tier-selection` → `/register/parent`), which could
+  only end in "an account with this email already exists". It goes to
+  Checkout now; a PREMIUM account goes to its profile, never the card form.
+
+**THE EMAIL ADDRESS MUST BE CONFIRMED WITHIN 72 HOURS OR THE ACCOUNT IS
+ERASED** (migration 044). While registering led to payment, the card was the
+evidence of a real person. A free account has none, and a mistyped address is
+a minor's record nobody can recover or erase.
+
+- `users.email_confirmation_due_at` is set by `POST /api/register/parent` and
+  by nothing else. **NULL MEANS "NEVER ASKED", NOT "UNCONFIRMED"** — every
+  existing account, school student and admin — and no backfill was run.
+  `shared/emailConfirmation.ts` is the rule (8 tests) and tests NULL first,
+  because that is the direction that deletes people.
+- The sweep is `eraseUnconfirmedAccounts`, called from the guest sweep (same
+  `/health` trigger, same throttle), through `eraseUserData`. Its SELECT also
+  requires role `user` and no school row. **A PAID account is never erased.**
+- `email_confirmation_tokens` is its own table so a confirmation link can
+  never be spent as a password reset; only the SHA-256 is stored.
+- Confirming is a POST the page makes (`/confirm-email/:token` →
+  `POST /api/email-confirmation/confirm`), never the GET of the link: mail
+  scanners fetch every URL. It needs no session. `resend` is 5 an hour per
+  account and deletes earlier unused links.
+- The banner (`EmailConfirmationBanner`) is on PageLayout pages and the
+  profile. **Not on the assessment form itself**, which has its own layout.
+- Privacy s4 states the rule. **That changed the policy version**, so a
+  school's recorded consent now reads as given against an older version. It
+  blocks nothing.
+
+`free-signup.mjs` (17 cases), judged by rows. S-01 is the case that matters
+(an overdue account is GONE after one `/health` ping); S-02 to S-05 are the
+controls. Mutation-tested: the old pool rule fails F-03/04/05 with `402
+NO_LICENCES_AVAILABLE`; stripping the sweep's conditions fails all four
+controls; dropping the expiry check lets an expired link confirm.
+`migration-044-dryrun` (8 cases; M-04 is that no existing account is asked).
+Driven in a browser against the harness, English and Arabic.
+**Not covered:** that a GENERATED free report wrote no ledger row (the rule
+is unit-tested, generation is not driven); real mail delivery.
+**Flagged, not changed:**
+- A guest's assessment claimed by a new account keeps NO name, age or gender:
+  it predates the child profile, and `assessmentIsChildOwned` deliberately
+  leaves such a row alone.
+- The resume prompt said "in progress at step 1 of 6" for a row at step 4.
+- A free account that later pays keeps its free reports; whether one can be
+  regenerated as a premium report, and charged, was not examined.
+- Google/Microsoft sign-in cannot create this account; registration is
+  email and password only.
 
 ## Who may read a student's report
 
@@ -2067,7 +2143,9 @@ so a student with one assessment in progress got a link to a raw 404.
     apply to a second purchase, whether a cap applies), and the country must be
     taken from the ORGANIZATION rather than client-selected, since for an
     authenticated buyer it is finally server-derivable.
-  - Email verification on registration is still genuinely ABSENT (no token
+  - **Email confirmation for parent registration IS BUILT (2026-11-13, see
+    "A parent may register a student account and stay free").** What follows
+    is the older note, kept for its scoping: it was ABSENT (no token
     column; `emailVerified` is only Google's OAuth boolean). **It does NOT gate
     live Stripe, and an earlier version of this line saying so was my own
     invention** — FOLLOWUP lists it as best practice 8.5 and a Phase 5 feature,
