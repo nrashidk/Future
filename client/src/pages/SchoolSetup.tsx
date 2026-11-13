@@ -3,6 +3,7 @@ import { useRoute, useLocation } from "wouter";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiRequest, serverErrorMessage } from "@/lib/queryClient";
 import { useTranslation } from "react-i18next";
+import { useAuth } from "@/hooks/useAuth";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -534,6 +535,29 @@ function StepHeader({ step, t }: { step: Step; t: (k: string, o?: any) => string
  */
 function DeadLink({ t }: { t: (k: string) => string }) {
   const [, setLocation] = useLocation();
+  // ALREADY SIGNED IN is the common way to arrive here: the link is spent at
+  // step one and the wizard lives in memory, so a reload or a Back into this
+  // page mid-setup lands on a dead link while holding a working session. Send
+  // that person on to their school, where curriculum and consent can be
+  // finished, not to a sign-in form they do not need (found on the first live
+  // purchase, 2026-11-14).
+  const { isAuthenticated } = useAuth();
+  if (isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background px-6">
+        <Card className="max-w-md w-full">
+          <CardContent className="pt-8 space-y-5 text-center">
+            <CheckCircle2 className="h-8 w-8 text-green-600 mx-auto" aria-hidden="true" />
+            <h1 className="text-xl font-semibold">{t("schoolSetup.signedInTitle")}</h1>
+            <p className="text-muted-foreground">{t("schoolSetup.signedInDesc")}</p>
+            <Button className="w-full" onClick={() => setLocation("/admin/organizations")} data-testid="button-dead-link-continue">
+              {t("schoolSetup.signedInContinue")}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-6">
       <Card className="max-w-md w-full">
