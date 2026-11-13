@@ -36,7 +36,9 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
           <Button variant="outline" size="sm" asChild className={navBtnClass} data-testid="button-nav-admin">
             <Link href="/admin/organizations" aria-current={onOrgs ? "page" : undefined} onClick={onNavigate} className={linkClass}>
               <Building2 className="w-4 h-4" aria-hidden="true" />
-              {t("nav.admin")}
+              {/* For a superadmin this is the list of ALL schools. "Admin" was the
+                  school admin's word for it, and read as a fourth admin area. */}
+              {t("nav.schools")}
             </Link>
           </Button>
           <Button variant="outline" size="sm" asChild className={navBtnClass} data-testid="button-nav-questions">

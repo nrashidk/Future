@@ -1396,7 +1396,7 @@ export default function Assessment() {
                   data-testid="button-nav-admin"
                 >
                   <Building2 className="w-4 h-4 me-2" aria-hidden="true" />
-                  {tCommon("nav.admin")}
+                  {tCommon("nav.schools")}
                 </Button>
                 <Button
                   variant="outline"
