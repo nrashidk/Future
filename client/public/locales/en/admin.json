@@ -1265,7 +1265,12 @@
       "done": "Done",
       "finishSetup": "Finish setup",
       "sectorFailed": "The sector map was not generated",
-      "sectorFailedNoReason": "The server gave no reason. Try again, and if it repeats, check the Anthropic credential."
+      "sectorFailedNoReason": "The server gave no reason. Try again, and if it repeats, check the Anthropic credential.",
+      "sectorStarted": "Research started",
+      "sectorStartedDesc": "The sector map is being researched from official sources. This takes several minutes. You can close this and come back; the checklist will show the result.",
+      "sectorNoSectors": "The research found no priority sectors for this country, so there is nothing to map. Add priority sectors with Edit Country, then try again.",
+      "stepSectorMapRunning": "Researching official sources now. This takes several minutes; you can close this and come back.",
+      "stepSectorMapFailed": "The last attempt did not produce a map: {{reason}}"
     },
     "notReady": "Not ready ({{count}})",
     "readyWithWarnings": "Ready, {{count}} warning(s)",
@@ -1370,7 +1375,8 @@
     "renameError": "Failed to rename curriculum",
     "createError": "Failed to create country",
     "fieldRequiredError": "Country ID, name, and code are required",
-    "selectSubjectError": "Please select a subject"
+    "selectSubjectError": "Please select a subject",
+    "refreshSuccessSectorsRunning": "Country data refreshed. The sector map is being researched in the background and takes several minutes; the setup checklist shows the result."
   },
   "subjects": {
     "title": "Subject Management",

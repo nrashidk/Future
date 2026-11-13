@@ -20,6 +20,11 @@
  * because api.anthropic.com is not reachable from a test run.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import {
+  getSectorGenerationJob,
+  resetSectorGenerationJobs,
+  whenSectorGenerationSettles,
+} from "../services/sectorGenerationJobs";
 
 const sectorRows: Array<{ countryId: string; name: string }> = [];
 const skillRows: Array<{ sectorId: string; wefSkillId: string; importance: number }> = [];
@@ -31,7 +36,7 @@ vi.mock("../storage", () => ({
     // checkSuperadmin re-reads the user from storage on every privileged
     // request rather than trusting the session, so the mock has to supply one.
     getUser: async () => ({ id: "u1", email: "super@futurepath.test", role: "superadmin" }),
-    getCountryById: async () => ({ id: "testland", name: "Testland", code: "TL" }),
+    getCountryById: async () => ({ id: "testland", name: "Testland", code: "TL", curricula: ["MOE National"] }),
     updateCountry: async (_id: string, data: Record<string, unknown>) => {
       countryUpdates.push(data);
       return { id: "testland", ...data };
@@ -114,6 +119,7 @@ describe("POST /api/admin/countries/:id/repopulate", () => {
     skillRows.length = 0;
     categoryRows.length = 0;
     countryUpdates.length = 0;
+    resetSectorGenerationJobs();
     researchCountryData.mockReset();
     generateSectorWefMappings.mockReset();
 
@@ -125,7 +131,8 @@ describe("POST /api/admin/countries/:id/repopulate", () => {
         prioritySectors: ["Healthcare"],
         nationalGoals: [], targets: null, educationSystem: null,
         universitiesLink: null, universitiesLinkLabel: null,
-        curricula: ["MOE"], subjects: ["Mathematics"], gradeLevels: ["10"],
+        curricula: ["MOE"], nationalCurriculum: "Ministry of Education National Curriculum",
+        subjects: ["Mathematics"], gradeLevels: ["10"],
       },
     });
     generateSectorWefMappings.mockResolvedValue({
@@ -152,6 +159,11 @@ describe("POST /api/admin/countries/:id/repopulate", () => {
     expect(res.out.status).toBe(200);
     expect(countryUpdates).toHaveLength(1);
 
+    // The request ANSWERS BEFORE the map exists: the research does not finish
+    // inside an HTTP request (240 s was not enough on production).
+    expect((res.out.body as any).sectorGeneration).toMatchObject({ attempted: true, started: true });
+    await whenSectorGenerationSettles("testland");
+
     // The three tables that were silently skipped before.
     expect(sectorRows, "country_priority_sectors must be written").toHaveLength(1);
     expect(skillRows, "country_sector_wef_skills must be written").toHaveLength(1);
@@ -160,7 +172,64 @@ describe("POST /api/admin/countries/:id/repopulate", () => {
       "country_sector_categories must be written — without it calculateVisionScore floors every career",
     ).toHaveLength(1);
 
-    expect((res.out.body as any).sectorGeneration).toMatchObject({ attempted: true, persisted: true });
+    expect(getSectorGenerationJob("testland")).toMatchObject({
+      status: "done",
+      outcome: { attempted: true, persisted: true, sectorsWritten: 1 },
+    });
+  });
+
+  it("passes the generator a longer limit than a request could wait", async () => {
+    const handler = captureRoutes().get("POST /api/admin/countries/:id/repopulate")!;
+    await handler(req, fakeRes());
+    await whenSectorGenerationSettles("testland");
+    const options = generateSectorWefMappings.mock.calls[0][3];
+    expect(options.timeoutMs).toBeGreaterThan(240_000);
+  });
+
+  it("does not start a second research while one is running", async () => {
+    let release!: (v: unknown) => void;
+    generateSectorWefMappings.mockReturnValue(new Promise((r) => { release = r; }));
+    const handler = captureRoutes().get("POST /api/admin/countries/:id/repopulate")!;
+    const first = fakeRes(); await handler(req, first);
+    const second = fakeRes(); await handler(req, second);
+    expect((second.out.body as any).sectorGeneration).toMatchObject({ started: true, alreadyRunning: true });
+    // The generator is reached after two awaited reads, so give it a turn.
+    await new Promise((r) => setTimeout(r, 0));
+    expect(generateSectorWefMappings).toHaveBeenCalledTimes(1);
+    expect(getSectorGenerationJob("testland")?.status).toBe("running");
+    release({ success: false, error: "stopped" });
+    await whenSectorGenerationSettles("testland");
+    expect(getSectorGenerationJob("testland")?.status).toBe("failed");
+  });
+
+  it("records a generator that throws as a failure, not as running for ever", async () => {
+    generateSectorWefMappings.mockRejectedValue(new Error("Anthropic API request timed out after 900 seconds"));
+    const handler = captureRoutes().get("POST /api/admin/countries/:id/repopulate")!;
+    await handler(req, fakeRes());
+    await whenSectorGenerationSettles("testland");
+    expect(getSectorGenerationJob("testland")).toMatchObject({
+      status: "failed",
+      outcome: { persisted: false, error: "Anthropic API request timed out after 900 seconds" },
+    });
+  });
+
+  it("keeps the country's curricula and does not add the model's spelling of the national one", async () => {
+    const handler = captureRoutes().get("POST /api/admin/countries/:id/repopulate")!;
+    await handler(req, fakeRes());
+    await whenSectorGenerationSettles("testland");
+    expect(countryUpdates[0].curricula).toEqual(["MOE National"]);
+  });
+
+  it("answers the status route with the job, and 'none' for a country never started", async () => {
+    const routes = captureRoutes();
+    await routes.get("POST /api/admin/countries/:id/repopulate")!(req, fakeRes());
+    await whenSectorGenerationSettles("testland");
+    const res = fakeRes();
+    await routes.get("GET /api/admin/countries/:id/sector-generation")!(req, res);
+    expect(res.out.body).toMatchObject({ status: "done" });
+    const other = fakeRes();
+    await routes.get("GET /api/admin/countries/:id/sector-generation")!({ ...req, params: { id: "elsewhere" } }, other);
+    expect(other.out.body).toEqual({ status: "none" });
   });
 
   it("still saves the country when sector generation fails", async () => {
@@ -174,8 +243,12 @@ describe("POST /api/admin/countries/:id/repopulate", () => {
     // caller with nothing.
     expect(res.out.status).toBe(200);
     expect(countryUpdates).toHaveLength(1);
+    await whenSectorGenerationSettles("testland");
     expect(categoryRows).toHaveLength(0);
-    expect((res.out.body as any).sectorGeneration).toMatchObject({ attempted: true, persisted: false });
+    expect(getSectorGenerationJob("testland")).toMatchObject({
+      status: "failed",
+      outcome: { attempted: true, persisted: false, error: "LLM unavailable" },
+    });
   });
 
   it("reports that it did not attempt sector generation when there are no sectors", async () => {

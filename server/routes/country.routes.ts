@@ -5,6 +5,7 @@
  */
 
 import { toMinor, toMajor, currencyExponent, formatMoney } from "@shared/pricing";
+import { startSectorGeneration, getSectorGenerationJob, type SectorGenerationOutcome } from "../services/sectorGenerationJobs";
 import type { Express } from "express";
 import { z } from "zod";
 import { storage, SubjectNotInCatalogueError } from "../storage";
@@ -249,6 +250,109 @@ export async function persistGeneratedSectors(
 
   return result;
 }
+
+/**
+ * Research one country's sector map and write it. Returns what happened and
+ * never throws for an ordinary failure -- the caller is a background job, and
+ * its outcome is the only thing anyone will read.
+ *
+ * `alignPrioritySectors` is for CREATION: a sector the gates rejected is
+ * dropped from countries.prioritySectors so no empty label is left behind. A
+ * refresh leaves the list as the research wrote it.
+ */
+export async function runSectorGeneration(
+  countryId: string,
+  countryName: string,
+  sectors: string[],
+  opts: { alignPrioritySectors: boolean },
+): Promise<SectorGenerationOutcome> {
+  try {
+    const [careers, wefSkills] = await Promise.all([
+      storage.getAllCareers(),
+      storage.getAllWefSkills(),
+    ]);
+    const sectorResult = await generateSectorWefMappings(
+      storage,
+      countryName,
+      sectors,
+      {
+        careerCatalog: careers,
+        skillNames: wefSkills.map(s => s.name),
+        timeoutMs: SECTOR_BACKGROUND_TIMEOUT_MS,
+      },
+    );
+    for (const rejection of sectorResult.rejected ?? []) {
+      console.warn(`[Country] Rejected sector "${rejection.sector}" (${rejection.gate} gate): ${rejection.reason}`);
+    }
+    for (const warning of sectorResult.warnings ?? []) {
+      console.warn(`[Country] ${warning}`);
+    }
+
+    if (!sectorResult.success || !sectorResult.mappings) {
+      console.error(`[Country] Sector generation failed for ${countryName}: ${sectorResult.error}`);
+      return {
+        attempted: true,
+        persisted: false,
+        error: sectorResult.error,
+        sourcedLive: sectorResult.sourcedLive ?? false,
+        rejected: sectorResult.rejected ?? [],
+        warnings: sectorResult.warnings ?? [],
+      };
+    }
+
+    const wefSkillIdsByName = new Map(wefSkills.map(s => [skillKey(s.name), s.id]));
+    const written = await persistGeneratedSectors(
+      storage,
+      countryId,
+      countryName,
+      sectorResult.mappings,
+      wefSkillIdsByName,
+    );
+
+    if (opts.alignPrioritySectors) {
+      // Keep countries.prioritySectors aligned with what was actually seeded.
+      // A gated-out sector left in the array is an empty label: it shows in
+      // the UI, it is positionally paired with prioritySectorsAr, and no
+      // career can ever be attributed to it.
+      const acceptedNames = sectorResult.mappings.map(m => m.sector);
+      if (acceptedNames.length !== sectors.length) {
+        await storage.updateCountry(countryId, { prioritySectors: acceptedNames });
+      }
+    }
+
+    for (const failure of written.errors) {
+      console.error(`[Country] ${failure}`);
+    }
+    console.log(
+      `[Country] Seeded ${written.sectorsWritten} sectors, ${written.skillRowsWritten} skill rows, ${written.categoryRowsWritten} category rules for ${countryName}`,
+    );
+    return {
+      attempted: true,
+      persisted: true,
+      sourcedLive: sectorResult.sourcedLive ?? false,
+      sectorsWritten: written.sectorsWritten,
+      skillRowsWritten: written.skillRowsWritten,
+      categoryRowsWritten: written.categoryRowsWritten,
+      errors: written.errors,
+      rejected: sectorResult.rejected ?? [],
+      warnings: sectorResult.warnings ?? [],
+    };
+  } catch (sectorError) {
+    console.error("[Country] Sector generation threw:", sectorError);
+    return {
+      attempted: true,
+      persisted: false,
+      error: sectorError instanceof Error ? sectorError.message : String(sectorError),
+    };
+  }
+}
+
+/**
+ * Fifteen minutes. In a background job the only cost of waiting is the wait;
+ * four minutes was what a browser request could bear, not what the research
+ * needs.
+ */
+const SECTOR_BACKGROUND_TIMEOUT_MS = 15 * 60 * 1000;
 
 export function registerCountryRoutes(app: Express) {
   app.get("/api/admin/countries", isAuthenticated, async (req, res) => {
@@ -505,82 +609,18 @@ export function registerCountryRoutes(app: Express) {
       let sectorGeneration: Record<string, unknown> | undefined;
 
       if (autoPopulate && countryData.prioritySectors.length > 0) {
-        console.log(`[Country] Generating sector scoring configuration for ${name}...`);
-
-        // The generator needs the live catalog: category rules may only name
-        // categories that exist, and the coverage gate rejects a sector that no
-        // career serves.
-        const [careers, wefSkills] = await Promise.all([
-          storage.getAllCareers(),
-          storage.getAllWefSkills(),
-        ]);
-
-        const sectorResult = await generateSectorWefMappings(
-          storage,
-          name,
-          countryData.prioritySectors,
-          {
-            careerCatalog: careers,
-            skillNames: wefSkills.map(s => s.name),
-          },
+        // Started in the background: creating a country used to be one
+        // request of about five minutes that then reported no sector map.
+        console.log(`[Country] Starting sector scoring configuration for ${name}...`);
+        startSectorGeneration(id, () =>
+          runSectorGeneration(id, name, countryData.prioritySectors, { alignPrioritySectors: true }),
         );
-
-        for (const rejection of sectorResult.rejected ?? []) {
-          console.warn(`[Country] Rejected sector "${rejection.sector}" (${rejection.gate} gate): ${rejection.reason}`);
-        }
-        for (const warning of sectorResult.warnings ?? []) {
-          console.warn(`[Country] ${warning}`);
-        }
-
-        if (!sectorResult.success || !sectorResult.mappings) {
-          console.error(`[Country] Sector generation failed: ${sectorResult.error}`);
-          sectorGeneration = {
-            persisted: false,
-            error: sectorResult.error,
-            sourcedLive: sectorResult.sourcedLive ?? false,
-            rejected: sectorResult.rejected ?? [],
-            warnings: sectorResult.warnings ?? [],
-          };
-        } else {
-          const wefSkillIdsByName = new Map(wefSkills.map(s => [skillKey(s.name), s.id]));
-          const written = await persistGeneratedSectors(
-            storage,
-            id,
-            name,
-            sectorResult.mappings,
-            wefSkillIdsByName,
-          );
-
-          // Keep countries.prioritySectors aligned with what was actually
-          // seeded. A gated-out sector left in the array is an empty label:
-          // it shows in the UI, it is positionally paired with
-          // prioritySectorsAr, and no career can ever be attributed to it.
-          const acceptedNames = sectorResult.mappings.map(m => m.sector);
-          if (acceptedNames.length !== countryData.prioritySectors.length) {
-            await storage.updateCountry(id, { prioritySectors: acceptedNames });
-            countryData.prioritySectors = acceptedNames;
-          }
-
-          for (const failure of written.errors) {
-            console.error(`[Country] ${failure}`);
-          }
-          console.log(
-            `[Country] Seeded ${written.sectorsWritten} sectors, ${written.skillRowsWritten} skill rows, ${written.categoryRowsWritten} category rules for ${name}`,
-          );
-
-          sectorGeneration = {
-            persisted: true,
-            sourcedLive: sectorResult.sourcedLive ?? false,
-            ...written,
-            rejected: sectorResult.rejected ?? [],
-            warnings: sectorResult.warnings ?? [],
-          };
-        }
+        sectorGeneration = { attempted: true, started: true };
       }
 
       res.status(201).json({
         success: true,
-        country: sectorGeneration?.persisted ? await storage.getCountryById(id) : country,
+        country,
         autoPopulated: autoPopulate && countryData.llmPopulated,
         // Which curricula the model found but the country was NOT created with
         // -- offered to the superadmin to add deliberately, once there is
@@ -904,6 +944,25 @@ export function registerCountryRoutes(app: Express) {
     }
   });
 
+  /**
+   * WHAT BECAME OF THE SECTOR MAP GENERATION for this country.
+   * `status: "none"` covers both "never started" and "the process restarted
+   * since" -- the readiness checklist is what says whether a map exists.
+   */
+  app.get("/api/admin/countries/:id/sector-generation", isAuthenticated, async (req, res) => {
+    try {
+      if (!(await checkSuperadmin(req))) {
+        return res.status(403).json({ message: "Forbidden: Superadmin access required" });
+      }
+      const job = getSectorGenerationJob(req.params.id);
+      if (!job) return res.json({ status: "none" });
+      res.json(job);
+    } catch (error) {
+      console.error("Error reading sector generation status:", error);
+      res.status(500).json({ message: "Failed to read sector generation status" });
+    }
+  });
+
   app.post("/api/admin/countries/:id/repopulate", isAuthenticated, llmLimiter, async (req, res) => {
     try {
       const isSuperadmin = await checkSuperadmin(req);
@@ -1011,56 +1070,16 @@ export function registerCountryRoutes(app: Express) {
        * than rolling back a good update. The outcome is returned so the
        * caller can see whether the map was actually written.
        */
+      // STARTED, NOT AWAITED. See services/sectorGenerationJobs.ts: the
+      // research does not finish inside an HTTP request. The answer says it
+      // has started; GET .../sector-generation says what became of it.
       let sectorGeneration: Record<string, unknown> = { attempted: false };
       const sectors = result.data!.prioritySectors ?? [];
       if (sectors.length > 0) {
-        try {
-          const [careers, wefSkills] = await Promise.all([
-            storage.getAllCareers(),
-            storage.getAllWefSkills(),
-          ]);
-          const sectorResult = await generateSectorWefMappings(
-            storage,
-            country.name,
-            sectors,
-            { careerCatalog: careers, skillNames: wefSkills.map(s => s.name) },
-          );
-          for (const rejection of sectorResult.rejected ?? []) {
-            console.warn(`[Country] Rejected sector "${rejection.sector}" (${rejection.gate} gate): ${rejection.reason}`);
-          }
-          for (const warning of sectorResult.warnings ?? []) {
-            console.warn(`[Country] ${warning}`);
-          }
-
-          if (!sectorResult.success || !sectorResult.mappings) {
-            console.error(`[Country] Sector regeneration failed: ${sectorResult.error}`);
-            sectorGeneration = { attempted: true, persisted: false, error: sectorResult.error };
-          } else {
-            const wefSkillIdsByName = new Map(wefSkills.map(s => [skillKey(s.name), s.id]));
-            const written = await persistGeneratedSectors(
-              storage,
-              id,
-              country.name,
-              sectorResult.mappings,
-              wefSkillIdsByName,
-            );
-            sectorGeneration = {
-              attempted: true,
-              persisted: true,
-              sectorsWritten: written.sectorsWritten,
-              skillRowsWritten: written.skillRowsWritten,
-              categoryRowsWritten: written.categoryRowsWritten,
-              errors: written.errors,
-            };
-          }
-        } catch (sectorError) {
-          console.error("[Country] Sector regeneration threw:", sectorError);
-          sectorGeneration = {
-            attempted: true,
-            persisted: false,
-            error: sectorError instanceof Error ? sectorError.message : String(sectorError),
-          };
-        }
+        const { alreadyRunning } = startSectorGeneration(id, () =>
+          runSectorGeneration(id, country.name, sectors, { alignPrioritySectors: false }),
+        );
+        sectorGeneration = { attempted: true, started: true, alreadyRunning };
       }
 
       res.json({

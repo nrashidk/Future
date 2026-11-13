@@ -13,7 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest, serverErrorMessage } from "@/lib/queryClient";
-import { sectorGenerationFailure, type SectorGenerationOutcome } from "@shared/sectorGeneration";
+import { type SectorGenerationOutcome } from "@shared/sectorGeneration";
 import { useTranslation } from "react-i18next";
 import { formatMoney, toMajor } from "@shared/pricing";
 import { ADD_BUTTON_CLASS, CARD_ACTIONS_CLASS } from "@/lib/adminActions";
@@ -320,13 +320,10 @@ export default function CountryManagement() {
       setRepopulatingCountryId(null);
       // The country's own data did refresh; the sector map is a second step
       // that can fail on its own, and the route answers 200 either way.
-      const failure = sectorGenerationFailure(result?.sectorGeneration);
-      if (failure !== null) {
-        toast({
-          title: t('countries.onboarding.sectorFailed'),
-          description: failure || t('countries.onboarding.sectorFailedNoReason'),
-          variant: "destructive",
-        });
+      // The sector map is researched in the background (minutes); the
+      // country's setup checklist shows how it ended.
+      if ((result?.sectorGeneration as { started?: boolean } | undefined)?.started) {
+        toast({ title: t('countries.updateSuccess'), description: t('countries.refreshSuccessSectorsRunning') });
         return;
       }
       toast({ title: t('countries.updateSuccess'), description: t('countries.refreshSuccess') });

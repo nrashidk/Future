@@ -24,7 +24,7 @@
  * the suggestions are shown with that cost stated rather than as a list to
  * tick through.
  */
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { apiRequest, serverErrorMessage } from "@/lib/queryClient";
@@ -85,6 +85,13 @@ function StepRow({
   );
 }
 
+interface SectorJobView {
+  status: "none" | "running" | "done" | "failed";
+  startedAt?: string;
+  finishedAt?: string;
+  outcome?: SectorGenerationOutcome;
+}
+
 export default function CountryOnboarding({
   countryId,
   countryName,
@@ -114,31 +121,62 @@ export default function CountryOnboarding({
     queryClient.invalidateQueries({ queryKey: ["/api/countries"] });
   };
 
+  /**
+   * THE SECTOR MAP IS RESEARCHED IN THE BACKGROUND. The request that starts
+   * it answers in seconds; the research takes minutes. This reads what became
+   * of it, every five seconds while it runs and not at all otherwise.
+   */
+  const { data: sectorJob } = useQuery<SectorJobView>({
+    queryKey: [`/api/admin/countries/${countryId}/sector-generation`],
+    refetchOnMount: true,
+    refetchInterval: (query) => (query.state.data?.status === "running" ? 5000 : false),
+  });
+  const sectorRunning = sectorJob?.status === "running";
+
+  // Announce the outcome once, when a job this dialog watched stops running.
+  const watchedRunning = useRef(false);
+  useEffect(() => {
+    if (sectorRunning) { watchedRunning.current = true; return; }
+    if (!watchedRunning.current || !sectorJob || sectorJob.status === "none") return;
+    watchedRunning.current = false;
+    invalidateAll();
+    refetch();
+    const failure = sectorGenerationFailure(sectorJob.outcome);
+    if (sectorJob.status === "failed" || failure !== null) {
+      toast({
+        title: t("countries.onboarding.sectorFailed"),
+        description: failure || t("countries.onboarding.sectorFailedNoReason"),
+        variant: "destructive",
+      });
+      return;
+    }
+    toast({ title: t("countries.onboarding.sectorDone") });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sectorRunning, sectorJob?.status]);
+
   // Repopulate is what generates the sector map; it is also the repair path for
   // a country whose research came back thin.
   const sectorMutation = useMutation({
     mutationFn: async () => (await apiRequest("POST", `/api/admin/countries/${countryId}/repopulate`)).json(),
-    onSuccess: (result: { sectorGeneration?: SectorGenerationOutcome }) => {
+    onSuccess: (result: { sectorGeneration?: SectorGenerationOutcome & { started?: boolean } }) => {
       invalidateAll();
       refetch();
-      // The route answers 200 whether or not a sector map was written, and
-      // this said "done" either way -- so pressing Generate three times on a
-      // country whose research was refused looked like three successes over
-      // a checklist that still said "Missing".
-      const failure = sectorGenerationFailure(result?.sectorGeneration);
-      if (failure !== null) {
-        toast({
-          title: t("countries.onboarding.sectorFailed"),
-          description: failure || t("countries.onboarding.sectorFailedNoReason"),
-          variant: "destructive",
-        });
+      queryClient.invalidateQueries({ queryKey: [`/api/admin/countries/${countryId}/sector-generation`] });
+      if (result?.sectorGeneration?.started) {
+        toast({ title: t("countries.onboarding.sectorStarted"), description: t("countries.onboarding.sectorStartedDesc") });
         return;
       }
-      toast({ title: t("countries.onboarding.sectorDone") });
+      // Not started means the research found no priority sectors to map.
+      toast({
+        title: t("countries.onboarding.sectorFailed"),
+        description: t("countries.onboarding.sectorNoSectors"),
+        variant: "destructive",
+      });
     },
     onError: (e: unknown) =>
       toast({ title: t("countries.errorTitle"), description: serverErrorMessage(e), variant: "destructive" }),
   });
+  const sectorBusy = sectorMutation.isPending || sectorRunning;
 
   const addCurriculumMutation = useMutation({
     mutationFn: async (curriculum: string) => {
@@ -227,10 +265,10 @@ export default function CountryOnboarding({
               <Button
                 size="sm" variant="outline"
                 onClick={() => sectorMutation.mutate()}
-                disabled={sectorMutation.isPending}
+                disabled={sectorBusy}
                 data-testid="button-onboarding-research"
               >
-                {sectorMutation.isPending
+                {sectorBusy
                   ? <Loader2 className="w-4 h-4 animate-spin" />
                   : <><Sparkles className="w-4 h-4 me-1" />{t("countries.onboarding.research")}</>}
               </Button>
@@ -258,17 +296,23 @@ export default function CountryOnboarding({
           detail={
             checks.sectorMapRows > 0
               ? t("countries.onboarding.stepSectorMapDone", { count: checks.sectorMapRows })
-              : t("countries.onboarding.stepSectorMapTodo")
+              : sectorRunning
+                ? t("countries.onboarding.stepSectorMapRunning")
+                : sectorJob?.status === "failed"
+                  ? t("countries.onboarding.stepSectorMapFailed", {
+                      reason: sectorGenerationFailure(sectorJob.outcome) || t("countries.onboarding.sectorFailedNoReason"),
+                    })
+                  : t("countries.onboarding.stepSectorMapTodo")
           }
           action={
             checks.sectorMapRows > 0 ? undefined : (
               <Button
                 size="sm"
                 onClick={() => sectorMutation.mutate()}
-                disabled={sectorMutation.isPending}
+                disabled={sectorBusy}
                 data-testid="button-onboarding-sectors"
               >
-                {sectorMutation.isPending
+                {sectorBusy
                   ? <Loader2 className="w-4 h-4 animate-spin" />
                   : <><RefreshCw className="w-4 h-4 me-1" />{t("countries.onboarding.generate")}</>}
               </Button>

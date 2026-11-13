@@ -97,6 +97,8 @@ interface AnthropicCallOptions {
    * tool-execution loop in this file.
    */
   tools?: unknown[];
+  /** Overrides the default ceiling. The background sector job passes a long one. */
+  timeoutMs?: number;
 }
 
 interface AnthropicCallResult {
@@ -167,7 +169,7 @@ async function callAnthropic(
   options: AnthropicCallOptions = {}
 ): Promise<AnthropicCallResult> {
   const hasTools = !!options.tools && options.tools.length > 0;
-  const timeoutMs = hasTools ? TOOL_TIMEOUT_MS : API_TIMEOUT_MS;
+  const timeoutMs = options.timeoutMs ?? (hasTools ? TOOL_TIMEOUT_MS : API_TIMEOUT_MS);
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -600,6 +602,12 @@ export interface SectorGenerationOptions {
    * not a degraded success.
    */
   allowModelRecall?: boolean;
+  /**
+   * How long the whole researched exchange may take. Unset is the request
+   * default (four minutes), which production showed is not enough for twelve
+   * searches; the background job passes fifteen.
+   */
+  timeoutMs?: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -1244,7 +1252,7 @@ Always respond with valid JSON only - no markdown fences, no explanatory text be
         systemPrompt,
         userPrompt,
         MAX_TOKENS_SECTORS,
-        { tools: [buildWebSearchTool(options.officialDomains)] },
+        { tools: [buildWebSearchTool(options.officialDomains)], timeoutMs: options.timeoutMs },
       ));
     } catch (error) {
       if (!isToolUnsupportedError(error)) throw error;
