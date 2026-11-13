@@ -1054,6 +1054,22 @@ so a student with one assessment in progress got a link to a raw 404.
     and the student then starting one; another student's report refused
     (seen 2026-11-12). **Flagged:** the Arabic page still carries an English
     "Skip to main content" beside the Arabic one.
+  - **THE ALLOWED REPEAT, LIVE, build `9233a9e`** (Test High School's admin
+    pressed "allow repeat" for `salm.alktby`; toast, the row reads "Repeat
+    allowed"). As the student: `/assessment` shows `screen-repeat-warning`;
+    a valid create is 200 (rows 1 -> 2); `repeatBlocked` is true again at
+    once and a second create is 403 `REPEAT_NOT_ALLOWED` — one permission,
+    one attempt. **AND IT FOUND A LOCK-OUT:** the new row was at
+    `current_step` 1, which nothing counts as in progress, so `/assessment`
+    showed "ask your school" over the repeat he had just started, the
+    permission already spent. Setting the step to 2 brought the resume prompt
+    back. **My row was made through the API; through the real form the window
+    is the two seconds between the create (pressing Next before the quiz) and
+    the debounced auto-save that writes the real step**, or for good if that
+    auto-save fails, which it does silently. The form now sends the step with
+    the create (`Assessment.tsx`, `backendData.currentStep`). No harness
+    suite: it is one line of a page. **Left on production:** his unfinished
+    assessment `23cfa171` (grade 11, step 2) and a spent permission.
   - **A SCHOOL ADMIN IS REFUSED ANOTHER SCHOOL, LIVE** (Test High School's
     admin against AD School, build `feda372`): roster, add student and
     report export 403 "Can only access your own school"; read and rename of

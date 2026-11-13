@@ -958,6 +958,17 @@ export default function Assessment() {
             if (assessment?.quizDiscarded) setQuizDiscarded(true);
           } else {
             // Create new assessment (guest token is now stored in httpOnly cookie automatically)
+            //
+            // THE ROW IS BORN AT THE STEP THE STUDENT IS ABOUT TO SEE. Without
+            // this it was stored at the column default, 1, and only the
+            // debounced auto-save two seconds later wrote the real step. A row
+            // at step 1 is not resumable (isResumableDraft, hasInProgress), so
+            // a tab closed inside that window left an assessment nobody could
+            // return to. For a school student on an allowed REPEAT that was a
+            // lock-out: creating the row spends the one permission, and
+            // /assessment then showed "ask your school" over an assessment
+            // they had already started. Seen on production 2026-11-14.
+            if (!isAspirationsStep) backendData.currentStep = currentStep + 1;
             const response = await apiRequest("POST", "/api/assessments", backendData);
             assessment = await response.json();
           }
