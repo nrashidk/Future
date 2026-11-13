@@ -491,11 +491,20 @@ export const licenseConsumptions = pgTable("license_consumptions", {
   organizationId: varchar("organization_id").references(() => organizations.id),
   guardianUserId: varchar("guardian_user_id").references(() => users.id),
 
-  /** The student whose report was generated. */
-  studentUserId: varchar("student_user_id").notNull().references(() => users.id),
+  /**
+   * The student whose report was generated. NULL ONCE THAT STUDENT IS ERASED
+   * (migration 043): the spend is the school's fact and stays, the pointer to
+   * the person goes. It was NOT NULL until 2026-11-13, which made a student
+   * with a charged report impossible to erase.
+   */
+  studentUserId: varchar("student_user_id").references(() => users.id),
 
-  /** The report that was paid for. Unique: a regenerated report is not a second charge. */
-  assessmentId: varchar("assessment_id").notNull().unique().references(() => assessments.id),
+  /**
+   * The report that was paid for. Unique: a regenerated report is not a second
+   * charge. NULL once the report is erased with its student; NULLs are
+   * distinct, so the unique index is unaffected.
+   */
+  assessmentId: varchar("assessment_id").unique().references(() => assessments.id),
 
   /** The grade at the moment of charging — see the note above on why it is copied. */
   grade: text("grade"),

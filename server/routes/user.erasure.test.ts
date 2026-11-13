@@ -36,7 +36,7 @@ import {
   cvqResults, organizationMembers, wefCompetencyResults,
   organizations, organizationEvents, files, contributionSubmissions,
   contributionRewards, contributionReviews, scoringConfigChangeLog, systemAnnouncements, systemConfig,
-  childProfiles, licenseGrants, invoices,
+  childProfiles, licenseGrants, invoices, licenseConsumptions,
 } from "@shared/schema";
 import { ERASURE_BLOCK_CODES } from "@shared/dataRights";
 
@@ -49,6 +49,7 @@ vi.mock("drizzle-orm", async (importOriginal) => {
     eq: (col: any, val: any) => ({ __k: "eq", col, val }),
     or: (...conds: any[]) => ({ __k: "or", conds }),
     inArray: (col: any, vals: any[]) => ({ __k: "in", col, vals }),
+    and: (...conds: any[]) => ({ __k: "and", conds }),
   };
 });
 
@@ -103,7 +104,7 @@ const TABLES = [
   cvqResults, organizationMembers, wefCompetencyResults, organizations,
   organizationEvents, files, contributionSubmissions, contributionRewards, contributionReviews,
   scoringConfigChangeLog, systemAnnouncements, systemConfig, childProfiles,
-  licenseGrants, invoices,
+  licenseGrants, invoices, licenseConsumptions,
 ];
 
 /** column object -> {table, key}, by reference, built from the real schema. */
@@ -133,6 +134,13 @@ const FKS: Array<{ child: any; childKey: string; parent: any; parentKey: string 
   // Same reasoning as the grant above: an invoice is the billing record a sale
   // reconciles against, and one can sit unpaid with no grant row behind it.
   { child: invoices, childKey: "createdBy", parent: users, parentKey: "id" },
+  // THE THREE EDGES THIS FILE DID NOT HAVE, which is why it stayed green while
+  // production could not erase any student with a generated report: the
+  // licence ledger points at the student, the payer and the assessment, with
+  // no cascade on any of them.
+  { child: licenseConsumptions, childKey: "assessmentId", parent: assessments, parentKey: "id" },
+  { child: licenseConsumptions, childKey: "studentUserId", parent: users, parentKey: "id" },
+  { child: licenseConsumptions, childKey: "guardianUserId", parent: users, parentKey: "id" },
 ];
 
 type Row = Record<string, any>;
@@ -172,6 +180,7 @@ function match(cond: any, row: Row): boolean {
   if (cond.__k === "eq") return row[COLS.get(cond.col)!.key] === cond.val;
   if (cond.__k === "in") return cond.vals.includes(row[COLS.get(cond.col)!.key]);
   if (cond.__k === "or") return cond.conds.some((c: any) => match(c, row));
+  if (cond.__k === "and") return cond.conds.every((c: any) => match(c, row));
   throw new Error("unsupported condition in fake db");
 }
 
@@ -199,6 +208,18 @@ function makeTx(s: Store) {
     },
     delete(table: any) {
       return { where: (cond: any) => Promise.resolve(s.remove(table, cond)) };
+    },
+    update(table: any) {
+      return {
+        set(values: Row) {
+          return {
+            where: (cond: any) => {
+              for (const row of s.rows(table)) if (match(cond, row)) Object.assign(row, values);
+              return Promise.resolve();
+            },
+          };
+        },
+      };
     },
   };
 }
@@ -261,6 +282,37 @@ describe("eraseUserData", () => {
     await expect(eraseUserData(makeTx(store), "u-student")).resolves.toBeUndefined();
     expect(store.rows(wefCompetencyResults)).toHaveLength(0);
     expect(store.rows(users)).toHaveLength(0);
+  });
+
+  // The case production failed on, 2026-11-13: the report was GENERATED, so the
+  // licence ledger holds a row pointing at the student and the assessment.
+  it("erases a student whose report was charged, and keeps the school's ledger row unnamed", async () => {
+    seedPremiumStudent(store);
+    store.add(licenseConsumptions, {
+      id: "lc1", poolOwnerType: "organization", organizationId: "org1", guardianUserId: null,
+      studentUserId: "u-student", assessmentId: "a1", grade: "10", currency: "paid",
+    });
+
+    await expect(eraseUserData(makeTx(store), "u-student")).resolves.toBeUndefined();
+    expect(store.rows(users)).toHaveLength(0);
+    expect(store.rows(assessments)).toHaveLength(0);
+    // The spend is the school's and stays -- deleting it would refund the licence.
+    expect(store.rows(licenseConsumptions)).toEqual([
+      expect.objectContaining({ id: "lc1", organizationId: "org1", studentUserId: null, assessmentId: null, grade: "10" }),
+    ]);
+  });
+
+  it("removes an individual's own ledger rows with the account", async () => {
+    store.add(users, { id: "u-solo", accountType: "individual", passwordHash: PASSWORD_HASH, email: "solo@futurepath.test" });
+    store.add(assessments, { id: "a9", userId: "u-solo", assessmentType: "premium" });
+    store.add(licenseConsumptions, {
+      id: "lc9", poolOwnerType: "user", organizationId: null, guardianUserId: "u-solo",
+      studentUserId: "u-solo", assessmentId: "a9", grade: "12", currency: "paid",
+    });
+
+    await expect(eraseUserData(makeTx(store), "u-solo")).resolves.toBeUndefined();
+    expect(store.rows(users)).toHaveLength(0);
+    expect(store.rows(licenseConsumptions)).toHaveLength(0);
   });
 
   // 2. cvq_results.assessment_id is nullable while its user_id is NOT NULL, so a

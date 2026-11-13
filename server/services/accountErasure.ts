@@ -18,6 +18,7 @@ import {
   licenseGrants,
   files, scoringConfigChangeLog, systemAnnouncements, systemConfig,
   childProfiles,
+  licenseConsumptions,
 } from "@shared/schema";
 import { and, eq, or, inArray } from "drizzle-orm";
 import type { ErasureBlockCode } from "@shared/dataRights";
@@ -92,6 +93,25 @@ export async function eraseUserData(tx: any, userId: string): Promise<void> {
   await tx.delete(cvqResults).where(ownedBy(cvqResults.userId, cvqResults.assessmentId));
   await tx.delete(wefCompetencyResults)
     .where(ownedBy(wefCompetencyResults.userId, wefCompetencyResults.assessmentId));
+
+  // THE LICENCE LEDGER. A charged report's row points at the student and at
+  // the assessment, with no cascade -- so until 2026-11-13 (migration 043) a
+  // student with a generated report could not be erased at all: the delete
+  // below hit the foreign key and the route answered 500.
+  //
+  //   An account's OWN pool (guardian_user_id = this user) goes with the
+  //   account: nobody's balance is counted from those rows afterwards.
+  //
+  //   A SCHOOL's row stays. Used licences are counted from this table, so
+  //   deleting it would hand the school its licence back -- "a student who
+  //   leaves takes nothing". The pointer to the person and to the report is
+  //   what is erased; that the school spent one licence at this grade on this
+  //   date is the school's fact.
+  await tx.delete(licenseConsumptions).where(eq(licenseConsumptions.guardianUserId, userId));
+  await tx
+    .update(licenseConsumptions)
+    .set({ studentUserId: null, assessmentId: null })
+    .where(ownedBy(licenseConsumptions.studentUserId, licenseConsumptions.assessmentId));
 
   // llm_narrative_cache CASCADEs on assessments (schema.ts:1960), and
   // password_reset_tokens CASCADEs on users (:89). Nothing to write for either.
