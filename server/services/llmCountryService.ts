@@ -13,6 +13,7 @@
  */
 
 import type { IStorage } from "../storage";
+import { fetch as undiciFetch, Agent } from "undici";
 import { normalizeCareerSubjects } from "../utils/subjectMap";
 import { deriveReadiness } from "./futureReadiness";
 import { isOnetGrowthBand } from "@shared/growthBands";
@@ -88,6 +89,9 @@ const TOOL_TIMEOUT_MS = 240000;
 // Hard ceiling on pause_turn continuations, so a model that keeps searching
 // cannot spin one HTTP exchange forever.
 const MAX_TOOL_ROUNDS = 8;
+
+/** undici's default headersTimeout, which Node's global fetch inherits. */
+const NODE_FETCH_HEADERS_TIMEOUT_MS = 300_000;
 
 interface AnthropicCallOptions {
   /**
@@ -185,9 +189,25 @@ async function callAnthropic(
   let tokensUsed = 0;
   const citations: string[] = [];
 
+  // NODE'S OWN FETCH GIVES UP AFTER FIVE MINUTES WITHOUT RESPONSE HEADERS, and
+  // this request is not streamed: Anthropic sends nothing at all until the
+  // whole researched answer is ready. So raising our own limit past 300 s did
+  // nothing -- the first background run on production (2026-11-13) died at
+  // 301 s with a bare "fetch failed" (undici's UND_ERR_HEADERS_TIMEOUT), not
+  // with our timeout. A caller that asks for longer gets a dispatcher that
+  // will actually wait that long; everyone else keeps the global fetch, which
+  // is also what the tests stub.
+  const longCall = timeoutMs > NODE_FETCH_HEADERS_TIMEOUT_MS - 10_000;
+  const dispatcher = longCall
+    ? new Agent({ headersTimeout: timeoutMs + 30_000, bodyTimeout: timeoutMs + 30_000 })
+    : undefined;
+  const doFetch: (url: string, init: any) => Promise<any> = longCall
+    ? (url, init) => undiciFetch(url, { ...init, dispatcher })
+    : (url, init) => fetch(url, init);
+
   try {
     for (let round = 1; ; round++) {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      const response = await doFetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -245,7 +265,14 @@ async function callAnthropic(
     if (error.name === "AbortError") {
       throw new Error(`Anthropic API request timed out after ${Math.round(timeoutMs / 1000)} seconds`);
     }
+    // "fetch failed" on its own says nothing; the reason is on `cause`.
+    const causeCode = error?.cause?.code ?? error?.cause?.name;
+    if (error?.message === "fetch failed" && causeCode) {
+      throw new Error(`Anthropic API request failed in transit (${causeCode})`);
+    }
     throw error;
+  } finally {
+    await dispatcher?.close().catch(() => {});
   }
 }
 

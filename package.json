@@ -79,6 +79,7 @@
     "stripe": "^19.3.0",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
+    "undici": "^8.12.4",
     "wouter": "^3.3.5",
     "ws": "^8.21.0",
     "zod": "^4.6.7",
