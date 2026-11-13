@@ -14,7 +14,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useTranslation } from "react-i18next";
 import { withReturnTo, currentPathWithQuery } from "@/lib/returnTo";
 import { isPremiumAssessment } from "@shared/assessmentTier";
-import { FREE_ASSESSMENT_CAP, requiresPaymentBeforeAssessment } from "@shared/assessmentLimits";
+import { FREE_ASSESSMENT_CAP } from "@shared/assessmentLimits";
 import { collapseToLatestPerGrade, toCanonicalGrade } from "@shared/grade";
 import { assessmentIsChildOwned } from "@shared/childOwnership";
 import { isResumableDraft } from "@shared/assessmentFlow";
@@ -150,16 +150,6 @@ export default function Profile() {
   // useAssessmentAvailability uses.
   const isOrgStudent = !!user?.isOrgStudent;
   const isSuperadmin = user?.accountType === 'superadmin';
-
-  // A REGISTERED-BUT-UNPAID PARENT-REGISTERS ACCOUNT — zero assessments
-  // allowed before payment (decided 2026-09-16; server-side authority is the
-  // 402/PAYMENT_REQUIRED in assessment.routes.ts and
-  // recommendations.routes.ts). Computed the same way
-  // useAssessmentAvailability.ts does, inline rather than via that hook: this
-  // page already fetches its own assessments query below and does not need
-  // the hook's separate one.
-  const requiresPaymentToStart =
-    !isOrgStudent && requiresPaymentBeforeAssessment(!!(user as any)?.childProfileCreatedAt, !!user?.isPremium);
 
   // For individual users and org students: fetch their own assessments
   const { data: assessments = [] } = useQuery<Assessment[]>({
@@ -835,9 +825,7 @@ export default function Profile() {
                   <p className="font-bold text-2xl text-green-600" data-testid="text-completed-assessments-count">
                     {isOrgStudent
                       ? individualCompletedAssessments
-                      : requiresPaymentToStart
-                        ? individualCompletedAssessments
-                        : !user.isPremium
+                      : !user.isPremium
                           ? t("assessment.completedOf", {
                               completed: individualCompletedAssessments,
                               cap: FREE_ASSESSMENT_CAP,
@@ -848,7 +836,7 @@ export default function Profile() {
                 {assessments.length === 0 ? (
                 <div className="text-center py-8">
                   <p className="text-muted-foreground mb-4">
-                    {requiresPaymentToStart ? t("assessment.paymentRequiredNote") : t("assessment.noAssessments")}
+                    {t("assessment.noAssessments")}
                   </p>
                   <Button asChild data-testid="button-start-first-assessment">
                     {/* Free accounts go to the assessment, not to pricing. They may
@@ -856,16 +844,10 @@ export default function Profile() {
                         cap is shown as a terminal screen on that page rather than
                         as a redirect to buy. Sending them here to /tier-selection
                         while /assessment lets them start is the inconsistency this
-                        removes: told to buy in one place, allowed in the other.
-
-                        A REGISTERED-BUT-UNPAID PARENT-REGISTERS ACCOUNT IS THE
-                        EXCEPTION, straight to Checkout rather than /assessment:
-                        /assessment would only show the payment-required terminal
-                        screen anyway (assessment.routes.ts's 402), so this skips
-                        a round trip rather than adding a new gate. */}
-                    <Link href={requiresPaymentToStart ? "/checkout?students=1&total=10" : "/assessment"}>
+                        removes: told to buy in one place, allowed in the other. */}
+                    <Link href="/assessment">
                       <ClipboardCheck className="w-4 h-4 me-2" />
-                      {requiresPaymentToStart ? t("assessment.completePayment") : t("assessment.startFirst")}
+                      {t("assessment.startFirst")}
                     </Link>
                   </Button>
                 </div>

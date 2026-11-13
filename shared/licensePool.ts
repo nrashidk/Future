@@ -17,9 +17,17 @@
  * report-generation transaction (storage.consumeLicense) while the other
  * reads outside it (storage.getLicenseCapacityForStudent).
  *
- * - A CHILD PROFILE is a personal pool whether or not the account has paid:
- *   an unpaid one has a balance of zero, which is the payment gate's business.
- * - A PREMIUM account with no school row is a personal pool.
+ * - A PREMIUM account with no school row is a personal pool, with or without
+ *   a child profile.
+ * - AN UNPAID ACCOUNT WITH A CHILD PROFILE IS ON NO POOL (2026-11-13). It
+ *   used to be on one with a balance of zero, which was right while payment
+ *   was required before any assessment. A parent may now register and stay
+ *   free, and consumeLicense does not check a balance -- it writes the row --
+ *   so a free report from an account still "on a pool" would be CHARGED
+ *   against a balance of zero, and the licence it later bought would arrive
+ *   already spent.
+ * - A PAID account with a child profile is on its pool whatever else is true
+ *   of it, as before.
  * - A school row means a premium flag is not a personal purchase: a student
  *   is on the school's pool (the callers test that first) and a school
  *   admin's premium flag comes from buying for the school.
@@ -34,7 +42,7 @@ export interface PersonalPoolInput {
 }
 
 export function isOnPersonalPool(i: PersonalPoolInput): boolean {
-  if (i.hasChildProfile) return true;
+  if (i.hasChildProfile && i.isPremium) return true;
   if (i.hasSchoolRow) return false;
   if (i.isSuperadmin) return false;
   return i.isPremium;

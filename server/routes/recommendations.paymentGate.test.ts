@@ -1,27 +1,15 @@
 /**
- * POST /api/recommendations/generate/:assessmentId — the generation-side half
- * of "zero assessments before payment for a parent-registers account"
- * (shared/assessmentLimits.ts's requiresPaymentBeforeAssessment,
- * assessment.routes.ts's create guard is the other half).
+ * POST /api/recommendations/generate/:assessmentId — who may COMPLETE an
+ * assessment without having paid. The generation-side half of
+ * assessment.paymentGate.test.ts; see that file for the 2026-11-13 reversal
+ * of "zero assessments before payment".
  *
- * WHY THIS GUARD EXISTS SEPARATELY FROM THE CREATE GUARD, pinned rather than
- * just commented: an assessment CREATED before this rule shipped (or created
- * by a race that slipped past the create guard) must not become COMPLETABLE
- * by a still-unpaid account just because the create guard doesn't run again.
- * The two guards are independent code paths reading the same pure function,
- * so a regression in one is invisible from a test that only exercises the
- * other.
- *
- * Distinguishes "refused by the gate" (402/PAYMENT_REQUIRED, before the
- * completeness check ever runs) from "bypassed the gate" by using a
- * deliberately incomplete assessment: bypassing callers (premium, school
- * student) still get refused, but by the COMPLETENESS gate (400), which is a
- * different and later check — proving they got past the payment gate rather
- * than merely not tripping some other guard.
+ * Uses a deliberately incomplete assessment: a caller the guards let through
+ * is refused by the COMPLETENESS gate (400), a later and different check,
+ * which proves they got past the guards rather than merely not tripping one.
  *
  * db.ts throws at import when DATABASE_URL is unset, and this route module
- * imports it for its education-pathways/career-reasoning handlers — mocked
- * for that reason alone, not because this test touches it.
+ * imports it — mocked for that reason alone.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -98,17 +86,30 @@ beforeEach(() => {
   countCompletedAssessmentsByUser.mockReset();
 });
 
-describe("POST /api/recommendations/generate/:assessmentId — payment gate", () => {
-  it("refuses a registered-but-unpaid parent-registers account with 402, before the completeness check", async () => {
+describe("POST /api/recommendations/generate/:assessmentId — free and paid accounts", () => {
+  it("lets an unpaid account with a child profile through to the completeness check", async () => {
     getOrganizationMemberByUserId.mockResolvedValueOnce(undefined);
     getUser.mockResolvedValueOnce({ isPremium: false });
-    getChildProfileByGuardianUserId.mockResolvedValueOnce({ id: "child-1" });
+    getChildProfileByGuardianUserId.mockResolvedValue({ id: "child-1" });
+    countCompletedAssessmentsByUser.mockResolvedValueOnce(0);
 
     const { status, body } = await generate();
 
-    expect(status).toBe(402);
-    expect(body.code).toBe("PAYMENT_REQUIRED");
-    expect(getCvqResultByAssessmentId).not.toHaveBeenCalled();
+    expect(status).toBe(400);
+    expect(body.code).toBeUndefined();
+    expect(body.message).toMatch(/Assessment incomplete/);
+  });
+
+  it("CONTROL: the free cap still refuses it, counting OTHER completed assessments", async () => {
+    getOrganizationMemberByUserId.mockResolvedValueOnce(undefined);
+    getUser.mockResolvedValueOnce({ isPremium: false });
+    getChildProfileByGuardianUserId.mockResolvedValue({ id: "child-1" });
+    countCompletedAssessmentsByUser.mockResolvedValueOnce(3);
+
+    const { status, body } = await generate();
+
+    expect(status).toBe(403);
+    expect(body.code).toBe("FREE_ASSESSMENT_CAP_REACHED");
   });
 
   it("does NOT gate an account with no child profile — falls through to the free-tier cap / completeness check instead", async () => {
@@ -132,9 +133,6 @@ describe("POST /api/recommendations/generate/:assessmentId — payment gate", ()
 
     expect(status).toBe(400); // completeness gate, not the payment gate
     expect(body.message).toMatch(/Assessment incomplete/);
-    // isPremiumUser true short-circuits the `!isSchoolStudent && !isPremiumUser`
-    // guard entirely — a paid account's gate check costs no lookup at all.
-    expect(getChildProfileByGuardianUserId).not.toHaveBeenCalled();
   });
 
   it("bypasses the gate entirely for a school student, regardless of isPremium", async () => {
@@ -145,6 +143,5 @@ describe("POST /api/recommendations/generate/:assessmentId — payment gate", ()
 
     expect(status).toBe(400); // completeness gate, not the payment gate
     expect(body.message).toMatch(/Assessment incomplete/);
-    expect(getChildProfileByGuardianUserId).not.toHaveBeenCalled();
   });
 });

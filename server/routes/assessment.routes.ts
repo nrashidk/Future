@@ -11,7 +11,7 @@ import { validatePromptInputFields } from "../utils/assessmentValidation";
 import { sanitizeRequestBody } from "../utils/sanitize";
 import { printTokenAuthorizes, mintGuestRecoveryToken } from "../utils/printToken";
 import { ageOnDate, toDateOnlyString } from "@shared/dateOfBirth";
-import { FREE_ASSESSMENT_CAP, isFreeTierCapReached, requiresPaymentBeforeAssessment } from "@shared/assessmentLimits";
+import { FREE_ASSESSMENT_CAP, isFreeTierCapReached } from "@shared/assessmentLimits";
 import { assessmentIsChildOwned } from "@shared/childOwnership";
 import { guestAssessmentExpiresAt, GUEST_COOKIE_MAX_AGE_MS } from "@shared/guestAssessmentExpiry";
 import { withholdGuestIdentity } from "@shared/guestIdentity";
@@ -565,37 +565,13 @@ export function registerAssessmentRoutes(app: Express) {
 
           if (childProfile) {
             /**
-             * PAYMENT REQUIRED BEFORE ANY ASSESSMENT — decided
-             * 2026-09-16, replacing the free-tier cap for this population.
-             *
-             * A registered-but-unpaid parent-registers account used to fall
-             * through to the free-tier cap below (up to FREE_ASSESSMENT_CAP,
-             * same as any free account). That was scoped and named as an
-             * open question when this population was built
-             * (docs/parent-registers-scoping.md item 5), and the answer is:
-             * zero. A guest already gets the identical free 2-match report
-             * with no registration at all, so a pre-payment allowance on a
-             * durable, identified account served no purpose the guest path
-             * does not already serve with less friction — keeping any
-             * number here would leave a free tier retitled rather than
-             * retired.
-             *
-             * CHECKED BEFORE resolveChildOwnedFields, not after: no reason
-             * to resolve locked fields for a request that is refused
-             * regardless of what they are.
-             *
-             * 402, not 403 — this is not a quota (FREE_ASSESSMENT_CAP_REACHED
-             * below), it is "you have not paid yet", which has its own HTTP
-             * status and its own code so the client can route to Checkout
-             * rather than to the free-cap screen's copy and remedy.
+             * NO PAYMENT GATE HERE ANY MORE (owner, 2026-11-13). From
+             * 2026-09-16 an unpaid account with a child profile was refused
+             * 402 PAYMENT_REQUIRED before anything else. A parent may now
+             * register a student account and stay free, so an unpaid one
+             * falls through to the free cap below like any free account, and
+             * is on no pool (shared/licensePool.ts) so `capacity` is null.
              */
-            if (requiresPaymentBeforeAssessment(true, !!account?.isPremium)) {
-              return res.status(402).json({
-                message: "Please complete payment to start an assessment for your child.",
-                code: "PAYMENT_REQUIRED",
-              });
-            }
-
             /**
              * THE SAME POOL CHECK THE SCHOOL BRANCH MAKES, for the same reason
              * and through the same function.
@@ -607,8 +583,8 @@ export function registerAssessmentRoutes(app: Express) {
              * said so in a comment.
              *
              * 402 rather than 403: an exhausted pool is remedied by buying
-             * more, which is the same remedy as PAYMENT_REQUIRED above, so the
-             * client routes both to Checkout.
+             * more, so
+             * the buyer is told so rather than shown the free-cap screen.
              */
             const capacity = await storage.getLicenseCapacityForStudent(userId);
             if (capacity && !capacity.isUnlimited && capacity.totalAvailable <= 0) {

@@ -1,19 +1,16 @@
 /**
- * POST /api/assessments — the create-side half of "zero assessments before
- * payment for a parent-registers account" (shared/assessmentLimits.ts's
- * requiresPaymentBeforeAssessment; recommendations.routes.ts's generation
- * guard is the other half, pinned separately in
- * recommendations.paymentGate.test.ts — see that file for why both exist).
+ * POST /api/assessments — who may START an assessment without having paid.
  *
- * Distinguishes "refused by the payment gate" (402/PAYMENT_REQUIRED, before
- * storage.createAssessment is ever called) from every other population this
- * same handler serves, so a regression that widens or narrows the gate's
- * condition shows up as a status-code change here rather than only in a
- * comment.
+ * From 2026-09-16 an account with a child profile that had not paid was
+ * refused 402 PAYMENT_REQUIRED here ("zero assessments before payment").
+ * REVERSED BY THE OWNER ON 2026-11-13: a parent may register a student
+ * account and stay free. That account is now bounded by FREE_ASSESSMENT_CAP
+ * like any other free account, and these cases pin BOTH halves: it may start
+ * one, and the cap still stops it. The paid-pool cases at the end are
+ * unchanged.
  *
  * Storage is mocked so importing assessment.routes.ts does not pull in
- * db.ts, which throws at import when DATABASE_URL is unset — same pattern as
- * assessment.entitlement.test.ts.
+ * db.ts, which throws at import when DATABASE_URL is unset.
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -100,10 +97,10 @@ beforeEach(() => {
   });
 });
 
-describe("POST /api/assessments — payment gate", () => {
-  it("refuses a registered-but-unpaid parent-registers account with 402, before creating anything", async () => {
+describe("POST /api/assessments — free and paid accounts", () => {
+  it("lets an unpaid account with a child profile START a free assessment", async () => {
     getUser.mockResolvedValue({ isPremium: false, detachedAt: null });
-    getChildProfileByGuardianUserId.mockResolvedValueOnce({
+    getChildProfileByGuardianUserId.mockResolvedValue({
       id: "child-1",
       name: "Khaled",
       gender: "male",
@@ -112,11 +109,34 @@ describe("POST /api/assessments — payment gate", () => {
       countryId: "ae",
       curriculum: "MOE National",
     });
+    // On no pool (shared/licensePool.ts), so the capacity read answers null.
+    getLicenseCapacityForStudent.mockResolvedValue(null);
 
     const { status, body } = await post();
 
-    expect(status).toBe(402);
-    expect(body.code).toBe("PAYMENT_REQUIRED");
+    expect(status).toBe(200);
+    expect(body.code).toBeUndefined();
+    expect(createAssessment).toHaveBeenCalledTimes(1);
+  });
+
+  it("CONTROL: the free cap still stops that account once it is spent", async () => {
+    getUser.mockResolvedValue({ isPremium: false, detachedAt: null });
+    getChildProfileByGuardianUserId.mockResolvedValue({
+      id: "child-1",
+      name: "Khaled",
+      gender: "male",
+      grade: "grade9",
+      dateOfBirth: "2012-05-04",
+      countryId: "ae",
+      curriculum: "MOE National",
+    });
+    getLicenseCapacityForStudent.mockResolvedValue(null);
+    countCompletedAssessmentsByUser.mockResolvedValue(3);
+
+    const { status, body } = await post();
+
+    expect(status).toBe(403);
+    expect(body.code).toBe("FREE_ASSESSMENT_CAP_REACHED");
     expect(createAssessment).not.toHaveBeenCalled();
   });
 
@@ -148,26 +168,6 @@ describe("POST /api/assessments — payment gate", () => {
     expect(createAssessment).toHaveBeenCalledTimes(1);
   });
 
-  it("FREE_ASSESSMENT_CAP no longer governs this population: even zero prior completions still 402s with a child profile and no payment", async () => {
-    getUser.mockResolvedValue({ isPremium: false, detachedAt: null });
-    getChildProfileByGuardianUserId.mockResolvedValueOnce({
-      id: "child-1",
-      name: "Khaled",
-      gender: "male",
-      grade: "grade9",
-      dateOfBirth: "2012-05-04",
-      countryId: "ae",
-      curriculum: "MOE National",
-    });
-
-    const { status, body } = await post();
-
-    expect(status).toBe(402);
-    expect(body.code).not.toBe("FREE_ASSESSMENT_CAP_REACHED");
-    // The old cap check is never reached for this population any more.
-    expect(countCompletedAssessmentsByUser).not.toHaveBeenCalled();
-  });
-
   /**
    * PAYING ONCE IS NO LONGER A SEASON TICKET.
    *
@@ -177,8 +177,7 @@ describe("POST /api/assessments — payment gate", () => {
    * premium account and nothing counted what was spent.
    *
    * A paid account now has a BALANCE, and an exhausted one is refused here --
-   * with 402 rather than 403, because the remedy is the same as the gate
-   * above's: buy more. These two cases are what keep the distinction honest.
+   * with 402 rather than 403, because the remedy is to buy more. These two cases are what keep the distinction honest.
    */
   it("refuses a paid account whose pool is exhausted", async () => {
     getUser.mockResolvedValue({ isPremium: true, detachedAt: null });

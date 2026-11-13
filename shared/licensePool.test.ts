@@ -10,8 +10,11 @@ describe("isOnPersonalPool", () => {
   it("a free account is on no pool", () => {
     expect(isOnPersonalPool(base)).toBe(false);
   });
-  it("a child profile is a pool even before payment", () => {
-    expect(isOnPersonalPool({ ...base, hasChildProfile: true })).toBe(true);
+  it("an UNPAID child profile is on no pool: its free report must not be charged", () => {
+    expect(isOnPersonalPool({ ...base, hasChildProfile: true })).toBe(false);
+  });
+  it("a PAID child profile is on its pool", () => {
+    expect(isOnPersonalPool({ ...base, hasChildProfile: true, isPremium: true })).toBe(true);
   });
   it("a school admin's premium flag is not a personal pool", () => {
     expect(isOnPersonalPool({ ...base, hasSchoolRow: true, isPremium: true })).toBe(false);
