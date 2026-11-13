@@ -9,7 +9,9 @@
     "assessmentsCompleted": "{{count}} assessment completed",
     "assessmentsCompletedPlural": "{{count}} assessments completed",
     "partnerSchools": "Partner Schools",
-    "forSchools": "For schools"
+    "forSchools": "For schools",
+    "newHere": "Parent or guardian?",
+    "createFree": "Create a free account for your child"
   },
   "howItWorks": {
     "title": "How It Works",
@@ -40,7 +42,7 @@
   "cta": {
     "title": "Ready to Find Your Path?",
     "subtitle": "Discover career paths that fit your subjects, interests and values. Start your assessment today.",
-    "createAccount": "Create Account",
+    "createAccount": "Create a Free Account",
     "continueGuest": "Continue as Guest",
     "methodNote": "Every match comes with the reasoning behind it — the subjects, interests and values that placed it there.",
     "forSchools": "For schools"

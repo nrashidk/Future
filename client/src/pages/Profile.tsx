@@ -10,6 +10,7 @@ import { StickyNote } from "@/components/StickyNote";
 import { YourDataSection } from "@/components/YourDataSection";
 import type { LucideIcon } from "lucide-react";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
+import { EmailConfirmationBanner } from "@/components/EmailConfirmationBanner";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTranslation } from "react-i18next";
 import { withReturnTo, currentPathWithQuery } from "@/lib/returnTo";
@@ -400,6 +401,11 @@ export default function Profile() {
           </div>
         </div>
       </header>
+
+      {/* Renders nothing unless this account still owes an email confirmation. */}
+      <div className="max-w-4xl mx-auto px-4 pt-4 empty:hidden">
+        <EmailConfirmationBanner />
+      </div>
 
       {/* Show announcement banner only for non-premium individual users */}
       {!user?.isPremium && !isOrgStudent && (

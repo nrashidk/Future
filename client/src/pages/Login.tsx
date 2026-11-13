@@ -178,6 +178,12 @@ export default function Login() {
           <p className="text-sm text-muted-foreground">
             {t("login.haveCredentials")}
           </p>
+          <p className="text-sm text-muted-foreground" data-testid="text-login-signup">
+            {t("login.noAccountYet")}{" "}
+            <Link href="/register/parent" className="text-primary hover:underline font-medium" data-testid="link-login-signup">
+              {t("login.createFree")}
+            </Link>
+          </p>
           <Button variant="ghost" asChild data-testid="link-home">
             <Link href="/">{t("login.backHome")}</Link>
           </Button>

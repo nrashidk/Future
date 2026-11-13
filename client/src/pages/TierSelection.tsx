@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "wouter";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,8 +43,26 @@ export default function TierSelection() {
   // and consent all have to exist before Stripe is ever reached, so this
   // points at registration, not at Checkout directly. RegisterParent
   // forwards to /checkout?students=1 itself once the account exists.
+  //
+  // `next=checkout` tells RegisterParent this visitor pressed a BUY button:
+  // since 2026-11-13 registering is free and no longer leads to payment by
+  // itself. And a visitor who is ALREADY signed in goes straight to
+  // Checkout — sending them to register again ends in "an account with this
+  // email already exists", which is where the free-cap screen's Upgrade
+  // button led.
+  const { isAuthenticated, user } = useAuth();
   const handleIndividualTier = () => {
-    setLocation(withReturnTo('/register/parent', returnTo));
+    // An account that has already paid is NOT sent to the card form: a second
+    // card payment by a premium account grants nothing (Profile.tsx).
+    if (isAuthenticated && user?.isPremium) {
+      setLocation('/profile');
+      return;
+    }
+    if (isAuthenticated) {
+      setLocation(withReturnTo('/checkout?students=1&total=10', returnTo));
+      return;
+    }
+    setLocation(withReturnTo('/register/parent?next=checkout', returnTo));
   };
 
   const handleGroupTier = () => {

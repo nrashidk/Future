@@ -13,7 +13,8 @@
  * rendered strings, not reconstructed server-side from the same keys.
  */
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTranslation } from "react-i18next";
 import { readReturnTo, withReturnTo } from "@/lib/returnTo";
@@ -22,7 +23,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { apiRequest, serverErrorMessage } from "@/lib/queryClient";
+import { apiRequest, queryClient, serverErrorMessage } from "@/lib/queryClient";
 import { claimGuestAssessments } from "@/lib/claimGuestAssessments";
 import { useLocation, Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -44,7 +45,27 @@ export default function RegisterParent() {
   // once at mount: wouter's location does not include the query string, and
   // the value must survive the re-renders this form does on every keystroke.
   const [returnTo] = useState(() => readReturnTo(window.location.search));
+  // Set only by the two buy buttons that send an unregistered visitor here.
+  const [wantsCheckout] = useState(
+    () => new URLSearchParams(window.location.search).get("next") === "checkout",
+  );
   const { toast } = useToast();
+
+  // SOMEONE ALREADY SIGNED IN HAS NOTHING TO REGISTER. The form would only
+  // end in "An account with this email already exists", which is where a
+  // signed-in free account pressing Upgrade used to be sent. Decided ONCE,
+  // from how they arrived: registering here signs the visitor in too, and
+  // that must not trigger this redirect on top of onSuccess's own.
+  const { isAuthenticated, isLoading: authLoading } = useAuth();
+  const arrivedSignedIn = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (authLoading || arrivedSignedIn.current !== null) return;
+    arrivedSignedIn.current = isAuthenticated;
+    if (isAuthenticated) {
+      setLocation(wantsCheckout ? withReturnTo("/checkout?students=1&total=10", returnTo) : (returnTo ?? "/profile"));
+    }
+  }, [authLoading, isAuthenticated, wantsCheckout, returnTo, setLocation]);
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [processing, setProcessing] = useState(false);
@@ -129,29 +150,13 @@ export default function RegisterParent() {
       });
       return response.json();
     },
-    onSuccess: async () => {
-      // No credentials modal, unlike the old checkout-creates-account path:
-      // the parent just set their own password and is already logged in
+    onSuccess: async (result: { confirmationEmailSent?: boolean }) => {
+      // The parent just set their own password and is already signed in
       // (req.logIn in the endpoint).
       //
-      // THE CLAIM, BEFORE PAYMENT. A guest who completed the assessment,
-      // then registered here, must not lose that assessment to the 72-hour
-      // sweep just because this page used to navigate straight to Checkout
-      // without ever running AuthCallback.tsx's claim step — the only other
-      // place that call was made. See claimGuestAssessments
-      // (client/src/lib) for why this is a shared function and not a second
-      // copy of that logic: this is the first of at least two more call
-      // sites (Results.tsx's "Create Free Account", Assessment.tsx's guest
-      // banner) that will need the identical call once they are repointed at
-      // this page as part of retiring the free tier
-      // (docs/free-tier-retirement-recon.md §2) — call the helper there too,
-      // not localStorage/`/api/assessments/migrate` directly.
-      //
-      // Run before navigating to Checkout, not after payment: the account
-      // and consent already exist before payment (docs/
-      // parent-registers-scoping.md), so an abandoned checkout still leaves
-      // the guest's report claimed onto the new account rather than losing
-      // it a second way.
+      // THE CLAIM COMES FIRST. A guest who took the assessment and then
+      // registered must not lose it to the 72-hour sweep. claimGuestAssessments
+      // (client/src/lib) is the one copy of that call.
       const { migratedCount } = await claimGuestAssessments();
       if (migratedCount > 0) {
         toast({
@@ -159,7 +164,44 @@ export default function RegisterParent() {
           description: t("callback.migratedDesc"),
         });
       }
-      setLocation(withReturnTo("/checkout?students=1&total=10", returnTo));
+      toast({
+        title: t("registerParent.createdTitle"),
+        description: result?.confirmationEmailSent === false
+          ? t("registerParent.createdMailFailed")
+          : t("registerParent.createdDesc"),
+      });
+      await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+
+      // REGISTERING NO LONGER LEADS TO PAYMENT (owner, 2026-11-13). Until then
+      // this line was an unconditional redirect to Checkout, and an unpaid
+      // account could start nothing. An account is free now, and paying is a
+      // choice made from the report or the profile. Only a visitor who came
+      // here BECAUSE they pressed a buy button (`next=checkout`, set by
+      // TierSelection and Checkout) goes on to pay.
+      if (wantsCheckout) {
+        setLocation(withReturnTo("/checkout?students=1&total=10", returnTo));
+        return;
+      }
+      if (returnTo) {
+        setLocation(returnTo);
+        return;
+      }
+      // No stated origin: go to whatever this account now has. An assessment
+      // in progress resumes on /assessment; a finished report opens; with
+      // neither, /assessment starts the first one.
+      try {
+        const mine: Array<{ id: string; isCompleted: boolean }> =
+          await (await apiRequest("GET", "/api/assessments/my")).json();
+        const inProgress = mine.some((a) => !a.isCompleted);
+        const finished = mine.find((a) => a.isCompleted);
+        if (!inProgress && finished) {
+          setLocation(`/results?assessmentId=${finished.id}`);
+          return;
+        }
+      } catch {
+        // Fall through to /assessment, which reads the same list itself.
+      }
+      setLocation("/assessment");
     },
     onError: (error: unknown) => {
       toast({
@@ -433,7 +475,7 @@ export default function RegisterParent() {
                     {t("registerParent.submitting")}
                   </>
                 ) : (
-                  t("registerParent.submit")
+                  wantsCheckout ? t("registerParent.submitToPayment") : t("registerParent.submit")
                 )}
               </Button>
             </form>

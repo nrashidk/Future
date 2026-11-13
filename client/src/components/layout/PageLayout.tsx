@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { Header } from "./Header";
 import { Footer } from "./Footer";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
+import { EmailConfirmationBanner } from "@/components/EmailConfirmationBanner";
 import { useAuth } from "@/hooks/useAuth";
 
 interface PageLayoutProps {
@@ -20,6 +21,7 @@ export function PageLayout({ children, variant = "plain" }: PageLayoutProps) {
       <Header />
       {user && (
         <div className="max-w-4xl mx-auto w-full px-4 pt-4">
+          <EmailConfirmationBanner />
           <AnnouncementBanner />
         </div>
       )}

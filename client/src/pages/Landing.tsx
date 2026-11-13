@@ -73,6 +73,10 @@ export default function Landing() {
   // it the banner (and its "save your progress" sign-up CTA) never rendered for
   // anyone, because this was the only way into guest mode. Both guest CTAs on this
   // page route through here, so this covers both.
+  // A free account, created by a parent for their child. The closing "Create
+  // Account" button used to go to the SIGN-IN page, where there was nothing
+  // to create an account with.
+  const handleSignUp = () => setLocation("/register/parent");
   const handleGuestStart = () => setLocation("/assessment?guest=true");
   // Straight to the figures. A school deciding whether to talk to us
   // wants the price, not a plan-chooser written for individuals.
@@ -147,6 +151,21 @@ export default function Landing() {
               {t("hero.forSchools")}
             </Button>
           </div>
+
+          {/* "Get Started" above is the sign-in door, for students whose school
+              made their account. This is the other one: a parent creating a
+              free account for their child. */}
+          <p className="-mt-6 mb-12 text-base text-muted-foreground" data-testid="text-hero-signup">
+            {t("hero.newHere")}{" "}
+            <button
+              type="button"
+              onClick={handleSignUp}
+              className="font-semibold text-primary underline-offset-4 hover:underline"
+              data-testid="link-hero-signup"
+            >
+              {t("hero.createFree")}
+            </button>
+          </p>
 
           {/*
             Social proof, shown only once there is some.
@@ -398,7 +417,7 @@ export default function Landing() {
                 <Button
                   size="lg"
                   className="rounded-full shadow-lg"
-                  onClick={handleLogin}
+                  onClick={handleSignUp}
                   data-testid="button-cta-signup"
                 >
                   {t("cta.createAccount")}

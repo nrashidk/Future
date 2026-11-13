@@ -446,7 +446,9 @@ export default function Checkout() {
   useEffect(() => {
     if (authLoading) return;
     if (studentCount === 1 && !isAuthenticated) {
-      setLocation("/register/parent");
+      // next=checkout: registering is free now and would otherwise end on the
+      // assessment, not back here where this visitor was trying to pay.
+      setLocation("/register/parent?next=checkout");
     }
   }, [authLoading, isAuthenticated, studentCount, setLocation]);
 

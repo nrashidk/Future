@@ -1,7 +1,7 @@
 {
   "appName": "Future Path",
   "backHome": "Back to Home",
-  "lastUpdated": "Last updated: 10 November 2026",
+  "lastUpdated": "Last updated: 13 November 2026",
   "privacy": {
     "pageTitle": "Privacy Policy",
     "title": "Privacy Policy",
@@ -18,7 +18,7 @@
     "s3li2": "To enhance user experience and system performance.",
     "s3li3": "To provide anonymized insights for institutional reporting.",
     "s4Title": "4. Data Retention & Deletion",
-    "s4Body": "An unclaimed guest assessment is deleted automatically 72 hours after it is completed, and an unfinished one shortly after the session that started it expires. Data in a registered account is kept while the account is open. Signed-in users can download their data or delete their account at any time from their profile, and a school can remove a student it enrolled. For anything else, contact us at support@futurepath.ae and we will respond within 30 days.",
+    "s4Body": "An unclaimed guest assessment is deleted automatically 72 hours after it is completed, and an unfinished one shortly after the session that started it expires. Data in a registered account is kept while the account is open. An account registered by a parent or guardian must have its email address confirmed, using the link we send, within 72 hours of registering; an account that is not confirmed and has not paid is deleted automatically with everything in it. Signed-in users can download their data or delete their account at any time from their profile, and a school can remove a student it enrolled. For anything else, contact us at support@futurepath.ae and we will respond within 30 days.",
     "s5Title": "5. Children's Privacy",
     "s5Body": "Future Path is designed for students aged 13 to 18. Students do not register themselves. A parent or legal guardian registers on the student's behalf and gives consent, or the student's school gives consent for the students it enrols. An anonymous assessment can be taken without an account and without consent, because it collects nothing that identifies the student: a school grade is asked for so the quiz can be built, no name, age or gender is stored, and the result is deleted within 72 hours unless it is claimed by an account.",
     "s6Title": "6. Data Security",
