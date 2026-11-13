@@ -121,12 +121,12 @@ export function registerProgressRoutes(app: Express) {
 
       const adminOrg = await storage.getOrganizationByAdminUserId(adminUserId);
       if (!adminOrg) {
-        return res.status(403).json({ message: "Not an organization admin" });
+        return res.status(403).json({ message: "Not a school admin" });
       }
 
       const studentMember = await storage.getOrganizationMemberByUserId(studentId);
       if (!studentMember || studentMember.organizationId !== adminOrg.id) {
-        return res.status(403).json({ message: "Student not in your organization" });
+        return res.status(403).json({ message: "Student not in your school" });
       }
 
       const evolution = await storage.getStudentCareerEvolution(studentId);
@@ -151,7 +151,7 @@ export function registerProgressRoutes(app: Express) {
       if (!adminOrg || adminOrg.id !== orgId) {
         const user = await storage.getUser(adminUserId);
         if (user?.role !== "superadmin") {
-          return res.status(403).json({ message: "Not authorized for this organization" });
+          return res.status(403).json({ message: "Not authorized for this school" });
         }
       }
 
@@ -177,7 +177,7 @@ export function registerProgressRoutes(app: Express) {
       if (!adminOrg || adminOrg.id !== orgId) {
         const user = await storage.getUser(adminUserId);
         if (user?.role !== "superadmin") {
-          return res.status(403).json({ message: "Not authorized for this organization" });
+          return res.status(403).json({ message: "Not authorized for this school" });
         }
       }
 

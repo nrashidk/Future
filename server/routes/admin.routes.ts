@@ -379,7 +379,7 @@ export function registerAdminRoutes(app: Express) {
       const isOrgAdminUser = user.accountType === "org_admin";
 
       if (!isSuperadmin && !isOrgAdminUser) {
-        return res.status(403).json({ message: "Forbidden: Admin or Organization Admin access required" });
+        return res.status(403).json({ message: "Forbidden: Admin or School Admin access required" });
       }
 
       // Superadmins get all organizations
@@ -397,7 +397,7 @@ export function registerAdminRoutes(app: Express) {
       res.json([organization]);  // Return as array to match superadmin response format
     } catch (error) {
       console.error("Error fetching organizations:", error);
-      res.status(500).json({ message: "Failed to fetch organizations" });
+      res.status(500).json({ message: "Failed to fetch schools" });
     }
   });
 
@@ -703,7 +703,7 @@ export function registerAdminRoutes(app: Express) {
       if (isOrgAdminForThisOrg) {
         const userOrg = await storage.getOrganizationByAdminUserId(userId);
         if (!userOrg || userOrg.id !== req.params.id) {
-          return res.status(403).json({ message: "Forbidden: Can only access your own organization" });
+          return res.status(403).json({ message: "Forbidden: Can only access your own school" });
         }
       }
 
@@ -715,7 +715,7 @@ export function registerAdminRoutes(app: Express) {
       res.json(members);
     } catch (error) {
       console.error("Error fetching organization members:", error);
-      res.status(500).json({ message: "Failed to fetch organization members" });
+      res.status(500).json({ message: "Failed to fetch school members" });
     }
   });
 
@@ -761,7 +761,7 @@ export function registerAdminRoutes(app: Express) {
       if (isOrgAdminForThisOrg) {
         const userOrg = await storage.getOrganizationByAdminUserId(userId);
         if (!userOrg || userOrg.id !== req.params.id) {
-          return res.status(403).json({ message: "Forbidden: Can only access your own organization" });
+          return res.status(403).json({ message: "Forbidden: Can only access your own school" });
         }
       }
 
@@ -884,7 +884,7 @@ export function registerAdminRoutes(app: Express) {
       if (error.message?.includes('Quota exceeded') || error.message?.includes('capacity')) {
         return res.status(400).json({ message: error.message });
       }
-      res.status(500).json({ message: "Failed to create organization member" });
+      res.status(500).json({ message: "Failed to create school member" });
     }
   });
 
@@ -908,7 +908,7 @@ export function registerAdminRoutes(app: Express) {
       if (isOrgAdminForThisOrg) {
         const userOrg = await storage.getOrganizationByAdminUserId(userId);
         if (!userOrg || userOrg.id !== req.params.id) {
-          return res.status(403).json({ message: "Forbidden: Can only access your own organization" });
+          return res.status(403).json({ message: "Forbidden: Can only access your own school" });
         }
       }
 
@@ -1095,7 +1095,7 @@ export function registerAdminRoutes(app: Express) {
       if (isOrgAdminForThisOrg) {
         const userOrg = await storage.getOrganizationByAdminUserId(userId);
         if (!userOrg || userOrg.id !== req.params.id) {
-          return res.status(403).json({ message: "Forbidden: Can only access your own organization" });
+          return res.status(403).json({ message: "Forbidden: Can only access your own school" });
         }
       }
       if (!isSuperadmin && !isOrgAdminForThisOrg) {
@@ -1105,7 +1105,7 @@ export function registerAdminRoutes(app: Express) {
       const member = await storage.getOrganizationMemberById(req.params.memberId);
       if (!member) return res.status(404).json({ message: "Member not found" });
       if (member.organizationId !== req.params.id) {
-        return res.status(403).json({ message: "Forbidden: Member does not belong to this organization" });
+        return res.status(403).json({ message: "Forbidden: Member does not belong to this school" });
       }
       if (member.role !== "student") {
         return res.status(400).json({ message: "Only a student can be allowed a repeat.", code: "NOT_A_STUDENT" });
@@ -1140,7 +1140,7 @@ export function registerAdminRoutes(app: Express) {
       if (isOrgAdminForThisOrg) {
         const userOrg = await storage.getOrganizationByAdminUserId(userId);
         if (!userOrg || userOrg.id !== req.params.id) {
-          return res.status(403).json({ message: "Forbidden: Can only access your own organization" });
+          return res.status(403).json({ message: "Forbidden: Can only access your own school" });
         }
       }
 
@@ -1155,7 +1155,7 @@ export function registerAdminRoutes(app: Express) {
 
       // CRITICAL SECURITY: Verify member belongs to the organization in the URL
       if (existingMember.organizationId !== req.params.id) {
-        return res.status(403).json({ message: "Forbidden: Member does not belong to this organization" });
+        return res.status(403).json({ message: "Forbidden: Member does not belong to this school" });
       }
 
       const { fullName, grade, studentGender, studentId, dateOfBirth } = req.body;
@@ -1287,7 +1287,7 @@ export function registerAdminRoutes(app: Express) {
       res.json(member);
     } catch (error) {
       console.error("Error updating organization member:", error);
-      res.status(500).json({ message: "Failed to update organization member" });
+      res.status(500).json({ message: "Failed to update school member" });
     }
   });
 
@@ -1311,7 +1311,7 @@ export function registerAdminRoutes(app: Express) {
       if (isOrgAdminForThisOrg) {
         const userOrg = await storage.getOrganizationByAdminUserId(userId);
         if (!userOrg || userOrg.id !== req.params.id) {
-          return res.status(403).json({ message: "Forbidden: Can only access your own organization" });
+          return res.status(403).json({ message: "Forbidden: Can only access your own school" });
         }
       }
 
@@ -1326,7 +1326,7 @@ export function registerAdminRoutes(app: Express) {
 
       // CRITICAL SECURITY: Verify member belongs to the organization in the URL
       if (member.organizationId !== req.params.id) {
-        return res.status(403).json({ message: "Forbidden: Member does not belong to this organization" });
+        return res.status(403).json({ message: "Forbidden: Member does not belong to this school" });
       }
 
       // THE isLocked GUARD THAT WAS HERE IS GONE, and its removal is the point
@@ -1362,7 +1362,7 @@ export function registerAdminRoutes(app: Express) {
       if (error.message?.includes('Cannot decrement')) {
         return res.status(400).json({ message: error.message });
       }
-      res.status(500).json({ message: "Failed to delete organization member" });
+      res.status(500).json({ message: "Failed to delete school member" });
     }
   });
 
@@ -1386,7 +1386,7 @@ export function registerAdminRoutes(app: Express) {
       if (isOrgAdminForThisOrg) {
         const userOrg = await storage.getOrganizationByAdminUserId(userId);
         if (!userOrg || userOrg.id !== req.params.id) {
-          return res.status(403).json({ message: "Forbidden: Can only access your own organization" });
+          return res.status(403).json({ message: "Forbidden: Can only access your own school" });
         }
       }
 
@@ -1409,7 +1409,7 @@ export function registerAdminRoutes(app: Express) {
       const foreignMembers = members.filter((m, i) => m && m.organizationId !== req.params.id).map((m, i) => memberIds[i]);
       if (foreignMembers.length > 0) {
         return res.status(403).json({ 
-          message: "Forbidden: Some members do not belong to this organization",
+          message: "Forbidden: Some members do not belong to this school",
           foreignMembers 
         });
       }
@@ -1488,7 +1488,7 @@ export function registerAdminRoutes(app: Express) {
       if (isOrgAdminForThisOrg) {
         const userOrg = await storage.getOrganizationByAdminUserId(userId);
         if (!userOrg || userOrg.id !== req.params.id) {
-          return res.status(403).json({ message: "Forbidden: Can only access your own organization" });
+          return res.status(403).json({ message: "Forbidden: Can only access your own school" });
         }
       }
 
@@ -1518,7 +1518,7 @@ export function registerAdminRoutes(app: Express) {
           
           // CRITICAL SECURITY: Verify member belongs to this organization
           if (member.organizationId !== req.params.id) {
-            return { userId: memberId, username: null, newPassword: null, success: false, error: "Member does not belong to this organization" };
+            return { userId: memberId, username: null, newPassword: null, success: false, error: "Member does not belong to this school" };
           }
           
           const memberUser = await storage.getUser(member.userId);
@@ -1585,7 +1585,7 @@ export function registerAdminRoutes(app: Express) {
       if (isOrgAdminForThisOrg) {
         const userOrg = await storage.getOrganizationByAdminUserId(userId);
         if (!userOrg || userOrg.id !== req.params.id) {
-          return res.status(403).json({ message: "Forbidden: Can only access your own organization" });
+          return res.status(403).json({ message: "Forbidden: Can only access your own school" });
         }
       }
 
@@ -1603,7 +1603,7 @@ export function registerAdminRoutes(app: Express) {
 
       // CRITICAL SECURITY: Verify member belongs to the organization in the URL
       if (member.organizationId !== req.params.id) {
-        return res.status(403).json({ message: "Forbidden: Member does not belong to this organization" });
+        return res.status(403).json({ message: "Forbidden: Member does not belong to this school" });
       }
 
       const user = await storage.getUser(member.userId);
@@ -1721,7 +1721,7 @@ export function registerAdminRoutes(app: Express) {
       if (isOrgAdminForThisOrg) {
         const userOrg = await storage.getOrganizationByAdminUserId(userId);
         if (!userOrg || userOrg.id !== req.params.id) {
-          return res.status(403).json({ message: "Forbidden: Can only access your own organization" });
+          return res.status(403).json({ message: "Forbidden: Can only access your own school" });
         }
       }
 
@@ -2064,7 +2064,7 @@ export function registerAdminRoutes(app: Express) {
       if (isOrgAdminForThisOrg) {
         const userOrg = await storage.getOrganizationByAdminUserId(userId);
         if (!userOrg || userOrg.id !== req.params.id) {
-          return res.status(403).json({ message: "Forbidden: Can only access your own organization" });
+          return res.status(403).json({ message: "Forbidden: Can only access your own school" });
         }
       }
 
@@ -2220,7 +2220,7 @@ export function registerAdminRoutes(app: Express) {
       const isSuperadmin = (user.email && superadminEmails.includes(user.email.toLowerCase())) || user.role === "superadmin";
       if (!isSuperadmin && user.accountType === "org_admin") {
         const userOrg = await storage.getOrganizationByAdminUserId(userId);
-        if (!userOrg || userOrg.id !== req.params.id) return res.status(403).json({ message: "Forbidden: Can only access your own organization" });
+        if (!userOrg || userOrg.id !== req.params.id) return res.status(403).json({ message: "Forbidden: Can only access your own school" });
       } else if (!isSuperadmin) {
         return res.status(403).json({ message: "Forbidden: Admin access required" });
       }
@@ -2325,7 +2325,7 @@ export function registerAdminRoutes(app: Express) {
       const isSuperadmin = (user.email && superadminEmails.includes(user.email.toLowerCase())) || user.role === "superadmin";
       if (!isSuperadmin && user.accountType === "org_admin") {
         const userOrg = await storage.getOrganizationByAdminUserId(userId);
-        if (!userOrg || userOrg.id !== req.params.id) return res.status(403).json({ message: "Forbidden: Can only access your own organization" });
+        if (!userOrg || userOrg.id !== req.params.id) return res.status(403).json({ message: "Forbidden: Can only access your own school" });
       } else if (!isSuperadmin) {
         return res.status(403).json({ message: "Forbidden: Admin access required" });
       }
@@ -2441,7 +2441,7 @@ export function registerAdminRoutes(app: Express) {
       const isSuperadmin = (user.email && superadminEmails.includes(user.email.toLowerCase())) || user.role === "superadmin";
       if (!isSuperadmin && user.accountType === "org_admin") {
         const userOrg = await storage.getOrganizationByAdminUserId(userId);
-        if (!userOrg || userOrg.id !== req.params.id) return res.status(403).json({ message: "Forbidden: Can only access your own organization" });
+        if (!userOrg || userOrg.id !== req.params.id) return res.status(403).json({ message: "Forbidden: Can only access your own school" });
       } else if (!isSuperadmin) {
         return res.status(403).json({ message: "Forbidden: Admin access required" });
       }
@@ -2497,7 +2497,7 @@ export function registerAdminRoutes(app: Express) {
         // The admin is already confined to req.params.id above, so this prevents an
         // org_admin from importing (and thereby reading) another org's uploaded file.
         if (fileRecord.organizationId !== req.params.id) {
-          return res.status(403).json({ message: "Forbidden: File does not belong to this organization" });
+          return res.status(403).json({ message: "Forbidden: File does not belong to this school" });
         }
         // Defense in depth: an import may only ever read a private object.
         if (!fileRecord.filePath.startsWith('private/')) {

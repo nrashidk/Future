@@ -180,7 +180,7 @@ async function legacyBulkDeleteOne(db: any, orgId: string) {
   try {
     const [org] = await db.select({ id: organizations.id, name: organizations.name })
       .from(organizations).where(eq(organizations.id, orgId));
-    if (!org) return { success: false, error: "Organization not found" };
+    if (!org) return { success: false, error: "School not found" };
     await db.delete(organizations).where(eq(organizations.id, orgId));
     await db.insert(organizationEvents).values({
       organizationId: orgId, eventType: "organization_deleted", performedBy: "u-super",
@@ -359,7 +359,7 @@ describe("both delete endpoints", () => {
       expect.objectContaining({
         orgId: "org-s", success: false, code: "ORGANIZATION_HAS_STUDENTS", studentCount: 1,
       }),
-      { orgId: "org-missing", name: null, success: false, code: "ORGANIZATION_NOT_FOUND", error: "Organization not found" },
+      { orgId: "org-missing", name: null, success: false, code: "ORGANIZATION_NOT_FOUND", error: "School not found" },
     ]);
     expect(store.rows(organizations).map((o) => o.id)).toEqual(["org-s"]);
     expect(store.rows(organizationDeletions).map((d) => d.organizationId)).toEqual(["org-a"]);

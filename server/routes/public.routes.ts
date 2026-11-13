@@ -133,7 +133,7 @@ export function registerPublicRoutes(app: Express) {
       res.json(organizations);
     } catch (error) {
       console.error("Error fetching organizations:", error);
-      res.status(500).json({ message: "Failed to fetch organizations" });
+      res.status(500).json({ message: "Failed to fetch schools" });
     }
   });
 }

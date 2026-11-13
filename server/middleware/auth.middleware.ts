@@ -99,7 +99,7 @@ export const isOrgAdmin = async (req: any, res: any, next: any) => {
         resource: req.path,
         ip: req.ip,
       });
-      return res.status(403).json({ message: "Forbidden: Organization admin access required" });
+      return res.status(403).json({ message: "Forbidden: School admin access required" });
     }
     
     next();

@@ -54,18 +54,18 @@ export function registerOrganizationRoutes(app: Express) {
       const user = await storage.getUser(userId);
       
       if (!user || user.accountType !== 'org_admin') {
-        return res.status(403).json({ message: "Access denied: Organization admin only" });
+        return res.status(403).json({ message: "Access denied: School admin only" });
       }
 
       const organization = await storage.getOrganizationByAdminUserId(userId);
       if (!organization) {
-        return res.status(404).json({ message: "Organization not found" });
+        return res.status(404).json({ message: "School not found" });
       }
 
       res.json(organization);
     } catch (error) {
       console.error("Error fetching organization:", error);
-      res.status(500).json({ message: "Failed to fetch organization" });
+      res.status(500).json({ message: "Failed to fetch school" });
     }
   });
 
@@ -86,12 +86,12 @@ export function registerOrganizationRoutes(app: Express) {
       const user = await storage.getUser(userId);
 
       if (!user || user.accountType !== 'org_admin') {
-        return res.status(403).json({ message: "Access denied: Organization admin only" });
+        return res.status(403).json({ message: "Access denied: School admin only" });
       }
 
       const organization = await storage.getOrganizationByAdminUserId(userId);
       if (!organization) {
-        return res.status(404).json({ message: "Organization not found" });
+        return res.status(404).json({ message: "School not found" });
       }
 
       const current = await storage.getCurrentOrganizationConsent(organization.id);
@@ -123,12 +123,12 @@ export function registerOrganizationRoutes(app: Express) {
       const user = await storage.getUser(userId);
 
       if (!user || user.accountType !== 'org_admin') {
-        return res.status(403).json({ message: "Access denied: Organization admin only" });
+        return res.status(403).json({ message: "Access denied: School admin only" });
       }
 
       const organization = await storage.getOrganizationByAdminUserId(userId);
       if (!organization) {
-        return res.status(404).json({ message: "Organization not found" });
+        return res.status(404).json({ message: "School not found" });
       }
 
       const { consentsToProcessing, attestsGuardianConsent, attestationText, locale } = req.body ?? {};
@@ -220,12 +220,12 @@ export function registerOrganizationRoutes(app: Express) {
       const user = await storage.getUser(userId);
       
       if (!user || user.accountType !== 'org_admin') {
-        return res.status(403).json({ message: "Access denied: Organization admin only" });
+        return res.status(403).json({ message: "Access denied: School admin only" });
       }
 
       const organization = await storage.getOrganizationByAdminUserId(userId);
       if (!organization) {
-        return res.status(404).json({ message: "Organization not found" });
+        return res.status(404).json({ message: "School not found" });
       }
 
       // Get organization statistics with accurate assessment completion data
@@ -239,7 +239,7 @@ export function registerOrganizationRoutes(app: Express) {
       });
     } catch (error) {
       console.error("Error fetching organization stats:", error);
-      res.status(500).json({ message: "Failed to fetch organization stats" });
+      res.status(500).json({ message: "Failed to fetch school stats" });
     }
   });
 
@@ -264,11 +264,11 @@ export function registerOrganizationRoutes(app: Express) {
       const userId = (req.user as any).userId;
       const user = await storage.getUser(userId);
       if (!user || user.accountType !== 'org_admin') {
-        return res.status(403).json({ message: "Access denied: Organization admin only" });
+        return res.status(403).json({ message: "Access denied: School admin only" });
       }
       const organization = await storage.getOrganizationByAdminUserId(userId);
       if (!organization) {
-        return res.status(404).json({ message: "Organization not found" });
+        return res.status(404).json({ message: "School not found" });
       }
 
       const rows = await storage.listInvoices({
@@ -310,11 +310,11 @@ export function registerOrganizationRoutes(app: Express) {
       const userId = (req.user as any).userId;
       const user = await storage.getUser(userId);
       if (!user || user.accountType !== 'org_admin') {
-        return res.status(403).json({ message: "Access denied: Organization admin only" });
+        return res.status(403).json({ message: "Access denied: School admin only" });
       }
       const organization = await storage.getOrganizationByAdminUserId(userId);
       if (!organization) {
-        return res.status(404).json({ message: "Organization not found" });
+        return res.status(404).json({ message: "School not found" });
       }
 
       const invoice = await storage.getInvoiceById(req.params.id);
@@ -349,11 +349,11 @@ export function registerOrganizationRoutes(app: Express) {
       const userId = (req.user as any).userId;
       const user = await storage.getUser(userId);
       if (!user || user.accountType !== 'org_admin') {
-        return res.status(403).json({ message: "Access denied: Organization admin only" });
+        return res.status(403).json({ message: "Access denied: School admin only" });
       }
       const organization = await storage.getOrganizationByAdminUserId(userId);
       if (!organization) {
-        return res.status(404).json({ message: "Organization not found" });
+        return res.status(404).json({ message: "School not found" });
       }
 
       const invoice = await storage.getInvoiceById(req.params.id);

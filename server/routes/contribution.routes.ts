@@ -378,10 +378,10 @@ const checkOrgAdmin = guarded("checkOrgAdmin", async (req, res, next) => {
           createdAt: new Date(),
         } as any;
       } else {
-        return res.status(403).json({ error: "Organization not found for admin" });
+        return res.status(403).json({ error: "School not found for admin" });
       }
     } else {
-      return res.status(403).json({ error: "Must be an organization admin" });
+      return res.status(403).json({ error: "Must be a school admin" });
     }
   }
 
@@ -397,7 +397,7 @@ router.get("/balance", isAuthenticated, checkOrgAdmin, async (req: Request, res:
     const org = await storage.getOrganizationById(member.organizationId);
     
     if (!org) {
-      return res.status(404).json({ error: "Organization not found" });
+      return res.status(404).json({ error: "School not found" });
     }
 
     // Check if yearly reset is needed
@@ -1223,7 +1223,7 @@ router.post("/admin/org/:orgId/allocate-reward", isAuthenticated, checkSuperadmi
     
     const org = await storage.getOrganizationById(orgId);
     if (!org) {
-      return res.status(404).json({ error: "Organization not found" });
+      return res.status(404).json({ error: "School not found" });
     }
     
     // Check yearly cap

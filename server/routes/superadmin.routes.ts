@@ -1330,7 +1330,7 @@ export function registerSuperadminRoutes(app: Express) {
       res.json(eventsWithPerformer);
     } catch (error) {
       console.error("Error fetching organization events:", error);
-      res.status(500).json({ message: "Failed to fetch organization events" });
+      res.status(500).json({ message: "Failed to fetch school events" });
     }
   });
 
@@ -1387,7 +1387,7 @@ export function registerSuperadminRoutes(app: Express) {
       } = req.body;
       
       if (!organizationName) {
-        return res.status(400).json({ message: "Organization name is required" });
+        return res.status(400).json({ message: "School name is required" });
       }
       
       if (!isUnlimitedLicenses && (!totalLicenses || totalLicenses <= 0)) {
@@ -1676,7 +1676,7 @@ export function registerSuperadminRoutes(app: Express) {
       }
     } catch (error) {
       console.error("Error exporting organizations:", error);
-      res.status(500).json({ message: "Failed to export organizations" });
+      res.status(500).json({ message: "Failed to export schools" });
     }
   });
 
@@ -1686,7 +1686,7 @@ export function registerSuperadminRoutes(app: Express) {
       const { organizationIds, adjustment } = req.body;
       
       if (!Array.isArray(organizationIds) || organizationIds.length === 0) {
-        return res.status(400).json({ message: "Organization IDs array is required" });
+        return res.status(400).json({ message: "School IDs array is required" });
       }
       
       if (typeof adjustment !== "number" || adjustment === 0) {
@@ -1711,7 +1711,7 @@ export function registerSuperadminRoutes(app: Express) {
           
           if (org.isUnlimitedLicenses) {
             results.failed++;
-            results.errors.push({ orgId, error: "Cannot adjust licenses for unlimited organization" });
+            results.errors.push({ orgId, error: "Cannot adjust licenses for unlimited school" });
             continue;
           }
           
@@ -2537,7 +2537,7 @@ export function registerSuperadminRoutes(app: Express) {
       const currentUser = (req as any).currentUser;
       const outcome = await deleteOrganizationWithDependents(db, orgId, performerFrom(currentUser));
       if (outcome.status === "not_found") {
-        return res.status(404).json({ message: "Organization not found" });
+        return res.status(404).json({ message: "School not found" });
       }
       if (outcome.status === "has_students") {
         return res.status(409).json({
@@ -2556,10 +2556,10 @@ export function registerSuperadminRoutes(app: Express) {
       // scope for the student disposition work, but nothing cleans them up.
       console.log(`[Superadmin] Organization "${outcome.organizationName}" (${orgId}) deleted by user ${currentUser?.id}`);
 
-      res.json({ success: true, message: "Organization deleted successfully" });
+      res.json({ success: true, message: "School deleted successfully" });
     } catch (error) {
       console.error("Error deleting organization:", error);
-      res.status(500).json({ message: "Failed to delete organization" });
+      res.status(500).json({ message: "Failed to delete school" });
     }
   });
 
@@ -2687,7 +2687,7 @@ export function registerSuperadminRoutes(app: Express) {
           if (outcome.status === "not_found") {
             // A code, so the dashboard can say "no longer exists" without matching
             // on English text — the catch below also returns name: null.
-            return { orgId, name: null, success: false, code: "ORGANIZATION_NOT_FOUND", error: "Organization not found" };
+            return { orgId, name: null, success: false, code: "ORGANIZATION_NOT_FOUND", error: "School not found" };
           }
           if (outcome.status === "has_students") {
             return {
@@ -2725,7 +2725,7 @@ export function registerSuperadminRoutes(app: Express) {
       });
     } catch (error) {
       console.error("Error bulk deleting organizations:", error);
-      res.status(500).json({ message: "Failed to bulk delete organizations" });
+      res.status(500).json({ message: "Failed to bulk delete schools" });
     }
   });
 
