@@ -1975,7 +1975,12 @@ function SuperadminDashboardPage() {
                     <CardDescription>{t('superadmin.careersDesc')}</CardDescription>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Button variant="outline" onClick={() => applyArabicTranslationsMutation.mutate()} disabled={applyArabicTranslationsMutation.isPending} data-testid="button-apply-arabic-translations">
+                    <Button variant="outline" onClick={() => setPendingConfirm({
+                      title: t('superadmin.confirmApplyArabicTitle'),
+                      body: t('superadmin.confirmApplyArabicBody'),
+                      confirmLabel: t('superadmin.applyArabicTranslations'),
+                      run: () => applyArabicTranslationsMutation.mutate(),
+                    })} disabled={applyArabicTranslationsMutation.isPending} data-testid="button-apply-arabic-translations">
                       <Languages className="w-4 h-4 me-2" />
                       {applyArabicTranslationsMutation.isPending ? t('superadmin.applyingArabic') : t('superadmin.applyArabicTranslations')}
                     </Button>

@@ -849,7 +849,9 @@
     "deleteUserConfirm": "حذف نهائي",
     "userDeleted": "تم حذف الحساب",
     "userDeletedDesc": "أُزيل الحساب وبياناته.",
-    "failedToDeleteUser": "تعذّر حذف الحساب."
+    "failedToDeleteUser": "تعذّر حذف الحساب.",
+    "confirmApplyArabicTitle": "إعادة كتابة النص العربي لكل المهن؟",
+    "confirmApplyArabicBody": "يستبدل هذا الإجراء العنوان والوصف والمهارات والمستوى التعليمي بالعربية لكل مهنة أساسية بالنص المرفق مع المنتج. أي نص عربي عدّلته يدوياً في مدير الترجمة سيُستبدل."
   },
   "licenseAnalytics": {
     "loading": "جارٍ تحميل أرقام التراخيص…",

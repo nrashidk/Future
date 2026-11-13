@@ -843,7 +843,9 @@
     "deleteUserConfirm": "Delete permanently",
     "userDeleted": "Account deleted",
     "userDeletedDesc": "The account and its data have been removed.",
-    "failedToDeleteUser": "The account could not be deleted."
+    "failedToDeleteUser": "The account could not be deleted.",
+    "confirmApplyArabicTitle": "Rewrite the Arabic of every career?",
+    "confirmApplyArabicBody": "This replaces the Arabic title, description, skills and education level of every built-in career with the text shipped in the product. Any Arabic you edited by hand in the Translation Manager is overwritten."
   },
   "licenseAnalytics": {
     "loading": "Loading licence figures…",
