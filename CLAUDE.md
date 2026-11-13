@@ -128,7 +128,7 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `migration-036-dryrun`, `migration-037-dryrun`, `migration-038-dryrun` and
 `migration-039-dryrun`, plus `premium-solo`, `individual-licences` and
 `migration-041-dryrun` and `migration-042-dryrun`, plus
-`erase-after-email-change`.
+`erase-after-email-change` and `erase-charged-student`.
 
 `webhook-idempotency`, `webhook-group-backstop` and `setup-invite` need two
 environment
@@ -1041,6 +1041,28 @@ so a student with one assessment in progress got a link to a raw 404.
     Against the old code E-02, E-03 and E-05 fail with HTTP 500 and the users
     row still there. No migration: production held one such row, on the test
     student, and erasing that student clears it.
+  - **NO STUDENT WITH A GENERATED REPORT COULD BE ERASED, BY ANYONE, SINCE THE
+    LEDGER ARRIVED (029).** The email-change fix above was real but was NOT
+    why the test student would not delete: with it deployed the same 500 came
+    back. `license_consumptions.student_user_id` and `.assessment_id` were NOT
+    NULL foreign keys with no cascade and `eraseUserData` never touched the
+    table, so deleting the assessment of any charged student hit the key —
+    the school's "Delete record permanently", the superadmin's delete and the
+    account's own erasure alike. For minors that is the right to erasure
+    failing for exactly the students who used the product.
+    **The row is NOT deleted with the student**: used licences are counted
+    from it, so that would refund the licence ("a student who leaves takes
+    nothing"). Migration 043 makes both columns nullable; erasure NULLs them
+    on a school's row and deletes an individual's own rows, whose pool goes
+    with the account. `erase-charged-student.mjs` (6 cases, C-00 runs the
+    .sql after its DOWN; C-01 is the control that an uncharged student was
+    always erasable). Without the erasure change C-02, C-03 and C-05 fail
+    with HTTP 500 and the user still there.
+    **`user.erasure.test.ts` had stayed green throughout because its fake
+    database transcribes the foreign keys by hand and these three edges were
+    never added**, and its "premium student" had no ledger row. Both are
+    there now. A hand-copied list of constraints is only as good as the day
+    it was copied.
   **Pressed and held (2026-11-12, builds `833390b`–`b359f63`):** scoring
   weights refuse a total other than 100%; the Anthropic key test passes;
   an empty key cannot be submitted; reward settings refuse a negative figure
