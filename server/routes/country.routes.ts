@@ -348,11 +348,12 @@ export async function runSectorGeneration(
 }
 
 /**
- * Fifteen minutes. In a background job the only cost of waiting is the wait;
- * four minutes was what a browser request could bear, not what the research
- * needs.
+ * THIRTY MINUTES. The first run that was allowed to finish on production
+ * (Portugal, 2026-11-13) took 848 seconds and wrote 7 sectors -- 52 seconds
+ * inside the fifteen-minute limit this had the day it was written. In a
+ * background job the only cost of waiting is the wait.
  */
-const SECTOR_BACKGROUND_TIMEOUT_MS = 15 * 60 * 1000;
+const SECTOR_BACKGROUND_TIMEOUT_MS = 30 * 60 * 1000;
 
 export function registerCountryRoutes(app: Express) {
   app.get("/api/admin/countries", isAuthenticated, async (req, res) => {
@@ -811,8 +812,8 @@ export function registerCountryRoutes(app: Express) {
       res.json({ success: true, message: "Country deleted successfully" });
     } catch (error: any) {
       const pgCode = error?.cause?.code ?? error?.code;
-      if (pgCode === "23503") {
-        return res.status(409).json({ message: "Cannot delete this country because it is still referenced by users, schools, assessments, or questions. Remove those references first." });
+      if (pgCode === "23503" || error?.code === "COUNTRY_IN_USE") {
+        return res.status(409).json({ message: "This country cannot be deleted while a school, an account, an assessment, a quiz question or a contributed submission still belongs to it. Remove those first. Its sector map and subjects are removed with it." });
       }
       console.error("Error deleting country:", error);
       res.status(500).json({ message: "Failed to delete country" });
