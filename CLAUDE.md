@@ -1001,6 +1001,18 @@ so a student with one assessment in progress got a link to a raw 404.
     only. It goes when that throwaway school's admin account is deleted.
     **Left on production until a superadmin deletes them:** both ZZ purchase
     schools, their two admins, and student `zz.purchasestudent`.
+  - **THE WORD IS "SCHOOL"** (owner, 2026-11-14, landing on "Organization
+    Management / Select a school to manage" as a school admin). Screens in
+    both languages and 63 server replies say school now. **VALUES ONLY**, as
+    with licence/license: keys, codes (`ORGANIZATION_NOT_FOUND`), routes,
+    tables and identifiers keep `organization`. Legal texts were NOT touched
+    (the Arabic says "المؤسسات التعليمية"; editing them changes the policy
+    version consent is recorded against). A school admin's page has no
+    school picker and is titled with the school's own name; the picker is a
+    superadmin's. **Flagged, not changed:** a school admin's nav button
+    still reads "Admin" (drawn separately on five screens); the superadmin
+    sees the school admin's subtitle "Manage your school's students and
+    settings".
   - **FLAGGED, NOT CHANGED — A SCHOOL PAYS ABOUT 8% LESS WITHOUT `country`
     IN THE URL.** `/checkout?students=100` quotes and would charge **$900**
     (the USD fallback, about AED 3,305) where `&country=uae` charges AED
