@@ -752,7 +752,7 @@ export function registerPaymentRoutes(app: Express) {
         requiresPasswordSetup: racedWithBackstop,
         message: racedWithBackstop
           ? (organizationName
-              ? `Payment received and "${organizationName}" was created. Use "Forgot password" with this email to set your password and sign in.`
+              ? `Payment received and "${organizationName}" was created. We have emailed you a link to set your password and finish setting up.`
               : `Payment received. Use "Forgot password" with this email to set your password and sign in.`)
           : isNewUser
           ? (organization 

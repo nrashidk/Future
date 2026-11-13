@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useAuth } from "@/hooks/useAuth";
-import { Loader2 } from "lucide-react";
+import { Loader2, MailCheck } from "lucide-react";
 import { CredentialsModal } from "@/components/CredentialsModal";
 import { useTranslation } from "react-i18next";
 import { formatMoney } from "@shared/pricing";
@@ -75,6 +75,13 @@ function CheckoutForm({
   const [phone, setPhone] = useState("");
   const [organizationName, setOrganizationName] = useState("");
 
+  // Set when the purchase succeeded but this browser has nothing to show a
+  // password with: the webhook finished the purchase first, so the account
+  // already existed when /api/checkout/complete arrived. Found on a real
+  // purchase (production, 2026-11-14): the buyer paid AED 3,600 and was
+  // dropped on the STUDENT login page, which asks for "the username and
+  // password provided by your school".
+  const [emailNotice, setEmailNotice] = useState<{ email: string; school: string | null } | null>(null);
   const [showCredentialsModal, setShowCredentialsModal] = useState(false);
   const [credentials, setCredentials] = useState<{
     username: string;
@@ -219,6 +226,8 @@ function CheckoutForm({
           setCredentials(data.credentials);
           setCreatedOrgName(data.organization?.name);
           setShowCredentialsModal(true);
+        } else if (data.requiresPasswordSetup) {
+          setEmailNotice({ email, school: data.organization?.name ?? (studentCount > 1 ? organizationName : null) });
         } else if (data.wasLoggedIn) {
           toast({
             title: t("checkout.paymentSuccessTitle"),
@@ -253,6 +262,25 @@ function CheckoutForm({
       setIsProcessing(false);
     }
   };
+
+  if (emailNotice) {
+    return (
+      <div className="space-y-4 text-center py-6" data-testid="screen-checkout-check-email">
+        <MailCheck className="h-12 w-12 mx-auto text-green-600" aria-hidden="true" />
+        <h3 className="text-xl font-semibold">{t("checkout.paymentSuccessTitle")}</h3>
+        <p className="text-muted-foreground" data-testid="text-checkout-check-email">
+          {emailNotice.school
+            ? t("checkout.checkEmailSchool", { school: emailNotice.school, email: emailNotice.email })
+            : t("checkout.checkEmailIndividual", { email: emailNotice.email })}
+        </p>
+        {!emailNotice.school && (
+          <Button onClick={() => setLocation("/forgot-password")} data-testid="button-checkout-forgot-password">
+            {t("checkout.checkEmailForgotButton")}
+          </Button>
+        )}
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
