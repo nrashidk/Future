@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import { normalizeGender, GENDER_MESSAGE } from "@shared/gender";
 import multer from "multer";
 import path from "path";
 import logger from "../utils/logger";
@@ -1214,7 +1215,9 @@ export function registerAdminRoutes(app: Express) {
         if (rejectsAsCleared(studentGender)) {
           return res.status(400).json({ message: requiredFieldMessage("studentGender") });
         }
-        updates.studentGender = studentGender.trim();
+        const gender = normalizeGender(studentGender);
+        if (!gender) return res.status(400).json({ message: GENDER_MESSAGE });
+        updates.studentGender = gender;
       }
 
       if (grade !== undefined) {

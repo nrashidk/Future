@@ -5341,12 +5341,16 @@ export class DatabaseStorage implements IStorage {
     //
     // studentName is derived once, here, and reused by the insert below.
     const studentName = userData.studentName?.trim() || userData.fullName.trim();
-    studentDemographicsSchema.parse({
+    // The PARSED gender is what gets stored: the schema canonicalises it
+    // ("Male" -> "male"), and storing the raw cell is how a CSV upload wrote a
+    // value no screen recognised.
+    const demographics = studentDemographicsSchema.parse({
       studentName,
       studentGender: userData.studentGender,
       grade: userData.grade,
       dateOfBirth: userData.dateOfBirth,
     });
+    const studentGender = demographics.studentGender;
 
     // The owning school must have a country and a curriculum. Those two decide
     // which quiz bank the student's assessment draws from, so enrolling into a
@@ -5512,7 +5516,7 @@ export class DatabaseStorage implements IStorage {
               studentId: userData.studentId,
               // Derived and validated at the top of this function.
               studentName,
-              studentGender: userData.studentGender,
+              studentGender,
               dateOfBirth: userData.dateOfBirth,
               role: 'student',
               // THE FUND, RECORDED ON THE ROW THAT SPENDS IT, in the same

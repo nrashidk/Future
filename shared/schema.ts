@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import { normalizeGender, GENDER_MESSAGE } from "./gender";
 import {
   check,
   date,
@@ -1980,10 +1981,14 @@ export const insertStudentMemberSchema = insertOrganizationMemberSchema.extend({
     .string({ error: "Student name is required" })
     .trim()
     .min(1, "Student name is required"),
+  // Stored lowercase, one of two values (shared/gender.ts). A CSV cell
+  // reading "Male" used to be stored as typed and then shown as "-".
   studentGender: z
     .string({ error: "Student gender is required" })
     .trim()
-    .min(1, "Student gender is required"),
+    .min(1, "Student gender is required")
+    .refine((v) => normalizeGender(v) !== null, GENDER_MESSAGE)
+    .transform((v) => normalizeGender(v) as string),
   grade: z
     .string({ error: "Grade is required" })
     .trim()

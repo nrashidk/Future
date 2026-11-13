@@ -376,6 +376,26 @@ console.log(`B's student under test: ${bVictim.username}\n`);
       && bulk.body?.failed === 1 && bulk.body?.errors?.[0]?.member?.fullName === "Bad Row"
       && typeof bulk.body?.errors?.[0]?.error === "string",
     `HTTP ${bulk.status} names=${JSON.stringify(names)} failed=${bulk.body?.failed} error=${JSON.stringify(bulk.body?.errors?.[0]?.error ?? null)}`);
+
+  // O-17. GENDER IS STORED AS 'male' / 'female' WHATEVER THE CELL SAID. Found on
+  // production 2026-11-13: a CSV reading "Male" was stored as typed, and every
+  // screen compares against the lowercase word, so the roster showed "-".
+  // Judged by what the roster route returns for the rows, not by the 200.
+  const g = await A.session.post(`/api/admin/organizations/${A.orgId}/members/bulk`, {
+    members: [
+      { ...base, fullName: "Gender Capital", studentGender: "Male" },
+      { ...base, fullName: "Gender Arabic", studentGender: "أنثى" },
+      { ...base, fullName: "Gender Nonsense", studentGender: "robot" },
+    ],
+  });
+  const roster = await A.session.get(`/api/admin/organizations/${A.orgId}/members`);
+  const rows = Array.isArray(roster.body) ? roster.body : (roster.body?.members ?? []);
+  const stored = (name) => rows.find((m) => m.studentName === name)?.studentGender;
+  rec("O-17", "a CSV's \"Male\" and \"أنثى\" are stored male/female; nonsense is refused, not stored",
+    g.status === 200 && stored("Gender Capital") === "male" && stored("Gender Arabic") === "female"
+      && g.body?.failed === 1 && g.body?.errors?.[0]?.member?.fullName === "Gender Nonsense"
+      && stored("Gender Nonsense") === undefined,
+    `HTTP ${g.status} stored=${JSON.stringify([stored("Gender Capital"), stored("Gender Arabic"), stored("Gender Nonsense")])} failed=${g.body?.failed} error=${JSON.stringify(g.body?.errors?.[0]?.error ?? null)}`);
 }
 
 const pass = results.filter((r) => r.pass).length;
