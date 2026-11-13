@@ -11,7 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, serverErrorMessage } from "@/lib/queryClient";
 import { CheckCircle, AlertCircle, Search, Globe, Edit, Save, X, Check, AlertTriangle, ExternalLink } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { useLocation } from "wouter";
@@ -170,8 +170,10 @@ export default function TranslationManager() {
       setEditingCountryId(null);
       toast({ title: t('translation.countrySaved'), description: t('translation.countrySavedDesc') });
     },
-    onError: () => {
-      toast({ title: t('translation.saveError'), variant: "destructive" });
+    // The server's own sentence is shown: editing UI strings is switched off
+    // (501) and says why, and "Failed to save" alone read as a fault to retry.
+    onError: (error: unknown) => {
+      toast({ title: t('translation.saveError'), description: serverErrorMessage(error) ?? undefined, variant: "destructive" });
     },
   });
 
@@ -184,8 +186,10 @@ export default function TranslationManager() {
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/translations/coverage'] });
       toast({ title: t('translation.saved'), description: t('translation.savedDesc') });
     },
-    onError: () => {
-      toast({ title: t('translation.saveError'), variant: "destructive" });
+    // The server's own sentence is shown: editing UI strings is switched off
+    // (501) and says why, and "Failed to save" alone read as a fault to retry.
+    onError: (error: unknown) => {
+      toast({ title: t('translation.saveError'), description: serverErrorMessage(error) ?? undefined, variant: "destructive" });
     },
   });
 
@@ -203,8 +207,10 @@ export default function TranslationManager() {
       setEditingCareerId(null);
       toast({ title: t('translation.saved'), description: t('translation.savedDesc') });
     },
-    onError: () => {
-      toast({ title: t('translation.saveError'), variant: "destructive" });
+    // The server's own sentence is shown: editing UI strings is switched off
+    // (501) and says why, and "Failed to save" alone read as a fault to retry.
+    onError: (error: unknown) => {
+      toast({ title: t('translation.saveError'), description: serverErrorMessage(error) ?? undefined, variant: "destructive" });
     },
   });
 
@@ -218,8 +224,10 @@ export default function TranslationManager() {
       setCvqArValue("");
       toast({ title: t('translation.cvqSaved') });
     },
-    onError: () => {
-      toast({ title: t('translation.saveError'), variant: "destructive" });
+    // The server's own sentence is shown: editing UI strings is switched off
+    // (501) and says why, and "Failed to save" alone read as a fault to retry.
+    onError: (error: unknown) => {
+      toast({ title: t('translation.saveError'), description: serverErrorMessage(error) ?? undefined, variant: "destructive" });
     },
   });
 
@@ -233,8 +241,10 @@ export default function TranslationManager() {
       setQuestionArValue("");
       toast({ title: t('translation.questionSaved') });
     },
-    onError: () => {
-      toast({ title: t('translation.saveError'), variant: "destructive" });
+    // The server's own sentence is shown: editing UI strings is switched off
+    // (501) and says why, and "Failed to save" alone read as a fault to retry.
+    onError: (error: unknown) => {
+      toast({ title: t('translation.saveError'), description: serverErrorMessage(error) ?? undefined, variant: "destructive" });
     },
   });
 
