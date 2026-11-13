@@ -24,7 +24,6 @@
  */
 
 import { useState } from "react";
-import { Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Button } from "@/components/ui/button";
@@ -119,15 +118,19 @@ export function OrganizationConsentCard({ schoolName }: { schoolName: string }) 
   const consent = data?.consent ?? null;
   const documentsUnavailable = data?.currentPolicyVersion === null;
 
+  // A NEW TAB, not a navigation. This card also sits inside the school setup
+  // wizard, whose progress lives in memory and whose link is already spent:
+  // following a same-tab link there and pressing Back lost the wizard (the
+  // owner did exactly that on the first live purchase, 2026-11-14).
   const legalLinks = (
     <>
-      <Link href="/terms" className="text-primary hover:underline font-semibold" data-testid="link-org-consent-terms">
+      <a href="/terms" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-semibold" data-testid="link-org-consent-terms">
         {t("orgs.termsOfUse")}
-      </Link>
+      </a>
       {" · "}
-      <Link href="/privacy" className="text-primary hover:underline font-semibold" data-testid="link-org-consent-privacy">
+      <a href="/privacy" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline font-semibold" data-testid="link-org-consent-privacy">
         {t("orgs.privacyPolicy")}
-      </Link>
+      </a>
     </>
   );
 
