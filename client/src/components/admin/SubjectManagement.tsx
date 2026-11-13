@@ -761,6 +761,14 @@ export default function SubjectManagement() {
             <DialogDescription>
               {t('subjects.deleteSubjectConfirm', { name: selectedSubject?.name })}
             </DialogDescription>
+            {/* Deleting the row does not delete its questions: they stay in the
+                bank under a subject no student can pick, until it is registered
+                again. The dialog said nothing of them. */}
+            {selectedSubject && getQuestionCount(selectedSubject.code, selectedSubject.curriculum) > 0 && (
+              <p className="text-sm font-medium text-destructive" data-testid="text-delete-subject-questions">
+                {t('subjects.deleteSubjectHasQuestions', { count: getQuestionCount(selectedSubject.code, selectedSubject.curriculum) })}
+              </p>
+            )}
           </DialogHeader>
           {/* flex-col overrides DialogFooter's base flex-col-reverse, which below
               640px stacks against DOM order and so put this dialog's DESTRUCTIVE

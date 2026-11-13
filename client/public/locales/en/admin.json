@@ -1463,7 +1463,8 @@
     "failedRegister": "Failed to register subject",
     "deleteSubjectConfirm": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
     "cloneDescFull": "Copy all subjects from one curriculum to another. Existing subjects will be skipped.",
-    "editSubjectDescFull": "Update the subject details. Changing curriculum will affect which questions use this subject."
+    "editSubjectDescFull": "Update the subject details. Changing curriculum will affect which questions use this subject.",
+    "deleteSubjectHasQuestions": "{{count}} questions in the bank belong to this subject. They are not deleted, but no student will be given them until the subject is registered again."
   },
   "translation": {
     "title": "Translation Manager",
