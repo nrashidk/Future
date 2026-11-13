@@ -943,14 +943,20 @@ export function registerCountryRoutes(app: Express) {
          * A refresh is for correcting the country's own data, not for taking
          * on new content commitments.
          *
-         * So existing curricula are kept as they are, and the national one is
-         * added only if it is somehow missing. Adding an international
-         * curriculum stays a deliberate act.
+         * So existing curricula are kept as they are. The national one is
+         * added ONLY WHEN THE COUNTRY HAS NONE AT ALL.
+         *
+         * It used to be added whenever the model's name for it was not
+         * already in the list -- and the model does not spell it the same way
+         * twice. Four refreshes of one test country on production left four
+         * spellings of one curriculum, each seeded with six empty subjects.
+         * On a live country that is a second "national curriculum" with no
+         * questions behind it, offered to every school.
          */
         curricula: (() => {
           const current = country.curricula ?? [];
           const national = result.data!.nationalCurriculum;
-          if (national && !current.includes(national)) return [national, ...current];
+          if (current.length === 0 && national) return [national];
           return current;
         })(),
         subjects: result.data!.subjects,
