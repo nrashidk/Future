@@ -993,11 +993,26 @@ so a student with one assessment in progress got a link to a raw 404.
     **Left on production by that pass:** invoice FP-2026-0003 (paid, 1
     licence, Test High School) and the -1 adjustment that put the school
     back to 50. The throwaway country, question and two students are gone.
-    **STILL HARNESS-ONLY, because they need another sign-in:** the whole
-    free sign-up path (register, confirmation mail and link, banner, the
-    unconfirmed badge, Upgrade), "Needs Changes" (no live submission), and
-    anything seen as a school admin, student or guest since their last live
-    walk on 2026-11-12.
+    **THE FREE SIGN-UP WAS WALKED LIVE THE SAME NIGHT (build `bd853f1`)**,
+    the owner registering and typing the password: the account is a free
+    `individual` on no pool and lands on the assessment, not on payment; the
+    child's name, age, grade and gender reach the assessment; the mail
+    arrives within the minute; the banner is on profile, plan and report;
+    "Send again" mails a second link and the first then answers 404
+    `LINK_INVALID`; a completed assessment gives a free report (2 careers,
+    "1 of 3", PDF 403); Upgrade goes to `/tier-selection` then `/checkout`
+    signed in; the superadmin's Users row carries "Email not confirmed ·
+    deleted in 72 h"; the link confirms with ANOTHER account signed in, the
+    badge goes, and a second use answers `already_confirmed`. The assessment
+    was driven through the API from the signed-in page. A signed-out guest
+    is asked for grade only. **Left on production:** the confirmed account
+    "Nasser Free Check" and its one free report.
+    **Flagged, not changed:** an individual's profile says "Assessment
+    details come from your school's records"; a first click on Logout from
+    `/admin` did not sign out (not reproduced).
+    **STILL HARNESS-ONLY:** "Needs Changes" (no live submission), that a
+    guest's crafted name is discarded, the 72-hour erasure itself, and
+    anything seen as a school admin or student since 2026-11-12.
   - "Refresh with AI" on Malta left its one curriculum alone (no re-spelled
     duplicate), and UAE was not touched.
   - Real question generation works: 10 Grade 9 Mathematics questions for
