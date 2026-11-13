@@ -141,6 +141,7 @@ import { isOnPersonalPool, isSuperadminAccount } from "@shared/licensePool";
 import { blockingStatuses, type EmailDeliveryStatus } from "@shared/emailDelivery";
 import { invoiceTotals, formatInvoiceNumber, canTransition, grantAmountMajor } from "@shared/invoice";
 import { splitStudentName } from "@shared/studentName";
+import { isReservedEmail } from "./utils/emailChange";
 import { SUBJECT_IDS } from "@shared/subjects";
 import { eq, ne, and, or, desc, count, avg, sql, inArray, notInArray, isNotNull, isNull, gt, gte, lt, type SQL } from "drizzle-orm";
 
@@ -696,6 +697,23 @@ function resolveAgainstUmbrellaSix(raw: string, lower: string): string | undefin
   return undefined;
 }
 
+/**
+ * Thrown by every function here that creates an account from a typed address
+ * when that address is reserved (utils/emailChange.ts isReservedEmail). The
+ * routes check first and answer politely; this is the control, so a creation
+ * path added later cannot forget.
+ */
+export function assertEmailNotReserved(email: string | null | undefined): void {
+  if (isReservedEmail(email, superadminEmailsFromEnv())) {
+    throw Object.assign(new Error("That address is reserved and cannot be used for a new account."), {
+      code: "RESERVED_EMAIL",
+    });
+  }
+}
+export function emailIsReserved(email: string | null | undefined): boolean {
+  return isReservedEmail(email, superadminEmailsFromEnv());
+}
+
 /** SUPERADMIN_EMAILS, read the way auth.middleware.ts reads it (which imports this file, so it cannot be imported here). */
 function superadminEmailsFromEnv(): string[] {
   return (process.env.SUPERADMIN_EMAILS || "")
@@ -742,6 +760,7 @@ export class DatabaseStorage implements IStorage {
     stripeCustomerId?: string | null;
     passwordComplexity?: 'medium' | 'strong';
   }): Promise<{ user: User; username: string; password: string }> {
+    assertEmailNotReserved(userData.email);
     const { generatePassword } = await import("./utils/passwordGenerator");
     const { resolveUsername } = await import("@shared/username");
     const { hashPassword } = await import("./utils/passwordHash");
@@ -5745,6 +5764,7 @@ export class DatabaseStorage implements IStorage {
     child: Omit<InsertChildProfile, "guardianUserId">;
     consent: Omit<InsertChildGuardianConsent, "performedBy">;
   }): Promise<{ user: User; childProfile: ChildProfile; consent: ChildGuardianConsent }> {
+    assertEmailNotReserved(params.email);
     return await db.transaction(async (tx) => {
       const [user] = await tx
         .insert(users)

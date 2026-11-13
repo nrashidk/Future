@@ -27,7 +27,10 @@ process.env.SESSION_SECRET = "local-testing-session-secret-not-a-real-secret";
 // 64 hex characters, as the encryption util requires. Local only; it encrypts
 // nothing that leaves this machine.
 process.env.DB_ENCRYPTION_KEY = "0".repeat(64);
-process.env.SUPERADMIN_EMAILS = "super@futurepath.test";
+// The SECOND address is reserved and held by NOBODY, on purpose: it is what
+// reserved-email.mjs tries to register with. A list whose every entry already
+// has an account cannot show whether an unheld reserved address is claimable.
+process.env.SUPERADMIN_EMAILS = "super@futurepath.test,reserved-unheld@futurepath.test";
 // The seed deliberately refuses to create these accounts without an explicit
 // password -- there is no hardcoded fallback, which is the right call. Supply
 // them here so the roles exist to test with.

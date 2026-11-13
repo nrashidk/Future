@@ -5,6 +5,7 @@ import { z } from "zod";
 import { clearSubjectCache } from "../utils/subjects";
 import { dataExportLimiter, orgCreationLimiter } from "../middleware/rateLimiter.middleware";
 import { getSuperadminEmails } from "../middleware/auth.middleware";
+import { emailIsReserved } from "../storage";
 import { schoolSetupStage } from "@shared/schoolSetupStage";
 import { sendSchoolSetupInvite } from "../services/schoolSetupInvite";
 import { eraseUserData, collectBlockingAuditRecords } from "../services/accountErasure";
@@ -593,6 +594,9 @@ export function registerSuperadminRoutes(app: Express) {
       const { resolveUsername } = await import("@shared/username");
       const { hashPassword } = await import("../utils/passwordHash");
 
+      if (emailIsReserved(email)) {
+        return res.status(403).json({ code: "RESERVED_EMAIL", message: "That address is reserved for platform administrators and cannot be assigned here." });
+      }
       // Check for duplicate email before attempting insert
       if (email) {
         const existingByEmail = await storage.getUserByEmail(email);
@@ -1444,6 +1448,12 @@ export function registerSuperadminRoutes(app: Express) {
         });
       }
 
+      // A reserved address makes whoever holds it a platform administrator
+      // (utils/emailChange.ts). The email-edit route has always refused to
+      // write one; creating an account with one is the same grant.
+      if (emailIsReserved(adminEmail)) {
+        return res.status(403).json({ code: "RESERVED_EMAIL", message: "That address is reserved for platform administrators and cannot be assigned here." });
+      }
       if (adminEmail) {
         const existingByEmail = await storage.getUserByEmail(adminEmail);
         if (existingByEmail) {
@@ -3510,6 +3520,9 @@ export function registerSuperadminRoutes(app: Express) {
         return res.status(400).json({ message: "First name, last name, and email are required" });
       }
 
+      if (emailIsReserved(email)) {
+        return res.status(403).json({ code: "RESERVED_EMAIL", message: "That address is reserved for platform administrators and cannot be assigned here." });
+      }
       const existingByEmail = await storage.getUserByEmail(email);
       if (existingByEmail) {
         return res.status(409).json({ message: "A user with this email already exists" });

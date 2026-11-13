@@ -45,6 +45,26 @@ export function normalizeEmail(raw: string): string {
   return raw.trim().toLowerCase();
 }
 
+/**
+ * IS THIS ADDRESS RESERVED FOR A PLATFORM ADMINISTRATOR?
+ *
+ * The guards below refuse to WRITE a reserved address onto an existing
+ * account. Until 2026-11-13 nothing refused to CREATE an account with one --
+ * and POST /api/register/parent is public, signs the new account in, and asks
+ * for no proof of the address. A reserved address that no account yet held
+ * was therefore a nationwide-administrator account for whoever typed it
+ * first. Every path that creates an account from a typed address asks this
+ * (storage.ts), normalized the same way the comparison at sign-in is.
+ *
+ * Sign-in through Google or Microsoft is deliberately NOT asked: there the
+ * provider has verified the address, which is how a reserved address is
+ * meant to be claimed.
+ */
+export function isReservedEmail(rawEmail: string | null | undefined, superadminEmails: string[]): boolean {
+  if (!rawEmail) return false;
+  return superadminEmails.includes(normalizeEmail(rawEmail));
+}
+
 export function evaluateEmailChange(input: EmailChangeInput): EmailChangeVerdict {
   const email = normalizeEmail(input.rawEmail);
 

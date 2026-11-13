@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { z } from "zod";
-import { storage } from "../storage";
+import { storage, emailIsReserved } from "../storage";
 import { hashPassword } from "../utils/passwordHash";
 import { getPolicyVersion, hashAttestationText } from "../utils/policyVersion";
 import { derivePerformedByName, resolvePolicyLocale } from "./organization.routes";
@@ -100,8 +100,15 @@ export function registerParentRegistrationRoutes(app: Express) {
       const { email, password, firstName, lastName, child, attestationText, locale } = result.data;
       const normalizedEmail = email.toLowerCase();
 
+      // A RESERVED ADDRESS IS REFUSED, AND REFUSED IN THE SAME WORDS AS A TAKEN
+      // ONE. An account whose email is in SUPERADMIN_EMAILS is a platform
+      // administrator from its next request, this route is public, and it
+      // signs the new account in without proof of the address -- so a
+      // reserved address no account yet held was an administrator account for
+      // whoever typed it first. Same sentence as below on purpose: a public
+      // form must not say which addresses are reserved.
       const existingUser = await storage.getUserByEmail(normalizedEmail);
-      if (existingUser) {
+      if (existingUser || emailIsReserved(normalizedEmail)) {
         return res.status(400).json({ message: "An account with this email already exists" });
       }
 

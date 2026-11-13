@@ -52,6 +52,40 @@ against `SUPERADMIN_EMAILS` or by role, and never read from the session. **Any
 endpoint that can write a user's email is a privilege-escalation surface** —
 treat changes there as security-critical.
 
+**AND SO IS ANY PATH THAT CREATES AN ACCOUNT FROM A TYPED ADDRESS, which
+nothing guarded until 2026-11-13.** The email-edit route refused to WRITE a
+reserved address; `POST /api/register/parent` — public, signs the account in,
+asks no proof of the address — would CREATE one. A reserved address that no
+account held was a nationwide administrator for whoever typed it first.
+Proved by running it: `reserved-email.mjs` against the old code reports
+`HTTP 200 accounts holding it 0->1` and the new session reading the staff
+list. **CRITICAL by this file's own rule, and latent rather than live only
+because production's list held the literal word `superadmin`, which is not an
+address anyone can register.** It would have gone live the moment the list was
+set to a real address before an account held it — which is the order the edit
+route's own message tells you to work in ("Change SUPERADMIN_EMAILS first").
+`isReservedEmail` (`utils/emailChange.ts`) is asked by
+`storage.assertEmailNotReserved` in `createStandaloneUser` and
+`createParentRegistration` (the control), and by the routes first (the polite
+answer): registration answers in the SAME words as "already registered" so
+the public form does not say which addresses are reserved; the checkout
+preflight answers `LOGIN_REQUIRED` before any charge; Add Users, add-admin
+and create-school answer 403 `RESERVED_EMAIL`. **Google/Microsoft sign-in is
+deliberately not guarded** — there the provider has verified the address,
+which is how a reserved address is meant to be claimed. `up.ts` reserves a
+second address that nobody holds so the suite has something to try.
+**Not covered:** `storage.upsertUser` itself (its three superadmin callers
+check in the route), and the OAuth path, which cannot run offline.
+
+**TO GIVE THE `superadmin` ACCOUNT A REAL ADDRESS** (owner asked, 2026-11-13):
+its email is the literal `superadmin` and that word is IN `SUPERADMIN_EMAILS`
+on Render, so the edit route answers `SUPERADMIN_EMAIL_IMMUTABLE`; and once
+an address is in the list the route refuses to assign it (`RESERVED_EMAIL`).
+Both are the guards working. The order that works: take `superadmin` out of
+the variable (the account stays superadmin by ROLE), set the address through
+the edit route, then put the address into the variable. The AD School admin
+was moved off the owner's Gmail to its `+adschool` form the same day.
+
 `isSuperadminOnly` (in `server/middleware/auth.middleware.ts`) means nationwide
 superadmin, not "any admin". `isOrgAdmin` is the one scoped to a single school.
 Routes behind the former do no organization scoping and need none; do not widen
@@ -129,7 +163,7 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `migration-039-dryrun`, plus `premium-solo`, `individual-licences` and
 `migration-041-dryrun` and `migration-042-dryrun`, plus
 `erase-after-email-change`, `erase-charged-student` and `country-delete`, plus
-`free-signup` and `migration-044-dryrun` (run the dry-run LAST: between its
+`reserved-email`, `free-signup` and `migration-044-dryrun` (run the dry-run LAST: between its
 DOWN and UP the app's schema is missing two `users` columns).
 
 `webhook-idempotency`, `webhook-group-backstop` and `setup-invite` need two
@@ -1180,9 +1214,9 @@ so a student with one assessment in progress got a link to a raw 404.
   - **The superadmin account's email is the literal string `superadmin`**, so
     "Forgot password" can never reach it. The only recovery is another
     superadmin's key button, and there is one superadmin.
-    The owner asked for his own address (2026-11-13); it is ALREADY the
-    email of `nasser.alali.36ad`, the AD School admin, and email is unique,
-    so it was not set. His call which account keeps it.
+    The owner chose the superadmin (2026-11-13); see "TO GIVE THE
+    `superadmin` ACCOUNT A REAL ADDRESS" near the top for why it needs a
+    Render change first.
   - A removed school admin stays as an `org_admin` account with no school.
   - A licence reduction saved together with switching unlimited off is
     missing from the school's activity history; Recent Activity has no

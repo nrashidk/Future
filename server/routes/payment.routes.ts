@@ -1,5 +1,5 @@
 import type { Express } from "express";
-import { storage } from "../storage";
+import { storage, emailIsReserved } from "../storage";
 import { isAuthenticated } from "../auth";
 import { paymentLimiter, stampBuyerLimiter } from "../middleware/rateLimiter.middleware";
 import { grantIndividualPremium } from "../services/premiumGrant";
@@ -258,6 +258,14 @@ export function registerPaymentRoutes(app: Express) {
       }
 
       const existingUser = await storage.getUserByEmail(normalizedEmail);
+
+      // A reserved address held by nobody: /complete would create the account
+      // and storage refuses to (assertEmailNotReserved) -- after the card had
+      // cleared. Stopped here, before any charge, with the answer that sends
+      // the buyer to sign in.
+      if (!existingUser && emailIsReserved(normalizedEmail)) {
+        return res.json({ ok: false, code: "LOGIN_REQUIRED" });
+      }
 
       // A brand-new email is the path /complete handles best — it creates the
       // account. Nothing to refuse.
