@@ -505,12 +505,18 @@ function AdminOrganizationsPage() {
         <div className="text-center">
           <div className="flex items-center justify-center gap-3 mb-4">
             <Building2 className="w-12 h-12 text-primary" />
-            <h1 className="text-4xl md:text-5xl font-bold">{t('orgs.title')}</h1>
+            <h1 className="text-4xl md:text-5xl font-bold" data-testid="text-school-page-title">
+              {isOrgAdmin ? (selectedOrg?.name ?? t('orgs.titleMine')) : t('orgs.title')}
+            </h1>
           </div>
           <p className="text-muted-foreground text-lg">{t('orgs.orgAdminDesc')}</p>
         </div>
 
-        {/* Organization Selector */}
+        {/* The school picker. A SUPERADMIN's only: a school admin has exactly
+            one school, selected for them above, so "Select a school to manage
+            / 1 school / Filter by letter" was a chooser with nothing to choose
+            (the owner landed on it straight from a purchase, 2026-11-14). */}
+        {!isOrgAdmin && (
         <Card>
           <CardHeader className="flex flex-row items-center justify-between gap-4 space-y-0 pb-4">
             <div>
@@ -645,6 +651,7 @@ function AdminOrganizationsPage() {
             )}
           </CardContent>
         </Card>
+        )}
 
         {!selectedOrg ? (
           <Card className="flex items-center justify-center py-16">
@@ -652,7 +659,7 @@ function AdminOrganizationsPage() {
               <StickyNote color="blue" rotation="-1" className="mx-auto">
                 <Users className="w-12 h-12 mx-auto mb-3 text-muted-foreground" />
                 <p className="text-muted-foreground">
-                  {t('orgs.selectSchoolHint')}
+                  {isOrgAdmin ? t('orgs.loadingSchool') : t('orgs.selectSchoolHint')}
                 </p>
               </StickyNote>
             </CardContent>
