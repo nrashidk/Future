@@ -60,7 +60,7 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
           <Button variant="outline" size="sm" asChild className={navBtnClass} data-testid="button-nav-admin">
             <Link href="/admin/organizations" aria-current={onOrgs ? "page" : undefined} onClick={onNavigate} className={linkClass}>
               <Building2 className="w-4 h-4" aria-hidden="true" />
-              {t("nav.admin")}
+              {t("nav.mySchool")}
             </Link>
           </Button>
           <Button variant="outline" size="sm" asChild className={navBtnClass} data-testid="button-nav-analytics">

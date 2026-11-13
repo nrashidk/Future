@@ -92,6 +92,7 @@
   },
   "nav": {
     "schools": "Schools",
+    "mySchool": "My School",
     "superadmin": "Super Admin",
     "admin": "Admin",
     "quiz": "Quiz",
