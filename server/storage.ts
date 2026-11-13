@@ -941,9 +941,51 @@ export class DatabaseStorage implements IStorage {
     return country;
   }
 
+  /**
+   * Delete a country TOGETHER WITH ITS OWN CONFIGURATION: its sector map
+   * (sectors, their skill rows and category rules) and its subject rows.
+   *
+   * Those four tables reference the country with no cascade, and nothing in
+   * the product removes them, so a country that had been given a sector map
+   * could never be deleted, and one without needed its subjects deleted one
+   * at a time first -- while the refusal blamed "users, schools, assessments,
+   * or questions". Found on production 2026-11-13 clearing up a test country.
+   *
+   * What still refuses, on purpose: a school in that country (checked here,
+   * since that column has no foreign key), and through the foreign keys an
+   * assessment, a question, a submission or a child profile. One transaction,
+   * so a refusal leaves the configuration exactly as it was.
+   */
   async deleteCountry(id: string): Promise<boolean> {
-    const result = await db.delete(countries).where(eq(countries.id, id));
-    return (result.rowCount ?? 0) > 0;
+    return await db.transaction(async (tx) => {
+      // organizations.country_id is a plain column, NOT a foreign key, so the
+      // database will not refuse this on a school's behalf. Until this method
+      // removed the subjects itself, their foreign key was the only thing
+      // stopping a country with schools in it from being deleted -- by
+      // accident. The refusal is explicit now.
+      const [school] = await tx
+        .select({ id: organizations.id })
+        .from(organizations)
+        .where(eq(organizations.countryId, id))
+        .limit(1);
+      if (school) {
+        throw Object.assign(new Error("COUNTRY_IN_USE"), { code: "COUNTRY_IN_USE" });
+      }
+
+      const sectors = await tx
+        .select({ id: countryPrioritySectors.id })
+        .from(countryPrioritySectors)
+        .where(eq(countryPrioritySectors.countryId, id));
+      const sectorIds = sectors.map((s) => s.id);
+      if (sectorIds.length > 0) {
+        await tx.delete(countrySectorWefSkills).where(inArray(countrySectorWefSkills.sectorId, sectorIds));
+        await tx.delete(countrySectorCategories).where(inArray(countrySectorCategories.sectorId, sectorIds));
+        await tx.delete(countryPrioritySectors).where(eq(countryPrioritySectors.countryId, id));
+      }
+      await tx.delete(subjects).where(eq(subjects.countryId, id));
+      const result = await tx.delete(countries).where(eq(countries.id, id));
+      return (result.rowCount ?? 0) > 0;
+    });
   }
 
   // Subject operations (curriculum-scoped)
