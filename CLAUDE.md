@@ -996,11 +996,14 @@ so a student with one assessment in progress got a link to a raw 404.
     opened while signed in says "You are already signed in". The owner was
     asked to open Terms from the wizard and did not report a problem; the
     new tab itself was not observed by me.
-    **THE FIRST PURCHASE'S SPARE LINK IS STILL LIVE**: its password was set
-    before the fix deployed, and the fix retires siblings at that moment
-    only. It goes when that throwaway school's admin account is deleted.
-    **Left on production until a superadmin deletes them:** both ZZ purchase
-    schools, their two admins, and student `zz.purchasestudent`.
+    The first purchase's spare link outlived the fix (its password was set
+    before the deploy, and siblings are retired at that moment only).
+    **SEEN AS SUPERADMIN AND CLEANED UP (build `7511a5e`):** both schools
+    read stage `ready`, 100 granted, revenue AED 3,600 each as one purchase,
+    nothing granted free, reconciliation `mismatchCount: 0`. Then the
+    student was erased, both schools deleted, both admin accounts deleted by
+    typed email, and **the first purchase's spare link answers 410**.
+    Production is AD School, UAQ School and Test High School again.
   - **THE WORD IS "SCHOOL"** (owner, 2026-11-14, landing on "Organization
     Management / Select a school to manage" as a school admin). Screens in
     both languages and 63 server replies say school now. **VALUES ONLY**, as
