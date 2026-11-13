@@ -1010,6 +1010,11 @@ so a student with one assessment in progress got a link to a raw 404.
     **Flagged, not changed:** an individual's profile says "Assessment
     details come from your school's records"; a first click on Logout from
     `/admin` did not sign out (not reproduced).
+    **A LIVE TEST OF THE 72-HOUR ERASURE IS RUNNING:** "Nasser Delete Check"
+    (child "ZZ Delete Child") was registered and deliberately left
+    unconfirmed; its deadline is 2026-11-16T19:45:33Z. After that it should
+    be gone from the Users list, and "Nasser Free Check" (confirmed) should
+    still be there. Nobody must open its confirmation link.
     **STILL HARNESS-ONLY:** "Needs Changes" (no live submission), that a
     guest's crafted name is discarded, the 72-hour erasure itself, and
     anything seen as a school admin or student since 2026-11-12.
