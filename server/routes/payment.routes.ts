@@ -756,14 +756,14 @@ export function registerPaymentRoutes(app: Express) {
               : `Payment received. Use "Forgot password" with this email to set your password and sign in.`)
           : isNewUser
           ? (organization 
-              ? `Organization "${organizationName}" created! Your login credentials are below.`
+              ? `School "${organizationName}" created! Your login credentials are below.`
               : "Premium account created! Your login credentials are below.")
           : wasLoggedIn
             ? (organization
-                ? `Organization "${organizationName}" created! Your account has been upgraded.`
+                ? `School "${organizationName}" created! Your account has been upgraded.`
                 : "Premium licenses added to your account!")
             : (organization
-                ? `Organization "${organizationName}" created! Please login to manage your students.`
+                ? `School "${organizationName}" created! Please login to manage your students.`
                 : "Premium licenses added to your account! Please login to access them."),
         isNewUser,
         wasLoggedIn,

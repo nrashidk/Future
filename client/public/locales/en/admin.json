@@ -118,7 +118,9 @@
     "colAvgMatch": "Avg Match (%)"
   },
   "orgs": {
-    "title": "Organization Management",
+    "title": "Schools",
+    "loadingSchool": "Loading your school...",
+    "titleMine": "My School",
     "schoolAdmin": "School Admin",
     "searchSchools": "Search schools...",
     "selectSchool": "Select a school to manage",
@@ -1551,7 +1553,7 @@
   "pageTitles": {
     "analytics": "Analytics | Future Path",
     "superadmin": "Superadmin Dashboard | Future Path",
-    "adminOrganizations": "Organization Management | Future Path",
+    "adminOrganizations": "Schools | Future Path",
     "quizManager": "Quiz Manager | Future Path"
   },
   "invoices": {

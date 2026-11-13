@@ -11,7 +11,7 @@
     "email": "Email",
     "username": "Username",
     "school": "School",
-    "organization": "Organization",
+    "organization": "School",
     "accountType": "Account Type",
     "lastLogin": "Last login",
     "notProvided": "Not provided",
@@ -52,9 +52,9 @@
     "purchasedLicenses": "Purchased Licences",
     "usedLicenses": "Used Licences",
     "remainingLicenses": "Remaining Licences",
-    "totalLicenses": "Total Licences (Organization)",
-    "usedLicensesOrg": "Used Licences (Organization)",
-    "remainingLicensesOrg": "Remaining Licences (Organization)",
+    "totalLicenses": "Total Licences (School)",
+    "usedLicensesOrg": "Used Licences (School)",
+    "remainingLicensesOrg": "Remaining Licences (School)",
     "totalStudents": "Total Students",
     "completedAssessments": "Completed Assessments",
     "pendingAssessments": "Pending Assessments",
@@ -62,8 +62,8 @@
     "startPremium": "Start Premium Assessment",
     "allUsed": "You've used all your licences. We'll add more to your account — email us and we'll sort it out.",
     "studentAccess": "You have access to the premium assessment through your school.",
-    "loadingStats": "Loading organization statistics...",
-    "statsError": "Failed to load organization statistics",
+    "loadingStats": "Loading school statistics...",
+    "statsError": "Failed to load school statistics",
     "statsErrorRetry": "Please try again later.",
     "upgradePrompt": "Upgrade to Premium for advanced career assessments and personalized insights!",
     "upgrade": "Upgrade to Premium",
@@ -86,8 +86,8 @@
     "continueThis": "Continue"
   },
   "organization": {
-    "title": "Organization Management",
-    "subtitle": "Manage your organization's students and assessments",
+    "title": "School Management",
+    "subtitle": "Manage your school's students and assessments",
     "goToAdmin": "Go to Admin Dashboard"
   },
   "nav": {

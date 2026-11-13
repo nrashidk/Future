@@ -118,7 +118,9 @@
     "colAvgMatch": "متوسط التطابق (%)"
   },
   "orgs": {
-    "title": "إدارة المؤسسات",
+    "title": "المدارس",
+    "loadingSchool": "جارٍ تحميل مدرستك...",
+    "titleMine": "مدرستي",
     "schoolAdmin": "مدير المدرسة",
     "searchSchools": "البحث في المدارس...",
     "selectSchool": "اختر مدرسة للإدارة",
@@ -1557,7 +1559,7 @@
   "pageTitles": {
     "analytics": "التحليلات | مسار المستقبل",
     "superadmin": "لوحة المشرف العام | مسار المستقبل",
-    "adminOrganizations": "إدارة المؤسسات | مسار المستقبل",
+    "adminOrganizations": "المدارس | مسار المستقبل",
     "quizManager": "مدير الاختبارات | مسار المستقبل"
   },
   "invoices": {

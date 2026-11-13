@@ -11,7 +11,7 @@
     "email": "البريد الإلكتروني",
     "username": "اسم المستخدم",
     "school": "المدرسة",
-    "organization": "المؤسسة",
+    "organization": "المدرسة",
     "accountType": "نوع الحساب",
     "lastLogin": "آخر تسجيل دخول",
     "notProvided": "غير مُدخَل",
@@ -52,9 +52,9 @@
     "purchasedLicenses": "الرخص المشتراة",
     "usedLicenses": "الرخص المستخدمة",
     "remainingLicenses": "الرخص المتبقية",
-    "totalLicenses": "إجمالي الرخص (المؤسسة)",
-    "usedLicensesOrg": "الرخص المستخدمة (المؤسسة)",
-    "remainingLicensesOrg": "الرخص المتبقية (المؤسسة)",
+    "totalLicenses": "إجمالي التراخيص (المدرسة)",
+    "usedLicensesOrg": "التراخيص المستخدمة (المدرسة)",
+    "remainingLicensesOrg": "التراخيص المتبقية (المدرسة)",
     "totalStudents": "إجمالي الطلاب",
     "completedAssessments": "التقييمات المكتملة",
     "pendingAssessments": "التقييمات المعلقة",
@@ -62,8 +62,8 @@
     "startPremium": "بدء التقييم المميز",
     "allUsed": "لقد استخدمت جميع تراخيصك. يمكننا إضافة المزيد إلى حسابك — راسلنا وسنتولى الأمر.",
     "studentAccess": "لديك حق الوصول إلى التقييم المميز عبر مدرستك.",
-    "loadingStats": "جارٍ تحميل إحصائيات المؤسسة...",
-    "statsError": "فشل تحميل إحصائيات المؤسسة",
+    "loadingStats": "جارٍ تحميل إحصائيات المدرسة...",
+    "statsError": "فشل تحميل إحصائيات المدرسة",
     "statsErrorRetry": "يرجى المحاولة مجدداً لاحقاً.",
     "upgradePrompt": "ارقَ إلى المميز للحصول على تقييمات مهنية متقدمة ورؤى مخصصة!",
     "upgrade": "الترقية إلى المميز",
@@ -86,8 +86,8 @@
     "continueThis": "متابعة"
   },
   "organization": {
-    "title": "إدارة المؤسسة",
-    "subtitle": "إدارة طلاب مؤسستك وتقييماتهم",
+    "title": "إدارة المدرسة",
+    "subtitle": "إدارة طلاب مدرستك وتقييماتهم",
     "goToAdmin": "الانتقال إلى لوحة الإدارة"
   },
   "nav": {
