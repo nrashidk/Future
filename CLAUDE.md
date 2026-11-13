@@ -948,6 +948,44 @@ so a student with one assessment in progress got a link to a raw 404.
 
 ## Known open items
 
+- **THE FIRST GROUP PURCHASE WALKED LIVE, 2026-11-14** (signed out,
+  `/checkout?students=100&country=uae`, test card typed by the owner, AED
+  3,600, throwaway "ZZ Live Purchase School"). The school, its 100 licences
+  and the admin `nasser.schoolcheck` were created and the mail arrived in
+  seconds. It found three faults the harness cannot, because all three need
+  the webhook and the browser to arrive together:
+  - **TWO SETUP MAILS, TWO DIFFERENT LIVE LINKS.** `issueSchoolSetupToken`
+    read for a live token and then inserted; the webhook and
+    `/api/checkout/complete` both read nothing and both inserted. "Idempotent
+    on the token" was true sequentially and false concurrently, and
+    `setup-invite.mjs` I-02 can only ever run it sequentially. It now runs in
+    one transaction under `pg_advisory_xact_lock` on the account. **Not
+    verifiable offline; the proof is ONE mail on the next live purchase.**
+  - **THE SECOND LINK STAYED LIVE AFTER THE PASSWORD WAS SET** (seen live:
+    used link 410, the other 200). It overwrites a school administrator's
+    password and signs its holder in, for seven days. HIGH by this file's
+    rule. Setting the password now spends every unspent token of the account
+    in the same transaction, and the claim's WHERE carries `used_at IS NULL`
+    — its comment said it did and it did not. `school-setup-link.mjs`
+    L-05a/L-05b; against the old code L-05b reports `GET=200 POST=200` and
+    the original password no longer signs in.
+  - **THE BUYER LANDED ON THE STUDENT LOGIN PAGE.** The server answered
+    `requiresPasswordSetup`, which no client code read. The checkout shows a
+    "check your email" screen now (`screen-checkout-check-email`).
+    **Not seen rendered**: the offline harness cannot run
+    `/api/checkout/complete`.
+  - The setup form had no show-password button; it has.
+  - **FLAGGED, NOT CHANGED — A SCHOOL PAYS ABOUT 8% LESS WITHOUT `country`
+    IN THE URL.** `/checkout?students=100` quotes and would charge **$900**
+    (the USD fallback, about AED 3,305) where `&country=uae` charges AED
+    3,600. `create-payment-intent` refuses an UNKNOWN country and accepts an
+    ABSENT one. Low today (the card form is not offered publicly, test keys);
+    real the day live keys are set. The fix proposed to the owner: refuse a
+    group purchase that names no country.
+  - **THE GUEST, LIVE AND SIGNED OUT, the same night:** the form asks grade
+    only; a crafted name, age and gender on POST and PATCH were stored as
+    null; 15 questions; free report with 2 careers; PDF 403. **Flagged:** the
+    guest's results page does not say the report is deleted after 72 hours.
 - **THE SUPERADMIN WALK, SECOND PASS, PRODUCTION 2026-11-13** (build
   `d0355ed`; a throwaway country "Malta", `mt`, and throwaway students on
   Test High School). What the first pass had not reached.
