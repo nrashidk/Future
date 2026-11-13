@@ -127,7 +127,8 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `migration-033-dryrun`, `migration-034-dryrun`, `migration-035-dryrun`,
 `migration-036-dryrun`, `migration-037-dryrun`, `migration-038-dryrun` and
 `migration-039-dryrun`, plus `premium-solo`, `individual-licences` and
-`migration-041-dryrun` and `migration-042-dryrun`.
+`migration-041-dryrun` and `migration-042-dryrun`, plus
+`erase-after-email-change`.
 
 `webhook-idempotency`, `webhook-group-backstop` and `setup-invite` need two
 environment
@@ -984,11 +985,26 @@ so a student with one assessment in progress got a link to a raw 404.
     written.** The route answers 200 either way; the real answer on
     production was `Anthropic API request timed out after 240 seconds`.
     `shared/sectorGeneration.ts` (5 tests) decides, and both country screens
-    show the reason. **The timeout itself is NOT fixed**: one HTTP exchange
-    with up to 12 web searches does not finish in 240 s, so a new country
-    cannot get a sector map from the product today. **Each attempt also
-    renames the national curriculum** — Iceland ended with four spellings of
-    one curriculum, 24 subject rows, from four presses.
+    show the reason. **THE SECTOR MAP IS NOW RESEARCHED IN THE BACKGROUND
+    (2026-11-13).** One exchange with up to 12 web searches never finished in
+    the 240 s a request allowed, so creating or refreshing a country now
+    STARTS the research and answers at once
+    (`services/sectorGenerationJobs.ts`): fifteen minutes, one job per
+    country at a time, and `GET /api/admin/countries/:id/sector-generation`
+    says how it ended. The setup checklist shows "researching", then the
+    result or the reason. **In memory by design** — a deploy loses the
+    record, the checklist still says the map is missing, and Generate starts
+    it again. `country.repopulate.test.ts` (8 cases). **NOT YET SEEN TO
+    SUCCEED ON PRODUCTION**: whether fifteen minutes is enough is unknown
+    until a real run finishes; the browser link dropped as the first one was
+    started (a throwaway country `zzportugal` may exist).
+    **"Refresh with AI" ADDED a re-spelled national curriculum each time**
+    (it was described here as renaming; it was adding). The route added the
+    model's name for the national curriculum whenever that exact string was
+    not already listed — Iceland ended with four spellings of one curriculum,
+    24 subject rows, from four presses. It is added now only when the country
+    has NO curriculum. Until that fix this button on UAE would have given UAE
+    a second "national curriculum" with no questions behind it.
   - **THE "CAREERS WITH NO ARABIC DESCRIPTION" HAVE A CAUSE, AND IT IS 31 OF
     68.** `career-arabic-content.ts` stores the ENGLISH description in
     `description_ar` for 31 careers as a deliberate `TODO(i18n)` placeholder
@@ -996,8 +1012,10 @@ so a student with one assessment in progress got a link to a raw 404.
     Manager counted any non-empty value as translated and read "All careers
     have Arabic translations — 100%". `shared/arabicText.ts` (2 tests): a
     field counts when it contains Arabic letters; the screen says 31 missing.
-    **The 31 descriptions are still untranslated** — that is content, not
-    code, and it is the owner's call who writes them.
+    **The 31 descriptions are still untranslated in the product.** Drafts
+    were written on 2026-11-13 and are with the owner for review (a Claude
+    doc, "Arabic career descriptions — drafts for review"); nothing goes into
+    `career-arabic-content.ts` until he approves.
   - **Every successful price save said "Cleared. This country falls back to
     the USD default"** — `apiRequest` returns the Response and the handler
     read `.formatted` off it. The price WAS stored (ISK 1,500 verified).
@@ -1009,6 +1027,20 @@ so a student with one assessment in progress got a link to a raw 404.
     Literature"); the route resolves against registered subject rows. It
     lists those now. Not exercised with a real generation.
   - **Deleting a question from the national bank was one click.** It asks.
+  - **A STUDENT WHOSE EMAIL A SUPERADMIN HAD CHANGED COULD NEVER BE ERASED.**
+    Found 2026-11-13 pressing "Delete record permanently" on a test student:
+    500. The email-change route wrote an `organization_events` row with
+    `affected_user_id` = the student; that column is a foreign key to users
+    with no cascade, so the users delete failed. Every other event about a
+    student leaves the column empty on purpose; this one did not. For a minor
+    this is the right to erasure blocked by an administrator's log entry. The
+    route no longer names a student, and `eraseUserData` clears the pointer
+    and both addresses from any older row (role `student` only — for an admin
+    the row is still a blocking audit record). `erase-after-email-change.mjs`
+    (5 cases; E-04 is the control that an admin's change is still logged).
+    Against the old code E-02, E-03 and E-05 fail with HTTP 500 and the users
+    row still there. No migration: production held one such row, on the test
+    student, and erasing that student clears it.
   **Pressed and held (2026-11-12, builds `833390b`–`b359f63`):** scoring
   weights refuse a total other than 100%; the Anthropic key test passes;
   an empty key cannot be submitted; reward settings refuse a negative figure
@@ -1029,6 +1061,9 @@ so a student with one assessment in progress got a link to a raw 404.
   - **The superadmin account's email is the literal string `superadmin`**, so
     "Forgot password" can never reach it. The only recovery is another
     superadmin's key button, and there is one superadmin.
+    The owner asked for his own address (2026-11-13); it is ALREADY the
+    email of `nasser.alali.36ad`, the AD School admin, and email is unique,
+    so it was not set. His call which account keeps it.
   - A removed school admin stays as an `org_admin` account with no school.
   - A licence reduction saved together with switching unlimited off is
     missing from the school's activity history; Recent Activity has no
