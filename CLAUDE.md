@@ -975,6 +975,18 @@ so a student with one assessment in progress got a link to a raw 404.
     **Not seen rendered**: the offline harness cannot run
     `/api/checkout/complete`.
   - The setup form had no show-password button; it has.
+  - **NO BUYER COULD PASS STEP THREE (CONSENT) ON THE SETUP SCREEN.** The
+    route answers `{ consent: {...} }`; `SchoolSetup.tsx` read the two flags
+    off the envelope behind an `as any`, so Continue never enabled. The
+    record WAS written. `school-setup-link.mjs` L-12/L-13 walk this step by
+    API, so "ending in a student actually enrolled" was true of the routes
+    and never of the screen. Found by the owner pressing it.
+  - The consent card's Terms and Privacy links navigated away in the same
+    tab; from the wizard (state in memory, link spent) Back then showed
+    "link no longer valid" and a button to a sign-in form, with a working
+    session. The links open a new tab, and a used link shows a signed-in
+    visitor "Go to my school". **None of these three has been seen
+    rendered**; the next live purchase is the check.
   - **FLAGGED, NOT CHANGED — A SCHOOL PAYS ABOUT 8% LESS WITHOUT `country`
     IN THE URL.** `/checkout?students=100` quotes and would charge **$900**
     (the USD fallback, about AED 3,305) where `&country=uae` charges AED
