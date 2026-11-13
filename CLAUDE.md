@@ -967,12 +967,18 @@ so a student with one assessment in progress got a link to a raw 404.
   - **THE SECTOR-MAP RESEARCH FAILS MORE OFTEN THAN IT WORKS.** Malta's first
     run ended `Anthropic API request timed out after 1800 seconds`. With
     Portugal (848 s, worked) and the 301 s transit failure before it, that is
-    one success in three on production. The failure IS reported correctly
-    (status `failed`, the reason on the checklist). The cause is not known;
-    a longer limit is not the fix. A second Malta run was started by Refresh
-    with AI at 18:23Z; **its outcome was NOT read** (the browser link
-    dropped before it ended, and the deploy that followed wiped the in-memory
-    record). Malta is still on production and still to be deleted.
+    one success in three on production. **The second Malta run, started by
+    Refresh with AI, WORKED** (20 sector-map rows, readiness `ready: true`), so
+    it is two in four: it works sometimes, and a failed run is worth one retry.
+    The failure IS reported correctly (status `failed`, the reason on the
+    checklist). The cause is not known; a longer limit is not the fix.
+    Malta, its 10 questions, subjects and sector map were deleted afterwards;
+    **production is UAE only again (240 questions).** A country with
+    questions answers 409 until they are deleted, as designed.
+    **VERIFIED LIVE on build `2a6ff7d`:** the Schools label, the subject
+    delete warning ("10 questions..."), the Apply Arabic confirmation, no
+    `public` account left after migration 045, `purchaseOrderRef` on the
+    invoice list. The Arabic footer was seen on the harness only.
   - "Refresh with AI" on Malta left its one curriculum alone (no re-spelled
     duplicate), and UAE was not touched.
   - Real question generation works: 10 Grade 9 Mathematics questions for
