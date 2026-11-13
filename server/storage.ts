@@ -3378,24 +3378,37 @@ export class DatabaseStorage implements IStorage {
     organizationId: string | null,
     ttlDays = 7,
   ): Promise<{ token: string; created: boolean }> {
-    const [live] = await db
-      .select({ token: schoolSetupTokens.token })
-      .from(schoolSetupTokens)
-      .where(and(
-        eq(schoolSetupTokens.userId, userId),
-        isNull(schoolSetupTokens.usedAt),
-        gt(schoolSetupTokens.expiresAt, new Date()),
-      ))
-      .limit(1);
-    if (live) return { token: live.token, created: false };
-
-    // Local import, matching generateShareToken below: the bare `crypto` in
-    // this file's scope is the Web Crypto global, which has no randomBytes.
+    /**
+     * ONE TRANSACTION HOLDING A PER-ACCOUNT LOCK, not a read followed by an
+     * insert. On a real purchase (production, 2026-11-14) the webhook and
+     * /api/checkout/complete both reached this in the same second, both read
+     * "no live token", both inserted, and the buyer was mailed two different
+     * links. The lock makes the second caller wait, and it then finds the
+     * first caller's row. Released at commit; nothing to clean up.
+     *
+     * NOT VERIFIABLE IN THE HARNESS: PGlite has one connection, so two calls
+     * never overlap there. Correct on its own terms; the proof is one mail
+     * on the next live purchase.
+     */
     const { randomBytes } = await import("crypto");
-    const token = randomBytes(32).toString("hex");
-    const expiresAt = new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000);
-    await db.insert(schoolSetupTokens).values({ userId, organizationId, token, expiresAt });
-    return { token, created: true };
+    return await db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${"school_setup:" + userId}))`);
+      const [live] = await tx
+        .select({ token: schoolSetupTokens.token })
+        .from(schoolSetupTokens)
+        .where(and(
+          eq(schoolSetupTokens.userId, userId),
+          isNull(schoolSetupTokens.usedAt),
+          gt(schoolSetupTokens.expiresAt, new Date()),
+        ))
+        .limit(1);
+      if (live) return { token: live.token, created: false };
+
+      const token = randomBytes(32).toString("hex");
+      const expiresAt = new Date(Date.now() + ttlDays * 24 * 60 * 60 * 1000);
+      await tx.insert(schoolSetupTokens).values({ userId, organizationId, token, expiresAt });
+      return { token, created: true };
+    });
   }
 
   /**
