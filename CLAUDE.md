@@ -1071,8 +1071,25 @@ so a student with one assessment in progress got a link to a raw 404.
     suite: it is one line of a page. **SEEN LIVE, build `8f0a685`**, as a
     guest through the real form: the create sent step 4 and the row came
     back at step 4, read before the auto-save could have run. Not re-seen
-    as a school student on a repeat (his permission is spent). **Left on production:** his unfinished
-    assessment `23cfa171` (grade 11, step 2) and a spent permission.
+    as a school student on a repeat (his permission is spent). **"START OVER" WAS A TRAP TOO, seen live**: on the welcome-back
+    prompt it abandoned the row, the form then created a new one before the
+    quiz, and that create was 403 `REPEAT_NOT_ALLOWED` (permission spent),
+    leaving him on the subjects step. When `repeatBlocked` is true, Start
+    over now keeps the row and writes the fresh answers into it
+    (`handleStartFresh`). **THE WHOLE REPEAT THEN DRIVEN THROUGH THE REAL
+    FORM, build `3c8c20d`**: Start over -> PATCH 200 on the same row, 15 quiz
+    questions, 30 personality, values, aspirations, report generated (5
+    careers); balance 45 -> 44; both rows complete; `/assessment` shows
+    `screen-repeat-blocked` again. **Not examined:** Start over with the
+    SAME subjects keeps the row's earlier quiz. **Flagged:** the English
+    results page carries "Skip to main content" twice.
+  - **OWNER'S DECISIONS, 2026-11-14:** "Needs Changes" is not a rejection (a
+    rejection is final; needs-changes is amended and comes back), so it has
+    its own tile and `totalRejected` counts rejections only (`llm-gate.mjs`
+    L-14, judged by both figures). A school admin's nav button says "My
+    School" (`nav.mySchool` in common, admin and profile bundles). **Neither
+    seen live yet**: they need a superadmin and a school admin signed in.
+    "Nasser Free Check" is kept for future testing.
   - **A SCHOOL ADMIN IS REFUSED ANOTHER SCHOOL, LIVE** (Test High School's
     admin against AD School, build `feda372`): roster, add student and
     report export 403 "Can only access your own school"; read and rename of
