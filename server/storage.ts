@@ -2045,10 +2045,25 @@ export class DatabaseStorage implements IStorage {
      * who repeats a grade has two, and would otherwise push the rate past
      * 100%. Admin rows share organization_members and are excluded.
      *
-     * Without an organization (the superadmin's nationwide view) there is no
-     * roster to divide by, so the old figures stand there; flagged in
-     * CLAUDE.md rather than guessed at.
+     * NATIONWIDE (the superadmin, no organization) uses every school's roster,
+     * restricted to the country when one is chosen -- the same population the
+     * superadmin dashboard's "Total Students" counts. Until 2026-11-14 it kept
+     * the old pair: 12 finished assessments of any kind (guests and parent
+     * accounts included) shown as "12 students, 100%" beside a dashboard
+     * reading "8 students, 4 completed (50%)". Seen live.
      */
+    if (!organizationId) {
+      const roster = await db
+        .select({ hasCompleted: organizationMembers.hasCompletedAssessment })
+        .from(organizationMembers)
+        .innerJoin(organizations, eq(organizations.id, organizationMembers.organizationId))
+        .where(and(
+          eq(organizationMembers.role, "student"),
+          ...(countryId ? [eq(organizations.countryId, countryId)] : []),
+        ));
+      totalStudents = roster.length;
+      completedAssessments = roster.filter((m) => m.hasCompleted).length;
+    }
     if (organizationId) {
       const roster = await db
         .select({ hasCompleted: organizationMembers.hasCompletedAssessment })
