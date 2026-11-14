@@ -167,7 +167,7 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `migration-039-dryrun`, plus `premium-solo`, `individual-licences` and
 `migration-041-dryrun` and `migration-042-dryrun`, plus
 `erase-after-email-change`, `erase-charged-student` and `country-delete`, plus
-`reserved-email`, `free-signup`, `migration-045-dryrun` and `migration-044-dryrun` (run 044's dry-run LAST: between its
+`reserved-email`, `free-signup`, `migration-045-dryrun`, `migration-046-dryrun` and `migration-044-dryrun` (run 044's dry-run LAST: between its
 DOWN and UP the app's schema is missing two `users` columns).
 
 `webhook-idempotency`, `webhook-group-backstop` and `setup-invite` need two
@@ -1132,6 +1132,52 @@ so a student with one assessment in progress got a link to a raw 404.
     for payment" (owner said reword; `proformaNotePaid`, both languages; not
     re-sent live). **OWNER, 2026-11-14:** Render stays on Free for now; the
     `INVOICE_*` placeholders stay until the licence and bank details arrive.
+  - **THE FLAGGED ITEMS, WORKED THROUGH (2026-11-14, sixteen commits,
+    `fd4a150`..`20683a0`).** Owner: "fix all items under student", and for
+    the superadmin "anything you can do, do it".
+    **Student:** a signed-in visitor on the home page gets ONE action
+    ("Continue", to their own home by role) instead of guest / for-schools /
+    sign-up; one skip link, translated (it was in both `App.tsx` and
+    `Header.tsx`, English only); the personality and values steps end in
+    "Continue", not "Complete Assessment"; Next/Back arrows flip in Arabic;
+    the locked country card names the country and curriculum in Arabic; a
+    student's profile shows THEIR status (report ready / can take one / ask
+    the school) and no longer the school's balance; "Build on your strength"
+    names the favourite with the highest quiz score
+    (`premiumNarratives.strongestSubject`, 8 tests; a tie or no quiz keeps
+    the first), and the next-steps sentences no longer splice a career title
+    or an education-level phrase into "…programs".
+    **The duplicate-answer question is fixed by migration 046**
+    (`migration-046-dryrun`, 8 cases): 10/28 became 15/56. A scan of the 240
+    found one other equal-valued set, "Convert 0.75 to a fraction in simplest
+    form" (3/4, 15/20, 75/100), which is the point of that question.
+    **Superadmin:** dates are day-first everywhere (`fmtDate`/`fmtDateTime`
+    in `lib/formatDate.ts`); the school-deleted message says the
+    administrators' accounts and invoices are kept; "licences added: 1";
+    submission tables print the subject's name and "Approved · reward given"
+    for `claimed`; the Schools page has its own subtitle for a superadmin; an
+    unfinished school reads "Setup not finished"; the review queue's four
+    error toasts and the question import show the server's sentence
+    (`serverErrorMessage` now also reads `error`, for routes that answer
+    `{ error, details }`).
+    **Not done, each needs a decision or is not a one-liner:** translation
+    editing (501), a hand-added career's mapping, a removed school admin left
+    as an account, the Files tab, Add Country overwriting a typed id,
+    allocation beyond pending, the 800-pixel header, the roster's member
+    count including the administrator.
+  - **A GUEST WHO LATER REGISTERS, driven in a browser against the harness
+    (2026-11-14).** Guest report (2 careers, expiry notice) -> "Create
+    Account" -> `/register/parent` -> the form -> `POST /api/register/parent`
+    200, `POST /api/assessments/migrate` 200 `migratedCount: 1` -> lands on
+    THE SAME REPORT, expiry notice gone, confirm-your-email banner shown;
+    the profile reads "1 of 3"; the browser's guest list is cleared.
+    **The flag "a claimed guest assessment keeps no name, age or gender" is
+    true of the ROW and invisible on the screen**: the report and profile
+    print the child profile's name, age and gender. Nothing to fix.
+    The quiz was answered through the API, not the form.
+    **NONE OF THIS BATCH HAS BEEN SEEN LIVE YET**: the browser link dropped
+    after the push. Unit tests (1522), a build, and `student`, `guest`,
+    `contribution-claim` and `migration-046-dryrun` passed offline.
   - **A SCHOOL ADMIN IS REFUSED ANOTHER SCHOOL, LIVE** (Test High School's
     admin against AD School, build `feda372`): roster, add student and
     report export 403 "Can only access your own school"; read and rename of
