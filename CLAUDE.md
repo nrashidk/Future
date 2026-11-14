@@ -2630,6 +2630,11 @@ so a student with one assessment in progress got a link to a raw 404.
     hand (an unknown id is a 500 — should be 404, minor). So the webhook
     granted; why the browser half did not run is UNKNOWN. The ledger note now
     says `(browser)` or `(webhook)`; read it after the next live top-up.
+    Read offline: nothing in `apiRequest` can throw before its `fetch`, so the
+    missing entry is unexplained, not explained away; the note settles it.
+    The unknown-id 500 is a 404 now. Draft FP-2026-0004 was cancelled the same
+    night (reconciliation `mismatchCount: 0`), and the owner set
+    `SUPERADMIN_EMAILS` to his own address, removing `admin-hold@`.
   - **Email confirmation for parent registration IS BUILT (2026-11-13, see
     "A parent may register a student account and stay free").** What follows
     is the older note, kept for its scoping: it was ABSENT (no token
