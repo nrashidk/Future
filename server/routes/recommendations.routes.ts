@@ -464,6 +464,19 @@ export function registerRecommendationsRoutes(app: Express) {
         wefSkillsByCareer.set(cid, list.reverse().slice(0, 5));
       });
 
+      // The quiz's per-subject scores, read ONCE: the action steps name the
+      // student's strongest subject, and without these they named the first
+      // one ticked. A missing quiz is not an error; the steps fall back.
+      let quizSubjectScores: Record<string, number> | null = null;
+      if (isPremium && assessment) {
+        try {
+          const quiz = await storage.getAssessmentQuizByAssessmentId(assessment.id);
+          quizSubjectScores = (quiz?.subjectScores as Record<string, number> | null) ?? null;
+        } catch {
+          quizSubjectScores = null;
+        }
+      }
+
       // Enrich with career details and generate premium narratives on-demand
       const enriched = await Promise.all(
         recommendations.map(async (rec) => {
@@ -518,6 +531,7 @@ export function registerRecommendationsRoutes(app: Express) {
                   cvqScores: hasCvqData ? (cvqResult.normalizedScores as Record<string, any>) : undefined,
                   overallScore: rec.overallMatchScore,
                   language: narrativeLanguage,
+                  subjectScores: quizSubjectScores,
                 };
 
                 // Generate "Why This Career?" via LLM (with {{language}} variable support)

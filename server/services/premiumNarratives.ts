@@ -25,6 +25,40 @@ interface NarrativeContext {
   cvqScores?: Record<string, any>;
   overallScore: number;
   language?: string;
+  /** The quiz's per-subject scores, e.g. { Mathematics: 80 }. Optional. */
+  subjectScores?: Record<string, number> | null;
+}
+
+/**
+ * THE STUDENT'S STRONGEST SUBJECT, of the ones they chose.
+ *
+ * "Build on your strength" used to name the FIRST favourite picked, whatever
+ * the quiz said: a student who scored 100% in Computer Science and 80% in
+ * Mathematics was told their strength was Mathematics, because they had
+ * ticked it first. The highest quiz score wins; a tie, or no quiz at all,
+ * falls back to the order they chose in.
+ */
+export function strongestSubject(
+  favoriteSubjects: unknown,
+  subjectScores?: Record<string, number> | null,
+): string | null {
+  const favourites = Array.isArray(favoriteSubjects)
+    ? favoriteSubjects.filter((s): s is string => typeof s === "string" && s.trim().length > 0)
+    : [];
+  if (favourites.length === 0) return null;
+  if (!subjectScores || typeof subjectScores !== "object") return favourites[0];
+  const key = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const scores = new Map<string, number>();
+  for (const [name, score] of Object.entries(subjectScores)) {
+    if (typeof score === "number" && Number.isFinite(score)) scores.set(key(name), score);
+  }
+  let best = favourites[0];
+  let bestScore = scores.get(key(best)) ?? -1;
+  for (const subject of favourites.slice(1)) {
+    const score = scores.get(key(subject)) ?? -1;
+    if (score > bestScore) { best = subject; bestScore = score; }
+  }
+  return best;
 }
 
 // ===== Small helpers =====
@@ -444,10 +478,8 @@ export function generateEnhancedActionSteps(context: NarrativeContext): string[]
   // Translated for the same reason as the subject list above: this is
   // interpolated into Arabic prose, and the stored value is a canonical
   // English id.
-  const topSubject =
-    assessment.favoriteSubjects && (assessment.favoriteSubjects as string[]).length > 0
-      ? subjectNameFor((assessment.favoriteSubjects as string[])[0], lang)
-      : null;
+  const strongest = strongestSubject(assessment.favoriteSubjects, context.subjectScores);
+  const topSubject = strongest ? subjectNameFor(strongest, lang) : null;
 
   // Parse a numeric grade from strings like "grade11" or "11" (precedent: quiz.routes.ts:128-136).
   // "graduated" — or any value with no digits — yields null and falls through to the generic timeline.
@@ -506,23 +538,23 @@ export function generateEnhancedActionSteps(context: NarrativeContext): string[]
   // Band 3 — grade 12: final / apply. Concrete near-term admission actions and deadlines.
   else if (gradeNum === 12) {
     if (lang === "ar") {
-      steps.push(`**هذا الشهر:** تأكّد من شروط القبول الدقيقة لبرامج ${title} — المواد المطلوبة والحد الأدنى للدرجات واختبارات القبول وأي ملف أعمال أو مقابلة`);
+      steps.push(`**هذا الشهر:** تأكّد من شروط القبول الدقيقة للبرامج الدراسية المؤدية إلى هذه المهنة (${title}) — المواد المطلوبة والحد الأدنى للدرجات واختبارات القبول وأي ملف أعمال أو مقابلة`);
       steps.push(`**خلال 3 أشهر:** أعدّ قائمة مختصرة بالجامعات التي تقدّم برامج قوية في مجال ${category}، وحدّد لكل منها الموعد النهائي للتقديم والمستندات المطلوبة`);
       steps.push(`**هذا الفصل الدراسي:** جهّز وقدّم طلباتك في الوقت المحدد — خطاب التعريف الشخصي والتوصيات وأي اختبارات قبول يتطلبها مسار هذه المهنة`);
       if (topSubject) {
-        steps.push(`**أنهِ بقوة:** حافظ على درجات ${topSubject} وبقية المواد المطلوبة مرتفعة — فالنتائج النهائية غالبًا ما تحسم عروض القبول`);
+        steps.push(`**أنهِ بقوة:** حافظ على درجاتك مرتفعة، ومنها ${topSubject} — فالنتائج النهائية غالبًا ما تحسم عروض القبول`);
       }
-      steps.push(`**قبل التخرج:** جهّز أي مؤهلات أو متطلبات مسبقة مطلوبة الآن — دورات تأسيسية أو شهادات أو مستندات لـ ${career.educationLevel}`);
-      steps.push(`**الخطوة التالية:** ضع خطة بديلة — برنامج ثانٍ أو مسار آخر للدخول إلى مجال ${category} — لتكون مستعدًا مهما كانت العروض`);
+      steps.push(`**قبل التخرج:** جهّز أي مؤهلات أو متطلبات مسبقة مطلوبة الآن — دورات تأسيسية أو شهادات أو مستندات. المسار التعليمي المعتاد لهذه المهنة: ${career.educationLevel}`);
+      steps.push(`**الخطة البديلة:** ضع خطة بديلة — برنامج ثانٍ أو مسار آخر للدخول إلى مجال ${category} — لتكون مستعدًا مهما كانت العروض`);
     } else {
-      steps.push(`**This Month:** Confirm the exact admission requirements for ${title} programs — required subjects, minimum grades, entrance exams, and any portfolio or interview`);
+      steps.push(`**This Month:** Confirm the exact admission requirements for the programs that lead to this career (${title}) — required subjects, minimum grades, entrance exams, and any portfolio or interview`);
       steps.push(`**Next 3 Months:** Shortlist universities offering strong ${category} programs and map each one's application deadline and the documents it needs`);
       steps.push(`**This Term:** Prepare and submit your applications on time — personal statement, references, and any entrance tests this career's path requires`);
       if (topSubject) {
-        steps.push(`**Finish Strong:** Keep your ${topSubject} and other required grades high — final results often decide admission offers`);
+        steps.push(`**Finish Strong:** Keep your grades high, ${topSubject} included — final results often decide admission offers`);
       }
-      steps.push(`**Before You Graduate:** Line up any credentials or prerequisites needed now — foundation courses, certifications, or documents for ${career.educationLevel}`);
-      steps.push(`**Next Steps:** Have a backup plan — a second-choice program or another route into ${category} — so you're covered whatever the offers`);
+      steps.push(`**Before You Graduate:** Line up any credentials or prerequisites needed now — foundation courses, certifications, or documents. The usual route into this career: ${career.educationLevel}`);
+      steps.push(`**Plan B:** Have a backup plan — a second-choice program or another route into ${category} — so you're covered whatever the offers`);
     }
   }
   // Fallback — graduated or unparseable grade: the original generic timeline (safe default).
@@ -535,7 +567,7 @@ export function generateEnhancedActionSteps(context: NarrativeContext): string[]
     steps.push(`**خلال سنة:** ابدأ بتطوير مهارات أساسية مثل ${skills01} من خلال الدورات الإلكترونية أو الأنشطة المدرسية أو المشاريع الشخصية`);
     steps.push(`**السنتان 2-3:** اكتسب خبرة عملية من خلال التدريب الميداني أو العمل التطوعي أو الفرص بدوام جزئي في مجال ${category} لبناء سيرتك الذاتية وشبكة علاقاتك`);
     steps.push(`**السنة 3-4:** ابحث في الجامعات التي تُقدم برامج قوية في مجال ${category} وقدّم طلباتك، مع التركيز على المؤسسات ذات الروابط الصناعية والتدريب العملي`);
-    steps.push(`**ما بعد السنة 4:** بعد إتمام ${career.educationLevel}، اسعَ للحصول على شهادات أو تدريب متخصص في المجالات الناشئة ضمن ${category} للحفاظ على تنافسيتك`);
+    steps.push(`**ما بعد السنة 4:** بعد إتمام دراستك (المسار المعتاد: ${career.educationLevel})، اسعَ للحصول على شهادات أو تدريب متخصص في المجالات الناشئة ضمن ${category} للحفاظ على تنافسيتك`);
   } else {
     steps.push(`**This Month:** Research ${title} careers by watching day-in-the-life videos and reading professional profiles to understand daily responsibilities`);
     steps.push(`**Next 3 Months:** Connect with a ${title} professional for a 20-minute informational interview to learn about their career journey and advice`);
@@ -545,7 +577,7 @@ export function generateEnhancedActionSteps(context: NarrativeContext): string[]
     steps.push(`**Next Year:** Start building key skills like ${skills01} through online courses, school clubs, or personal projects`);
     steps.push(`**Years 2-3:** Gain hands-on experience through internships, volunteer work, or part-time opportunities in ${category} to build your resume and network`);
     steps.push(`**Year 3-4:** Research and apply to universities offering strong programs in ${category}, focusing on institutions with industry connections and practical training`);
-    steps.push(`**Beyond Year 4:** After completing ${career.educationLevel}, pursue certifications or specialized training in emerging areas within ${category} to stay competitive`);
+    steps.push(`**Beyond Year 4:** After completing your studies (the usual route: ${career.educationLevel}), pursue certifications or specialized training in emerging areas within ${category} to stay competitive`);
   }
 
   return steps;
