@@ -1128,8 +1128,10 @@ so a student with one assessment in progress got a link to a raw 404.
     still carries the instructions. Rendered and looked at in both languages. **SEEN LIVE, build `8b6a700`**:
     re-sent to the owner, who returned the email and its PDF — "Total paid",
     the paid block with the date, no bank panel, no transfer wording.
-    **Flagged, not changed:** the proforma footer still calls a paid
-    document "a request for payment".
+    The proforma footer no longer calls a PAID document "a request
+    for payment" (owner said reword; `proformaNotePaid`, both languages; not
+    re-sent live). **OWNER, 2026-11-14:** Render stays on Free for now; the
+    `INVOICE_*` placeholders stay until the licence and bank details arrive.
   - **A SCHOOL ADMIN IS REFUSED ANOTHER SCHOOL, LIVE** (Test High School's
     admin against AD School, build `feda372`): roster, add student and
     report export 403 "Can only access your own school"; read and rename of

@@ -190,6 +190,9 @@ describe("a paid invoice asks for nothing", () => {
     expect(html).not.toContain('data-block="pay"');
     expect(html).not.toContain("as the transfer reference");
     expect(html).toContain("13 November 2026");
+    // The proforma footer too: a paid document is not "a request for payment".
+    expect(html).not.toContain("request for payment");
+    expect(html).toContain("not a tax invoice");
   });
 
   it("does the same in Arabic", () => {
@@ -197,6 +200,7 @@ describe("a paid invoice asks for nothing", () => {
     expect(html).toContain("الإجمالي المدفوع");
     expect(html).not.toContain("الإجمالي المستحق");
     expect(html).not.toContain("كمرجع للتحويل");
+    expect(html).not.toContain("طلب سداد");
   });
 
   // THE CONTROL: without it the cases above pass against a document that
@@ -208,5 +212,6 @@ describe("a paid invoice asks for nothing", () => {
     expect(html).toContain('data-block="pay"');
     expect(html).not.toContain('data-block="paid"');
     expect(html).toContain("as the transfer reference");
+    expect(html).toContain("request for payment");
   });
 });

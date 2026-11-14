@@ -108,6 +108,7 @@ const EN = {
   bank: "Bank", iban: "IBAN", swift: "SWIFT / BIC",
   quote: "Please quote", asReference: "as the transfer reference. Licences are added to your account once the transfer is received.",
   proformaNote: "This is a proforma invoice. It is a request for payment, not a tax invoice, and no VAT has been charged. No TRN is held. A tax invoice will be issued in place of this document once VAT registration is in effect.",
+  proformaNotePaid: "This is a proforma invoice, not a tax invoice, and no VAT has been charged. No TRN is held. A tax invoice will be issued in place of this document once VAT registration is in effect.",
   questions: "Questions about this invoice:", issuedBy: "Issued by",
   trnLabel: "TRN",
 };
@@ -127,6 +128,7 @@ const AR = {
   bank: "البنك", iban: "رقم الآيبان", swift: "رمز السويفت",
   quote: "يُرجى ذكر", asReference: "كمرجع للتحويل. تُضاف التراخيص إلى حسابكم فور استلام التحويل.",
   proformaNote: "هذه فاتورة مبدئية. وهي طلب سداد وليست فاتورة ضريبية، ولم تُحتسب عليها ضريبة القيمة المضافة، ولا يوجد رقم تسجيل ضريبي. وستصدر فاتورة ضريبية بدلاً من هذه الوثيقة فور سريان التسجيل.",
+  proformaNotePaid: "هذه فاتورة مبدئية وليست فاتورة ضريبية، ولم تُحتسب عليها ضريبة القيمة المضافة، ولا يوجد رقم تسجيل ضريبي. وستصدر فاتورة ضريبية بدلاً من هذه الوثيقة فور سريان التسجيل.",
   questions: "للاستفسار عن هذه الفاتورة:", issuedBy: "صادرة عن",
   trnLabel: "الرقم الضريبي",
 };
@@ -334,7 +336,7 @@ export function buildInvoiceDocument(args: {
   <div style="flex-grow:1"></div>
 
   <div style="border-top:1px solid #e7e5e4;padding-top:12px">
-    ${isTax ? "" : `<p style="margin:0 0 6px;font-size:9.5px;color:#44403c;line-height:1.7">${t.proformaNote}</p>`}
+    ${isTax ? "" : `<p style="margin:0 0 6px;font-size:9.5px;color:#44403c;line-height:1.7">${isPaid ? t.proformaNotePaid : t.proformaNote}</p>`}
     <p style="margin:0;font-size:9.5px;color:#78716c;line-height:1.7">${t.questions} <span dir="ltr">${esc(sup.email ?? "")}</span> · ${t.issuedBy} ${orPlaceholder(sup.legalName, lang === "ar" ? "[الاسم القانوني المسجَّل]" : "[REGISTERED LEGAL NAME]")}</p>
   </div>
 
