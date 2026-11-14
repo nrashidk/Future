@@ -44,10 +44,34 @@ interface Quote {
   cardPaymentsAvailable: boolean;
 }
 
-function refreshBalances() {
+function refreshNow() {
   queryClient.invalidateQueries({ queryKey: ["/api/admin/organizations"] });
   queryClient.invalidateQueries({ queryKey: ["/api/my-organization/invoices"] });
   queryClient.invalidateQueries({ queryKey: ["/api/licenses/me"] });
+}
+
+/**
+ * Refresh now AND again shortly after. Seen live 2026-11-14: a paid top-up
+ * added its licences (50 -> 52) but the tiles still read the old figure
+ * until a reload — whichever of the confirm call and the webhook granted, the
+ * one refresh could land before the grant did. Two late refetches cost
+ * nothing and make the screen right whichever path wins.
+ */
+function refreshBalances() {
+  refreshNow();
+  setTimeout(refreshNow, 3000);
+  setTimeout(refreshNow, 10000);
+}
+
+async function confirmTopUp(paymentIntentId: string) {
+  // The webhook may already have added them; this call adds nothing then.
+  // A failure is LOGGED, not swallowed: the webhook still grants, but a
+  // confirm route that never works is a fault worth seeing.
+  try {
+    await apiRequest("POST", "/api/my-organization/licences/confirm", { paymentIntentId });
+  } catch (e) {
+    console.error("[TopUp] confirm failed; relying on the webhook", e);
+  }
 }
 
 function PayForm({ paymentIntentId, totalLabel, onDone }: { paymentIntentId: string; totalLabel: string; onDone: () => void }) {
@@ -71,12 +95,7 @@ function PayForm({ paymentIntentId, totalLabel, onDone }: { paymentIntentId: str
         return;
       }
       if (paymentIntent?.status === "succeeded") {
-        // The webhook may already have added them; this call adds nothing then.
-        try {
-          await apiRequest("POST", "/api/my-organization/licences/confirm", { paymentIntentId });
-        } catch {
-          /* The webhook is the backstop; the toast below stays true. */
-        }
+        await confirmTopUp(paymentIntentId);
         refreshBalances();
         toast({ title: t("billing.topUp.paidTitle"), description: t("billing.topUp.paidBody") });
         onDone();
@@ -105,6 +124,28 @@ export default function SchoolTopUp() {
   const [payment, setPayment] = useState<{ clientSecret: string; paymentIntentId: string; totalLabel: string } | null>(null);
   const live = paymentsAreLive(PUBLISHABLE_KEY);
   const locale = i18n.language === "ar" ? "ar" : "en";
+
+  // A card that needs the bank's own check (3-D Secure) leaves this page and
+  // comes back to it with ?payment_intent=…&redirect_status=… — the dialog
+  // and its success handler are gone by then, so the return is handled here.
+  useEffect(() => {
+    const qs = new URLSearchParams(window.location.search);
+    const pi = qs.get("payment_intent");
+    const status = qs.get("redirect_status");
+    if (!pi || !status) return;
+    ["payment_intent", "payment_intent_client_secret", "redirect_status"].forEach((k) => qs.delete(k));
+    const rest = qs.toString();
+    window.history.replaceState(null, "", window.location.pathname + (rest ? `?${rest}` : ""));
+    if (status === "failed") {
+      toast({ title: t("billing.topUp.payFailed"), variant: "destructive" });
+      return;
+    }
+    // "processing" is rare for cards: refresh anyway, the webhook grants later.
+    confirmTopUp(pi).then(() => {
+      refreshBalances();
+      if (status === "succeeded") toast({ title: t("billing.topUp.paidTitle"), description: t("billing.topUp.paidBody") });
+    });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const count = /^\d+$/.test(countText.trim()) ? Number(countText.trim()) : null;
   useEffect(() => {
