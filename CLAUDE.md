@@ -1116,7 +1116,9 @@ so a student with one assessment in progress got a link to a raw 404.
     `deliveryStatus: delivered` four seconds later. That closes the two
     "not covered" items under the invoice send (a real message id; the
     webhook end to end). Setup-invite delivery uses the same route and was
-    not exercised.
+    not exercised. **"Delivered" is Resend's word for accepted by the
+    receiving server**: a Gmail search minutes later did not find the
+    message, so the inbox (versus spam) is unconfirmed until the owner looks.
   - **A SCHOOL ADMIN IS REFUSED ANOTHER SCHOOL, LIVE** (Test High School's
     admin against AD School, build `feda372`): roster, add student and
     report export 403 "Can only access your own school"; read and rename of
