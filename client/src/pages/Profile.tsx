@@ -175,6 +175,7 @@ export default function Profile() {
     onPool: boolean;
     available: number | null;
     isUnlimited: boolean;
+    repeatBlocked?: boolean;
   }>({
     queryKey: ['/api/licenses/me'],
     enabled: !!user && !isOrgAdmin && (isOrgStudent || !!user?.isPremium),
@@ -710,14 +711,19 @@ export default function Profile() {
                   <p className="text-sm text-muted-foreground text-center mb-2">
                     {t("premium.studentAccess")}
                   </p>
-                  <div className="flex items-center justify-between mt-3">
-                    <p className="text-sm text-muted-foreground">{t("premium.availableAssessments")}</p>
-                    {/* The pool's remaining balance, already net of everything
-                        spent -- subtracting completions here would charge each
-                        past assessment twice, once in the ledger behind this
-                        number and once again on screen. */}
-                    <p className="font-bold text-2xl text-primary" data-testid="text-student-available-assessments">
-                      {licenseBalance?.isUnlimited ? "∞" : (licenseBalance?.available ?? 0)}
+                  {/* THE STUDENT'S OWN POSITION, not the school's stock. This
+                      printed the school's whole remaining balance under
+                      "Available Assessments" — 46 on a student's profile, as
+                      if they were his. What a student can act on is one of
+                      three things. */}
+                  <div className="flex items-center justify-between gap-4 mt-3">
+                    <p className="text-sm text-muted-foreground">{t("premium.studentStatusLabel")}</p>
+                    <p className="font-semibold text-primary text-end" data-testid="text-student-assessment-status">
+                      {licenseBalance?.repeatBlocked
+                        ? t("premium.studentStatusReady")
+                        : (licenseBalance?.isUnlimited || (licenseBalance?.available ?? 0) > 0)
+                          ? t("premium.studentStatusCanTake")
+                          : t("premium.studentStatusNone")}
                     </p>
                   </div>
                 </div>
