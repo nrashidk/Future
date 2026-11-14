@@ -150,7 +150,7 @@ export const GRADES9_12_ARABIC_CONTENT: ArContent[] = [
     subject: "Mathematics",
     grade: 10,
     questionAr: "صندوق يحتوي على 5 كرات حمراء و3 زرقاء. إذا سُحبت كرتان دون إرجاع، ما احتمال أن تكونا حمراوتين؟",
-    optionsAr: ["5/14", "10/28", "5/8", "25/64"],
+    optionsAr: ["5/14", "15/56", "5/8", "25/64"],
     explanationAr: "الاحتمال = (5/8) × (4/7) = 20/56 = 5/14",
   },
   {

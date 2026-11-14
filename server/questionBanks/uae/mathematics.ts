@@ -361,7 +361,7 @@ export const mathematics: SubjectQuestionBank = {
       {
         question: "A box contains 5 red balls and 3 blue balls. If two balls are drawn without replacement, what is the probability both are red?",
         questionType: "multiple_choice",
-        options: ["5/14", "10/28", "5/8", "25/64"],
+        options: ["5/14", "15/56", "5/8", "25/64"],
         correctAnswer: "5/14",
         explanation: "P(both red) = (5/8) × (4/7) = 20/56 = 5/14",
         subject: "Mathematics",
