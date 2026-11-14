@@ -226,7 +226,9 @@ function AdminOrganizationsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const { t } = useTranslation('admin');
-  useEffect(() => { document.title = t('pageTitles.adminOrganizations'); }, [t]);
+  // A school admin's button says "My School"; the tab said "Schools".
+  const titleKey = user?.accountType === 'org_admin' ? 'pageTitles.mySchool' : 'pageTitles.adminOrganizations';
+  useEffect(() => { document.title = t(titleKey); }, [t, titleKey]);
   const [, navigate] = useLocation();
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
   const [isCreateOrgDialogOpen, setIsCreateOrgDialogOpen] = useState(false);
