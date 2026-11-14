@@ -1219,6 +1219,13 @@ so a student with one assessment in progress got a link to a raw 404.
     "Build on a subject you enjoy" / "ابنِ على مادة تحبها". No quiz is
     unknown, not weak, and keeps "Build on your strength". Five tests,
     including the 49/50 boundary and the control at 80%. Not yet seen live.
+    **SEEN LIVE AS THE SCHOOL ADMIN, build `1c47309`** (Test High School):
+    the Billing card reads "Received 2026-11-13 · licences added: 1"; the
+    submissions table prints "Mathematics" (no subject code anywhere on the
+    page) and "Approved · reward given", "Needs Changes" and "Rejected"; one
+    skip link. **Flagged, not changed:** the Billing card's date is
+    year-first where the submissions table beside it is day-first; the
+    browser tab is titled "Schools" for a school admin.
     `/health` gave `startedAt` at the moment of the visit again, hours after
     the deploy: the Free instance had slept, and the first page evaluation
     timed out at 45 s while it woke.
