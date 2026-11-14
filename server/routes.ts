@@ -18,6 +18,7 @@ import { registerOrganizationRoutes } from "./routes/organization.routes";
 import { registerAdminRoutes } from "./routes/admin.routes";
 import { registerSuperadminRoutes } from "./routes/superadmin.routes";
 import { registerPaymentRoutes } from "./routes/payment.routes";
+import { registerSchoolTopUpRoutes } from "./routes/schoolTopUp.routes";
 import { registerWebhookRoutes } from "./routes/webhook.routes";
 import { registerResendWebhookRoutes } from "./routes/resendWebhook.routes";
 import { registerPublicRoutes } from "./routes/public.routes";
@@ -51,6 +52,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   registerAdminRoutes(app);
   registerSuperadminRoutes(app);
   registerPaymentRoutes(app);
+  registerSchoolTopUpRoutes(app); // A school buys more licences (invoice or card)
   registerWebhookRoutes(app); // Stripe webhooks (signature verified)
   registerResendWebhookRoutes(app); // Resend delivery events (Svix signature verified)
   registerFilesRoutes(app);

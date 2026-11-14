@@ -3864,6 +3864,80 @@ export class DatabaseStorage implements IStorage {
     await db.delete(stripeWebhookEvents).where(eq(stripeWebhookEvents.eventId, eventId));
   }
 
+  /**
+   * A SCHOOL'S CARD TOP-UP, GRANTED ONCE PER PAYMENT.
+   *
+   * Two callers race for every top-up, exactly as for the first purchase: the
+   * Stripe webhook and the browser's own confirm call. The arbiter is the
+   * partial unique index on license_grants.stripe_payment_id, used through
+   * ON CONFLICT DO NOTHING ... RETURNING inside the transaction, so the loser
+   * inserts nothing and adds nothing. A catch around a failed insert would not
+   * do: in Postgres a failed statement aborts the whole transaction.
+   *
+   * The total is raised in SQL (`total + n`), never from a read, so two
+   * different top-ups landing together both count.
+   */
+  async applySchoolTopUpPayment(params: {
+    organizationId: string;
+    licences: number;
+    amountMinor: number;
+    currency: string;
+    stripePaymentId: string;
+    performedBy?: string | null;
+  }): Promise<{ ok: true; granted: boolean } | { ok: false; reason: "no_organization" | "unlimited" }> {
+    return await db.transaction(async (tx: any) => {
+      const [org] = await tx
+        .select()
+        .from(organizations)
+        .where(eq(organizations.id, params.organizationId))
+        .limit(1);
+      if (!org) return { ok: false as const, reason: "no_organization" as const };
+      if (org.isUnlimitedLicenses) return { ok: false as const, reason: "unlimited" as const };
+
+      const inserted = await tx
+        .insert(licenseGrants)
+        .values({
+          organizationId: params.organizationId,
+          kind: "purchase",
+          licensesDelta: params.licences,
+          amountPaid: grantAmountMajor(params.amountMinor, params.currency),
+          currency: params.currency,
+          stripePaymentId: params.stripePaymentId,
+          performedBy: params.performedBy ?? null,
+          note: "Top-up paid online",
+        })
+        .onConflictDoNothing()
+        .returning({ id: licenseGrants.id });
+      if (inserted.length === 0) return { ok: true as const, granted: false };
+
+      await tx
+        .update(organizations)
+        .set({
+          totalLicenses: sql`COALESCE(${organizations.totalLicenses}, 0) + ${params.licences}`,
+          updatedAt: new Date(),
+        })
+        .where(eq(organizations.id, params.organizationId));
+      return { ok: true as const, granted: true };
+    });
+  }
+
+  /**
+   * Where a superadmin is told about something: every superadmin account with
+   * a real address, plus every address in SUPERADMIN_EMAILS. The literal
+   * `superadmin` login is not an address and is skipped.
+   */
+  async getSuperadminNotificationAddresses(): Promise<string[]> {
+    const rows = await db
+      .select({ email: users.email })
+      .from(users)
+      .where(eq(users.role, "superadmin"));
+    const fromEnv = (process.env.SUPERADMIN_EMAILS || "").split(",").map((e) => e.trim());
+    const all = [...rows.map((r: any) => r.email ?? ""), ...fromEnv]
+      .map((e) => e.trim().toLowerCase())
+      .filter((e) => e.includes("@"));
+    return [...new Set(all)];
+  }
+
   async recordLicenseGrant(
     params: {
       organizationId: string;

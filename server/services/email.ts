@@ -1048,3 +1048,71 @@ export async function sendInvoiceEmail(args: {
     return { success: false, error: error.message };
   }
 }
+
+/**
+ * TO THE SUPERADMIN: A SCHOOL ASKED FOR MORE LICENCES.
+ *
+ * The draft invoice already exists when this is sent; the email only says
+ * where to find it. English only, because the reader is staff. A failure is
+ * logged and swallowed: the draft is the record, and it is visible in the
+ * Invoices tab whether or not the mail arrives.
+ */
+export function buildLicenceRequestText(args: {
+  schoolName: string;
+  requestedBy: string;
+  licences: number;
+  amountLabel: string;
+  invoiceNumber: string;
+  purchaseOrderRef: string | null;
+}): string {
+  return [
+    `${args.schoolName} has asked for ${args.licences} more licences.`,
+    ``,
+    `Requested by: ${args.requestedBy}`,
+    `Quoted: ${args.amountLabel}`,
+    `Draft invoice: ${args.invoiceNumber}`,
+    args.purchaseOrderRef ? `Their PO reference: ${args.purchaseOrderRef}` : `No PO reference given.`,
+    ``,
+    `Nothing has been sent to the school. Review the draft in the superadmin Invoices tab, then issue and send it.`,
+  ].join("\n");
+}
+
+export async function sendLicenceRequestToSuperadmins(args: {
+  to: string[];
+  schoolName: string;
+  requestedBy: string;
+  licences: number;
+  amountLabel: string;
+  invoiceNumber: string;
+  purchaseOrderRef: string | null;
+}): Promise<void> {
+  if (args.to.length === 0) {
+    console.error(`[Email] No superadmin address to tell about ${args.schoolName}'s licence request (${args.invoiceNumber}).`);
+    return;
+  }
+  const subject = `Licence request: ${args.schoolName} — ${args.licences} licences`;
+  const text = buildLicenceRequestText(args);
+  if (!resend) {
+    console.warn("[Email] Resend not configured. Licence request notice would be sent to:", args.to.join(", "));
+    return;
+  }
+  try {
+    const { error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: args.to,
+      replyTo: REPLY_TO_EMAIL,
+      subject,
+      text,
+      html: stickyLayout({
+        language: "en",
+        title: subject,
+        heading: "A school asked for more licences",
+        body: text.split("\n").map((l) => (l ? `<p style="margin:0 0 8px;">${escapeHtml(l)}</p>` : "")).join(""),
+        color: "stickyPink",
+      }),
+    });
+    if (error) console.error("[Email] Failed to send licence request notice:", error);
+  } catch (err) {
+    console.error("[Email] Threw while sending licence request notice:", err);
+  }
+}

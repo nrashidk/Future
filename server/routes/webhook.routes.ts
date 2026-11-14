@@ -1,4 +1,5 @@
 import type { Express, Request, Response } from "express";
+import { grantTopUpFromPaymentIntent } from "./schoolTopUp.routes";
 import Stripe from "stripe";
 import { storage } from "../storage";
 import { grantIndividualPremium } from "../services/premiumGrant";
@@ -183,6 +184,15 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
   const { userId, studentCount, expectedAmount, assessmentType, buyerEmail, buyerName, buyerPhone } = paymentIntent.metadata;
   
   console.log(`[Webhook] Payment succeeded: ${paymentIntent.id}, User: ${userId}, Amount: ${paymentIntent.amount}`);
+
+  // A SCHOOL'S LICENCE TOP-UP is routed FIRST, before anything reads userId:
+  // its userId is the school admin, and the branches below would make that
+  // admin a premium individual instead of adding licences to the school.
+  if (paymentIntent.metadata?.kind === "school_topup") {
+    const result = await grantTopUpFromPaymentIntent(paymentIntent);
+    console.log(`[Webhook] School top-up ${paymentIntent.id}: ${JSON.stringify(result)}`);
+    return;
+  }
 
   // Validate metadata exists
   if (!userId) {
