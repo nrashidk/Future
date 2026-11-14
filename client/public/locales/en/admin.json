@@ -1094,6 +1094,7 @@
     "reviewLlmVerified": "Quality Checked",
     "reviewInReview": "In Review",
     "reviewApproved": "Approved",
+    "reviewClaimed": "Approved · reward given",
     "reviewRejected": "Rejected",
     "reviewNeedsChanges": "Needs Changes",
     "llmScore": "LLM Score: {{score}}%",

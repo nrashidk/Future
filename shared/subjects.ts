@@ -166,3 +166,22 @@ export function curriculumNameFor(name: string, lang: string): string {
   if (lang !== "ar") return name;
   return CURRICULUM_NAMES_AR[name] ?? name;
 }
+
+/**
+ * A subject CODE ("social_studies", "mathematics") as a name a person reads.
+ *
+ * A contribution stores the subject's code, and both submission tables printed
+ * it raw: "mathematics" in a column beside "Grade 10". The six canonical
+ * subjects come back under their own names, in either language; anything else
+ * comes back as its code with the underscores opened up, which is still what
+ * it is called.
+ */
+export function subjectCodeLabel(code: string, lang: string): string {
+  const key = (v: string) => v.toLowerCase().replace(/[^a-z0-9]/g, "");
+  const wanted = key(String(code ?? ""));
+  const known = (Object.keys(SUBJECT_NAMES_AR) as SubjectId[]).find((name) => key(name) === wanted);
+  if (known) return subjectNameFor(known, lang);
+  return String(code ?? "")
+    .replace(/_/g, " ")
+    .replace(/\b[a-z]/g, (c) => c.toUpperCase());
+}

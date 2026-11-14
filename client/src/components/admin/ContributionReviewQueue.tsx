@@ -1,3 +1,4 @@
+import { subjectCodeLabel } from "@shared/subjects";
 import { fmtDate } from "@/lib/formatDate";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -177,7 +178,7 @@ function QuestionCard({ question, index, isSelected, onToggle }: {
   onToggle: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
-  const { t } = useTranslation('admin');
+  const { t, i18n } = useTranslation('admin');
 
   return (
     <div className="border rounded-lg p-4 space-y-3">
@@ -239,7 +240,7 @@ function QuestionCard({ question, index, isSelected, onToggle }: {
 
 export default function ContributionReviewQueue() {
   const { toast } = useToast();
-  const { t } = useTranslation('admin');
+  const { t, i18n } = useTranslation('admin');
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
   const [selectedQuestions, setSelectedQuestions] = useState<Set<number>>(new Set());
   const [feedback, setFeedback] = useState("");
@@ -621,7 +622,7 @@ export default function ContributionReviewQueue() {
                     </TableCell>
                     <TableCell>
                       <div>
-                        <p className="font-medium">{sub.subject}</p>
+                        <p className="font-medium">{subjectCodeLabel(sub.subject, i18n.language)}</p>
                         <p className="text-xs text-muted-foreground">{sub.curriculum}</p>
                       </div>
                     </TableCell>
@@ -798,7 +799,7 @@ export default function ContributionReviewQueue() {
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-muted rounded-lg">
                   <div>
                     <p className="text-sm text-muted-foreground">{t('contributions.subjectLabel')}</p>
-                    <p className="font-medium">{selectedSubmission.subject}</p>
+                    <p className="font-medium">{subjectCodeLabel(selectedSubmission.subject, i18n.language)}</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">{t('contributions.colCurriculum')}</p>

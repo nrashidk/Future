@@ -1100,6 +1100,7 @@
     "reviewLlmVerified": "تم فحص الجودة",
     "reviewInReview": "قيد المراجعة",
     "reviewApproved": "معتمد",
+    "reviewClaimed": "معتمد · مُنحت المكافأة",
     "reviewRejected": "مرفوض",
     "reviewNeedsChanges": "يحتاج تعديلات",
     "llmScore": "درجة الذكاء الاصطناعي: {{score}}%",

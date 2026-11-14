@@ -1,3 +1,4 @@
+import { subjectCodeLabel } from "@shared/subjects";
 import { fmtDate } from "@/lib/formatDate";
 import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -101,6 +102,10 @@ function makeStatusBadge(status: string, t: (key: string) => string, llmStatus?:
       return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200"><HelpCircle className="w-3 h-3 me-1" />{t('contributions.reviewInReview')}</Badge>;
     case "approved":
       return <Badge className="bg-green-500"><CheckCircle className="w-3 h-3 me-1" />{t('contributions.reviewApproved')}</Badge>;
+    // `claimed` is an approved submission whose reward has been given. The
+    // school's table had no case for it and printed the raw word.
+    case "claimed":
+      return <Badge className="bg-green-500"><CheckCircle className="w-3 h-3 me-1" />{t('contributions.reviewClaimed')}</Badge>;
     case "rejected":
       return <Badge variant="destructive"><XCircle className="w-3 h-3 me-1" />{t('contributions.reviewRejected')}</Badge>;
     case "needs_changes":
@@ -112,7 +117,7 @@ function makeStatusBadge(status: string, t: (key: string) => string, llmStatus?:
 
 export default function ContributeQuestions() {
   const { toast } = useToast();
-  const { t } = useTranslation('admin');
+  const { t, i18n } = useTranslation('admin');
   const [isSubmitDialogOpen, setIsSubmitDialogOpen] = useState(false);
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState<Question>({
@@ -928,7 +933,7 @@ export default function ContributeQuestions() {
                   <TableRow key={sub.id} data-testid={`row-submission-${sub.id}`}>
                     <TableCell>
                       <div>
-                        <p className="font-medium capitalize">{sub.subject}</p>
+                        <p className="font-medium">{subjectCodeLabel(sub.subject, i18n.language)}</p>
                         <p className="text-xs text-muted-foreground">{sub.curriculum}</p>
                       </div>
                     </TableCell>
