@@ -113,6 +113,46 @@ rec("T-05", "ledger and total moved by the same amount", s3.total - s0.total ===
 await sql(`DELETE FROM license_grants WHERE stripe_payment_id = $1`, [PI]);
 await sql(`UPDATE organizations SET total_licenses = $2 WHERE id = $1`, [school.id, s0.total]);
 
+// ---- Request an invoice, through the real route and the real table.
+const { build, Session } = await import("./fixtures.mjs");
+const { orgs } = await build();
+const A = orgs.A, B = orgs.B;
+const sa = new Session("adminA");
+await sa.login(A.adminUsername, A.adminPassword);
+const draftsOf = (orgId) => sql(`SELECT student_count, unit_price_minor, currency, purchase_order_ref, status FROM invoices WHERE organization_id = $1`, [orgId]);
+// The harness's UAE row has no price; production's does (AED 40.00).
+const [uae] = await sql(`SELECT license_price_minor, license_currency FROM countries WHERE id = 'uae'`);
+const q0 = await sa.get("/api/my-organization/licences/quote?count=20");
+rec("T-06a", "an unpriced country is refused, not quoted in dollars", q0.status === 409 && q0.body?.code === "COUNTRY_NOT_PRICED",
+  `HTTP ${q0.status} ${q0.body?.code ?? q0.body?.totalLabel}`);
+await sql(`UPDATE countries SET license_price_minor = 4000, license_currency = 'AED' WHERE id = 'uae'`);
+const q = await sa.get("/api/my-organization/licences/quote?count=100");
+const qb = q.body;
+rec("T-06", "quote is the school's own currency; 100 is the 10% tier", q.status === 200 && qb?.currency === "AED" && qb?.discountPercent === 10 && qb?.totalMinor === 360000,
+  `HTTP ${q.status} ${qb?.totalLabel} ${qb?.discountPercent}%`);
+const r1 = await sa.post("/api/my-organization/licences/request", { count: 20, purchaseOrderRef: "PO-T07" });
+const d1 = await draftsOf(A.orgId);
+rec("T-07", "request writes ONE draft for the school, at its price, with its PO",
+  r1.status === 201 && d1.length === 1 && d1[0].status === "draft" && d1[0].student_count === 20 &&
+  d1[0].unit_price_minor === 4000 && d1[0].currency === "AED" && d1[0].purchase_order_ref === "PO-T07",
+  `HTTP ${r1.status} ${JSON.stringify(d1)}`);
+const r2 = await sa.post("/api/my-organization/licences/request", { count: 5 });
+const d2 = await draftsOf(A.orgId);
+rec("T-08", "a second request while one waits is refused, nothing written", r2.status === 409 && d2.length === 1, `HTTP ${r2.status} rows=${d2.length}`);
+const listed = (await sa.get("/api/my-organization/invoices")).body;
+rec("T-09", "the school's own list does not show the draft", Array.isArray(listed.invoices) && listed.invoices.length === 0, `rows=${listed.invoices?.length}`);
+const stu = A.students?.[0];
+if (stu) {
+  const ss = new Session("stuA");
+  await ss.login(stu.username, stu.password);
+  const r3 = await ss.post("/api/my-organization/licences/request", { count: 5 });
+  rec("T-10", "a student is refused", r3.status === 403 && (await draftsOf(A.orgId)).length === 1, `HTTP ${r3.status}`);
+}
+const dB = await draftsOf(B.orgId);
+rec("T-11", "the other school got nothing (control)", dB.length === 0, `rows=${dB.length}`);
+
+await sql(`UPDATE countries SET license_price_minor = $1, license_currency = $2 WHERE id = 'uae'`, [uae.license_price_minor, uae.license_currency]);
+
 const failed = results.filter((r) => !r.pass).length;
 console.log(`\n${results.length - failed}/${results.length} passed`);
 process.exit(failed ? 1 : 0);

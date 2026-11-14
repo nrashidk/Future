@@ -59,6 +59,12 @@ async function resolveTopUp(req: Request, licences: number): Promise<TopUpContex
     return { ok: false, status: 409, body: { message: "Your school has no country set yet. Please contact support@futurepath.ae.", code: "COUNTRY_NOT_SET" } };
   }
   const pricing = countryPricing(country);
+  // An unpriced country would fall back to the US-dollar default: a UAE school
+  // quoted in dollars, about 8% under its own price. Refused, as an absent
+  // country is on the public checkout (COUNTRY_REQUIRED).
+  if (pricing.usedFallback) {
+    return { ok: false, status: 409, body: { message: "Your school's country has no licence price yet. Please contact support@futurepath.ae.", code: "COUNTRY_NOT_PRICED" } };
+  }
   const quote = quotePrice({ studentCount: licences, unitPriceMinor: pricing.unitPriceMinor, currency: pricing.currency });
   const adminName = [user.firstName, user.lastName].filter(Boolean).join(" ") || user.username || user.email || "School admin";
   return { ok: true, userId, adminName, org, quote };

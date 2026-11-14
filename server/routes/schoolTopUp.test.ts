@@ -24,11 +24,13 @@ const users: Record<string, any> = {
   admin2: { id: "admin2", accountType: "org_admin", firstName: "Other", lastName: "Admin" },
   student: { id: "student", accountType: "org_student" },
   nocountry: { id: "nocountry", accountType: "org_admin" },
+  unpriced: { id: "unpriced", accountType: "org_admin" },
 };
 const orgs: Record<string, any> = {
   admin: { id: "org-a", name: "School A", countryId: "uae", isUnlimitedLicenses: false, totalLicenses: 50 },
   admin2: { id: "org-b", name: "School B", countryId: "uae", isUnlimitedLicenses: false, totalLicenses: 10 },
   nocountry: { id: "org-c", name: "School C", countryId: null, isUnlimitedLicenses: false },
+  unpriced: { id: "org-d", name: "School D", countryId: "xx", isUnlimitedLicenses: false },
 };
 let drafts: any[] = [];
 const createInvoice = vi.fn(async (p: any) => ({ number: "FP-2026-0099", totalMinor: quotePrice({ studentCount: p.studentCount, unitPriceMinor: p.unitPriceMinor, currency: p.currency }).totalMinor, currency: p.currency, ...p }));
@@ -40,7 +42,8 @@ vi.mock("../storage", () => ({
     getUser: async (id: string) => users[id],
     getOrganizationByAdminUserId: async (id: string) => orgs[id],
     getOrganizationById: async (id: string) => Object.values(orgs).find((o) => o.id === id),
-    getCountryById: async (id: string) => (id === "uae" ? { id: "uae", licensePriceMinor: 4000, licenseCurrency: "AED" } : undefined),
+    getCountryById: async (id: string) =>
+      id === "uae" ? { id: "uae", licensePriceMinor: 4000, licenseCurrency: "AED" } : id === "xx" ? { id: "xx", licensePriceMinor: null, licenseCurrency: null } : undefined,
     listInvoices: async () => drafts,
     createInvoice: (p: any) => createInvoice(p),
     applySchoolTopUpPayment: (p: any) => applySchoolTopUpPayment(p),
@@ -109,6 +112,18 @@ describe("quote", () => {
     const r = await call("GET", "/api/my-organization/licences/quote?count=5");
     expect(r.status).toBe(409);
     expect(r.body.code).toBe("COUNTRY_NOT_SET");
+  });
+});
+
+describe("unpriced country", () => {
+  it("is refused, never quoted the US-dollar fallback", async () => {
+    who = "unpriced";
+    const q = await call("GET", "/api/my-organization/licences/quote?count=5");
+    expect(q.status).toBe(409);
+    expect(q.body.code).toBe("COUNTRY_NOT_PRICED");
+    const r = await call("POST", "/api/my-organization/licences/payment-intent", { count: 5 });
+    expect(r.status).toBe(409);
+    expect(piCreate).not.toHaveBeenCalled();
   });
 });
 
