@@ -1205,6 +1205,9 @@ so a student with one assessment in progress got a link to a raw 404.
     20% still said "Take Mathematics further". It reads `percentage` now, and
     the test uses the stored shape. **A fixture has to carry the shape the
     database carries**, the username lesson again.
+    **THE FIX SEEN LIVE, build `9920dc2`:** the same report now says "Take
+    Science further" / "طوّر مادة العلوم", and none of its five careers'
+    steps mentions Mathematics.
     **Not seen live as a student:** the "Continue" buttons, the Arabic arrows
     and the Arabic country card. They are inside the assessment form, and
     `salm.alktby` is repeat-blocked, so he cannot open it without the school
