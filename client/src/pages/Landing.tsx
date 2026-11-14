@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Organization {
   id: string;
@@ -68,6 +69,22 @@ export default function Landing() {
 
   useEffect(() => { document.title = t("pageTitle"); }, [t]);
 
+  /**
+   * A SIGNED-IN VISITOR IS NOT A PROSPECT. Staff pages send a student who
+   * wanders into them back here, and until 2026-11-14 this page then offered
+   * that signed-in student "Get Started" (the sign-in page), "Explore as
+   * Guest" and "For schools". Someone with an account gets one action: on to
+   * their own place in the product.
+   */
+  const { user, isAuthenticated } = useAuth();
+  const signedIn = isAuthenticated && !!user;
+  const homeFor = user?.accountType === "superadmin"
+    ? "/superadmin"
+    : user?.accountType === "org_admin"
+      ? "/admin/organizations"
+      : "/assessment";
+  const handleContinue = () => setLocation(homeFor);
+
   const handleLogin = () => setLocation("/login");
   // BUG #15: the guest-mode banner on /assessment keys off `?guest=true`; without
   // it the banner (and its "save your progress" sign-up CTA) never rendered for
@@ -107,6 +124,17 @@ export default function Landing() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
+            {signedIn ? (
+              <Button
+                size="lg"
+                className="text-lg px-8 py-6 rounded-full shadow-xl"
+                onClick={handleContinue}
+                data-testid="button-hero-continue"
+              >
+                <Rocket className={`w-5 h-5 ${isAr ? "ms-2" : "me-2"}`} />
+                {t("hero.continueSignedIn")}
+              </Button>
+            ) : (<>
             <Button
               size="lg"
               className="text-lg px-8 py-6 rounded-full shadow-xl"
@@ -150,12 +178,13 @@ export default function Landing() {
               <Building2 className={`w-5 h-5 ${isAr ? "ms-2" : "me-2"}`} />
               {t("hero.forSchools")}
             </Button>
+            </>)}
           </div>
 
           {/* "Get Started" above is the sign-in door, for students whose school
               made their account. This is the other one: a parent creating a
               free account for their child. */}
-          <p className="-mt-6 mb-12 text-base text-muted-foreground" data-testid="text-hero-signup">
+          {!signedIn && <p className="-mt-6 mb-12 text-base text-muted-foreground" data-testid="text-hero-signup">
             {t("hero.newHere")}{" "}
             <button
               type="button"
@@ -165,7 +194,7 @@ export default function Landing() {
             >
               {t("hero.createFree")}
             </button>
-          </p>
+          </p>}
 
           {/*
             Social proof, shown only once there is some.
@@ -414,6 +443,16 @@ export default function Landing() {
                 {t("cta.subtitle")}
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
+                {signedIn ? (
+                  <Button
+                    size="lg"
+                    className="rounded-full shadow-lg"
+                    onClick={handleContinue}
+                    data-testid="button-cta-continue"
+                  >
+                    {t("hero.continueSignedIn")}
+                  </Button>
+                ) : (<>
                 <Button
                   size="lg"
                   className="rounded-full shadow-lg"
@@ -440,6 +479,7 @@ export default function Landing() {
                 >
                   {t("cta.forSchools")}
                 </Button>
+                </>)}
               </div>
             </div>
           </div>
