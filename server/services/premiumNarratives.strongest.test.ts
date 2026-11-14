@@ -73,3 +73,49 @@ describe("the grade-12 action steps read as sentences", () => {
     expect(steps).not.toContain("Mathematics");
   });
 });
+
+/**
+ * The best of a student's favourites can still be a weak score. Seen live
+ * 2026-11-14: Science at 20% under "Build on your strength". A measured score
+ * under 50% is called a subject they enjoy, not a strength.
+ */
+describe("a weak best subject is not called a strength", () => {
+  const career: any = {
+    title: "Dentist", titleAr: null, category: "Healthcare",
+    requiredSkills: ["Patient Care", "Precision"], educationLevel: "Dental degree",
+  };
+  const stepsFor = (subjectScores: any, language = "en") => generateEnhancedActionSteps({
+    assessment: { grade: "grade11", favoriteSubjects: ["Mathematics", "Science", "English"] } as any,
+    career, overallScore: 80, language, subjectScores,
+  }).join("\n");
+  const stored = (m: number, s: number, e: number) => ({
+    Mathematics: { total: 5, correct: 0, percentage: m },
+    Science: { total: 5, correct: 1, percentage: s },
+    English: { total: 5, correct: 1, percentage: e },
+  });
+
+  it("20% is a subject they enjoy", () => {
+    const steps = stepsFor(stored(0, 20, 20));
+    expect(steps).toContain("**Build On A Subject You Enjoy:** Keep working at Science");
+    expect(steps).not.toContain("Build On Your Strength");
+  });
+
+  it("control: 80% is still a strength", () => {
+    const steps = stepsFor(stored(0, 80, 20));
+    expect(steps).toContain("**Build On Your Strength:** Take Science further");
+  });
+
+  it("the boundary: exactly 50% is a strength, 49% is not", () => {
+    expect(stepsFor(stored(0, 50, 0))).toContain("Build On Your Strength");
+    expect(stepsFor(stored(0, 49, 0))).toContain("Build On A Subject You Enjoy");
+  });
+
+  it("no quiz is unknown, not weak", () => {
+    expect(stepsFor(null)).toContain("Build On Your Strength");
+  });
+
+  it("Arabic says the same", () => {
+    expect(stepsFor(stored(0, 20, 20), "ar")).toContain("**ابنِ على مادة تحبها:**");
+    expect(stepsFor(stored(0, 80, 20), "ar")).toContain("**ابنِ على نقطة قوتك:**");
+  });
+});

@@ -67,6 +67,34 @@ export function strongestSubject(
   return best;
 }
 
+/**
+ * The quiz percentage of one subject, or null when the quiz did not score it.
+ * Same key normalisation and same stored shape as strongestSubject above.
+ */
+export function subjectPercentage(
+  subject: string | null,
+  subjectScores?: Record<string, unknown> | null,
+): number | null {
+  if (!subject || !subjectScores || typeof subjectScores !== "object") return null;
+  const key = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+  for (const [name, score] of Object.entries(subjectScores)) {
+    if (key(name) !== key(subject)) continue;
+    const value = typeof score === "number"
+      ? score
+      : (score && typeof score === "object" ? (score as { percentage?: unknown }).percentage : undefined);
+    return typeof value === "number" && Number.isFinite(value) ? value : null;
+  }
+  return null;
+}
+
+/**
+ * Below this a subject is not called a strength. The best of a student's
+ * favourites can still be a weak score (seen live: Science at 20% under
+ * "Build on your strength"), and telling a student that 20% is their strength
+ * is false. Owner's decision, 2026-11-14.
+ */
+export const STRENGTH_THRESHOLD = 50;
+
 // ===== Small helpers =====
 
 function matchQuality(score: number, lang: string): string {
@@ -486,6 +514,10 @@ export function generateEnhancedActionSteps(context: NarrativeContext): string[]
   // English id.
   const strongest = strongestSubject(assessment.favoriteSubjects, context.subjectScores);
   const topSubject = strongest ? subjectNameFor(strongest, lang) : null;
+  // Unknown (no quiz) is NOT weak: only a score that was measured and is low
+  // changes the wording.
+  const topPercentage = subjectPercentage(strongest, context.subjectScores);
+  const topIsWeak = topPercentage !== null && topPercentage < STRENGTH_THRESHOLD;
 
   // Parse a numeric grade from strings like "grade11" or "11" (precedent: quiz.routes.ts:128-136).
   // "graduated" — or any value with no digits — yields null and falls through to the generic timeline.
@@ -525,7 +557,9 @@ export function generateEnhancedActionSteps(context: NarrativeContext): string[]
       steps.push(`**هذا الشهر:** ابحث في مجال ${title} بعمق أكبر — حدّد المهارات والمواد والمؤهلات المحددة التي تتطلبها هذه المهنة فعليًا`);
       steps.push(`**هذا الفصل الدراسي:** عزّز المواد التي تحتاجها هذه المهنة، خصوصًا المرتبطة بمجال ${category}، واسعَ لتحقيق درجات قوية تبقي مسارات ${title} مفتوحة أمامك`);
       if (topSubject) {
-        steps.push(`**ابنِ على نقطة قوتك:** طوّر مادة ${topSubject} أكثر عبر مشاريع متقدمة أو مسابقات — ابدأ بتحويل الاهتمام إلى قدرة ملموسة`);
+        steps.push(topIsWeak
+          ? `**ابنِ على مادة تحبها:** واصل العمل على مادة ${topSubject} — فهي من موادك المفضلة، والممارسة المنتظمة الآن تحوّل الاهتمام إلى قدرة`
+          : `**ابنِ على نقطة قوتك:** طوّر مادة ${topSubject} أكثر عبر مشاريع متقدمة أو مسابقات — ابدأ بتحويل الاهتمام إلى قدرة ملموسة`);
       }
       steps.push(`**خلال 6 أشهر:** ابدأ ببناء مهارة أو ملف أعمال ذي صلة في ${skills01} من خلال الدورات أو الأنشطة أو المشاريع التي يمكنك عرضها لاحقًا على الجامعات`);
       steps.push(`**هذا العام:** ابدأ بالبحث في الجامعات والبرامج الخاصة بمجال ${category} — ودوّن شروط القبول والمواد المطلوبة مسبقًا والمواعيد النهائية حتى لا تُفاجأ لاحقًا`);
@@ -534,7 +568,9 @@ export function generateEnhancedActionSteps(context: NarrativeContext): string[]
       steps.push(`**This Month:** Research ${title} more deeply — identify the specific skills, subjects, and qualifications this career actually requires`);
       steps.push(`**This Term:** Strengthen the subjects this career needs, especially ${category}-related ones, and aim for strong grades that keep ${title} pathways open`);
       if (topSubject) {
-        steps.push(`**Build On Your Strength:** Take ${topSubject} further with advanced projects or competitions — start turning interest into demonstrable ability`);
+        steps.push(topIsWeak
+          ? `**Build On A Subject You Enjoy:** Keep working at ${topSubject} — it is one of your favourites, and steady practice now turns interest into ability`
+          : `**Build On Your Strength:** Take ${topSubject} further with advanced projects or competitions — start turning interest into demonstrable ability`);
       }
       steps.push(`**Next 6 Months:** Begin building a relevant skill or portfolio in ${skills01} through courses, clubs, or projects you can later show to universities`);
       steps.push(`**This Year:** Start researching universities and programs for ${category} — note their entry requirements, subject prerequisites, and deadlines so nothing surprises you later`);
