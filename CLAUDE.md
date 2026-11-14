@@ -1089,8 +1089,10 @@ so a student with one assessment in progress got a link to a raw 404.
     L-14, judged by both figures). A school admin's nav button says "My
     School" (`nav.mySchool` in common, admin and profile bundles). **"My School" SEEN LIVE, build
     `e73a40b`**, as Test High School's admin, on the school page, Analytics
-    and Profile, and "مدرستي" in Arabic. The Needs Changes tile is not seen
-    live yet (needs a superadmin).
+    and Profile, and "مدرستي" in Arabic. **The Needs Changes tile SEEN LIVE as
+    superadmin, build `ecea9f0`**: five tiles, Needs Changes 1 and Rejected 1,
+    where Rejected alone had read 2. (`StickyNote` does not pass
+    `data-testid` through, so `tile-needs-changes` is not in the page.)
   - **THE SITE SLEEPS (owner, 2026-11-14: "down on Render" on opening it).**
     `/health` read seconds after he opened it gave `build.startedAt`
     03:49:44Z, six hours after the last deploy: the process started when he
