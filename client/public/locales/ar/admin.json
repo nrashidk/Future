@@ -806,7 +806,7 @@
     "setupHeader": "الإعداد",
     "setupStage_invite_undeliverable": "ارتدّت الدعوة",
     "setupStage_never_signed_in": "لم يسجّل الدخول مطلقاً",
-    "setupStage_setup_incomplete": "سجّل الدخول، الإعداد غير مكتمل",
+    "setupStage_setup_incomplete": "الإعداد غير مكتمل",
     "setupStage_ready": "جاهزة",
     "setupStage_ready_no_students": "جاهزة، لم يُسجَّل أي طالب",
     "setupLinkSentNotUsed": "أُرسل رابط الإعداد في {{date}} ({{count}}×)، ولم يُستخدم",

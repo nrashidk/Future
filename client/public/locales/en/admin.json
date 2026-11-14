@@ -800,7 +800,7 @@
     "setupHeader": "Setup",
     "setupStage_invite_undeliverable": "Invite bounced",
     "setupStage_never_signed_in": "Never signed in",
-    "setupStage_setup_incomplete": "Signed in, unfinished",
+    "setupStage_setup_incomplete": "Setup not finished",
     "setupStage_ready": "Ready",
     "setupStage_ready_no_students": "Ready, nobody enrolled",
     "setupLinkSentNotUsed": "Setup link sent {{date}} ({{count}}×), not used",
