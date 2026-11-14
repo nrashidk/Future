@@ -886,10 +886,13 @@ export function buildInvoiceHtmlEmail(args: {
   dueLabel: string | null;
   licenseCount: number;
   isProforma: boolean;
+  /** A paid invoice is a record, not a request: no transfer instructions. */
+  isPaid?: boolean;
   language: string;
 }): string {
   const isAr = args.language === "ar";
   const font = emailFont(args.language);
+  const paid = args.isPaid === true;
   const docName = args.isProforma
     ? (isAr ? "فاتورة مبدئية" : "proforma invoice")
     : (isAr ? "فاتورة ضريبية" : "tax invoice");
@@ -903,11 +906,13 @@ export function buildInvoiceHtmlEmail(args: {
       <table role="presentation" style="width:100%;border-collapse:collapse;margin:0 0 18px;font-size:15px">
         <tr><td style="padding:6px 0;color:#57534e">التراخيص</td><td style="padding:6px 0;text-align:left"><strong>${args.licenseCount}</strong></td></tr>
         <tr><td style="padding:6px 0;color:#57534e">المبلغ</td><td style="padding:6px 0;text-align:left"><strong>${escapeHtml(args.amountLabel)}</strong></td></tr>
-        ${args.dueLabel ? `<tr><td style="padding:6px 0;color:#57534e">تاريخ الاستحقاق</td><td style="padding:6px 0;text-align:left"><strong>${escapeHtml(args.dueLabel)}</strong></td></tr>` : ""}
+        ${args.dueLabel && !paid ? `<tr><td style="padding:6px 0;color:#57534e">تاريخ الاستحقاق</td><td style="padding:6px 0;text-align:left"><strong>${escapeHtml(args.dueLabel)}</strong></td></tr>` : ""}
       </table>
       <p style="margin:0 0 16px;font-size:15px;line-height:1.8">
-        تفاصيل التحويل البنكي مذكورة في المرفق. يُرجى ذكر رقم الفاتورة كمرجع للتحويل،
-        وتُضاف التراخيص إلى حساب المدرسة فور استلام التحويل.
+        ${paid
+          ? "تم سداد هذه الفاتورة، ولا يوجد مبلغ مستحق. المرفق لسجلاتكم."
+          : `تفاصيل التحويل البنكي مذكورة في المرفق. يُرجى ذكر رقم الفاتورة كمرجع للتحويل،
+        وتُضاف التراخيص إلى حساب المدرسة فور استلام التحويل.`}
       </p>`
     : `
       <p style="margin:0 0 16px;font-size:16px;line-height:1.7">
@@ -917,12 +922,14 @@ export function buildInvoiceHtmlEmail(args: {
       <table role="presentation" style="width:100%;border-collapse:collapse;margin:0 0 18px;font-size:15px">
         <tr><td style="padding:6px 0;color:#57534e">Licences</td><td style="padding:6px 0;text-align:right"><strong>${args.licenseCount}</strong></td></tr>
         <tr><td style="padding:6px 0;color:#57534e">Amount</td><td style="padding:6px 0;text-align:right"><strong>${escapeHtml(args.amountLabel)}</strong></td></tr>
-        ${args.dueLabel ? `<tr><td style="padding:6px 0;color:#57534e">Payment due</td><td style="padding:6px 0;text-align:right"><strong>${escapeHtml(args.dueLabel)}</strong></td></tr>` : ""}
+        ${args.dueLabel && !paid ? `<tr><td style="padding:6px 0;color:#57534e">Payment due</td><td style="padding:6px 0;text-align:right"><strong>${escapeHtml(args.dueLabel)}</strong></td></tr>` : ""}
       </table>
       <p style="margin:0 0 16px;font-size:15px;line-height:1.7">
-        Bank transfer details are on the attachment. Please quote the invoice number
+        ${paid
+          ? "This invoice has been paid. No payment is due; the attachment is for your records."
+          : `Bank transfer details are on the attachment. Please quote the invoice number
         as the transfer reference; licences are added to the school's account once
-        the transfer is received.
+        the transfer is received.`}
       </p>`;
 
   return stickyLayout({
@@ -940,29 +947,35 @@ export function buildInvoiceTextEmail(args: {
   amountLabel: string;
   dueLabel: string | null;
   licenseCount: number;
+  isPaid?: boolean;
   language: string;
 }): string {
   const isAr = args.language === "ar";
+  const paid = args.isPaid === true;
   const lines = isAr
     ? [
       `فاتورة ${args.invoiceNumber} — ${args.organizationName}`,
       ``,
       `التراخيص: ${args.licenseCount}`,
       `المبلغ: ${args.amountLabel}`,
-      ...(args.dueLabel ? [`تاريخ الاستحقاق: ${args.dueLabel}`] : []),
+      ...(args.dueLabel && !paid ? [`تاريخ الاستحقاق: ${args.dueLabel}`] : []),
       ``,
-      `الفاتورة مرفقة بصيغة PDF وتتضمن تفاصيل التحويل البنكي.`,
-      `يُرجى ذكر ${args.invoiceNumber} كمرجع للتحويل.`,
+      ...(paid
+        ? [`تم سداد هذه الفاتورة، ولا يوجد مبلغ مستحق. الفاتورة مرفقة بصيغة PDF لسجلاتكم.`]
+        : [`الفاتورة مرفقة بصيغة PDF وتتضمن تفاصيل التحويل البنكي.`,
+           `يُرجى ذكر ${args.invoiceNumber} كمرجع للتحويل.`]),
     ]
     : [
       `Invoice ${args.invoiceNumber} — ${args.organizationName}`,
       ``,
       `Licences: ${args.licenseCount}`,
       `Amount: ${args.amountLabel}`,
-      ...(args.dueLabel ? [`Payment due: ${args.dueLabel}`] : []),
+      ...(args.dueLabel && !paid ? [`Payment due: ${args.dueLabel}`] : []),
       ``,
-      `The invoice is attached as a PDF and carries the bank transfer details.`,
-      `Please quote ${args.invoiceNumber} as the transfer reference.`,
+      ...(paid
+        ? [`This invoice has been paid. No payment is due; the PDF is attached for your records.`]
+        : [`The invoice is attached as a PDF and carries the bank transfer details.`,
+           `Please quote ${args.invoiceNumber} as the transfer reference.`]),
     ];
   return lines.join("\n");
 }
@@ -983,6 +996,7 @@ export async function sendInvoiceEmail(args: {
   dueLabel: string | null;
   licenseCount: number;
   isProforma: boolean;
+  isPaid?: boolean;
   pdf: Buffer;
   language?: string;
 }): Promise<EmailResult> {

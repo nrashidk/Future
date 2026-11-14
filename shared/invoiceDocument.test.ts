@@ -176,3 +176,37 @@ describe("the supplier's legal name", () => {
     expect(html).not.toMatch(/S\.P\.S|ذ\.م\.م/);
   });
 });
+
+describe("a paid invoice asks for nothing", () => {
+  // Found on production 2026-11-14: FP-2026-0003, PAID, was emailed with
+  // "Total due" and the bank-transfer panel beside its PAID badge.
+  const paid = { status: "paid", paidAt: new Date("2026-11-13T10:00:00Z"), paymentReference: "TT-991" };
+
+  it("says Total paid, shows the paid block, and carries no transfer panel", () => {
+    const html = doc(paid);
+    expect(html).toContain("Total paid");
+    expect(html).not.toContain("Total due");
+    expect(html).toContain('data-block="paid"');
+    expect(html).not.toContain('data-block="pay"');
+    expect(html).not.toContain("as the transfer reference");
+    expect(html).toContain("13 November 2026");
+  });
+
+  it("does the same in Arabic", () => {
+    const html = doc(paid, {}, "ar");
+    expect(html).toContain("الإجمالي المدفوع");
+    expect(html).not.toContain("الإجمالي المستحق");
+    expect(html).not.toContain("كمرجع للتحويل");
+  });
+
+  // THE CONTROL: without it the cases above pass against a document that
+  // dropped the panel for everybody, and an unpaid school could not pay.
+  it("an unpaid invoice still says Total due and carries the transfer panel", () => {
+    const html = doc();
+    expect(html).toContain("Total due");
+    expect(html).not.toContain("Total paid");
+    expect(html).toContain('data-block="pay"');
+    expect(html).not.toContain('data-block="paid"');
+    expect(html).toContain("as the transfer reference");
+  });
+});

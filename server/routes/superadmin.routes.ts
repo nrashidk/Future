@@ -2456,6 +2456,7 @@ export function registerSuperadminRoutes(app: Express) {
         dueLabel,
         licenseCount: invoice.studentCount,
         isProforma: invoiceDocumentType(invoice.supplierTrn) === "proforma",
+        isPaid: invoice.status === "paid",
         pdf,
         language,
       });

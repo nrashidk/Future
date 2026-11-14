@@ -70,6 +70,8 @@ export interface InvoiceDocumentData {
   notes?: string | null;
   status: string;
   paymentReference?: string | null;
+  /** When the transfer was recorded. Printed on a PAID invoice only. */
+  paidAt?: Date | string | null;
 }
 
 /**
@@ -100,7 +102,8 @@ const EN = {
   lineTitle: "Student assessment licences",
   lineBody: "One licence covers one completed career assessment and its report. Licences do not expire and are not tied to a named student.",
   discount: "Volume discount", subtotal: "Subtotal", vat: "VAT",
-  vatNone: "Not applicable", totalDue: "Total due", paid: "PAID",
+  vatNone: "Not applicable", totalDue: "Total due", totalPaid: "Total paid", paid: "PAID",
+  paidTitle: "Payment received", paidBody: "This invoice has been paid. No payment is due.", paidOn: "Paid on",
   payBy: "Payment by bank transfer", accountName: "Account name",
   bank: "Bank", iban: "IBAN", swift: "SWIFT / BIC",
   quote: "Please quote", asReference: "as the transfer reference. Licences are added to your account once the transfer is received.",
@@ -118,7 +121,8 @@ const AR = {
   lineTitle: "تراخيص تقييم الطلبة",
   lineBody: "يغطي الترخيص الواحد تقييماً مهنياً مكتملاً وتقريره. التراخيص لا تنتهي صلاحيتها وليست مرتبطة بطالب بعينه.",
   discount: "خصم الكمية", subtotal: "المجموع الفرعي", vat: "ضريبة القيمة المضافة",
-  vatNone: "لا تنطبق", totalDue: "الإجمالي المستحق", paid: "مدفوعة",
+  vatNone: "لا تنطبق", totalDue: "الإجمالي المستحق", totalPaid: "الإجمالي المدفوع", paid: "مدفوعة",
+  paidTitle: "تم استلام السداد", paidBody: "تم سداد هذه الفاتورة، ولا يوجد مبلغ مستحق.", paidOn: "تاريخ السداد",
   payBy: "السداد عن طريق التحويل البنكي", accountName: "اسم الحساب",
   bank: "البنك", iban: "رقم الآيبان", swift: "رمز السويفت",
   quote: "يُرجى ذكر", asReference: "كمرجع للتحويل. تُضاف التراخيص إلى حسابكم فور استلام التحويل.",
@@ -156,6 +160,13 @@ export function buildInvoiceDocument(args: {
   const sup = args.supplier;
 
   const isTax = invoiceDocumentType(sup.trn) === "tax_invoice";
+
+  /**
+   * A PAID invoice asks for nothing. Until 2026-11-14 it still printed "Total
+   * due" and the whole bank-transfer panel beside its PAID badge, so a finance
+   * officer sent a copy for their records was being asked to pay it again.
+   */
+  const isPaid = inv.status === "paid";
   const money = (minor: number) => formatMoney(minor, inv.currency, lang);
   const discounted = inv.discountPercent > 0;
   // The gross line, before the discount row subtracts from it.
@@ -298,13 +309,16 @@ export function buildInvoiceDocument(args: {
         ? `<span class="num">${money(inv.vatMinor)}</span>`
         : `<span>${t.vatNone}</span>`)}
       <tr>
-        <td style="padding:11px 0 0;border-top:2px solid #1c1917;font-size:12.5px;font-weight:700">${t.totalDue}</td>
+        <td style="padding:11px 0 0;border-top:2px solid #1c1917;font-size:12.5px;font-weight:700">${isPaid ? t.totalPaid : t.totalDue}</td>
         <td class="num" style="padding:11px 0 0;border-top:2px solid #1c1917;text-align:${endAlign};font-size:14px;font-weight:700">${money(inv.totalMinor)}</td>
       </tr>
     </tbody></table>
   </div>
 
-  <div style="margin-top:26px;border:1px solid #d6d3d1;border-radius:6px;padding:14px 16px">
+  ${isPaid ? `<div data-block="paid" style="margin-top:26px;border:1px solid #b7dcc6;background:#f1f9f4;border-radius:6px;padding:14px 16px">
+    <div class="lbl" style="margin-bottom:7px">${t.paidTitle}</div>
+    <p style="margin:0;font-size:10.5px;color:#14532d;line-height:1.6">${t.paidBody}${inv.paidAt ? ` ${t.paidOn} ${fmtDate(inv.paidAt, lang)}.` : ""}</p>
+  </div>` : `<div data-block="pay" style="margin-top:26px;border:1px solid #d6d3d1;border-radius:6px;padding:14px 16px">
     <div class="lbl" style="margin-bottom:9px">${t.payBy}</div>
     <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px 28px;font-size:10.5px">
       ${payRow(t.accountName, orPlaceholder(sup.bankAccountName, lang === "ar" ? "[اسم الحساب]" : "[ACCOUNT NAME]"))}
@@ -313,7 +327,7 @@ export function buildInvoiceDocument(args: {
       ${payRow(t.swift, orPlaceholder(sup.swift, "[SWIFT]"))}
     </div>
     <p style="margin:11px 0 0;font-size:10px;color:#44403c;line-height:1.6">${t.quote} <strong dir="ltr">${esc(inv.number)}</strong> ${t.asReference}</p>
-  </div>
+  </div>`}
 
   ${inv.notes ? `<div style="margin-top:16px;font-size:10px;color:#44403c;line-height:1.6">${esc(inv.notes).replace(/\n/g, "<br>")}</div>` : ""}
 
