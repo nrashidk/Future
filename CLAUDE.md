@@ -1181,8 +1181,10 @@ so a student with one assessment in progress got a link to a raw 404.
     `migratedCount: 1`, landed on the same report with the notice gone and
     the confirm banner shown; the account is a free `individual` on no pool;
     the profile reads "1 of 3" with View Report. **Left on production:**
-    "Nasser Guest Check" (child "ZZ Guest Child"), unconfirmed, so it is a
-    second 72-hour erasure sample unless the owner confirms it.
+    "Nasser Guest Check" (child "ZZ Guest Child"). **CONFIRMED the same day
+    at the owner's request** (its link, opened with another account signed
+    in, answered "Email confirmed ... the account and its reports will be
+    kept"), so it stays. "Nasser Delete Check" is the one erasure sample.
     **SEEN LIVE AS SUPERADMIN, build `0427fd6`:** one skip link; school
     dates day-first (UAQ School, created 2026-09-07, reads 07/09/2026);
     "Setup not finished" and no "Signed in, unfinished"; the Schools subtitle;
@@ -1212,8 +1214,11 @@ so a student with one assessment in progress got a link to a raw 404.
     and the Arabic country card. They are inside the assessment form, and
     `salm.alktby` is repeat-blocked, so he cannot open it without the school
     allowing another repeat (which spends a licence).
-    **Flagged, not changed:** "Build on your strength" names the best of the
-    favourites even at 20%, which is not a strength.
+    **A MEASURED SCORE UNDER 50% IS NOT CALLED A STRENGTH** (owner said fix,
+    2026-11-14; `STRENGTH_THRESHOLD`, `subjectPercentage`). The step reads
+    "Build on a subject you enjoy" / "ابنِ على مادة تحبها". No quiz is
+    unknown, not weak, and keeps "Build on your strength". Five tests,
+    including the 49/50 boundary and the control at 80%. Not yet seen live.
     `/health` gave `startedAt` at the moment of the visit again, hours after
     the deploy: the Free instance had slept, and the first page evaluation
     timed out at 45 s while it woke.
