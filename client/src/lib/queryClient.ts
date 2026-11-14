@@ -34,8 +34,13 @@ export function serverErrorMessage(error: unknown): string | null {
   if (body.startsWith("{")) {
     try {
       const parsed = JSON.parse(body);
-      const message = parsed?.message;
-      return typeof message === "string" && message.trim() ? message.trim() : null;
+      // Most routes answer { message }. A handful answer { error, details }
+      // instead (the contribution routes' validation), and reading only
+      // `message` left their callers showing the raw JSON.
+      for (const field of [parsed?.message, parsed?.error]) {
+        if (typeof field === "string" && field.trim()) return field.trim();
+      }
+      return null;
     } catch {
       return null;
     }

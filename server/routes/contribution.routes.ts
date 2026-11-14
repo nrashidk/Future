@@ -1216,7 +1216,11 @@ router.post("/admin/org/:orgId/allocate-reward", isAuthenticated, checkSuperadmi
     
     const parsed = allocateRewardSchema.safeParse(req.body);
     if (!parsed.success) {
-      return res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
+      return res.status(400).json({
+        error: "Invalid request",
+        message: "Credits must be a whole number from 1 to 50.",
+        details: parsed.error.issues,
+      });
     }
     
     const { credits, isRewardCredits } = parsed.data;
@@ -1318,7 +1322,11 @@ router.post("/admin/settings", isAuthenticated, checkSuperadmin, async (req: Req
     const user = req.user as any;
     const parsed = updateSettingsSchema.safeParse(req.body);
     if (!parsed.success) {
-      return res.status(400).json({ error: "Invalid request", details: parsed.error.issues });
+      return res.status(400).json({
+        error: "Invalid request",
+        message: "The yearly maximum must be a whole number from 1 to 1000.",
+        details: parsed.error.issues,
+      });
     }
 
     const { maxYearlyCredits } = parsed.data;

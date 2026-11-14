@@ -281,7 +281,7 @@ export default function ContributionReviewQueue() {
       queryClient.invalidateQueries({ queryKey: ['/api/contributions/admin/settings'] });
     },
     onError: (error: any) => {
-      toast({ title: t('contributions.updateFailed'), description: error.message, variant: "destructive" });
+      toast({ title: t('contributions.updateFailed'), description: serverErrorMessage(error) ?? undefined, variant: "destructive" });
     },
   });
 
@@ -304,7 +304,7 @@ export default function ContributionReviewQueue() {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/organizations'] });
     },
     onError: (error: any) => {
-      toast({ title: t('contributions.allocationFailed'), description: error.message, variant: "destructive" });
+      toast({ title: t('contributions.allocationFailed'), description: serverErrorMessage(error) ?? undefined, variant: "destructive" });
     },
   });
 
@@ -319,7 +319,7 @@ export default function ContributionReviewQueue() {
       queryClient.invalidateQueries({ queryKey: ['/api/contributions/admin/pending-rewards'] });
     },
     onError: (error: any) => {
-      toast({ title: t('contributions.updateFailed'), description: error.message, variant: "destructive" });
+      toast({ title: t('contributions.updateFailed'), description: serverErrorMessage(error) ?? undefined, variant: "destructive" });
     },
   });
 
@@ -381,7 +381,7 @@ export default function ContributionReviewQueue() {
       queryClient.invalidateQueries({ queryKey: ['/api/contributions/admin/stats'] });
     },
     onError: (error: any) => {
-      toast({ title: t('contributions.updateFailed'), description: error.message, variant: "destructive" });
+      toast({ title: t('contributions.updateFailed'), description: serverErrorMessage(error) ?? undefined, variant: "destructive" });
     },
   });
 

@@ -33,6 +33,16 @@ describe("serverErrorMessage", () => {
       );
     });
 
+    it("reads `error` when a route answers { error, details } with no message", () => {
+      const e = new Error('400: {"error":"Invalid request","details":[{"path":["maxCredits"]}]}');
+      expect(serverErrorMessage(e)).toBe("Invalid request");
+    });
+
+    it("prefers `message` over `error` when a body carries both", () => {
+      const e = new Error('400: {"error":"Bad","message":"The yearly ceiling must be zero or more"}');
+      expect(serverErrorMessage(e)).toBe("The yearly ceiling must be zero or more");
+    });
+
     it("ignores sibling keys such as the zod `errors` array", () => {
       // The 400 raised by studentDemographicsSchema at the student-create sink.
       const error = new Error(
