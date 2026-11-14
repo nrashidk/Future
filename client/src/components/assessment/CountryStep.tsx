@@ -1,3 +1,4 @@
+import { curriculumNameFor } from "@shared/subjects";
 import { useState, useEffect } from "react";
 import { StickyNote } from "@/components/StickyNote";
 import { Button } from "@/components/ui/button";
@@ -49,6 +50,10 @@ export function CountryStep({ data, onUpdate, onNext, onBack, subjectSource }: C
   const lockedNoteKey = isParentRegistered ? 'country.childOwnedNote' : 'country.schoolOwnedNote';
   const { language } = useLanguage();
   const isArabic = language === 'ar';
+  // The LABEL only. The value stays the stored name: it is what the quiz bank
+  // is matched on. Unknown names come back unchanged ("IB", "British").
+  const countryLabel = (c: any) => (isArabic && c?.nameAr ? c.nameAr : c?.name);
+  const curriculumLabel = (name: string) => curriculumNameFor(name, isArabic ? 'ar' : 'en');
   const [selectedCountryId, setSelectedCountryId] = useState(data.countryId || "");
   const [selectedCurriculum, setSelectedCurriculum] = useState(data.curriculum || "");
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
@@ -209,7 +214,11 @@ export function CountryStep({ data, onUpdate, onNext, onBack, subjectSource }: C
                 {(() => {
                   const own = countries.find((c: any) => c.id === selectedCountryId);
                   if (!own) return selectedCountryId || t('country.notSetBySchool');
-                  return own.flag ? `${own.flag} ${own.name}` : own.name;
+                  // In Arabic the locked card printed "United Arab Emirates":
+                  // the country's Arabic name was read everywhere on this
+                  // step except here.
+                  const ownName = isArabic && own.nameAr ? own.nameAr : own.name;
+                  return own.flag ? `${own.flag} ${ownName}` : ownName;
                 })()}
               </p>
             </div>
@@ -217,7 +226,7 @@ export function CountryStep({ data, onUpdate, onNext, onBack, subjectSource }: C
             <div>
               <p className="text-sm text-foreground/70 font-body mb-1">{t('country.selectCurriculum')}</p>
               <p className="text-lg font-semibold" data-testid="text-school-curriculum">
-                {selectedCurriculum || t('country.notSetBySchool')}
+                {selectedCurriculum ? curriculumLabel(selectedCurriculum) : t('country.notSetBySchool')}
               </p>
             </div>
           </div>
@@ -244,7 +253,7 @@ export function CountryStep({ data, onUpdate, onNext, onBack, subjectSource }: C
             <option value="">{t('country.chooseCountry')}</option>
             {countries.map((country: any) => (
               <option key={country.id} value={country.id}>
-                {country.flag ? `${country.flag} ${country.name}` : country.name}
+                {country.flag ? `${country.flag} ${countryLabel(country)}` : countryLabel(country)}
               </option>
             ))}
           </select>
@@ -258,7 +267,7 @@ export function CountryStep({ data, onUpdate, onNext, onBack, subjectSource }: C
                 <SelectItem key={country.id} value={country.id}>
                   <span className="flex items-center gap-2">
                     {country.flag && <span aria-hidden="true">{country.flag}</span>}
-                    <span>{country.name}</span>
+                    <span>{countryLabel(country)}</span>
                   </span>
                 </SelectItem>
               ))}
@@ -291,7 +300,7 @@ export function CountryStep({ data, onUpdate, onNext, onBack, subjectSource }: C
               <option value="">{t('country.chooseCurriculum')}</option>
               {availableCurricula.map((curriculum: string) => (
                 <option key={curriculum} value={curriculum}>
-                  {curriculum}
+                  {curriculumLabel(curriculum)}
                 </option>
               ))}
             </select>
@@ -303,7 +312,7 @@ export function CountryStep({ data, onUpdate, onNext, onBack, subjectSource }: C
               <SelectContent position="popper" className="z-[9999] max-h-[300px]">
                 {availableCurricula.map((curriculum: string) => (
                   <SelectItem key={curriculum} value={curriculum}>
-                    {curriculum}
+                    {curriculumLabel(curriculum)}
                   </SelectItem>
                 ))}
               </SelectContent>
