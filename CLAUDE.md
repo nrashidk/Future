@@ -1125,7 +1125,9 @@ so a student with one assessment in progress got a link to a raw 404.
     of the panel, and its email says no payment is due (`isPaid` on
     `sendInvoiceEmail`). `invoiceDocument.test.ts` and
     `email.invoicePaid.test.ts`, each with the control that an UNPAID invoice
-    still carries the instructions. Rendered and looked at in both languages.
+    still carries the instructions. Rendered and looked at in both languages. **SEEN LIVE, build `8b6a700`**:
+    re-sent to the owner, who returned the email and its PDF — "Total paid",
+    the paid block with the date, no bank panel, no transfer wording.
     **Flagged, not changed:** the proforma footer still calls a paid
     document "a request for payment".
   - **A SCHOOL ADMIN IS REFUSED ANOTHER SCHOOL, LIVE** (Test High School's
