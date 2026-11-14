@@ -92,6 +92,7 @@ const INVALID_COUNT = {
  */
 export async function grantTopUpFromPaymentIntent(
   pi: Stripe.PaymentIntent,
+  source: "browser" | "webhook",
 ): Promise<{ ok: true; granted: boolean } | { ok: false; reason: string }> {
   const md = pi.metadata ?? {};
   if (md.kind !== "school_topup") return { ok: false, reason: "not_a_topup" };
@@ -112,6 +113,10 @@ export async function grantTopUpFromPaymentIntent(
     currency: (md.currency || pi.currency || "").toUpperCase(),
     stripePaymentId: pi.id,
     performedBy: md.userId || null,
+    // Recorded so a live payment shows WHICH path added the licences. On
+    // 2026-11-14 the browser showed no confirm request at all while the
+    // licences arrived; the ledger note is how that gets settled.
+    source,
   });
   if (!result.ok) {
     console.error(`[TopUp] Payment ${pi.id} not granted: ${result.reason}. Needs manual attention.`);
@@ -270,7 +275,7 @@ export function registerSchoolTopUpRoutes(app: Express) {
       if (pi.metadata?.kind !== "school_topup" || pi.metadata?.organizationId !== org.id) {
         return res.status(404).json({ message: "Payment not found", code: "PAYMENT_NOT_FOUND" });
       }
-      const result = await grantTopUpFromPaymentIntent(pi);
+      const result = await grantTopUpFromPaymentIntent(pi, "browser");
       if (!result.ok) {
         const status = result.reason === "not_succeeded" ? 409 : 500;
         return res.status(status).json({ message: "Payment not completed", code: result.reason.toUpperCase() });

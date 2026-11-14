@@ -3884,6 +3884,8 @@ export class DatabaseStorage implements IStorage {
     currency: string;
     stripePaymentId: string;
     performedBy?: string | null;
+    /** Which path wrote the row: the browser's confirm call or the webhook. */
+    source?: "browser" | "webhook";
   }): Promise<{ ok: true; granted: boolean } | { ok: false; reason: "no_organization" | "unlimited" }> {
     return await db.transaction(async (tx: any) => {
       const [org] = await tx
@@ -3904,7 +3906,7 @@ export class DatabaseStorage implements IStorage {
           currency: params.currency,
           stripePaymentId: params.stripePaymentId,
           performedBy: params.performedBy ?? null,
-          note: "Top-up paid online",
+          note: params.source ? `Top-up paid online (${params.source})` : "Top-up paid online",
         })
         .onConflictDoNothing()
         .returning({ id: licenseGrants.id });

@@ -183,7 +183,7 @@ describe("pay online", () => {
     piRetrieve.mockResolvedValue(paid());
     const r = await call("POST", "/api/my-organization/licences/confirm", { paymentIntentId: "pi_ok" });
     expect(r.status).toBe(200);
-    expect(applySchoolTopUpPayment).toHaveBeenCalledWith(expect.objectContaining({ organizationId: "org-a", licences: 50, stripePaymentId: "pi_ok", amountMinor: UAE50.totalMinor }));
+    expect(applySchoolTopUpPayment).toHaveBeenCalledWith(expect.objectContaining({ organizationId: "org-a", source: "browser", licences: 50, stripePaymentId: "pi_ok", amountMinor: UAE50.totalMinor }));
   });
   it("confirm refuses ANOTHER school's payment, answered like a missing one", async () => {
     who = "admin2";
@@ -206,16 +206,16 @@ describe("grantTopUpFromPaymentIntent (shared by webhook and confirm)", () => {
     metadata: { kind: "school_topup", organizationId: "org-a", studentCount: "1", expectedAmount: "1000", currency: "AED" },
   };
   it("refuses an amount that is not the one the server priced", async () => {
-    const r = await grantTopUpFromPaymentIntent({ ...base, amount: 1 });
+    const r = await grantTopUpFromPaymentIntent({ ...base, amount: 1 }, "webhook");
     expect(r).toEqual({ ok: false, reason: "amount_mismatch" });
     expect(applySchoolTopUpPayment).not.toHaveBeenCalled();
   });
   it("ignores an intent that is not a top-up", async () => {
-    const r = await grantTopUpFromPaymentIntent({ ...base, metadata: { ...base.metadata, kind: undefined } });
+    const r = await grantTopUpFromPaymentIntent({ ...base, metadata: { ...base.metadata, kind: undefined } }, "webhook");
     expect(r).toEqual({ ok: false, reason: "not_a_topup" });
   });
   it("grants a valid one (control)", async () => {
-    const r = await grantTopUpFromPaymentIntent(base);
+    const r = await grantTopUpFromPaymentIntent(base, "webhook");
     expect(r).toEqual({ ok: true, granted: true });
   });
 });

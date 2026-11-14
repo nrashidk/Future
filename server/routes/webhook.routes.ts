@@ -189,7 +189,7 @@ async function handlePaymentIntentSucceeded(paymentIntent: Stripe.PaymentIntent)
   // its userId is the school admin, and the branches below would make that
   // admin a premium individual instead of adding licences to the school.
   if (paymentIntent.metadata?.kind === "school_topup") {
-    const result = await grantTopUpFromPaymentIntent(paymentIntent);
+    const result = await grantTopUpFromPaymentIntent(paymentIntent, "webhook");
     console.log(`[Webhook] School top-up ${paymentIntent.id}: ${JSON.stringify(result)}`);
     return;
   }
