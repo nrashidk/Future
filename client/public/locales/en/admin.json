@@ -1673,7 +1673,7 @@
     "statusOverdue": "Overdue",
     "dateIssued": "Issued {{date}}",
     "due": "Due {{date}}",
-    "paidNote": "Received {{date}} · {{licences}} licences added",
+    "paidNote": "Received {{date}} · licences added: {{licences}}",
     "pdf": "PDF",
     "footnote": "Invoices are settled by bank transfer — the account details are on each PDF, and the licences are added to your balance once the transfer reaches us. Need more licences? Email support@futurepath.ae with the number you need and we will send an invoice. Drafts we have not yet sent you never appear here."
   }
