@@ -2303,12 +2303,16 @@ export class DatabaseStorage implements IStorage {
         cs.sector_ar,
         COUNT(DISTINCT fa.id)::int as student_count,
         COALESCE(AVG(r.country_vision_alignment), 0)::float as avg_alignment,
-        COALESCE(sws.skills, '[]'::json) as priority_skills
+        COALESCE(sws.skills::text, '[]') as priority_skills
       FROM country_sectors cs
       LEFT JOIN sector_wef_skills sws ON sws.country_id = cs.country_id AND LOWER(TRIM(sws.sector_name)) = LOWER(TRIM(cs.sector))
       LEFT JOIN filtered_assessments fa ON fa.country_id = cs.country_id
       LEFT JOIN recommendations r ON r.assessment_id = fa.id
-      GROUP BY cs.sector, cs.sector_ar, sws.skills
+      -- json has no equality operator, so grouping by sws.skills failed every
+      -- call with "could not identify an equality operator for type json"
+      -- (500, rendered as "No sector data available yet"; found clicking live
+      -- 2026-11-14). Grouped and returned as text; parsed below.
+      GROUP BY cs.country_id, cs.sector, cs.sector_ar, sws.skills::text
       ORDER BY student_count DESC
     `);
 
