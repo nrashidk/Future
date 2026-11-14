@@ -128,6 +128,7 @@
     "contributeTab": "Contribute Questions",
     "orgAdmin": "School Admin Panel",
     "orgAdminDesc": "Manage your school's students and settings",
+    "superadminDesc": "Choose a school to see its students and settings",
     "roster": "Student Roster",
     "rosterDesc": "Manage students and their accounts",
     "addStudent": "Add Student",

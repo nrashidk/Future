@@ -509,7 +509,7 @@ function AdminOrganizationsPage() {
               {isOrgAdmin ? t('orgs.titleMine') : t('orgs.title')}
             </h1>
           </div>
-          <p className="text-muted-foreground text-lg">{t('orgs.orgAdminDesc')}</p>
+          <p className="text-muted-foreground text-lg">{isOrgAdmin ? t('orgs.orgAdminDesc') : t('orgs.superadminDesc')}</p>
         </div>
 
         {/* The school picker. A SUPERADMIN's only: a school admin has exactly
