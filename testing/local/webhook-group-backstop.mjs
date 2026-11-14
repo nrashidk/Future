@@ -157,6 +157,18 @@ try {
       `HTTP ${r.status} orgs=${orgs.length} org.licences=${orgs[0]?.total_licenses} country=${orgs[0]?.country_id} type=${u[0]?.account_type}`);
   }
 
+  // ------------------------------------------------------------------ B-01b
+  // The buyer must be the school's PRIMARY admin, or the superadmin's Manage
+  // Admins offers "Remove" on the school's only administrator (seen live).
+  {
+    const m = await sql(
+      `SELECT om.role, om.is_primary_admin FROM organization_members om
+         JOIN users u ON u.id = om.user_id WHERE u.email = $1`, [email1]);
+    rec("B-01b", "the buyer is the school's primary admin",
+      m.length === 1 && m[0].role === "admin" && m[0].is_primary_admin === true,
+      JSON.stringify(m));
+  }
+
   // ------------------------------------------------------------------ B-02
   // The ledger row must record it as a PURCHASE with its money, or revenue
   // reporting silently loses the sale.

@@ -3195,6 +3195,12 @@ export class DatabaseStorage implements IStorage {
           userId: userId,
           organizationId: organization.id,
           role: 'admin', // Organization member role (not user role)
+          // The buyer IS the school's primary admin. Without this a school
+          // bought online had NO primary admin, so the superadmin's "Remove"
+          // was offered on its only administrator and the primary-admin
+          // guard never applied. Found clicking Manage Admins live 2026-11-14:
+          // Test High School and AD School both lacked one.
+          isPrimaryAdmin: true,
           hasCompletedAssessment: false,
           isLocked: false
         });
