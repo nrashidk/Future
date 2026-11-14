@@ -638,7 +638,7 @@
     "passwordResetDesc": "تم إنشاء كلمة مرور جديدة",
     "error": "خطأ",
     "schoolDeleted": "تم حذف المدرسة",
-    "schoolDeletedDesc": "تم حذف المدرسة وجميع أعضائها",
+    "schoolDeletedDesc": "تم حذف المدرسة. تبقى حسابات مسؤوليها وفواتيرها محفوظة.",
     "studentCreated": "تم إنشاء الطالب",
     "addStudentTitle": "إضافة مستخدم",
     "addStudentDesc": "ينشئ حساباً فردياً مجانياً بلا مدرسة. استخدم زر التذكرة في صفه لمنحه تراخيص.",

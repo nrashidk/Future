@@ -632,7 +632,7 @@
     "passwordResetDesc": "New password has been generated",
     "error": "Error",
     "schoolDeleted": "School Deleted",
-    "schoolDeletedDesc": "The school and all its members have been deleted",
+    "schoolDeletedDesc": "The school has been deleted. Its administrators' accounts and its invoices are kept.",
     "studentCreated": "Student Created",
     "addStudentTitle": "Add a user",
     "addStudentDesc": "Creates a free individual account with no school. Use the ticket button on its row to give it licences.",
