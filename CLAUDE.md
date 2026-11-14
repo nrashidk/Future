@@ -1087,8 +1087,20 @@ so a student with one assessment in progress got a link to a raw 404.
     rejection is final; needs-changes is amended and comes back), so it has
     its own tile and `totalRejected` counts rejections only (`llm-gate.mjs`
     L-14, judged by both figures). A school admin's nav button says "My
-    School" (`nav.mySchool` in common, admin and profile bundles). **Neither
-    seen live yet**: they need a superadmin and a school admin signed in.
+    School" (`nav.mySchool` in common, admin and profile bundles). **"My School" SEEN LIVE, build
+    `e73a40b`**, as Test High School's admin, on the school page, Analytics
+    and Profile, and "مدرستي" in Arabic. The Needs Changes tile is not seen
+    live yet (needs a superadmin).
+  - **THE SITE SLEEPS (owner, 2026-11-14: "down on Render" on opening it).**
+    `/health` read seconds after he opened it gave `build.startedAt`
+    03:49:44Z, six hours after the last deploy: the process started when he
+    arrived. INFERENCE, not confirmed: a Free Render instance, which stops
+    after ~15 idle minutes. Not a crash (a crash restarts at once, not on a
+    visit). **While it sleeps nothing triggers the guest and
+    unconfirmed-account sweeps**, so a quiet period makes the 72-hour
+    deletions late. The fix is the owner's: a paid instance, and/or a
+    monitor pinging `/health`. Compare `startedAt` with the last deploy
+    before calling a restart a crash.
     "Nasser Free Check" is kept for future testing.
   - **A SCHOOL ADMIN IS REFUSED ANOTHER SCHOOL, LIVE** (Test High School's
     admin against AD School, build `feda372`): roster, add student and
