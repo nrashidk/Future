@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, serverErrorMessage } from "@/lib/queryClient";
 import { Home, Plus, Download, Upload, Edit, Trash2, GraduationCap, User, LogOut, Building2, Shield, BarChart, FileQuestion, Search } from "lucide-react";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 import { useTranslation } from "react-i18next";
@@ -159,7 +159,12 @@ function AdminQuizBank() {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/questions'] });
       toast({ title: t('superadmin.success'), description: t('quiz.importSuccess') });
     } catch (error) {
-      toast({ title: t('superadmin.error'), description: t('quiz.importError'), variant: "destructive" });
+      // A file that is not JSON fails in JSON.parse, before any request: say
+      // that, rather than the same "failed" a server refusal gets.
+      const description = error instanceof SyntaxError
+        ? t('quiz.importNotJson')
+        : serverErrorMessage(error) ?? t('quiz.importError');
+      toast({ title: t('superadmin.error'), description, variant: "destructive" });
     }
   };
 

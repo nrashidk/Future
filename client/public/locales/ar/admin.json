@@ -67,6 +67,7 @@
     "exportError": "فشل تصدير الأسئلة",
     "importSuccess": "تم استيراد الأسئلة بنجاح",
     "importError": "فشل استيراد الأسئلة",
+    "importNotJson": "هذا الملف ليس بصيغة JSON صحيحة. صدّر بنك الأسئلة بصيغة JSON لمعرفة الشكل المطلوب.",
     "deleteSuccess": "تم حذف السؤال بنجاح",
     "deleteError": "فشل حذف السؤال",
     "saveSuccess": "تم {{action}} السؤال بنجاح",

@@ -67,6 +67,7 @@
     "exportError": "Failed to export questions",
     "importSuccess": "Questions imported successfully",
     "importError": "Failed to import questions",
+    "importNotJson": "That file is not valid JSON. Export the bank as JSON to see the expected shape.",
     "deleteSuccess": "Question deleted successfully",
     "deleteError": "Failed to delete question",
     "saveSuccess": "Question {{action}} successfully",
