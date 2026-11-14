@@ -1233,6 +1233,22 @@ so a student with one assessment in progress got a link to a raw 404.
     admin against AD School, build `feda372`): roster, add student and
     report export 403 "Can only access your own school"; read and rename of
     the school 403. This was harness-only until now.
+- **THE SUPERADMIN CLICK WALK, 2026-11-14 night** (owner: only a click on the
+  live site counts). Results per item in `docs/verification/superadmin.md`.
+  Fixed from it, each re-clicked live: the Analytics sector pipeline answered
+  500 on every call (grouped by a json column; `analytics-sectors.mjs`); the
+  nationwide Analytics totals now count school rosters like the dashboard
+  (A-04); question import reported success with 0 imported; **a school bought
+  online had no primary admin** (`createGroupPurchaseTransaction` omitted
+  `isPrimaryAdmin`; B-01b), so "Remove" was offered on its only admin — Test
+  High School and AD School put right through Promote. **Flagged, not
+  changed:** every sector shows the same student count (needs a definition of
+  "a student in a sector"); Recent Activity omits paid top-ups and invoice
+  requests; the empty Create Question form gives no errors; the question form
+  has no curriculum field; a removed admin cannot be erased and the refusal
+  says "actions it performed"; career education shows as a code; scoring
+  history's Description is always "-". **Left on production:** the account
+  `zz.clickadmin` (owner's +zzclickadmin address, no school, not erasable).
 - **THE SUPERADMIN WALK, SECOND PASS, PRODUCTION 2026-11-13** (build
   `d0355ed`; a throwaway country "Malta", `mt`, and throwaway students on
   Test High School). What the first pass had not reached.
