@@ -297,7 +297,7 @@ export default function CVQStep({ assessmentId, responses, onUpdate, onNext, onB
           onClick={currentPage === 0 ? onBack : handlePrevious}
           data-testid="button-back"
         >
-          <ArrowLeft className="w-4 h-4 me-2" />
+          <ArrowLeft className="w-4 h-4 me-2 rtl:-scale-x-100" />
           {currentPage === 0 ? t('nav.back') : t('nav.previous')}
         </Button>
 
@@ -314,7 +314,7 @@ export default function CVQStep({ assessmentId, responses, onUpdate, onNext, onB
             data-testid="button-next-page"
           >
             {t('nav.next')}
-            <ArrowRight className="w-4 h-4 ms-2" />
+            <ArrowRight className="w-4 h-4 ms-2 rtl:-scale-x-100" />
           </Button>
         ) : (
           <Button
@@ -323,7 +323,7 @@ export default function CVQStep({ assessmentId, responses, onUpdate, onNext, onB
             data-testid="button-submit-cvq"
           >
             {submitMutation.isPending ? t('cvq.submitting') : t('cvq.complete')}
-            <ArrowRight className="w-4 h-4 ms-2" />
+            <ArrowRight className="w-4 h-4 ms-2 rtl:-scale-x-100" />
           </Button>
         )}
       </div>

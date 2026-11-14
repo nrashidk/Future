@@ -289,7 +289,7 @@ export default function RiasecStep({ onComplete, onBack }: RiasecStepProps) {
             onClick={handlePrevious}
             data-testid="button-riasec-previous"
           >
-            <ArrowLeft className="w-4 h-4 me-2" />
+            <ArrowLeft className="w-4 h-4 me-2 rtl:-scale-x-100" />
             {currentPage === 0 ? t('nav.back') : t('nav.previous')}
           </Button>
 
@@ -303,7 +303,7 @@ export default function RiasecStep({ onComplete, onBack }: RiasecStepProps) {
             data-testid="button-riasec-next"
           >
             {currentPage === totalPages - 1 ? t('riasec.completeAssessment') : t('nav.next')}
-            <ArrowRight className="w-4 h-4 ms-2" />
+            <ArrowRight className="w-4 h-4 ms-2 rtl:-scale-x-100" />
           </Button>
         </div>
 
