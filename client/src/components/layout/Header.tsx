@@ -118,13 +118,6 @@ export function Header() {
 
   return (
     <>
-      <a
-        href="#main-content"
-        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[9999] focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md focus:font-medium focus:shadow-lg"
-        data-testid="link-skip-to-main"
-      >
-        {t("common.skipToMain")}
-      </a>
       <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-sm border-b">
       <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between gap-4">
         <Link href="/" className="flex items-center gap-2 hover-elevate rounded-lg px-3 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" data-testid="link-home">

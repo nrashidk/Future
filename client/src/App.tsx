@@ -7,6 +7,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Loader2 } from "lucide-react";
 import { LanguageProvider, useLanguage } from "@/contexts/LanguageContext";
+import { useTranslation } from "react-i18next";
 
 const Landing = lazyPage(() => import("@/pages/Landing"));
 const TierSelection = lazyPage(() => import("@/pages/TierSelection"));
@@ -96,6 +97,26 @@ class ErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryStat
   }
 }
 
+/**
+ * ONE skip link, in the reader's language. There were two: this one, written
+ * in English whatever the language, and a translated one in Header — so a
+ * screen reader on an Arabic page heard an English "Skip to main content"
+ * first, and on an English page heard it twice. The assessment form has its
+ * own header and so relied on this one alone, in English.
+ */
+function SkipLink() {
+  const { t } = useTranslation("common");
+  return (
+    <a
+      href="#main-content"
+      data-testid="link-skip-to-main"
+      className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[9999] focus:px-4 focus:py-2 focus:rounded-md focus:bg-primary focus:text-primary-foreground focus:font-medium focus:text-sm focus:shadow-lg"
+    >
+      {t("common.skipToMain")}
+    </a>
+  );
+}
+
 function OgLocaleSync() {
   const { language } = useLanguage();
   useEffect(() => {
@@ -171,12 +192,7 @@ function App() {
         <ErrorBoundary>
           <LanguageProvider>
             <OgLocaleSync />
-            <a
-              href="#main-content"
-              className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[9999] focus:px-4 focus:py-2 focus:rounded-md focus:bg-primary focus:text-primary-foreground focus:font-medium focus:text-sm"
-            >
-              Skip to main content
-            </a>
+            <SkipLink />
             <Toaster />
             <Router />
           </LanguageProvider>
