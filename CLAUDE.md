@@ -2623,6 +2623,13 @@ so a student with one assessment in progress got a link to a raw 404.
     nothing read, is handled. **Not known:** whether the browser's
     `/confirm` or the webhook granted that payment; a failed confirm is now
     logged in the console instead of swallowed.
+    **SECOND LIVE PAYMENT, build `0ff9485`, 1 licence:** 52 -> 53, available
+    47, and the tiles updated with NO reload (refetches at +0, +3 and +10 s
+    seen in the page's resource timings). **But those timings show NO
+    `/licences/confirm` request**, though the route answers when called by
+    hand (an unknown id is a 500 — should be 404, minor). So the webhook
+    granted; why the browser half did not run is UNKNOWN. The ledger note now
+    says `(browser)` or `(webhook)`; read it after the next live top-up.
   - **Email confirmation for parent registration IS BUILT (2026-11-13, see
     "A parent may register a student account and stay free").** What follows
     is the older note, kept for its scoping: it was ABSENT (no token
