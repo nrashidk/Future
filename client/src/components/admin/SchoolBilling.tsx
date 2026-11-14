@@ -63,7 +63,11 @@ interface SchoolInvoice {
 function dateOnly(value: string | null): string | null {
   if (!value) return null;
   const d = new Date(value);
-  return Number.isFinite(d.getTime()) ? `\u2066${d.toISOString().slice(0, 10)}\u2069` : null;
+  if (!Number.isFinite(d.getTime())) return null;
+  // Day-first, as every other date in the product is. Built from the ISO
+  // (UTC) date so the day does not shift with the viewer's time zone.
+  const [year, month, day] = d.toISOString().slice(0, 10).split("-");
+  return `\u2066${day}/${month}/${year}\u2069`;
 }
 
 /** Overdue is derived from the due date, never stored. */
