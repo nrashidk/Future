@@ -77,7 +77,10 @@
     "confirmDeleteTitle": "حذف هذا السؤال؟",
     "confirmDeleteBody": "سيُحذف «{{question}}» من بنك الأسئلة لجميع الطلاب. لا يمكن التراجع عن ذلك.",
     "confirmDeleteCancel": "إبقاء السؤال",
-    "confirmDeleteOk": "حذف السؤال"
+    "confirmDeleteOk": "حذف السؤال",
+    "importDone": "تم استيراد {{count}} سؤال",
+    "importPartialTitle": "تم الاستيراد مع مشكلات",
+    "importSomeRefused": "تم استيراد {{ok}} ورُفض {{failed}}. تأكد من أن كل صف يحتوي على السؤال والخيارات والإجابة الصحيحة والمادة والصف والدولة. أول سؤال مرفوض: «{{first}}»"
   },
   "analytics": {
     "title": "لوحة التحليلات",

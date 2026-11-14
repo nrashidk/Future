@@ -154,10 +154,27 @@ function AdminQuizBank() {
       const text = await file.text();
       const questions = JSON.parse(text);
       
-      await apiRequest('POST', '/api/admin/questions/bulk-upload', { questions });
+      const res = await apiRequest('POST', '/api/admin/questions/bulk-upload', { questions });
+      // The route answers 200 with per-row counts even when EVERY row was
+      // refused. Seen live 2026-11-14: a file of one malformed question said
+      // "Questions imported successfully" and added nothing. Read the counts.
+      const result = await res.json().catch(() => null) as
+        | { success?: number; failed?: number; errors?: Array<{ question?: string; error?: string }> }
+        | null;
+      const ok = Number(result?.success ?? 0);
+      const failed = Number(result?.failed ?? 0);
 
       queryClient.invalidateQueries({ queryKey: ['/api/admin/questions'] });
-      toast({ title: t('superadmin.success'), description: t('quiz.importSuccess') });
+      if (failed === 0) {
+        toast({ title: t('superadmin.success'), description: t('quiz.importDone', { count: ok }) });
+      } else {
+        const first = result?.errors?.[0]?.question?.replace(/\.\.\.$/, '') ?? '';
+        toast({
+          title: ok === 0 ? t('superadmin.error') : t('quiz.importPartialTitle'),
+          description: t('quiz.importSomeRefused', { ok, failed, first }),
+          variant: ok === 0 ? 'destructive' : undefined,
+        });
+      }
     } catch (error) {
       // A file that is not JSON fails in JSON.parse, before any request: say
       // that, rather than the same "failed" a server refusal gets.

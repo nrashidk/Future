@@ -77,7 +77,10 @@
     "confirmDeleteTitle": "Delete this question?",
     "confirmDeleteBody": "\"{{question}}\" will be removed from the question bank for every student. This cannot be undone.",
     "confirmDeleteCancel": "Keep it",
-    "confirmDeleteOk": "Delete question"
+    "confirmDeleteOk": "Delete question",
+    "importDone": "{{count}} questions imported",
+    "importPartialTitle": "Imported with problems",
+    "importSomeRefused": "{{ok}} imported, {{failed}} refused. Check each row has question, options, correct answer, subject, grade and country. First refused: “{{first}}”"
   },
   "analytics": {
     "title": "Analytics Dashboard",
