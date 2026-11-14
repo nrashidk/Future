@@ -1193,6 +1193,24 @@ so a student with one assessment in progress got a link to a raw 404.
     (needs a student signed in), the submissions-table labels and the billing
     note (need a school admin; the superadmin's queue is empty), and the
     import message.
+    **SEEN LIVE AS THE STUDENT, build `b8d6121`** (`salm.alktby`): the home
+    page shows only Continue; one skip link, "تخطى إلى المحتوى الرئيسي" in
+    Arabic with no English one beside it; the profile reads "Your report for
+    this grade is ready" / "تقريرك لهذا الصف جاهز" and no longer shows the
+    school's 44. **AND IT SHOWED THAT `strongestSubject` DID NOTHING ON REAL
+    DATA, and that was mine:** the quiz stores `{ total, correct,
+    percentage }` per subject, the function read bare numbers, the route's
+    cast to `Record<string, number>` hid it, and every unit test fed it bare
+    numbers. Live, a report with Mathematics at 0% and Science and English at
+    20% still said "Take Mathematics further". It reads `percentage` now, and
+    the test uses the stored shape. **A fixture has to carry the shape the
+    database carries**, the username lesson again.
+    **Not seen live as a student:** the "Continue" buttons, the Arabic arrows
+    and the Arabic country card. They are inside the assessment form, and
+    `salm.alktby` is repeat-blocked, so he cannot open it without the school
+    allowing another repeat (which spends a licence).
+    **Flagged, not changed:** "Build on your strength" names the best of the
+    favourites even at 20%, which is not a strength.
     `/health` gave `startedAt` at the moment of the visit again, hours after
     the deploy: the Free instance had slept, and the first page evaluation
     timed out at 45 s while it woke.
