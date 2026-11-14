@@ -1679,6 +1679,31 @@
     "due": "Due {{date}}",
     "paidNote": "Received {{date}} · licences added: {{licences}}",
     "pdf": "PDF",
-    "footnote": "Invoices are settled by bank transfer — the account details are on each PDF, and the licences are added to your balance once the transfer reaches us. Need more licences? Email support@futurepath.ae with the number you need and we will send an invoice. Drafts we have not yet sent you never appear here."
+    "footnote": "Invoices are settled by bank transfer — the account details are on each PDF, and the licences are added to your balance once the transfer reaches us. Drafts we have not yet sent you never appear here.",
+    "topUp": {
+      "title": "Need more licences?",
+      "subtitle": "Priced for this order alone, in your school's currency.",
+      "howMany": "How many",
+      "price": "Price",
+      "each": "{{each}} each",
+      "eachWithDiscount": "{{each}} each ({{percent}} off)",
+      "po": "Your PO reference (optional, for an invoice)",
+      "payOnline": "Pay online",
+      "payOnlineTest": "Pay online (test mode)",
+      "requestInvoice": "Request invoice",
+      "note": "Pay online and the licences are added as soon as the card clears. Request an invoice and we email it to you; the licences are added once the transfer reaches us.",
+      "requestedTitle": "Request sent",
+      "requestedBody": "We'll email your invoice shortly.",
+      "requestFailed": "Request not sent",
+      "payTitle": "Pay for {{count}} licences",
+      "payTitle_one": "Pay for {{count}} licence",
+      "payTitle_other": "Pay for {{count}} licences",
+      "testModeNote": "Test mode: real cards are declined and nothing is charged. Use a Stripe test card.",
+      "payAmount": "Pay {{amount}}",
+      "payFailed": "Payment not completed",
+      "paidTitle": "Payment received",
+      "paidBody": "The licences have been added to your school.",
+      "noteInvoiceOnly": "We email you the invoice; the licences are added once the transfer reaches us."
+    }
   }
 }

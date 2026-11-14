@@ -1,20 +1,16 @@
 /**
- * WHAT A SCHOOL SEES OF ITS OWN BILLING.
+ * WHAT A SCHOOL SEES OF ITS OWN BILLING, and where it buys more licences.
  *
- * READ-ONLY, AND THAT IS THE DESIGN. There is no in-account licence top-up in
- * this product — `createGroupPurchaseTransaction` refuses a user a second
- * organization, so a returning school cannot buy through the public checkout
- * at all — and a "Buy more" button that led nowhere is the mistake this card
- * exists partly to correct. The checkout preflight's copy once promised a
- * dashboard purchase screen that does not exist. So this points at
- * support@futurepath.ae, which is the real path.
+ * The top-up section (`SchoolTopUp`, 2026-11-14) is the in-account purchase
+ * this card used to say did not exist: request an invoice, or pay online.
+ * The invoice table below it stays read-only.
  *
  * NO DRAFTS. The server filters them out (`SCHOOL_VISIBLE_INVOICE_STATUSES`),
  * because a draft is a figure still being checked and showing one tells a
  * school it owes money nobody has asked it for. The note at the bottom says so
  * rather than leaving the gap to be noticed.
  *
- * NO PAY BUTTON, for the same reason the emailed invoice has none: settlement
+ * NO PAY BUTTON ON AN INVOICE, for the same reason the emailed invoice has none: settlement
  * is a bank transfer and the account details are on the PDF. A
  * call-to-action that cannot take money teaches a reader that our buttons do
  * nothing.
@@ -30,6 +26,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatMoney } from "@shared/pricing";
 import { Download, FileText, Info } from "lucide-react";
+import SchoolTopUp from "@/components/admin/SchoolTopUp";
 
 interface SchoolInvoice {
   id: string;
@@ -106,11 +103,9 @@ export default function SchoolBilling() {
   });
 
   const rows = data?.invoices ?? [];
-  // Nothing to show and nothing to explain: a school that has never been
-  // invoiced (every Stripe purchase, every comped school) should not be given
-  // a billing section at all. Returning null rather than an empty state keeps
-  // the roster page as it was for them.
-  if (!isLoading && rows.length === 0) return null;
+  // A school with no invoices still gets the card: it is where it buys more
+  // licences. The table and its explanation are drawn only when there are rows.
+  const hasRows = rows.length > 0;
 
   const awaiting = rows.filter((r) => r.status === "issued");
   // The server's list, not one recomputed here: two derivations of the same
@@ -155,9 +150,11 @@ export default function SchoolBilling() {
           </div>
         )}
 
+        <SchoolTopUp />
+
         {isLoading ? (
           <p className="text-sm text-muted-foreground py-6 text-center">{t("billing.loading")}</p>
-        ) : (
+        ) : !hasRows ? null : (
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -220,12 +217,12 @@ export default function SchoolBilling() {
           </div>
         )}
 
-        <div className="flex gap-2.5 items-start rounded-lg border bg-muted/40 p-4 max-w-2xl">
+        {hasRows && <div className="flex gap-2.5 items-start rounded-lg border bg-muted/40 p-4 max-w-2xl">
           <Info className="w-4 h-4 mt-0.5 shrink-0 text-muted-foreground" />
           <p className="text-sm text-muted-foreground leading-relaxed">
             {t("billing.footnote")}
           </p>
-        </div>
+        </div>}
       </CardContent>
     </Card>
   );
