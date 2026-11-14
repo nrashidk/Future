@@ -1104,6 +1104,19 @@ so a student with one assessment in progress got a link to a raw 404.
     monitor pinging `/health`. Compare `startedAt` with the last deploy
     before calling a restart a crash.
     "Nasser Free Check" is kept for future testing.
+  - **THE RESEND WEBHOOK AND THE INVOICE SEND WORK ON PRODUCTION
+    (2026-11-14, build `5b6bf01`).** The owner registered the endpoint in
+    Resend (sent, delivered, delivery_delayed, bounced, complained) and set
+    `RESEND_WEBHOOK_SECRET`; and set the eight `INVOICE_*` variables to
+    PLACEHOLDERS ("TEST ONLY - NOT A VALID INVOICE", IBAN "TEST-DO-NOT-PAY")
+    until the trade licence and bank account exist. **They must be replaced
+    before any real school is invoiced**: the send no longer refuses.
+    `INVOICE_TRN` stays unset. FP-2026-0003 was then sent to the owner's own
+    address: 200, a real provider message id captured, and
+    `deliveryStatus: delivered` four seconds later. That closes the two
+    "not covered" items under the invoice send (a real message id; the
+    webhook end to end). Setup-invite delivery uses the same route and was
+    not exercised.
   - **A SCHOOL ADMIN IS REFUSED ANOTHER SCHOOL, LIVE** (Test High School's
     admin against AD School, build `feda372`): roster, add student and
     report export 403 "Can only access your own school"; read and rename of
