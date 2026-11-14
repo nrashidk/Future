@@ -1175,9 +1175,19 @@ so a student with one assessment in progress got a link to a raw 404.
     true of the ROW and invisible on the screen**: the report and profile
     print the child profile's name, age and gender. Nothing to fix.
     The quiz was answered through the API, not the form.
-    **NONE OF THIS BATCH HAS BEEN SEEN LIVE YET**: the browser link dropped
-    after the push. Unit tests (1522), a build, and `student`, `guest`,
-    `contribution-claim` and `migration-046-dryrun` passed offline.
+    **SEEN LIVE AS SUPERADMIN, build `0427fd6`:** one skip link; school
+    dates day-first (UAQ School, created 2026-09-07, reads 07/09/2026);
+    "Setup not finished" and no "Signed in, unfinished"; the Schools subtitle;
+    the home page signed in shows only Continue; the probability question's
+    options are 5/14, 15/56, 5/8, 25/64 in a bank of 240 (migration 046
+    ran); a reward setting of -5 answers 400 with "The yearly maximum must be
+    a whole number from 1 to 1000." **Not seen live:** the student items
+    (needs a student signed in), the submissions-table labels and the billing
+    note (need a school admin; the superadmin's queue is empty), the import
+    message, and the guest-then-register walk.
+    `/health` gave `startedAt` at the moment of the visit again, hours after
+    the deploy: the Free instance had slept, and the first page evaluation
+    timed out at 45 s while it woke.
   - **A SCHOOL ADMIN IS REFUSED ANOTHER SCHOOL, LIVE** (Test High School's
     admin against AD School, build `feda372`): roster, add student and
     report export 403 "Can only access your own school"; read and rename of
