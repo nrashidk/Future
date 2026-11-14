@@ -200,6 +200,15 @@ describe("pay online", () => {
   });
 });
 
+describe("confirm with an id Stripe does not know", () => {
+  it("answers 404, not 500", async () => {
+    piRetrieve.mockRejectedValue(Object.assign(new Error("No such payment_intent"), { code: "resource_missing", statusCode: 404 }));
+    const r = await call("POST", "/api/my-organization/licences/confirm", { paymentIntentId: "pi_nope" });
+    expect(r.status).toBe(404);
+    expect(applySchoolTopUpPayment).not.toHaveBeenCalled();
+  });
+});
+
 describe("grantTopUpFromPaymentIntent (shared by webhook and confirm)", () => {
   const base: any = {
     id: "pi_x", status: "succeeded", amount: 1000, currency: "aed",

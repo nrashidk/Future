@@ -270,7 +270,16 @@ export function registerSchoolTopUpRoutes(app: Express) {
       const org = await storage.getOrganizationByAdminUserId(userId);
       if (!org) return res.status(404).json({ message: "School not found", code: "ORGANIZATION_NOT_FOUND" });
 
-      const pi = await stripe.paymentIntents.retrieve(id);
+      let pi: Stripe.PaymentIntent;
+      try {
+        pi = await stripe.paymentIntents.retrieve(id);
+      } catch (e: any) {
+        // An id Stripe does not know is "not found", not a server fault.
+        if (e?.code === "resource_missing" || e?.statusCode === 404) {
+          return res.status(404).json({ message: "Payment not found", code: "PAYMENT_NOT_FOUND" });
+        }
+        throw e;
+      }
       // Another school's payment answers like a missing one.
       if (pi.metadata?.kind !== "school_topup" || pi.metadata?.organizationId !== org.id) {
         return res.status(404).json({ message: "Payment not found", code: "PAYMENT_NOT_FOUND" });
