@@ -2610,6 +2610,19 @@ so a student with one assessment in progress got a link to a raw 404.
     capped; the request email is English only.
     The checkout preflight's copy still points a returning school at
     support@futurepath.ae; it could now point at the Billing card.
+    **WALKED LIVE, 2026-11-14, build `666a96a`** (Test High School's admin;
+    the owner typed the test card): 5 licences quoted AED 200 and 2 AED 80;
+    Request invoice answered "Request sent", made draft FP-2026-0004 that the
+    school's list does not show, a second request was 409 `REQUEST_PENDING`,
+    and the email reached the owner (also `admin-hold@futurepath.ae`, the
+    placeholder in `SUPERADMIN_EMAILS`, which receives every superadmin
+    notification). Pay online (test mode) for 2: the school went 50 -> 52,
+    available 44 -> 46 — added ONCE. **But the tiles kept 44 until a
+    reload**: one refresh could land before the grant. It refetches again at
+    3 s and 10 s now, and the 3-D Secure return (`?payment_intent=…`), which
+    nothing read, is handled. **Not known:** whether the browser's
+    `/confirm` or the webhook granted that payment; a failed confirm is now
+    logged in the console instead of swallowed.
   - **Email confirmation for parent registration IS BUILT (2026-11-13, see
     "A parent may register a student account and stay free").** What follows
     is the older note, kept for its scoping: it was ABSENT (no token
