@@ -1175,6 +1175,14 @@ so a student with one assessment in progress got a link to a raw 404.
     true of the ROW and invisible on the screen**: the report and profile
     print the child profile's name, age and gender. Nothing to fix.
     The quiz was answered through the API, not the form.
+    **THEN WALKED LIVE, build `5d6136b`** (the owner typed the password):
+    signed out, a guest report (2 careers, "will be deleted on 17/11/2026"),
+    "Create Account", the form, `register/parent` 200, `migrate` 200
+    `migratedCount: 1`, landed on the same report with the notice gone and
+    the confirm banner shown; the account is a free `individual` on no pool;
+    the profile reads "1 of 3" with View Report. **Left on production:**
+    "Nasser Guest Check" (child "ZZ Guest Child"), unconfirmed, so it is a
+    second 72-hour erasure sample unless the owner confirms it.
     **SEEN LIVE AS SUPERADMIN, build `0427fd6`:** one skip link; school
     dates day-first (UAQ School, created 2026-09-07, reads 07/09/2026);
     "Setup not finished" and no "Signed in, unfinished"; the Schools subtitle;
@@ -1183,8 +1191,8 @@ so a student with one assessment in progress got a link to a raw 404.
     ran); a reward setting of -5 answers 400 with "The yearly maximum must be
     a whole number from 1 to 1000." **Not seen live:** the student items
     (needs a student signed in), the submissions-table labels and the billing
-    note (need a school admin; the superadmin's queue is empty), the import
-    message, and the guest-then-register walk.
+    note (need a school admin; the superadmin's queue is empty), and the
+    import message.
     `/health` gave `startedAt` at the moment of the visit again, hours after
     the deploy: the Free instance had slept, and the first page evaluation
     timed out at 45 s while it woke.
