@@ -1116,9 +1116,18 @@ so a student with one assessment in progress got a link to a raw 404.
     `deliveryStatus: delivered` four seconds later. That closes the two
     "not covered" items under the invoice send (a real message id; the
     webhook end to end). Setup-invite delivery uses the same route and was
-    not exercised. **"Delivered" is Resend's word for accepted by the
-    receiving server**: a Gmail search minutes later did not find the
-    message, so the inbox (versus spam) is unconfirmed until the owner looks.
+    not exercised. **It reached the INBOX** (owner's screenshot; my
+    Gmail search minutes earlier had found nothing, so "not found by search"
+    is not "not delivered"). **AND IT SHOWED A FAULT: a PAID invoice still
+    asked to be paid** — "Total due", the whole bank-transfer panel beside
+    the PAID badge, and an email saying licences follow the transfer. A paid
+    invoice now prints "Total paid" and a paid block with the date in place
+    of the panel, and its email says no payment is due (`isPaid` on
+    `sendInvoiceEmail`). `invoiceDocument.test.ts` and
+    `email.invoicePaid.test.ts`, each with the control that an UNPAID invoice
+    still carries the instructions. Rendered and looked at in both languages.
+    **Flagged, not changed:** the proforma footer still calls a paid
+    document "a request for payment".
   - **A SCHOOL ADMIN IS REFUSED ANOTHER SCHOOL, LIVE** (Test High School's
     admin against AD School, build `feda372`): roster, add student and
     report export 403 "Can only access your own school"; read and rename of
