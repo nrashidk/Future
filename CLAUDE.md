@@ -167,7 +167,7 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `migration-039-dryrun`, plus `premium-solo`, `individual-licences` and
 `migration-041-dryrun` and `migration-042-dryrun`, plus
 `erase-after-email-change`, `erase-charged-student` and `country-delete`, plus
-`reserved-email`, `free-signup`, `migration-045-dryrun`, `migration-046-dryrun` and `migration-044-dryrun` (run 044's dry-run LAST: between its
+`reserved-email`, `free-signup`, `school-topup`, `migration-045-dryrun`, `migration-046-dryrun` and `migration-044-dryrun` (run 044's dry-run LAST: between its
 DOWN and UP the app's schema is missing two `users` columns).
 
 `webhook-idempotency`, `webhook-group-backstop` and `setup-invite` need two
@@ -2575,22 +2575,41 @@ so a student with one assessment in progress got a link to a raw 404.
     `!isOrgAdmin && !isOrgStudent`, which is also why schools were unaffected:
     they pay by transfer against an invoice, which is what the invoicing exists
     for.
-  - **There is NO in-account licence top-up, and the checkout refusals used to
-    promise one.** `payment.routes.ts` has five POST routes and none of them
-    sells licences to an existing school; `createGroupPurchaseTransaction`
-    refuses a user a second organization, so a returning school cannot buy
-    through the public checkout at all. `/api/checkout/preflight` now catches
-    that before the charge (good) — but its copy said "sign in to add licences
-    to it" and "purchase from your dashboard", neither of which exists. That
-    was my wording and it sent a paying customer to a screen that is not
-    there. Both strings in both locales now point at `support@futurepath.ae`,
-    which is the real path: the superadmin licence add/remove route, with an
-    optional amount so a bank-transfer sale records as revenue rather than a
-    comp. Self-serve top-up is a genuine product gap, deliberately left open —
-    it needs decisions nobody has made (where it lives, whether volume tiers
-    apply to a second purchase, whether a cap applies), and the country must be
-    taken from the ORGANIZATION rather than client-selected, since for an
-    authenticated buyer it is finally server-derivable.
+  - **A SCHOOL BUYS MORE LICENCES FROM ITS OWN BILLING CARD (2026-11-14,
+    owner's decisions).** This replaces "there is NO in-account top-up". Two
+    doors on `SchoolBilling.tsx` → `SchoolTopUp.tsx`, routes in
+    `server/routes/schoolTopUp.routes.ts`, school admin only, the school taken
+    from the session:
+    - **Price = the top-up quantity ALONE** (50 more is an order of 50, no
+      credit for earlier purchases), the school's OWN country and currency.
+      A school with no country (`COUNTRY_NOT_SET`) or whose country has no
+      price (`COUNTRY_NOT_PRICED`) is refused 409 — the fallback would quote a
+      UAE school in dollars, the 8% gap again. The harness found the second:
+      its UAE row has no price.
+    - **Request invoice** writes a DRAFT invoice at that price (PO optional)
+      and emails every superadmin (`getSuperadminNotificationAddresses`). One
+      open draft per school (409 `REQUEST_PENDING`). The school sees nothing
+      until a superadmin issues it; issue / send / mark paid is the existing
+      flow, and marking paid is what grants.
+    - **Pay online** creates a PaymentIntent with metadata
+      `kind: "school_topup"`, the school, count and amount all server-derived.
+      **The webhook routes that kind FIRST**, before anything reads `userId` —
+      the userId is the school admin, and without the branch the admin is made
+      a premium individual and the school gets nothing (mutation-tested:
+      exactly that). The browser's `/licences/confirm` does the same grant;
+      `storage.applySchoolTopUpPayment` is one transaction whose first write
+      is the ledger row with `ON CONFLICT DO NOTHING`, so the partial unique
+      index on `license_grants.stripe_payment_id` decides who adds the
+      licences. Another school's payment id answers 404.
+    - The button says **"Pay online (test mode)"** while the publishable key
+      is `pk_test_`, and the dialog says real cards are declined.
+    `schoolTopUp.test.ts` (14), `school-topup.mjs` (12; needs the two Stripe
+    variables). T-02 is the case that matters (same payment, new event id,
+    nothing added); T-11 the control. **Not covered offline:** the card form
+    and `/confirm` (they call Stripe). **Not decided:** whether a top-up is
+    capped; the request email is English only.
+    The checkout preflight's copy still points a returning school at
+    support@futurepath.ae; it could now point at the Billing card.
   - **Email confirmation for parent registration IS BUILT (2026-11-13, see
     "A parent may register a student account and stay free").** What follows
     is the older note, kept for its scoping: it was ABSENT (no token
