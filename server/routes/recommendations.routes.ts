@@ -467,11 +467,11 @@ export function registerRecommendationsRoutes(app: Express) {
       // The quiz's per-subject scores, read ONCE: the action steps name the
       // student's strongest subject, and without these they named the first
       // one ticked. A missing quiz is not an error; the steps fall back.
-      let quizSubjectScores: Record<string, number> | null = null;
+      let quizSubjectScores: Record<string, unknown> | null = null;
       if (isPremium && assessment) {
         try {
           const quiz = await storage.getAssessmentQuizByAssessmentId(assessment.id);
-          quizSubjectScores = (quiz?.subjectScores as Record<string, number> | null) ?? null;
+          quizSubjectScores = (quiz?.subjectScores as Record<string, unknown> | null) ?? null;
         } catch {
           quizSubjectScores = null;
         }

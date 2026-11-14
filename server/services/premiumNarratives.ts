@@ -26,7 +26,7 @@ interface NarrativeContext {
   overallScore: number;
   language?: string;
   /** The quiz's per-subject scores, e.g. { Mathematics: 80 }. Optional. */
-  subjectScores?: Record<string, number> | null;
+  subjectScores?: Record<string, unknown> | null;
 }
 
 /**
@@ -40,7 +40,7 @@ interface NarrativeContext {
  */
 export function strongestSubject(
   favoriteSubjects: unknown,
-  subjectScores?: Record<string, number> | null,
+  subjectScores?: Record<string, unknown> | null,
 ): string | null {
   const favourites = Array.isArray(favoriteSubjects)
     ? favoriteSubjects.filter((s): s is string => typeof s === "string" && s.trim().length > 0)
@@ -50,7 +50,13 @@ export function strongestSubject(
   const key = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
   const scores = new Map<string, number>();
   for (const [name, score] of Object.entries(subjectScores)) {
-    if (typeof score === "number" && Number.isFinite(score)) scores.set(key(name), score);
+    // The quiz stores { total, correct, percentage } per subject, not a bare
+    // number. Reading only numbers left every subject unscored, so this fell
+    // back to the first favourite — the fault it exists to fix. Seen live.
+    const value = typeof score === "number"
+      ? score
+      : (score && typeof score === "object" ? (score as { percentage?: unknown }).percentage : undefined);
+    if (typeof value === "number" && Number.isFinite(value)) scores.set(key(name), value);
   }
   let best = favourites[0];
   let bestScore = scores.get(key(best)) ?? -1;

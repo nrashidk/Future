@@ -7,6 +7,17 @@ import { strongestSubject, generateEnhancedActionSteps } from "./premiumNarrativ
  * (80%) named over Computer Science (100%).
  */
 describe("strongestSubject", () => {
+  // The shape the quiz actually stores, copied from a production row. The
+  // first version of this function read bare numbers only and so never ran
+  // against real data: every subject was unscored and the first favourite won.
+  it("reads the stored { total, correct, percentage } shape", () => {
+    expect(strongestSubject(["Mathematics", "Science", "English"], {
+      English: { total: 5, correct: 3, percentage: 60 },
+      Science: { total: 5, correct: 1, percentage: 20 },
+      Mathematics: { total: 5, correct: 0, percentage: 0 },
+    })).toBe("English");
+  });
+
   it("picks the highest quiz score among the favourites", () => {
     expect(strongestSubject(["Mathematics", "Computer Science"], { Mathematics: 80, "Computer Science": 100 }))
       .toBe("Computer Science");
