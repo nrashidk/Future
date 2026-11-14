@@ -1,3 +1,4 @@
+import { fmtDateTime } from "@/lib/formatDate";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -467,7 +468,7 @@ export default function ScoringConfigEditor() {
                       </div>
                       {anthropicCredential.lastTestedAt && (
                         <div className="text-xs text-muted-foreground mt-1">
-                          {t('scoring.lastTestedLabel')} {new Date(anthropicCredential.lastTestedAt).toLocaleString()}
+                          {t('scoring.lastTestedLabel')} {fmtDateTime(anthropicCredential.lastTestedAt)}
                           {' - '}
                           <span className={anthropicCredential.lastTestResult === 'success' ? 'text-green-600' : 'text-destructive'}>
                             {anthropicCredential.lastTestResult}
@@ -661,7 +662,7 @@ export default function ScoringConfigEditor() {
                     {changelog?.map(log => (
                       <TableRow key={log.id}>
                         <TableCell className="text-sm whitespace-nowrap">
-                          {new Date(log.createdAt).toLocaleString()}
+                          {fmtDateTime(log.createdAt)}
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline">{log.changeType.replace(/_/g, ' ')}</Badge>

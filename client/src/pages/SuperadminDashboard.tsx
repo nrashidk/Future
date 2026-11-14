@@ -1,3 +1,4 @@
+import { fmtDate, fmtDateTime } from "@/lib/formatDate";
 import { useState, useEffect } from "react";
 import { needsConfirmation, hoursLeftToConfirm } from "@shared/emailConfirmation";
 import { validateEmail, validatePhone, sanitizePhone } from "@/lib/utils";
@@ -1372,7 +1373,7 @@ function SuperadminDashboardPage() {
                             <TableCell>
                               <div className="font-medium">{org.name}</div>
                               <div className="text-xs text-muted-foreground">
-                                {t('superadmin.createdDate', { date: new Date(org.createdAt).toLocaleDateString() })}
+                                {t('superadmin.createdDate', { date: fmtDate(org.createdAt) })}
                               </div>
                             </TableCell>
                             <TableCell>
@@ -1685,7 +1686,7 @@ function SuperadminDashboardPage() {
                                 <div className="font-medium">{student.assessmentCount}</div>
                                 {student.latestAssessmentDate && (
                                   <div className="text-xs text-muted-foreground">
-                                    {t('superadmin.lastDate', { date: new Date(student.latestAssessmentDate).toLocaleDateString() })}
+                                    {t('superadmin.lastDate', { date: fmtDate(student.latestAssessmentDate) })}
                                   </div>
                                 )}
                               </TableCell>
@@ -1815,7 +1816,7 @@ function SuperadminDashboardPage() {
                           </div>
                           <div className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
                             <span>{t('superadmin.activityBy', { name: event.performer?.username || "-" })}</span>
-                            <span>{new Date(event.createdAt).toLocaleString()}</span>
+                            <span>{fmtDateTime(event.createdAt)}</span>
                           </div>
                         </div>
                       </div>
@@ -1879,7 +1880,7 @@ function SuperadminDashboardPage() {
                               </Badge>
                             </TableCell>
                             <TableCell className="text-muted-foreground text-sm">
-                              {new Date(file.createdAt).toLocaleDateString()}
+                              {fmtDate(file.createdAt)}
                             </TableCell>
                             <TableCell>
                               <div className="flex gap-1">
@@ -1950,10 +1951,10 @@ function SuperadminDashboardPage() {
                           <div className="text-xs text-muted-foreground mt-2 flex gap-4 flex-wrap">
                             <span>{t('superadmin.announcementAudience')}: {announcement.targetAudience === 'all' ? t('superadmin.audienceAll') : announcement.targetAudience === 'students' ? t('superadmin.audienceStudents') : announcement.targetAudience === 'org_admins' ? t('superadmin.audienceOrgAdmins') : announcement.targetAudience === 'premium' ? t('superadmin.audiencePremium') : announcement.targetAudience}</span>
                             {announcement.publishAt && new Date(announcement.publishAt) > new Date() && (
-                              <Badge variant="outline" className="text-xs">{t('superadmin.scheduledBadge', { date: new Date(announcement.publishAt).toLocaleDateString() })}</Badge>
+                              <Badge variant="outline" className="text-xs">{t('superadmin.scheduledBadge', { date: fmtDate(announcement.publishAt) })}</Badge>
                             )}
-                            {announcement.expiresAt && <span>{t('superadmin.expiresBadge', { date: new Date(announcement.expiresAt).toLocaleDateString() })}</span>}
-                            <span>{t('superadmin.announcementCreatedDate', { date: new Date(announcement.createdAt).toLocaleDateString() })}</span>
+                            {announcement.expiresAt && <span>{t('superadmin.expiresBadge', { date: fmtDate(announcement.expiresAt) })}</span>}
+                            <span>{t('superadmin.announcementCreatedDate', { date: fmtDate(announcement.createdAt) })}</span>
                           </div>
                         </div>
                         <div className="flex gap-1">
@@ -2526,7 +2527,7 @@ function SuperadminDashboardPage() {
                       <div className="font-medium">{event.eventDescription}</div>
                       <div className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
                         <span>{t('superadmin.activityBy', { name: event.performer?.username || "-" })} ({event.performedByRole})</span>
-                        <span>{new Date(event.createdAt).toLocaleString()}</span>
+                        <span>{fmtDateTime(event.createdAt)}</span>
                       </div>
                     </div>
                   </div>
@@ -2940,7 +2941,7 @@ function SuperadminDashboardPage() {
                 <TableBody>
                   {(historyData?.assessments ?? []).map((a) => (
                     <TableRow key={a.id}>
-                      <TableCell>{a.createdAt ? new Date(a.createdAt).toLocaleDateString() : "—"}</TableCell>
+                      <TableCell>{a.createdAt ? fmtDate(a.createdAt) : "—"}</TableCell>
                       <TableCell>{a.grade ?? "—"}</TableCell>
                       <TableCell>
                         <Badge variant={a.isCompleted ? 'default' : 'outline'}>
@@ -3518,11 +3519,11 @@ function SetupStageCell({
     if (!setup.linkSentAt) return t('superadmin.setupLinkNeverSent');
     if (setup.delivery === "delivered") {
       return t('superadmin.setupDeliveredNotUsed', {
-        date: new Date(setup.deliveryStatusAt ?? setup.linkSentAt).toLocaleDateString(),
+        date: fmtDate(setup.deliveryStatusAt ?? setup.linkSentAt),
       });
     }
     return t('superadmin.setupLinkSentNotUsed', {
-      date: new Date(setup.linkSentAt).toLocaleDateString(),
+      date: fmtDate(setup.linkSentAt),
       count: setup.linkSentCount ?? 1,
     });
   };

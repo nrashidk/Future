@@ -1,3 +1,4 @@
+import { fmtDate } from "@/lib/formatDate";
 import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -638,7 +639,7 @@ export default function ContributionReviewQueue() {
                       </div>
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">
-                      {new Date(sub.createdAt).toLocaleDateString()}
+                      {fmtDate(sub.createdAt)}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">

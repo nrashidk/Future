@@ -1,3 +1,5 @@
+import i18n from "i18next";
+
 /**
  * Every date in this app is read by a UAE audience, in either language —
  * not by whatever locale the viewer's browser happens to be set to.
@@ -33,4 +35,24 @@ export function formatLocalizedDate(
 ): string {
   const d = typeof date === "string" ? new Date(date) : date;
   return d.toLocaleDateString(localeForLanguage(language), options);
+}
+
+/**
+ * The same, for call sites that have no language in scope. Reads the app's
+ * current language, so a component that already re-renders on a language
+ * change (anything using useTranslation) shows the right order.
+ *
+ * The superadmin dashboard and the contribution screens called
+ * `.toLocaleDateString()` bare, so on a US-configured browser they showed
+ * month-first while the profile, which uses this file, showed day-first.
+ */
+export function fmtDate(date: Date | string): string {
+  return formatLocalizedDate(date, i18n.language || "en");
+}
+
+export function fmtDateTime(date: Date | string): string {
+  const d = typeof date === "string" ? new Date(date) : date;
+  return d.toLocaleString(localeForLanguage(i18n.language || "en"), {
+    year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit",
+  });
 }
