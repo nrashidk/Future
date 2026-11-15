@@ -1271,6 +1271,12 @@ so a student with one assessment in progress got a link to a raw 404.
   yet strong quiz scores"). **Flagged, not changed:** the Narrative Cache
   tile above the prompts still read 50 after the save (the save does not
   refresh the stats query).
+  **ANOTHER STUDENT'S REPORT REFUSED, LIVE, build `0dd3376`** (closes the
+  item last seen 2026-11-12): `ali.ali.qzpzcx`, another school student, against
+  salm's assessment -- assessment, quiz and PDF 403; recommendations `200 []`
+  and values profile 404, both by design; the two narrative routes 401
+  ("Authentication required" to a signed-in student: wrong word, right
+  refusal; flagged, not changed).
 - **THE SIGN-IN FORM WAS AT `/login/student`, TITLED "Student Login", FOR
   EVERY ROLE** (owner, 2026-11-15). School admins, parents' accounts and the
   superadmin all sign in there, and it told each of them their password came
