@@ -1,4 +1,5 @@
 import { useAuth } from "@/hooks/useAuth";
+import { strengthSubjects } from "@shared/subjectStrength";
 import { subjectNameFor } from "@shared/subjects";
 import { pickLatestForGrade, toCanonicalGrade } from "@shared/grade";
 import { subjectLabelKey } from "@shared/subjects";
@@ -255,11 +256,9 @@ function mapSubjectsToVisionSectors(
 ): string | null {
   if (!subjectScores || !country?.targets || typeof country.targets !== 'object') return null;
 
-  // Get top 2 subjects
-  const topSubjects = Object.entries(subjectScores)
-    .sort(([, a], [, b]) => b.percentage - a.percentage)
-    .slice(0, 2)
-    .map(([subject]) => subject);
+  // Only subjects that clear the strength threshold: the sentence calls them
+  // "top strengths", and with none there is no sentence (shared/subjectStrength).
+  const topSubjects = strengthSubjects(subjectScores);
 
   if (topSubjects.length === 0) return null;
 

@@ -91,9 +91,11 @@ export function subjectPercentage(
  * Below this a subject is not called a strength. The best of a student's
  * favourites can still be a weak score (seen live: Science at 20% under
  * "Build on your strength"), and telling a student that 20% is their strength
- * is false. Owner's decision, 2026-11-14.
+ * is false. Owner's decision, 2026-11-14. Defined once in shared/, because
+ * the results page and the PDF apply the same rule.
  */
-export const STRENGTH_THRESHOLD = 50;
+export { STRENGTH_THRESHOLD } from "@shared/subjectStrength";
+import { STRENGTH_THRESHOLD } from "@shared/subjectStrength";
 
 // ===== Small helpers =====
 

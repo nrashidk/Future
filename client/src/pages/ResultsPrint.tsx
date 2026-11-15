@@ -1,4 +1,5 @@
 import { StickyNote } from "@/components/StickyNote";
+import { strengthSubjects } from "@shared/subjectStrength";
 import ReportMarkdown from "@/components/ReportMarkdown";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -177,10 +178,9 @@ function mapSubjectsToVisionSectors(
 ): string | null {
   if (!subjectScores || !country?.targets || typeof country.targets !== 'object') return null;
 
-  const topSubjects = Object.entries(subjectScores)
-    .sort(([, a], [, b]) => b.percentage - a.percentage)
-    .slice(0, 2)
-    .map(([subject]) => subject);
+  // Only subjects that clear the strength threshold: the sentence calls them
+  // "top strengths", and with none there is no sentence (shared/subjectStrength).
+  const topSubjects = strengthSubjects(subjectScores);
 
   if (topSubjects.length === 0) return null;
 
