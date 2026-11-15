@@ -1309,6 +1309,8 @@ so a student with one assessment in progress got a link to a raw 404.
   unsettled at `peer_review` rather than approved with nothing filed.
   Migration 047 files what was approved before the fix (the one live
   submission); `migration-047-dryrun` (8 cases, three controls).
+  **SEEN LIVE, build `513b85e`**: AD School's gaps grid read Mathematics
+  Grade 10 = 7 before the deploy and 9 after, the two approved questions.
   After Edit Details saved a curriculum, the gaps and review cards stayed
   absent until a reload (their cached 409); fixed with the box above. Reject-needs-a-comment is enforced in the
   page only; the route accepts a reject without one.
