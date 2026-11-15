@@ -84,7 +84,7 @@ for (const lang of ["en", "ar"]) {
   await p.goto(BASE, { waitUntil: "domcontentloaded" });
   await p.evaluate((l) => localStorage.setItem("fp_language", l), lang);
 
-  await p.goto(`${BASE}/login/student`, { waitUntil: "domcontentloaded" });
+  await p.goto(`${BASE}/login/password`, { waitUntil: "domcontentloaded" });
   await p.waitForTimeout(2000);
   const userField = p.locator('input[name="username"], input[type="text"]').first();
   const passField = p.locator('input[type="password"]').first();

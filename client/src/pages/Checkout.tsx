@@ -243,7 +243,7 @@ function CheckoutForm({
             title: t("checkout.paymentSuccessTitle"),
             description: t("checkout.paymentSuccessDesc"),
           });
-          setLocation("/login/student");
+          setLocation("/login/password");
         } else {
           toast({
             title: t("checkout.paymentSuccessTitle"),

@@ -168,7 +168,7 @@ export default function Login() {
             asChild
             data-testid="button-email-login"
           >
-            <Link href="/login/student">
+            <Link href="/login/password">
               <Mail className="h-5 w-5" />
               {t("login.withEmail")}
             </Link>

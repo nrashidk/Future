@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, Redirect } from "wouter";
 import { Suspense, Component, ReactNode, useEffect } from "react";
 import { queryClient } from "./lib/queryClient";
 import { lazyPage } from "./lib/lazyPage";
@@ -176,7 +176,12 @@ function Router() {
         <Route path="/my-school/contributions/:id" component={ContributionFeedback} />
         <Route path="/superadmin" component={SuperadminDashboard} />
         <Route path="/login" component={Login} />
-        <Route path="/login/student" component={StudentLogin} />
+        {/* The username/password form serves EVERY role (school admins,
+            students, parents' accounts, superadmins). It lived at
+            /login/student and was titled "Student Login"; the old path stays
+            as a redirect so bookmarks and old links still land. */}
+        <Route path="/login/password" component={StudentLogin} />
+        <Route path="/login/student"><Redirect to="/login/password" replace /></Route>
         <Route path="/register" component={Register} />
         <Route path="/forgot-password" component={ForgotPassword} />
         <Route path="/reset-password" component={ResetPassword} />

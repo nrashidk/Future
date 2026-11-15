@@ -249,7 +249,7 @@ for (const lang of ["en", "ar"]) {
 
 // ------------------------------------------------------- 8.1 every route, AR
 {
-  const routes = ["/", "/assessment", "/login", "/login/student", "/register/parent",
+  const routes = ["/", "/assessment", "/login", "/login/password", "/register/parent",
                   "/tier-selection", "/forgot-password", "/privacy", "/terms"];
   const p = await page("ar");
   const offenders = [];
