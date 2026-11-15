@@ -167,7 +167,7 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `migration-039-dryrun`, plus `premium-solo`, `individual-licences` and
 `migration-041-dryrun` and `migration-042-dryrun`, plus
 `erase-after-email-change`, `erase-charged-student` and `country-delete`, plus
-`reserved-email`, `free-signup`, `school-topup`, `analytics-sectors`, `migration-045-dryrun`, `migration-046-dryrun` and `migration-044-dryrun` (run 044's dry-run LAST: between its
+`reserved-email`, `free-signup`, `school-topup`, `analytics-sectors`, `contribution-fix`, `migration-045-dryrun`, `migration-046-dryrun` and `migration-044-dryrun` (run 044's dry-run LAST: between its
 DOWN and UP the app's schema is missing two `users` columns).
 
 `webhook-idempotency`, `webhook-group-backstop` and `setup-invite` need two

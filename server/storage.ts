@@ -528,6 +528,7 @@ export interface IStorage {
   getAllPendingContributionSubmissions(): Promise<ContributionSubmission[]>;
   updateContributionSubmission(id: string, data: Partial<ContributionSubmission>): Promise<ContributionSubmission>;
   claimContributionRecheck(id: string, staleBefore: Date): Promise<ContributionSubmission | undefined>;
+  resubmitContribution(id: string, organizationId: string, questions: unknown[]): Promise<ContributionSubmission | undefined>;
   claimApprovedContribution(id: string, cap: { maxYearlyCredits: number; currentYear: number }): Promise<{ creditsMoved: number; alreadyPaid: boolean; capped: number } | { refused: "yearly_cap" } | null>;
   getOrganizationDailySubmissionCount(organizationId: string): Promise<number>;
   
@@ -6078,6 +6079,45 @@ export class DatabaseStorage implements IStorage {
    * makes the claim exclusive: a second caller sees a fresh in-flight check
    * and is refused until `staleBefore` has passed again.
    */
+  /**
+   * A SCHOOL SENDS A "NEEDS CHANGES" SUBMISSION BACK, FIXED (owner,
+   * 2026-11-15: edit in place, the automatic check runs again).
+   *
+   * ONE statement with the conditions in its WHERE clause: the submission is
+   * this school's AND still `needs_changes`. A second click, a stale tab, or
+   * a superadmin deciding it meanwhile all find no row and get undefined --
+   * nothing read first, so nothing to race.
+   *
+   * It goes back to `pending` with the check reset, exactly as a new
+   * submission starts, so the same background check and the same routing
+   * gate decide what happens next. `created_at` is NOT touched: the daily
+   * limit counts by it, and a fix is not a new submission (owner's
+   * decision). The reviewer's note is kept so the queue shows what was asked.
+   */
+  async resubmitContribution(id: string, organizationId: string, questions: unknown[]): Promise<ContributionSubmission | undefined> {
+    const [row] = await db
+      .update(contributionSubmissions)
+      .set({
+        questions,
+        totalQuestions: questions.length,
+        status: "pending",
+        llmVerificationStatus: "pending",
+        llmVerificationScore: null,
+        llmVerificationFeedback: null,
+        llmVerifiedAt: null,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(contributionSubmissions.id, id),
+          eq(contributionSubmissions.organizationId, organizationId),
+          eq(contributionSubmissions.status, "needs_changes"),
+        ),
+      )
+      .returning();
+    return row;
+  }
+
   async claimContributionRecheck(id: string, staleBefore: Date): Promise<ContributionSubmission | undefined> {
     const [claimed] = await db
       .update(contributionSubmissions)

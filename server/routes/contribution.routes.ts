@@ -678,6 +678,68 @@ router.get("/gaps", isAuthenticated, checkOrgAdmin, async (req: Request, res: Re
   }
 });
 
+/**
+ * SEND A "NEEDS CHANGES" SUBMISSION BACK, FIXED (owner, 2026-11-15).
+ *
+ * Edited in place: same row, same subject and grade, the automatic check runs
+ * again and the same routing gate decides where it goes. Not counted against
+ * the daily limit -- that limit counts rows created, and this creates none.
+ *
+ * 404 for "not found" and "not yours" alike: a school learns nothing about
+ * another school's submission ids by probing. 409 once it is not, or no
+ * longer, waiting for changes; the claim is one conditional UPDATE, so two
+ * clicks send it once.
+ */
+const resubmitSchema = z.object({
+  questions: z.array(questionSchema).min(1).max(MAX_QUESTIONS_PER_SUBMISSION),
+});
+
+router.post("/:id/resubmit", isAuthenticated, checkOrgAdmin, async (req: Request, res: Response) => {
+  try {
+    const member = (req as any).orgMember;
+    const setupGate = await requireSchoolSetup(storage, member.organizationId);
+    if (!setupGate.allowed) {
+      return res.status(setupGate.status).json(setupGate.body);
+    }
+
+    const parsed = resubmitSchema.safeParse(req.body);
+    if (!parsed.success) {
+      return res.status(400).json({ error: "Invalid submission data", details: parsed.error.issues });
+    }
+
+    const submission = await storage.getContributionSubmission(req.params.id);
+    if (!submission || submission.organizationId !== member.organizationId) {
+      return res.status(404).json({ error: "Not found" });
+    }
+    if (submission.status !== "needs_changes") {
+      return res.status(409).json({ error: "NOT_WAITING_FOR_CHANGES" });
+    }
+
+    const sanitizedQuestions = parsed.data.questions.map(sanitizeQuestion);
+    const existing = await storage.getQuizQuestionsByCountryAndGrade(submission.countryId, submission.grade, submission.subject);
+    const duplicateIndices = sanitizedQuestions
+      .map((q, idx) => (existing.some((e) => e.question.toLowerCase().trim() === q.question.toLowerCase().trim()) ? idx : -1))
+      .filter((i) => i >= 0);
+    if (duplicateIndices.length > 0) {
+      return res.status(400).json({ error: "Some questions appear to be duplicates of existing questions", duplicateIndices });
+    }
+
+    const claimed = await storage.resubmitContribution(submission.id, member.organizationId, sanitizedQuestions);
+    if (!claimed) {
+      return res.status(409).json({ error: "NOT_WAITING_FOR_CHANGES" });
+    }
+
+    verifyQuestionsWithLLM(sanitizedQuestions, submission.subject, submission.grade, submission.curriculum)
+      .then((result) => applyVerificationResult(submission.id, result))
+      .catch((err) => console.error(`LLM verification failed for resubmitted ${submission.id}:`, err));
+
+    res.json({ resubmitted: true, submissionId: submission.id, totalQuestions: sanitizedQuestions.length });
+  } catch (error) {
+    console.error("Error resubmitting questions:", error);
+    res.status(500).json({ error: "Failed to resubmit questions" });
+  }
+});
+
 router.post("/submit", isAuthenticated, checkOrgAdmin, async (req: Request, res: Response) => {
   try {
     const member = (req as any).orgMember;
