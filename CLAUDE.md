@@ -1243,7 +1243,14 @@ so a student with one assessment in progress got a link to a raw 404.
   Changes" submission; **no school can peer-review** (`/review-queue`,
   `/review/:id`, no caller), so every passing submission waits at
   `peer_review` for a superadmin; and `/gaps` has no caller. Building them
-  needs mockups and the owner's word. Also flagged: school-side bulk reset
+  needs mockups and the owner's word. Read live while mocking up: the
+  superadmin's note IS in `/api/contributions/submissions` as
+  `reviewFeedback`, but `ContributeQuestions.tsx` types it `reviewerFeedback`
+  (never rendered, and would be undefined if it were); `/:id/feedback`
+  returns PEER comments only; there is NO route to amend a `needs_changes`
+  submission; the same list also hands the school `reviewedByUserId` (the
+  superadmin's id). Real gaps for UAE MOE: grades 8-9 hold 10 a cell,
+  10-11 hold 7, 12 holds 6 (18 thin, 0 empty). Also flagged: school-side bulk reset
   has no confirmation; delete-selected offers "Keep account & report" as the
   primary button when nobody selected has a report; the Completed filter
   lists the admin; no language switch on My School or Analytics; analytics
