@@ -152,6 +152,12 @@ export default function ContributeQuestions() {
     queryKey: ['/api/contributions/gaps'],
     retry: false,
   });
+  // Other schools' questions waiting for this school's vote.
+  const { data: reviewQueue } = useQuery<{ reviewsRequired: number; majority: number; submissions: unknown[] }>({
+    queryKey: ['/api/contributions/review-queue'],
+    retry: false,
+  });
+
   const schoolCountryId = gaps?.countryId ?? "";
   const schoolCurriculum = gaps?.curriculum ?? "";
 
@@ -560,6 +566,28 @@ export default function ContributeQuestions() {
             setIsSubmitDialogOpen(true);
           }}
         />
+      )}
+
+      {reviewQueue && (
+        <Card data-testid="card-review-others">
+          <CardHeader className="pb-3">
+            <CardTitle>{t('contributions.reviewCardTitle')}</CardTitle>
+            <CardDescription>{t('contributions.reviewCardDesc')}</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap items-center justify-between gap-4">
+            <p className="text-sm" data-testid="text-review-waiting">
+              {reviewQueue.submissions.length > 0
+                ? <><span className="text-2xl font-bold me-2">{reviewQueue.submissions.length}</span>{t('contributions.reviewWaitingLabel')}</>
+                : t('contributions.reviewNone')}
+            </p>
+            {reviewQueue.submissions.length > 0 && (
+              <Button asChild variant="outline" data-testid="button-start-reviewing">
+                <Link href="/my-school/review">{t('contributions.reviewStart')}</Link>
+              </Button>
+            )}
+            <p className="w-full text-xs text-muted-foreground">{t('contributions.reviewCreditNote', { required: reviewQueue.reviewsRequired, majority: reviewQueue.majority })}</p>
+          </CardContent>
+        </Card>
       )}
 
       <Card>
