@@ -1263,8 +1263,14 @@ so a student with one assessment in progress got a link to a raw 404.
   (`describeFavouriteSubjects` in `shared/subjectStrength.ts`, 3 tests),
   read in `llmNarrativeService.ts`. Done in the VALUE, not the template,
   because the template lives in the database and boot does not reseed it.
-  **Narratives already cached keep the old text**; saving any prompt
-  template clears that cache. Not yet seen live.
+  **Narratives already cached keep the old text**; saving a prompt
+  template clears that template's cache. **SEEN LIVE, build `0dd3376`**:
+  "Why This Career?" saved unchanged as superadmin (stats 50 -> 0), salm's
+  report opened as superadmin, all five narratives rewritten in English
+  with no strength claim ("subjects you're currently exploring", "aren't
+  yet strong quiz scores"). **Flagged, not changed:** the Narrative Cache
+  tile above the prompts still read 50 after the save (the save does not
+  refresh the stats query).
 - **THE SIGN-IN FORM WAS AT `/login/student`, TITLED "Student Login", FOR
   EVERY ROLE** (owner, 2026-11-15). School admins, parents' accounts and the
   superadmin all sign in there, and it told each of them their password came
