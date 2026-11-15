@@ -46,7 +46,7 @@ the OS file picker. Throwaway data was named `ZZ Click …` and removed.
 | Shows events | ⚠️ | tonight | tonight's paid top-ups (+3 licences) and the invoice request are not listed; "Removed 1 licenses" |
 
 ## Files
-| List / download / delete | ❌ | 2026-11-15 | read from the code: nothing the product does writes a file row. Upload is superadmin-only with no screen; the one school path that writes rows (`import-students`) has no caller — the roster upload reads the CSV in the browser and posts JSON to `/members/bulk`. Delete has no confirmation. Decision needed: remove or define |
+| Tab | removed | 2026-11-15 | owner said remove: no source of files existed; tab, routes and the unused CSV import are gone |
 
 ## Announcements
 | Create (EN + AR) | ✅ | tonight | |

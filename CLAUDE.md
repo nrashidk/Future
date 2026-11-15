@@ -646,7 +646,8 @@ read it; change both together.
 
 Both decide which quiz bank a student's assessment draws from and which
 questions the school may contribute. `server/utils/schoolSetupGate.ts` blocks
-enrolment (all three sinks) and contribution with 409 until both are set, in
+enrolment (both sinks; a third, the CSV `import-students` route, was removed
+2026-11-15) and contribution with 409 until both are set, in
 the same shape as the consent gate beside it. The columns stay nullable
 because the Stripe group-purchase path creates an organization inside the
 payment transaction where neither value exists — a NOT NULL there would roll
@@ -1659,8 +1660,16 @@ so a student with one assessment in progress got a link to a raw 404.
     (one click, no confirmation) has nothing to delete. Still live with no
     caller: the upload, a share-link generator, and the UNAUTHENTICATED
     one-time `GET /api/files/shared/:token`. Not a hole today (no rows),
-    but surface over minors' data with no purpose. Removing it is the
-    owner's decision; not changed.
+    but surface over minors' data with no purpose. **REMOVED (owner said
+    remove, 2026-11-15)**, three commits: the tab and `/api/superadmin/files`;
+    every `/api/files` route (`crosscutting.mjs` F-01..F-03 assert them gone,
+    judged by the SPA page coming back); and `import-students` with the
+    storage methods only those used. `org-admin.mjs` O-08/O-10 now test the
+    real CSV path, `/members/bulk`, across schools. **The `files` TABLE
+    STAYS** (no migration): erasure still treats a historical row as a
+    blocking source, and dropping it is a separate decision. Verified empty
+    on production only by the tab reading "No files found" on the click
+    walk, not by a database count.
   - A school created by a superadmin reads "Signed in, unfinished" before
     anyone has signed in.
   - Dates are M/D/Y on the dashboard and D/M/Y on the profile.

@@ -5,7 +5,9 @@
  * suite. Four of them act on minors' records:
  *
  *   POST   .../members/bulk-reset-passwords   resets student passwords
- *   POST   .../import-students                bulk-creates student records
+ *   POST   .../members/bulk                   bulk-creates student records (the
+ *          roster's CSV upload; the old .../import-students had no caller and
+ *          was removed on 2026-11-15)
  *   POST   .../export-assessments             exports assessment data
  *   GET    .../export/reports                 exports reports
  *   POST   .../logo                           file upload
@@ -190,14 +192,16 @@ console.log(`B's student under test: ${bVictim.username}\n`);
   }
 }
 
-// ------------------------- O-08  import cannot write into another school
+// -------------------- O-08  bulk upload cannot write into another school
+// This is the path the roster's CSV upload really takes. It replaced a test
+// of .../import-students, a route no screen called (removed 2026-11-15).
 {
   const marker = `Imported ${Math.random().toString(36).slice(2, 7)}`;
-  const r = await A.session.post(`/api/admin/organizations/${B.orgId}/import-students`, {
-    students: [{ fullName: marker, studentName: marker, grade: "10", dateOfBirth: "2010-01-01" }],
+  const r = await A.session.post(`/api/admin/organizations/${B.orgId}/members/bulk`, {
+    members: [{ fullName: marker, studentName: marker, grade: "10", studentGender: "female", dateOfBirth: "2010-01-01" }],
   });
 
-  rec("O-08", "A is refused importing students into B",
+  rec("O-08", "A is refused bulk-adding students into B",
     !isHtml(r.body) && [400, 401, 403, 404].includes(r.status),
     isHtml(r.body) ? "NO SUCH ROUTE — test is wrong" : `HTTP ${r.status} ${r.body?.message ?? ""}`);
 
@@ -235,7 +239,7 @@ console.log(`B's student under test: ${bVictim.username}\n`);
   const probes = [
     ["bulk reset", () => stu.post(`/api/admin/organizations/${A.orgId}/members/bulk-reset-passwords`, { memberIds: [aVictim.memberId] })],
     ["export assessments", () => stu.post(`/api/admin/organizations/${A.orgId}/export-assessments`, {})],
-    ["import students", () => stu.post(`/api/admin/organizations/${A.orgId}/import-students`, { students: [] })],
+    ["bulk add students", () => stu.post(`/api/admin/organizations/${A.orgId}/members/bulk`, { members: [] })],
   ];
   const outcomes = [];
   for (const [label, run] of probes) {

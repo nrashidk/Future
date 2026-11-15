@@ -66,7 +66,7 @@ rec("S-00", "a school can exist with neither country nor curriculum",
       dateOfBirth: "2010-05-02", studentGender: "female",
     }],
   });
-  rec("S-02", "nor enrol in bulk (the same gate, all three sinks)",
+  rec("S-02", "nor enrol in bulk (the same gate, both sinks)",
     r.status === 409 && r.body?.code === "SCHOOL_SETUP_REQUIRED",
     `HTTP ${r.status} ${r.body?.code ?? ""}`);
 }

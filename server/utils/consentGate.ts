@@ -5,11 +5,12 @@
  * so the school is the consenting party. organization_consents holds that act;
  * this is what makes it a precondition rather than a form nobody filled in.
  *
- * THREE SINKS, AND ONLY THREE. Every path that enrols a school student goes
+ * TWO SINKS, AND ONLY TWO. Every path that enrols a school student goes
  * through storage.createUserWithCredentials:
  *   admin.routes.ts  POST /api/admin/organizations/:id/members            (single)
- *   admin.routes.ts  POST /api/admin/organizations/:id/members/bulk       (bulk)
- *   admin.routes.ts  POST /api/admin/organizations/:id/import-students    (CSV)
+ *   admin.routes.ts  POST /api/admin/organizations/:id/members/bulk       (bulk; the
+ *                    roster's CSV upload, parsed in the browser)
+ * A third, .../import-students, had no caller and was removed on 2026-11-15.
  *
  * NOT GATED, and each for a reason worth writing down rather than rediscovering:
  *   - POST /api/superadmin/students calls storage.createStandaloneUser, which
