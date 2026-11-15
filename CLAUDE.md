@@ -1277,6 +1277,20 @@ so a student with one assessment in progress got a link to a raw 404.
   and values profile 404, both by design; the two narrative routes 401
   ("Authentication required" to a signed-in student: wrong word, right
   refusal; flagged, not changed).
+- **THE PAID INDIVIDUAL CLICK WALK, 2026-11-15** (`ali.ali`, per item in
+  `docs/verification/individual.md`, builds `0dd3376`/`c8d778d`). The
+  all-used screen, its mailto, the old report, PDF, export and refusals held.
+  The owner gave 3 licences from the Users tab; one assessment through the
+  real form (Grade 12, Arabic/Social Studies/Computer Science) charged once
+  (3 -> 2), and it is the POSITIVE control for the strength rule seen live:
+  the two 100% subjects are called strengths in the vision sentence and the
+  AI text, Arabic at 40% nowhere. Profile reads 6 / 4 / 2. **Flagged, not
+  changed:** age 45 still accepted; no same-grade repeat warning for an
+  individual (a second Grade 12 report spent a licence silently); the new
+  row stores grade `grade12` where his older rows store `12`; the first PDF
+  request answered 502 with no restart, the retry 200 in 38 s (seen once,
+  cause unknown); the values step prints each statement's value name, as
+  the personality step prints its theme.
 - **THE SIGN-IN FORM WAS AT `/login/student`, TITLED "Student Login", FOR
   EVERY ROLE** (owner, 2026-11-15). School admins, parents' accounts and the
   superadmin all sign in there, and it told each of them their password came
