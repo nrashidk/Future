@@ -167,7 +167,7 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `migration-039-dryrun`, plus `premium-solo`, `individual-licences` and
 `migration-041-dryrun` and `migration-042-dryrun`, plus
 `erase-after-email-change`, `erase-charged-student` and `country-delete`, plus
-`reserved-email`, `reset-unlocks`, `free-signup`, `school-topup`, `analytics-sectors`, `contribution-fix`, `migration-045-dryrun`, `migration-046-dryrun` and `migration-044-dryrun` (run 044's dry-run LAST: between its
+`reserved-email`, `reset-unlocks`, `free-signup`, `school-topup`, `analytics-sectors`, `contribution-fix`, `migration-045-dryrun`, `migration-046-dryrun`, `migration-047-dryrun` and `migration-044-dryrun` (run 044's dry-run LAST: between its
 DOWN and UP the app's schema is missing two `users` columns).
 
 `webhook-idempotency`, `webhook-group-backstop` and `setup-invite` need two
@@ -1290,7 +1290,24 @@ so a student with one assessment in progress got a link to a raw 404.
   `SCHOOL_SETUP_REQUIRED`), but My School never SAYS so: the gaps and review
   cards are silently absent and New Submission opens with an empty subject
   list. The "accepted at creation, visible nowhere" family. Not fixed:
-  needs a banner like the consent card's, pointing at Edit Details. Reject-needs-a-comment is enforced in the
+  needs a banner like the consent card's, pointing at Edit Details.
+  **THEN AD SCHOOL'S VOTE SETTLED IT, AND THAT FOUND THE REAL BUG: A PEER
+  APPROVAL FILED NOTHING.** (2026-11-15; the owner recorded AD School's
+  consent, its curriculum was set to MOE National through Edit Details, and
+  its Approve answered "Vote recorded / Your vote settled it".)
+  `recordContributionReview` set the status to `approved` and wrote no
+  question to the bank, and the superadmin review route -- the only other
+  writer of contributed questions -- refuses an already-approved submission,
+  so peer-approved questions reached NO student by any path. `peer-review.mjs`
+  asserted the negative (P-11, a rejected one stays out) and never the
+  positive. P-07c now does (0 filed against the old code, 2 now). The
+  questions are filed in the vote's own transaction, under the catalogue's
+  subject NAME; a subject gone from the catalogue leaves the submission
+  unsettled at `peer_review` rather than approved with nothing filed.
+  Migration 047 files what was approved before the fix (the one live
+  submission); `migration-047-dryrun` (8 cases, three controls).
+  **Also seen:** after Edit Details saves a curriculum, the gaps and review
+  cards stay absent until the page is reloaded (their 409 is cached). Reject-needs-a-comment is enforced in the
   page only; the route accepts a reject without one.
 - **THE SCHOOL ADMIN CLICK WALK, 2026-11-15** (Test High School, build
   `6f7d438`). Per item in `docs/verification/school-admin.md`. Roster, CSV,
