@@ -1234,6 +1234,12 @@ so a student with one assessment in progress got a link to a raw 404.
     admin against AD School, build `feda372`): roster, add student and
     report export 403 "Can only access your own school"; read and rename of
     the school 403. This was harness-only until now.
+- **THE SIGN-IN FORM WAS AT `/login/student`, TITLED "Student Login", FOR
+  EVERY ROLE** (owner, 2026-11-15). School admins, parents' accounts and the
+  superadmin all sign in there, and it told each of them their password came
+  from their school. It is `/login/password` now, "Sign in" / "تسجيل
+  الدخول", and the old address redirects (`App.tsx`). Component and i18n
+  keys keep the `StudentLogin` / `studentLogin` names (identifiers, not text).
 - **A PASSWORD RESET DID NOT UNLOCK A LOCKED ACCOUNT (2026-11-15).** The
   owner reset a school admin from the Users tab and the new password was
   refused. Five wrong guesses lock an account for 15 minutes (`auth.ts`) and
@@ -1271,9 +1277,14 @@ so a student with one assessment in progress got a link to a raw 404.
   healthy); the real "Needs Changes" submission's feedback page; fixed and
   sent from the fix page, it went pending and the check passed it to peer
   review within 40 s; the review card reads "Nothing to review right now"
-  for Test High School (its own work is never in its queue). **Not seen
-  live:** a vote cast by ANOTHER school (needs AD or UAQ School's admin
-  signed in, and on MOE National). Reject-needs-a-comment is enforced in the
+  for Test High School (its own work is never in its queue). **A VOTE BY
+  ANOTHER SCHOOL, SEEN LIVE, build `f12e95a`** (UAQ School's admin): the
+  card offered Test High School's two submissions with no school named;
+  Submit is disabled with no vote and for Reject with no comment; Approve on
+  the Grade 10 Maths answered "Vote recorded" and the queue moved to the one
+  left; a second vote on it answered 409 `ALREADY_REVIEWED`. That
+  submission now holds 1 of 3 votes (2 agreeing decides), so it is NOT
+  decided; deciding it needs AD School's admin to vote too. Reject-needs-a-comment is enforced in the
   page only; the route accepts a reject without one.
 - **THE SCHOOL ADMIN CLICK WALK, 2026-11-15** (Test High School, build
   `6f7d438`). Per item in `docs/verification/school-admin.md`. Roster, CSV,

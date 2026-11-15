@@ -24,7 +24,8 @@ School's admin, signed in by the owner. ✅ clicked and held · ❌ broken ·
 | Top-up quote | ✅ | 2026-11-15 | 100 = AED 3,600, AED 36 each, 10% off; Pay online (test mode) and Request invoice offered. Payment itself walked 2026-11-14 |
 | New question submission | ✅ | 2026-11-15 | one Science Grade 9 question; empty Add says "Please enter a question"; check ran, row went "Pending LLM Check" -> "Peer review". ⚠️ "Submit 1 Questions" |
 | See reviewer feedback on "Needs Changes" | 🔧 | 2026-11-15 | built; live: the feedback page, then Fix and send again -> pending -> the check passed it to peer review |
-| Peer review other schools' questions | 🔧 | 2026-11-15 | built; live card reads "Nothing to review right now" for Test High School; a vote needs another school's admin signed in (harness: vote written, queue emptied) |
+| Peer review other schools' questions | 🔧 | 2026-11-15 | built; Test High School's card reads "Nothing to review right now" (its own work is never offered). As UAQ School's admin: card showed 2 waiting, Start reviewing opened Test High School's Grade 10 Maths with no school name on the page; Submit stays disabled until a vote is chosen, and for Reject until a comment is typed; Approve -> "Vote recorded", the queue moved on to the 1 left; a second vote on the same submission answered 409 `ALREADY_REVIEWED` |
+| Sign-in page address and wording | 🔧 | 2026-11-15 | was `/login/student`, titled "Student Login", for every role; now `/login/password`, "Sign in", old address redirects |
 | Question gaps ("what to write next") | 🔧 | 2026-11-15 | built; live 18 thin / 12 healthy; Write opens a submission for that cell |
 | Submission form asks country and curriculum | 🔧 | 2026-11-15 | no longer asks; live: "Questions go to your school's curriculum: MOE National" |
 | Roster status filter | ⚠️ | 2026-11-15 | "Completed" still lists the School Administrator row |
