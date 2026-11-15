@@ -1311,6 +1311,14 @@ so a student with one assessment in progress got a link to a raw 404.
   submission); `migration-047-dryrun` (8 cases, three controls).
   **SEEN LIVE, build `513b85e`**: AD School's gaps grid read Mathematics
   Grade 10 = 7 before the deploy and 9 after, the two approved questions.
+  **The author's side, live (Test High School, build `97d190a`):** both
+  peer-approved submissions read "Approved · In the question bank" (a label
+  that had been FALSE for peer approvals until the fix), Science Grade 9
+  went 10 -> 11, and the feedback page lists "Reviewer 1 · Approved /
+  Reviewer 2 · Approved" with no school named. It still printed the
+  superadmin's old "Please fix and resubmit" as THE reviewer's note over an
+  Approved badge; the note is now titled as an earlier one once the fix has
+  been sent back (`ContributionFeedback.tsx`).
   After Edit Details saved a curriculum, the gaps and review cards stayed
   absent until a reload (their cached 409); fixed with the box above. Reject-needs-a-comment is enforced in the
   page only; the route accepts a reject without one.
