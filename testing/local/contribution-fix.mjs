@@ -20,6 +20,7 @@
  *   X-08  a NEW submission with no country or curriculum takes the school's
  *         (the form no longer asks)
  *   X-09  control: a curriculum that is not the school's is still refused
+ *   X-10  the school's list does not hand over the reviewing superadmin's id
  */
 import { build, Session } from "./fixtures.mjs";
 
@@ -131,6 +132,11 @@ try {
 
   const wrong = await A.session.post(`/api/contributions/submit`, { ...fresh, curriculum: "Not A Curriculum" });
   rec("X-09", "a curriculum that is not the school's is still refused", wrong.status === 400, `HTTP ${wrong.status} ${wrong.body?.error ?? ""}`);
+
+  await sql(`UPDATE contribution_submissions SET reviewed_by_user_id = $2 WHERE id = $1`, [id2, adminId]);
+  const list = await A.session.get(`/api/contributions/submissions`);
+  const mine = Array.isArray(list.body) ? list.body.find((x) => x.id === id2) : null;
+  rec("X-10", "the school's list carries no reviewer id", !!mine && !("reviewedByUserId" in mine), `keys=${mine ? Object.keys(mine).length : "none"}`);
 } finally {
   for (const id of made) await sql(`DELETE FROM contribution_submissions WHERE id = $1`, [id]);
 }

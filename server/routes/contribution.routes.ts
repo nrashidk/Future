@@ -471,7 +471,9 @@ router.get("/submissions", isAuthenticated, checkOrgAdmin, async (req: Request, 
     const submissions = await storage.getContributionSubmissionsByOrg(member.organizationId);
     
     // Enrich with country names
-    const enrichedSubmissions = await Promise.all(submissions.map(async (s) => {
+    // `reviewedByUserId` is a SUPERADMIN's account id: nothing on the school's
+    // screen uses it, and a school has no business holding staff ids.
+    const enrichedSubmissions = await Promise.all(submissions.map(async ({ reviewedByUserId: _staff, ...s }) => {
       const country = await storage.getCountryById(s.countryId);
       return {
         ...s,
