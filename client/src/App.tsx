@@ -35,6 +35,8 @@ const Disclaimer = lazyPage(() => import("@/pages/Disclaimer"));
 const Profile = lazyPage(() => import("@/pages/Profile"));
 const DeleteAccount = lazyPage(() => import("@/pages/DeleteAccount"));
 const StudentProgress = lazyPage(() => import("@/pages/StudentProgress"));
+const ContributionFeedback = lazyPage(() => import("@/pages/ContributionFeedback"));
+const ContributionFix = lazyPage(() => import("@/pages/ContributionFix"));
 const NotFound = lazyPage(() => import("@/pages/not-found"));
 
 function PageLoader() {
@@ -168,6 +170,8 @@ function Router() {
         <Route path="/progress" component={StudentProgress} />
         <Route path="/admin" component={Admin} />
         <Route path="/admin/organizations" component={AdminOrganizations} />
+        <Route path="/my-school/contributions/:id/fix" component={ContributionFix} />
+        <Route path="/my-school/contributions/:id" component={ContributionFeedback} />
         <Route path="/superadmin" component={SuperadminDashboard} />
         <Route path="/login" component={Login} />
         <Route path="/login/student" component={StudentLogin} />

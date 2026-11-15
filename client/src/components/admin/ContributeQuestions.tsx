@@ -1,6 +1,7 @@
 import { subjectCodeLabel } from "@shared/subjects";
 import { fmtDate } from "@/lib/formatDate";
 import { useState, useRef } from "react";
+import { Link } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,7 +50,7 @@ interface Submission {
   curriculum: string;
   subject: string;
   grade: number;
-  status: "pending" | "peer_review" | "llm_verified" | "in_review" | "approved" | "rejected" | "needs_changes";
+  status: "pending" | "peer_review" | "llm_verified" | "in_review" | "approved" | "claimed" | "rejected" | "needs_changes";
   // The server's name. This read `questionCount`, which nothing sends, so the
   // Questions column of a school's own submissions was blank.
   totalQuestions: number;
@@ -83,7 +84,7 @@ interface Question {
 const COGNITIVE_LEVEL_KEYS = ["knowledge", "comprehension", "application", "analysis"] as const;
 const DIFFICULTY_KEYS = ["easy", "medium", "hard"] as const;
 
-function makeStatusBadge(status: string, t: (key: string) => string, llmStatus?: string | null) {
+export function makeStatusBadge(status: string, t: (key: string) => string, llmStatus?: string | null) {
   switch (status) {
     case "pending":
       // "Pending LLM Check" is only true while the check has not answered.
@@ -436,6 +437,30 @@ export default function ContributeQuestions() {
     setCsvErrors([]);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
+    }
+  };
+
+  /**
+   * What the school can do about each submission. "Needs Changes" was a dead
+   * end until 2026-11-15: no screen showed why, and nothing could amend it.
+   */
+  const nextStep = (sub: Submission) => {
+    switch (sub.status) {
+      case "needs_changes":
+        return (
+          <Button asChild size="sm" data-testid={`button-see-feedback-${sub.id}`}>
+            <Link href={`/my-school/contributions/${sub.id}`}>{t('contributions.seeFeedbackFix')}</Link>
+          </Button>
+        );
+      case "rejected":
+        return <Link href={`/my-school/contributions/${sub.id}`} className="text-primary hover:underline" data-testid={`link-why-rejected-${sub.id}`}>{t('contributions.whyRejected')}</Link>;
+      case "peer_review":
+        return <span className="text-muted-foreground">{t('contributions.waitingSchools')}</span>;
+      case "approved":
+      case "claimed":
+        return <span className="text-muted-foreground">{t('contributions.inTheBank')}</span>;
+      default:
+        return <span className="text-muted-foreground">{t('contributions.waitingReview')}</span>;
     }
   };
 
@@ -891,6 +916,7 @@ export default function ContributeQuestions() {
                   <TableHead>{t('contributions.statusLabel')}</TableHead>
                   <TableHead>{t('contributions.creditsLabel')}</TableHead>
                   <TableHead>{t('contributions.submittedLabel')}</TableHead>
+                  <TableHead>{t('contributions.nextStep')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -919,6 +945,7 @@ export default function ContributeQuestions() {
                     <TableCell className="text-muted-foreground text-sm">
                       {fmtDate(sub.createdAt)}
                     </TableCell>
+                    <TableCell className="text-sm">{nextStep(sub)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
