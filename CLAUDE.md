@@ -1234,6 +1234,16 @@ so a student with one assessment in progress got a link to a raw 404.
     admin against AD School, build `feda372`): roster, add student and
     report export 403 "Can only access your own school"; read and rename of
     the school 403. This was harness-only until now.
+- **THE STUDENT CLICK WALK, 2026-11-15** (`salm.alktby`, per item in
+  `docs/verification/student.md`). **THE REPORT CALLED 20% SCORES "TOP
+  STRENGTHS"**: the national-vision sentence on the page and in the PDF
+  named the two best quiz subjects whatever they scored ("Your top
+  strengths in English and Science", 20% each, beneath "13% Room to Grow").
+  The 50% rule of 2026-11-14 had covered the next-steps line only. It is now
+  ONE rule, `shared/subjectStrength.ts` (4 tests), used by `Results.tsx`,
+  `ResultsPrint.tsx` and `premiumNarratives.ts`; with no subject at 50% the
+  sentence falls back to the generic one, and the section heading reads
+  "Your Subject Results". Seen live in both languages, build `682615f`.
 - **THE SIGN-IN FORM WAS AT `/login/student`, TITLED "Student Login", FOR
   EVERY ROLE** (owner, 2026-11-15). School admins, parents' accounts and the
   superadmin all sign in there, and it told each of them their password came
