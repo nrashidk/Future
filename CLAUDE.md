@@ -1319,6 +1319,11 @@ so a student with one assessment in progress got a link to a raw 404.
   superadmin's old "Please fix and resubmit" as THE reviewer's note over an
   Approved badge; the note is now titled as an earlier one once the fix has
   been sent back (`ContributionFeedback.tsx`).
+  **The automatic check's notes are withheld once questions are approved**
+  (owner, 2026-11-15: "they should disappear"), by the server
+  (`shared/contributionFeedback.ts`, status `approved`/`claimed`; test with
+  the `needs_changes` control). Seen live, build `fdc6199`: the approved
+  Maths submission's page reads "No notes on this question" under both.
   After Edit Details saved a curriculum, the gaps and review cards stayed
   absent until a reload (their cached 409); fixed with the box above. Reject-needs-a-comment is enforced in the
   page only; the route accepts a reject without one.
