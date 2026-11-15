@@ -836,6 +836,15 @@ export class DatabaseStorage implements IStorage {
         safeUpdateData[key] = (userData as any)[key];
       }
     }
+    // A NEW PASSWORD UNLOCKS THE ACCOUNT. Lockout (auth.ts) is cleared only
+    // by a successful login, so an account locked by five wrong guesses
+    // stayed locked for 15 minutes after a superadmin or school reset -- the
+    // new password was refused as "temporarily locked" and the reset read as
+    // broken (found 2026-11-15, a school admin reset from the Users tab).
+    if (safeUpdateData.passwordHash !== undefined) {
+      safeUpdateData.failedLoginAttempts = 0;
+      safeUpdateData.lockedUntil = null;
+    }
     
     const [user] = await db
       .insert(users)

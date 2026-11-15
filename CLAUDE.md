@@ -167,7 +167,7 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `migration-039-dryrun`, plus `premium-solo`, `individual-licences` and
 `migration-041-dryrun` and `migration-042-dryrun`, plus
 `erase-after-email-change`, `erase-charged-student` and `country-delete`, plus
-`reserved-email`, `free-signup`, `school-topup`, `analytics-sectors`, `contribution-fix`, `migration-045-dryrun`, `migration-046-dryrun` and `migration-044-dryrun` (run 044's dry-run LAST: between its
+`reserved-email`, `reset-unlocks`, `free-signup`, `school-topup`, `analytics-sectors`, `contribution-fix`, `migration-045-dryrun`, `migration-046-dryrun` and `migration-044-dryrun` (run 044's dry-run LAST: between its
 DOWN and UP the app's schema is missing two `users` columns).
 
 `webhook-idempotency`, `webhook-group-backstop` and `setup-invite` need two
@@ -1234,6 +1234,21 @@ so a student with one assessment in progress got a link to a raw 404.
     admin against AD School, build `feda372`): roster, add student and
     report export 403 "Can only access your own school"; read and rename of
     the school 403. This was harness-only until now.
+- **A PASSWORD RESET DID NOT UNLOCK A LOCKED ACCOUNT (2026-11-15).** The
+  owner reset a school admin from the Users tab and the new password was
+  refused. Five wrong guesses lock an account for 15 minutes (`auth.ts`) and
+  ONLY a successful login cleared that, so every reset -- superadmin, school,
+  forgot-password, setup link -- handed a locked-out person a password that
+  could not work until the lock ran out. `storage.upsertUser` now clears
+  `failed_login_attempts`/`locked_until` whenever it writes a password hash,
+  and the two direct UPDATEs (`password-reset.routes.ts`,
+  `schoolSetup.routes.ts`) do the same. `reset-unlocks.mjs` (4 cases; U-01
+  and U-04 the controls that lockout still works). Against the old code U-02
+  and U-03 fail with `login=401 locked=true`. **Flagged, not changed
+  (`auth.ts`):** the login limiter allows 5 attempts per 15 minutes PER
+  ADDRESS and counts successful sign-ins too, so signing in as several roles
+  from one place in quick succession is refused with "Too many login
+  attempts", which a reset cannot clear.
 - **THE THREE CONTRIBUTION SCREENS ARE BUILT (2026-11-15, owner approved
   the mockups and four decisions: edit in place, a fix does not count toward
   the daily limit, peers vote Approve/Reject only, the check's notes are

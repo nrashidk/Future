@@ -239,6 +239,9 @@ export function registerPasswordResetRoutes(app: Express) {
         await tx.update(users)
           .set({ 
             passwordHash: hashedPassword,
+            // A new password unlocks the account (see storage.upsertUser).
+            failedLoginAttempts: 0,
+            lockedUntil: null,
             updatedAt: new Date(),
           })
           .where(eq(users.id, resetToken.userId));

@@ -188,7 +188,7 @@ export function registerSchoolSetupRoutes(app: Express) {
 
         await tx
           .update(users)
-          .set({ passwordHash, updatedAt: new Date() })
+          .set({ passwordHash, failedLoginAttempts: 0, lockedUntil: null, updatedAt: new Date() })
           .where(eq(users.id, row.userId));
       });
 
