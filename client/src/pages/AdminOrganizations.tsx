@@ -676,6 +676,31 @@ function AdminOrganizationsPage() {
               <OrganizationConsentCard schoolName={selectedOrg.name} />
             )}
 
+            {/* A SCHOOL WITH NO COUNTRY OR CURRICULUM IS TOLD SO (2026-11-15).
+                Without both, enrolment, writing questions and reviewing other
+                schools are all refused (409 SCHOOL_SETUP_REQUIRED), and before
+                this the page said nothing: two cards were silently absent and
+                New Submission opened with an empty subject list. AD School sat
+                in that state on production. The fix is in Edit Details. */}
+            {user?.accountType === 'org_admin' && selectedOrg && (!selectedOrg.countryId || !selectedOrg.curriculum) && (
+              <Card className="border-amber-400" data-testid="card-school-setup-missing">
+                <CardContent className="pt-6 flex flex-col sm:flex-row sm:items-center gap-4 justify-between">
+                  <div className="flex gap-3">
+                    <AlertTriangle className="w-5 h-5 mt-0.5 text-amber-600 shrink-0" />
+                    <div className="space-y-1">
+                      <p className="font-semibold">
+                        {!selectedOrg.countryId ? t('orgs.setupMissingCountryTitle') : t('orgs.setupMissingCurriculumTitle')}
+                      </p>
+                      <p className="text-sm text-muted-foreground">{t('orgs.setupMissingBody')}</p>
+                    </div>
+                  </div>
+                  <Button onClick={() => setIsEditOrgDialogOpen(true)} data-testid="button-setup-missing-edit">
+                    {t('orgs.setupMissingAction')}
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Organization Details - Centered */}
             <Card>
               <CardHeader>
@@ -708,6 +733,10 @@ function AdminOrganizationsPage() {
                         onSuccess={() => {
                           setIsEditOrgDialogOpen(false);
                           queryClient.invalidateQueries({ queryKey: ['/api/admin/organizations'] });
+                          // These answer 409 until a curriculum is set, and a
+                          // cached 409 kept their cards hidden after the save.
+                          queryClient.invalidateQueries({ queryKey: ['/api/contributions/gaps'] });
+                          queryClient.invalidateQueries({ queryKey: ['/api/contributions/review-queue'] });
                         }}
                       />
                     </DialogContent>

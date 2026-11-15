@@ -1289,8 +1289,11 @@ so a student with one assessment in progress got a link to a raw 404.
   `8ea8e29`; also no consent). Correctly refused (409
   `SCHOOL_SETUP_REQUIRED`), but My School never SAYS so: the gaps and review
   cards are silently absent and New Submission opens with an empty subject
-  list. The "accepted at creation, visible nowhere" family. Not fixed:
-  needs a banner like the consent card's, pointing at Edit Details.
+  list. The "accepted at creation, visible nowhere" family. **Fixed**: a
+  school admin whose school lacks either now sees a box under the consent
+  card (`card-school-setup-missing`, both languages) whose button opens Edit
+  Details, and saving refreshes the gaps and review cards. Driven in a
+  browser against the harness, English and Arabic; no suite (one page).
   **THEN AD SCHOOL'S VOTE SETTLED IT, AND THAT FOUND THE REAL BUG: A PEER
   APPROVAL FILED NOTHING.** (2026-11-15; the owner recorded AD School's
   consent, its curriculum was set to MOE National through Edit Details, and
@@ -1306,8 +1309,8 @@ so a student with one assessment in progress got a link to a raw 404.
   unsettled at `peer_review` rather than approved with nothing filed.
   Migration 047 files what was approved before the fix (the one live
   submission); `migration-047-dryrun` (8 cases, three controls).
-  **Also seen:** after Edit Details saves a curriculum, the gaps and review
-  cards stay absent until the page is reloaded (their 409 is cached). Reject-needs-a-comment is enforced in the
+  After Edit Details saved a curriculum, the gaps and review cards stayed
+  absent until a reload (their cached 409); fixed with the box above. Reject-needs-a-comment is enforced in the
   page only; the route accepts a reject without one.
 - **THE SCHOOL ADMIN CLICK WALK, 2026-11-15** (Test High School, build
   `6f7d438`). Per item in `docs/verification/school-admin.md`. Roster, CSV,

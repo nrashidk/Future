@@ -423,7 +423,11 @@
     "removalEraseBulkBtn": "Delete selected records permanently",
     "removalHasReport": "This student has a completed report. Keeping the account leaves them their report and removes them from the school; deleting the record removes both permanently.",
     "removalNoReport": "This student has no completed report — their account holds only login credentials.",
-    "countryGateHint": "Required. Students cannot be enrolled until the country and curriculum are both set."
+    "countryGateHint": "Required. Students cannot be enrolled until the country and curriculum are both set.",
+    "setupMissingCountryTitle": "Your school has no country yet",
+    "setupMissingCurriculumTitle": "Your school has no curriculum yet",
+    "setupMissingBody": "Until it has one, you cannot add students, write questions or review other schools' questions. It decides which questions your students get.",
+    "setupMissingAction": "Set it in Edit Details"
   },
   "superadmin": {
     "title": "Super Admin Dashboard",
