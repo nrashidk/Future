@@ -4,6 +4,7 @@ import {
   isEncryptedFormat,
 } from "./utils/encryption";
 import { permuteOptionsForStorage } from "./utils/quiz";
+import { getCurrentAcademicYear } from "./utils/subjects";
 // Storage-free by design (see the header of subjectMap.ts), so importing it here
 // cannot pull db into the DB-free consumers. utils/subjects.ts is the module that
 // must NOT be imported here: it imports storage, and the pair would cycle.
@@ -5076,6 +5077,69 @@ export class DatabaseStorage implements IStorage {
       let decided: "approved" | "rejected" | null = null;
       if (approvals >= REVIEW_MAJORITY) decided = "approved";
       else if (rejections >= REVIEW_MAJORITY) decided = "rejected";
+
+      /**
+       * AN APPROVED SUBMISSION'S QUESTIONS GO INTO THE BANK, IN THIS SAME
+       * TRANSACTION (found 2026-11-15 on the first live peer approval).
+       *
+       * Until then a peer approval set the status and nothing else. The
+       * superadmin's review route is the only other writer of contributed
+       * questions, and it refuses a submission that is already `approved`,
+       * so peer-approved questions reached no student by any path -- the
+       * whole point of the feature, silently missing. `peer-review.mjs` P-07c.
+       *
+       * Filed under the subject's NAME from the catalogue, never the code the
+       * school submitted: the quiz pool matches names exactly (see the
+       * superadmin review route's long note on the same trap). If the subject
+       * has left the catalogue since, the submission is NOT settled -- the vote
+       * stands, it stays at peer_review where a superadmin sees it, and the
+       * review route there explains SUBJECT_NOT_IN_CATALOGUE. Settling it with
+       * nothing filed would be the defect this block exists to close.
+       */
+      if (decided === "approved") {
+        const [catalogued] = await tx
+          .select({ name: subjects.name })
+          .from(subjects)
+          .where(
+            and(
+              eq(subjects.countryId, submission.countryId),
+              eq(subjects.curriculum, submission.curriculum),
+              eq(subjects.code, submission.subject),
+            ),
+          );
+        if (!catalogued) {
+          console.error(
+            `[Contribution] Peer approval of ${params.submissionId} not settled: subject ` +
+            `'${submission.subject}' is not in the ${submission.curriculum} catalogue.`,
+          );
+          decided = null;
+        } else {
+          const academicYear = getCurrentAcademicYear();
+          const rows = ((submission.questions as any[]) ?? []).filter(Boolean).map((q) => {
+            const permuted = permuteOptionsForStorage(q.options, undefined);
+            return {
+              question: q.question,
+              questionType: "multiple_choice",
+              options: permuted.options as any,
+              correctAnswer: q.correctAnswer,
+              explanation: q.explanation || null,
+              subject: catalogued.name,
+              grade: submission.grade,
+              countryId: submission.countryId,
+              curriculum: submission.curriculum,
+              topic: q.topic,
+              difficulty: q.difficulty,
+              cognitiveLevel: q.cognitiveLevel,
+              sourceType: "school_contribution",
+              contributedByOrgId: submission.organizationId,
+              contributionSubmissionId: submission.id,
+              isLlmGenerated: false,
+              academicYear,
+            } as InsertQuizQuestion;
+          });
+          if (rows.length) await tx.insert(quizQuestions).values(rows);
+        }
+      }
 
       if (decided) {
         await tx

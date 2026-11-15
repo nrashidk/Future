@@ -170,6 +170,19 @@ let submissionId = null;
   rec("P-07", "the submission's status follows the decision",
     row?.status === "approved", `status=${row?.status}`);
 
+  // THE POSITIVE HALF OF "THE QUESTIONS FOLLOW THE DECISION". P-11 proved a
+  // rejected submission stays out of the bank; nothing proved an approved one
+  // gets IN, and until 2026-11-15 it did not: a peer approval set the status
+  // and nothing else, so the questions reached no student by any path.
+  const filed = await sql(
+    `SELECT subject, grade, country_id, curriculum, source_type, contributed_by_org_id
+       FROM quiz_questions WHERE contribution_submission_id = $1`, [submissionId]);
+  rec("P-07c", "an approved submission's questions are in the bank, under the subject's NAME",
+    filed.length === 2 && filed.every((q) => q.subject === "Mathematics" && String(q.grade) === "10"
+      && q.country_id === "uae" && q.curriculum === "MOE National"
+      && q.source_type === "school_contribution" && q.contributed_by_org_id === A.orgId),
+    `${filed.length} filed ${JSON.stringify(filed[0] ?? {})}`);
+
   // And a late vote finds it closed rather than reopening it.
   const late = await extra[1].session.post(`/api/contributions/review/${submissionId}`, { vote: "reject" });
   rec("P-07b", "a late vote cannot reopen a settled submission",
