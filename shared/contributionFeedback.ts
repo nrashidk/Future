@@ -10,13 +10,20 @@
  * decision): a number invites arguing over the mark instead of fixing the
  * question. Only the `issues` strings leave the server, indexed to the
  * question they are about, and only for a check that actually ran.
+ *
+ * AND NOT ONCE THE QUESTIONS ARE APPROVED (owner, 2026-11-15): notes like
+ * "lacks rigor for Grade 10" printed under a question that is already in the
+ * bank read as a verdict the approval contradicts. They exist to help a fix.
  */
+const APPROVED = new Set(["approved", "claimed"]);
 export function authorFeedbackDetail(submission: {
+  status?: string | null;
   subject: string; grade: number; curriculum: string; countryId: string;
   questions: unknown; reviewFeedback: string | null; reviewedAt: Date | null;
   llmVerificationStatus: string | null; llmVerificationFeedback: unknown; createdAt: Date | null;
 }) {
-  const ran = submission.llmVerificationStatus === "verified" || submission.llmVerificationStatus === "failed";
+  const approved = APPROVED.has(submission.status ?? "");
+  const ran = !approved && submission.llmVerificationStatus === "verified" || submission.llmVerificationStatus === "failed";
   const raw = ran && Array.isArray(submission.llmVerificationFeedback) ? submission.llmVerificationFeedback : [];
   const checkNotes = raw
     .map((f: any) => ({

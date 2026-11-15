@@ -30,6 +30,12 @@ describe("authorFeedbackDetail", () => {
     expect(authorFeedbackDetail({ ...base, llmVerificationStatus: "unavailable" }).checkNotes).toEqual([]);
     expect(authorFeedbackDetail({ ...base, llmVerificationStatus: "pending" }).checkNotes).toEqual([]);
   });
+  it("sends no check notes once the questions are approved (owner's decision)", () => {
+    expect(authorFeedbackDetail({ ...base, status: "approved" }).checkNotes).toEqual([]);
+    expect(authorFeedbackDetail({ ...base, status: "claimed" }).checkNotes).toEqual([]);
+    // Control: still sent while there is something to fix.
+    expect(authorFeedbackDetail({ ...base, status: "needs_changes" }).checkNotes).toHaveLength(2);
+  });
   it("drops malformed entries rather than guessing which question they meant", () => {
     const d = authorFeedbackDetail({ ...base, llmVerificationFeedback: [{ issues: ["x"] }, { index: 2, issues: [] }, { index: 1, issues: [5, "ok"] }] });
     expect(d.checkNotes).toEqual([{ questionIndex: 0, issues: ["ok"] }]);
