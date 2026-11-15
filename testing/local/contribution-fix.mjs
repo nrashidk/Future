@@ -17,6 +17,9 @@
  *   X-05  an invalid body is refused 400 and changes nothing
  *   X-06  a student cannot resubmit
  *   X-07  another school cannot read the feedback either
+ *   X-08  a NEW submission with no country or curriculum takes the school's
+ *         (the form no longer asks)
+ *   X-09  control: a curriculum that is not the school's is still refused
  */
 import { build, Session } from "./fixtures.mjs";
 
@@ -116,6 +119,18 @@ try {
   rec("X-07", "another school cannot read the feedback",
     !isHtml(readB.body) && [403, 404].includes(readB.status) && !JSON.stringify(readB.body).includes("two correct options"),
     `HTTP ${readB.status}`);
+
+  const fresh = { subject: "science", grade: 9, questions: [{ ...NEW[0], question: "ZZ new: which gas do plants take in for photosynthesis?", options: ["Oxygen", "Carbon dioxide", "Nitrogen", "Hydrogen"], correctAnswer: "Carbon dioxide", topic: "Photosynthesis" }] };
+  const sub = await A.session.post(`/api/contributions/submit`, fresh);
+  if (sub.body?.submissionId) made.push(sub.body.submissionId);
+  const [newRow] = sub.body?.submissionId ? await sql(`SELECT country_id, curriculum FROM contribution_submissions WHERE id = $1`, [sub.body.submissionId]) : [];
+  const [school] = await sql(`SELECT country_id, curriculum FROM organizations WHERE id = $1`, [A.orgId]);
+  rec("X-08", "new submission without country/curriculum takes the school's",
+    sub.status === 201 && newRow?.country_id === school.country_id && newRow?.curriculum === school.curriculum,
+    `HTTP ${sub.status} ${JSON.stringify(newRow)} school=${JSON.stringify(school)} ${sub.body?.error ?? ""}`);
+
+  const wrong = await A.session.post(`/api/contributions/submit`, { ...fresh, curriculum: "Not A Curriculum" });
+  rec("X-09", "a curriculum that is not the school's is still refused", wrong.status === 400, `HTTP ${wrong.status} ${wrong.body?.error ?? ""}`);
 } finally {
   for (const id of made) await sql(`DELETE FROM contribution_submissions WHERE id = $1`, [id]);
 }

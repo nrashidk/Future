@@ -304,8 +304,10 @@ const questionSchema = z.object({
 });
 
 const submitQuestionsSchema = z.object({
-  countryId: z.string().min(1),
-  curriculum: z.string().min(1),
+  // Optional since 2026-11-15: they are the SCHOOL's, and the form no longer
+  // asks. Sent, they must still match the school (checked below).
+  countryId: z.string().min(1).optional(),
+  curriculum: z.string().min(1).optional(),
   subject: z.string().min(1),
   grade: z.number().int().min(8).max(12),
   questions: z.array(questionSchema).min(1).max(MAX_QUESTIONS_PER_SUBMISSION),
@@ -764,7 +766,18 @@ router.post("/submit", isAuthenticated, checkOrgAdmin, async (req: Request, res:
       });
     }
 
-    const { countryId, curriculum, subject, grade, questions } = parsed.data;
+    const { subject, grade, questions } = parsed.data;
+
+    // A school teaches one curriculum in one country, so the form does not
+    // ask for either (owner, 2026-11-15). Absent, they are the school's;
+    // present, they are checked against the school's below, as before.
+    const setupFirst = await requireSchoolSetup(storage, member.organizationId);
+    if (!setupFirst.allowed) {
+      return res.status(setupFirst.status).json(setupFirst.body);
+    }
+    const school = await storage.getOrganizationById(member.organizationId);
+    const countryId = parsed.data.countryId ?? school!.countryId!;
+    const curriculum = parsed.data.curriculum ?? school!.curriculum!;
 
     // Verify country exists
     const country = await storage.getCountryById(countryId);
