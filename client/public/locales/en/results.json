@@ -9,7 +9,7 @@
   "retry": "Try Again",
   "goBack": "Go Back",
 
-  "subjectStrengthsTitle": "Your Subject Strengths",
+  "subjectStrengthsTitle": "Your Subject Results",
   "subjectStrengthsSubtitle": "We tested your skills in your favorite subjects to validate your career matches",
   "overallScore": "Overall Score",
   "masteryExcellent": "Excellent Mastery",
@@ -22,7 +22,7 @@
   "insightGrowth": "Don't worry! The recommendations highlight careers where you can build on your interests while developing your skills.",
   "insightValidation": "Your career recommendations below consider both your interests AND demonstrated competencies to ensure the best matches.",
   "connectingVision": "Connecting to National Vision:",
-  "visionGeneric": "Each recommendation shows how your subject strengths enable you to contribute to national development priorities and future goals.",
+  "visionGeneric": "Each recommendation shows how your subjects connect to national development priorities and future goals.",
   "visionLinkageText": "Your top strengths in {{subjects}} directly align with {{country}}'s {{categories}} priorities in their national vision.",
   "and": "and",
   "visionCategoryTech": "Technology",
