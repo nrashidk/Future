@@ -1650,7 +1650,17 @@ so a student with one assessment in progress got a link to a raw 404.
     invoice events.
   - (FIXED 2026-11-13) The header tiles did not refresh after an invoice was
     marked paid.
-  - The Files tab says "No files found" and has no upload control.
+  - **THE FILES TAB CAN NEVER SHOW ANYTHING** (read 2026-11-15). Rows reach
+    `files` two ways: `POST /api/files/upload` (superadmin-only, NO screen
+    calls it) and `POST /api/admin/organizations/:id/import-students`, which
+    stores the school's CSV — and NO screen calls that either: the roster's
+    bulk upload parses the CSV in the browser and posts JSON to
+    `/members/bulk`. So no school upload lands there, and the tab's delete
+    (one click, no confirmation) has nothing to delete. Still live with no
+    caller: the upload, a share-link generator, and the UNAUTHENTICATED
+    one-time `GET /api/files/shared/:token`. Not a hole today (no rows),
+    but surface over minors' data with no purpose. Removing it is the
+    owner's decision; not changed.
   - A school created by a superadmin reads "Signed in, unfinished" before
     anyone has signed in.
   - Dates are M/D/Y on the dashboard and D/M/Y on the profile.
