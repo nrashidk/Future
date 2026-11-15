@@ -1291,6 +1291,19 @@ so a student with one assessment in progress got a link to a raw 404.
   request answered 502 with no restart, the retry 200 in 38 s (seen once,
   cause unknown); the values step prints each statement's value name, as
   the personality step prints its theme.
+- **THE GUEST AND FREE-ACCOUNT CLICK WALK, 2026-11-15** (per item in
+  `docs/verification/guest-and-free.md`, build `d74823c`). Signed out:
+  grade only, 6 steps, 15 questions, free report with 2 careers, PDF 403,
+  the 72-hour notice; the strength rule holds on the free report (100% and
+  60% named, 40% not). "Create Account" -> `/register/parent` -> the owner
+  typed email, password and consents -> landed on the SAME report with the
+  child's details, notice gone, confirm banner, profile "1 of 3", account a
+  free `individual` on no pool. **Registration took ~25 s because the Free
+  instance had slept and that click woke it** (`startedAt` 25 s before the
+  account's confirmation deadline was set); a buyer or parent who presses
+  once on a sleeping site waits that long with no message. **Left on
+  production:** "Nasser Walk Check", unconfirmed, erased after
+  2026-11-18T10:41Z unless confirmed.
 - **THE SIGN-IN FORM WAS AT `/login/student`, TITLED "Student Login", FOR
   EVERY ROLE** (owner, 2026-11-15). School admins, parents' accounts and the
   superadmin all sign in there, and it told each of them their password came
