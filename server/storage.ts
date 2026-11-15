@@ -4744,6 +4744,7 @@ export class DatabaseStorage implements IStorage {
     countryId: string;
     curriculum: string;
     target: number;
+    healthy: number;
     cells: Array<{
       subject: string;
       grade: string;
@@ -4821,7 +4822,7 @@ export class DatabaseStorage implements IStorage {
       totalShortfall: cells.reduce((n, c) => n + c.shortfall, 0),
     };
 
-    return { countryId, curriculum, target: TARGET_PER_CELL, cells, summary };
+    return { countryId, curriculum, target: TARGET_PER_CELL, healthy: HEALTHY_PER_CELL, cells, summary };
   }
 
 

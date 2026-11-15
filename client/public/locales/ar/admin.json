@@ -1259,7 +1259,19 @@
     "fixFailed": "تعذّر الإرسال",
     "fixNotWaiting": "هذا الطلب لم يعد بانتظار التعديل.",
     "fixInvalid": "يحتاج كل سؤال إلى 10 أحرف على الأقل وأربعة خيارات وموضوع.",
-    "fixDuplicate": "السؤال {{n}} موجود في بنك الأسئلة."
+    "fixDuplicate": "السؤال {{n}} موجود في بنك الأسئلة.",
+    "gapsTitle": "ماذا تكتب بعد ذلك",
+    "gapsDesc": "يحصل الطالب على {{n}} أسئلة في كل مادة من صفّه. الخانة الضعيفة تعني أن طلاب ذلك الصف يرون الأسئلة نفسها تقريباً.",
+    "gapsEmpty": "فارغة",
+    "gapsShort": "ناقصة",
+    "gapsThin": "ضعيفة",
+    "gapsOk": "جيدة",
+    "gapsWrite": "اكتب",
+    "gapsLegendEmpty": "لا أسئلة",
+    "gapsLegendShort": "أقل من {{n}}",
+    "gapsLegendThin": "من {{n}} إلى {{m}}",
+    "gapsLegendOk": "{{m}} أو أكثر",
+    "gapsSummary": "الآن: {{empty}} فارغة · {{short}} ناقصة · {{thin}} ضعيفة · {{ok}} جيدة"
   },
   "countries": {
     "priceCol": "سعر الترخيص",

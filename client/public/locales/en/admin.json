@@ -1253,7 +1253,19 @@
     "fixFailed": "Could not send",
     "fixNotWaiting": "This submission is no longer waiting for changes.",
     "fixInvalid": "Each question needs at least 10 characters, four options and a topic.",
-    "fixDuplicate": "Question {{n}} is already in the question bank."
+    "fixDuplicate": "Question {{n}} is already in the question bank.",
+    "gapsTitle": "What to write next",
+    "gapsDesc": "A student gets {{n}} questions per subject at their own grade. A thin cell means students in that grade see nearly the same questions.",
+    "gapsEmpty": "Empty",
+    "gapsShort": "Short",
+    "gapsThin": "Thin",
+    "gapsOk": "Healthy",
+    "gapsWrite": "Write",
+    "gapsLegendEmpty": "no questions",
+    "gapsLegendShort": "under {{n}}",
+    "gapsLegendThin": "{{n}} to {{m}}",
+    "gapsLegendOk": "{{m}} or more",
+    "gapsSummary": "Now: {{empty}} empty · {{short}} short · {{thin}} thin · {{ok}} healthy"
   },
   "countries": {
     "priceCol": "Licence price",

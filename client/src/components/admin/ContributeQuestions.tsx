@@ -18,6 +18,7 @@ import { useToast } from "@/hooks/use-toast";
 import { queryClient, apiRequest, serverErrorMessage } from "@/lib/queryClient";
 import { useTranslation } from "react-i18next";
 import { StickyNote } from "@/components/StickyNote";
+import { QuestionGapsPanel } from "./QuestionGapsPanel";
 import { 
   Gift, Plus, Send, Clock, CheckCircle, XCircle, 
   AlertCircle, Trash2, Edit, HelpCircle, Star,
@@ -67,6 +68,7 @@ export interface QuestionGaps {
   countryId: string;
   curriculum: string;
   target: number;
+  healthy?: number;
   cells: Array<{ subject: string; grade: string; count: number; shortfall: number; status: "empty" | "short" | "thin" | "ok" }>;
   summary: { empty: number; short: number; thin: number; ok: number; totalShortfall: number };
 }
@@ -548,6 +550,17 @@ export default function ContributeQuestions() {
           </p>
         </CardContent>
       </Card>
+
+      {gaps && gaps.cells.length > 0 && (
+        <QuestionGapsPanel
+          gaps={gaps}
+          subjects={curriculumSubjects}
+          onWrite={(code, grade) => {
+            setSubmissionConfig({ subject: code, grade });
+            setIsSubmitDialogOpen(true);
+          }}
+        />
+      )}
 
       <Card>
         <CardHeader>
