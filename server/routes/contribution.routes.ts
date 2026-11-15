@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from "express";
 import { storage } from "../storage";
 import { requireSchoolSetup } from "../utils/schoolSetupGate";
 import { REVIEWS_REQUIRED, REVIEW_MAJORITY } from "@shared/schema";
+import { authorFeedbackDetail } from "@shared/contributionFeedback";
 
 /**
  * What a school earns for ONE review that matched the outcome.
@@ -636,6 +637,7 @@ router.get("/:id/feedback", isAuthenticated, checkOrgAdmin, async (req: Request,
       // infer it from a status word.
       discarded: submission.status === "rejected",
       reviews,
+      ...authorFeedbackDetail(submission),
     });
   } catch (error) {
     console.error("Error reading review feedback:", error);
