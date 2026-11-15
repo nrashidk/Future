@@ -1211,7 +1211,8 @@
     "csvRowMissingOptions": "Row {{row}}: Missing one or more options",
     "csvRowMissingAnswer": "Row {{row}}: Missing correct answer",
     "csvRowMissingTopic": "Row {{row}}: Missing topic",
-    "csvRowAnswerMismatch": "Row {{row}}: Correct answer does not match any option"
+    "csvRowAnswerMismatch": "Row {{row}}: Correct answer does not match any option",
+    "forSchoolCurriculum": "Questions go to your school's curriculum: {{curriculum}}"
   },
   "countries": {
     "priceCol": "Licence price",

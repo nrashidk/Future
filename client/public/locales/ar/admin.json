@@ -1217,7 +1217,8 @@
     "csvRowMissingOptions": "الصف {{row}}: خيار واحد أو أكثر مفقود",
     "csvRowMissingAnswer": "الصف {{row}}: الإجابة الصحيحة مفقودة",
     "csvRowMissingTopic": "الصف {{row}}: الموضوع مفقود",
-    "csvRowAnswerMismatch": "الصف {{row}}: الإجابة الصحيحة لا تتطابق مع أي خيار"
+    "csvRowAnswerMismatch": "الصف {{row}}: الإجابة الصحيحة لا تتطابق مع أي خيار",
+    "forSchoolCurriculum": "تُضاف الأسئلة إلى منهج مدرستك: {{curriculum}}"
   },
   "countries": {
     "priceCol": "سعر الترخيص",

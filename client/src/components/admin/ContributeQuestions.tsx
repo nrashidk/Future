@@ -62,12 +62,12 @@ interface Submission {
   llmVerificationScore?: number;
 }
 
-interface Country {
-  id: string;
-  name: string;
-  curricula: string[] | null;
-  subjects: string[] | null;
-  gradeLevels: string[] | null;
+export interface QuestionGaps {
+  countryId: string;
+  curriculum: string;
+  target: number;
+  cells: Array<{ subject: string; grade: string; count: number; shortfall: number; status: "empty" | "short" | "thin" | "ok" }>;
+  summary: { empty: number; short: number; thin: number; ok: number; totalShortfall: number };
 }
 
 interface Question {
@@ -129,9 +129,9 @@ export default function ContributeQuestions() {
     difficulty: "medium",
     cognitiveLevel: "comprehension",
   });
+  // Subject and grade only: the country and curriculum are the SCHOOL's
+  // (owner, 2026-11-15), and the server fills them in.
   const [submissionConfig, setSubmissionConfig] = useState({
-    countryId: "",
-    curriculum: "",
     subject: "",
     grade: 9,
   });
@@ -144,17 +144,17 @@ export default function ContributeQuestions() {
     queryKey: ['/api/contributions/submissions'],
   });
 
-  // Use public countries endpoint (accessible to all users including org_admins)
-  const { data: countries = [] } = useQuery<Country[]>({
-    queryKey: ['/api/countries'],
+  // The school's own country and curriculum, and what its bank is short of.
+  const { data: gaps } = useQuery<QuestionGaps>({
+    queryKey: ['/api/contributions/gaps'],
+    retry: false,
   });
+  const schoolCountryId = gaps?.countryId ?? "";
+  const schoolCurriculum = gaps?.curriculum ?? "";
 
-  const selectedCountry = countries.find(c => c.id === submissionConfig.countryId);
-
-  // Fetch curriculum-specific subjects when country and curriculum are selected
   const { data: curriculumSubjects = [] } = useQuery<{ id: string; name: string; code: string }[]>({
-    queryKey: ['/api/countries', submissionConfig.countryId, 'curricula', submissionConfig.curriculum, 'subjects'],
-    enabled: !!submissionConfig.countryId && !!submissionConfig.curriculum,
+    queryKey: ['/api/countries', schoolCountryId, 'curricula', schoolCurriculum, 'subjects'],
+    enabled: !!schoolCountryId && !!schoolCurriculum,
   });
 
   // CSV Upload state
@@ -165,7 +165,7 @@ export default function ContributeQuestions() {
   const [submissionMode, setSubmissionMode] = useState<"manual" | "csv">("manual");
 
   const submitMutation = useMutation({
-    mutationFn: async (data: { countryId: string; curriculum: string; subject: string; grade: number; questions: Question[] }) => {
+    mutationFn: async (data: { subject: string; grade: number; questions: Question[] }) => {
       return apiRequest('POST', '/api/contributions/submit', data);
     },
     onSuccess: () => {
@@ -243,7 +243,7 @@ export default function ContributeQuestions() {
       toast({ title: t('contributions.toastAddQuestion'), variant: "destructive" });
       return;
     }
-    if (!submissionConfig.countryId || !submissionConfig.curriculum || !submissionConfig.subject) {
+    if (!submissionConfig.subject) {
       toast({ title: t('contributions.toastSelectFields'), variant: "destructive" });
       return;
     }
@@ -548,61 +548,26 @@ export default function ContributeQuestions() {
 
                 <div className="space-y-6 py-4">
                   {/* Configuration Selects - shared between manual and CSV modes */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="space-y-2">
-                      <Label>{t('contributions.countryLabel')}</Label>
-                      <Select
-                        value={submissionConfig.countryId}
-                        onValueChange={(v) => setSubmissionConfig({...submissionConfig, countryId: v, curriculum: "", subject: ""})}
-                      >
-                        <SelectTrigger data-testid="select-country">
-                          <SelectValue placeholder={t('contributions.selectCountry')} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {countries.map((country) => (
-                            <SelectItem key={country.id} value={country.id}>{country.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>{t('contributions.curriculumLabel')}</Label>
-                      <Select
-                        value={submissionConfig.curriculum}
-                        onValueChange={(v) => setSubmissionConfig({...submissionConfig, curriculum: v, subject: ""})}
-                        disabled={!selectedCountry}
-                      >
-                        <SelectTrigger data-testid="select-curriculum">
-                          <SelectValue placeholder={t('contributions.selectCurriculum')} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {(selectedCountry?.curricula || []).map((c) => (
-                            <SelectItem key={c} value={c}>{c}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
+                  {schoolCurriculum && (
+                    <p className="text-sm text-muted-foreground" data-testid="text-school-curriculum">
+                      {t('contributions.forSchoolCurriculum', { curriculum: schoolCurriculum })}
+                    </p>
+                  )}
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label>{t('contributions.selectSubject')}</Label>
                       <Select
                         value={submissionConfig.subject}
                         onValueChange={(v) => setSubmissionConfig({...submissionConfig, subject: v})}
-                        disabled={!submissionConfig.curriculum}
+                        disabled={curriculumSubjects.length === 0}
                       >
                         <SelectTrigger data-testid="select-subject">
                           <SelectValue placeholder={t('contributions.selectSubject')} />
                         </SelectTrigger>
                         <SelectContent>
-                          {curriculumSubjects.length > 0 
-                            ? curriculumSubjects.map((s) => (
-                                <SelectItem key={s.id} value={s.code}>{s.name}</SelectItem>
-                              ))
-                            : (selectedCountry?.subjects || []).map((s) => (
-                                <SelectItem key={s} value={s}>{s}</SelectItem>
-                              ))
-                          }
+                          {curriculumSubjects.map((s) => (
+                            <SelectItem key={s.id} value={s.code}>{subjectCodeLabel(s.code, i18n.language)}</SelectItem>
+                          ))}
                         </SelectContent>
                       </Select>
                     </div>
