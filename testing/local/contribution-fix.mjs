@@ -21,6 +21,8 @@
  *         (the form no longer asks)
  *   X-09  control: a curriculum that is not the school's is still refused
  *   X-10  the school's list does not hand over the reviewing superadmin's id
+ *   X-11  the peer-review queue counts the votes already cast (it read 0
+ *         for every submission: an unqualified column in a subquery)
  */
 import { build, Session } from "./fixtures.mjs";
 
@@ -137,6 +139,16 @@ try {
   const list = await A.session.get(`/api/contributions/submissions`);
   const mine = Array.isArray(list.body) ? list.body.find((x) => x.id === id2) : null;
   rec("X-10", "the school's list carries no reviewer id", !!mine && !("reviewedByUserId" in mine), `keys=${mine ? Object.keys(mine).length : "none"}`);
+
+  const [{ admin_user_id: bAdmin }] = await sql(`SELECT admin_user_id FROM organizations WHERE id = $1`, [B.orgId]);
+  const [{ id: pr }] = await sql(
+    `INSERT INTO contribution_submissions (organization_id, submitted_by_user_id, country_id, curriculum, subject, grade, questions, total_questions, status)
+     VALUES ($1, $2, 'uae', 'MOE National', 'science', 9, '[]'::jsonb, 1, 'peer_review') RETURNING id`, [B.orgId, bAdmin]);
+  made.push(pr);
+  await sql(`INSERT INTO contribution_reviews (submission_id, reviewer_org_id, reviewer_user_id, vote) VALUES ($1, $2, $3, 'approve')`, [pr, B.orgId, bAdmin]);
+  const queue = (await A.session.get(`/api/contributions/review-queue`)).body;
+  const item = queue?.submissions?.find?.((x) => x.id === pr);
+  rec("X-11", "the review queue counts votes already cast", item?.reviewsSoFar === 1, `reviewsSoFar=${item?.reviewsSoFar}`);
 } finally {
   for (const id of made) await sql(`DELETE FROM contribution_submissions WHERE id = $1`, [id]);
 }

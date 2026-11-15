@@ -4890,10 +4890,6 @@ export class DatabaseStorage implements IStorage {
         totalQuestions: contributionSubmissions.totalQuestions,
         llmVerificationScore: contributionSubmissions.llmVerificationScore,
         createdAt: contributionSubmissions.createdAt,
-        reviewsSoFar: sql<number>`(
-          SELECT count(*)::int FROM ${contributionReviews}
-          WHERE ${contributionReviews.submissionId} = ${contributionSubmissions.id}
-        )`,
       })
       .from(contributionSubmissions)
       .where(
@@ -4921,7 +4917,23 @@ export class DatabaseStorage implements IStorage {
       .orderBy(contributionSubmissions.createdAt)
       .limit(limit);
 
-    return rows as any;
+    /**
+     * VOTES SO FAR, COUNTED SEPARATELY. This was a correlated subquery in the
+     * select list, and drizzle renders the outer `${contributionSubmissions.id}`
+     * there as a bare "id" -- which Postgres resolves against the INNER table,
+     * so it compared each review's own id with its submission id and every
+     * submission read 0 votes. Found 2026-11-15 the first time a screen showed
+     * the figure (one review planted, "0 of 3"). The bug family is in
+     * CLAUDE.md; a GROUP BY merged in code has nothing to mis-resolve.
+     */
+    const ids = rows.map((r) => r.id);
+    const counts = ids.length === 0 ? [] : await db
+      .select({ submissionId: contributionReviews.submissionId, n: sql<number>`count(*)::int` })
+      .from(contributionReviews)
+      .where(inArray(contributionReviews.submissionId, ids))
+      .groupBy(contributionReviews.submissionId);
+    const byId = new Map(counts.map((c) => [c.submissionId, c.n]));
+    return rows.map((r) => ({ ...r, reviewsSoFar: byId.get(r.id) ?? 0 })) as any;
   }
 
   /**
