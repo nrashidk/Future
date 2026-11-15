@@ -1296,7 +1296,8 @@
     "prFailed": "Could not record the vote",
     "prOneVote": "One vote per school. The author never learns which school voted.",
     "prAllDone": "Nothing left to review. Thank you.",
-    "prNotSetUp": "Your school's country and curriculum must be set before it can review."
+    "prNotSetUp": "Your school's country and curriculum must be set before it can review.",
+    "fbEarlierReviewerNote": "Earlier note, which you answered when you sent the questions back"
   },
   "countries": {
     "priceCol": "Licence price",

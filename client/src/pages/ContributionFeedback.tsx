@@ -64,14 +64,24 @@ function FeedbackPage() {
         {data.discarded && <p className="text-sm">{t("contributions.fbRejectedIntro")}</p>}
       </div>
 
-      <Card className="bg-muted/40" data-testid="card-reviewer-note">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">{t("contributions.fbReviewerNote")}</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="whitespace-pre-line" dir="auto">{data.reviewerNote || t("contributions.fbNoReviewerNote")}</p>
-        </CardContent>
-      </Card>
+      {/* The note belongs to the decision that asked for changes. Once the
+          school has sent the fix back it is history, not the verdict: seen
+          live 2026-11-15, an Approved submission still showed "Please fix and
+          resubmit" under the heading for the reviewer's note. */}
+      {(data.status === "needs_changes" || data.status === "rejected" || data.reviewerNote) && (
+        <Card className="bg-muted/40" data-testid="card-reviewer-note">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">
+              {data.status === "needs_changes" || data.status === "rejected"
+                ? t("contributions.fbReviewerNote")
+                : t("contributions.fbEarlierReviewerNote")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="whitespace-pre-line" dir="auto">{data.reviewerNote || t("contributions.fbNoReviewerNote")}</p>
+          </CardContent>
+        </Card>
+      )}
 
       <section className="space-y-3">
         <div>
