@@ -1284,7 +1284,13 @@ so a student with one assessment in progress got a link to a raw 404.
   the Grade 10 Maths answered "Vote recorded" and the queue moved to the one
   left; a second vote on it answered 409 `ALREADY_REVIEWED`. That
   submission now holds 1 of 3 votes (2 agreeing decides), so it is NOT
-  decided; deciding it needs AD School's admin to vote too. Reject-needs-a-comment is enforced in the
+  decided; deciding it needs AD School's admin to vote too. **AD SCHOOL
+  CANNOT VOTE: IT HAS NO CURRICULUM** (seen live 2026-11-15, build
+  `8ea8e29`; also no consent). Correctly refused (409
+  `SCHOOL_SETUP_REQUIRED`), but My School never SAYS so: the gaps and review
+  cards are silently absent and New Submission opens with an empty subject
+  list. The "accepted at creation, visible nowhere" family. Not fixed:
+  needs a banner like the consent card's, pointing at Edit Details. Reject-needs-a-comment is enforced in the
   page only; the route accepts a reject without one.
 - **THE SCHOOL ADMIN CLICK WALK, 2026-11-15** (Test High School, build
   `6f7d438`). Per item in `docs/verification/school-admin.md`. Roster, CSV,
