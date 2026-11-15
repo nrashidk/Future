@@ -26,7 +26,7 @@ import {
   Plus, Download, Edit, Trash2, UserPlus, Crown, Shield,
   TrendingUp, AlertCircle, CheckCircle, Clock, Home, User, LogOut,
   ChevronUp, ChevronDown, History, Infinity, BarChart, Copy, FileQuestion, Ticket,
-  Settings, Globe, Gift, FileText, Megaphone, Briefcase, Eye, RefreshCw,
+  Settings, Globe, Gift, Megaphone, Briefcase, Eye, RefreshCw,
   Info, AlertTriangle, XCircle, Languages, Database, Layers
 } from "lucide-react";
 import { SCORING_ESTATE_STATES, type ScoringEstateState } from "@shared/schema";
@@ -171,23 +171,6 @@ interface StudentWithAssessment {
   assessmentCount: number;
   completedAssessmentCount?: number;
   latestAssessmentDate: string | null;
-}
-
-interface FileRecord {
-  id: string;
-  filename: string;
-  originalFilename: string;
-  mimeType: string;
-  fileSize: number;
-  fileType: string;
-  category: string | null;
-  description: string | null;
-  uploadedBy: string;
-  organizationId: string | null;
-  isPublic: boolean;
-  downloadCount: number;
-  processingStatus: string | null;
-  createdAt: string;
 }
 
 interface SystemAnnouncement {
@@ -643,10 +626,6 @@ function SuperadminDashboardPage() {
     queryKey: ['/api/superadmin/students'],
   });
 
-  const { data: files = [], isLoading: filesLoading } = useQuery<FileRecord[]>({
-    queryKey: ['/api/superadmin/files'],
-  });
-
   const { data: announcements = [], isLoading: announcementsLoading } = useQuery<SystemAnnouncement[]>({
     queryKey: ['/api/superadmin/announcements'],
   });
@@ -748,20 +727,6 @@ function SuperadminDashboardPage() {
     },
     onError: (error: unknown) => {
       toast({ title: t('superadmin.error'), description: serverErrorMessage(error) ?? t('superadmin.failedToGiveLicences'), variant: "destructive" });
-    },
-  });
-
-  // Delete file mutation
-  const deleteFileMutation = useMutation({
-    mutationFn: async (fileId: string) => {
-      return apiRequest('DELETE', `/api/superadmin/files/${fileId}`);
-    },
-    onSuccess: () => {
-      toast({ title: t('superadmin.fileDeleted'), description: t('superadmin.fileDeletedDesc') });
-      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/files'] });
-    },
-    onError: (error: unknown) => {
-      toast({ title: t('superadmin.error'), description: serverErrorMessage(error) ?? t('superadmin.failedToDeleteFile'), variant: "destructive" });
     },
   });
 
@@ -1182,9 +1147,6 @@ function SuperadminDashboardPage() {
               {t('invoices.tab')}
             </TabsTrigger>
             <TabsTrigger value="activity" data-testid="tab-activity">{t('superadmin.tabActivity')}</TabsTrigger>
-            <TabsTrigger value="files" data-testid="tab-files">
-              {t('superadmin.tabFiles')}
-            </TabsTrigger>
             <TabsTrigger value="announcements" data-testid="tab-announcements">
               {t('superadmin.tabAnnouncements')}
             </TabsTrigger>
@@ -1821,96 +1783,6 @@ function SuperadminDashboardPage() {
                         </div>
                       </div>
                     ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="files" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                  <div>
-                    <CardTitle>{t('superadmin.filesTitle')}</CardTitle>
-                    <CardDescription>{t('superadmin.filesDesc')}</CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {filesLoading ? (
-                  <div className="text-center py-8 text-muted-foreground">{t('superadmin.loadingFiles')}</div>
-                ) : files.length === 0 ? (
-                  <div className="text-center py-8 text-muted-foreground">{t('superadmin.noFiles')}</div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>{t('superadmin.filename')}</TableHead>
-                          <TableHead>{t('superadmin.fileType')}</TableHead>
-                          <TableHead>{t('superadmin.fileSize')}</TableHead>
-                          <TableHead>{t('superadmin.downloads')}</TableHead>
-                          <TableHead>{t('superadmin.colStatus')}</TableHead>
-                          <TableHead>{t('superadmin.colUploaded')}</TableHead>
-                          <TableHead>{t('superadmin.actions')}</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {files.map((file) => (
-                          <TableRow key={file.id}>
-                            <TableCell>
-                              <div className="font-medium truncate max-w-[200px]" title={file.originalFilename}>
-                                {file.originalFilename}
-                              </div>
-                              {file.description && (
-                                <div className="text-xs text-muted-foreground truncate max-w-[200px]">
-                                  {file.description}
-                                </div>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline">{file.fileType}</Badge>
-                            </TableCell>
-                            <TableCell>{formatFileSize(file.fileSize)}</TableCell>
-                            <TableCell>{file.downloadCount}</TableCell>
-                            <TableCell>
-                              <Badge variant={file.processingStatus === "completed" ? "default" : "secondary"}>
-                                {file.processingStatus || "pending"}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-muted-foreground text-sm">
-                              {fmtDate(file.createdAt)}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex gap-1">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  asChild
-                                  title={t('superadmin.downloadFile')}
-                                  data-testid={`button-download-file-${file.id}`}
-                                >
-                                  <a href={`/api/files/${file.id}/download`} download>
-                                    <Download className="w-4 h-4" />
-                                  </a>
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  onClick={() => deleteFileMutation.mutate(file.id)}
-                                  title={t('superadmin.deleteFile')}
-                                  className="text-destructive hover:text-destructive"
-                                  data-testid={`button-delete-file-${file.id}`}
-                                >
-                                  <Trash2 className="w-4 h-4" />
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
                   </div>
                 )}
               </CardContent>
