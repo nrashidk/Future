@@ -1,11 +1,7 @@
 /**
  * Section 8 of docs/test-plan.md: files, email content, bilingual rendering.
  *
- * Two things here are testable despite the missing external services:
- *
- * - File REJECTION happens in multer's fileFilter, before anything is written
- *   to object storage, so the allowlist can be tested without Spaces. File
- *   ACCEPTANCE cannot -- that reaches Spaces, and is reported blocked.
+ * - The files API is asserted GONE (it was removed on 2026-11-15).
  * - Email CONTENT is built by exported functions, so the brand, direction and
  *   wording can be checked without a mail provider. DELIVERY cannot.
  */
@@ -22,73 +18,26 @@ const { orgs } = await build();
 const a = orgs.A.session;
 
 /**
- * File upload is superadmin-gated. Uploading as the org admin returns 403
- * "Forbidden: Admin access required" -- a ROLE refusal that never reaches
- * multer's fileFilter, so it would record the allowlist as working on
- * evidence that says nothing about it. These tests run as superadmin so the
- * refusal under test is the allowlist's.
+ * THE FILES API WAS REMOVED (2026-11-15). Nothing in the product wrote a file
+ * row: the upload had no screen and the school CSV import had no caller, so
+ * the upload, the share-link maker and the UNAUTHENTICATED one-time share
+ * download were surface over minors' data with no purpose. An unmatched /api
+ * path falls to the SPA catch-all (200 with HTML), so "gone" is judged by the
+ * BODY being the page, never by the status.
  */
 const { SUPERADMIN } = await import("./fixtures.mjs");
 const up = new Session("uploader");
 await up.login(SUPERADMIN.username, SUPERADMIN.password);
-
-// ------------------------------------------------------------------- files
-async function upload(session, filename, contentType, bytes) {
-  const form = new FormData();
-  form.append("file", new Blob([bytes], { type: contentType }), filename);
-  const csrf = (session.cookie.match(/(?:^|; )csrf_token=([^;]+)/) || [])[1];
-  const r = await fetch(`${BASE}/api/files/upload`, {
-    method: "POST",
-    headers: {
-      cookie: session.cookie,
-      ...(csrf ? { "x-csrf-token": decodeURIComponent(csrf) } : {}),
-      "x-forwarded-for": session.clientIp,
-    },
-    body: form,
-  });
-  const t = await r.text();
-  try { return { status: r.status, body: JSON.parse(t) }; }
-  catch { return { status: r.status, body: t.slice(0, 160) }; }
-}
-
-for (const [name, type, label] of [
-  ["payload.exe", "application/x-msdownload", ".exe"],
-  ["icon.svg", "image/svg+xml", ".svg"],
-  ["page.html", "text/html", ".html"],
-]) {
-  const r = await upload(up, name, type, "x".repeat(64));
-  // 400, not just ">= 400": a disallowed type is a client error, and a 500
-  // would file every rejected upload as a server fault.
-  rec(`F-02:${label}`, `upload of ${label} is rejected with 400`,
-    r.status === 400, `HTTP ${r.status} ${JSON.stringify(r.body).slice(0, 80)}`);
-}
-
-// The allowlist checks MIME *and* extension, so a disguise must fail both ways.
+const isPage = (b) => typeof b === "string" && /<!doctype html|<html/i.test(b);
 {
-  const r1 = await upload(up, "data.csv", "application/x-msdownload", "a,b\n1,2\n");
-  rec("F-02:mime", "a .csv name with an executable MIME type is rejected",
-    r1.status === 400, `HTTP ${r1.status}`);
-  const r2 = await upload(up, "payload.exe", "text/csv", "a,b\n1,2\n");
-  rec("F-02:ext", "an .exe name with a csv MIME type is rejected",
-    r2.status === 400, `HTTP ${r2.status}`);
+  const list = await up.get("/api/files");
+  rec("F-01", "GET /api/files is no longer a route (superadmin)", isPage(list.body), `HTTP ${list.status}`);
+  const shared = await fetch(`${BASE}/api/files/shared/anytoken`, { headers: { accept: "application/json" } });
+  const t = await shared.text();
+  rec("F-02", "the unauthenticated share download is gone", isPage(t), `HTTP ${shared.status} ${t.slice(0, 40)}`);
+  const upl = await up.post("/api/files/upload", {});
+  rec("F-03", "the upload is gone", isPage(upl.body) || upl.status === 404, `HTTP ${upl.status}`);
 }
-
-// F-04 path traversal in the filename
-{
-  // Honest scope: this name has no allowed extension, so it is refused by the
-  // allowlist before any path handling runs. Traversal with an ALLOWED
-  // extension cannot be tested here -- that path writes to Spaces.
-  const r = await upload(up, "../../etc/passwd", "text/csv", "a,b\n1,2\n");
-  rec("F-04", "traversal filename refused (by allowlist, not path handling)",
-    r.status === 400, `HTTP ${r.status}`);
-  const r2 = await upload(up, "../../evil.csv", "text/csv", "a,b\n1,2\n");
-  rec("F-04b", "traversal with an ALLOWED extension", null,
-    `HTTP ${r2.status} — reaches the storage path, which is unreachable here`);
-}
-
-rec("F-01", "permitted file types are accepted and stored", null,
-  "acceptance path writes to Spaces, which is unreachable from this sandbox");
-rec("F-05", "share link works until expiry, then refuses", null, "needs a stored file");
 
 // ------------------------------------------------------------------- email
 {

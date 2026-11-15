@@ -184,8 +184,10 @@ app.use(cookieParser());
 
 // No local upload directory is served any more. Organization logos live in the
 // public Spaces bucket and are linked by absolute URL; every file containing
-// minors' personal data lives in the private bucket and is reachable only
-// through the authenticated /api/files routes. The old directory-level split
+// minors' personal data lives in the private bucket. The /api/files routes
+// that once served it were removed on 2026-11-15 (nothing wrote to them); the
+// school CSV import that wrote there followed, so nothing writes the private
+// bucket today. The old directory-level split
 // that enforced this (uploads/public vs uploads/private) is now a bucket-level
 // one, enforced in server/services/fileStorage.ts (C1).
 

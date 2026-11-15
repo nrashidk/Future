@@ -84,11 +84,6 @@ if (bAssessmentId) {
   check("X-04c", "GET B student's quiz answers", await a.get(`/api/assessments/${bAssessmentId}/quiz`));
 }
 
-// /api/files derives the owner from the session and ignores any query param,
-// so the test is "does B's id appear in the payload", not "is it refused".
-check("X-05", "GET files with B's org id in query",
-  await a.get(`/api/files?organizationId=${B.orgId}`), { leakIf: (b) => JSON.stringify(b).includes(B.orgId) });
-
 check("X-07", "bulk-delete a B student", await a.post(
   `/api/admin/organizations/${B.orgId}/members/bulk-delete`, { memberIds: [bMemberId].filter(Boolean) }));
 check("X-07b", "DELETE a B member directly",
