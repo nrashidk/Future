@@ -1302,8 +1302,9 @@ so a student with one assessment in progress got a link to a raw 404.
   instance had slept and that click woke it** (`startedAt` 25 s before the
   account's confirmation deadline was set); a buyer or parent who presses
   once on a sleeping site waits that long with no message. **Left on
-  production:** "Nasser Walk Check", unconfirmed, erased after
-  2026-11-18T10:41Z unless confirmed.
+  production:** "Nasser Walk Check", CONFIRMED by the owner the same day
+  (the mail reached his Hotmail), so it is kept. "Nasser Delete Check"
+  remains the only erasure sample.
 - **THE SIGN-IN FORM WAS AT `/login/student`, TITLED "Student Login", FOR
   EVERY ROLE** (owner, 2026-11-15). School admins, parents' accounts and the
   superadmin all sign in there, and it told each of them their password came
