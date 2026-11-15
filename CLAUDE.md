@@ -1234,6 +1234,32 @@ so a student with one assessment in progress got a link to a raw 404.
     admin against AD School, build `feda372`): roster, add student and
     report export 403 "Can only access your own school"; read and rename of
     the school 403. This was harness-only until now.
+- **THE THREE CONTRIBUTION SCREENS ARE BUILT (2026-11-15, owner approved
+  the mockups and four decisions: edit in place, a fix does not count toward
+  the daily limit, peers vote Approve/Reject only, the check's notes are
+  shown without scores; and feedback is a PAGE, not a dialog).**
+  `POST /api/contributions/:id/resubmit` (one conditional UPDATE scoped to
+  the school and to `needs_changes`; `created_at` kept, which is what the
+  daily limit counts); `/:id/feedback` now carries the reviewer's note, the
+  questions and the check's issues (`shared/contributionFeedback.ts`, 4
+  tests, no score leaves the server); `/submit` takes the school's own
+  country and curriculum when omitted, and the form no longer asks; the
+  school's list no longer carries `reviewedByUserId`. Pages:
+  `/my-school/contributions/:id` (feedback), `/:id/fix`, `/my-school/review`
+  (`SchoolAdminOnly`). My School gains "What to write next" (gaps grid,
+  Write opens a submission for that cell) and "Review other schools".
+  `contribution-fix.mjs` (12 cases; X-01 mutation-tested: without the
+  school scoping another school's resubmit is 200). **Building the review
+  screen found a real bug**: `getPeerReviewQueue`'s `reviewsSoFar` read 0
+  for every submission (the unqualified-column family; X-11).
+  **SEEN LIVE, builds `ef7ec01`/`f09d931`**: the gaps grid (18 thin / 12
+  healthy); the real "Needs Changes" submission's feedback page; fixed and
+  sent from the fix page, it went pending and the check passed it to peer
+  review within 40 s; the review card reads "Nothing to review right now"
+  for Test High School (its own work is never in its queue). **Not seen
+  live:** a vote cast by ANOTHER school (needs AD or UAQ School's admin
+  signed in, and on MOE National). Reject-needs-a-comment is enforced in the
+  page only; the route accepts a reject without one.
 - **THE SCHOOL ADMIN CLICK WALK, 2026-11-15** (Test High School, build
   `6f7d438`). Per item in `docs/verification/school-admin.md`. Roster, CSV,
   exports, repeat, report view, rename, top-up quote and a submission all

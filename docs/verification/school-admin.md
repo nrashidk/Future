@@ -23,10 +23,10 @@ School's admin, signed in by the owner. ✅ clicked and held · ❌ broken ·
 | Logo upload | ⏸ | | uploading replaces and DELETES the current logo file; not done without a spare logo to put back |
 | Top-up quote | ✅ | 2026-11-15 | 100 = AED 3,600, AED 36 each, 10% off; Pay online (test mode) and Request invoice offered. Payment itself walked 2026-11-14 |
 | New question submission | ✅ | 2026-11-15 | one Science Grade 9 question; empty Add says "Please enter a question"; check ran, row went "Pending LLM Check" -> "Peer review". ⚠️ "Submit 1 Questions" |
-| See reviewer feedback on "Needs Changes" | ❌ | 2026-11-15 | no screen shows it; `GET /api/contributions/:id/feedback` exists and nothing calls it; no way to amend and resend |
-| Peer review other schools' questions | ❌ | 2026-11-15 | no screen at all: `/review-queue` and `/review/:id` have no caller. Peer review cannot happen in the product |
-| Question gaps ("what to write next") | ❌ | 2026-11-15 | `/api/contributions/gaps` has no caller |
-| Submission form asks country and curriculum | ⚠️ | 2026-11-15 | they are the school's own; the server refuses others, the form should not ask |
+| See reviewer feedback on "Needs Changes" | 🔧 | 2026-11-15 | built; live: the feedback page, then Fix and send again -> pending -> the check passed it to peer review |
+| Peer review other schools' questions | 🔧 | 2026-11-15 | built; live card reads "Nothing to review right now" for Test High School; a vote needs another school's admin signed in (harness: vote written, queue emptied) |
+| Question gaps ("what to write next") | 🔧 | 2026-11-15 | built; live 18 thin / 12 healthy; Write opens a submission for that cell |
+| Submission form asks country and curriculum | 🔧 | 2026-11-15 | no longer asks; live: "Questions go to your school's curriculum: MOE National" |
 | Roster status filter | ⚠️ | 2026-11-15 | "Completed" still lists the School Administrator row |
 | Analytics | ⚠️ | 2026-11-15 | "5 students assessed" beside 40% = 4 of 10 (5 counts reports, salm has two); every sector "5 students / 66.6%"; "1 recommendations" |
 | Profile | ⚠️ | 2026-11-15 | figures right; button still says "Go to Admin Dashboard" |
