@@ -1244,6 +1244,16 @@ so a student with one assessment in progress got a link to a raw 404.
   `ResultsPrint.tsx` and `premiumNarratives.ts`; with no subject at 50% the
   sentence falls back to the generic one, and the section heading reads
   "Your Subject Results". Seen live in both languages, build `682615f`.
+  **THE ALLOWED REPEAT THROUGH THE REAL FORM, IN ARABIC, same day**: the
+  school pressed the repeat button; the row was created at step 4 (the
+  lock-out fix, first seen for a school student); the country card is
+  Arabic; the personality/values arrows mirror; both steps end in
+  "Continue"; report generated, licences 47 -> 46, and the under-50%
+  wording ("ابنِ على مادة تحبها", generic vision sentence) seen live. PDF 7
+  pages. **Flagged, not changed:** each personality question shows its
+  theme ("( واقعي )"), which tells the student what is being measured; the
+  vision name "UAE Centennial 2071" is English on the Arabic country card;
+  the form has no language switch.
 - **THE SIGN-IN FORM WAS AT `/login/student`, TITLED "Student Login", FOR
   EVERY ROLE** (owner, 2026-11-15). School admins, parents' accounts and the
   superadmin all sign in there, and it told each of them their password came
