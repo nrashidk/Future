@@ -1234,6 +1234,22 @@ so a student with one assessment in progress got a link to a raw 404.
     admin against AD School, build `feda372`): roster, add student and
     report export 403 "Can only access your own school"; read and rename of
     the school 403. This was harness-only until now.
+- **THE SCHOOL ADMIN CLICK WALK, 2026-11-15** (Test High School, build
+  `6f7d438`). Per item in `docs/verification/school-admin.md`. Roster, CSV,
+  exports, repeat, report view, rename, top-up quote and a submission all
+  held. **THREE CONTRIBUTION FEATURES EXIST ON THE SERVER ONLY**, the
+  "visible nowhere" family: a school cannot read a reviewer's feedback
+  (`GET /api/contributions/:id/feedback`, no caller) or amend a "Needs
+  Changes" submission; **no school can peer-review** (`/review-queue`,
+  `/review/:id`, no caller), so every passing submission waits at
+  `peer_review` for a superadmin; and `/gaps` has no caller. Building them
+  needs mockups and the owner's word. Also flagged: school-side bulk reset
+  has no confirmation; delete-selected offers "Keep account & report" as the
+  primary button when nobody selected has a report; the Completed filter
+  lists the admin; no language switch on My School or Analytics; analytics
+  "students assessed" counts reports. The throwaway students (3) were
+  deleted; the Science submission is left in peer review for the superadmin
+  walk.
 - **THE SUPERADMIN CLICK WALK, 2026-11-14 night** (owner: only a click on the
   live site counts). Results per item in `docs/verification/superadmin.md`.
   Fixed from it, each re-clicked live: the Analytics sector pipeline answered
