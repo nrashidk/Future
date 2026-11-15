@@ -1254,6 +1254,17 @@ so a student with one assessment in progress got a link to a raw 404.
   theme ("( واقعي )"), which tells the student what is being measured; the
   vision name "UAE Centennial 2071" is English on the Arabic country card;
   the form has no language switch.
+  **THE AI NARRATIVE CALLED 20% SUBJECTS "EXISTING STRENGTHS"** (same
+  report, back in English, built-in browser): the "Why this career" text for
+  Product Manager. The fixed wording above was right; the LLM's was not,
+  because `career_reasoning` and `education_pathways` were given the
+  favourite subject NAMES and no quiz score, so nothing told a favourite from
+  a strength. `{{favoriteSubjects}}` now carries each score and a verdict
+  (`describeFavouriteSubjects` in `shared/subjectStrength.ts`, 3 tests),
+  read in `llmNarrativeService.ts`. Done in the VALUE, not the template,
+  because the template lives in the database and boot does not reseed it.
+  **Narratives already cached keep the old text**; saving any prompt
+  template clears that cache. Not yet seen live.
 - **THE SIGN-IN FORM WAS AT `/login/student`, TITLED "Student Login", FOR
   EVERY ROLE** (owner, 2026-11-15). School admins, parents' accounts and the
   superadmin all sign in there, and it told each of them their password came

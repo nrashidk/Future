@@ -8,6 +8,7 @@
 import type { IStorage } from "../storage";
 import type { Assessment, Career, LlmPromptTemplate } from "../../shared/schema";
 import { resolveSalaryRange } from "../../shared/careerSalary";
+import { describeFavouriteSubjects } from "../../shared/subjectStrength";
 
 interface StudentContext {
   gradeLevel: string;
@@ -217,7 +218,7 @@ export async function generateCareerReasoningNarrative(
     console.warn("[LLM Cache] Read error (career_reasoning), proceeding without cache:", cacheErr);
   }
 
-  const studentContext = buildStudentContext(assessment, overallScore, componentBreakdown);
+  const studentContext = buildStudentContext(assessment, overallScore, componentBreakdown, await quizSubjectScores(storage, assessment.id));
   const careerContext = buildCareerContext(career);
   const result = await generateNarrative(storage, promptKey, studentContext, careerContext, language);
 
@@ -257,7 +258,7 @@ export async function generateEducationPathwaysNarrative(
     console.warn("[LLM Cache] Read error (education_pathways), proceeding without cache:", cacheErr);
   }
 
-  const studentContext = buildStudentContext(assessment, overallScore);
+  const studentContext = buildStudentContext(assessment, overallScore, null, await quizSubjectScores(storage, assessment.id));
   const careerContext = buildCareerContext(career);
   const result = await generateNarrative(storage, promptKey, studentContext, careerContext, language);
 
@@ -273,13 +274,24 @@ export async function generateEducationPathwaysNarrative(
   return result;
 }
 
+/** The quiz's per-subject scores, or null. A missing quiz is not an error. */
+async function quizSubjectScores(storage: IStorage, assessmentId: string): Promise<Record<string, unknown> | null> {
+  try {
+    const quiz = await storage.getAssessmentQuizByAssessmentId(assessmentId);
+    return (quiz?.subjectScores as Record<string, unknown> | null) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Build student context from assessment data
  */
 function buildStudentContext(
   assessment: Assessment,
   overallScore: number,
-  componentBreakdown?: ComponentBreakdownEntry[] | null
+  componentBreakdown?: ComponentBreakdownEntry[] | null,
+  subjectScores?: Record<string, unknown> | null
 ): StudentContext {
   const riasecData = assessment.riasecScores as any;
   const cvqData = assessment.cvqScores as any;
@@ -299,9 +311,13 @@ function buildStudentContext(
     cvqTop3 = cvqData.ranking.slice(0, 3).map((r: any) => r.value || r.name);
   }
 
-  const favoriteSubjects: string[] = Array.isArray(assessment.favoriteSubjects)
-    ? assessment.favoriteSubjects.slice(0, 3)
-    : [];
+  // Each favourite carries its quiz score and whether it may be called a
+  // strength (shared/subjectStrength.ts) — the bare names let the model call
+  // a 20% subject an "existing strength".
+  const favoriteSubjects: string[] = describeFavouriteSubjects(
+    Array.isArray(assessment.favoriteSubjects) ? assessment.favoriteSubjects.slice(0, 3) : [],
+    subjectScores,
+  );
 
   // Optional "career dreams" personalization for the premium narrative.
   // Sourced from the stored careerAspirations text array; empty string when absent

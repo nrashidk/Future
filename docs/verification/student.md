@@ -23,5 +23,7 @@ re-clicked · ⚠️ works with a flaw · ⏸ not clicked (why)
 | Whole assessment through the form, Arabic | ✅ | 2026-11-15 | 3 subjects, 15 quiz questions, 30 personality, values, aspirations typed in Arabic, report generated; licences 47 -> 46 |
 | New report wording, live | ✅ | 2026-11-15 | all three subjects at 20%: "ابنِ على مادة تحبها" (not "strength"), the generic vision sentence, heading "نتائجك في المواد"; under 0.4% Latin letters on the page |
 | PDF of the new report (Arabic) | ✅ | 2026-11-15 | 200, 1.44 MB, 7 pages |
+| Same report back in English | ✅ | 2026-11-15 | built-in browser, build `d496f3b`: language `en`, "Build On A Subject You Enjoy: Keep working at Mathematics", heading "Your Subject Results", no "top strengths" sentence, one skip link |
+| AI "Why this career" text calls 20% subjects strengths | 🔧 | 2026-11-15 | Product Manager: "your existing strengths in Maths and Computer Science" over 20% in both. The prompt was given favourite NAMES only. Each favourite now carries its quiz score and a strength verdict (`describeFavouriteSubjects`). Applies to narratives not yet written; this report's text is cached and stays until the cache is cleared. Not yet seen live |
 | No language switch inside the assessment form | ⚠️ | 2026-11-15 | the form has its own header; a student cannot change language mid-assessment |
 | Another student's report refused | ⏸ | | needs another student's assessment id; last seen 2026-11-12 |
