@@ -225,27 +225,24 @@ export default function CVQStep({ assessmentId, responses, onUpdate, onNext, onB
           className="space-y-6"
         >
           {currentItems.map((item, index) => {
-            const domainInfo = DOMAIN_INFO[item.domain];
-            const Icon = domainInfo.icon;
+            // NOTHING ON A STATEMENT SAYS WHICH VALUE IT MEASURES (owner,
+            // 2026-11-16): the value's name, icon and colour printed on each
+            // one told the student what was being scored. Colour follows
+            // position now.
             const answered = item.id in localResponses;
+            const neutralColors = ["yellow", "blue", "green", "pink"] as const;
             
             return (
               <StickyNote
                 key={item.id}
-                color={domainInfo.color as any}
+                color={neutralColors[index % neutralColors.length] as any}
                 data-testid={`cvq-question-${index}`}
               >
                 <div className="space-y-4">
                   {/* Question Header */}
                   <div className="flex items-start gap-3">
-                    <div className={`p-2 rounded-lg bg-${domainInfo.color}-100 dark:bg-${domainInfo.color}-900/20`}>
-                      <Icon className="w-5 h-5" />
-                    </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-semibold uppercase tracking-wide opacity-70">
-                          {domainInfo.name}
-                        </span>
                         {answered && (
                           <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary font-medium">
                             {t('cvq.answered')}

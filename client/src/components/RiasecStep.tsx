@@ -222,30 +222,26 @@ export default function RiasecStep({ onComplete, onBack }: RiasecStepProps) {
             className="space-y-6"
           >
             {currentItems.map((item, index) => {
-              const themeInfo = THEME_INFO[item.theme];
-              const Icon = themeInfo.icon;
+              // NOTHING ON A QUESTION SAYS WHICH THEME IT MEASURES (owner,
+              // 2026-11-16). Each item printed "(Realistic)" and the theme's
+              // icon and colour, which matched the legend below — so a student
+              // could see what was being measured and answer to it. The colour
+              // now follows position, not theme.
               const globalIndex = currentPage * itemsPerPage + index;
+              const neutralColors = ["yellow", "blue", "green", "pink"] as const;
 
               return (
                 <StickyNote
                   key={item.id}
-                  color={themeInfo.color as any}
+                  color={neutralColors[globalIndex % neutralColors.length] as any}
                   rotation={index % 2 === 0 ? "-1" : "1"}
                   className="p-6"
                 >
                   <div className="flex items-start gap-4">
-                    <div className="flex-shrink-0">
-                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                        <Icon className="w-6 h-6 text-primary" />
-                      </div>
-                    </div>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-3">
                         <span className="text-sm font-semibold text-primary">
                           {t('riasec.question', { number: globalIndex + 1 })}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          ({themeInfo.name})
                         </span>
                       </div>
                       <p className="text-lg font-medium mb-4">{tRiasec(`items.${item.id}`)}</p>
