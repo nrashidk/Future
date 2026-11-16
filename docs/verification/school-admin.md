@@ -20,7 +20,7 @@ School's admin, signed in by the owner. ✅ clicked and held · ❌ broken ·
 | Delete one student permanently | ✅ | 2026-11-15 | roster 9 -> 8... -> back to 8 |
 | Delete selected permanently | ⚠️ | 2026-11-15 | works; but "Keep account & report" is offered, and is the PRIMARY button, when 0 of 2 have a report |
 | Edit school details (rename, restore) | ✅ | 2026-11-15 | renamed and back, toast each time |
-| Logo upload | ⏸ | | uploading replaces and DELETES the current logo file; not done without a spare logo to put back |
+| Logo upload | ✅ | 2026-11-16 | owner said replace the testing logo. Edit Details -> Upload -> a PNG: "Logo uploaded successfully", preview and header changed at once; Update School -> "School updated successfully"; `/api/my-organization` carries the new URL, which serves the image, and the OLD file now answers AccessDenied from the bucket (deleted, as the note warned). ⚠️ Seen once and not reproduced: the first time the dialog was opened, at the moment a deploy restarted the server, Country was empty and it said "This country has no curricula configured", with Update School disabled; after a reload it showed UAE / MOE National correctly |
 | Top-up quote | ✅ | 2026-11-15 | 100 = AED 3,600, AED 36 each, 10% off; Pay online (test mode) and Request invoice offered. Payment itself walked 2026-11-14 |
 | New question submission | ✅ | 2026-11-15 | one Science Grade 9 question; empty Add says "Please enter a question"; check ran, row went "Pending LLM Check" -> "Peer review". ⚠️ "Submit 1 Questions" |
 | See reviewer feedback on "Needs Changes" | 🔧 | 2026-11-15 | built; live: the feedback page, then Fix and send again -> pending -> the check passed it to peer review |
