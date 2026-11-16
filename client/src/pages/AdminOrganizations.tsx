@@ -386,8 +386,11 @@ function AdminOrganizationsPage() {
     if (roleFilter === "admin" && member.role !== "admin") return false;
     if (roleFilter === "student" && member.role === "admin") return false;
     
-    // Status filter (only applies to non-admin members)
-    if (statusFilter !== "all" && member.role !== "admin") {
+    // Status filters describe a STUDENT's progress. An administrator has none,
+    // so any status filter leaves them out; it used to let them through, and
+    // "Completed" listed the admin among the students who had finished.
+    if (statusFilter !== "all" && member.role === "admin") return false;
+    if (statusFilter !== "all") {
       const status = getMemberStatus(member, t);
       if (statusFilter === "not_active" && status.key !== "not_active") return false;
       if (statusFilter === "active" && status.key !== "active") return false;
