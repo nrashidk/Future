@@ -1326,6 +1326,35 @@ so a student with one assessment in progress got a link to a raw 404.
   note: owner said skip. Render paid plan: owner will upgrade at the end.
   Allocate reward also seen live (UAQ School 0 -> 2, exactly the pending
   figure) and a school admin's logo upload (old file deleted from the bucket).
+- **OWNER'S DECISIONS, 2026-11-16, AND THE FLAGGED BUGS, BUILT** (one commit
+  each). Decisions: **a typed age is 13-18** (`shared/studentAge.ts`; the
+  form says so and holds Next; POST/PATCH answer 400 `AGE_OUT_OF_RANGE`; an
+  age from a school's or child profile's record is not judged, or a school
+  student would be stranded on a locked field); **an individual is asked
+  before a second report for the same grade** (create answers 409
+  `SAME_GRADE_REPEAT` unless `confirmRepeat: true`, compared on the CANONICAL
+  grade via `hasConsumedLicenseForCanonicalGrade`; the form shows the repeat
+  dialog and re-sends; a warning, not a limit); **personality and values
+  questions no longer show their theme or value** (name, icon, colour);
+  **the plan name has Arabic** (migration 048, `countries.vision_plan_ar`,
+  UAE "مئوية الإمارات 2071", editable on the country form,
+  `migration-048-dryrun` 7 cases); **no language switch inside the form**
+  (the owner: choose at the start). `premium-solo.mjs` S-06..S-10 cover the
+  repeat and the age. Bugs: **the assessment routes store the grade as the
+  canonical `gradeN`** (they kept the client's string; ali.ali held '12' and
+  'grade12'); `guest-identity` GI-02 and `school-lock` K-08 now expect it;
+  the empty Create Question form names the missing fields (Radix selects'
+  native `required` showed nothing); the Narrative Cache tile refreshes on a
+  prompt save; the narrative routes answer a signed-in non-owner 403, not
+  401 "Authentication required"; the school roster asks before a bulk
+  password reset, and a status filter no longer lists the administrator.
+  The Billing card's date and the school admin's tab title were ALREADY
+  fixed (9645ae5; `pageTitles.mySchool`). Driven in a browser against the
+  harness: the missing-fields toast, the Completed filter (admin gone), the
+  Arabic plan name, age 45 refused / 15 accepted, and the same-grade dialog
+  continuing to the quiz. **Not seen rendered:** the bulk-reset dialog (the
+  harness school had only its admin, whose row cannot be selected) and the
+  personality step without its labels.
 - **THE SIGN-IN FORM WAS AT `/login/student`, TITLED "Student Login", FOR
   EVERY ROLE** (owner, 2026-11-15). School admins, parents' accounts and the
   superadmin all sign in there, and it told each of them their password came
