@@ -24,7 +24,7 @@ the OS file picker. Throwaway data was named `ZZ Click …` and removed.
 | Manage admins: promote to primary | 🔧 | tonight | schools bought online had NO primary admin (Test High, AD School); fixed for new purchases, both put right by Promote |
 | Manage admins: remove (asks first, primary protected) | ✅ | tonight | |
 | View history | ✅ | 11-12 | |
-| Resend setup | ⏸ | 2026-11-16 | a school a superadmin creates never shows it (its admin is given a password, so the stage is "Setup not finished", not "never signed in"; `shared/schoolSetupStage.ts`). Only an ONLINE purchase whose buyer has not set a password reaches it, so it waits for the next test group purchase. Throwaway "ZZ Resend Check School" and its admin deleted; reconciliation 0 |
+| Resend setup | ⏸ | 2026-11-16 | NOT REACHABLE BY A CLICK. It shows only for an admin with no password; a superadmin-created school's admin has one, and so does an online buyer whose browser finishes checkout first (the screen shows the generated password). Only a buyer whose browser never comes back, with the webhook alone creating the school, reaches it. Tried both ways today; throwaway schools deleted |
 | Bulk delete / delete school (typed name) | ✅ | 11-12/14 | |
 | Export schools | ✅ | 11-12 | |
 
@@ -107,3 +107,22 @@ the OS file picker. Throwaway data was named `ZZ Click …` and removed.
 
 ## Profile
 | Profile, data download | ✅ | tonight (view) | |
+
+
+## Test purchase run, 2026-11-16 (build `e071d44`)
+
+Signed out, `/checkout?students=5&country=uae`, buyer `+zzpurchase3`, school
+"ZZ Third Purchase School"; the owner typed the test card both times.
+
+| Item | Status | Notes |
+|---|---|---|
+| Group purchase, AED 200 for 5 | ✅ | school created, buyer signed in, 5 licences |
+| ONE setup email | ✅ | one message, 10:16; second purchase in a row with one (not proof of the lock: the browser arrived first this time) |
+| Terms opens in a new tab from the wizard | ✅ | step 3 "Terms of Use" opened `/terms` in a second tab; the wizard stayed on step 3 |
+| Top-up of 1 by card | ✅ | AED 40; 5 -> 6 once; tiles updated with no reload; analytics: 6 granted, 2 purchases, AED 240, 0 free; reconciliation 0 |
+| Which path granted the top-up | ⏸ | the ledger note `(browser)`/`(webhook)` is written but NO screen or route shows it, so it cannot be read by clicking. The live bundle awaits `/licences/confirm` before closing the dialog and the dialog closed, yet Resource Timing listed no confirm request (second time). Unresolved |
+| ⚠️ Two instructions to one buyer | ⚠️ | when the browser wins, checkout shows a generated password ("save these"), and the email says "Choose a password" with a link that replaces it |
+| Cleanup | ✅ | school deleted, admin account deleted by typed email, schools back to AD / UAQ / Test High, reconciliation 0 |
+
+Also seen: the site was asleep at 10:15 and took about a minute on Render's
+"Service waking up" page before `/group-pricing` drew.
