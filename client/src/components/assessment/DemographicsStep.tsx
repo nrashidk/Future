@@ -12,6 +12,7 @@ import { SchoolConsentNotice } from "./SchoolConsentNotice";
 import { ParentConsentNotice } from "./ParentConsentNotice";
 
 import { basicInfoComplete } from "@shared/guestIdentity";
+import { isAllowedStudentAge, STUDENT_MIN_AGE, STUDENT_MAX_AGE } from "@shared/studentAge";
 
 interface DemographicsStepProps {
   data: any;
@@ -149,9 +150,13 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
    * (shared/guestIdentity.ts), so this form, the resume step and the
    * report gate cannot disagree about what "filled in" means.
    */
+  // A TYPED age must be 13-18 (owner, 2026-11-16); the server refuses the
+  // rest with AGE_OUT_OF_RANGE. A locked age is the school's record, not judged.
+  const typedAgeInvalid =
+    !fieldsAreLocked && !isGuest && data.age !== null && data.age !== undefined && !isAllowedStudentAge(data.age);
   const canProceed = fieldsAreLocked
     ? basicInfoComplete(data, false)
-    : Boolean(basicInfoComplete(data, isGuest) && data.consentGiven);
+    : Boolean(basicInfoComplete(data, isGuest) && data.consentGiven && !typedAgeInvalid);
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
@@ -253,21 +258,27 @@ export function DemographicsStep({ data, onUpdate, onNext, predefinedGrade, pred
               screen — and a locked, empty, required field with a dead Next
               button is a dead end a 13-year-old cannot get out of.
 
-              SELF-PAID PATH UNCHANGED: editable, min 13 / max 25, no marker.
+              SELF-PAID PATH: editable, 13 to 18 (owner, 2026-11-16), no marker.
               min/max are left on the element for both, though they constrain
               only the path that can still type into it. */}
           <Input
             id="age"
             type="number"
-            min="13"
-            max="25"
+            min={STUDENT_MIN_AGE}
+            max={STUDENT_MAX_AGE}
             placeholder={t('demographics.agePlaceholder')}
             value={data.age || ""}
             onChange={(e) => onUpdate("age", parseInt(e.target.value) || null)}
             disabled={fieldsAreLocked}
             className="bg-background/50 border-foreground/20"
             data-testid="input-age"
+            aria-invalid={typedAgeInvalid || undefined}
           />
+          {typedAgeInvalid && (
+            <p className="text-sm text-destructive mt-2" role="alert" data-testid="error-age-range">
+              {t('demographics.ageRange')}
+            </p>
+          )}
         </StickyNote>
         )}
 

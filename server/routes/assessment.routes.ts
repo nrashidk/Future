@@ -12,6 +12,7 @@ import { sanitizeRequestBody } from "../utils/sanitize";
 import { printTokenAuthorizes, mintGuestRecoveryToken } from "../utils/printToken";
 import { ageOnDate, toDateOnlyString } from "@shared/dateOfBirth";
 import { toCanonicalGrade } from "@shared/grade";
+import { isAllowedStudentAge, AGE_OUT_OF_RANGE_MESSAGE } from "@shared/studentAge";
 import { FREE_ASSESSMENT_CAP, isFreeTierCapReached } from "@shared/assessmentLimits";
 import { assessmentIsChildOwned } from "@shared/childOwnership";
 import { guestAssessmentExpiresAt, GUEST_COOKIE_MAX_AGE_MS } from "@shared/guestAssessmentExpiry";
@@ -694,6 +695,16 @@ export function registerAssessmentRoutes(app: Express) {
         }
       }
 
+      // A TYPED AGE must be 13-18 (owner, 2026-11-16). An age the school or
+      // the child profile supplies is not the client's and is not judged.
+      const ageIsFromRecord =
+        !!lockedDemographicsValues &&
+        Object.prototype.hasOwnProperty.call(lockedDemographicsValues, "age");
+      const typedAge = (validatedData as { age?: unknown }).age;
+      if (!ageIsFromRecord && typedAge !== null && typedAge !== undefined && !isAllowedStudentAge(typedAge)) {
+        return res.status(400).json({ message: AGE_OUT_OF_RANGE_MESSAGE, code: "AGE_OUT_OF_RANGE" });
+      }
+
       const assessment = await storage.createAssessment({
         ...validatedData,
         // After validatedData, so the school's or child profile's values win
@@ -1226,6 +1237,7 @@ export function registerAssessmentRoutes(app: Express) {
       // holds school admins too (schema.ts:159), and an admin taking the
       // assessment personally is not a student of their school.
       const touchesSchoolOwned = SCHOOL_OWNED_ASSESSMENT_FIELDS.some((f) => updateData[f] !== undefined);
+      let ageFromRecord = false;
 
       if (touchesSchoolOwned && existingAssessment.userId) {
         const orgMember = await storage.getOrganizationMemberByUserId(existingAssessment.userId);
@@ -1305,6 +1317,7 @@ export function registerAssessmentRoutes(app: Express) {
           // a stale form or a direct API call — neither of which gives the student
           // anything to act on, and a 400 would strand a mid-assessment autosave.
           Object.assign(updateData, overrides);
+          if (Object.prototype.hasOwnProperty.call(overrides, "age")) ageFromRecord = true;
         } else {
           const childProfile = await storage.getChildProfileByGuardianUserId(existingAssessment.userId);
 
@@ -1346,8 +1359,14 @@ export function registerAssessmentRoutes(app: Express) {
             }
 
             Object.assign(updateData, overrides);
+            if (Object.prototype.hasOwnProperty.call(overrides, "age")) ageFromRecord = true;
           }
         }
+      }
+
+      // A TYPED AGE must be 13-18; see the same check on POST.
+      if (!ageFromRecord && updateData.age !== null && updateData.age !== undefined && !isAllowedStudentAge(updateData.age)) {
+        return res.status(400).json({ message: AGE_OUT_OF_RANGE_MESSAGE, code: "AGE_OUT_OF_RANGE" });
       }
 
       // INVALIDATE AN UNSUBMITTED QUIZ WHEN THE SUBJECT SET ACTUALLY CHANGES.

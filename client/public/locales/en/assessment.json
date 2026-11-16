@@ -123,7 +123,8 @@
     "childOwnedNote": "Your parent or guardian entered your details when they registered. Please check they're correct — if anything's wrong, ask them to update it.",
     "consentOrgNotice": "{{school}} set up this assessment for you and agreed to the terms on your behalf. You can read them here:",
     "consentOrgNoticeGeneric": "Your school set up this assessment for you and agreed to the terms on your behalf. You can read them here:",
-    "consentParentNotice": "A parent or legal guardian set up this assessment for you and agreed to the terms on your behalf. You can read them here:"
+    "consentParentNotice": "A parent or legal guardian set up this assessment for you and agreed to the terms on your behalf. You can read them here:",
+    "ageRange": "Enter an age from 13 to 18."
   },
   "subjects": {
     "title": "What Subjects Do You Love?",
