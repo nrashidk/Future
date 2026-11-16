@@ -792,6 +792,7 @@ export async function seedDatabase() {
       vision: "To be the best country in the world by the UAE's 100th anniversary in 2071, leading in AI, space exploration, and sustainable development.",
       visionAr: "أن تكون الإمارات العربية المتحدة أفضل دولة في العالم بحلول الذكرى المئوية عام 2071، رائدةً في الذكاء الاصطناعي واستكشاف الفضاء والتنمية المستدامة.",
       visionPlan: "UAE Centennial 2071",
+      visionPlanAr: "مئوية الإمارات 2071",
       // POSITIONAL AND UNKEYED: prioritySectorsAr[i] localises prioritySectors[i]
       // (recommendations.routes.ts:307-312). Both arrays are in displayOrder and
       // MUST stay the same length and the same order as UAE_SECTOR_WEF_SKILLS.

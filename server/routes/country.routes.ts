@@ -59,6 +59,7 @@ const updateCountrySchema = z.object({
   vision: z.string().max(2000).optional(),
   visionAr: z.string().max(2000).nullable().optional(),
   visionPlan: z.string().max(100).nullable().optional(),
+  visionPlanAr: z.string().max(100).nullable().optional(),
   /**
    * EVERY ARRAY HERE IS BOUNDED, in length and in element length.
    *

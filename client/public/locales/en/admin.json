@@ -1463,7 +1463,8 @@
     "createError": "Failed to create country",
     "fieldRequiredError": "Country ID, name, and code are required",
     "selectSubjectError": "Please select a subject",
-    "refreshSuccessSectorsRunning": "Country data refreshed. The sector map is being researched in the background and takes up to thirty minutes; the setup checklist shows the result."
+    "refreshSuccessSectorsRunning": "Country data refreshed. The sector map is being researched in the background and takes up to thirty minutes; the setup checklist shows the result.",
+    "visionPlanArLabel": "National plan name (Arabic)"
   },
   "subjects": {
     "title": "Subject Management",

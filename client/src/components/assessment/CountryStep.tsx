@@ -332,7 +332,7 @@ export function CountryStep({ data, onUpdate, onNext, onBack, subjectSource }: C
                 <h4 className="text-lg font-bold">{t('country.mission', { name: isArabic && countryDetails.nameAr ? countryDetails.nameAr : countryDetails.name })}</h4>
                 {countryDetails.visionPlan && (
                   <span className="inline-block mt-1 px-3 py-1 bg-primary text-primary-foreground rounded-full text-xs font-medium">
-                    {countryDetails.visionPlan}
+                    {isArabic && countryDetails.visionPlanAr ? countryDetails.visionPlanAr : countryDetails.visionPlan}
                   </span>
                 )}
               </div>

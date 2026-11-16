@@ -976,6 +976,7 @@ export const countries = pgTable("countries", {
   vision: text("vision").notNull(),
   visionAr: text("vision_ar"),
   visionPlan: text("vision_plan"),
+  visionPlanAr: text("vision_plan_ar"),
   prioritySectors: text("priority_sectors").array().notNull(),
   prioritySectorsAr: text("priority_sectors_ar").array(),
   nationalGoals: text("national_goals").array().notNull(),

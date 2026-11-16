@@ -34,6 +34,7 @@ interface Country {
   vision: string;
   visionAr: string | null;
   visionPlan: string | null;
+  visionPlanAr?: string | null;
   prioritySectors: string[];
   prioritySectorsAr: string[] | null;
   nationalGoals: string[];
@@ -845,6 +846,15 @@ export default function CountryManagement() {
                     value={selectedCountry.visionPlan || ""}
                     onChange={(e) => setSelectedCountry({ ...selectedCountry, visionPlan: e.target.value })}
                     data-testid="input-edit-vision-plan"
+                  />
+                </div>
+                <div>
+                  <Label>{t('countries.visionPlanArLabel')}</Label>
+                  <Input
+                    dir="rtl"
+                    value={selectedCountry.visionPlanAr || ""}
+                    onChange={(e) => setSelectedCountry({ ...selectedCountry, visionPlanAr: e.target.value })}
+                    data-testid="input-edit-vision-plan-ar"
                   />
                 </div>
               </div>
