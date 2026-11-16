@@ -1305,6 +1305,19 @@ so a student with one assessment in progress got a link to a raw 404.
   production:** "Nasser Walk Check", CONFIRMED by the owner the same day
   (the mail reached his Hotmail), so it is kept. "Nasser Delete Check"
   remains the only erasure sample.
+- **THE TEST PURCHASE RUN, LIVE, 2026-11-16** (`docs/verification/superadmin.md`,
+  build `e071d44`). One setup mail again; Terms opens in a new tab from the
+  wizard; a card top-up of 1 added once (5 -> 6, AED 240 in all, 0 free,
+  reconciliation 0). **The Resend setup button cannot be reached by a click**:
+  a superadmin-created admin has a password, and so does a buyer whose browser
+  finishes checkout first; only a webhook-only purchase leaves the admin without
+  one. **The top-up's `(browser)`/`(webhook)` ledger note is visible nowhere**
+  (no route selects `license_grants.note`), and Resource Timing again showed no
+  `/licences/confirm` though the dialog, which awaits it, closed. Unresolved.
+  **Flagged, not changed:** when the browser wins, checkout shows a generated
+  password and the setup email says "Choose a password" -- two instructions.
+  Allocate reward also seen live (UAQ School 0 -> 2, exactly the pending
+  figure) and a school admin's logo upload (old file deleted from the bucket).
 - **THE SIGN-IN FORM WAS AT `/login/student`, TITLED "Student Login", FOR
   EVERY ROLE** (owner, 2026-11-15). School admins, parents' accounts and the
   superadmin all sign in there, and it told each of them their password came
