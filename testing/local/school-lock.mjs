@@ -251,7 +251,7 @@ if (id) {
     const chosen = "Grade Twelve Self Chosen";
     await sa.patch(`/api/assessments/${freeId}`, { name: chosen, grade: "12" });
     const row = await persisted(freeId);
-    rec("K-08", "a taker with no school is NOT locked", row.name === chosen && row.grade === "12",
+    rec("K-08", "a taker with no school is NOT locked", row.name === chosen && row.grade === "grade12", // canonical since 2026-11-16
       `stored=${row.name}/${row.grade}`);
     await sql(`DELETE FROM assessments WHERE id = $1`, [freeId]);
   }

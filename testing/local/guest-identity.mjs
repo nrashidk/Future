@@ -136,7 +136,8 @@ try {
     if (r.body?.id) made.push(r.body.id);
     const row = await rowOf(r.body?.id);
     rec("GI-02", "GRADE survives — the quiz pool is selected by it",
-      row?.grade === "10", `grade=${row?.grade}`);
+      // Stored in the canonical form since 2026-11-16 (the payload sends "10").
+      row?.grade === "grade10", `grade=${row?.grade}`);
   }
 
   // -------------------------------------------------------------------- GI-03
