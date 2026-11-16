@@ -606,14 +606,31 @@ function QuestionForm({
       toast({ title: t('superadmin.success'), description: t('quiz.saveSuccess', { action }) });
       onSuccess();
     },
-    onError: () => {
+    onError: (error: unknown) => {
       const action = question ? t('quiz.updated') : t('quiz.created');
-      toast({ title: t('superadmin.error'), description: t('quiz.saveError', { action }), variant: "destructive" });
+      toast({ title: t('superadmin.error'), description: serverErrorMessage(error) ?? t('quiz.saveError', { action }), variant: "destructive" });
     },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    // Said, not left to the browser: the Selects in this dialog are Radix, whose
+    // native `required` sits on a hidden element, so an empty form submitted
+    // with nothing on screen at all (superadmin walk, 2026-11-14).
+    const label = (key: string) => t(key).replace(/\s*\*\s*$/, '');
+    const missing: string[] = [];
+    if (!formData.question.trim()) missing.push(label('quiz.questionLabel'));
+    if (!formData.subject) missing.push(label('quiz.subject'));
+    if (!formData.grade) missing.push(label('quiz.grade'));
+    if (!formData.topic.trim()) missing.push(label('quiz.topic'));
+    if (!formData.difficulty) missing.push(label('quiz.difficulty'));
+    if (!formData.cognitiveLevel) missing.push(label('quiz.cognitiveLevel'));
+    if (formData.options.filter(o => typeof o === 'string' && o.trim()).length < 2) missing.push(t('quiz.optionsMin'));
+    if (!formData.correctAnswer) missing.push(label('quiz.correctAnswer'));
+    if (missing.length > 0) {
+      toast({ title: t('quiz.missingTitle'), description: t('quiz.missingBody', { fields: missing.join(', ') }), variant: "destructive" });
+      return;
+    }
     mutation.mutate({
       ...formData,
       countryId: normalizeCountryId(formData.countryId),
@@ -628,7 +645,7 @@ function QuestionForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} noValidate className="space-y-6">
       <DialogHeader>
         <DialogTitle>{question ? t('quiz.editQuestion') : t('quiz.createQuestionTitle')}</DialogTitle>
         <DialogDescription>

@@ -80,7 +80,10 @@
     "confirmDeleteOk": "Delete question",
     "importDone": "{{count}} questions imported",
     "importPartialTitle": "Imported with problems",
-    "importSomeRefused": "{{ok}} imported, {{failed}} refused. Check each row has question, options, correct answer, subject, grade and country. First refused: “{{first}}”"
+    "importSomeRefused": "{{ok}} imported, {{failed}} refused. Check each row has question, options, correct answer, subject, grade and country. First refused: “{{first}}”",
+    "missingTitle": "Fill in the required fields",
+    "missingBody": "Missing: {{fields}}",
+    "optionsMin": "at least two options"
   },
   "analytics": {
     "title": "Analytics Dashboard",
