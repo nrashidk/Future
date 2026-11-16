@@ -1314,8 +1314,16 @@ so a student with one assessment in progress got a link to a raw 404.
   one. **The top-up's `(browser)`/`(webhook)` ledger note is visible nowhere**
   (no route selects `license_grants.note`), and Resource Timing again showed no
   `/licences/confirm` though the dialog, which awaits it, closed. Unresolved.
-  **Flagged, not changed:** when the browser wins, checkout shows a generated
-  password and the setup email says "Choose a password" -- two instructions.
+  **Two instructions to one buyer: FIXED (owner said fix).** When the browser
+  wins, checkout shows a generated password and the setup email said "Choose a
+  password". `sendSchoolSetupInvite` now reads the ACCOUNT (`passwordHash`
+  set?) rather than trusting which caller got there, and the mail then says the
+  password shown at checkout works and the link is for choosing a new one
+  (subject "...sign in or choose a password", button "Choose a new password",
+  both languages). `email.schoolSetup.test.ts` +2 (the control: no password,
+  old wording). Rendered and looked at in English and Arabic; not yet seen in
+  a live inbox (needs another purchase). Showing the `(browser)`/`(webhook)`
+  note: owner said skip. Render paid plan: owner will upgrade at the end.
   Allocate reward also seen live (UAQ School 0 -> 2, exactly the pending
   figure) and a school admin's logo upload (old file deleted from the bucket).
 - **THE SIGN-IN FORM WAS AT `/login/student`, TITLED "Student Login", FOR

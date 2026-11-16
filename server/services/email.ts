@@ -416,10 +416,19 @@ export function buildSchoolSetupHtmlEmail(args: {
   licenseCount: number;
   amountLabel: string | null;
   language: string;
+  /**
+   * The checkout screen ALREADY showed this buyer a generated password (their
+   * browser finished the purchase first). Without this the mail said "Choose a
+   * password" beside a screen that said "save these credentials", and the
+   * buyer had two instructions with nothing saying which one counts. Seen on
+   * the live purchase of 2026-11-16.
+   */
+  passwordAlreadySet?: boolean;
 }): string {
   const { setupUrl, userName, username, organizationName, licenseCount, amountLabel } = args;
   const isAr = args.language === "ar";
   const font = emailFont(args.language);
+  const hasPw = !!args.passwordAlreadySet;
   const greeting = userName
     ? (isAr ? `مرحباً ${userName}،` : `Hello ${userName},`)
     : (isAr ? "مرحباً،" : "Hello,");
@@ -439,15 +448,19 @@ export function buildSchoolSetupHtmlEmail(args: {
 
   const body = isAr
     ? `<p style="margin:0 0 12px;">${greeting}</p>
-       <p style="margin:0 0 12px;">شكراً لشرائك. تم إنشاء <strong>${escapeHtml(organizationName)}</strong> وإضافة تراخيصك إليها. اختر كلمة مرور وأكمل عملية الإعداد.</p>
+       <p style="margin:0 0 12px;">شكراً لشرائك. تم إنشاء <strong>${escapeHtml(organizationName)}</strong> وإضافة تراخيصك إليها. ${hasPw
+         ? "يمكنك تسجيل الدخول بكلمة المرور التي ظهرت عند الدفع. إذا لم تحفظها، أو أردت اختيار كلمة مرور خاصة بك، فاستخدم الرابط أدناه لإكمال الإعداد."
+         : "اختر كلمة مرور وأكمل عملية الإعداد."}</p>
        ${receipt}
-       ${stickyButton(setupUrl, "تعيين كلمة المرور", font)}
+       ${stickyButton(setupUrl, hasPw ? "اختيار كلمة مرور جديدة" : "تعيين كلمة المرور", font)}
        <p style="margin:0 0 12px;">يعمل هذا الرابط مرة واحدة وتنتهي صلاحيته خلال سبعة أيام.</p>
        <p style="margin:0;color:${PALETTE.muted};font-size:13px;">إذا لم يعمل الزر، انسخ هذا العنوان في متصفحك:<br>${escapeHtml(setupUrl)}</p>`
     : `<p style="margin:0 0 12px;">${greeting}</p>
-       <p style="margin:0 0 12px;">Thank you for your purchase. <strong>${escapeHtml(organizationName)}</strong> has been created and your licences are on it. Choose a password and complete the onboarding process.</p>
+       <p style="margin:0 0 12px;">Thank you for your purchase. <strong>${escapeHtml(organizationName)}</strong> has been created and your licences are on it. ${hasPw
+         ? "You can sign in with the password shown when you paid. If you did not save it, or would rather choose your own, use the link below to finish setup."
+         : "Choose a password and complete the onboarding process."}</p>
        ${receipt}
-       ${stickyButton(setupUrl, "Set your password", font)}
+       ${stickyButton(setupUrl, hasPw ? "Choose a new password" : "Set your password", font)}
        <p style="margin:0 0 12px;">This link works once and expires in seven days.</p>
        <p style="margin:0;color:${PALETTE.muted};font-size:13px;">If the button does not work, copy this address into your browser:<br>${escapeHtml(setupUrl)}</p>`;
 
@@ -468,8 +481,10 @@ function buildSchoolSetupTextEmail(args: {
   licenseCount: number;
   amountLabel: string | null;
   language: string;
+  passwordAlreadySet?: boolean;
 }): string {
   const { setupUrl, userName, username, organizationName, licenseCount, amountLabel } = args;
+  const hasPw = !!args.passwordAlreadySet;
   if (args.language === "ar") {
     return [
       "مدرستك جاهزة - مسار المستقبل",
@@ -483,7 +498,9 @@ function buildSchoolSetupTextEmail(args: {
       ...(amountLabel ? [`المبلغ المدفوع: ${amountLabel}`] : []),
       `اسم الدخول: ${username}`,
       "",
-      "لتعيين كلمة المرور وإكمال الإعداد:",
+      ...(hasPw
+        ? ["يمكنك تسجيل الدخول بكلمة المرور التي ظهرت عند الدفع.", "", "لاختيار كلمة مرور جديدة وإكمال الإعداد:"]
+        : ["لتعيين كلمة المرور وإكمال الإعداد:"]),
       setupUrl,
       "",
       "يعمل هذا الرابط مرة واحدة وتنتهي صلاحيته خلال سبعة أيام.",
@@ -501,7 +518,9 @@ function buildSchoolSetupTextEmail(args: {
     ...(amountLabel ? [`Paid: ${amountLabel}`] : []),
     `Your sign-in name: ${username}`,
     "",
-    "To set your password and finish setup:",
+    ...(hasPw
+      ? ["You can sign in with the password shown when you paid.", "", "To choose a new password and finish setup:"]
+      : ["To set your password and finish setup:"]),
     setupUrl,
     "",
     "This link works once and expires in seven days.",
@@ -517,6 +536,7 @@ export async function sendSchoolSetupEmail(args: {
   licenseCount: number;
   amountLabel?: string | null;
   language?: string;
+  passwordAlreadySet?: boolean;
 }): Promise<EmailResult> {
   const language = args.language ?? "en";
   if (!resend) {
@@ -540,9 +560,13 @@ export async function sendSchoolSetupEmail(args: {
   const setupUrl = `${baseUrl}/school/setup/${args.token}`;
 
   const isAr = language === "ar";
-  const subject = isAr
-    ? `${args.organizationName} جاهزة - عيّن كلمة المرور`
-    : `${args.organizationName} is ready - set your password`;
+  const subject = args.passwordAlreadySet
+    ? (isAr
+      ? `${args.organizationName} جاهزة - سجّل الدخول أو اختر كلمة مرور`
+      : `${args.organizationName} is ready - sign in or choose a password`)
+    : (isAr
+      ? `${args.organizationName} جاهزة - عيّن كلمة المرور`
+      : `${args.organizationName} is ready - set your password`);
 
   const content = {
     setupUrl,
@@ -552,6 +576,7 @@ export async function sendSchoolSetupEmail(args: {
     licenseCount: args.licenseCount,
     amountLabel: args.amountLabel ?? null,
     language,
+    passwordAlreadySet: !!args.passwordAlreadySet,
   };
 
   try {

@@ -81,6 +81,13 @@ export async function sendSchoolSetupInvite(args: {
           })}`
         : null;
 
+    // Decided from the ACCOUNT, not from which caller got here: when the
+    // browser finishes checkout first it generates a password and shows it,
+    // and the webhook may still be the one that sends. Reading the row means
+    // the mail matches the screen whichever path wins the race.
+    const account = await storage.getUser(args.userId);
+    const passwordAlreadySet = !!account?.passwordHash;
+
     const result = await sendSchoolSetupEmail({
       to: args.email,
       token,
@@ -90,6 +97,7 @@ export async function sendSchoolSetupInvite(args: {
       licenseCount: args.licenseCount,
       amountLabel,
       language: args.language ?? "en",
+      passwordAlreadySet,
     });
 
     if (!result.success) {

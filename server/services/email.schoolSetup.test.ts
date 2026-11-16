@@ -73,4 +73,25 @@ describe("buildSchoolSetupHtmlEmail", () => {
     expect(html).toContain("seven days");
     expect(html).not.toContain("one hour");
   });
+
+  it("tells a buyer who was SHOWN a password at checkout that it works", () => {
+    // Live, 2026-11-16: the checkout screen said "save these credentials" and
+    // the mail said "Choose a password" — two instructions to one buyer.
+    const html = buildSchoolSetupHtmlEmail({ ...base, passwordAlreadySet: true });
+    expect(html).toContain("password shown when you paid");
+    expect(html).toContain("Choose a new password");
+    expect(html).not.toContain("Choose a password and complete");
+    const ar = buildSchoolSetupHtmlEmail({ ...base, language: "ar", passwordAlreadySet: true });
+    expect(ar).toContain("بكلمة المرور التي ظهرت عند الدفع");
+    expect(ar).not.toContain("password shown");
+  });
+
+  it("CONTROL: a buyer with no password is still told to choose one", () => {
+    // The webhook-only path and a superadmin resend: no password exists, so
+    // the old wording is the only one that is true.
+    const html = buildSchoolSetupHtmlEmail(base);
+    expect(html).toContain("Choose a password and complete");
+    expect(html).toContain("Set your password");
+    expect(html).not.toContain("password shown when you paid");
+  });
 });
