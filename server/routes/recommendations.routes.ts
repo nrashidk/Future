@@ -1030,6 +1030,12 @@ export function registerRecommendationsRoutes(app: Express) {
 
       if (!isAuthorized) {
         if (assessment.userId) {
+          // Signed in but not entitled is a 403, not a 401: telling a signed-in
+          // student "Authentication required" for another student's report
+          // names the wrong problem (seen live, 2026-11-15).
+          if (req.isAuthenticated?.() && req.user) {
+            return res.status(403).json({ message: "You do not have access to this assessment" });
+          }
           return res.status(401).json({ message: "Authentication required to access this assessment" });
         }
         return res.status(403).json({ message: "Invalid session. Please complete the assessment first." });
@@ -1165,6 +1171,12 @@ export function registerRecommendationsRoutes(app: Express) {
       if (!isAuthorized) {
         // Determine appropriate error based on context
         if (assessment.userId) {
+          // Signed in but not entitled is a 403, not a 401: telling a signed-in
+          // student "Authentication required" for another student's report
+          // names the wrong problem (seen live, 2026-11-15).
+          if (req.isAuthenticated?.() && req.user) {
+            return res.status(403).json({ message: "You do not have access to this assessment" });
+          }
           return res.status(401).json({ message: "Authentication required to access this assessment" });
         }
         return res.status(403).json({ message: "Invalid session. Please complete the assessment first." });
