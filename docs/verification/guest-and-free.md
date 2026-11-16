@@ -16,7 +16,7 @@ Production, built-in browser, signed out. Build `d74823c`, 2026-11-15.
 | Account state | ✅ | free `individual`, not premium, on no pool; confirmation due 2026-11-18T10:41Z |
 | Banner | ✅ | "Confirm your email address — 3 days left, then the account is deleted", with Send again |
 | Profile | ✅ | Free; "1 of 3"; one Grade 10 report, Free; data counts 1 / 2 / 1 / 15 |
-| Superadmin's "unconfirmed" badge for this account | ⏸ | not looked at (needs a superadmin sign-in); seen on 2026-11-13 for an earlier account |
+| Superadmin's "unconfirmed" badge | ✅ | 2026-11-16 on "Nasser Delete Check": "Email not confirmed · deleted in 16 h" (deadline 23:45 Dubai); the confirmed walk account carries no badge |
 | ⚠️ Form controls | ⚠️ | on the registration form and the guest step 1, a click on the next control right after a dropdown only closes the dropdown; the tick or choice has to be made twice. Radix behaviour, not data loss. Flagged, not changed |
 
 Left on production: "Nasser Walk Check" (child "ZZ Walk Child"). **Confirmed by the owner, 2026-11-15 17:28 Dubai**, from the mail to the Hotmail address he registered with, so it is kept. Not re-read by me afterwards (the browser link had dropped).

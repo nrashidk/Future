@@ -24,7 +24,7 @@ the OS file picker. Throwaway data was named `ZZ Click …` and removed.
 | Manage admins: promote to primary | 🔧 | tonight | schools bought online had NO primary admin (Test High, AD School); fixed for new purchases, both put right by Promote |
 | Manage admins: remove (asks first, primary protected) | ✅ | tonight | |
 | View history | ✅ | 11-12 | |
-| Resend setup | ⏸ | — | only offered before an admin signs in; no school in that state |
+| Resend setup | ⏸ | 2026-11-16 | a school a superadmin creates never shows it (its admin is given a password, so the stage is "Setup not finished", not "never signed in"; `shared/schoolSetupStage.ts`). Only an ONLINE purchase whose buyer has not set a password reaches it, so it waits for the next test group purchase. Throwaway "ZZ Resend Check School" and its admin deleted; reconciliation 0 |
 | Bulk delete / delete school (typed name) | ✅ | 11-12/14 | |
 | Export schools | ✅ | 11-12 | |
 
@@ -70,14 +70,14 @@ the OS file picker. Throwaway data was named `ZZ Click …` and removed.
 | LLM: test key | ✅ | tonight | success |
 | LLM: empty key refused | ✅ | tonight | button disabled |
 | LLM: replace / delete key | ⏸ | — | cannot be re-entered by me |
-| Prompt template: edit + save | ⚠️ | tonight | saves; clears the narrative cache; effect on a report not seen |
+| Prompt template: edit + save | ⚠️ | 2026-11-15 | saves; clears the narrative cache; the effect on a report SEEN (salm's five narratives rewritten after "Why This Career?" was saved). Flaw: the Narrative Cache tile does not refresh after a save |
 | History | ⚠️ | tonight | records changes; Description column always "-" |
 
 ## Contributions
 | Tiles | ✅ | tonight | |
 | Review: approve / reject / needs changes / re-run / give reward | ✅ | 11-12/13/14 | needs a school submission to re-click |
 | Yearly maximum edit (and −5 refused) | ✅ | tonight, 11-14 | |
-| Allocate reward to a school | ⏸ | — | only shown with pending rewards |
+| Allocate reward to a school | ✅ | 2026-11-16 | UAQ School (2 pending, from its peer review votes): Allocate Credits prefilled 2 -> Confirm -> "Rewards Allocated", the row left the list, reward credits 0 -> 2 (exactly the pending figure, not beyond). AD School left pending |
 
 ## Translations
 | UI strings: namespace, search, missing only | ✅ | tonight | |
