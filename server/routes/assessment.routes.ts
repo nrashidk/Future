@@ -11,6 +11,7 @@ import { validatePromptInputFields } from "../utils/assessmentValidation";
 import { sanitizeRequestBody } from "../utils/sanitize";
 import { printTokenAuthorizes, mintGuestRecoveryToken } from "../utils/printToken";
 import { ageOnDate, toDateOnlyString } from "@shared/dateOfBirth";
+import { toCanonicalGrade } from "@shared/grade";
 import { FREE_ASSESSMENT_CAP, isFreeTierCapReached } from "@shared/assessmentLimits";
 import { assessmentIsChildOwned } from "@shared/childOwnership";
 import { guestAssessmentExpiresAt, GUEST_COOKIE_MAX_AGE_MS } from "@shared/guestAssessmentExpiry";
@@ -25,7 +26,7 @@ import { recoveryEmailLimiter, guestAssessmentLimiter } from "../middleware/rate
  * - Normalizes favorite subjects to canonical quiz subjects
  * - Returns { normalized: data } on success or { error: message } on validation failure
  */
-function normalizeAssessmentPayload(body: any): { normalized?: any; error?: string } {
+export function normalizeAssessmentPayload(body: any): { normalized?: any; error?: string } {
   const normalized = { ...body };
   
   // Handle educationLevel → grade migration with coercion and conflict detection
@@ -47,6 +48,17 @@ function normalizeAssessmentPayload(body: any): { normalized?: any; error?: stri
     delete normalized.educationLevel;
   }
   
+  // ONE STORED FORMAT FOR A STUDENT'S GRADE. The form sends 'grade12', but the
+  // route accepted any string, so a client sending '12' stored '12' beside the
+  // same account's 'grade12' rows (seen on ali.ali, 2026-11-15). Readers are
+  // tolerant (gradeToNumber), but a same-grade comparison is not, and it is
+  // the comparison the repeat rule makes. A value that does not name one
+  // supported grade is left as sent; validation downstream decides.
+  if (normalized.grade !== undefined && normalized.grade !== null) {
+    const canonical = toCanonicalGrade(normalized.grade);
+    if (canonical) normalized.grade = canonical;
+  }
+
   // Normalize favorite subjects to canonical quiz subjects
   if (normalized.favoriteSubjects && Array.isArray(normalized.favoriteSubjects)) {
     const originalSubjects = [...normalized.favoriteSubjects];
