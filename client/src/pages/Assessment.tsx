@@ -15,6 +15,7 @@ import { AspirationsStep } from "@/components/assessment/AspirationsStep";
 import { QuizStep } from "@/components/assessment/QuizStep";
 import { GraduationCap, LogIn, LogOut, User, ClipboardCheck, CalendarDays, Building2, BarChart, Shield, FileQuestion, RotateCcw, PlayCircle, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useTranslation } from "react-i18next";
 import { withReturnTo, currentPathWithQuery } from "@/lib/returnTo";
 import type { Assessment as AssessmentRecord } from "@shared/schema";
@@ -142,6 +143,12 @@ export default function Assessment() {
   const [isGuest, setIsGuest] = useState(false);
   const [assessmentId, setAssessmentId] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  // An individual's second report for the same grade: the server answers 409
+  // SAME_GRADE_REPEAT on create, this asks, and a yes re-sends with
+  // confirmRepeat. The ref, not state, carries the yes into handleNext, which
+  // reads it in the same tick the dialog closes.
+  const [sameGradePrompt, setSameGradePrompt] = useState(false);
+  const confirmRepeatRef = useRef(false);
   const [aspirationsError, setAspirationsError] = useState<string | null>(null);
   // Set from the PATCH that discarded an unsubmitted quiz because the student
   // changed their subjects (assessment.routes.ts). Lives here rather than in
@@ -977,10 +984,16 @@ export default function Assessment() {
             // /assessment then showed "ask your school" over an assessment
             // they had already started. Seen on production 2026-11-14.
             if (!isAspirationsStep) backendData.currentStep = currentStep + 1;
+            if (confirmRepeatRef.current) backendData.confirmRepeat = true;
             const response = await apiRequest("POST", "/api/assessments", backendData);
             assessment = await response.json();
           }
         } catch (saveError) {
+          const { serverErrorCode } = await import("@/lib/queryClient");
+          if (!assessmentId && serverErrorCode(saveError) === "SAME_GRADE_REPEAT") {
+            setSameGradePrompt(true);
+            return;
+          }
           console.error("Error saving assessment:", saveError);
           const msg = t("errors.saveFailedDesc");
           if (isAspirationsStep) {
@@ -1322,6 +1335,27 @@ export default function Assessment() {
 
   return (
     <main id="main-content" className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-accent/5 pb-12">
+      <AlertDialog open={sameGradePrompt} onOpenChange={setSameGradePrompt}>
+        <AlertDialogContent data-testid="dialog-same-grade-repeat">
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("repeat.title")}</AlertDialogTitle>
+            <AlertDialogDescription>{t("repeat.body")}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-same-grade-cancel">{t("repeat.sameGradeCancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              data-testid="button-same-grade-continue"
+              onClick={() => {
+                confirmRepeatRef.current = true;
+                setSameGradePrompt(false);
+                void handleNext();
+              }}
+            >
+              {t("repeat.continue")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       {/* Guest Banner — "create an account to save your progress".
           GATED ON assessmentId, which is what makes that sentence true. It is
           set by the POST handleNext fires on leaving Subjects (step 3), so the

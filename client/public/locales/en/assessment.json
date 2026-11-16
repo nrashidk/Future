@@ -25,7 +25,8 @@
     "bodySchool": "Taking the assessment again for the same grade uses another of your school's licences. Check with your school before you repeat it.",
     "continue": "Take it again anyway",
     "blockedTitle": "You already have your report for this grade",
-    "blockedBody": "You can take the assessment again when you move up a grade. If you need to repeat it this year, ask your school to allow it."
+    "blockedBody": "You can take the assessment again when you move up a grade. If you need to repeat it this year, ask your school to allow it.",
+    "sameGradeCancel": "Not now"
   },
   "freeCap": {
     "title": "You've used your free assessments",

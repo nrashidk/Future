@@ -4471,6 +4471,25 @@ export class DatabaseStorage implements IStorage {
   }
 
   /**
+   * The same question as hasConsumedLicenseForGrade, compared on the CANONICAL
+   * grade, for an individual whose grade is typed per assessment. Their older
+   * charges may carry '12' where newer ones carry 'grade12' (the routes kept
+   * the client's string until 2026-11-16), and an exact match would miss them.
+   */
+  async hasConsumedLicenseForCanonicalGrade(
+    studentUserId: string,
+    grade: string | null | undefined,
+  ): Promise<boolean> {
+    const target = toCanonicalGrade(grade);
+    if (!target) return false;
+    const rows = await db
+      .select({ grade: licenseConsumptions.grade })
+      .from(licenseConsumptions)
+      .where(eq(licenseConsumptions.studentUserId, studentUserId));
+    return rows.some((r: { grade: string | null }) => toCanonicalGrade(r.grade) === target);
+  }
+
+  /**
    * Spend one licence, at the moment a report is generated.
    *
    * MUST be called inside the transaction that marks the assessment complete,

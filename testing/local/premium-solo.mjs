@@ -16,6 +16,13 @@
  *   S-04  regenerating a report already charged for costs nothing
  *   S-05  CONTROL: a FREE account is still on no pool and still starts an
  *         assessment -- or everything above passes against "refuse everyone"
+ *   S-06  a second report for the SAME grade is asked first: 409
+ *         SAME_GRADE_REPEAT, no row written -- even when the first charge was
+ *         stored as '10' and the new create says 'grade10' (owner, 2026-11-16)
+ *   S-07  confirmRepeat: true goes ahead (a warning, not a limit)
+ *   S-08  CONTROL: a NEW grade is not asked about
+ *   S-09  a typed age of 45 is refused 400 AGE_OUT_OF_RANGE; S-10 is the
+ *         control that 15 is accepted
  *
  * Judged by the ledger and the assessment rows, never by a status alone.
  */
@@ -152,6 +159,35 @@ const freeLedger = await ledgerCount(`student_user_id = $1`, [free.id]);
 rec("S-05", "CONTROL: a free account is on no pool and still starts one",
   freeBal.body?.onPool === false && freeRun.create.status === 200 && !!freeRun.id && freeLedger === 0,
   `onPool=${freeBal.body?.onPool} create=${freeRun.create.status} ledger=${freeLedger}`);
+
+// ---- the same-grade warning (owner, 2026-11-16) -------------------------
+await sql(`UPDATE users SET purchased_licenses = purchased_licenses + 3 WHERE id = $1`, [buyer.id]);
+// The first charge was written with the grade as that create sent it; make it
+// the legacy bare '10' so S-06 also proves the comparison is canonical.
+await sql(`UPDATE license_consumptions SET grade = '10' WHERE assessment_id = $1`, [first.id]);
+const repeatBody = async (grade, extra = {}) => ({
+  favoriteSubjects: ["Mathematics", "Physics", "English"],
+  interests: ["Technology", "Healthcare", "Business"],
+  countryId: COUNTRY, curriculum: CURRICULUM, grade,
+  riasecResponses: riasec30(5), cvqResponses: await cvqAll(5), ...extra,
+});
+const r6before = await assessmentCount(buyer.id);
+const r6 = await buyer.s.post("/api/assessments", await repeatBody("grade10"));
+const r6after = await assessmentCount(buyer.id);
+rec("S-06", "a same-grade repeat is asked first and writes nothing",
+  r6.status === 409 && r6.body?.code === "SAME_GRADE_REPEAT" && r6after === r6before,
+  `HTTP ${r6.status} ${r6.body?.code ?? ""} assessments ${r6before} -> ${r6after}`);
+const r7 = await buyer.s.post("/api/assessments", await repeatBody("grade10", { confirmRepeat: true }));
+rec("S-07", "confirmRepeat goes ahead", r7.status === 200 && !!r7.body?.id, `HTTP ${r7.status}`);
+const r8 = await buyer.s.post("/api/assessments", await repeatBody("grade12"));
+rec("S-08", "CONTROL: a new grade is not asked about", r8.status === 200 && !!r8.body?.id, `HTTP ${r8.status} ${r8.body?.code ?? ""}`);
+
+// ---- a typed age must be 13-18 (owner, 2026-11-16) ----------------------
+const a9 = await buyer.s.patch(`/api/assessments/${r8.body?.id}`, { age: 45 });
+rec("S-09", "a typed age of 45 is refused", a9.status === 400 && a9.body?.code === "AGE_OUT_OF_RANGE", `HTTP ${a9.status} ${a9.body?.code ?? ""}`);
+const a10 = await buyer.s.patch(`/api/assessments/${r8.body?.id}`, { age: 15 });
+const [ageRow] = await sql(`SELECT age FROM assessments WHERE id = $1`, [r8.body?.id]);
+rec("S-10", "CONTROL: a typed age of 15 is stored", a10.status === 200 && ageRow?.age === 15, `HTTP ${a10.status} age=${ageRow?.age}`);
 
 const failed = results.filter((r) => !r.pass);
 console.log(`\n${results.length - failed.length}/${results.length} passed`);

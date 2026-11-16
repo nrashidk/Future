@@ -678,6 +678,27 @@ export function registerAssessmentRoutes(app: Express) {
                 code: "NO_LICENCES_AVAILABLE",
               });
             }
+
+            /**
+             * A SECOND REPORT FOR THE SAME GRADE WARNS FIRST (owner,
+             * 2026-11-16). An individual types their grade per assessment, so
+             * the warning a school student sees at /assessment cannot be shown
+             * before the grade is known; it is asked here, at creation, and
+             * the form re-sends with `confirmRepeat: true`. A WARNING, not a
+             * limit: the buyer may repeat, and it costs a licence. Seen live
+             * 2026-11-15: a second Grade 12 report spent a licence silently.
+             */
+            const confirmRepeat = (sanitizedBody as { confirmRepeat?: unknown }).confirmRepeat === true;
+            if (
+              capacity &&
+              !confirmRepeat &&
+              (await storage.hasConsumedLicenseForCanonicalGrade(userId, validatedData.grade))
+            ) {
+              return res.status(409).json({
+                message: "You already have a report for this grade. Taking it again uses another licence.",
+                code: "SAME_GRADE_REPEAT",
+              });
+            }
           }
 
           if (!account?.isPremium) {
