@@ -904,16 +904,39 @@ function AdminOrganizationsPage() {
                   </Button>
                   {selectedMemberIds.length > 0 && (
                     <div className="flex gap-2">
-                      <Button 
-                        size="sm" 
-                        variant="outline"
-                        onClick={() => bulkResetPasswordsMutation.mutate(selectedMemberIds)}
-                        disabled={bulkResetPasswordsMutation.isPending}
-                        data-testid="button-bulk-reset-passwords"
-                      >
-                        <Key className="w-4 h-4 me-2" />
-                        {t('orgs.bulkReset')} ({selectedMemberIds.length})
-                      </Button>
+                      {/* Asks first, as the superadmin's bulk reset does: one
+                          click used to replace every selected student's
+                          password at once (school-admin walk, 2026-11-15). */}
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button 
+                            size="sm" 
+                            variant="outline"
+                            disabled={bulkResetPasswordsMutation.isPending}
+                            data-testid="button-bulk-reset-passwords"
+                          >
+                            <Key className="w-4 h-4 me-2" />
+                            {t('orgs.bulkReset')} ({selectedMemberIds.length})
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>{t('orgs.bulkReset')}</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              {t('superadmin.confirmBulkResetBody', { n: selectedMemberIds.length })}
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel data-testid="button-bulk-reset-cancel">{t('superadmin.cancel')}</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={() => bulkResetPasswordsMutation.mutate(selectedMemberIds)}
+                              data-testid="button-bulk-reset-confirm"
+                            >
+                              {t('orgs.bulkReset')}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                       <AlertDialog>
                         <AlertDialogTrigger asChild>
                           <Button variant="destructive" size="sm" data-testid="button-bulk-delete">
