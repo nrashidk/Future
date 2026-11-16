@@ -144,6 +144,9 @@ export default function ScoringConfigEditor() {
       setEditingPrompt(null);
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/llm-prompts'] });
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/scoring-config/changelog'] });
+      // A save clears that template's cached narratives; the Narrative Cache
+      // tile kept the old count until a reload (seen live 2026-11-15, 50 -> 0).
+      queryClient.invalidateQueries({ queryKey: ['/api/superadmin/llm-cache/stats'] });
     },
     onError: (error: unknown) => {
       toast({ title: t('superadmin.errorTitle'), description: serverErrorMessage(error) ?? t('scoring.failedUpdatePrompt'), variant: "destructive" });
