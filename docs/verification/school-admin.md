@@ -11,7 +11,7 @@ School's admin, signed in by the owner. ✅ clicked and held · ❌ broken ·
 | Edit student (grade, student ID) | ✅ | 2026-11-15 | Grade 10 -> 11, ID set, toast "Student updated" |
 | Reset password (one student) | ✅ | 2026-11-15 | complexity choice, then the new credentials once |
 | Bulk upload CSV (2 good, 1 bad date) | ✅ | 2026-11-15 | 2 created, Arabic "أنثى" stored Female, bad row named with its reason. This is `/members/bulk`, the only CSV path left |
-| Export Students (CSV) | ✅ | 2026-11-15 | fetched the button's own request: 200 text/csv, no password column. ⚠️ grade printed `grade11`, gender lowercase. Button not clicked (would download to your computer) |
+| Export Students (CSV) | ✅ | 2026-11-16 | the button itself pressed: "Downloaded / Download started". Earlier (2026-11-15) its request read 200 text/csv, no password column. ⚠️ grade printed `grade11`, gender lowercase |
 | Export All Reports | ✅ | 2026-11-15 | fetched: 200 zip, 1.6 MB, 4 PDFs (the 4 finished students) |
 | Export Selected (no reports) | ✅ | 2026-11-15 | "None of the 2 selected students has a completed assessment" |
 | Allow repeat, then withdraw | ✅ | 2026-11-15 | Khalid User: "Repeat allowed", then withdrawn, both toasts |
