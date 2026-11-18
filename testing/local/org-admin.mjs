@@ -402,6 +402,43 @@ console.log(`B's student under test: ${bVictim.username}\n`);
     `HTTP ${g.status} stored=${JSON.stringify([stored("Gender Capital"), stored("Gender Arabic"), stored("Gender Nonsense")])} failed=${g.body?.failed} error=${JSON.stringify(g.body?.errors?.[0]?.error ?? null)}`);
 }
 
+// O-18. THE COUNTRY CARD'S "students assessed" COUNTS STUDENTS, NOT REPORTS.
+// Seen live 2026-11-18: Test High School's card read "8 students assessed"
+// where five students had finished -- salm alone held four reports. One
+// student is planted with TWO completed assessments and another with one, so
+// a count of rows (3) and a count of students (2) disagree; judged against the
+// database's own DISTINCT count, and torn down afterwards.
+{
+  const { Client } = await import("pg");
+  const c = new Client({
+    connectionString: `postgres://postgres:postgres@127.0.0.1:${process.env.PGLITE_TCP_PORT ?? 55432}/postgres`,
+  });
+  await c.connect();
+  const studs = (await c.query(
+    `SELECT user_id FROM organization_members WHERE organization_id = $1 AND role = 'student' ORDER BY user_id LIMIT 2`,
+    [A.orgId])).rows.map((r) => r.user_id);
+  const country = (await c.query(`SELECT id FROM countries ORDER BY id LIMIT 1`)).rows[0]?.id;
+  const planted = (await c.query(
+    `INSERT INTO assessments (user_id, country_id, grade, favorite_subjects, interests, is_completed, completed_at)
+     VALUES ($1, $3, 'grade10', '{}', '{}', true, NOW() - INTERVAL '2 day'),
+            ($1, $3, 'grade10', '{}', '{}', true, NOW() - INTERVAL '1 day'),
+            ($2, $3, 'grade10', '{}', '{}', true, NOW())
+     RETURNING id`, [studs[0], studs[1], country])).rows.map((r) => r.id);
+  const truth = (await c.query(
+    `SELECT COUNT(DISTINCT a.user_id)::int AS students, COUNT(*)::int AS reports
+       FROM assessments a
+      WHERE a.is_completed AND a.country_id = $2
+        AND a.user_id IN (SELECT user_id FROM organization_members WHERE organization_id = $1)`,
+    [A.orgId, country])).rows[0];
+  const r = await A.session.get("/api/analytics/countries");
+  const card = Array.isArray(r.body) ? r.body.find((x) => x.countryId === country) : undefined;
+  await c.query(`DELETE FROM assessments WHERE id = ANY($1::text[])`, [planted]);
+  await c.end();
+  rec("O-18", "the country card counts students who finished, not reports",
+    r.status === 200 && truth.reports > truth.students && card?.studentCount === truth.students,
+    `db students=${truth.students} reports=${truth.reports} | card=${card?.studentCount}`);
+}
+
 const pass = results.filter((r) => r.pass).length;
 const fail = results.filter((r) => !r.pass);
 console.log(`\n${"=".repeat(78)}`);

@@ -2075,7 +2075,11 @@ export class DatabaseStorage implements IStorage {
       .select({
         countryId: assessments.countryId,
         countryName: countries.name,
-        count: sql<number>`count(*)::int`
+        // STUDENTS, not reports: the card reads "students assessed", and a
+        // student with three reports was counted three times (seen live
+        // 2026-11-18, "8" over five students). A guest has no user id, so
+        // each guest assessment is its own person.
+        count: sql<number>`count(DISTINCT COALESCE(${assessments.userId}, 'guest:' || ${assessments.id}))::int`
       })
       .from(assessments)
       .leftJoin(countries, eq(assessments.countryId, countries.id))
