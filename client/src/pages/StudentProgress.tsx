@@ -9,8 +9,8 @@ import { GraduationCap, TrendingUp, Target, Brain, Heart, ArrowLeft, Calendar, A
 import { StickyNote } from "@/components/StickyNote";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { CANONICAL_GRADES, gradeToNumber, toCanonicalGrade } from "@shared/grade";
-import { countConsistentCareers } from "@shared/careerJourney";
+import { gradeToNumber, toCanonicalGrade } from "@shared/grade";
+import { countConsistentCareers, journeyGrades } from "@shared/careerJourney";
 import { formatLocalizedDate } from "@/lib/formatDate";
 
 interface CareerEvolutionData {
@@ -87,13 +87,11 @@ export default function StudentProgress() {
   // No grade param when the one assessment carries no grade: /results without one
   // resolves to the latest report, which for this student is that assessment.
   const soleGradeParam = soleGrade ? toCanonicalGrade(soleGrade.grade) : null;
-  // Was ['9','10','11','12'] — grade 8 is offered by the assessment's Demographics
-  // step but was missing here, so a grade-8 assessment never appeared on the
-  // timeline at all. 'graduated' is likewise shown only when it has data, since
-  // an empty "Graduated" milestone would read oddly for a grade-9 student.
-  const grades = CANONICAL_GRADES.filter(
-    g => g !== 'graduated' || evolution?.gradeDetails?.some(d => toCanonicalGrade(d.grade) === 'graduated'),
-  );
+  // From the student's FIRST assessed grade onward (journeyGrades). Grades
+  // before it were drawn as "Pending" for a student who joined at Grade 11 and
+  // can never complete them. Grade 8 is included when assessed; 'graduated'
+  // only with data.
+  const grades = journeyGrades((evolution?.gradeDetails ?? []).map(d => d.grade));
 
   const consistentCount = countConsistentCareers(evolution?.trajectory ?? []);
 
