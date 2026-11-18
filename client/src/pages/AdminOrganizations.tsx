@@ -2819,6 +2819,7 @@ function MemberActions({ member, organizationId }: { member: OrganizationMember;
           size="icon"
           asChild
           title={t('orgs.viewResults')}
+          aria-label={t('orgs.viewResults')}
           data-testid={`button-view-report-${member.id}`}
         >
           <a href={`/api/staff/students/${member.userId}/report`} target="_blank" rel="noopener noreferrer">
@@ -2834,6 +2835,7 @@ function MemberActions({ member, organizationId }: { member: OrganizationMember;
           variant={member.repeatAllowed ? "secondary" : "ghost"}
           size="icon"
           title={t(member.repeatAllowed ? 'orgs.repeatWithdraw' : 'orgs.repeatAllow')}
+          aria-label={t(member.repeatAllowed ? 'orgs.repeatWithdraw' : 'orgs.repeatAllow')}
           aria-pressed={!!member.repeatAllowed}
           disabled={repeatMutation.isPending}
           onClick={() => repeatMutation.mutate(!member.repeatAllowed)}
@@ -2850,7 +2852,7 @@ function MemberActions({ member, organizationId }: { member: OrganizationMember;
       {member.role === 'student' && (
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
           <DialogTrigger asChild>
-            <Button variant="ghost" size="icon" data-testid={`button-edit-member-${member.id}`}>
+            <Button variant="ghost" size="icon" title={t('orgs.editStudentTitle')} aria-label={t('orgs.editStudentTitle')} data-testid={`button-edit-member-${member.id}`}>
               <Edit className="w-4 h-4" />
             </Button>
           </DialogTrigger>
@@ -2866,7 +2868,7 @@ function MemberActions({ member, organizationId }: { member: OrganizationMember;
 
       <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
         <DialogTrigger asChild>
-          <Button variant="ghost" size="icon" data-testid={`button-reset-password-${member.id}`}>
+          <Button variant="ghost" size="icon" title={t('orgs.resetPassword')} aria-label={t('orgs.resetPassword')} data-testid={`button-reset-password-${member.id}`}>
             <Key className="w-4 h-4" />
           </Button>
         </DialogTrigger>
@@ -2919,6 +2921,8 @@ function MemberActions({ member, organizationId }: { member: OrganizationMember;
             <Button 
               variant="ghost" 
               size="icon"
+              title={t('orgs.deleteStudentTitle')}
+              aria-label={t('orgs.deleteStudentTitle')}
               data-testid={`button-delete-member-${member.id}`}
             >
               <Trash2 className="w-4 h-4 text-destructive" />
