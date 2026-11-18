@@ -1393,6 +1393,16 @@ so a student with one assessment in progress got a link to a raw 404.
   date in the language the consent was recorded in, which is the record.
   **Still needs a decision:** every priority sector shows the same student
   count (what is "a student in a sector"?).
+  **ALL SEEN LIVE, build `403fdd0`** (Test High School's admin): the card
+  reads 5; "1 recommendation"; the switch turns Analytics Arabic and back;
+  the CSV reads "Grade 10","Male", "17/11/2026"; the row icons carry their
+  labels; bulk reset asks first (opened and cancelled); bulk delete over two
+  students with no report shows "Keep account & report" muted (cancelled);
+  Completed lists 5 and no admin; Profile says "Go to My School". The
+  submit button's plural was not rendered. **Flagged, not changed:** the
+  dialogs say "account(s)" / "student(s)"; on Arabic Analytics the country
+  card and career names stay English; the roster's "9 members" counts the
+  administrator.
 - **THE SIGN-IN FORM WAS AT `/login/student`, TITLED "Student Login", FOR
   EVERY ROLE** (owner, 2026-11-15). School admins, parents' accounts and the
   superadmin all sign in there, and it told each of them their password came

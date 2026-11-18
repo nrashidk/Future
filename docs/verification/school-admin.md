@@ -37,3 +37,19 @@ School's admin, signed in by the owner. ✅ clicked and held · ❌ broken ·
 | Arabic | ⚠️ | 2026-11-15 | My School is Arabic and RTL; but there is NO language switch on My School or Analytics (only Profile); the consent card keeps "(Last updated: 6 April 2026)" in English and a year-first date |
 | Row icon buttons | ⚠️ | 2026-11-15 | edit / reset / delete have no label or tooltip (the repeat button has one) |
 | Record consent again | ⏸ | | your legal attestation; left for you |
+
+## 2026-11-18, build `403fdd0`
+
+| Item | Result | Note |
+|---|---|---|
+| Analytics "students assessed" | 🔧 | 8 -> 5 (counted reports, now students) |
+| Analytics "1 recommendations" | 🔧 | "1 recommendation" |
+| Language switch on My School / Analytics | 🔧 | toggles Arabic and back |
+| Students CSV | 🔧 | "Grade 10", "Male", 17/11/2026 |
+| Row icon labels | 🔧 | Edit Student / Reset Password / Delete Student |
+| Bulk reset asks first | ✅ | opened and cancelled ("2 account(s)") |
+| Bulk delete, nobody with a report | 🔧 | "Keep account & report" muted; cancelled |
+| Completed filter | ✅ | 5 students, no admin |
+| Profile button | 🔧 | "Go to My School" |
+| Report age 15 vs roster 17 (Khalid) | not a bug | report keeps the age stored in June; DOB edited in September |
+| Every sector the same count | ⏸ | needs a definition |
