@@ -92,7 +92,7 @@
   "organization": {
     "title": "School Management",
     "subtitle": "Manage your school's students and assessments",
-    "goToAdmin": "Go to Admin Dashboard"
+    "goToAdmin": "Go to My School"
   },
   "nav": {
     "schools": "Schools",
