@@ -439,6 +439,32 @@ console.log(`B's student under test: ${bVictim.username}\n`);
     `db students=${truth.students} reports=${truth.reports} | card=${card?.studentCount}`);
 }
 
+// O-19. THE STUDENTS CSV IS WRITTEN FOR A PERSON. It printed the stored
+// "grade10" / "male" and a US month-first date (seen live 2026-11-15). Judged
+// on the file's data rows: every grade cell is "Grade N", every gender cell is
+// "Male" or "Female" (or blank), and no stored lowercase value survives.
+{
+  // Fetched raw: Session keeps only the first 200 characters of a non-JSON
+  // body, which cut the file mid-row.
+  const csrf = (A.session.cookie.match(/(?:^|; )csrf_token=([^;]+)/) || [])[1];
+  const raw = await fetch(`http://localhost:${process.env.PORT ?? 5050}/api/admin/organizations/${A.orgId}/export-students`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: A.session.cookie,
+      ...(csrf ? { "x-csrf-token": decodeURIComponent(csrf) } : {}), "x-forwarded-for": A.session.clientIp },
+    body: "{}",
+  });
+  const r = { status: raw.status };
+  const text = (await raw.text()).replace(/^\uFEFF/, "");
+  const rows = text.split("\n").slice(1).filter((l) => l.trim()).map((l) => l.split(",").map((c) => c.trim().replace(/^"|"$/g, "")));
+  const grades = rows.map((c) => c[2]);
+  const genders = rows.map((c) => c[3]);
+  rec("O-19", "the students CSV prints \"Grade N\" and \"Male\"/\"Female\", not stored codes",
+    r.status === 200 && rows.length > 0
+      && grades.some((g) => /^Grade \d+$/.test(g)) && grades.every((g) => g === "" || /^Grade \d+$/.test(g))
+      && genders.every((g) => g === "" || g === "Male" || g === "Female"),
+    `HTTP ${r.status} rows=${rows.length} grades=${JSON.stringify([...new Set(grades)])} genders=${JSON.stringify([...new Set(genders)])}`);
+}
+
 const pass = results.filter((r) => r.pass).length;
 const fail = results.filter((r) => !r.pass);
 console.log(`\n${"=".repeat(78)}`);

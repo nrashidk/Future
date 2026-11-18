@@ -9,7 +9,7 @@ import { isSuperadminOnly, isOrgAdmin, getSuperadminEmails } from "../middleware
 import { dataExportLimiter } from "../middleware/rateLimiter.middleware";
 import { insertQuizQuestionSchema, studentDemographicsSchema } from "@shared/schema";
 import { toPublicUser } from "@shared/userPublic";
-import { CANONICAL_GRADES, SCHOOL_GRADES, toCanonicalGrade } from "@shared/grade";
+import { CANONICAL_GRADES, SCHOOL_GRADES, gradeToNumber, toCanonicalGrade } from "@shared/grade";
 import { toDateOnlyString, validateDateOfBirth } from "@shared/dateOfBirth";
 import { splitCsvRow } from "@shared/csvRow";
 import { z } from "zod";
@@ -2254,13 +2254,26 @@ export function registerAdminRoutes(app: Express) {
           const fullName = [memberUser.firstName, memberUser.lastName].filter(Boolean).join(' ');
           const assessments = await storage.getAssessmentsByUser(member.userId);
           const completedAssessment = assessments.find(a => a.isCompleted);
-          const createdDate = member.createdAt ? new Date(member.createdAt).toLocaleDateString() : '';
+          // Written for a person opening the file, not for re-import (the
+          // bulk upload has its own columns): "Grade 11", "Male", and a
+          // day-first date. It printed the stored values "grade11" / "male"
+          // and the server's US month-first date (seen live 2026-11-15).
+          const createdDate = member.createdAt
+            ? new Date(member.createdAt).toLocaleDateString('en-AE', { year: 'numeric', month: '2-digit', day: '2-digit' })
+            : '';
+          const gradeNum = gradeToNumber(member.grade);
+          const gradeLabel = toCanonicalGrade(member.grade) === 'graduated'
+            ? 'Graduated'
+            : gradeNum !== null ? `Grade ${gradeNum}` : (member.grade || '');
+          const genderLabel = member.studentGender === 'male' ? 'Male'
+            : member.studentGender === 'female' ? 'Female'
+            : (member.studentGender || '');
 
           csvRows.push([
             sanitizeCSV(memberUser.username || ''),
             sanitizeCSV(fullName),
-            sanitizeCSV(member.grade || ''),
-            sanitizeCSV(member.studentGender || ''),
+            sanitizeCSV(gradeLabel),
+            sanitizeCSV(genderLabel),
             completedAssessment ? 'Completed' : 'Pending',
             sanitizeCSV(createdDate)
           ].join(","));
