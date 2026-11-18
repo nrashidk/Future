@@ -57,6 +57,7 @@ interface AnalyticsOverview {
 interface CareerTrend {
   careerId: string;
   careerTitle: string;
+  careerTitleAr?: string | null;
   recommendationCount: number;
   avgMatchScore: number;
 }
@@ -89,6 +90,10 @@ function AnalyticsPage() {
   const { user } = useAuth();
   const { t } = useTranslation('admin');
   const { language, setLanguage } = useLanguage();
+  // Career titles and the country name have Arabic in the database; the
+  // Arabic page printed the English ones (seen live 2026-11-18).
+  const careerName = (c: { careerTitle: string; careerTitleAr?: string | null }) =>
+    language === 'ar' && c.careerTitleAr ? c.careerTitleAr : c.careerTitle;
   const { toast } = useToast();
   useEffect(() => { document.title = t('pageTitles.analytics'); }, [t]);
   const [activeCountryId, setActiveCountryId] = useState<string | null>(null);
@@ -110,7 +115,7 @@ function AnalyticsPage() {
     enabled: !!user && isOrgAdmin,
   });
 
-  const { data: countries, isLoading: countriesLoading } = useQuery<Array<{ countryId: string; countryName: string; studentCount: number }>>({
+  const { data: countries, isLoading: countriesLoading } = useQuery<Array<{ countryId: string; countryName: string; countryNameAr?: string | null; studentCount: number }>>({
     queryKey: ['/api/analytics/countries'],
   });
 
@@ -347,7 +352,7 @@ function AnalyticsPage() {
                       className={`w-72 h-36 ${activeCountryId === country.countryId ? "ring-4 ring-primary ring-offset-2" : ""}`}
                     >
                       <div className="text-center h-full flex flex-col justify-center px-2">
-                        <p className="text-base font-bold mb-2 whitespace-nowrap">{country.countryName}</p>
+                        <p className="text-base font-bold mb-2 whitespace-nowrap">{language === 'ar' && country.countryNameAr ? country.countryNameAr : country.countryName}</p>
                         <p className="text-3xl font-bold text-primary">{country.studentCount}</p>
                         <p className="text-xs text-muted-foreground mt-1">{t('analytics.studentsAssessed')}</p>
                       </div>
@@ -411,7 +416,7 @@ function AnalyticsPage() {
               <div>
                 <p className="text-muted-foreground text-sm mb-1">{t('analytics.topCareer')}</p>
                 <p className="text-2xl font-bold line-clamp-2" data-testid="metric-top-career">
-                  {careersLoading ? "..." : topCareer?.careerTitle || t('analytics.na')}
+                  {careersLoading ? "..." : (topCareer ? careerName(topCareer) : null) || t('analytics.na')}
                 </p>
               </div>
               <Sparkles className="w-8 h-8 text-primary" />
@@ -522,7 +527,7 @@ function AnalyticsPage() {
                         <Award className="w-4 h-4 text-primary" />
                       </div>
                       <h4 className="font-bold text-sm mb-2 line-clamp-3" data-testid={`career-${index}`}>
-                        {career.careerTitle}
+                        {careerName(career)}
                       </h4>
                       <div className="mt-auto space-y-1.5">
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
@@ -575,7 +580,7 @@ function AnalyticsPage() {
                         <TableCell className="text-center font-medium text-muted-foreground">
                           #{index + 1}
                         </TableCell>
-                        <TableCell className="font-medium">{career.careerTitle}</TableCell>
+                        <TableCell className="font-medium">{careerName(career)}</TableCell>
                         <TableCell className="text-end">{career.recommendationCount}</TableCell>
                         <TableCell className="text-end font-semibold text-primary">
                           {career.avgMatchScore.toFixed(1)}%

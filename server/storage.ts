@@ -300,7 +300,7 @@ export interface IStorage {
   getAnalyticsOverview(countryId?: string, organizationId?: string): Promise<{
     totalStudents: number;
     completedAssessments: number;
-    countriesBreakdown: Array<{ countryId: string; countryName: string; count: number }>;
+    countriesBreakdown: Array<{ countryId: string; countryName: string; countryNameAr: string | null; count: number }>;
     gradeDistribution: Array<{ grade: string; count: number }>;
   }>;
   getCountryAnalytics(countryId: string, organizationId?: string): Promise<{
@@ -2075,6 +2075,7 @@ export class DatabaseStorage implements IStorage {
       .select({
         countryId: assessments.countryId,
         countryName: countries.name,
+        countryNameAr: countries.nameAr,
         // STUDENTS, not reports: the card reads "students assessed", and a
         // student with three reports was counted three times (seen live
         // 2026-11-18, "8" over five students). A guest has no user id, so
@@ -2084,7 +2085,7 @@ export class DatabaseStorage implements IStorage {
       .from(assessments)
       .leftJoin(countries, eq(assessments.countryId, countries.id))
       .where(and(...conditions, isNotNull(assessments.countryId)))
-      .groupBy(assessments.countryId, countries.name);
+      .groupBy(assessments.countryId, countries.name, countries.nameAr);
 
     // Get grade distribution with aggregation.
     //
@@ -2123,6 +2124,7 @@ export class DatabaseStorage implements IStorage {
       countriesBreakdown: countriesData.map(row => ({
         countryId: row.countryId!,
         countryName: row.countryName || 'Unknown',
+        countryNameAr: row.countryNameAr || null,
         count: row.count
       })),
       // One bucket per grade, sorted by grade rather than by count or lexically
@@ -2226,6 +2228,7 @@ export class DatabaseStorage implements IStorage {
       .select({
         careerId: recommendations.careerId,
         careerTitle: careers.title,
+        careerTitleAr: careers.titleAr,
         recommendationCount: sql<number>`count(*)::int`,
         avgMatchScore: sql<number>`avg(${recommendations.overallMatchScore})::float`
       })
@@ -2233,13 +2236,14 @@ export class DatabaseStorage implements IStorage {
       .innerJoin(recommendations, eq(assessments.id, recommendations.assessmentId))
       .leftJoin(careers, eq(recommendations.careerId, careers.id))
       .where(and(...conditions))
-      .groupBy(recommendations.careerId, careers.title)
+      .groupBy(recommendations.careerId, careers.title, careers.titleAr)
       .orderBy(sql`count(*) desc`)
       .limit(20);
 
     return trendsData.map(row => ({
       careerId: row.careerId,
       careerTitle: row.careerTitle || 'Unknown',
+      careerTitleAr: row.careerTitleAr || null,
       recommendationCount: row.recommendationCount,
       avgMatchScore: row.avgMatchScore
     }));

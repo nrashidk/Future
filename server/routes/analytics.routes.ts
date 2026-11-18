@@ -68,6 +68,7 @@ export function registerAnalyticsRoutes(app: Express) {
       const countries = analytics.countriesBreakdown.map(c => ({
         countryId: c.countryId,
         countryName: c.countryName,
+        countryNameAr: c.countryNameAr,
         studentCount: c.count
       }));
       res.json(countries);
