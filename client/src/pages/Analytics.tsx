@@ -676,8 +676,13 @@ function AnalyticsPage() {
                       <div className="mt-auto space-y-2">
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                           <Users className="w-3 h-3" />
-                          <span>{sector.studentCount} {t('analytics.students')}</span>
+                          <span>{sector.studentCount > 0
+                            ? t('analytics.sectorStudentCount', { count: sector.studentCount })
+                            : t('analytics.sectorNoStudents')}</span>
                         </div>
+                        {/* An empty sector has no alignment to average; a 0%
+                            bar would read as "these students do not fit". */}
+                        {sector.studentCount > 0 && (
                         <div className="space-y-1">
                           <div className="flex items-center justify-between text-xs">
                             <span className="text-muted-foreground">{t('analytics.visionAlignment')}</span>
@@ -687,6 +692,7 @@ function AnalyticsPage() {
                           </div>
                           <Progress value={sector.avgAlignment} className="h-2" />
                         </div>
+                        )}
                       </div>
                     </div>
                   </StickyNote>
