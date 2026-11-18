@@ -982,8 +982,16 @@ function AdminOrganizationsPage() {
                               is untouched, so desktop is unchanged. */}
                           <AlertDialogFooter className="flex-col sm:flex-wrap">
                             <AlertDialogCancel>{t('orgs.cancel')}</AlertDialogCancel>
+                            {/* "Keep account & report" is only the recommended action
+                                when someone selected HAS a report; with none it keeps
+                                nothing worth keeping, so it is muted like the
+                                per-student dialog's (seen live 2026-11-15: it was the
+                                primary button over "0 with a report"). */}
                             <AlertDialogAction
                               onClick={() => bulkDeleteMutation.mutate({ memberIds: selectedMemberIds, disposition: 'detach' })}
+                              className={members.some(m => selectedMemberIds.includes(m.id) && m.hasCompletedAssessment)
+                                ? undefined
+                                : "bg-muted text-muted-foreground hover:bg-muted/80"}
                               data-testid="button-confirm-bulk-detach"
                             >
                               {t('orgs.removalDetachBtn')}
