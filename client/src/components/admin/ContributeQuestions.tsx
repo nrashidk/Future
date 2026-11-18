@@ -926,7 +926,7 @@ export default function ContributeQuestions() {
                     {submitMutation.isPending ? t('contributions.submitting') : (
                       <>
                         <Send className="w-4 h-4 me-2" />
-                        {t('contributions.submitBtn', { n: submissionMode === "manual" ? questions.length : csvQuestions.length })}
+                        {t('contributions.submitBtn', { count: submissionMode === "manual" ? questions.length : csvQuestions.length })}
                       </>
                     )}
                   </Button>
