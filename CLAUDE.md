@@ -1378,6 +1378,21 @@ so a student with one assessment in progress got a link to a raw 404.
   Career Consistency panel and the "most consistent" sentence follow the same
   two-grade rule (owner chose filter over rename); with none, the panel says
   interests are still taking shape.
+- **THE SCHOOL ADMIN'S OPEN ITEMS, WORKED THROUGH (2026-11-18, one commit
+  each).** The Analytics country card said "8 students assessed" over five
+  students (it counted reports; `org-admin.mjs` O-18); "1 recommendations"
+  and "Submit 1 Questions" (plural keys); Profile's "Go to Admin Dashboard"
+  is "Go to My School"; the roster's row icons have titles and aria-labels;
+  bulk delete mutes "Keep account & report" when nobody selected has a
+  report; the students CSV prints "Grade 11", "Male" and a day-first date
+  (O-19, read raw: **`Session` keeps only the first 200 characters of a
+  non-JSON body**); My School and Analytics have the language switch.
+  **Not bugs, left alone:** Khalid's report says 15 where the roster says
+  17 -- the report keeps the age stored when it was made (June), and his
+  date of birth was edited in September; the consent card quotes the policy
+  date in the language the consent was recorded in, which is the record.
+  **Still needs a decision:** every priority sector shows the same student
+  count (what is "a student in a sector"?).
 - **THE SIGN-IN FORM WAS AT `/login/student`, TITLED "Student Login", FOR
   EVERY ROLE** (owner, 2026-11-15). School admins, parents' accounts and the
   superadmin all sign in there, and it told each of them their password came
