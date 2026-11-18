@@ -88,7 +88,7 @@ export default function Analytics() {
 function AnalyticsPage() {
   const { user } = useAuth();
   const { t } = useTranslation('admin');
-  const { language } = useLanguage();
+  const { language, setLanguage } = useLanguage();
   const { toast } = useToast();
   useEffect(() => { document.title = t('pageTitles.analytics'); }, [t]);
   const [activeCountryId, setActiveCountryId] = useState<string | null>(null);
@@ -246,6 +246,15 @@ function AnalyticsPage() {
                     <User className="w-4 h-4 me-2" />
                     {t('nav.profile')}
                   </Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setLanguage(language === "en" ? "ar" : "en")}
+                  data-testid="button-language-toggle-analytics"
+                  aria-label={language === "en" ? "Switch to Arabic" : "Switch to English"}
+                >
+                  {language === "en" ? "العربية" : "English"}
                 </Button>
                 <Button 
                   variant="outline" 

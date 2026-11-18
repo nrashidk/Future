@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -226,6 +227,7 @@ function AdminOrganizationsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const { t } = useTranslation('admin');
+  const { language, setLanguage } = useLanguage();
   // A school admin's button says "My School"; the tab said "Schools".
   const titleKey = user?.accountType === 'org_admin' ? 'pageTitles.mySchool' : 'pageTitles.adminOrganizations';
   useEffect(() => { document.title = t(titleKey); }, [t, titleKey]);
@@ -486,6 +488,15 @@ function AdminOrganizationsPage() {
                     <User className="w-4 h-4 me-2" />
                     {t('nav.profile')}
                   </Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setLanguage(language === "en" ? "ar" : "en")}
+                  data-testid="button-language-toggle-admin-orgs"
+                  aria-label={language === "en" ? "Switch to Arabic" : "Switch to English"}
+                >
+                  {language === "en" ? "العربية" : "English"}
                 </Button>
                 <Button 
                   variant="outline" 
