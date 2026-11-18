@@ -1399,10 +1399,19 @@ so a student with one assessment in progress got a link to a raw 404.
   labels; bulk reset asks first (opened and cancelled); bulk delete over two
   students with no report shows "Keep account & report" muted (cancelled);
   Completed lists 5 and no admin; Profile says "Go to My School". The
-  submit button's plural was not rendered. **Flagged, not changed:** the
-  dialogs say "account(s)" / "student(s)"; on Arabic Analytics the country
-  card and career names stay English; the roster's "9 members" counts the
-  administrator.
+  submit button's plural was not rendered. **Then fixed (owner said fix),
+  seen live, build `7c3152b`:** the roster heading reads "8 students · 1
+  administrator"; Arabic Analytics names the country and careers in Arabic
+  ("الإمارات العربية المتحدة", "مدير منتج", "توصيتان"); the five school-admin
+  "(s)" messages use plural forms (not rendered live: the dialogs were not
+  reopened).
+  **THE SECTOR CARDS, EXPLAINED TO THE OWNER:** `getSectorPipeline` joins
+  every completed assessment of the country to every sector
+  (`LEFT JOIN filtered_assessments fa ON fa.country_id = cs.country_id`),
+  with nothing linking a student to a sector, so every card shows the whole
+  count and the same alignment. A real figure needs a rule for which sector
+  a student belongs to (e.g. the sector of their top career). Awaiting his
+  decision.
 - **THE SIGN-IN FORM WAS AT `/login/student`, TITLED "Student Login", FOR
   EVERY ROLE** (owner, 2026-11-15). School admins, parents' accounts and the
   superadmin all sign in there, and it told each of them their password came
