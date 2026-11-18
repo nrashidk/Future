@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { countConsistentCareers, journeyGrades } from "./careerJourney";
+import { consistentCareers, countConsistentCareers, journeyGrades } from "./careerJourney";
 
 describe("countConsistentCareers", () => {
   it("does not count a career seen once out of two grades (the live 5)", () => {
@@ -18,6 +18,17 @@ describe("countConsistentCareers", () => {
   });
   it("treats legacy and canonical spellings of one grade as one grade", () => {
     expect(countConsistentCareers([{ gradesAppeared: ["11", "grade11"], persistenceScore: 1 }])).toBe(0);
+  });
+});
+
+describe("consistentCareers", () => {
+  it("keeps the order it was given and drops single-grade careers", () => {
+    const t = [
+      { id: "a", gradesAppeared: ["grade11"], persistenceScore: 0.5 },
+      { id: "b", gradesAppeared: ["grade11", "grade12"], persistenceScore: 1 },
+      { id: "c", gradesAppeared: ["grade10", "grade12"], persistenceScore: 0.67 },
+    ];
+    expect(consistentCareers(t).map((c) => c.id)).toEqual(["b", "c"]);
   });
 });
 

@@ -10,13 +10,19 @@ import { CANONICAL_GRADES, toCanonicalGrade } from "./grade";
  * 2026-11-18). A career is consistent only if it appeared in MORE THAN ONE
  * grade, and still in at least half of them.
  */
-export function countConsistentCareers(
-  trajectory: ReadonlyArray<{ gradesAppeared: readonly string[]; persistenceScore: number }>,
-): number {
+export function consistentCareers<T extends { gradesAppeared: readonly string[]; persistenceScore: number }>(
+  trajectory: ReadonlyArray<T>,
+): T[] {
   return trajectory.filter((c) => {
     const distinct = new Set(c.gradesAppeared.map((g) => toCanonicalGrade(g) ?? g));
     return distinct.size >= 2 && c.persistenceScore >= 0.5;
-  }).length;
+  });
+}
+
+export function countConsistentCareers(
+  trajectory: ReadonlyArray<{ gradesAppeared: readonly string[]; persistenceScore: number }>,
+): number {
+  return consistentCareers(trajectory).length;
 }
 
 /**

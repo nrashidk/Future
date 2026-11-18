@@ -10,7 +10,7 @@ import { StickyNote } from "@/components/StickyNote";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { gradeToNumber, toCanonicalGrade } from "@shared/grade";
-import { countConsistentCareers, journeyGrades } from "@shared/careerJourney";
+import { consistentCareers, journeyGrades } from "@shared/careerJourney";
 import { formatLocalizedDate } from "@/lib/formatDate";
 
 interface CareerEvolutionData {
@@ -93,7 +93,12 @@ export default function StudentProgress() {
   // only with data.
   const grades = journeyGrades((evolution?.gradeDetails ?? []).map(d => d.grade));
 
-  const consistentCount = countConsistentCareers(evolution?.trajectory ?? []);
+  // ONE rule for the panel, the "most consistent" sentence and the clarity
+  // count: a career seen in two or more grades (consistentCareers). The panel
+  // used to list every career, so with two grades each one seen once sat
+  // under "Career Consistency" with a 50% badge.
+  const consistent = consistentCareers(evolution?.trajectory ?? []);
+  const consistentCount = consistent.length;
 
   const getGradeLabel = (grade: string) => {
     if (grade === 'graduated') return t("progress.graduated");
@@ -174,7 +179,7 @@ export default function StudentProgress() {
           </Card>
         ) : (
           <div className="space-y-8">
-            {evolution?.trajectory && evolution.trajectory.length > 0 && (
+            {evolution?.trajectory && (
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -184,8 +189,13 @@ export default function StudentProgress() {
                   <CardDescription>{t("progress.consistencyDesc")}</CardDescription>
                 </CardHeader>
                 <CardContent>
+                  {consistent.length === 0 ? (
+                    <p className="text-sm text-muted-foreground" data-testid="text-no-consistent-careers">
+                      {t("progress.clarityNone")}
+                    </p>
+                  ) : (
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {evolution.trajectory.slice(0, 6).map((career, index) => (
+                    {consistent.slice(0, 6).map((career, index) => (
                       <div 
                         key={career.careerId} 
                         className="p-4 rounded-lg border bg-card"
@@ -207,6 +217,7 @@ export default function StudentProgress() {
                       </div>
                     ))}
                   </div>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -344,8 +355,8 @@ export default function StudentProgress() {
                       <h3 className="font-semibold mb-1">{t("progress.interestEvolution")}</h3>
                       <p className="text-sm text-muted-foreground">
                         {t("progress.interestEvolutionDesc", { count: evolution.gradeDetails.length })}
-                        {evolution.trajectory.length > 0 && (
-                          <>{t("progress.mostConsistent")} <strong>{evolution.trajectory[0]?.careerName}</strong>.</>
+                        {consistent.length > 0 && (
+                          <>{t("progress.mostConsistent")} <strong>{consistent[0].careerName}</strong>.</>
                         )}
                       </p>
                     </div>
