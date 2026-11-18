@@ -103,7 +103,9 @@ export default function StudentProgress() {
 
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return t("progress.notCompletedDate");
-    return formatLocalizedDate(dateStr, language, { month: 'short', year: 'numeric' });
+    // The full day, not "Nov 2026": a grade with several reports shows its
+    // LATEST (collapseToLatestPerGrade), and only the day says which one.
+    return formatLocalizedDate(dateStr, language);
   };
 
   const getGradeData = (grade: string) => {
