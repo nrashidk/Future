@@ -1374,7 +1374,10 @@ so a student with one assessment in progress got a link to a raw 404.
   "Pending" for a student who joined at 11; it now starts at the first
   assessed grade. A grade with several reports is drawn from its LATEST
   (`collapseToLatestPerGrade`; salm's Grade 11 card is the 15 Nov report of
-  three), and each card now shows that report's full date, not "Nov 2026".
+  three), and each card now shows that report's full date, not "Nov 2026". The
+  Career Consistency panel and the "most consistent" sentence follow the same
+  two-grade rule (owner chose filter over rename); with none, the panel says
+  interests are still taking shape.
 - **THE SIGN-IN FORM WAS AT `/login/student`, TITLED "Student Login", FOR
   EVERY ROLE** (owner, 2026-11-15). School admins, parents' accounts and the
   superadmin all sign in there, and it told each of them their password came
