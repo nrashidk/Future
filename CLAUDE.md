@@ -1366,10 +1366,13 @@ so a student with one assessment in progress got a link to a raw 404.
   `repeatBlocked` went true again. `/progress` then showed Grade 11 (latest
   of the three, 15 Nov) and Grade 12 side by side, with Career Consistency
   and Insights. Personality and values steps were seen WITHOUT their theme
-  labels (the 11-16 decision, first seen live). **Flagged, not changed:**
-  "Career Path Clarity" counts careers in "at least half" of assessments, so
-  with two grades every career that appeared once qualifies ("5 careers");
-  Grades 8-10 show as "Pending" for a student who joined at 11.
+  labels (the 11-16 decision, first seen live). **Fixed the same night
+  (owner said fix), `shared/careerJourney.ts`, 7 tests:** "Career Path
+  Clarity" counted careers in "at least half" of assessments, so with two
+  grades every career seen once qualified ("5 careers"); it now needs two or
+  more distinct grades as well (salm: 1). The timeline drew Grades 8-10 as
+  "Pending" for a student who joined at 11; it now starts at the first
+  assessed grade.
 - **THE SIGN-IN FORM WAS AT `/login/student`, TITLED "Student Login", FOR
   EVERY ROLE** (owner, 2026-11-15). School admins, parents' accounts and the
   superadmin all sign in there, and it told each of them their password came
