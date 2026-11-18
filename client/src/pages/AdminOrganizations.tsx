@@ -796,8 +796,17 @@ function AdminOrganizationsPage() {
                   <div>
                     <CardTitle className="text-lg">{t('orgs.roster')}</CardTitle>
                     <CardDescription>
-                      {filteredMembers.length === members.length 
-                        ? t('orgs.memberCount', { count: members.length })
+                      {/* Students and administrators named apart: "9 members"
+                          over a roster of 8 students read as a miscount
+                          (seen live 2026-11-18). The filtered line still
+                          counts rows, since a filter can show either. */}
+                      {filteredMembers.length === members.length
+                        ? [
+                            t('orgs.rosterStudentCount', { count: members.filter(m => m.role !== 'admin').length }),
+                            ...(members.some(m => m.role === 'admin')
+                              ? [t('orgs.rosterAdminCount', { count: members.filter(m => m.role === 'admin').length })]
+                              : []),
+                          ].join(' · ')
                         : t('orgs.memberCountFiltered', { shown: filteredMembers.length, total: members.length })}
                       {selectedMemberIds.length > 0 && (
                         <span className="text-primary font-medium ml-2">
