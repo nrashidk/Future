@@ -10,6 +10,7 @@ import { StickyNote } from "@/components/StickyNote";
 import { useTranslation } from "react-i18next";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { CANONICAL_GRADES, gradeToNumber, toCanonicalGrade } from "@shared/grade";
+import { countConsistentCareers } from "@shared/careerJourney";
 import { formatLocalizedDate } from "@/lib/formatDate";
 
 interface CareerEvolutionData {
@@ -93,6 +94,8 @@ export default function StudentProgress() {
   const grades = CANONICAL_GRADES.filter(
     g => g !== 'graduated' || evolution?.gradeDetails?.some(d => toCanonicalGrade(d.grade) === 'graduated'),
   );
+
+  const consistentCount = countConsistentCareers(evolution?.trajectory ?? []);
 
   const getGradeLabel = (grade: string) => {
     if (grade === 'graduated') return t("progress.graduated");
@@ -350,7 +353,10 @@ export default function StudentProgress() {
                       <TrendingUp className="w-8 h-8 text-accent mb-2" />
                       <h3 className="font-semibold mb-1">{t("progress.clarityTitle")}</h3>
                       <p className="text-sm text-muted-foreground">
-                        {t("progress.clarityDesc", { count: evolution.trajectory.filter(tr => tr.persistenceScore >= 0.5).length })}
+                        {/* More than one grade AND at least half: see countConsistentCareers. */}
+                        {consistentCount > 0
+                          ? t("progress.clarityDesc", { count: consistentCount })
+                          : t("progress.clarityNone")}
                       </p>
                     </div>
                   </div>

@@ -239,7 +239,10 @@
     "interestEvolutionDesc": "Your interests have been tracked across {{count}} assessments.",
     "mostConsistent": " Your most consistent career interest is",
     "clarityTitle": "Career Path Clarity",
-    "clarityDesc": "{{count}} careers have appeared in at least half of your assessments, showing strong consistency in your career interests.",
+    "clarityDesc": "{{count}} careers have appeared in more than one of your grades, showing consistency in your career interests.",
+    "clarityDesc_one": "1 career has appeared in more than one of your grades, a first sign of consistency in your career interests.",
+    "clarityDesc_other": "{{count}} careers have appeared in more than one of your grades, showing consistency in your career interests.",
+    "clarityNone": "No career has appeared in more than one of your grades yet; your interests are still taking shape.",
     "notCompletedDate": "Not completed",
     "interests": "Interests:",
     "more": "more"
