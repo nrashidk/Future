@@ -238,7 +238,7 @@ export default function ContributeQuestions() {
       difficulty: "medium",
       cognitiveLevel: "comprehension",
     });
-    toast({ title: t('contributions.toastQuestionAdded'), description: t('contributions.toastQuestionAddedDesc', { n: questions.length + 1 }) });
+    toast({ title: t('contributions.toastQuestionAdded'), description: t('contributions.toastQuestionAddedDesc', { count: questions.length + 1 }) });
   };
 
   const removeQuestion = (index: number) => {
@@ -392,7 +392,7 @@ export default function ContributeQuestions() {
         if (parsedQuestions.length > 0) {
           toast({
             title: t('contributions.parseSuccess'),
-            description: t('contributions.questionsReady', { n: parsedQuestions.length }),
+            description: t('contributions.questionsReady', { count: parsedQuestions.length }),
           });
         } else {
           toast({

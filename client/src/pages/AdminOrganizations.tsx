@@ -937,7 +937,7 @@ function AdminOrganizationsPage() {
                           <AlertDialogHeader>
                             <AlertDialogTitle>{t('orgs.bulkReset')}</AlertDialogTitle>
                             <AlertDialogDescription>
-                              {t('superadmin.confirmBulkResetBody', { n: selectedMemberIds.length })}
+                              {t('superadmin.confirmBulkResetBody', { count: selectedMemberIds.length })}
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <AlertDialogFooter>
@@ -977,10 +977,10 @@ function AdminOrganizationsPage() {
                             return (
                               <div className="rounded-lg border bg-muted/40 p-3 text-sm space-y-1">
                                 <p data-testid="text-bucket-with-reports">
-                                  {t('orgs.removalBucketWithReports', { n: withReports })}
+                                  {t('orgs.removalBucketWithReports', { count: withReports })}
                                 </p>
                                 <p data-testid="text-bucket-without-reports">
-                                  {t('orgs.removalBucketWithoutReports', { n: withoutReports })}
+                                  {t('orgs.removalBucketWithoutReports', { count: withoutReports })}
                                 </p>
                               </div>
                             );

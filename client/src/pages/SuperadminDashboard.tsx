@@ -1513,7 +1513,7 @@ function SuperadminDashboardPage() {
                           const ids = Array.from(selectedUserIds);
                           setPendingConfirm({
                             title: t('superadmin.bulkResetBtn'),
-                            body: t('superadmin.confirmBulkResetBody', { n: ids.length }),
+                            body: t('superadmin.confirmBulkResetBody', { count: ids.length }),
                             confirmLabel: t('superadmin.bulkResetBtn'),
                             run: () => bulkResetPasswordsMutation.mutate(ids),
                           });
