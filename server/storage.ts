@@ -1,3 +1,4 @@
+import { primarySectorFor } from "@shared/sectorAssignment";
 import {
   encryptAndSerialize,
   deserializeAndDecrypt,
@@ -2305,41 +2306,76 @@ export class DatabaseStorage implements IStorage {
         LEFT JOIN wef_skills ws ON ws.id = csws.wef_skill_id
         ${countryId ? sql`WHERE cps.country_id = ${countryId}` : sql``}
         GROUP BY cps.country_id, cps.name
-      ),
-      filtered_assessments AS (
-        SELECT a.*
+      )
+      SELECT
+        cs.country_id,
+        cs.sector,
+        cs.sector_ar,
+        COALESCE(sws.skills::text, '[]') as priority_skills
+      FROM country_sectors cs
+      LEFT JOIN sector_wef_skills sws ON sws.country_id = cs.country_id AND LOWER(TRIM(sws.sector_name)) = LOWER(TRIM(cs.sector))
+    `);
+
+    // WHO IS IN WHICH SECTOR (owner's rule, 2026-11-18): each student once,
+    // in the sector of the top career of their LATEST finished report. Until
+    // this, every finished assessment of the country was joined to every
+    // sector, so all ten cards showed the same count and the same alignment.
+    // A guest assessment has no user, so each one is its own taker.
+    const tops = await db.execute(sql`
+      WITH latest AS (
+        SELECT DISTINCT ON (COALESCE(a.user_id, 'guest:' || a.id)) a.id, a.country_id
         FROM assessments a
-        WHERE a.is_completed = true
+        WHERE a.is_completed = true AND a.country_id IS NOT NULL
         ${countryId ? sql`AND a.country_id = ${countryId}` : sql``}
         ${organizationId ? sql`AND a.user_id IN (
           SELECT om.user_id FROM organization_members om WHERE om.organization_id = ${organizationId}
         )` : sql``}
+        ORDER BY COALESCE(a.user_id, 'guest:' || a.id), a.completed_at DESC NULLS LAST, a.created_at DESC
+      ),
+      top AS (
+        SELECT DISTINCT ON (r.assessment_id) r.assessment_id, r.career_id, r.country_vision_alignment
+        FROM recommendations r
+        JOIN latest l ON l.id = r.assessment_id
+        ORDER BY r.assessment_id, r.overall_match_score DESC
       )
-      SELECT 
-        cs.sector,
-        cs.sector_ar,
-        COUNT(DISTINCT fa.id)::int as student_count,
-        COALESCE(AVG(r.country_vision_alignment), 0)::float as avg_alignment,
-        COALESCE(sws.skills::text, '[]') as priority_skills
-      FROM country_sectors cs
-      LEFT JOIN sector_wef_skills sws ON sws.country_id = cs.country_id AND LOWER(TRIM(sws.sector_name)) = LOWER(TRIM(cs.sector))
-      LEFT JOIN filtered_assessments fa ON fa.country_id = cs.country_id
-      LEFT JOIN recommendations r ON r.assessment_id = fa.id
-      -- json has no equality operator, so grouping by sws.skills failed every
-      -- call with "could not identify an equality operator for type json"
-      -- (500, rendered as "No sector data available yet"; found clicking live
-      -- 2026-11-14). Grouped and returned as text; parsed below.
-      GROUP BY cs.country_id, cs.sector, cs.sector_ar, sws.skills::text
-      ORDER BY student_count DESC
+      SELECT l.country_id, t.career_id, c.category, t.country_vision_alignment
+      FROM latest l
+      JOIN top t ON t.assessment_id = l.id
+      JOIN careers c ON c.id = t.career_id
     `);
 
-    return (result.rows as any[]).map(row => ({
-      sector: row.sector,
-      sectorAr: row.sector_ar || null,
-      studentCount: row.student_count || 0,
-      avgAlignment: row.avg_alignment || 0,
-      prioritySkills: Array.isArray(row.priority_skills) ? row.priority_skills : (row.priority_skills ? JSON.parse(row.priority_skills) : []),
-    }));
+    const mapByCountry = new Map<string, SectorCategoryRow[]>();
+    const tally = new Map<string, { count: number; alignmentSum: number }>();
+    for (const row of tops.rows as any[]) {
+      if (!mapByCountry.has(row.country_id)) {
+        mapByCountry.set(row.country_id, await this.getSectorCategoryMap(row.country_id));
+      }
+      const sectorName = primarySectorFor(
+        { id: row.career_id, category: row.category },
+        mapByCountry.get(row.country_id)!,
+      );
+      if (!sectorName) continue;
+      const key = `${row.country_id}|${sectorName.trim().toLowerCase()}`;
+      const t = tally.get(key) ?? { count: 0, alignmentSum: 0 };
+      t.count += 1;
+      t.alignmentSum += Number(row.country_vision_alignment) || 0;
+      tally.set(key, t);
+    }
+
+    const rows = (result.rows as any[]).map((row, index) => {
+      const t = tally.get(`${row.country_id}|${String(row.sector).trim().toLowerCase()}`);
+      return {
+        index,
+        sector: row.sector,
+        sectorAr: row.sector_ar || null,
+        studentCount: t?.count ?? 0,
+        avgAlignment: t && t.count > 0 ? t.alignmentSum / t.count : 0,
+        prioritySkills: Array.isArray(row.priority_skills) ? row.priority_skills : (row.priority_skills ? JSON.parse(row.priority_skills) : []),
+      };
+    });
+    // Most students first; a tie keeps the country's own order.
+    rows.sort((a, b) => b.studentCount - a.studentCount || a.index - b.index);
+    return rows.map(({ index, ...rest }) => rest);
   }
 
   // Assessment Component operations
