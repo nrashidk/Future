@@ -1355,6 +1355,21 @@ so a student with one assessment in progress got a link to a raw 404.
   continuing to the quiz. **Not seen rendered:** the bulk-reset dialog (the
   harness school had only its admin, whose row cannot be selected) and the
   personality step without its labels.
+- **THE CAREER JOURNEY (`/progress`), LIVE, 2026-11-18, build `ff9887b`.** The
+  owner asked where salm's progress page had gone: all three of his reports
+  were Grade 11, and the page and the profile button need TWO DISTINCT GRADES
+  (same-grade repeats collapse to one point) -- by design, not a fault. The
+  school admin moved him to Grade 12 on the roster ("Student updated"); as
+  salm, `/api/licenses/me` read `repeatBlocked: false` at the new grade and
+  `/assessment` started with no permission screen; a full assessment through
+  the real form (Maths/Science/Computer Science, 15/15) charged 45 -> 44 and
+  `repeatBlocked` went true again. `/progress` then showed Grade 11 (latest
+  of the three, 15 Nov) and Grade 12 side by side, with Career Consistency
+  and Insights. Personality and values steps were seen WITHOUT their theme
+  labels (the 11-16 decision, first seen live). **Flagged, not changed:**
+  "Career Path Clarity" counts careers in "at least half" of assessments, so
+  with two grades every career that appeared once qualifies ("5 careers");
+  Grades 8-10 show as "Pending" for a student who joined at 11.
 - **THE SIGN-IN FORM WAS AT `/login/student`, TITLED "Student Login", FOR
   EVERY ROLE** (owner, 2026-11-15). School admins, parents' accounts and the
   superadmin all sign in there, and it told each of them their password came
