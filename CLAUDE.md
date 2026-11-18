@@ -1410,8 +1410,14 @@ so a student with one assessment in progress got a link to a raw 404.
   (`LEFT JOIN filtered_assessments fa ON fa.country_id = cs.country_id`),
   with nothing linking a student to a sector, so every card shows the whole
   count and the same alignment. A real figure needs a rule for which sector
-  a student belongs to (e.g. the sector of their top career). Awaiting his
-  decision.
+  a student belongs to (e.g. the sector of their top career). **Decided
+  (owner chose A, 2026-11-18) and built:** each student is counted ONCE, in
+  the sector of the top career of their LATEST report
+  (`shared/sectorAssignment.ts`, override-exclusive like the vision score;
+  `analytics-sectors.mjs` A-05: old code every card 3 / total 30, now 1 + 1);
+  alignment is averaged over that sector's own students; an empty sector says
+  "No students yet" with no bar. **Not yet seen live** (Chrome was not
+  reachable after the deploy, build `dd954b0`).
 - **THE SIGN-IN FORM WAS AT `/login/student`, TITLED "Student Login", FOR
   EVERY ROLE** (owner, 2026-11-15). School admins, parents' accounts and the
   superadmin all sign in there, and it told each of them their password came
