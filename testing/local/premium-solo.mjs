@@ -189,6 +189,14 @@ const a10 = await buyer.s.patch(`/api/assessments/${r8.body?.id}`, { age: 15 });
 const [ageRow] = await sql(`SELECT age FROM assessments WHERE id = $1`, [r8.body?.id]);
 rec("S-10", "CONTROL: a typed age of 15 is stored", a10.status === 200 && ageRow?.age === 15, `HTTP ${a10.status} age=${ageRow?.age}`);
 
+// ---- the step-1 warning reads the charged grades (owner, 2026-11-19) ----
+// The first charge was rewritten to the legacy bare '10' above, so this also
+// proves the list is canonical. The free account (no pool) gets nothing.
+const me11 = await buyer.s.get("/api/licenses/me");
+rec("S-11", "the balance lists charged grades, canonical",
+  Array.isArray(me11.body?.chargedGrades) && me11.body.chargedGrades.includes("grade10") && !me11.body.chargedGrades.includes("10"),
+  `chargedGrades=${JSON.stringify(me11.body?.chargedGrades)}`);
+
 const failed = results.filter((r) => !r.pass);
 console.log(`\n${results.length - failed.length}/${results.length} passed`);
 if (failed.length) {

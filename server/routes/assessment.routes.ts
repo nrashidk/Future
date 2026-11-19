@@ -1019,6 +1019,11 @@ export function registerAssessmentRoutes(app: Express) {
       // create path resolves school-owned fields there.
       let currentGrade: string | null = null;
       let repeatAllowed = true; // a parent's own pool: their balance, their call
+      // An individual buyer with no child profile types the grade on step 1 of
+      // the form, so there is no "current grade" to judge in advance; the form
+      // is given every grade already charged and asks there (owner,
+      // 2026-11-19). Null for everyone else, whose grade is on a record.
+      let chargedGrades: string[] | null = null;
       if (capacity.poolOwnerType === 'organization') {
         const member = await storage.getOrganizationMemberByUserId(userId);
         currentGrade = member?.grade ?? null;
@@ -1026,6 +1031,7 @@ export function registerAssessmentRoutes(app: Express) {
       } else {
         const child = await storage.getChildProfileByGuardianUserId(userId);
         currentGrade = child?.grade ?? null;
+        if (!child) chargedGrades = await storage.getChargedCanonicalGrades(userId);
       }
 
       const sameGradeAlreadyCharged = await storage.hasConsumedLicenseForGrade(userId, currentGrade);
@@ -1038,6 +1044,7 @@ export function registerAssessmentRoutes(app: Express) {
         isUnlimited: capacity.isUnlimited,
         currentGrade,
         sameGradeAlreadyCharged,
+        chargedGrades,
         // A school student with a report for this grade and no permission to
         // repeat it. The create route is the control; this lets the page say
         // so before the student answers anything.

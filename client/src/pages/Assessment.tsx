@@ -23,6 +23,7 @@ import { useAssessmentAvailability } from "@/hooks/useAssessmentAvailability";
 import { PageLayout } from "@/components/layout/PageLayout";
 import { deriveFreeResumeStep, finalInputStep, pickDraftToResume, totalStepsForTier } from "@shared/assessmentFlow";
 import { FREE_ASSESSMENT_CAP } from "@shared/assessmentLimits";
+import { toCanonicalGrade } from "@shared/grade";
 
 // v2 — Phase 3 renumbered the FREE step order (Country and Interests swapped
 // sides of the Quiz; Personality was removed). A v1 draft encodes the OLD
@@ -112,6 +113,7 @@ export default function Assessment() {
     sameGradeAlreadyCharged,
     repeatBlocked,
     personalPoolEmpty,
+    chargedGrades,
   } = useAssessmentAvailability();
   // The taker has read the repeat warning below and chosen to go on anyway.
   const [repeatAcknowledged, setRepeatAcknowledged] = useState(false);
@@ -147,8 +149,14 @@ export default function Assessment() {
   // SAME_GRADE_REPEAT on create, this asks, and a yes re-sends with
   // confirmRepeat. The ref, not state, carries the yes into handleNext, which
   // reads it in the same tick the dialog closes.
+  //
+  // ASKED ON STEP 1, WHERE THE GRADE IS CHOSEN (owner, 2026-11-19), from the
+  // charged grades /api/licenses/me returns; the 409 on create is still the
+  // control and still opens the same dialog if it fires. "Change grade" goes
+  // back to step 1. The yes is remembered FOR THAT GRADE, so choosing another
+  // charged grade afterwards asks again.
   const [sameGradePrompt, setSameGradePrompt] = useState(false);
-  const confirmRepeatRef = useRef(false);
+  const confirmedRepeatGradeRef = useRef<string | null>(null);
   const [aspirationsError, setAspirationsError] = useState<string | null>(null);
   // Set from the PATCH that discarded an unsubmitted quiz because the student
   // changed their subjects (assessment.routes.ts). Lives here rather than in
@@ -901,6 +909,16 @@ export default function Assessment() {
       }
     }
 
+    // The same-grade warning, where the grade is chosen. Individuals only:
+    // chargedGrades is empty for anyone whose grade comes from a record.
+    if (currentStep === 1 && chargedGrades.length > 0) {
+      const g = toCanonicalGrade(stepData.grade);
+      if (g && chargedGrades.includes(g) && confirmedRepeatGradeRef.current !== g) {
+        setSameGradePrompt(true);
+        return;
+      }
+    }
+
     // Save after Subjects (step 3), before Quiz (step 4) — BOTH TIERS.
     // The save exists because QuizStep needs a persisted assessmentId to call
     // /api/assessments/:id/quiz/generate, and because that endpoint reads
@@ -984,7 +1002,10 @@ export default function Assessment() {
             // /assessment then showed "ask your school" over an assessment
             // they had already started. Seen on production 2026-11-14.
             if (!isAspirationsStep) backendData.currentStep = currentStep + 1;
-            if (confirmRepeatRef.current) backendData.confirmRepeat = true;
+            {
+              const g = toCanonicalGrade(stepData.grade);
+              if (g && confirmedRepeatGradeRef.current === g) backendData.confirmRepeat = true;
+            }
             const response = await apiRequest("POST", "/api/assessments", backendData);
             assessment = await response.json();
           }
@@ -1339,19 +1360,30 @@ export default function Assessment() {
         <AlertDialogContent data-testid="dialog-same-grade-repeat">
           <AlertDialogHeader>
             <AlertDialogTitle>{t("repeat.title")}</AlertDialogTitle>
-            <AlertDialogDescription>{t("repeat.body")}</AlertDialogDescription>
+            <AlertDialogDescription>
+              {t("repeat.sameGradeBody", {
+                grade: (toCanonicalGrade(assessmentData.grade) ?? "").replace(/^grade/, ""),
+              })}
+            </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel data-testid="button-same-grade-cancel">{t("repeat.sameGradeCancel")}</AlertDialogCancel>
+            <AlertDialogCancel
+              data-testid="button-same-grade-cancel"
+              onClick={() => {
+                if (currentStep !== 1) setCurrentStep(1);
+              }}
+            >
+              {t("repeat.changeGrade")}
+            </AlertDialogCancel>
             <AlertDialogAction
               data-testid="button-same-grade-continue"
               onClick={() => {
-                confirmRepeatRef.current = true;
+                confirmedRepeatGradeRef.current = toCanonicalGrade(assessmentData.grade);
                 setSameGradePrompt(false);
                 void handleNext();
               }}
             >
-              {t("repeat.continue")}
+              {t("repeat.continueSameGrade")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

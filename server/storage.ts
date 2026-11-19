@@ -4520,6 +4520,26 @@ export class DatabaseStorage implements IStorage {
    * charges may carry '12' where newer ones carry 'grade12' (the routes kept
    * the client's string until 2026-11-16), and an exact match would miss them.
    */
+  /**
+   * Every grade this account has already been CHARGED a report for, in
+   * canonical form. The individual's assessment form reads it on step 1, where
+   * the grade is chosen, so the same-grade warning can be asked there rather
+   * than after the subjects (owner, 2026-11-19). The create route's 409 stays
+   * the control.
+   */
+  async getChargedCanonicalGrades(studentUserId: string): Promise<string[]> {
+    const rows = await db
+      .select({ grade: licenseConsumptions.grade })
+      .from(licenseConsumptions)
+      .where(eq(licenseConsumptions.studentUserId, studentUserId));
+    const out = new Set<string>();
+    for (const r of rows as { grade: string | null }[]) {
+      const g = toCanonicalGrade(r.grade);
+      if (g) out.add(g);
+    }
+    return Array.from(out).sort();
+  }
+
   async hasConsumedLicenseForCanonicalGrade(
     studentUserId: string,
     grade: string | null | undefined,

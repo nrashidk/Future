@@ -81,6 +81,7 @@ export function useAssessmentAvailability() {
     sameGradeAlreadyCharged: boolean;
     repeatBlocked?: boolean;
     currentGrade: string | null;
+    chargedGrades?: string[] | null;
   }>({
     queryKey: ["/api/licenses/me"],
     enabled: isPooled === true,
@@ -156,6 +157,9 @@ export function useAssessmentAvailability() {
     // allowed a repeat. The server refuses the create; this is so the page can
     // say so first.
     repeatBlocked: licenseBalance?.repeatBlocked === true,
+    // An individual's already-charged grades (canonical), for the step-1
+    // warning. Empty for everyone whose grade is on a record.
+    chargedGrades: licenseBalance?.chargedGrades ?? [],
     // A buyer's OWN pool (a parent's, or an individual's) with nothing left.
     // Read from the server's answer and nothing else: `onPool` must be true,
     // so an account the server keeps off every pool is never locked out by a

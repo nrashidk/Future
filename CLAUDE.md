@@ -1374,6 +1374,18 @@ so a student with one assessment in progress got a link to a raw 404.
   "Not now" returned to the subjects step. **Then pressing Profile froze the
   tab on a native browser dialog** (the leave-page confirm flagged on
   2026-11-12 is still there); the owner had to dismiss it by hand.
+  **THE WARNING MOVED TO STEP 1, WHERE THE GRADE IS CHOSEN (owner,
+  2026-11-19: "the warning should be on the first page where you filled the
+  grade").** `/api/licenses/me` returns `chargedGrades` (canonical, from
+  `storage.getChargedCanonicalGrades`) for an individual with no child
+  profile, null for everyone else; step 1's Continue asks when the chosen
+  grade is in it. The dialog names the grade and offers "Change grade" /
+  "Continue with this grade"; the yes is remembered for THAT grade, so a
+  different charged grade asks again. The 409 at create is still the control
+  and opens the same dialog, whose "Change grade" then goes back to step 1.
+  The body says "licence", not "assessment from your balance". A school
+  student's grade comes from the school and is unchanged: they meet the
+  repeat screens before step 1. `premium-solo.mjs` S-11.
 - **THE CAREER JOURNEY (`/progress`), LIVE, 2026-11-18, build `ff9887b`.** The
   owner asked where salm's progress page had gone: all three of his reports
   were Grade 11, and the page and the profile button need TWO DISTINCT GRADES
