@@ -142,6 +142,19 @@ let submissionId = null;
     item ? `fields: ${Object.keys(item).join(", ")}` : "submission not offered to the reviewer");
 }
 
+// ------------------------------- P-04b  a rejection must say why, at the route
+// The page refuses a reject with no comment; until 2026-11-19 the route did
+// not, so a request sent outside the page recorded a reason-less rejection.
+// Judged by the ROW, not the status: a 400 with a vote written is the bug.
+{
+  const before = await sql(`SELECT count(*)::int AS n FROM contribution_reviews WHERE submission_id = $1`, [submissionId]);
+  const bare = await extra[1].session.post(`/api/contributions/review/${submissionId}`, { vote: "reject", comment: "   " });
+  const after = await sql(`SELECT count(*)::int AS n FROM contribution_reviews WHERE submission_id = $1`, [submissionId]);
+  rec("P-04b", "a rejection with no comment is refused and records nothing",
+    bare.status === 400 && bare.body?.error === "COMMENT_REQUIRED" && after[0].n === before[0].n,
+    `HTTP ${bare.status} ${bare.body?.error ?? ""} votes ${before[0].n}->${after[0].n}`);
+}
+
 // ------------------------------------------------ P-04 / P-05  one vote each
 {
   const first = await B.session.post(`/api/contributions/review/${submissionId}`, {
@@ -151,9 +164,9 @@ let submissionId = null;
     first.status === 200 && first.body?.recorded === true && first.body?.decided === false,
     `recorded, ${first.body?.reviewsSoFar}/${first.body?.reviewsRequired}, decided=${first.body?.decided}`);
 
-  const again = await B.session.post(`/api/contributions/review/${submissionId}`, { vote: "reject" });
+  const again = await B.session.post(`/api/contributions/review/${submissionId}`, { vote: "reject", comment: "Changed my mind." });
   rec("P-05", "the same school cannot vote twice",
-    again.status === 409,
+    again.status === 409 && again.body?.error === "ALREADY_REVIEWED",
     `HTTP ${again.status} ${again.body?.error ?? ""}`);
 }
 
@@ -184,7 +197,7 @@ let submissionId = null;
     `${filed.length} filed ${JSON.stringify(filed[0] ?? {})}`);
 
   // And a late vote finds it closed rather than reopening it.
-  const late = await extra[1].session.post(`/api/contributions/review/${submissionId}`, { vote: "reject" });
+  const late = await extra[1].session.post(`/api/contributions/review/${submissionId}`, { vote: "reject", comment: "Too late." });
   rec("P-07b", "a late vote cannot reopen a settled submission",
     late.status === 409 && late.body?.error === "NOT_IN_REVIEW",
     `HTTP ${late.status} ${late.body?.error ?? ""}`);

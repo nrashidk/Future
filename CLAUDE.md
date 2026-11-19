@@ -70,8 +70,11 @@ route's own message tells you to work in ("Change SUPERADMIN_EMAILS first").
 answer): registration answers in the SAME words as "already registered" so
 the public form does not say which addresses are reserved; the checkout
 preflight answers `LOGIN_REQUIRED` before any charge; Add Users, add-admin
-and create-school answer 403 `RESERVED_EMAIL`. **Google/Microsoft sign-in is
-deliberately not guarded** — there the provider has verified the address,
+and create-school answer 403 `RESERVED_EMAIL`. **Google/Microsoft sign-in is NOT CONFIGURED on production** (seen
+2026-11-19: `/api/auth/config` answers `google: false, microsoft: false`, so
+no button is drawn and the routes are not mounted). The code stays; it is
+dormant until the four `*_CLIENT_ID`/`*_SECRET` variables are set. It is
+deliberately not guarded — there the provider has verified the address,
 which is how a reserved address is meant to be claimed. `up.ts` reserves a
 second address that nobody holds so the suite has something to try.
 **Not covered:** `storage.upsertUser` itself (its three superadmin callers
@@ -508,9 +511,8 @@ IN the list on purpose: that row's key button is how one superadmin resets
 another's password. I-09. **The price on `/tier-selection` is quoted as $10
 deliberately** (owner, 2026-11-12): a round approximation of AED 40, not a
 bug. **Licences given here are free by decision** — no revenue record wanted.
-**Flagged, not changed:** the edit-email
-dialog invalidates `/api/superadmin/all-students`, a query key nothing uses, so
-the list does not refresh after an email change.
+(The edit-email dialog's refresh, once flagged here, was fixed: it
+invalidates `/api/superadmin/students`.)
 
 Stripe cannot answer any licence question. It knows amounts and customers, not
 licences, schools, countries or curricula, and reward credits never touch it
@@ -1371,9 +1373,10 @@ so a student with one assessment in progress got a link to a raw 404.
   Continue on the subjects step opens "You already have a report for this
   grade -- Taking the assessment again for the same grade uses another
   assessment from your balance", with "Not now" and "Take it again anyway";
-  "Not now" returned to the subjects step. **Then pressing Profile froze the
-  tab on a native browser dialog** (the leave-page confirm flagged on
-  2026-11-12 is still there); the owner had to dismiss it by hand.
+  "Not now" returned to the subjects step. Pressing Profile then raised the
+  browser's own "Leave site?" box, which froze the AUTOMATION tool (it cannot
+  answer a native dialog) until the owner dismissed it. **Not a product bug**:
+  the form had been started, which is exactly when the guard should fire.
   **THE WARNING MOVED TO STEP 1, WHERE THE GRADE IS CHOSEN (owner,
   2026-11-19: "the warning should be on the first page where you filled the
   grade").** `/api/licenses/me` returns `chargedGrades` (canonical, from
@@ -1581,8 +1584,12 @@ so a student with one assessment in progress got a link to a raw 404.
   the `needs_changes` control). Seen live, build `fdc6199`: the approved
   Maths submission's page reads "No notes on this question" under both.
   After Edit Details saved a curriculum, the gaps and review cards stayed
-  absent until a reload (their cached 409); fixed with the box above. Reject-needs-a-comment is enforced in the
-  page only; the route accepts a reject without one.
+  absent until a reload (their cached 409); fixed with the box above. **A
+  reject needs a comment at the ROUTE too (2026-11-19)**: it was enforced in
+  the page only, and a request sent outside the page recorded a reason-less
+  rejection. 400 `COMMENT_REQUIRED`; `peer-review.mjs` P-04b, judged by the
+  vote rows (mutation: `200`, votes 0 -> 1). P-05 and P-07b now send a
+  comment, so they still reach the refusal they test.
 - **THE SCHOOL ADMIN CLICK WALK, 2026-11-15** (Test High School, build
   `6f7d438`). Per item in `docs/verification/school-admin.md`. Roster, CSV,
   exports, repeat, report view, rename, top-up quote and a submission all

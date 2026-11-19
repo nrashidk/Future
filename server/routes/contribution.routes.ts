@@ -548,6 +548,12 @@ router.post("/review/:id", isAuthenticated, checkOrgAdmin, async (req: Request, 
     if (!parsed.success) {
       return res.status(400).json({ error: "Invalid review", details: parsed.error.flatten() });
     }
+    // A rejection must say why. The page enforced this and the route did not,
+    // so a request sent outside the page recorded a reason-less rejection the
+    // author could never act on. peer-review.mjs P-04b.
+    if (parsed.data.vote === "reject" && !parsed.data.comment?.trim()) {
+      return res.status(400).json({ error: "COMMENT_REQUIRED", message: "A rejection needs a comment saying what is wrong." });
+    }
 
     const result = await storage.recordContributionReview({
       submissionId: req.params.id,
