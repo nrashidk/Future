@@ -1326,7 +1326,21 @@ router.post("/admin/org/:orgId/allocate-reward", isAuthenticated, checkSuperadmi
     
     const maxYearlyCredits = await getMaxYearlyCredits();
     const remainingYearlyCap = maxYearlyCredits - yearlyCount;
-    const actualCredits = Math.min(credits, remainingYearlyCap);
+
+    // ALLOCATION PAYS WHAT IS PENDING AND NOTHING MORE. The page offers the
+    // pending figure and sets it as the box's max, but a typed number is not
+    // held to that, and this route used to add whatever it was sent: pending
+    // 2, allocate 10, the school gained 10 reward credits -- which are spent
+    // before paid licences, so 8 free assessments nobody earned.
+    const pendingCredits = (org as any).pendingRewardCredits || 0;
+    if (pendingCredits <= 0) {
+      return res.status(409).json({
+        error: "NOTHING_PENDING",
+        message: "This school has no reward credits waiting to be given.",
+      });
+    }
+
+    const actualCredits = Math.min(credits, remainingYearlyCap, pendingCredits);
     
     if (actualCredits <= 0) {
       return res.status(400).json({ 
@@ -1334,9 +1348,7 @@ router.post("/admin/org/:orgId/allocate-reward", isAuthenticated, checkSuperadmi
       });
     }
     
-    // Get pending reward credits
-    const pendingCredits = (org as any).pendingRewardCredits || 0;
-    const creditsToMove = Math.min(actualCredits, pendingCredits);
+    const creditsToMove = actualCredits;
     
     // Move credits from pending to actual
     await storage.updateOrganization(org.id, {

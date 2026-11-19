@@ -193,6 +193,41 @@ try {
       r.status === 200 && r.body?.creditsAwarded === 3 && after.reward === 53 && after.yearly === 3,
       `HTTP ${r.status} paid=${r.body?.creditsAwarded} ${show(after)}`);
   }
+
+  // ------------------------------------------------------------------ K-09
+  // "Allocate reward" pays what is PENDING and nothing more. The page offers
+  // the pending figure, but a typed number is not held to it; the route used
+  // to add whatever it was sent. Judged by the school's figures.
+  const allocate = (credits) => sa.post(`/api/contributions/admin/org/${orgId}/allocate-reward`, { credits });
+  {
+    await sql(`UPDATE organizations SET pending_reward_credits = 2, reward_credits = 0,
+                      yearly_contribution_count = 0, last_contribution_reset_year = ${YEAR} WHERE id = $1`, [orgId]);
+    const r = await allocate(10);
+    const after = await figures();
+    rec("K-09", "allocating 10 against 2 pending gives 2, not 10",
+      r.status === 200 && after.reward === 2 && after.pending === 0 && after.yearly === 2,
+      `HTTP ${r.status} ${show(after)}`);
+  }
+  // ------------------------------------------------------------------ K-10
+  {
+    const r = await allocate(5);
+    const after = await figures();
+    rec("K-10", "with nothing pending, allocation is refused and nothing moves",
+      r.status === 409 && r.body?.error === "NOTHING_PENDING" && after.reward === 2,
+      `HTTP ${r.status} ${r.body?.error ?? ""} ${show(after)}`);
+  }
+  // ------------------------------------------------------------------ K-11
+  // Control: allocating LESS than pending still pays exactly what was asked,
+  // or K-09 would pass against a route that always pays the whole pending.
+  {
+    await sql(`UPDATE organizations SET pending_reward_credits = 5, reward_credits = 0,
+                      yearly_contribution_count = 0 WHERE id = $1`, [orgId]);
+    const r = await allocate(3);
+    const after = await figures();
+    rec("K-11", "control: allocating 3 of 5 pending pays 3, leaves 2",
+      r.status === 200 && after.reward === 3 && after.pending === 2,
+      `HTTP ${r.status} ${show(after)}`);
+  }
 } finally {
   for (const id of made) await sql(`DELETE FROM contribution_submissions WHERE id = $1`, [id]).catch(() => {});
 }
