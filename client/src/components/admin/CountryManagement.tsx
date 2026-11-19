@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -106,6 +106,12 @@ export default function CountryManagement() {
     setPriceCurrency(country.licenseCurrency ?? "AED");
   };
   const [repopulatingCountryId, setRepopulatingCountryId] = useState<string | null>(null);
+  
+  // What the name picker last filled in, so a later pick can tell its own
+  
+  // suggestion (safe to replace) from a value typed by hand (kept).
+  
+  const lastSuggested = useRef<{ id: string; code: string }>({ id: "", code: "" });
   
   const [newCountryForm, setNewCountryForm] = useState({
     id: "",
@@ -215,6 +221,7 @@ export default function CountryManagement() {
         suggestedCurricula: result.suggestedCurricula ?? [],
       });
       setNewCountryForm({ id: "", name: "", nameAr: "", code: "", abbreviation: "", autoPopulate: true });
+      lastSuggested.current = { id: "", code: "" };
       toast({ 
         title: t('countries.createSuccess'), 
         description: result.autoPopulated 
@@ -713,6 +720,47 @@ export default function CountryManagement() {
             <DialogDescription>{t('countries.addCountryDesc')}</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {/* THE PICKER, and it comes first because everything else derives
+                from it. A country already added is shown as taken rather than
+                hidden, so nobody hunts for one that is already there. */}
+            <div>
+              <Label htmlFor="countryName">{t('countries.countryName')}</Label>
+              <select
+                id="countryName"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={newCountryForm.name}
+                onChange={(e) => {
+                  const picked = catalog?.countries.find((c) => c.name === e.target.value);
+                  setNewCountryForm((f) => ({
+                    ...f,
+                    name: e.target.value,
+                    nameAr: picked?.nameAr ?? "",
+                    // Pre-filled, not imposed: both stay editable below, because
+                    // the live UAE row uses "uae"/"UAE" rather than ISO's
+                    // "are"/"ARE" and its key is already pointed at.
+                    //
+                    // AND NEVER OVER A VALUE TYPED BY HAND. It used to replace
+                    // whatever was in the two boxes, so an id typed first was
+                    // silently swapped for the suggestion. A box is refilled only
+                    // when it is empty or still holds the last suggestion.
+                    id: !f.id || f.id === lastSuggested.current.id ? (picked?.suggestedId ?? f.id) : f.id,
+                    code: !f.code || f.code === lastSuggested.current.code ? (picked?.suggestedCode ?? f.code) : f.code,
+                  }));
+                  lastSuggested.current = { id: picked?.suggestedId ?? "", code: picked?.suggestedCode ?? "" };
+                }}
+                data-testid="select-country-name"
+              >
+                <option value="">{t('countries.selectCountry')}</option>
+                {(catalog?.countries ?? []).map((c) => (
+                  <option key={c.alpha2} value={c.name} disabled={c.alreadyAdded}>
+                    {c.name}{c.nameAr ? ` — ${c.nameAr}` : ""}{c.alreadyAdded ? ` (${t('countries.alreadyAdded')})` : ""}
+                  </option>
+                ))}
+              </select>
+              {newCountryForm.nameAr && (
+                <p className="text-sm text-muted-foreground mt-1" dir="rtl">{newCountryForm.nameAr}</p>
+              )}
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="countryId">{t('countries.countryId')}</Label>
@@ -735,41 +783,6 @@ export default function CountryManagement() {
                   data-testid="input-country-code"
                 />
               </div>
-            </div>
-            {/* THE PICKER, and it comes first because everything else derives
-                from it. A country already added is shown as taken rather than
-                hidden, so nobody hunts for one that is already there. */}
-            <div>
-              <Label htmlFor="countryName">{t('countries.countryName')}</Label>
-              <select
-                id="countryName"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={newCountryForm.name}
-                onChange={(e) => {
-                  const picked = catalog?.countries.find((c) => c.name === e.target.value);
-                  setNewCountryForm((f) => ({
-                    ...f,
-                    name: e.target.value,
-                    nameAr: picked?.nameAr ?? "",
-                    // Pre-filled, not imposed: both stay editable below, because
-                    // the live UAE row uses "uae"/"UAE" rather than ISO's
-                    // "are"/"ARE" and its key is already pointed at.
-                    id: picked?.suggestedId ?? f.id,
-                    code: picked?.suggestedCode ?? f.code,
-                  }));
-                }}
-                data-testid="select-country-name"
-              >
-                <option value="">{t('countries.selectCountry')}</option>
-                {(catalog?.countries ?? []).map((c) => (
-                  <option key={c.alpha2} value={c.name} disabled={c.alreadyAdded}>
-                    {c.name}{c.nameAr ? ` — ${c.nameAr}` : ""}{c.alreadyAdded ? ` (${t('countries.alreadyAdded')})` : ""}
-                  </option>
-                ))}
-              </select>
-              {newCountryForm.nameAr && (
-                <p className="text-sm text-muted-foreground mt-1" dir="rtl">{newCountryForm.nameAr}</p>
-              )}
             </div>
             {/* NO ABBREVIATION FIELD.
                 It is display-only -- the subject screens render
