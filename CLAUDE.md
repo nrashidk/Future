@@ -1697,6 +1697,9 @@ so a student with one assessment in progress got a link to a raw 404.
     (`storage.getPersonalLicencesSpentByAccount`, one GROUP BY on the
     ledger's `user` pool rows) and the row reads "Licences: 2 left of 6".
     `individual-licences.mjs` I-10 (spent agrees with `/api/licenses/me`).
+    **SEEN BY CLICKING as superadmin, 2026-11-19:** the Users tab reads
+    "Licences: 2 left of 6" on `ali.ali`'s row and "2 left of 3" on Fix
+    One Buyer's; free accounts read "0 left of 0".
     Earlier, BY API (build `2fe0ff5`):
     "Nasser Delete Check" is gone from `/api/superadmin/students` (19 rows);
     "Nasser Free Check", "Nasser Guest Check" and "Nasser Walk Check", all
