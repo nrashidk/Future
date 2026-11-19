@@ -1399,7 +1399,8 @@ so a student with one assessment in progress got a link to a raw 404.
   same morning): `repeat.blockedBody` and `repeat.bodySchool` end "If the
   grade shown for you is wrong, ask your school to correct it." **Seen by
   clicking as `salm.alktby`, build `03f7775`**, on the repeat-blocked screen
-  (English; the Arabic string was not rendered).
+  (English). **Arabic seen by clicking, 2026-11-19, build `f1ffb5e`**: "إذا
+  كان الصف المسجّل لك غير صحيح، اطلب من مدرستك تصحيحه." on the same screen.
   **IN ARABIC, BY CLICKING, same morning (`ali.ali`, build `93b6c7f`):** the
   country card's plan badge reads "مئوية الإمارات 2071" (migration 048, first
   seen live), the curriculum option reads "المنهج الوطني (وزارة التربية
