@@ -1363,7 +1363,13 @@ so a student with one assessment in progress got a link to a raw 404.
   comparison is canonical, since his Grade 12 rows hold both spellings; a
   create for `grade9` with age 45 answers 400 `AGE_OUT_OF_RANGE`; rows 4 -> 4
   and balance 2 -> 2 across both. **Not seen live:** the repeat DIALOG in the
-  form, and the stored format of a NEW row (needs one created). His older
+  form (since seen, below). **The stored format of a NEW row, SEEN BY CLICKING
+  2026-11-19, build `b80e653`**: the real form in Arabic (Grade 9, age 16,
+  UAE, MOE National, three subjects), Continue on the subjects step created
+  the row, and `/api/assessments` read it back as `grade9` at step 4 (the
+  lock-out fix holding too). Left unfinished on purpose: a licence is spent
+  only at report generation, so nothing was charged; his next visit offers
+  to resume it. His older
   rows keep the bare `12`/`11`/`10`; nothing migrates them, and nothing needs
   to, because every comparison is canonical.
   **THEN SEEN BY CLICKING, same morning, in the real form as `ali.ali`:**
