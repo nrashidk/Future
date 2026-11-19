@@ -485,9 +485,16 @@ export default function Profile() {
             // a whole block; with no separate heading it would appear to describe
             // the account fields too, which come from the users row. Scoped to the
             // assessment fields, it stays true.
+            // With no assessment yet, the values come from WHERE THE ACCOUNT
+            // WAS SET UP: a school's roster for a school student, the
+            // registration form for anyone else. "Your school's records" told
+            // a parent-registered or paid individual account that it had a
+            // school.
             const subjectSource = latestAssessment
               ? t("details.sourceAssessment")
-              : t("details.sourceSchool");
+              : isOrgStudent
+                ? t("details.sourceSchool")
+                : t("details.sourceRegistration");
 
             const getGenderLabel = (g: string): string => {
               const genderMap: Record<string, string> = {

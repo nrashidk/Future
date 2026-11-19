@@ -27,6 +27,7 @@
     "studentName": "Student",
     "sourceAssessment": "Assessment details come from your latest assessment.",
     "sourceSchool": "Assessment details come from your school's records.",
+    "sourceRegistration": "Assessment details come from your registration.",
     "age": "Age",
     "grade": "Grade",
     "gender": "Gender",
