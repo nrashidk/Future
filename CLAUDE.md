@@ -1386,6 +1386,12 @@ so a student with one assessment in progress got a link to a raw 404.
   The body says "licence", not "assessment from your balance". A school
   student's grade comes from the school and is unchanged: they meet the
   repeat screens before step 1. `premium-solo.mjs` S-11.
+  **SEEN BY CLICKING ON PRODUCTION, build `b1010e4`** (`ali.ali`, page
+  reloaded onto the new build): Grade 12 + Continue on step 1 opens "You
+  already have a report for Grade 12. Taking it again uses another licence
+  from your balance. If the grade is wrong, change it." with "Change grade" /
+  "Continue with this grade"; Change grade stays on step 1; Grade 9 then
+  continues to step 2 with no question. Nothing was created.
 - **THE CAREER JOURNEY (`/progress`), LIVE, 2026-11-18, build `ff9887b`.** The
   owner asked where salm's progress page had gone: all three of his reports
   were Grade 11, and the page and the profile button need TWO DISTINCT GRADES
