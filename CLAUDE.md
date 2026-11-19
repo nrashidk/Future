@@ -1481,6 +1481,14 @@ so a student with one assessment in progress got a link to a raw 404.
   the subject, and the subject is checked at Submit. The one click that
   did nothing came straight after choosing the correct answer from its
   list, which most likely swallowed it. Not a bug; nothing changed.
+  **Both seen by clicking, build `03f7775`:** with one student who has no
+  report selected, the box reads only "1 selected student has no report --
+  only their login account would be removed" (cancelled); with NO subject
+  chosen, a filled question was added ("1 question ready for submission")
+  and the draft was cancelled. Re-running it showed the real cause: right
+  after choosing from the Correct Answer list, the next click (on Topic)
+  did not land and the typed topic went nowhere, so Add then lacked a topic.
+  Seen under the browser tool only; not established for a person clicking.
 - **THE SIGN-IN FORM WAS AT `/login/student`, TITLED "Student Login", FOR
   EVERY ROLE** (owner, 2026-11-15). School admins, parents' accounts and the
   superadmin all sign in there, and it told each of them their password came
