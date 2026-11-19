@@ -1394,8 +1394,9 @@ so a student with one assessment in progress got a link to a raw 404.
   continues to step 2 with no question. Nothing was created.
   **A school student is told the grade is the school's to correct** (owner,
   same morning): `repeat.blockedBody` and `repeat.bodySchool` end "If the
-  grade shown for you is wrong, ask your school to correct it." Not yet seen
-  live (needs a school student on a charged grade).
+  grade shown for you is wrong, ask your school to correct it." **Seen by
+  clicking as `salm.alktby`, build `03f7775`**, on the repeat-blocked screen
+  (English; the Arabic string was not rendered).
   **IN ARABIC, BY CLICKING, same morning (`ali.ali`, build `93b6c7f`):** the
   country card's plan badge reads "مئوية الإمارات 2071" (migration 048, first
   seen live), the curriculum option reads "المنهج الوطني (وزارة التربية
