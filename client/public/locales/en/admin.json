@@ -695,7 +695,7 @@
     "licencesGiven": "Licences added",
     "licencesGivenDesc": "Added {{added}}. The account now has {{total}} in all.",
     "failedToGiveLicences": "The licences could not be added.",
-    "licencesHeld": "Licences: {{n}}",
+    "licencesLeft": "Licences: {{left}} left of {{total}}",
     "typeSuperadmin": "Superadmin",
     "typePremium": "Premium",
     "schoolColon": "School: {{name}}",

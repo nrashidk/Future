@@ -183,6 +183,17 @@ const r404 = await give(sa, "00000000-0000-0000-0000-000000000000", 1);
 rec("I-08", "an unknown user is a JSON 404",
   r404.status === 404 && r404.body?.message === "User not found", `HTTP ${r404.status} ${r404.body?.message ?? "(no json)"}`);
 
+// The Users row says "left of total": the list must carry what was SPENT.
+// One report was charged in I-03, so spent is 1 and purchased - spent is
+// what /api/licenses/me reports as available.
+const listN = await sa.get("/api/superadmin/students");
+const rowN = (listN.body ?? []).find?.((r) => r.user?.id === u.id);
+const balN = await me.get("/api/licenses/me");
+const fN = await figure();
+rec("I-10", "the list carries licences spent, agreeing with the balance",
+  rowN?.licencesSpent === 1 && Number(fN.n) - rowN.licencesSpent === balN.body?.available,
+  `spent=${rowN?.licencesSpent} purchased=${fN.n} available=${balN.body?.available}`);
+
 const failed = results.filter((r) => !r.pass);
 console.log(`\n${results.length - failed.length}/${results.length} passed`);
 if (failed.length) {

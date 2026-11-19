@@ -719,7 +719,7 @@
     "licencesGiven": "تمت إضافة التراخيص",
     "licencesGivenDesc": "أُضيف {{added}}. أصبح لدى الحساب {{total}} في المجموع.",
     "failedToGiveLicences": "تعذّرت إضافة التراخيص.",
-    "licencesHeld": "التراخيص: {{n}}",
+    "licencesLeft": "التراخيص: {{left}} متبقية من {{total}}",
     "typeSuperadmin": "مشرف عام",
     "typePremium": "مميز",
     "schoolColon": "المدرسة: {{name}}",

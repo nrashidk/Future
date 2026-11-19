@@ -168,6 +168,8 @@ interface StudentWithAssessment {
   };
   organizationName: string | null;
   isSuperadmin?: boolean;
+  // Licences this individual has spent from their own pool (server-counted).
+  licencesSpent?: number;
   assessmentCount: number;
   completedAssessmentCount?: number;
   latestAssessmentDate: string | null;
@@ -1639,7 +1641,10 @@ function SuperadminDashboardPage() {
                                   )}
                                   {student.user.accountType === 'individual' && !student.isSuperadmin && (
                                     <span className="text-xs text-muted-foreground" data-testid={`text-user-licences-${student.user.id}`}>
-                                      {t('superadmin.licencesHeld', { n: student.user.purchasedLicenses ?? 0 })}
+                                      {t('superadmin.licencesLeft', {
+                                        left: Math.max(0, (student.user.purchasedLicenses ?? 0) - (student.licencesSpent ?? 0)),
+                                        total: student.user.purchasedLicenses ?? 0,
+                                      })}
                                     </span>
                                   )}
                                 </div>

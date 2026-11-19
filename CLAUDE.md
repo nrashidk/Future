@@ -1671,7 +1671,11 @@ so a student with one assessment in progress got a link to a raw 404.
     rows, no "Nasser Delete Check"; "Nasser Free Check", "Nasser Guest
     Check" and "Nasser Walk Check" listed as Free. **Flagged, not changed:**
     the row's "Licences: 6" for `ali.ali` is the total ever given, not the 2
-    he has left. Earlier, BY API (build `2fe0ff5`):
+    he has left. **FIXED (owner said fix):** the list carries `licencesSpent`
+    (`storage.getPersonalLicencesSpentByAccount`, one GROUP BY on the
+    ledger's `user` pool rows) and the row reads "Licences: 2 left of 6".
+    `individual-licences.mjs` I-10 (spent agrees with `/api/licenses/me`).
+    Earlier, BY API (build `2fe0ff5`):
     "Nasser Delete Check" is gone from `/api/superadmin/students` (19 rows);
     "Nasser Free Check", "Nasser Guest Check" and "Nasser Walk Check", all
     confirmed, are still there as `individual`. A confirmed account KEEPS its

@@ -4521,6 +4521,23 @@ export class DatabaseStorage implements IStorage {
    * the client's string until 2026-11-16), and an exact match would miss them.
    */
   /**
+   * Licences each individual has SPENT from their own pool, by account id.
+   * The superadmin Users directory shows "left of total" from this; before
+   * it, the row printed the total ever given ("Licences: 6") beside an
+   * account with 2 left (owner, 2026-11-19). One GROUP BY for the whole list.
+   */
+  async getPersonalLicencesSpentByAccount(): Promise<Map<string, number>> {
+    const rows = await db
+      .select({ id: licenseConsumptions.guardianUserId, n: sql<number>`count(*)::int` })
+      .from(licenseConsumptions)
+      .where(eq(licenseConsumptions.poolOwnerType, 'user'))
+      .groupBy(licenseConsumptions.guardianUserId);
+    const out = new Map<string, number>();
+    for (const r of rows as { id: string | null; n: number }[]) if (r.id) out.set(r.id, Number(r.n));
+    return out;
+  }
+
+  /**
    * Every grade this account has already been CHARGED a report for, in
    * canonical form. The individual's assessment form reads it on step 1, where
    * the grade is chosen, so the same-grade warning can be asked there rather

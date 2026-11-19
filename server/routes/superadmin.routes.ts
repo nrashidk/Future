@@ -2741,8 +2741,12 @@ export function registerSuperadminRoutes(app: Express) {
       // "give licences" button the route then refused. Computed the way every
       // request computes it -- role, or the configured emails.
       const superadminEmails = getSuperadminEmails();
+      const spentByAccount = await storage.getPersonalLicencesSpentByAccount();
       res.json(students.map(s => ({
         ...s,
+        // An individual's own pool: spent so far, so the row can say "left of
+        // total" rather than the total ever given.
+        licencesSpent: spentByAccount.get(s.user.id) ?? 0,
         isSuperadmin:
           s.user.role === "superadmin" ||
           (!!s.user.email && superadminEmails.includes(s.user.email.toLowerCase())),
