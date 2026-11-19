@@ -1416,8 +1416,12 @@ so a student with one assessment in progress got a link to a raw 404.
   (`shared/sectorAssignment.ts`, override-exclusive like the vision score;
   `analytics-sectors.mjs` A-05: old code every card 3 / total 30, now 1 + 1);
   alignment is averaged over that sector's own students; an empty sector says
-  "No students yet" with no bar. **Not yet seen live** (Chrome was not
-  reachable after the deploy, build `dd954b0`).
+  "No students yet" with no bar. **SEEN LIVE, build `6501ef7`** (Test High
+  School's admin, 2026-11-19): Digital Economy 2, Space & Advanced Sciences 1,
+  Financial Services 1, Cultural & Creative Industries 1 -- 5 in all, matching
+  the country card's "5 students assessed"; alignment differs per card (80.0,
+  91.7, 40.0, 88.0%); the other six read "No students yet" with no bar; "1
+  student" singular. Arabic not re-checked.
 - **THE SIGN-IN FORM WAS AT `/login/student`, TITLED "Student Login", FOR
   EVERY ROLE** (owner, 2026-11-15). School admins, parents' accounts and the
   superadmin all sign in there, and it told each of them their password came
