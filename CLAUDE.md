@@ -1355,8 +1355,8 @@ so a student with one assessment in progress got a link to a raw 404.
   continuing to the quiz. **Not seen rendered:** the bulk-reset dialog (the
   harness school had only its admin, whose row cannot be selected) and the
   personality step without its labels.
-  **SEEN LIVE AS `ali.ali`, build `2fe0ff5`, 2026-11-19, by API from his
-  signed-in page (2 licences, 4 rows holding grades `grade12`, `12`, `11`,
+  **CHECKED BY API ONLY (NOT A CLICK, SO NOT VERIFIED BY THE OWNER'S RULE)
+  AS `ali.ali`, build `2fe0ff5`, 2026-11-19, from his signed-in page (2 licences, 4 rows holding grades `grade12`, `12`, `11`,
   `10`):** a create for grade `12` answers 409 `SAME_GRADE_REPEAT` -- the
   comparison is canonical, since his Grade 12 rows hold both spellings; a
   create for `grade9` with age 45 answers 400 `AGE_OUT_OF_RANGE`; rows 4 -> 4
@@ -1630,7 +1630,8 @@ so a student with one assessment in progress got a link to a raw 404.
     unconfirmed; its deadline is 2026-11-16T19:45:33Z. After that it should
     be gone from the Users list, and "Nasser Free Check" (confirmed) should
     still be there. Nobody must open its confirmation link.
-    **CHECKED 2026-11-19, build `2fe0ff5`, as superadmin: IT WORKED.**
+    **CHECKED 2026-11-19, build `2fe0ff5`, as superadmin, BY API (not yet
+    seen on the Users tab by a click):**
     "Nasser Delete Check" is gone from `/api/superadmin/students` (19 rows);
     "Nasser Free Check", "Nasser Guest Check" and "Nasser Walk Check", all
     confirmed, are still there as `individual`. A confirmed account KEEPS its
