@@ -36,6 +36,7 @@ let drafts: any[] = [];
 const createInvoice = vi.fn(async (p: any) => ({ number: "FP-2026-0099", totalMinor: quotePrice({ studentCount: p.studentCount, unitPriceMinor: p.unitPriceMinor, currency: p.currency }).totalMinor, currency: p.currency, ...p }));
 const applySchoolTopUpPayment = vi.fn(async () => ({ ok: true, granted: true }));
 const sendLicenceRequestToSuperadmins = vi.fn(async () => undefined);
+const createOrganizationEvent = vi.fn(async (e: any) => ({ id: "ev1", ...e }));
 
 vi.mock("../storage", () => ({
   storage: {
@@ -48,6 +49,7 @@ vi.mock("../storage", () => ({
     createInvoice: (p: any) => createInvoice(p),
     applySchoolTopUpPayment: (p: any) => applySchoolTopUpPayment(p),
     getSuperadminNotificationAddresses: async () => ["owner@example.test"],
+    createOrganizationEvent: (e: any) => createOrganizationEvent(e),
   },
 }));
 vi.mock("../services/email", () => ({ sendLicenceRequestToSuperadmins: (p: any) => sendLicenceRequestToSuperadmins(p) }));
@@ -90,6 +92,7 @@ beforeEach(() => {
   createInvoice.mockClear();
   applySchoolTopUpPayment.mockClear();
   sendLicenceRequestToSuperadmins.mockClear();
+  createOrganizationEvent.mockClear();
 });
 
 describe("quote", () => {
@@ -142,6 +145,12 @@ describe("request invoice", () => {
     expect(p.supplierTrn).toBeNull();
     expect(sendLicenceRequestToSuperadmins).toHaveBeenCalledTimes(1);
     expect((sendLicenceRequestToSuperadmins.mock.calls[0] as any)[0].schoolName).toBe("School A");
+    // Recent Activity: the request is recorded against the school, by the requester.
+    expect(createOrganizationEvent).toHaveBeenCalledTimes(1);
+    const ev = createOrganizationEvent.mock.calls[0][0];
+    expect(ev.eventType).toBe("invoice_requested");
+    expect(ev.organizationId).toBe("org-a");
+    expect(ev.performedBy).toBe("admin");
   });
   it("refuses a second request while a draft is waiting (control: nothing created)", async () => {
     drafts = [{ id: "d1" }];
@@ -149,6 +158,7 @@ describe("request invoice", () => {
     expect(r.status).toBe(409);
     expect(r.body.code).toBe("REQUEST_PENDING");
     expect(createInvoice).not.toHaveBeenCalled();
+    expect(createOrganizationEvent).not.toHaveBeenCalled();
   });
   it("refuses a student", async () => {
     who = "student";

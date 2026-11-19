@@ -3821,6 +3821,21 @@ export class DatabaseStorage implements IStorage {
         })
         .where(eq(organizations.id, invoice.organizationId));
 
+      // RECENT ACTIVITY: an invoice settled is a licence grant, and it
+      // appeared nowhere a superadmin reads. Same transaction as the grant.
+      if (params.performedBy) {
+        const before = org.totalLicenses ?? 0;
+        await tx.insert(organizationEvents).values({
+          organizationId: invoice.organizationId,
+          eventType: "invoice_paid",
+          eventDescription: `Invoice ${invoice.number} marked paid: ${invoice.studentCount} licences added (${before} → ${before + invoice.studentCount})`,
+          performedBy: params.performedBy,
+          performedByRole: "superadmin",
+          previousValue: { totalLicenses: before },
+          newValue: { totalLicenses: before + invoice.studentCount },
+        });
+      }
+
       const [final] = await tx
         .update(invoices)
         .set({ licenseGrantId: grant?.id ?? null })
@@ -3982,6 +3997,24 @@ export class DatabaseStorage implements IStorage {
           updatedAt: new Date(),
         })
         .where(eq(organizations.id, params.organizationId));
+
+      // RECENT ACTIVITY. A paid top-up changed the school's entitlement and
+      // appeared nowhere a superadmin reads. Written in the same transaction,
+      // only when THIS call granted (a redelivery writes nothing). The event
+      // table needs an actor; a payment with no recorded payer is still
+      // granted, it just has no activity line.
+      if (params.performedBy) {
+        const before = org.totalLicenses ?? 0;
+        await tx.insert(organizationEvents).values({
+          organizationId: params.organizationId,
+          eventType: "license_purchased",
+          eventDescription: `Bought ${params.licences} licences online, ${params.currency.toUpperCase()} ${grantAmountMajor(params.amountMinor, params.currency)} (${before} → ${before + params.licences})`,
+          performedBy: params.performedBy,
+          performedByRole: "org_admin",
+          previousValue: { totalLicenses: before },
+          newValue: { totalLicenses: before + params.licences },
+        });
+      }
       return { ok: true as const, granted: true };
     });
   }

@@ -191,6 +191,19 @@ export function registerSchoolTopUpRoutes(app: Express) {
         createdBy: ctx.userId,
       });
 
+      // RECENT ACTIVITY: a request is a draft invoice a superadmin has to
+      // act on; it was visible only in the Invoices tab and the mail.
+      // Non-fatal: the draft exists, and a 500 now would have the school
+      // press again and meet REQUEST_PENDING.
+      await storage.createOrganizationEvent({
+        organizationId: ctx.org.id,
+        eventType: "invoice_requested",
+        eventDescription: `Requested an invoice for ${licences} licences (${invoice.number}, draft)`,
+        performedBy: ctx.userId,
+        performedByRole: "org_admin",
+        newValue: { licences, invoice: invoice.number },
+      }).catch((e: unknown) => console.error("[TopUp] activity event not written:", e));
+
       await sendLicenceRequestToSuperadmins({
         to: await storage.getSuperadminNotificationAddresses(),
         schoolName: ctx.org.name,

@@ -983,6 +983,9 @@ function SuperadminDashboardPage() {
       case "admin_added": return <UserPlus className="w-4 h-4 text-green-500" />;
       case "admin_removed": return <Trash2 className="w-4 h-4 text-red-500" />;
       case "admin_promoted": return <Crown className="w-4 h-4 text-yellow-500" />;
+      case "license_purchased": return <Plus className="w-4 h-4 text-green-500" />;
+      case "invoice_paid": return <Plus className="w-4 h-4 text-green-500" />;
+      case "invoice_requested": return <Clock className="w-4 h-4 text-blue-500" />;
       default: return <Clock className="w-4 h-4 text-muted-foreground" />;
     }
   };

@@ -1204,7 +1204,12 @@ export function registerSuperadminRoutes(app: Express) {
             message: `Cannot set licenses below used count. Currently ${org.usedLicenses} licenses are in use.` 
           });
         }
-        if (!eventType) {
+        if (eventType === "unlimited_disabled") {
+          // The count set with the switch is part of the same change. It was
+          // dropped from the history, so a reduction made this way appeared
+          // nowhere a superadmin could read it.
+          eventDescription = `Disabled unlimited licenses; set to ${newTotalLicenses} licenses (was ${org.totalLicenses})`;
+        } else if (!eventType) {
           const diff = newTotalLicenses - org.totalLicenses;
           if (diff > 0) {
             eventType = "license_added";

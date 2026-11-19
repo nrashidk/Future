@@ -93,6 +93,16 @@ rec("T-02", "same payment, NEW event id: nothing added", st2 === 200 && s2.total
   `HTTP ${st2} total ${s1.total}->${s2.total} rows=${s2.grants.length}`);
 
 const PI2 = `pi_topup_bad_${tag}`;
+// T-02b: Recent Activity carries ONE line for the payment -- written in the
+// grant's own transaction, so the redelivery in T-02 added none.
+{
+  const ev = await sql(`SELECT event_type, event_description, performed_by FROM organization_events
+                         WHERE organization_id = $1 AND event_type = 'license_purchased'`, [school.id]);
+  rec("T-02b", "the paid top-up is ONE Recent Activity line, by the school admin",
+    ev.length === 1 && ev[0].performed_by === school.admin_user_id && ev[0].event_description.includes(`${LIC} licences`),
+    `${ev.length} line(s) ${ev[0]?.event_description ?? ""}`);
+}
+
 const st3 = await deliver(event(`evt_c_${tag}`, PI2, { amount: 100, expected: AMOUNT }));
 const s3 = await state();
 const g3 = await sql(`SELECT 1 FROM license_grants WHERE stripe_payment_id = $1`, [PI2]);

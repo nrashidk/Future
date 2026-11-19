@@ -249,6 +249,17 @@ try {
       `HTTP ${again.status} balance ${balanceBefore}→${balanceAfter} grants ${grantsBefore}→${grantsAfter}`);
   }
 
+  // -------------------------------------------------------------------- V-08b
+  // Recent Activity: the payment is ONE line, and the refused second payment
+  // in V-08 added none (it is written in the grant's own transaction).
+  {
+    const ev = await sql(`SELECT event_description FROM organization_events
+                           WHERE organization_id = $1 AND event_type = 'invoice_paid'`, [A.orgId]);
+    rec("V-08b", "a paid invoice is ONE Recent Activity line naming the licences",
+      ev.length === 1 && ev[0].event_description.includes("25 licences added"),
+      `${ev.length} line(s) ${ev[0]?.event_description ?? ""}`);
+  }
+
   // --------------------------------------------------------------------- V-09
   // Un-paying would mean un-granting licences a school may already have spent,
   // and the ledger has no such operation by design.
