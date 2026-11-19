@@ -1467,7 +1467,17 @@ so a student with one assessment in progress got a link to a raw 404.
   Financial Services 1, Cultural & Creative Industries 1 -- 5 in all, matching
   the country card's "5 students assessed"; alignment differs per card (80.0,
   91.7, 40.0, 88.0%); the other six read "No students yet" with no bar; "1
-  student" singular. Arabic not re-checked.
+  student" singular. **Arabic seen by clicking, build `a25fb21`:** the same
+  2/1/1/1, "طالبان" / "طالب واحد", empty sectors "لا يوجد طلاب بعد".
+  **Also seen by clicking the same morning (Test High School's admin):**
+  "Submit 1 Question" and the toast "1 question ready for submission" with
+  one question added (cancelled, nothing submitted); with one student
+  selected, bulk reset reads "1 account will get a new password ..." and
+  bulk delete "1 selected student has no report ..." (both cancelled).
+  **Flagged, not changed:** "Add Question to Submission" with no subject
+  chosen does nothing and says nothing; the bulk-delete box prints a
+  "0 selected students have a completed report" line when that group is
+  empty.
 - **THE SIGN-IN FORM WAS AT `/login/student`, TITLED "Student Login", FOR
   EVERY ROLE** (owner, 2026-11-15). School admins, parents' accounts and the
   superadmin all sign in there, and it told each of them their password came
