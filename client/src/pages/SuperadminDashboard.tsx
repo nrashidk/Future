@@ -999,40 +999,40 @@ function SuperadminDashboardPage() {
             <span className="font-bold text-lg">{t('nav.brand')}</span>
             <Badge variant="secondary">{t('badges.superadmin')}</Badge>
           </Link>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" asChild data-testid="button-nav-superadmin">
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button variant="outline" size="sm" title={t('nav.superAdmin')} aria-label={t('nav.superAdmin')} asChild data-testid="button-nav-superadmin">
               <Link href="/superadmin">
-                <Shield className="w-4 h-4 me-2" />
-                {t('nav.superAdmin')}
+                <Shield className="w-4 h-4 lg:me-2" />
+                <span className="hidden lg:inline">{t('nav.superAdmin')}</span>
               </Link>
             </Button>
-            <Button variant="outline" size="sm" asChild data-testid="button-nav-schools">
+            <Button variant="outline" size="sm" title={t('nav.schools')} aria-label={t('nav.schools')} asChild data-testid="button-nav-schools">
               <Link href="/admin/organizations">
-                <Building2 className="w-4 h-4 me-2" />
-                {t('nav.schools')}
+                <Building2 className="w-4 h-4 lg:me-2" />
+                <span className="hidden lg:inline">{t('nav.schools')}</span>
               </Link>
             </Button>
-            <Button variant="outline" size="sm" asChild data-testid="button-nav-questions">
+            <Button variant="outline" size="sm" title={t('nav.quiz')} aria-label={t('nav.quiz')} asChild data-testid="button-nav-questions">
               <Link href="/admin">
-                <FileQuestion className="w-4 h-4 me-2" />
-                {t('nav.quiz')}
+                <FileQuestion className="w-4 h-4 lg:me-2" />
+                <span className="hidden lg:inline">{t('nav.quiz')}</span>
               </Link>
             </Button>
-            <Button variant="outline" size="sm" asChild data-testid="button-nav-analytics">
+            <Button variant="outline" size="sm" title={t('nav.analytics')} aria-label={t('nav.analytics')} asChild data-testid="button-nav-analytics">
               <Link href="/analytics">
-                <BarChart className="w-4 h-4 me-2" />
-                {t('nav.analytics')}
+                <BarChart className="w-4 h-4 lg:me-2" />
+                <span className="hidden lg:inline">{t('nav.analytics')}</span>
               </Link>
             </Button>
-            <Button variant="outline" size="sm" asChild data-testid="button-nav-profile">
+            <Button variant="outline" size="sm" title={t('nav.profile')} aria-label={t('nav.profile')} asChild data-testid="button-nav-profile">
               <Link href="/profile">
-                <User className="w-4 h-4 me-2" />
-                {t('nav.profile')}
+                <User className="w-4 h-4 lg:me-2" />
+                <span className="hidden lg:inline">{t('nav.profile')}</span>
               </Link>
             </Button>
-            <Button variant="outline" size="sm" onClick={handleLogout} data-testid="button-logout">
-              <LogOut className="w-4 h-4 me-2" />
-              {t('nav.logout')}
+            <Button variant="outline" size="sm" title={t('nav.logout')} aria-label={t('nav.logout')} onClick={handleLogout} data-testid="button-logout">
+              <LogOut className="w-4 h-4 lg:me-2" />
+              <span className="hidden lg:inline">{t('nav.logout')}</span>
             </Button>
           </div>
         </div>
