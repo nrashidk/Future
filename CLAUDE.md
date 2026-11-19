@@ -1396,6 +1396,11 @@ so a student with one assessment in progress got a link to a raw 404.
   same morning): `repeat.blockedBody` and `repeat.bodySchool` end "If the
   grade shown for you is wrong, ask your school to correct it." Not yet seen
   live (needs a school student on a charged grade).
+  **IN ARABIC, BY CLICKING, same morning (`ali.ali`, build `93b6c7f`):** the
+  country card's plan badge reads "مئوية الإمارات 2071" (migration 048, first
+  seen live), the curriculum option reads "المنهج الوطني (وزارة التربية
+  والتعليم)", and Grade 12 on step 1 opens the Arabic dialog ("لديك تقرير
+  للصف 12 بالفعل ...", "تغيير الصف" / "المتابعة بهذا الصف"). Nothing created.
 - **THE CAREER JOURNEY (`/progress`), LIVE, 2026-11-18, build `ff9887b`.** The
   owner asked where salm's progress page had gone: all three of his reports
   were Grade 11, and the page and the profile button need TWO DISTINCT GRADES
