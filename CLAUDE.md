@@ -1412,6 +1412,38 @@ so a student with one assessment in progress got a link to a raw 404.
   seen live), the curriculum option reads "المنهج الوطني (وزارة التربية
   والتعليم)", and Grade 12 on step 1 opens the Arabic dialog ("لديك تقرير
   للصف 12 بالفعل ...", "تغيير الصف" / "المتابعة بهذا الصف"). Nothing created.
+- **THE SMALL ITEMS, WORKED THROUGH (2026-11-19, owner: "fix small things").**
+  - **Withdrawn, not a bug:** "the resume prompt said step 1 of 6 for a row at
+    step 4". A free account's row made the way the form makes it (the server
+    stamps the child profile's name, age and gender) resumes at step 4; the
+    report came from a row I built by hand through the API.
+  - A free or paid individual's profile said "Assessment details come from
+    your school's records"; with no assessment yet it now says "your
+    registration" (`details.sourceRegistration`), school students unchanged.
+  - **"Allocate reward" paid whatever it was sent**: pending 2, allocate 10,
+    the school gained 10 reward credits (spent before paid licences). Capped
+    at pending; nothing pending is 409 `NOTHING_PENDING`.
+    `contribution-claim.mjs` K-09..K-11 (old code: `reward=10`, then 15).
+  - **Recent Activity** now carries a paid card top-up (`license_purchased`),
+    a school's invoice request (`invoice_requested`) and an invoice marked
+    paid (`invoice_paid`); the two grants write their line inside the grant's
+    own transaction, so a redelivery or refused second payment adds none.
+    Switching unlimited off records the count set with it. `school-topup`
+    T-02b, `invoices` V-08b, `schoolTopUp.test.ts`.
+  - Add Country: the name picker comes first and no longer overwrites an id
+    or code typed by hand (refills only an empty box or its own last
+    suggestion). Driven in a browser against the harness.
+  - The superadmin header is icon-only below `lg` (names as title and
+    aria-label) and wraps: page width equals viewport at 390/800/1400 (was
+    928 at 800).
+  - A superadmin's refused account deletion now LISTS the records that block
+    it (`blockingRecords`, `superadmin.erasureBlockedLabels`, both
+    languages). The block itself is unchanged and deliberate.
+  **HARNESS LIMIT, seen the same day:** the superadmin dashboard fires enough
+  parallel requests to drop PGlite's single connection ("Connection
+  terminated unexpectedly", every API call 500, the lazy page then fails to
+  load) -- with or without the day's changes. Superadmin-page checks belong on
+  the live site, not the harness.
 - **THE CAREER JOURNEY (`/progress`), LIVE, 2026-11-18, build `ff9887b`.** The
   owner asked where salm's progress page had gone: all three of his reports
   were Grade 11, and the page and the profile button need TWO DISTINCT GRADES
