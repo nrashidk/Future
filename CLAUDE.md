@@ -1621,15 +1621,17 @@ so a student with one assessment in progress got a link to a raw 404.
     unconfirmed; its deadline is 2026-11-16T19:45:33Z. After that it should
     be gone from the Users list, and "Nasser Free Check" (confirmed) should
     still be there. Nobody must open its confirmation link.
-    **2026-11-17 09:00 Dubai: NOT YET CHECKED.** The scheduled check fired
-    but the owner's Chrome was not reachable, and this container cannot
-    reach futurepath.ae. On 2026-11-16 (08:15 Dubai) the row still read
-    "Email not confirmed · deleted in 16 h", as it should have before the
-    deadline. Still to see: the row gone, "Nasser Free Check" still there,
-    and `/health` `guestSweep.lastSuccessAt` after 19:45:33Z. If the row is
-    still there, compare `lastSuccessAt` with the deadline before calling
-    it a bug: the Free instance sleeps, and nothing runs the sweep while it
-    does.
+    **CHECKED 2026-11-19, build `2fe0ff5`, as superadmin: IT WORKED.**
+    "Nasser Delete Check" is gone from `/api/superadmin/students` (19 rows);
+    "Nasser Free Check", "Nasser Guest Check" and "Nasser Walk Check", all
+    confirmed, are still there as `individual`. A confirmed account KEEPS its
+    `emailConfirmationDueAt` (all three deadlines are in the past); what
+    protects it is `emailConfirmedAt`, which `confirmationState` tests
+    first. `/health` `guestSweep`: last success 04:47Z today,
+    `lastDeletedCount: 0`, `stale: false`, so the erasing run was an
+    earlier one. **Not known:** exactly when after the 2026-11-16 19:45Z
+    deadline the erasure happened. The Free instance sleeps, so it may have
+    been late.
     **THE SCHOOL ADMIN WAS WALKED LIVE AGAIN, 2026-11-14 (build `2fcbdfe`)**,
     Test High School: nav is Admin / Analytics / Profile; `/superadmin`,
     `/admin` and `/assessment` all land back on the school page; the
