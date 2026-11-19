@@ -1667,8 +1667,11 @@ so a student with one assessment in progress got a link to a raw 404.
     unconfirmed; its deadline is 2026-11-16T19:45:33Z. After that it should
     be gone from the Users list, and "Nasser Free Check" (confirmed) should
     still be there. Nobody must open its confirmation link.
-    **CHECKED 2026-11-19, build `2fe0ff5`, as superadmin, BY API (not yet
-    seen on the Users tab by a click):**
+    **SEEN ON THE USERS TAB BY CLICKING, 2026-11-19, build `93b6c7f`:** 19
+    rows, no "Nasser Delete Check"; "Nasser Free Check", "Nasser Guest
+    Check" and "Nasser Walk Check" listed as Free. **Flagged, not changed:**
+    the row's "Licences: 6" for `ali.ali` is the total ever given, not the 2
+    he has left. Earlier, BY API (build `2fe0ff5`):
     "Nasser Delete Check" is gone from `/api/superadmin/students` (19 rows);
     "Nasser Free Check", "Nasser Guest Check" and "Nasser Walk Check", all
     confirmed, are still there as `individual`. A confirmed account KEEPS its
