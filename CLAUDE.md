@@ -1364,6 +1364,16 @@ so a student with one assessment in progress got a link to a raw 404.
   form, and the stored format of a NEW row (needs one created). His older
   rows keep the bare `12`/`11`/`10`; nothing migrates them, and nothing needs
   to, because every comparison is canonical.
+  **THEN SEEN BY CLICKING, same morning, in the real form as `ali.ali`:**
+  age 45 shows "Enter an age from 13 to 18." under the field and Continue
+  stays disabled with every other field filled; 16 clears it and Continue
+  enables. Grade 12 / UAE / MOE National / Maths, Science, English, then
+  Continue on the subjects step opens "You already have a report for this
+  grade -- Taking the assessment again for the same grade uses another
+  assessment from your balance", with "Not now" and "Take it again anyway";
+  "Not now" returned to the subjects step. **Then pressing Profile froze the
+  tab on a native browser dialog** (the leave-page confirm flagged on
+  2026-11-12 is still there); the owner had to dismiss it by hand.
 - **THE CAREER JOURNEY (`/progress`), LIVE, 2026-11-18, build `ff9887b`.** The
   owner asked where salm's progress page had gone: all three of his reports
   were Grade 11, and the page and the profile button need TWO DISTINCT GRADES
