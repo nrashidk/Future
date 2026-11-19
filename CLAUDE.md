@@ -1355,6 +1355,15 @@ so a student with one assessment in progress got a link to a raw 404.
   continuing to the quiz. **Not seen rendered:** the bulk-reset dialog (the
   harness school had only its admin, whose row cannot be selected) and the
   personality step without its labels.
+  **SEEN LIVE AS `ali.ali`, build `2fe0ff5`, 2026-11-19, by API from his
+  signed-in page (2 licences, 4 rows holding grades `grade12`, `12`, `11`,
+  `10`):** a create for grade `12` answers 409 `SAME_GRADE_REPEAT` -- the
+  comparison is canonical, since his Grade 12 rows hold both spellings; a
+  create for `grade9` with age 45 answers 400 `AGE_OUT_OF_RANGE`; rows 4 -> 4
+  and balance 2 -> 2 across both. **Not seen live:** the repeat DIALOG in the
+  form, and the stored format of a NEW row (needs one created). His older
+  rows keep the bare `12`/`11`/`10`; nothing migrates them, and nothing needs
+  to, because every comparison is canonical.
 - **THE CAREER JOURNEY (`/progress`), LIVE, 2026-11-18, build `ff9887b`.** The
   owner asked where salm's progress page had gone: all three of his reports
   were Grade 11, and the page and the profile button need TWO DISTINCT GRADES
