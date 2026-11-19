@@ -893,7 +893,24 @@
     "confirmApplyArabicTitle": "إعادة كتابة النص العربي لكل المهن؟",
     "confirmApplyArabicBody": "يستبدل هذا الإجراء العنوان والوصف والمهارات والمستوى التعليمي بالعربية لكل مهنة أساسية بالنص المرفق مع المنتج. أي نص عربي عدّلته يدوياً في مدير الترجمة سيُستبدل.",
     "emailUnconfirmed": "البريد غير مؤكَّد · يُحذف خلال ⁦{{hours}}⁩ ساعة",
-    "emailUnconfirmedPaid": "البريد غير مؤكَّد"
+    "emailUnconfirmedPaid": "البريد غير مؤكَّد",
+    "erasureBlocked": "لا يمكن حذف هذا الحساب: تعتمد عليه سجلات أشخاص آخرين ({{list}}). وستضيع بحذفه.",
+    "erasureBlockedLabels": {
+      "school_administrator": "إنه المسؤول المسجّل لمدرسة",
+      "school_activity_performed": "سجلات نشاط مدرسية لإجراءات قام بها",
+      "school_activity_affected": "سجلات نشاط مدرسية لإجراءات اتُّخذت عليه كمسؤول",
+      "files_uploaded": "ملفات رفعها",
+      "contributions_submitted": "مساهمات أسئلة قدّمها",
+      "contributions_reviewed": "مساهمات أسئلة راجعها",
+      "contributions_peer_reviewed": "مراجعات أقران أدلى بها",
+      "contribution_rewards_awarded": "مكافآت مساهمة منحها",
+      "license_grants_performed": "منح تراخيص أو تعديلات أجراها",
+      "invoices_raised": "فواتير أصدرها",
+      "scoring_config_changes": "تغييرات في إعدادات التقييم أجراها",
+      "system_announcements": "إعلانات نظام أنشأها",
+      "system_settings": "إعدادات نظام حدّثها"
+    },
+    "listSeparator": "، "
   },
   "licenseAnalytics": {
     "loading": "جارٍ تحميل أرقام التراخيص…",

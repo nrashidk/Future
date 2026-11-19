@@ -866,7 +866,24 @@
     "confirmApplyArabicTitle": "Rewrite the Arabic of every career?",
     "confirmApplyArabicBody": "This replaces the Arabic title, description, skills and education level of every built-in career with the text shipped in the product. Any Arabic you edited by hand in the Translation Manager is overwritten.",
     "emailUnconfirmed": "Email not confirmed · deleted in {{hours}} h",
-    "emailUnconfirmedPaid": "Email not confirmed"
+    "emailUnconfirmedPaid": "Email not confirmed",
+    "erasureBlocked": "This account cannot be deleted: other people's records depend on it ({{list}}). They would be lost with it.",
+    "erasureBlockedLabels": {
+      "school_administrator": "it is the registered administrator of a school",
+      "school_activity_performed": "school activity-log entries for actions it performed",
+      "school_activity_affected": "school activity-log entries for actions taken on it as an administrator",
+      "files_uploaded": "files it uploaded",
+      "contributions_submitted": "question contributions it submitted",
+      "contributions_reviewed": "question contributions it reviewed",
+      "contributions_peer_reviewed": "peer reviews it cast",
+      "contribution_rewards_awarded": "contribution rewards it awarded",
+      "license_grants_performed": "licence grants or adjustments it made",
+      "invoices_raised": "invoices it raised",
+      "scoring_config_changes": "scoring-configuration changes it made",
+      "system_announcements": "system announcements it created",
+      "system_settings": "system settings it updated"
+    },
+    "listSeparator": ", "
   },
   "licenseAnalytics": {
     "loading": "Loading licence figures…",

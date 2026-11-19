@@ -17,7 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient, apiRequest, serverErrorMessage } from "@/lib/queryClient";
+import { queryClient, apiRequest, serverErrorMessage, serverErrorCode } from "@/lib/queryClient";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -708,6 +708,22 @@ function SuperadminDashboardPage() {
       queryClient.invalidateQueries({ queryKey: ['/api/superadmin/organizations'] });
     },
     onError: (error: unknown) => {
+      // NAME WHAT BLOCKS IT. The route sends the blocking record kinds; the
+      // toast used to show only "holds records of actions it performed",
+      // which left a superadmin no wiser about which records or why.
+      if (serverErrorCode(error) === "ERASURE_BLOCKED_BY_AUDIT_RECORDS") {
+        let codes: string[] = [];
+        try {
+          const m = error instanceof Error ? error.message.match(/^\d{3}: ([\s\S]*)$/) : null;
+          const parsed = m ? JSON.parse(m[1]) : null;
+          if (Array.isArray(parsed?.blockingRecords)) codes = parsed.blockingRecords;
+        } catch { /* fall through to the server's sentence */ }
+        if (codes.length > 0) {
+          const list = codes.map((c) => t(`superadmin.erasureBlockedLabels.${c}`, { defaultValue: c })).join(t('superadmin.listSeparator'));
+          toast({ title: t('superadmin.error'), description: t('superadmin.erasureBlocked', { list }), variant: "destructive" });
+          return;
+        }
+      }
       toast({ title: t('superadmin.error'), description: serverErrorMessage(error) ?? t('superadmin.failedToDeleteUser'), variant: "destructive" });
     },
   });
