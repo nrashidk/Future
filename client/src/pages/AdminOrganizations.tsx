@@ -985,12 +985,19 @@ function AdminOrganizationsPage() {
                             const withoutReports = selected.length - withReports;
                             return (
                               <div className="rounded-lg border bg-muted/40 p-3 text-sm space-y-1">
-                                <p data-testid="text-bucket-with-reports">
-                                  {t('orgs.removalBucketWithReports', { count: withReports })}
-                                </p>
-                                <p data-testid="text-bucket-without-reports">
-                                  {t('orgs.removalBucketWithoutReports', { count: withoutReports })}
-                                </p>
+                                {/* A group nobody selected is not drawn: "0 selected
+                                    students have a completed report" read as a warning
+                                    about nothing (seen live 2026-11-19). */}
+                                {withReports > 0 && (
+                                  <p data-testid="text-bucket-with-reports">
+                                    {t('orgs.removalBucketWithReports', { count: withReports })}
+                                  </p>
+                                )}
+                                {withoutReports > 0 && (
+                                  <p data-testid="text-bucket-without-reports">
+                                    {t('orgs.removalBucketWithoutReports', { count: withoutReports })}
+                                  </p>
+                                )}
                               </div>
                             );
                           })()}

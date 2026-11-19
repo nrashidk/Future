@@ -1474,10 +1474,13 @@ so a student with one assessment in progress got a link to a raw 404.
   one question added (cancelled, nothing submitted); with one student
   selected, bulk reset reads "1 account will get a new password ..." and
   bulk delete "1 selected student has no report ..." (both cancelled).
-  **Flagged, not changed:** "Add Question to Submission" with no subject
-  chosen does nothing and says nothing; the bulk-delete box prints a
-  "0 selected students have a completed report" line when that group is
-  empty.
+  **The bulk-delete box no longer prints a group with nobody in it** (owner
+  said fix): it read "0 selected students have a completed report".
+  **A flag of mine withdrawn:** "Add Question with no subject chosen does
+  nothing" was wrong. `addQuestion` (`ContributeQuestions.tsx`) never reads
+  the subject, and the subject is checked at Submit. The one click that
+  did nothing came straight after choosing the correct answer from its
+  list, which most likely swallowed it. Not a bug; nothing changed.
 - **THE SIGN-IN FORM WAS AT `/login/student`, TITLED "Student Login", FOR
   EVERY ROLE** (owner, 2026-11-15). School admins, parents' accounts and the
   superadmin all sign in there, and it told each of them their password came
