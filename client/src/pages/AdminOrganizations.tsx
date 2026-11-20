@@ -35,6 +35,7 @@ import { CONSENT_REQUIRED_CODE } from "@shared/consentRequired";
 import { NO_COMPLETED_ASSESSMENTS_IN_SELECTION_CODE } from "@shared/bulkExportSelection";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 import { useTranslation } from "react-i18next";
+import { LanguageToggle } from "@/components/layout/LanguageToggle";
 
 /**
  * THE ONE SERVER FAILURE THIS PAGE TRANSLATES ITSELF.
@@ -489,15 +490,6 @@ function AdminOrganizationsPage() {
                     {t('nav.profile')}
                   </Link>
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setLanguage(language === "en" ? "ar" : "en")}
-                  data-testid="button-language-toggle-admin-orgs"
-                  aria-label={language === "en" ? "Switch to Arabic" : "Switch to English"}
-                >
-                  {language === "en" ? "العربية" : "English"}
-                </Button>
                 <Button 
                   variant="outline" 
                   size="sm" 
@@ -507,6 +499,7 @@ function AdminOrganizationsPage() {
                   <LogOut className="w-4 h-4 me-2" />
                   {t('nav.logout')}
                 </Button>
+                <LanguageToggle testId="button-language-toggle-admin-orgs" />
               </>
             )}
           </div>

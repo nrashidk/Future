@@ -46,6 +46,7 @@ import {
   ChevronDown,
   ChevronUp,
 } from "lucide-react";
+import { LanguageToggle } from "@/components/layout/LanguageToggle";
 
 interface AnalyticsOverview {
   totalStudents: number;
@@ -252,15 +253,6 @@ function AnalyticsPage() {
                     {t('nav.profile')}
                   </Link>
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setLanguage(language === "en" ? "ar" : "en")}
-                  data-testid="button-language-toggle-analytics"
-                  aria-label={language === "en" ? "Switch to Arabic" : "Switch to English"}
-                >
-                  {language === "en" ? "العربية" : "English"}
-                </Button>
                 <Button 
                   variant="outline" 
                   size="sm" 
@@ -270,6 +262,7 @@ function AnalyticsPage() {
                   <LogOut className="w-4 h-4 me-2" />
                   {t('nav.logout')}
                 </Button>
+                <LanguageToggle testId="button-language-toggle-analytics" />
               </>
             )}
           </div>

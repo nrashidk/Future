@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, CheckCircle2, AlertTriangle, GraduationCap, Users, FileSpreadsheet, Eye, EyeOff } from "lucide-react";
 import { OrganizationConsentCard, useOrganizationConsent } from "@/components/admin/OrganizationConsentCard";
+import { LanguageToggle } from "@/components/layout/LanguageToggle";
 
 /**
  * FIRST SIGN-IN AND ONBOARDING for a school bought through group checkout.
@@ -201,10 +202,13 @@ export default function SchoolSetup() {
             <GraduationCap className="h-6 w-6 text-primary" aria-hidden="true" />
             <span className="font-semibold text-lg">{t("appName")}</span>
           </div>
-          <span className="text-sm text-muted-foreground" data-testid="text-setup-school">
-            {schoolName}
-            {link.firstName ? ` · ${link.firstName}` : ""}
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-muted-foreground" data-testid="text-setup-school">
+              {schoolName}
+              {link.firstName ? ` · ${link.firstName}` : ""}
+            </span>
+            <LanguageToggle />
+          </div>
         </div>
       </header>
 

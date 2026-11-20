@@ -12,6 +12,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { gradeToNumber, toCanonicalGrade } from "@shared/grade";
 import { consistentCareers, journeyGrades } from "@shared/careerJourney";
 import { formatLocalizedDate } from "@/lib/formatDate";
+import { LanguageToggle } from "@/components/layout/LanguageToggle";
 
 interface CareerEvolutionData {
   grade: string;
@@ -134,12 +135,15 @@ export default function StudentProgress() {
             <GraduationCap className="w-6 h-6 text-primary" />
             <span className="font-bold text-lg">Future Path</span>
           </Link>
-          <Button variant="outline" asChild data-testid="button-back-profile">
-            <Link href="/profile">
-              <ArrowLeft className="w-4 h-4 me-2" />
-              {t("progress.backToProfile")}
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" asChild data-testid="button-back-profile">
+              <Link href="/profile">
+                <ArrowLeft className="w-4 h-4 me-2" />
+                {t("progress.backToProfile")}
+              </Link>
+            </Button>
+            <LanguageToggle />
+          </div>
         </div>
       </header>
 

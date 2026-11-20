@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, KeyRound, Loader2, CheckCircle2, XCircle, Eye, EyeOff } from "lucide-react";
+import { LanguageToggle } from "@/components/layout/LanguageToggle";
 
 interface TokenVerifyResponse {
   valid: boolean;
@@ -100,6 +101,7 @@ export default function ResetPassword() {
   if (!token) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
+        <LanguageToggle floating />
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <div className="mx-auto w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-4">
@@ -123,6 +125,7 @@ export default function ResetPassword() {
   if (isVerifying) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
+        <LanguageToggle floating />
         <Card className="w-full max-w-md">
           <CardContent className="py-12 text-center">
             <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
@@ -136,6 +139,7 @@ export default function ResetPassword() {
   if (verifyError || !tokenStatus?.valid) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
+        <LanguageToggle floating />
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <div className="mx-auto w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mb-4">
@@ -165,6 +169,7 @@ export default function ResetPassword() {
   if (resetSuccess) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
+        <LanguageToggle floating />
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <div className="mx-auto w-12 h-12 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mb-4">
@@ -187,6 +192,7 @@ export default function ResetPassword() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted p-4">
+      <LanguageToggle floating />
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="mx-auto w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mb-4">

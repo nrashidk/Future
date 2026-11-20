@@ -127,9 +127,23 @@ export function Header() {
           {isOrgAdmin && <Badge variant="secondary">{t("header.badgeSchoolAdmin")}</Badge>}
         </Link>
 
-        {/* Desktop nav */}
-        <nav aria-label="Main navigation" className="hidden md:flex items-center gap-2">
-          <NavLinks />
+        {/* ONE right-hand group in every state, with the language button
+            always last. It used to be a separate flex child when signed out,
+            so justify-between put it in the MIDDLE of the bar on desktop,
+            while signed in it sat after Logout (owner, 2026-11-20). */}
+        <div className="flex items-center gap-2">
+          {user && (
+            <nav aria-label="Main navigation" className="hidden md:flex items-center gap-2">
+              <NavLinks />
+            </nav>
+          )}
+          {!user && (
+            <Button variant="outline" size="sm" asChild data-testid="button-nav-login">
+              <Link href="/login" className="flex items-center gap-2">
+                {t("nav.login")}
+              </Link>
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -140,24 +154,10 @@ export function Header() {
           >
             {t("language.toggle")}
           </Button>
-        </nav>
-
-        {/* Mobile nav — hamburger + Sheet */}
-        {user && (
-          <div className="md:hidden flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={toggleLanguage}
-              data-testid="button-language-toggle-mobile"
-              aria-label={language === "en" ? t("language.switchToArabic") : t("language.switchToEnglish")}
-              className="font-medium"
-            >
-              {t("language.toggle")}
-            </Button>
+          {user && (
             <Sheet>
               <SheetTrigger asChild>
-                <Button variant="outline" size="icon" data-testid="button-mobile-menu" aria-label={t("nav.openMenu")}>
+                <Button variant="outline" size="icon" className="md:hidden" data-testid="button-mobile-menu" aria-label={t("nav.openMenu")}>
                   <Menu className="w-5 h-5" aria-hidden="true" />
                 </Button>
               </SheetTrigger>
@@ -167,29 +167,8 @@ export function Header() {
                 </nav>
               </SheetContent>
             </Sheet>
-          </div>
-        )}
-
-        {/* Guest / logged-out state: show Login + language toggle on mobile */}
-        {!user && (
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={toggleLanguage}
-              data-testid="button-language-toggle-guest"
-              aria-label={language === "en" ? t("language.switchToArabic") : t("language.switchToEnglish")}
-              className="font-medium md:hidden"
-            >
-              {t("language.toggle")}
-            </Button>
-            <Button variant="outline" size="sm" asChild data-testid="button-nav-login">
-              <Link href="/login" className="flex items-center gap-2">
-                {t("nav.login")}
-              </Link>
-            </Button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </header>
     </>

@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useLocation, Link } from "wouter";
 import { GraduationCap, Eye, EyeOff } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
+import { LanguageToggle } from "@/components/layout/LanguageToggle";
 
 export default function StudentLogin() {
   const { t } = useTranslation("auth");
@@ -83,6 +84,7 @@ export default function StudentLogin() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/10 via-background to-accent/10">
+      <LanguageToggle floating />
       <Card className="w-full max-w-md" data-testid="card-student-login">
         <CardHeader className="space-y-1 text-center">
           <div className="flex justify-center mb-4">

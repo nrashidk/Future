@@ -17,6 +17,7 @@ import { queryClient, apiRequest, serverErrorMessage } from "@/lib/queryClient";
 import { Home, Plus, Download, Upload, Edit, Trash2, GraduationCap, User, LogOut, Building2, Shield, BarChart, FileQuestion, Search } from "lucide-react";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
 import { useTranslation } from "react-i18next";
+import { LanguageToggle } from "@/components/layout/LanguageToggle";
 
 interface QuizQuestion {
   id: string;
@@ -244,6 +245,7 @@ function AdminQuizBank() {
                   <LogOut className="w-4 h-4 me-2" />
                   {t('nav.logout')}
                 </Button>
+                <LanguageToggle />
               </>
             )}
           </div>

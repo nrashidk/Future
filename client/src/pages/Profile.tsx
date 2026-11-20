@@ -20,6 +20,7 @@ import { collapseToLatestPerGrade, toCanonicalGrade } from "@shared/grade";
 import { assessmentIsChildOwned } from "@shared/childOwnership";
 import { isResumableDraft } from "@shared/assessmentFlow";
 import { localeForLanguage } from "@/lib/formatDate";
+import { LanguageToggle } from "@/components/layout/LanguageToggle";
 
 /**
  * One field of the merged profile block, as a sticky-note card.
@@ -384,21 +385,13 @@ export default function Profile() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setLanguage(language === "en" ? "ar" : "en")}
-              data-testid="button-language-toggle-profile"
-              aria-label={language === "en" ? "Switch to Arabic" : "Switch to English"}
-            >
-              {language === "en" ? "العربية" : "English"}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
               onClick={handleLogout}
               data-testid="button-logout-profile"
             >
               <LogOut className="w-4 h-4 me-2" />
               {t("nav.logout")}
             </Button>
+            <LanguageToggle testId="button-language-toggle-profile" />
           </div>
         </div>
       </header>

@@ -41,6 +41,7 @@ import { CredentialsModal } from "@/components/CredentialsModal";
 import { useTranslation } from "react-i18next";
 import { ONET_GROWTH_BANDS, GROWTH_BAND_I18N } from "@shared/growthBands";
 import { summarizeBulkDelete } from "@/lib/bulkDeleteSummary";
+import { LanguageToggle } from "@/components/layout/LanguageToggle";
 
 interface Metrics {
   totalSchools: number;
@@ -1050,6 +1051,7 @@ function SuperadminDashboardPage() {
               <LogOut className="w-4 h-4 lg:me-2" />
               <span className="hidden lg:inline">{t('nav.logout')}</span>
             </Button>
+            <LanguageToggle />
           </div>
         </div>
       </header>
