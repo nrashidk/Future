@@ -1579,6 +1579,8 @@ so a student with one assessment in progress got a link to a raw 404.
   against the old code L-01 fails at attempt 6 with 429, and without the
   per-name limiter L-02 fails. The refusal is now JSON `{message}`, which the
   sign-in page reads (it used to be plain text).
+  **SEEN LIVE, 2026-11-20:** the owner signed in repeatedly from one machine
+  and nothing was refused.
 - **THE THREE CONTRIBUTION SCREENS ARE BUILT (2026-11-15, owner approved
   the mockups and four decisions: edit in place, a fix does not count toward
   the daily limit, peers vote Approve/Reject only, the check's notes are
