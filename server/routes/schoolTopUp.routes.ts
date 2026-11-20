@@ -198,7 +198,7 @@ export function registerSchoolTopUpRoutes(app: Express) {
       await storage.createOrganizationEvent({
         organizationId: ctx.org.id,
         eventType: "invoice_requested",
-        eventDescription: `Requested an invoice for ${licences} licences (${invoice.number}, draft)`,
+        eventDescription: `Requested an invoice for ${licences} ${licences === 1 ? "licence" : "licences"} (${invoice.number}, draft)`,
         performedBy: ctx.userId,
         performedByRole: "org_admin",
         newValue: { licences, invoice: invoice.number },

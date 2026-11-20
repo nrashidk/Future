@@ -3828,7 +3828,7 @@ export class DatabaseStorage implements IStorage {
         await tx.insert(organizationEvents).values({
           organizationId: invoice.organizationId,
           eventType: "invoice_paid",
-          eventDescription: `Invoice ${invoice.number} marked paid: ${invoice.studentCount} licences added (${before} → ${before + invoice.studentCount})`,
+          eventDescription: `Invoice ${invoice.number} marked paid: ${invoice.studentCount} ${invoice.studentCount === 1 ? "licence" : "licences"} added (${before} → ${before + invoice.studentCount})`,
           performedBy: params.performedBy,
           performedByRole: "superadmin",
           previousValue: { totalLicenses: before },
@@ -4008,7 +4008,7 @@ export class DatabaseStorage implements IStorage {
         await tx.insert(organizationEvents).values({
           organizationId: params.organizationId,
           eventType: "license_purchased",
-          eventDescription: `Bought ${params.licences} licences online, ${params.currency.toUpperCase()} ${grantAmountMajor(params.amountMinor, params.currency)} (${before} → ${before + params.licences})`,
+          eventDescription: `Bought ${params.licences} ${params.licences === 1 ? "licence" : "licences"} online, ${params.currency.toUpperCase()} ${grantAmountMajor(params.amountMinor, params.currency)} (${before} → ${before + params.licences})`,
           performedBy: params.performedBy,
           performedByRole: "org_admin",
           previousValue: { totalLicenses: before },
