@@ -48,21 +48,15 @@ export default function StudentLogin() {
 
       if (response.ok) {
         queryClient.clear();
-        const userResponse = await fetch("/api/auth/user", { credentials: "include" });
-        const userData = await userResponse.json();
-        
         toast({
           title: t("studentLogin.successTitle"),
           description: t("studentLogin.successDesc"),
         });
         
-        if (userData.role === 'superadmin') {
-          navigate("/superadmin");
-        } else if (userData.role === 'admin' || userData.accountType === 'org_admin') {
-          navigate("/admin/organizations");
-        } else {
-          navigate("/assessment");
-        }
+        // Every sign-in lands on the home page (owner, 2026-11-20): it
+        // offers each role its own next step, and asks a student with an
+        // assessment in progress whether to continue or start over.
+        navigate("/");
       } else {
         const error = await response.json();
         toast({

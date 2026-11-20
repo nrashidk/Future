@@ -12,7 +12,11 @@
     "forSchools": "للمدارس",
     "newHere": "وليّ أمر؟",
     "createFree": "أنشئ حساباً مجانياً لابنك أو ابنتك",
-    "continueSignedIn": "متابعة"
+    "continueSignedIn": "متابعة",
+    "inProgressTitle": "لديك تقييم قيد الإنجاز",
+    "inProgressBody": "تابع من حيث توقفت، أو ابدأ من جديد بإجابات جديدة.",
+    "inProgressContinue": "متابعة",
+    "inProgressStartOver": "البدء من جديد"
   },
   "howItWorks": {
     "title": "كيف يعمل",

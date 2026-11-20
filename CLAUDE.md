@@ -1554,6 +1554,24 @@ so a student with one assessment in progress got a link to a raw 404.
   after choosing from the Correct Answer list, the next click (on Topic)
   did not land and the typed topic went nowhere, so Add then lacked a topic.
   Seen under the browser tool only; not established for a person clicking.
+- **EVERY SIGN-IN LANDS ON THE HOME PAGE (owner, 2026-11-20).** It used to
+  send a student or individual straight into `/assessment` (step 1 for an
+  individual with nothing in progress). `StudentLogin.tsx` now goes to `/`
+  for every role; the home page offers each role its own next step, and a
+  student or individual with an assessment in progress
+  (`pickDraftToResume`, the same rule the form uses) gets a card,
+  "You have an assessment in progress", with Continue / Start over. The
+  choice travels as `/assessment?assessmentId=…&resume=continue|fresh` and
+  the form acts on it ONCE through its own prompt's `handleResume` /
+  `handleStartFresh`, so there is one implementation of each. Driven in a
+  browser against the harness: Continue opened step 4 with no second
+  question; Start over opened a fresh form (step 2 for a school student,
+  whose details come from the school); a school admin sees only Continue.
+  **The language button** is one component (`LanguageToggle`), always LAST
+  in the header's right-hand group; signed out it had sat mid-bar. Added to
+  sign-in, password reset, school setup, progress, quiz bank and the
+  superadmin dashboard. **Deliberately absent:** the assessment form (owner,
+  2026-11-16) and checkout (the card form).
 - **THE SIGN-IN FORM WAS AT `/login/student`, TITLED "Student Login", FOR
   EVERY ROLE** (owner, 2026-11-15). School admins, parents' accounts and the
   superadmin all sign in there, and it told each of them their password came

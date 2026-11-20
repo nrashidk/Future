@@ -12,7 +12,11 @@
     "forSchools": "For schools",
     "newHere": "Parent or guardian?",
     "createFree": "Create a free account for your child",
-    "continueSignedIn": "Continue"
+    "continueSignedIn": "Continue",
+    "inProgressTitle": "You have an assessment in progress",
+    "inProgressBody": "Continue where you left off, or start over with fresh answers.",
+    "inProgressContinue": "Continue",
+    "inProgressStartOver": "Start over"
   },
   "howItWorks": {
     "title": "How It Works",

@@ -18,6 +18,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
+import { pickDraftToResume } from "@shared/assessmentFlow";
 
 interface Organization {
   id: string;
@@ -85,6 +86,20 @@ export default function Landing() {
       : "/assessment";
   const handleContinue = () => setLocation(homeFor);
 
+  // EVERY SIGN-IN LANDS HERE (owner, 2026-11-20), so a student or individual
+  // with an assessment in progress is asked here whether to continue it or
+  // start over. The choice is carried to /assessment, which acts on it
+  // through its own resume prompt's handlers, so there is one implementation
+  // of each (start over keeps the row on a spent repeat permission).
+  const takesAssessments = signedIn && user?.accountType !== "superadmin" && user?.accountType !== "org_admin";
+  const { data: myAssessments } = useQuery<any[]>({
+    queryKey: ["/api/assessments/my"],
+    enabled: takesAssessments,
+  });
+  const inProgress = takesAssessments && Array.isArray(myAssessments) ? pickDraftToResume(myAssessments) : null;
+  const goResume = (intent: "continue" | "fresh") =>
+    inProgress && setLocation(`/assessment?assessmentId=${inProgress.id}&resume=${intent}`);
+
   const handleLogin = () => setLocation("/login");
   // BUG #15: the guest-mode banner on /assessment keys off `?guest=true`; without
   // it the banner (and its "save your progress" sign-up CTA) never rendered for
@@ -124,7 +139,22 @@ export default function Landing() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
-            {signedIn ? (
+            {signedIn && inProgress ? (
+              <div className="bg-card/90 backdrop-blur-sm rounded-xl border shadow-md p-6 space-y-4 max-w-md w-full" data-testid="card-home-in-progress">
+                <div className="space-y-1">
+                  <h2 className="text-xl font-semibold">{t("hero.inProgressTitle")}</h2>
+                  <p className="text-muted-foreground font-body">{t("hero.inProgressBody")}</p>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  <Button size="lg" onClick={() => goResume("continue")} data-testid="button-home-resume">
+                    {t("hero.inProgressContinue")}
+                  </Button>
+                  <Button size="lg" variant="outline" onClick={() => goResume("fresh")} data-testid="button-home-start-over">
+                    {t("hero.inProgressStartOver")}
+                  </Button>
+                </div>
+              </div>
+            ) : signedIn ? (
               <Button
                 size="lg"
                 className="text-lg px-8 py-6 rounded-full shadow-xl"

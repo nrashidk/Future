@@ -851,6 +851,19 @@ export default function Assessment() {
     setResumePrompt(null);
   };
 
+  // The home page asks "continue or start over" and sends the answer here
+  // (?resume=continue|fresh), so the student is not asked twice. Acted on
+  // ONCE, only for the row that was named, through the prompt's own handlers.
+  const resumeIntentDone = useRef(false);
+  useEffect(() => {
+    if (!resumePrompt || resumeIntentDone.current) return;
+    const intent = new URLSearchParams(window.location.search).get("resume");
+    if (intent !== "continue" && intent !== "fresh") return;
+    if (requestedResumeId && resumePrompt.assessmentId !== requestedResumeId) return;
+    resumeIntentDone.current = true;
+    if (intent === "continue") handleResume(); else handleStartFresh();
+  }, [resumePrompt]); // eslint-disable-line react-hooks/exhaustive-deps
+
   /**
    * Fields a step may hand to handleNext directly instead of routing them
    * through assessmentData first.
