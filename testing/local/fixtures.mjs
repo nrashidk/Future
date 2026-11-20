@@ -29,9 +29,10 @@ class Session {
     /**
      * Each session presents its own client IP.
      *
-     * The login limiter allows 5 attempts per 15 minutes per IP, and it is
-     * in-memory, so without this a test run of any size locks itself out and
-     * the only reset is restarting the server. The limiter keys on req.ip,
+     * The login limiters count FAILED sign-ins per IP (50) and per IP + name
+     * (5), in memory, so without this a suite that tests refusals locks the
+     * next suite out and the only reset is restarting the server.
+     * login-limit.mjs pins one address on purpose. The limiter keys on req.ip,
      * which with `trust proxy` enabled comes from X-Forwarded-For -- so a
      * distinct header gives a distinct bucket.
      *

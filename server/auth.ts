@@ -5,7 +5,7 @@ import { Strategy as MicrosoftStrategy } from "passport-microsoft";
 import session from "express-session";
 import type { Express, RequestHandler } from "express";
 import connectPg from "connect-pg-simple";
-import rateLimit from "express-rate-limit";
+import rateLimit, { ipKeyGenerator } from "express-rate-limit";
 import { storage } from "./storage";
 import { verifyPassword } from "./utils/passwordHash";
 import { logger } from "./utils/logger";
@@ -17,6 +17,36 @@ const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5,
   message: 'Too many login attempts, please try again later',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Sign-in limiters. A school's students share ONE address (a lab behind one
+// connection), so a per-address limit that counts every attempt refused the
+// sixth student of a class who typed the right password. Both of these count
+// FAILED sign-ins only (a 4xx/5xx answer); a correct password costs nothing.
+// - per address + typed name: 5 wrong guesses at one account in 15 minutes
+//   (the per-account lockout below is the stronger control and is unchanged)
+// - per address alone: 50 wrong guesses at any accounts in 15 minutes, so one
+//   address cannot spray a password across every username
+const loginFailureMessage = { message: "Too many login attempts, please try again later" };
+const loginPerAccountLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  skipSuccessfulRequests: true,
+  keyGenerator: (req) => {
+    const name = typeof req.body?.username === "string" ? req.body.username.trim().toLowerCase() : "";
+    return `${ipKeyGenerator(req.ip || "")}|${name.slice(0, 200)}`;
+  },
+  message: loginFailureMessage,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+const loginPerAddressLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 50,
+  skipSuccessfulRequests: true,
+  message: loginFailureMessage,
   standardHeaders: true,
   legacyHeaders: false,
 });
@@ -297,7 +327,7 @@ export async function setupAuth(app: Express) {
     res.redirect("/auth/callback");
   });
 
-  app.post("/api/login/username", authLimiter, (req, res, next) => {
+  app.post("/api/login/username", loginPerAddressLimiter, loginPerAccountLimiter, (req, res, next) => {
     passport.authenticate("local", (err: any, user: any, info: any) => {
       if (err) {
         return res.status(500).json({ message: "Internal server error" });
