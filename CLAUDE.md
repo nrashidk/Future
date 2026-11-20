@@ -1439,6 +1439,28 @@ so a student with one assessment in progress got a link to a raw 404.
   - A superadmin's refused account deletion now LISTS the records that block
     it (`blockingRecords`, `superadmin.erasureBlockedLabels`, both
     languages). The block itself is unchanged and deliberate.
+  **SEEN LIVE, build `e866999`, 2026-11-19/20:** as superadmin, Delete on
+  Test High School's registered admin was refused with "other people's
+  records depend on it (it is the registered administrator of a school,
+  school activity-log entries for actions it performed, ... invoices it
+  raised)" and nothing was deleted. The narrow header was NOT seen live (the
+  owner's window is maximised; resizing it did nothing).
+  **THE THIRD LIVE PURCHASE** ("ZZ Third Purchase School", 5 students, AED
+  200, test card typed by the owner; the browser won): ONE setup mail,
+  subject "ZZ Third Purchase School is ready - sign in or choose a password",
+  body "You can sign in with the password shown when you paid" -- the
+  2026-11-16 wording, first seen in a live inbox. A card top-up of 1 on that
+  school went 5 -> 6 once, and Recent Activity showed "Bought 1 licences
+  online, AED 40 (5 → 6)" by its admin (now "1 licence"). **For the THIRD
+  payment running the page sent NO `/licences/confirm`**, though the dialog
+  closed and the quantity box emptied (the success branch ran) and the
+  deployed bundle contains the call; a hand-sent confirm DOES appear in
+  Resource Timing (400 `INVALID_PAYMENT`), so the absence is real. The
+  webhook grants every time, once. Cause still UNKNOWN; an instrumented
+  repeat was set up and not paid before the tab was lost. Owner chose to
+  clean up instead (2026-11-20): the school was deleted by typed name and its
+  admin account by typed email ("Account deleted"). Production is AD School,
+  UAQ School and Test High School again.
   **HARNESS LIMIT, seen the same day:** the superadmin dashboard fires enough
   parallel requests to drop PGlite's single connection ("Connection
   terminated unexpectedly", every API call 500, the lazy page then fails to
