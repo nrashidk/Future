@@ -1554,6 +1554,16 @@ so a student with one assessment in progress got a link to a raw 404.
   after choosing from the Correct Answer list, the next click (on Topic)
   did not land and the typed topic went nowhere, so Add then lacked a topic.
   Seen under the browser tool only; not established for a person clicking.
+- **"THE TOP-UP'S BROWSER CONFIRM NEVER FIRES" WAS MY MEASUREMENT, NOT THE
+  PRODUCT (closed 2026-11-22, build `38d491e`).** Three live payments had been
+  read through Resource Timing (`performance.getEntriesByType('resource')`)
+  and none listed `/licences/confirm`. On the fourth, `window.fetch` was
+  wrapped before paying: `POST /api/my-organization/licences/confirm` went out
+  0.5 s after the card cleared and answered 200, then the refetches at +0/+3/
+  +10 s; no console error. Resource Timing on the SAME page still did not list
+  it (109 entries, buffer not full). Test High School 53 -> 54, available 44 ->
+  45, once, no reload. **Do not use Resource Timing to prove a request was NOT
+  sent** -- wrap fetch.
 - **A HAND-ADDED CAREER STARTED ~20 POINTS BEHIND; "MATCHES LIKE" FIXES IT
   (owner said build, 2026-11-22).** Measured in the harness by cloning Chef
   through `POST /api/superadmin/careers`: Chef 68.9 (subjects 52, vision
