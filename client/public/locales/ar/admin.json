@@ -910,7 +910,14 @@
       "system_announcements": "إعلانات نظام أنشأها",
       "system_settings": "إعدادات نظام حدّثها"
     },
-    "listSeparator": "، "
+    "listSeparator": "، ",
+    "careerMatchingGapBadge": "نادراً ما يُقترح",
+    "careerMatchingGapHint": "ينقص هذه المهنة للمطابقة: {{list}}. يُطابَق الطلاب معها بأدلة أقل من غيرها، لذلك نادراً ما تظهر في التقارير.",
+    "careerMatchingGap": {
+      "personality": "ملف الشخصية",
+      "values": "ملف القيم",
+      "futureSkills": "ملف مهارات المستقبل"
+    }
   },
   "licenseAnalytics": {
     "loading": "جارٍ تحميل أرقام التراخيص…",

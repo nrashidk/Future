@@ -1554,6 +1554,26 @@ so a student with one assessment in progress got a link to a raw 404.
   after choosing from the Correct Answer list, the next click (on Topic)
   did not land and the typed topic went nowhere, so Add then lacked a topic.
   Seen under the browser tool only; not established for a person clicking.
+- **A HAND-ADDED CAREER STARTS ~20 POINTS BEHIND, MEASURED (2026-11-22).**
+  The flag "a new career has no personality or values mapping, so nothing can
+  recommend it" was too strong. Run in the harness: Chef cloned under a new
+  title through `POST /api/superadmin/careers`, then the same premium answers
+  scored again. Chef 68.9 (subjects 52, vision 77, personality 61, values
+  87); the copy carrying Chef's values 62 (vision 40, personality SKIPPED);
+  through the real form, which sends no values either, subjects and vision
+  only -- (52+40)/2 = 46, out of every top five. A missing personality or
+  values profile SKIPS that component and rebalances the weights; the real
+  penalty is the missing future-skills (WEF) profile, which drops vision to
+  its floor of 40. **Made visible, not fixed:** `/api/superadmin/careers`
+  returns `matchingGaps` (`shared/careerMatchingGaps.ts`, 3 tests) and the
+  careers list shows "Rarely recommended" with the missing profiles in its
+  tooltip. None of the 68 seeded careers has a gap (checked through the
+  route). The badge was NOT rendered: the superadmin page drops the
+  harness's connection. **The fix needs a decision:** how a new career gets
+  its three profiles (e.g. "match like" an existing career, copying them).
+  - **SEEN LIVE, 2026-11-22, build `6049132`, `ali.ali`:** the home card
+    "You have an assessment in progress"; Continue opened step 4 (Quiz) of
+    his Grade 9 row with no second question.
 - **EVERY SIGN-IN LANDS ON THE HOME PAGE (owner, 2026-11-20).** It used to
   send a student or individual straight into `/assessment` (step 1 for an
   individual with nothing in progress). `StudentLogin.tsx` now goes to `/`

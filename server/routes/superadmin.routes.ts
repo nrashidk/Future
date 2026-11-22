@@ -22,6 +22,7 @@ import { isOnetGrowthBand, growthOutlookFor, ONET_GROWTH_BANDS } from "@shared/g
 import { isUniqueViolation } from "../utils/pgErrors";
 import logger from "../utils/logger";
 import Stripe from "stripe";
+import { careerMatchingGaps } from "@shared/careerMatchingGaps";
 import { db } from "../db";
 // Both school-delete endpoints run this one sequence.
 import {
@@ -2993,7 +2994,24 @@ export function registerSuperadminRoutes(app: Express) {
   app.get("/api/superadmin/careers", isAuthenticated, isSuperadminMiddleware, async (req, res) => {
     try {
       const careers = await storage.getAllCareers();
-      res.json(careers);
+      // Which matching profiles each career lacks (shared/careerMatchingGaps.ts).
+      // Two bulk reads, merged in code: no join to multiply rows.
+      const ids = careers.map(c => c.id);
+      const riasec = await storage.getAssessmentComponentByKey("riasec");
+      const [personalityRows, wefRows] = await Promise.all([
+        riasec ? storage.getCareerAffinitiesBulk(ids, [riasec.id]) : Promise.resolve([]),
+        storage.getCareerWefSkillAffinitiesBulk(ids),
+      ]);
+      const withPersonality = new Set(personalityRows.filter(r => r.affinityData).map(r => r.careerId));
+      const withWef = new Set(wefRows.map(r => r.careerId));
+      res.json(careers.map(c => ({
+        ...c,
+        matchingGaps: careerMatchingGaps({
+          valuesProfile: c.valuesProfile,
+          hasPersonalityProfile: withPersonality.has(c.id),
+          hasFutureSkillsProfile: withWef.has(c.id),
+        }),
+      })));
     } catch (error) {
       console.error("Error fetching careers:", error);
       res.status(500).json({ message: "Failed to fetch careers" });

@@ -1930,6 +1930,18 @@ function SuperadminDashboardPage() {
                                   {t('superadmin.careerMissingArBadge')}
                                 </Badge>
                               )}
+                              {Array.isArray((career as any).matchingGaps) && (career as any).matchingGaps.length > 0 && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-xs text-red-700 border-red-300 dark:text-red-400 dark:border-red-700 mt-1 ms-1"
+                                  title={t('superadmin.careerMatchingGapHint', {
+                                    list: (career as any).matchingGaps.map((g: string) => t(`superadmin.careerMatchingGap.${g}`)).join(t('superadmin.listSeparator')),
+                                  })}
+                                  data-testid={`badge-career-matching-gap-${career.id}`}
+                                >
+                                  {t('superadmin.careerMatchingGapBadge')}
+                                </Badge>
+                              )}
                             </TableCell>
                             <TableCell><Badge variant="outline">{career.category}</Badge></TableCell>
                             <TableCell>{career.educationLevel}</TableCell>

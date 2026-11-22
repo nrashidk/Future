@@ -883,7 +883,14 @@
       "system_announcements": "system announcements it created",
       "system_settings": "system settings it updated"
     },
-    "listSeparator": ", "
+    "listSeparator": ", ",
+    "careerMatchingGapBadge": "Rarely recommended",
+    "careerMatchingGapHint": "Missing for matching: {{list}}. Students are matched to this career on less evidence than the others, so it seldom reaches a report.",
+    "careerMatchingGap": {
+      "personality": "personality profile",
+      "values": "values profile",
+      "futureSkills": "future-skills profile"
+    }
   },
   "licenseAnalytics": {
     "loading": "Loading licence figures…",
