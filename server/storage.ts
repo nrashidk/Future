@@ -34,6 +34,7 @@ import {
   countryPrioritySectors,
   countrySectorWefSkills,
   countrySectorCategories,
+  jobMarketTrends,
   organizationEvents,
   organizationConsents,
   childProfiles,
@@ -6661,13 +6662,24 @@ export class DatabaseStorage implements IStorage {
     return updated;
   }
 
+  /**
+   * A CAREER'S OWN ROWS GO WITH IT, in one transaction. Five tables reference
+   * careers without a cascade; this used to clear recommendations only, so any
+   * career with a matching profile -- all 68 seeded ones -- answered 500
+   * "Failed to delete career" (seen in the harness 2026-11-22). The
+   * per-career sector override rows go too: they describe this career and
+   * nothing else. Category rules (career_id NULL) are untouched.
+   */
   async deleteCareer(id: string): Promise<boolean> {
-    // Delete recommendations that reference this career first (FK cascade)
-    await db.delete(recommendations).where(eq(recommendations.careerId, id));
-    const result = await db
-      .delete(careers)
-      .where(eq(careers.id, id));
-    return (result.rowCount ?? 0) > 0;
+    return await db.transaction(async (tx) => {
+      await tx.delete(recommendations).where(eq(recommendations.careerId, id));
+      await tx.delete(careerComponentAffinities).where(eq(careerComponentAffinities.careerId, id));
+      await tx.delete(careerWefSkillAffinities).where(eq(careerWefSkillAffinities.careerId, id));
+      await tx.delete(jobMarketTrends).where(eq(jobMarketTrends.careerId, id));
+      await tx.delete(countrySectorCategories).where(eq(countrySectorCategories.careerId, id));
+      const result = await tx.delete(careers).where(eq(careers.id, id));
+      return (result.rowCount ?? 0) > 0;
+    });
   }
 
   // ============================================
