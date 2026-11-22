@@ -170,7 +170,7 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `migration-039-dryrun`, plus `premium-solo`, `individual-licences` and
 `migration-041-dryrun` and `migration-042-dryrun`, plus
 `erase-after-email-change`, `erase-charged-student` and `country-delete`, plus
-`reserved-email`, `reset-unlocks`, `login-limit`, `free-signup`, `school-topup`, `analytics-sectors`, `contribution-fix`, `migration-045-dryrun`, `migration-046-dryrun`, `migration-047-dryrun`, `migration-048-dryrun` and `migration-044-dryrun` (run 044's dry-run LAST: between its
+`reserved-email`, `reset-unlocks`, `login-limit`, `career-profiles`, `free-signup`, `school-topup`, `analytics-sectors`, `contribution-fix`, `migration-045-dryrun`, `migration-046-dryrun`, `migration-047-dryrun`, `migration-048-dryrun` and `migration-044-dryrun` (run 044's dry-run LAST: between its
 DOWN and UP the app's schema is missing two `users` columns).
 
 `webhook-idempotency`, `webhook-group-backstop` and `setup-invite` need two
@@ -1554,23 +1554,30 @@ so a student with one assessment in progress got a link to a raw 404.
   after choosing from the Correct Answer list, the next click (on Topic)
   did not land and the typed topic went nowhere, so Add then lacked a topic.
   Seen under the browser tool only; not established for a person clicking.
-- **A HAND-ADDED CAREER STARTS ~20 POINTS BEHIND, MEASURED (2026-11-22).**
-  The flag "a new career has no personality or values mapping, so nothing can
-  recommend it" was too strong. Run in the harness: Chef cloned under a new
-  title through `POST /api/superadmin/careers`, then the same premium answers
-  scored again. Chef 68.9 (subjects 52, vision 77, personality 61, values
-  87); the copy carrying Chef's values 62 (vision 40, personality SKIPPED);
-  through the real form, which sends no values either, subjects and vision
-  only -- (52+40)/2 = 46, out of every top five. A missing personality or
-  values profile SKIPS that component and rebalances the weights; the real
-  penalty is the missing future-skills (WEF) profile, which drops vision to
-  its floor of 40. **Made visible, not fixed:** `/api/superadmin/careers`
-  returns `matchingGaps` (`shared/careerMatchingGaps.ts`, 3 tests) and the
-  careers list shows "Rarely recommended" with the missing profiles in its
-  tooltip. None of the 68 seeded careers has a gap (checked through the
-  route). The badge was NOT rendered: the superadmin page drops the
-  harness's connection. **The fix needs a decision:** how a new career gets
-  its three profiles (e.g. "match like" an existing career, copying them).
+- **A HAND-ADDED CAREER STARTED ~20 POINTS BEHIND; "MATCHES LIKE" FIXES IT
+  (owner said build, 2026-11-22).** Measured in the harness by cloning Chef
+  through `POST /api/superadmin/careers`: Chef 68.9 (subjects 52, vision
+  76.6, personality 60.8, values 87.5); the form's copy about 46. A missing
+  personality or values profile SKIPS that component and rebalances the
+  weights. **The real penalty was the national-sector placement, NOT the
+  future-skills profile** (my first diagnosis, wrong): 32 of the 68 careers
+  are placed in a priority sector by a per-career row in
+  `country_sector_categories` (Chef's "Culinary Arts" has no category rule),
+  so a copy with every other profile still scored vision at the floor of 40.
+  The add/edit form now has "Matches like": `matchLikeCareerId` on POST and
+  PATCH, checked before anything is written (400 `MATCH_LIKE_NOT_FOUND`,
+  `MATCH_LIKE_SELF`); `storage.copyCareerMatchingProfiles` REPLACES the
+  target's values, component affinities, WEF affinities and per-career sector
+  placements in one transaction. The careers list badges "Rarely
+  recommended" (`shared/careerMatchingGaps.ts`, 4 tests, four gaps); none of
+  the 68 seeded careers has one. `career-profiles.mjs` M-01..M-06: **M-03 is
+  the case that matters** (the copy scores 68.9, exactly Chef); without the
+  placement copy M-02/M-03/M-04 fail. **The picker and the badge were not
+  rendered**: the superadmin page drops the harness's connection.
+  **Deleting a career was broken for every seeded one** (500 "Failed to
+  delete career": four tables reference careers with no cascade);
+  `deleteCareer` now removes the career's own rows in one transaction
+  (D-01..D-03; old code D-01 500 with the rows still there).
   - **SEEN LIVE, 2026-11-22, build `6049132`, `ali.ali`:** the home card
     "You have an assessment in progress"; Continue opened step 4 (Quiz) of
     his Grade 9 row with no second question.

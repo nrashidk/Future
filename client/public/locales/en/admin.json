@@ -889,8 +889,13 @@
     "careerMatchingGap": {
       "personality": "personality profile",
       "values": "values profile",
-      "futureSkills": "future-skills profile"
-    }
+      "futureSkills": "future-skills profile",
+      "sectorPlacement": "national-priority sector placement"
+    },
+    "careerMatchLikeLabel": "Matches like",
+    "careerMatchLikePlaceholder": "Choose the closest existing career",
+    "careerMatchLikeHint": "Students are matched to this career using the personality, values, future-skills and national-sector data of the career you choose. Without one it is rarely recommended.",
+    "careerMatchLikeHintReplace": "Optional. Choosing a career replaces this career's personality, values, future-skills and national-sector data with that career's."
   },
   "licenseAnalytics": {
     "loading": "Loading licence figures…",

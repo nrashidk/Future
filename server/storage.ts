@@ -362,6 +362,8 @@ export interface IStorage {
   getCareerWefSkillAffinity(careerId: string, wefSkillId: string): Promise<CareerWefSkillAffinity | undefined>;
   getCareerWefSkillAffinitiesByCareer(careerId: string): Promise<CareerWefSkillAffinity[]>;
   getCareerWefSkillAffinitiesBulk(careerIds: string[]): Promise<CareerWefSkillAffinity[]>;
+  getAllCountrySectorCategoryRows(): Promise<Array<{ careerId: string | null; careerCategory: string | null }>>;
+  copyCareerMatchingProfiles(targetId: string, sourceId: string): Promise<{ personality: number; futureSkills: number; sectorPlacements: number } | null>;
   getCareerWefSkillAffinityCount(): Promise<number>;
   getWefSkillsForCareers(careerIds: string[]): Promise<Array<{ careerId: string; name: string; nameAr: string | null; description: string; descriptionAr: string | null; affinityScore: number }>>;
   
@@ -6660,6 +6662,60 @@ export class DatabaseStorage implements IStorage {
       .where(eq(careers.id, id))
       .returning();
     return updated;
+  }
+
+  async getAllCountrySectorCategoryRows(): Promise<Array<{ careerId: string | null; careerCategory: string | null }>> {
+    return await db.select({ careerId: countrySectorCategories.careerId, careerCategory: countrySectorCategories.careerCategory }).from(countrySectorCategories);
+  }
+
+  /**
+   * "MATCH LIKE" (owner, 2026-11-22): give a career the matching profiles of
+   * an existing one -- values, personality (every component affinity row),
+   * future skills (WEF) and its per-career national-sector placements. A career added from the form has
+   * none, and scores about 20 points behind its twin (Chef 68.9 vs ~46), so it
+   * almost never reaches a report. REPLACES the target's profiles, in one
+   * transaction, so a half-copied profile is never visible to matching.
+   * Returns null when the source does not exist; a career cannot copy itself.
+   */
+  async copyCareerMatchingProfiles(targetId: string, sourceId: string): Promise<{ personality: number; futureSkills: number; sectorPlacements: number } | null> {
+    if (targetId === sourceId) return null;
+    return await db.transaction(async (tx) => {
+      const [source] = await tx.select().from(careers).where(eq(careers.id, sourceId));
+      if (!source) return null;
+      const comp = await tx.select().from(careerComponentAffinities).where(eq(careerComponentAffinities.careerId, sourceId));
+      const wef = await tx.select().from(careerWefSkillAffinities).where(eq(careerWefSkillAffinities.careerId, sourceId));
+      await tx.update(careers).set({ valuesProfile: source.valuesProfile ?? null }).where(eq(careers.id, targetId));
+      // The per-career sector placements (country_sector_categories rows with
+      // a career_id) decide the vision score for careers whose category has
+      // no rule -- Chef's "Culinary Arts" among them. Without them a copy
+      // scored the floor of 40 against Chef's 76.6 (harness, 2026-11-22).
+      const placements = await tx.select().from(countrySectorCategories).where(eq(countrySectorCategories.careerId, sourceId));
+      await tx.delete(careerComponentAffinities).where(eq(careerComponentAffinities.careerId, targetId));
+      await tx.delete(careerWefSkillAffinities).where(eq(careerWefSkillAffinities.careerId, targetId));
+      await tx.delete(countrySectorCategories).where(eq(countrySectorCategories.careerId, targetId));
+      if (placements.length) {
+        await tx.insert(countrySectorCategories).values(
+          placements.map((r) => ({
+            sectorId: r.sectorId, careerCategory: null, careerId: targetId, relevance: r.relevance,
+            notes: `Copied from "${source.title}"`,
+          })),
+        );
+      }
+      if (comp.length) {
+        await tx.insert(careerComponentAffinities).values(
+          comp.map((r) => ({ careerId: targetId, componentId: r.componentId, affinityData: r.affinityData })),
+        );
+      }
+      if (wef.length) {
+        await tx.insert(careerWefSkillAffinities).values(
+          wef.map((r) => ({
+            careerId: targetId, wefSkillId: r.wefSkillId, affinityScore: r.affinityScore,
+            evidence: r.evidence, source: `Copied from "${source.title}"`,
+          })),
+        );
+      }
+      return { personality: comp.length, futureSkills: wef.length, sectorPlacements: placements.length };
+    });
   }
 
   /**

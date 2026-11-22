@@ -612,6 +612,7 @@ function SuperadminDashboardPage() {
     onetGrowthBand: "",
     icon: "",
     countryId: "",
+    matchLikeCareerId: "",
   });
 
   // Countries query for career management
@@ -872,7 +873,7 @@ function SuperadminDashboardPage() {
   };
 
   const resetCareerForm = () => {
-    setCareerForm({ title: "", description: "", titleAr: "", descriptionAr: "", requiredSkills: "", requiredSkillsAr: "", relatedSubjects: "", category: "", educationLevel: "", educationLevelAr: "", averageSalary: "", onetGrowthBand: "", icon: "", countryId: "" });
+    setCareerForm({ title: "", description: "", titleAr: "", descriptionAr: "", requiredSkills: "", requiredSkillsAr: "", relatedSubjects: "", category: "", educationLevel: "", educationLevelAr: "", averageSalary: "", onetGrowthBand: "", icon: "", countryId: "", matchLikeCareerId: "" });
   };
 
   const openDeleteOrgModal = (orgId: string) => {
@@ -922,6 +923,7 @@ function SuperadminDashboardPage() {
       onetGrowthBand: career.onetGrowthBand || "",
       icon: career.icon || "",
       countryId: career.countryId || "",
+      matchLikeCareerId: "",
     });
     setIsCareerModalOpen(true);
   };
@@ -3204,6 +3206,35 @@ function SuperadminDashboardPage() {
                 placeholder={t('superadmin.careerSubjectsPlaceholder')}
                 data-testid="input-career-subjects"
               />
+            </div>
+            {/* "Matches like" (owner, 2026-11-22): the new career takes the
+                personality, values and future-skills profiles of an existing
+                one. Without them it scores ~20 points behind its twin and is
+                almost never recommended (shared/careerMatchingGaps.ts). */}
+            <div className="space-y-2">
+              <Label htmlFor="career-match-like">{t('superadmin.careerMatchLikeLabel')}</Label>
+              <Select
+                value={careerForm.matchLikeCareerId || undefined}
+                onValueChange={(v) => setCareerForm({ ...careerForm, matchLikeCareerId: v })}
+              >
+                <SelectTrigger id="career-match-like" data-testid="select-career-match-like">
+                  <SelectValue placeholder={t('superadmin.careerMatchLikePlaceholder')} />
+                </SelectTrigger>
+                <SelectContent>
+                  {careers
+                    .filter((c) => c.id !== editingCareer?.id && !((c as any).matchingGaps?.length))
+                    .slice()
+                    .sort((a, b) => a.title.localeCompare(b.title))
+                    .map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {editingCareer && !(editingCareer as any).matchingGaps?.length
+                  ? t('superadmin.careerMatchLikeHintReplace')
+                  : t('superadmin.careerMatchLikeHint')}
+              </p>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">

@@ -3004,12 +3004,17 @@ export function registerSuperadminRoutes(app: Express) {
       ]);
       const withPersonality = new Set(personalityRows.filter(r => r.affinityData).map(r => r.careerId));
       const withWef = new Set(wefRows.map(r => r.careerId));
+      // Sector placement: a per-career row, or a category rule for its category.
+      const sectorRows = await storage.getAllCountrySectorCategoryRows();
+      const placedCareers = new Set(sectorRows.filter(r => r.careerId).map(r => r.careerId as string));
+      const ruledCategories = new Set(sectorRows.filter(r => !r.careerId && r.careerCategory).map(r => (r.careerCategory as string).trim().toLowerCase()));
       res.json(careers.map(c => ({
         ...c,
         matchingGaps: careerMatchingGaps({
           valuesProfile: c.valuesProfile,
           hasPersonalityProfile: withPersonality.has(c.id),
           hasFutureSkillsProfile: withWef.has(c.id),
+          hasSectorPlacement: placedCareers.has(c.id) || ruledCategories.has(c.category.trim().toLowerCase()),
         }),
       })));
     } catch (error) {
@@ -3029,6 +3034,12 @@ export function registerSuperadminRoutes(app: Express) {
       // band is the only growth input.
       if (!isOnetGrowthBand(onetGrowthBand)) {
         return res.status(400).json({ message: "onetGrowthBand must be one of: " + ONET_GROWTH_BANDS.join(", ") });
+      }
+      // "Match like": the existing career whose matching profiles this one
+      // takes. Checked BEFORE the create, so a wrong id creates nothing.
+      const matchLikeCareerId = typeof req.body?.matchLikeCareerId === "string" && req.body.matchLikeCareerId ? req.body.matchLikeCareerId : null;
+      if (matchLikeCareerId && !(await storage.getCareerById(matchLikeCareerId))) {
+        return res.status(400).json({ error: "MATCH_LIKE_NOT_FOUND", message: "The career to match like was not found." });
       }
       
       const career = await storage.createCareer({
@@ -3051,6 +3062,9 @@ export function registerSuperadminRoutes(app: Express) {
         countryId: countryId || null,
       });
       
+      if (matchLikeCareerId) {
+        await storage.copyCareerMatchingProfiles(career.id, matchLikeCareerId);
+      }
       res.status(201).json(career);
     } catch (error) {
       if (isUniqueViolation(error)) {
@@ -3099,7 +3113,20 @@ export function registerSuperadminRoutes(app: Express) {
       if (onetCode !== undefined) updates.onetCode = onetCode;
       if (countryId !== undefined) updates.countryId = countryId || null;
       
-      const updated = await storage.updateCareer(req.params.id, updates);
+      const matchLikeCareerId = typeof req.body?.matchLikeCareerId === "string" && req.body.matchLikeCareerId ? req.body.matchLikeCareerId : null;
+      if (matchLikeCareerId) {
+        if (matchLikeCareerId === req.params.id) {
+          return res.status(400).json({ error: "MATCH_LIKE_SELF", message: "A career cannot match like itself." });
+        }
+        if (!(await storage.getCareerById(matchLikeCareerId))) {
+          return res.status(400).json({ error: "MATCH_LIKE_NOT_FOUND", message: "The career to match like was not found." });
+        }
+      }
+      // An empty `updates` is allowed when the only change is "match like".
+      const updated = Object.keys(updates).length ? await storage.updateCareer(req.params.id, updates) : existing;
+      if (matchLikeCareerId) {
+        await storage.copyCareerMatchingProfiles(req.params.id, matchLikeCareerId);
+      }
       res.json(updated);
     } catch (error) {
       // A RENAME HITS THE CONSTRAINT THE SAME WAY A CREATE DOES, which is easy
