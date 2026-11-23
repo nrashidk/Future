@@ -52,4 +52,4 @@ School's admin, signed in by the owner. ✅ clicked and held · ❌ broken ·
 | Completed filter | ✅ | 5 students, no admin |
 | Profile button | 🔧 | "Go to My School" |
 | Report age 15 vs roster 17 (Khalid) | not a bug | report keeps the age stored in June; DOB edited in September |
-| Every sector the same count | ⏸ | needs a definition |
+| Every sector the same count | 🔧 | owner chose: each student counted once, in the sector of their latest report's top career. Seen live 2026-11-19, build `6501ef7`: 2 / 1 / 1 / 1 = the country card's 5, alignment differs per card, empty sectors "No students yet"; Arabic seen, build `a25fb21` |

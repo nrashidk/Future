@@ -56,6 +56,9 @@ the OS file picker. Throwaway data was named `ZZ Click …` and removed.
 
 ## Careers
 | Create (all fields, Arabic) | ⚠️ | tonight | education level shows as the code "bachelors"; a new career has no personality/values mapping, so nothing recommends it (known) |
+| Hand-added career: "Rarely recommended" badge | ✅ | 2026-11-23 | build `6be4c76`: "ZZ Test Pastry Chef" added with Matches like empty showed the badge; its tooltip named all four gaps. All 68 seeded careers show none |
+| Matches like (edit) | ✅ | 2026-11-23 | Edit -> Matches like Chef -> Update cleared the badge; values equal to Chef's |
+| Delete a career | 🔧 | 2026-11-23 | was 500 for every seeded career; the test career deleted with its copied rows, 69 -> 68 |
 | Edit | ✅ | tonight | "Missing Arabic" clears when all four Arabic fields are filled |
 | Delete (asks first) | ✅ | tonight | |
 | Apply Arabic translations | ✅ | 11-13 | asks first |
@@ -87,7 +90,7 @@ the OS file picker. Throwaway data was named `ZZ Click …` and removed.
 
 ## Quiz page (/admin)
 | Search, subject / grade / country filters | ✅ | tonight | |
-| Create question: empty form | ❌ | tonight | no field errors, no message, nothing |
+| Create question: empty form | 🔧 | 2026-11-23 | was: no field errors, no message. Now a toast "Fill in the required fields" naming Question, Subject, Grade, Topic, Difficulty, Cognitive Level, at least two options, Correct Answer; nothing created (243 questions before and after) |
 | Create question: valid | ⚠️ | tonight | no curriculum field (question applies to every curriculum); difficulty shows codes "easy" |
 | Edit / delete (asks) | ✅ | tonight | |
 | Export JSON / CSV | ✅ | tonight | content checked 11-12 |
@@ -120,8 +123,8 @@ Signed out, `/checkout?students=5&country=uae`, buyer `+zzpurchase3`, school
 | ONE setup email | ✅ | one message, 10:16; second purchase in a row with one (not proof of the lock: the browser arrived first this time) |
 | Terms opens in a new tab from the wizard | ✅ | step 3 "Terms of Use" opened `/terms` in a second tab; the wizard stayed on step 3 |
 | Top-up of 1 by card | ✅ | AED 40; 5 -> 6 once; tiles updated with no reload; analytics: 6 granted, 2 purchases, AED 240, 0 free; reconciliation 0 |
-| Which path granted the top-up | ⏸ | the ledger note `(browser)`/`(webhook)` is written but NO screen or route shows it, so it cannot be read by clicking. The live bundle awaits `/licences/confirm` before closing the dialog and the dialog closed, yet Resource Timing listed no confirm request (second time). Unresolved |
-| ⚠️ Two instructions to one buyer | ⚠️ | when the browser wins, checkout shows a generated password ("save these"), and the email says "Choose a password" with a link that replaces it |
+| Which path granted the top-up | ✅ | closed 2026-11-22, build `38d491e`: with `window.fetch` wrapped before paying, `/licences/confirm` went out 0.5 s after the card cleared and answered 200; Test High School 53 -> 54 once. Resource Timing on the same page still omitted it, so the earlier "no confirm" was the measurement, not the product |
+| Two instructions to one buyer | 🔧 | when the browser wins, checkout shows a generated password ("save these"), and the email says "Choose a password" with a link that replaces it. Fixed: the mail reads the account; seen in a live inbox on the third purchase (2026-11-19/20): "You can sign in with the password shown when you paid" |
 | Cleanup | ✅ | school deleted, admin account deleted by typed email, schools back to AD / UAQ / Test High, reconciliation 0 |
 
 Also seen: the site was asleep at 10:15 and took about a minute on Render's
