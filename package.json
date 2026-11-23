@@ -61,7 +61,7 @@
     "i18next-http-backend": "^4.0.0",
     "isomorphic-dompurify": "^4.6.0",
     "lucide-react": "^0.453.0",
-    "morgan": "^1.10.1",
+    "morgan": "^1.12.1",
     "multer": "^2.5.0",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
