@@ -2533,6 +2533,17 @@ so a student with one assessment in progress got a link to a raw 404.
     through, and **the OAuth path cannot be exercised offline** — it stays
     unproven.
   - **Dependency advisories: run the tool, the figures here go stale fast.**
+    **2026-11-23:** `npm audit --omit=dev` reports 0 high, 8 moderate, 1 low
+    (GitHub's Dependabot count of 19 includes dev tools). Only ONE was
+    reachable: `morgan` log injection (a `"` in a User-Agent could write a
+    fake field, e.g. a forged `SECURITY:` line into Render's logs) -- bumped
+    to 1.12.1, escaping proved. The rest are not reachable: archiver's
+    glob/minimatch run only for `.directory()`/`.glob()` and the export only
+    `.append()`s buffers; `ip-address`'s faulty classifiers are not what
+    express-rate-limit calls; `i18next-http-backend` puts `lng` in the PATH
+    and runs in the visitor's own browser; `postcss-selector-parser` is
+    build-time. The 4 dev highs (knip's zod 3, vite's Windows launch-editor)
+    never ship. The puppeteer and zod items further down are closed.
     As of 2026-11-09, `npm audit --omit=dev` reports **10 high, 8 moderate, 1
     low**. The six that the previous version of this bullet called out as "in
     the live request path" — `body-parser`, `compression`, `multer`,
