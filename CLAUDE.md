@@ -1588,6 +1588,13 @@ so a student with one assessment in progress got a link to a raw 404.
   delete career": four tables reference careers with no cascade);
   `deleteCareer` now removes the career's own rows in one transaction
   (D-01..D-03; old code D-01 500 with the rows still there).
+  **SEEN LIVE AS SUPERADMIN BY CLICKING, 2026-11-23, build `6be4c76`:**
+  "ZZ Test Pastry Chef" added from the form with "Matches like" empty showed
+  "Rarely recommended", its tooltip naming all four gaps; Edit -> Matches
+  like Chef -> Update cleared the badge (gaps [], values equal to Chef's; the
+  picker does not list a career that itself has gaps); Delete -> confirm
+  answered "Career Deleted" with its copied rows present, 69 -> 68. All 68
+  seeded careers show no badge.
   - **SEEN LIVE, 2026-11-22, build `6049132`, `ali.ali`:** the home card
     "You have an assessment in progress"; Continue opened step 4 (Quiz) of
     his Grade 9 row with no second question.
