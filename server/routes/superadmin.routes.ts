@@ -979,6 +979,9 @@ export function registerSuperadminRoutes(app: Express) {
       }
       
       await storage.updateOrganizationMember(memberId, { isPrimaryAdmin: true });
+      // The school's registered administrator moves with the primary flag. Left
+      // on the old primary, it named a person the superadmin may remove next.
+      await storage.updateOrganization(orgId, { adminUserId: adminToPromote.userId });
       
       const promotedUser = await storage.getUser(adminToPromote.userId);
       const currentUser = (req as any).currentUser;

@@ -3324,15 +3324,18 @@ export class DatabaseStorage implements IStorage {
     return organization;
   }
 
+  /**
+   * THE admin_user_id COLUMN ALONE IS NOT ENOUGH (2026-11-24). Removing an
+   * admin deletes their membership row and nothing else, and promote never
+   * moved organizations.admin_user_id, so an admin the superadmin had removed
+   * still matched the column and kept the whole school. A school is now
+   * resolved from an ADMIN MEMBERSHIP row only (the role check is
+   * load-bearing: students share the table); the column just picks between
+   * two schools if one person administers both. admin-boundaries.mjs A-07.
+   */
   async getOrganizationByAdminUserId(adminUserId: string): Promise<Organization | undefined> {
-    const [byPrimaryColumn] = await db
-      .select()
-      .from(organizations)
-      .where(eq(organizations.adminUserId, adminUserId));
-    if (byPrimaryColumn) return byPrimaryColumn;
-
-    const [adminMembership] = await db
-      .select()
+    const memberships = await db
+      .select({ organizationId: organizationMembers.organizationId })
       .from(organizationMembers)
       .where(
         and(
@@ -3340,13 +3343,13 @@ export class DatabaseStorage implements IStorage {
           eq(organizationMembers.role, "admin"),
         ),
       );
-    if (!adminMembership) return undefined;
+    if (memberships.length === 0) return undefined;
 
-    const [organization] = await db
+    const orgs = await db
       .select()
       .from(organizations)
-      .where(eq(organizations.id, adminMembership.organizationId));
-    return organization;
+      .where(inArray(organizations.id, memberships.map((m) => m.organizationId)));
+    return orgs.find((o) => o.adminUserId === adminUserId) ?? orgs[0];
   }
 
   async updateOrganization(id: string, data: Partial<InsertOrganization>): Promise<Organization> {
