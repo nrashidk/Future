@@ -1125,6 +1125,13 @@ export function registerAdminRoutes(app: Express) {
         return res.status(403).json({ message: "Forbidden: Member does not belong to this school" });
       }
 
+      // A school admin acts on STUDENTS. Another admin row (the members list
+      // hands out its id) is the superadmin's to manage: a second admin could
+      // otherwise reset the primary's password and be shown it, or detach them.
+      if (!isSuperadmin && existingMember.role !== "student") {
+        return res.status(403).json({ code: "NOT_A_STUDENT", message: "Only students can be changed here. Administrators are managed by the platform." });
+      }
+
       const { fullName, grade, studentGender, studentId, dateOfBirth } = req.body;
       const updates: {
         studentName?: string;
@@ -1296,6 +1303,13 @@ export function registerAdminRoutes(app: Express) {
         return res.status(403).json({ message: "Forbidden: Member does not belong to this school" });
       }
 
+      // A school admin acts on STUDENTS. Another admin row (the members list
+      // hands out its id) is the superadmin's to manage: a second admin could
+      // otherwise reset the primary's password and be shown it, or detach them.
+      if (!isSuperadmin && member.role !== "student") {
+        return res.status(403).json({ code: "NOT_A_STUDENT", message: "Only students can be changed here. Administrators are managed by the platform." });
+      }
+
       // THE isLocked GUARD THAT WAS HERE IS GONE, and its removal is the point
       // rather than a casualty. It read "Cannot delete member who has completed
       // an assessment", and is_locked is never set to true anywhere —
@@ -1379,6 +1393,12 @@ export function registerAdminRoutes(app: Express) {
           message: "Forbidden: Some members do not belong to this school",
           foreignMembers 
         });
+      }
+
+      // Students only, as on the single routes: an admin row is the
+      // superadmin's to manage.
+      if (!isSuperadmin && members.some((m) => m && m.role !== "student")) {
+        return res.status(403).json({ code: "NOT_A_STUDENT", message: "Only students can be removed here. Administrators are managed by the platform." });
       }
 
       // The isLocked guard that was here is gone for the reason given on the
@@ -1487,6 +1507,9 @@ export function registerAdminRoutes(app: Express) {
           if (member.organizationId !== req.params.id) {
             return { userId: memberId, username: null, newPassword: null, success: false, error: "Member does not belong to this school" };
           }
+          if (!isSuperadmin && member.role !== "student") {
+            return { userId: memberId, username: null, newPassword: null, success: false, error: "Only students can be reset here" };
+          }
           
           const memberUser = await storage.getUser(member.userId);
           if (!memberUser) {
@@ -1571,6 +1594,13 @@ export function registerAdminRoutes(app: Express) {
       // CRITICAL SECURITY: Verify member belongs to the organization in the URL
       if (member.organizationId !== req.params.id) {
         return res.status(403).json({ message: "Forbidden: Member does not belong to this school" });
+      }
+
+      // A school admin acts on STUDENTS. Another admin row (the members list
+      // hands out its id) is the superadmin's to manage: a second admin could
+      // otherwise reset the primary's password and be shown it, or detach them.
+      if (!isSuperadmin && member.role !== "student") {
+        return res.status(403).json({ code: "NOT_A_STUDENT", message: "Only students can be changed here. Administrators are managed by the platform." });
       }
 
       const user = await storage.getUser(member.userId);

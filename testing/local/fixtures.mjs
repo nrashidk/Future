@@ -79,7 +79,7 @@ class Session {
   post(p, b) { return this.req("POST", p, b); }
   put(p, b) { return this.req("PUT", p, b); }
   patch(p, b) { return this.req("PATCH", p, b); }
-  del(p) { return this.req("DELETE", p); }
+  del(p, b) { return this.req("DELETE", p, b); }
 
   async login(username, password) {
     // Any GET first, to be issued the csrf_token cookie. Login itself is
