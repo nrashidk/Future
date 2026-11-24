@@ -299,18 +299,10 @@ export function registerPaymentRoutes(app: Express) {
         return res.json({ ok: false, code: "LOGIN_REQUIRED" });
       }
 
-      if (isGroupPurchase) {
-        const owned = await storage.getOrganizationOwnedByUser(existingUser.id);
-        if (owned) {
-          return res.json({
-            ok: false,
-            code: "ORG_EXISTS",
-            organizationName: owned.name,
-          });
-        }
-      }
-
-      res.json({ ok: true });
+      // Nor a password account: a typed email is no proof of owning it, and
+      // /complete refuses it after the charge (2026-11-24). Stopped here,
+      // before it. A school owner who signs in gets ORG_EXISTS above instead.
+      return res.json({ ok: false, code: "LOGIN_REQUIRED" });
     } catch (error: any) {
       console.error("Checkout preflight failed:", error);
       /**
@@ -588,7 +580,8 @@ export function registerPaymentRoutes(app: Express) {
             lastName,
             phone,
             studentCount,
-            stripeCustomerId: paymentIntent.customer as string || null
+            stripeCustomerId: paymentIntent.customer as string || null,
+            paymentCreatedAt: new Date(paymentIntent.created * 1000),
           });
 
           if (grant.status === "granted" && grant.credentials) {
@@ -644,6 +637,20 @@ export function registerPaymentRoutes(app: Express) {
             // OAuth user - cannot use self-service checkout without login
             return res.status(400).json({
               message: "This email is already registered. Please login first, then purchase from your account dashboard."
+            });
+          }
+
+          // A TYPED EMAIL IS NOT PROOF OF OWNING AN ACCOUNT. One that existed
+          // before this payment was not made by this checkout (the webhook's
+          // account for THIS payment is newer than it), so a signed-out caller
+          // may not upgrade it or make it a school's admin. The preflight
+          // refuses this before the charge; this is the control.
+          if (existingUser.createdAt && new Date(existingUser.createdAt) < new Date(paymentIntent.created * 1000)) {
+            console.error(`SECURITY: checkout/complete ${paymentIntentId} typed the email of an existing account - refused`);
+            return res.status(400).json({
+              message: "This email is already registered. Please login first, then purchase from your account dashboard.",
+              code: "LOGIN_REQUIRED",
+              paymentIntentId,
             });
           }
 

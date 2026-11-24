@@ -20,13 +20,14 @@
  *         says WHICH guard refused
  *   X-03  ...at studentCount 1 as well, because /complete's OAuth refusal is
  *         not scoped to group purchases either
- *   X-04  an existing LOCAL account with no school is ALLOWED. /complete
- *         serves that buyer today, so refusing it here would be a new product
- *         rule smuggled in as a bug fix
- *   X-05  a buyer who already owns a school is refused, and told which school
- *   X-06  ...but NOT at studentCount 1, because the transaction that throws
- *         only runs for a group purchase. Over-refusing here would block an
- *         individual top-up that works
+ *   X-04  an existing LOCAL account, typed by someone SIGNED OUT, is refused
+ *         LOGIN_REQUIRED (changed 2026-11-24, independent review): a typed
+ *         email is no proof of owning the account, and /complete used to
+ *         upgrade it and make it a school's admin. /complete now refuses it
+ *         after the charge, so the preflight refuses it before
+ *   X-05  ...a signed-out school owner the same way; ORG_EXISTS is now said
+ *         to the SIGNED-IN owner (X-07), who is provably that account
+ *   X-06  ...and at studentCount 1 too
  *   X-07  an AUTHENTICATED school owner is refused too. This is the hole that
  *         is easy to miss: /complete's logged-in branch skips the OAuth check
  *         entirely, but still reaches createGroupPurchaseTransaction, so a
@@ -138,22 +139,22 @@ try {
   // ---------------------------------------------------------------- X-04
   {
     const r = await preflight(await guest(), { email: localEmail, studentCount: 50 });
-    rec("X-04", "existing local account with no school still allowed", r.body?.ok === true,
+    rec("X-04", "signed out, an existing local account is LOGIN_REQUIRED", r.body?.ok === false && r.body?.code === "LOGIN_REQUIRED",
       JSON.stringify(r.body).slice(0, 90));
   }
 
   // ---------------------------------------------------------------- X-05
   {
     const r = await preflight(await guest(), { email: ownerEmail, studentCount: 50 });
-    rec("X-05", "school owner refused as ORG_EXISTS, naming the school",
-      r.body?.ok === false && r.body?.code === "ORG_EXISTS" && r.body?.organizationName === orgs.A.name,
+    rec("X-05", "signed out, a school owner's email is LOGIN_REQUIRED",
+      r.body?.ok === false && r.body?.code === "LOGIN_REQUIRED",
       JSON.stringify(r.body).slice(0, 110));
   }
 
   // ---------------------------------------------------------------- X-06
   {
     const r = await preflight(await guest(), { email: ownerEmail, studentCount: 1 });
-    rec("X-06", "owner may still buy an individual licence", r.body?.ok === true,
+    rec("X-06", "...at studentCount 1 as well", r.body?.ok === false && r.body?.code === "LOGIN_REQUIRED",
       JSON.stringify(r.body).slice(0, 90));
   }
 
@@ -186,8 +187,9 @@ try {
   {
     const shouted = `   ${ownerEmail.toUpperCase()}   `;
     const r = await preflight(await guest(), { email: shouted, studentCount: 50 });
+    // Matched means refused: a brand-new address answers ok (X-01).
     rec("X-10", "email matched case- and whitespace-insensitively",
-      r.body?.ok === false && r.body?.code === "ORG_EXISTS",
+      r.body?.ok === false && r.body?.code === "LOGIN_REQUIRED",
       JSON.stringify(r.body).slice(0, 90));
   }
 } finally {

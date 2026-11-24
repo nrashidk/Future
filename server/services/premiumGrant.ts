@@ -19,17 +19,25 @@ export interface GrantIndividualPremiumInput {
   phone?: string;
   studentCount: number;
   stripeCustomerId?: string | null;
+  /**
+   * When the payment was created. An account that already existed then was
+   * NOT made by this checkout, so a typed email is no proof of owning it:
+   * see `existing_account` below. Omitted only by callers that are not
+   * resolving a buyer from a typed address.
+   */
+  paymentCreatedAt?: Date;
 }
 
 export type GrantIndividualPremiumResult =
   | { status: "granted"; user: User; credentials?: { username: string; password: string; email: string } }
   | { status: "already_premium"; user: User }
-  | { status: "skipped_oauth" };
+  | { status: "skipped_oauth" }
+  | { status: "existing_account"; user: User };
 
 export async function grantIndividualPremium(
   input: GrantIndividualPremiumInput
 ): Promise<GrantIndividualPremiumResult> {
-  const { email, firstName, lastName, phone, studentCount, stripeCustomerId } = input;
+  const { email, firstName, lastName, phone, studentCount, stripeCustomerId, paymentCreatedAt } = input;
 
   const existingUser = await storage.getUserByEmail(email);
 
@@ -101,6 +109,20 @@ export async function grantIndividualPremium(
   // on email alone - leave them to the authenticated checkout path.
   if (!existingUser.passwordHash) {
     return { status: "skipped_oauth" };
+  }
+
+  /**
+   * A TYPED EMAIL IS NOT PROOF OF OWNING AN ACCOUNT (2026-11-24, independent
+   * review). A signed-out buyer could type anyone's address at checkout and
+   * this path upgraded that account; the group block after it then made it a
+   * school's admin -- a parent's account, or a superadmin who holds the role
+   * by role alone. An account older than the payment was not created by this
+   * checkout, so it is never touched here: the owner must sign in and buy
+   * from their own session. Accounts the webhook created moments earlier for
+   * THIS payment are newer than it and carry on as before.
+   */
+  if (paymentCreatedAt && existingUser.createdAt && new Date(existingUser.createdAt) < paymentCreatedAt) {
+    return { status: "existing_account", user: existingUser };
   }
 
   // IDEMPOTENCY: already premium means this payment was already honoured.

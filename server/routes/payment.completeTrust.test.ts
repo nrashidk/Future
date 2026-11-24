@@ -147,6 +147,15 @@ describe("POST /api/checkout/complete grants what was paid for, to whoever paid"
     expect(createGroupPurchaseTransaction).not.toHaveBeenCalled();
   });
 
+  it("T-04 signed out, an account older than the payment is not upgraded or made a school admin", async () => {
+    getUserByEmail.mockResolvedValue(OLD_ACCOUNT);
+    const { status, body } = await post(BODY);
+    expect(status).toBe(400);
+    expect(body.code).toBe("LOGIN_REQUIRED");
+    expect(updateUserFields).not.toHaveBeenCalled();
+    expect(createGroupPurchaseTransaction).not.toHaveBeenCalled();
+  });
+
   it("T-05 control: the account the webhook made for this payment completes", async () => {
     getUserByEmail.mockResolvedValue(NEW_BUYER);
     const { status } = await post(BODY);

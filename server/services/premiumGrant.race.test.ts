@@ -129,3 +129,23 @@ describe("grantIndividualPremium — losing the create race", () => {
     expect(result).toHaveProperty("credentials.password", "generated");
   });
 });
+
+describe("grantIndividualPremium never takes over an account older than the payment (2026-11-24)", () => {
+  const PAID = new Date("2026-11-24T10:00:00Z");
+  beforeEach(() => { getUserByEmail.mockReset(); updateUserFields.mockReset(); createStandaloneUser.mockReset(); });
+
+  it("an existing account created before the payment is reported, not upgraded", async () => {
+    getUserByEmail.mockResolvedValue({ id: "u-victim", passwordHash: "h", isPremium: false, createdAt: new Date("2026-01-01") });
+    const r = await grantIndividualPremium({ email: "v@x.test", firstName: "A", lastName: "B", studentCount: 2, paymentCreatedAt: PAID });
+    expect(r.status).toBe("existing_account");
+    expect(updateUserFields).not.toHaveBeenCalled();
+  });
+
+  it("control: an account made after the payment (by this checkout) is granted", async () => {
+    getUserByEmail.mockResolvedValue({ id: "u-new", passwordHash: "h", isPremium: false, createdAt: new Date("2026-11-24T10:00:05Z") });
+    updateUserFields.mockResolvedValue({ id: "u-new" });
+    const r = await grantIndividualPremium({ email: "n@x.test", firstName: "A", lastName: "B", studentCount: 2, paymentCreatedAt: PAID });
+    expect(r.status).toBe("granted");
+    expect(updateUserFields).toHaveBeenCalled();
+  });
+});

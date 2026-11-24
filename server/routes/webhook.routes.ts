@@ -285,8 +285,18 @@ async function grantGuestPremiumFromMetadata(
       lastName,
       ...(stamped.buyerPhone ? { phone: stamped.buyerPhone } : {}),
       studentCount: licenseCount,
-      stripeCustomerId: paymentIntent.customer as string || null
+      stripeCustomerId: paymentIntent.customer as string || null,
+      paymentCreatedAt: new Date(paymentIntent.created * 1000),
     });
+
+    if (result.status === "existing_account") {
+      // The stamped email belongs to an account that predates this payment.
+      // Granting on a typed address would let anyone upgrade, or make a
+      // school admin of, an account they do not own. Paid and not granted:
+      // listed for a superadmin to settle by hand.
+      console.error(`SECURITY: [Webhook] Guest payment ${paymentIntent.id} names an existing account (${result.user.id}) - not granted, manual review required`);
+      return;
+    }
 
     if (result.status === "skipped_oauth") {
       // OAuth account - cannot grant on email alone. Left for the authenticated
