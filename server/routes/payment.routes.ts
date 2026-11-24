@@ -449,9 +449,9 @@ export function registerPaymentRoutes(app: Express) {
   // Complete self-service checkout: Create account + allocate licenses
   app.post("/api/checkout/complete", paymentLimiter, async (req: any, res) => {
     try {
-      const { paymentIntentId, firstName, lastName, email, phone, organizationName, studentCount } = req.body;
+      const { paymentIntentId, firstName, lastName, email, phone, organizationName: requestedOrganizationName, studentCount: requestedStudentCount } = req.body;
 
-      if (!stripe || !paymentIntentId || !firstName || !lastName || !email || !phone || !studentCount) {
+      if (!stripe || !paymentIntentId || !firstName || !lastName || !email || !phone || !requestedStudentCount) {
         return res.status(400).json({ message: "Missing required fields" });
       }
 
@@ -468,6 +468,35 @@ export function registerPaymentRoutes(app: Express) {
         console.error(`Payment amount mismatch: expected ${expectedAmount}, got ${paymentIntent.amount}`);
         return res.status(400).json({ message: "Payment amount verification failed" });
       }
+
+      /**
+       * WHAT WAS PAID FOR COMES FROM STRIPE, NEVER FROM THIS REQUEST
+       * (2026-11-24, independent review). `studentCount` used to be read from
+       * the body and the amount check above compares the charge with
+       * `expectedAmount` only, so paying for 2 and sending 100000 granted
+       * 100000 -- with a matching ledger row, so reconciliation saw nothing.
+       * The count is the one create-payment-intent stamped beside the price;
+       * the client's figure must agree with it or nothing is granted.
+       *
+       * And the payment must be THIS caller's: the intent records who created
+       * it ("guest" when signed out). A signed-in caller completing someone
+       * else's intent, or a signed-out caller completing a signed-in buyer's,
+       * is refused before anything is written.
+       */
+      const studentCount = parseInt(paymentIntent.metadata.studentCount ?? "", 10);
+      if (!Number.isInteger(studentCount) || studentCount < 1 || Number(requestedStudentCount) !== studentCount) {
+        console.error(`SECURITY: checkout/complete count mismatch for ${paymentIntentId}: paid for ${paymentIntent.metadata.studentCount}, asked for ${requestedStudentCount}`);
+        return res.status(400).json({ message: "This payment does not match the order.", code: "PAYMENT_MISMATCH" });
+      }
+      const sessionUserId = req.isAuthenticated && req.isAuthenticated() && req.user ? (req.user as any).userId : null;
+      const intentOwner = paymentIntent.metadata.userId;
+      if (sessionUserId ? intentOwner !== sessionUserId : intentOwner !== "guest" && studentCount > 1) {
+        console.error(`SECURITY: checkout/complete for ${paymentIntentId} by a caller who did not create it`);
+        return res.status(403).json({ message: "This payment belongs to another session.", code: "PAYMENT_NOT_YOURS" });
+      }
+      // The name stamped before confirmation wins; the request's is a fallback
+      // for a stamp that failed (it is a label, not money).
+      const organizationName = (paymentIntent.metadata.organizationName ?? "").trim() || requestedOrganizationName;
 
       // IDEMPOTENCY CHECK: Prevent double-processing of same payment
       if (paymentIntent.metadata.processed === "true") {

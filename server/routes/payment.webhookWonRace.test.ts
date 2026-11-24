@@ -98,10 +98,14 @@ const SUCCEEDED_INTENT = {
   amount: 180000,
   currency: "aed",
   customer: null,
-  metadata: { expectedAmount: "180000", countryId: "uae" },
+  created: 1_700_000_000,
+  // As create-payment-intent writes it for a signed-out group buyer.
+  metadata: { expectedAmount: "180000", countryId: "uae", studentCount: "5", userId: "guest" },
 };
 
-const BUYER = { id: "u-buyer", email: "buyer@school.test", username: "buyer", firstName: "A" };
+// Created by the webhook for THIS payment, so newer than the intent: the only
+// existing account a signed-out buyer may complete against.
+const BUYER = { id: "u-buyer", email: "buyer@school.test", username: "buyer", firstName: "A", passwordHash: "x", createdAt: new Date(1_700_000_100_000) };
 
 const GROUP_BODY = {
   paymentIntentId: PI_ID,

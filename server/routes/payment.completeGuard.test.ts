@@ -56,7 +56,9 @@ const SUCCEEDED_INTENT = {
   status: "succeeded",
   amount: 1000,
   customer: null,
-  metadata: { expectedAmount: "1000" },
+  // As create-payment-intent writes it: a one-seat intent exists only for a
+  // signed-in creator, so it names them.
+  metadata: { expectedAmount: "1000", studentCount: "1", userId: "u-1" },
 };
 
 async function post(body: unknown): Promise<{ status: number; body: any }> {
