@@ -7,7 +7,8 @@ import { useTranslation } from "react-i18next";
  * while landing.json already held the Arabic for each one, so an Arabic
  * report ended in three English lines.
  */
-export function Footer() {
+export function Footer({ openInNewTab = false }: { openInNewTab?: boolean } = {}) {
+  const tab = openInNewTab ? { target: "_blank", rel: "noopener noreferrer" } : {};
   const { t } = useTranslation("landing");
   const { t: tc } = useTranslation("common");
   return (
@@ -22,15 +23,15 @@ export function Footer() {
         </p>
 
         <div className="flex flex-wrap items-center justify-center gap-4 text-xs mb-4">
-          <Link href="/privacy" className="hover:text-foreground transition-colors" data-testid="link-privacy">
+          <Link href="/privacy" {...tab} className="hover:text-foreground transition-colors" data-testid="link-privacy">
             {t("footer.privacy")}
           </Link>
           <span>•</span>
-          <Link href="/terms" className="hover:text-foreground transition-colors" data-testid="link-terms">
+          <Link href="/terms" {...tab} className="hover:text-foreground transition-colors" data-testid="link-terms">
             {t("footer.terms")}
           </Link>
           <span>•</span>
-          <Link href="/disclaimer" className="hover:text-foreground transition-colors" data-testid="link-disclaimer">
+          <Link href="/disclaimer" {...tab} className="hover:text-foreground transition-colors" data-testid="link-disclaimer">
             {t("footer.disclaimer")}
           </Link>
         </div>

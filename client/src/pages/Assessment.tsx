@@ -21,6 +21,7 @@ import { withReturnTo, currentPathWithQuery } from "@/lib/returnTo";
 import type { Assessment as AssessmentRecord } from "@shared/schema";
 import { useAssessmentAvailability } from "@/hooks/useAssessmentAvailability";
 import { PageLayout } from "@/components/layout/PageLayout";
+import { Footer } from "@/components/layout/Footer";
 import { homePathFor } from "@/lib/signInDestination";
 import { deriveFreeResumeStep, finalInputStep, pickDraftToResume, totalStepsForTier } from "@shared/assessmentFlow";
 import { FREE_ASSESSMENT_CAP } from "@shared/assessmentLimits";
@@ -1793,6 +1794,9 @@ export default function Assessment() {
           />
         )}
       </div>
+      {/* The footer (owner, 2026-11-25). Its links open in a new tab here, so
+          reading the Terms mid-assessment does not leave the form. */}
+      <Footer openInNewTab />
     </main>
   );
 }
