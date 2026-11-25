@@ -1651,10 +1651,17 @@ so a student with one assessment in progress got a link to a raw 404.
   - **SEEN LIVE, 2026-11-22, build `6049132`, `ali.ali`:** the home card
     "You have an assessment in progress"; Continue opened step 4 (Quiz) of
     his Grade 9 row with no second question.
-- **EVERY SIGN-IN LANDS ON THE HOME PAGE (owner, 2026-11-20).** It used to
+- **STAFF LAND ON THEIR DASHBOARD, EVERYONE ELSE ON THE HOME PAGE (owner,
+  2026-11-25, revising 2026-11-20).** A superadmin signing in landed on the
+  home page and asked why; now `signInDestination` (4 tests) sends a
+  superadmin to `/superadmin` and a school admin to `/admin/organizations`,
+  reading `accountType` from `/api/auth/user` after sign-in. Driven in a
+  browser against the harness as all three roles. The 2026-11-20 rule
+  below still holds for students and individuals.
+- **SIGN-IN LANDS ON THE HOME PAGE FOR STUDENTS (owner, 2026-11-20).** It used to
   send a student or individual straight into `/assessment` (step 1 for an
   individual with nothing in progress). `StudentLogin.tsx` now goes to `/`
-  for every role; the home page offers each role its own next step, and a
+  for students and individuals; the home page offers each role its own next step, and a
   student or individual with an assessment in progress
   (`pickDraftToResume`, the same rule the form uses) gets a card,
   "You have an assessment in progress", with Continue / Start over. The
