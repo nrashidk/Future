@@ -1651,14 +1651,19 @@ so a student with one assessment in progress got a link to a raw 404.
   - **SEEN LIVE, 2026-11-22, build `6049132`, `ali.ali`:** the home card
     "You have an assessment in progress"; Continue opened step 4 (Quiz) of
     his Grade 9 row with no second question.
-- **STAFF LAND ON THEIR DASHBOARD, EVERYONE ELSE ON THE HOME PAGE (owner,
-  2026-11-25, revising 2026-11-20).** A superadmin signing in landed on the
-  home page and asked why; now `signInDestination` (4 tests) sends a
-  superadmin to `/superadmin` and a school admin to `/admin/organizations`,
-  reading `accountType` from `/api/auth/user` after sign-in. Driven in a
-  browser against the harness as all three roles. The 2026-11-20 rule
-  below still holds for students and individuals.
-- **SIGN-IN LANDS ON THE HOME PAGE FOR STUDENTS (owner, 2026-11-20).** It used to
+- **EACH ROLE HAS A HOME, AND SIGN-IN AND THE LOGO BOTH GO THERE (owner,
+  2026-11-25, replacing the 2026-11-20 rule below).** `homePathFor`
+  (`lib/signInDestination.ts`, 4 tests): superadmin `/superadmin`, school
+  admin `/admin/organizations`, any other signed-in account `/assessment`
+  (continue / start over, or the repeat screens), nobody signed in `/`.
+  **There is no parent login**: every non-staff account is a student's.
+  The logo on every page with its own header (Header, Profile, Progress,
+  Admin, Analytics, Schools, Superadmin, Assessment) uses it; on
+  `/assessment` a student's logo stays put and scrolls up. The form now
+  carries the site footer, links in a new tab. Driven in a browser against
+  the harness as all three roles. The legal pages' "Back to home" still go
+  to `/`. The home page's in-progress card stays for anyone who opens `/`.
+- **(SUPERSEDED 2026-11-25) SIGN-IN LANDED ON THE HOME PAGE (owner, 2026-11-20).** It used to
   send a student or individual straight into `/assessment` (step 1 for an
   individual with nothing in progress). `StudentLogin.tsx` now goes to `/`
   for students and individuals; the home page offers each role its own next step, and a
