@@ -26,7 +26,50 @@ const TCP_PORT = Number(process.env.PGLITE_TCP_PORT ?? 55432);
 const WS_PORT = Number(process.env.PGLITE_WS_PORT ?? 55433);
 const DATA_DIR = process.env.PGLITE_DIR ?? undefined; // undefined = in-memory
 
+/**
+ * REAL_PG_PORT: bridge to a REAL PostgreSQL instead of PGlite (2026-11-25).
+ * PGlite has one connection, so no race can be tested on it (CLAUDE.md, "A
+ * RACE CANNOT BE TESTED IN THIS HARNESS"). With a real server the WebSocket
+ * leg is the same and the app's driver is unchanged; only the far end differs.
+ * `pglite` is then a small shim exposing exec/query/close over a pg Client,
+ * so schema-push and the suites' SQL work either way.
+ */
+async function startRealPgBridge(port) {
+  const { Client } = await import("pg");
+  const url = `postgres://postgres:postgres@127.0.0.1:${port}/postgres`;
+  const client = new Client({ connectionString: url });
+  await client.connect();
+  const wss = new WebSocketServer({ port: WS_PORT });
+  wss.on("connection", (ws) => splice(ws, port));
+  await new Promise((r) => wss.once("listening", r));
+  return {
+    pglite: {
+      exec: (q) => client.query(q),
+      query: (q, p) => client.query(q, p),
+      close: () => client.end(),
+    },
+    url,
+    wsPort: WS_PORT,
+    async stop() { wss.close(); await client.end(); },
+  };
+}
+
+function splice(ws, port) {
+  const sock = net.connect(port, "127.0.0.1");
+  const pending = [];
+  let open = false;
+  sock.on("connect", () => { open = true; for (const c of pending) sock.write(c); pending.length = 0; });
+  ws.on("message", (data) => {
+    const buf = Buffer.isBuffer(data) ? data : Buffer.from(data);
+    if (open) sock.write(buf); else pending.push(buf);
+  });
+  sock.on("data", (buf) => { if (ws.readyState === ws.OPEN) ws.send(buf); });
+  const shut = () => { try { sock.destroy(); } catch {} try { ws.close(); } catch {} };
+  ws.on("close", shut); ws.on("error", shut); sock.on("close", shut); sock.on("error", shut);
+}
+
 export async function startDatabase() {
+  if (process.env.REAL_PG_PORT) return startRealPgBridge(Number(process.env.REAL_PG_PORT));
   const pglite = await PGlite.create(DATA_DIR);
   // maxConnections defaults to 1, and the app's pool opens several. With the
   // default, concurrent connections are dropped and every query fails with
