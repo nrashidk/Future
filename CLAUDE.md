@@ -170,7 +170,7 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `migration-039-dryrun`, plus `premium-solo`, `individual-licences` and
 `migration-041-dryrun` and `migration-042-dryrun`, plus
 `erase-after-email-change`, `erase-charged-student` and `country-delete`, plus
-`reserved-email`, `reset-unlocks`, `login-limit`, `career-profiles`, `free-signup`, `school-topup`, `analytics-sectors`, `contribution-fix`, `migration-045-dryrun`, `migration-046-dryrun`, `migration-047-dryrun`, `migration-048-dryrun` and `migration-044-dryrun` (run 044's dry-run LAST: between its
+`reserved-email`, `reset-unlocks`, `login-limit`, `career-profiles`, `free-signup`, `school-topup`, `analytics-sectors`, `contribution-fix`, `migration-045-dryrun`, `migration-046-dryrun`, `migration-047-dryrun`, `migration-048-dryrun`, `admin-boundaries`, `migration-049-dryrun` and `migration-044-dryrun` (run 044's dry-run LAST: between its
 DOWN and UP the app's schema is missing two `users` columns).
 
 `webhook-idempotency`, `webhook-group-backstop` and `setup-invite` need two
@@ -950,6 +950,44 @@ assessment exists (`completedAssessmentCount`). It used to key off the total,
 so a student with one assessment in progress got a link to a raw 404.
 
 ## Known open items
+
+- **THE PRE-LAUNCH REVIEW, 2026-11-24** (`docs/launch-readiness.md` is the
+  pending list; read it when asked what is left before launch). All 72 harness
+  suites passed, each on a FRESH `.pgdata` with `up.ts` restarted (runner:
+  fresh db + server per suite; the only skips need Stripe, Resend or
+  Anthropic). An independent agent then reviewed every route and found four
+  real holes, each proved by running, fixed, and tested against the old code:
+  - **CRITICAL: `/api/checkout/complete` granted the `studentCount` in the
+    REQUEST BODY.** Pay for 2, send 100000, get a school with 100000 licences
+    and a matching ledger row (reconciliation blind). Now the count is the
+    intent's metadata and must agree; the intent's `userId` must be the
+    session's (or `guest` signed out); the stamped school name wins.
+    `payment.completeTrust.test.ts` T-01..T-03, T-06.
+  - **HIGH: a typed email upgraded an EXISTING account and made it a school's
+    admin** (/complete's signed-out branch and the webhook backstop from the
+    stamped `buyerEmail`). An account OLDER than the payment is never touched
+    on a typed address: /complete answers `LOGIN_REQUIRED`, the webhook logs
+    `SECURITY:` and grants nothing (manual review), the preflight refuses
+    before the charge. The webhook's own account for THIS payment is newer,
+    so the race recovery is unchanged. T-04/T-05, `premiumGrant.race` +2,
+    `checkout-preflight` X-04/05/06/10 (their old assertions WERE the hole).
+  - **HIGH: the roster routes acted on ADMIN rows.** A second admin could
+    reset the primary's password and be shown it. Non-superadmins get 403
+    `NOT_A_STUDENT` on reset, bulk reset, PATCH, DELETE, bulk-delete.
+    `admin-boundaries.mjs` A-01..A-06.
+  - **HIGH: a REMOVED school admin kept the school** through
+    `organizations.admin_user_id`, which promote never moved. The school is
+    now resolved from an ADMIN MEMBERSHIP row only, promote moves the column,
+    and migration 049 backfills a row for any registered admin lacking one
+    (not for one an `admin_removed` event names). A-07/A-09,
+    `migration-049-dryrun`. **A suite that plants a school in SQL must plant
+    the admin membership too** -- `school-setup-link` did not, and failed.
+  - Live site: HSTS, strict CSP (no inline script), XFO, nosniff; session
+    cookie HttpOnly/Secure/SameSite=strict (code + HSTS proves production
+    mode). DNS: DKIM and Resend's SPF present, **DMARC is `p=none`**
+    (monitor only; spoofed mail from futurepath.ae is not rejected), no CAA.
+  - LOW, not changed: `/api/public/organizations` lists every school's name
+    publicly (landing page) with no opt-in.
 
 - **THE FIRST GROUP PURCHASE WALKED LIVE, 2026-11-14** (signed out,
   `/checkout?students=100&country=uae`, test card typed by the owner, AED

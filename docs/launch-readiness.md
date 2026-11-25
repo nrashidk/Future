@@ -25,11 +25,19 @@ Status: ⏳ open · ✅ done · 🔍 in progress. Owner = who has to act.
 
 | # | Item | Status |
 |---|---|---|
-| 9 | Live site: HTTPS, security headers, cookie flags; email DNS (SPF / DKIM / DMARC) | 🔍 |
-| 10 | Inventory every API route against its guard and whether any test covers it | 🔍 |
-| 11 | Independent security review by a separate agent | 🔍 |
-| 12 | Every harness suite on a fresh database, one at a time | 🔍 |
+| 9 | Live site: HTTPS, security headers, cookie flags; email DNS (SPF / DKIM / DMARC) | ✅ 2026-11-24: headers and cookies sound. DMARC is `p=none` — see 15 |
+| 10 | Inventory every API route against its guard and whether any test covers it | ✅ 2026-11-24: 212 routes; every staff route has a role check; ~30 superadmin routes are guarded but exercised by no test (guard verified by reading) |
+| 11 | Independent security review by a separate agent | ✅ 2026-11-24: 4 real holes (1 CRITICAL, 3 HIGH), all fixed and tested — see results log |
+| 12 | Every harness suite on a fresh database, one at a time | ✅ 2026-11-24: 72/72 suites pass |
 | 13 | Data-subject request (export / deletion) end to end on the live site | ⏳ |
+
+## Found by the checks
+
+| # | Item | Owner | Status |
+|---|---|---|---|
+| 15 | DMARC for futurepath.ae is `p=none` (monitor only): anyone can send mail that claims to be from futurepath.ae and it is not rejected. Change the `_dmarc` record to `p=quarantine` once reports show only Resend sending | Nasser (DNS) | ⏳ |
+| 16 | The public landing page lists every school's name with no opt-in. Customers' names need their consent | Nasser (decision) | ⏳ |
+| 17 | `/health` showed `stale: true` on 2026-11-25: the free instance slept and the 72-hour deletions did not run. Fixed by items 3 and 4 | Nasser | ⏳ |
 
 ## Switch that flips at launch
 
@@ -38,3 +46,4 @@ Status: ⏳ open · ✅ done · 🔍 in progress. Owner = who has to act.
 | 14 | From the first real school: staging first, reversible migration with before/after counts. Point Render at a `release` branch so a push to `main` no longer deploys | Claude prepares, Nasser switches in Render | ⏳ |
 
 ## Results log
+- 2026-11-24 — independent review found and Claude fixed: (1) CRITICAL checkout granted the licence count sent by the browser; (2) HIGH a typed email at checkout upgraded an existing account and made it a school admin; (3) HIGH a second school admin could reset the primary admin's password and see it; (4) HIGH a removed school admin kept the school. Each proved by running, fixed, tested against the old code; migration 049 protects existing admins on deploy.
