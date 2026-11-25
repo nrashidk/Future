@@ -76,6 +76,14 @@ const [org] = await sql(
    VALUES (gen_random_uuid(), $1, $2, 100, 0, 'uae') RETURNING id`,
   [`Setup School ${tag}`, user.id],
 );
+// The admin membership createGroupPurchaseTransaction writes beside the school.
+// Since 2026-11-24 a school is resolved from that row, not from
+// admin_user_id alone (a removed admin kept the school through the column).
+await sql(
+  `INSERT INTO organization_members (id, organization_id, user_id, role, is_primary_admin)
+   VALUES (gen_random_uuid(), $1, $2, 'admin', true)`,
+  [org.id, user.id],
+);
 
 /**
  * expires_at is written with a SQL INTERVAL, never a parameterised JS Date.
