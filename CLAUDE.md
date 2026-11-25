@@ -170,7 +170,7 @@ Suites: `guest`, `student`, `parent`, `admin`, `cross-tenant`, `report`,
 `migration-039-dryrun`, plus `premium-solo`, `individual-licences` and
 `migration-041-dryrun` and `migration-042-dryrun`, plus
 `erase-after-email-change`, `erase-charged-student` and `country-delete`, plus
-`reserved-email`, `reset-unlocks`, `login-limit`, `career-profiles`, `free-signup`, `school-topup`, `analytics-sectors`, `contribution-fix`, `migration-045-dryrun`, `migration-046-dryrun`, `migration-047-dryrun`, `migration-048-dryrun`, `admin-boundaries`, `migration-049-dryrun` and `migration-044-dryrun` (run 044's dry-run LAST: between its
+`reserved-email`, `reset-unlocks`, `login-limit`, `career-profiles`, `free-signup`, `school-topup`, `analytics-sectors`, `contribution-fix`, `migration-045-dryrun`, `migration-046-dryrun`, `migration-047-dryrun`, `migration-048-dryrun`, `admin-boundaries`, `migration-049-dryrun`, `races` (REAL Postgres only, see below) and `migration-044-dryrun` (run 044's dry-run LAST: between its
 DOWN and UP the app's schema is missing two `users` columns).
 
 `webhook-idempotency`, `webhook-group-backstop` and `setup-invite` need two
@@ -272,6 +272,21 @@ terminated unexpectedly", which reads exactly like a schema fault and is not
 one. A suite that fails in a batch and passes alone was never broken. Suites
 also share one database, so state accumulates — confirm any failure on a fresh
 `.pgdata` before believing it.
+
+**RACES NOW HAVE A REAL POSTGRES (2026-11-25).** `testing/local/realpg.sh
+races [suite ...]` starts a throwaway Postgres 16 (the binaries are in this
+container at `/usr/lib/postgresql/16/bin`), wipes it, pushes the schema and
+boots `up.ts` with `REAL_PG_PORT`, which makes `db-bridge.mjs` splice the
+driver's WebSocket to the real server instead of PGlite. Requests then really
+overlap: a SELECT-then-INSERT webhook claim fails W-07 there with fresh=8, and
+removing the setup-link advisory lock fails `races.mjs` R-01 with three live
+links. **Use it for anything concurrent; a green concurrency case on PGlite
+still proves nothing.** It found that two simultaneous charges left
+`used_licenses` one SHORT of the ledger (each transaction counted only its own
+row); `consumeLicense` now locks the school row first (R-05). R-04 measures,
+and does not assert, the overdraw at the end of a balance: the pool is checked
+when an assessment starts, never when the report is charged -- owner's
+decision, `docs/launch-readiness.md` item 18.
 
 ## How tests lie here — read this before trusting a pass
 
