@@ -4665,6 +4665,20 @@ export class DatabaseStorage implements IStorage {
       poolOwnerType = 'organization';
       organizationId = member.organizationId;
 
+      /**
+       * ONE SCHOOL'S CHARGES ARE SERIALISED (2026-11-25, found on real
+       * Postgres -- PGlite has one connection and cannot show it). Two
+       * students finishing at the same moment each counted the ledger inside
+       * their own transaction, each saw only its own new row, and both wrote
+       * used_licenses = 1 over a ledger holding 2: the counter "set from a
+       * count" drifted after all, and drifted LOW, which hands out licences
+       * the school does not have. It also let both read the same last reward
+       * credit. Locking the school row first makes the second charge wait for
+       * the first to commit; under READ COMMITTED its later statements then
+       * see that row. races.mjs R-05.
+       */
+      await tx.execute(sql`SELECT 1 FROM organizations WHERE id = ${member.organizationId} FOR UPDATE`);
+
       const [org] = await tx
         .select({
           rewardCredits: organizations.rewardCredits,
