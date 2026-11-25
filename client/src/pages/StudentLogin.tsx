@@ -12,7 +12,7 @@ import { useLocation, Link } from "wouter";
 import { GraduationCap, Eye, EyeOff } from "lucide-react";
 import { queryClient } from "@/lib/queryClient";
 import { LanguageToggle } from "@/components/layout/LanguageToggle";
-import { signInDestination } from "@/lib/signInDestination";
+import { homePathFor } from "@/lib/signInDestination";
 
 export default function StudentLogin() {
   const { t } = useTranslation("auth");
@@ -54,16 +54,16 @@ export default function StudentLogin() {
           description: t("studentLogin.successDesc"),
         });
         
-        // Staff land on their own screen; students and parents on the home
-        // page, which offers to continue an assessment in progress
-        // (signInDestination). The role comes from /api/auth/user, which
-        // reports a superadmin as such; if that read fails, home is safe.
+        // Each role lands on its own home (homePathFor): staff on their
+        // dashboard, a student on /assessment, which offers to continue an
+        // assessment in progress or start over. The role comes from
+        // /api/auth/user; if that read fails, the public home page is safe.
         let accountType: string | undefined;
         try {
           const me = await fetch("/api/auth/user", { credentials: "include" });
           if (me.ok) accountType = (await me.json())?.accountType;
         } catch {}
-        navigate(signInDestination(accountType));
+        navigate(homePathFor(accountType));
       } else {
         const error = await response.json();
         toast({

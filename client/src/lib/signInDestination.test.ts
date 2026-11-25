@@ -1,15 +1,16 @@
 import { describe, it, expect } from "vitest";
-import { signInDestination } from "./signInDestination";
+import { homePathFor } from "./signInDestination";
 
-describe("signInDestination", () => {
-  it("sends a superadmin to the dashboard", () => expect(signInDestination("superadmin")).toBe("/superadmin"));
-  it("sends a school admin to their school", () => expect(signInDestination("org_admin")).toBe("/admin/organizations"));
-  it("keeps students and individuals on the home page", () => {
-    expect(signInDestination("org_student")).toBe("/");
-    expect(signInDestination("individual")).toBe("/");
+describe("homePathFor", () => {
+  it("sends a superadmin to the dashboard", () => expect(homePathFor("superadmin")).toBe("/superadmin"));
+  it("sends a school admin to their school", () => expect(homePathFor("org_admin")).toBe("/admin/organizations"));
+  it("sends a student, school or individual, to the assessment page", () => {
+    expect(homePathFor("org_student")).toBe("/assessment");
+    expect(homePathFor("individual")).toBe("/assessment");
   });
-  it("falls back to the home page when the role is unknown", () => {
-    expect(signInDestination(undefined)).toBe("/");
-    expect(signInDestination(null)).toBe("/");
+  it("sends nobody signed in to the public home page", () => {
+    expect(homePathFor(undefined)).toBe("/");
+    expect(homePathFor(null)).toBe("/");
+    expect(homePathFor("")).toBe("/");
   });
 });

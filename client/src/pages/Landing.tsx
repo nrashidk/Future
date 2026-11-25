@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
+import { homePathFor } from "@/lib/signInDestination";
 import { useAuth } from "@/hooks/useAuth";
 import { pickDraftToResume } from "@shared/assessmentFlow";
 
@@ -79,11 +80,7 @@ export default function Landing() {
    */
   const { user, isAuthenticated } = useAuth();
   const signedIn = isAuthenticated && !!user;
-  const homeFor = user?.accountType === "superadmin"
-    ? "/superadmin"
-    : user?.accountType === "org_admin"
-      ? "/admin/organizations"
-      : "/assessment";
+  const homeFor = homePathFor(user?.accountType ?? "individual");
   const handleContinue = () => setLocation(homeFor);
 
   // EVERY SIGN-IN LANDS HERE (owner, 2026-11-20), so a student or individual

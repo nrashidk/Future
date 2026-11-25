@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { homePathFor } from "@/lib/signInDestination";
 import { queryClient, apiRequest, serverErrorMessage } from "@/lib/queryClient";
 import { Home, Plus, Download, Upload, Edit, Trash2, GraduationCap, User, LogOut, Building2, Shield, BarChart, FileQuestion, Search } from "lucide-react";
 import { AnnouncementBanner } from "@/components/AnnouncementBanner";
@@ -194,7 +195,7 @@ function AdminQuizBank() {
     <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10">
       <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-sm border-b">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 hover-elevate rounded-lg px-3 py-2">
+          <Link href={homePathFor(user?.accountType)} className="flex items-center gap-2 hover-elevate rounded-lg px-3 py-2">
             <GraduationCap className="w-6 h-6 text-primary" />
             <span className="font-bold text-lg">{t('nav.brand')}</span>
             {user?.accountType === 'superadmin' && <Badge variant="secondary">{t('badges.superadmin')}</Badge>}

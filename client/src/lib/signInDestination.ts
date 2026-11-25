@@ -1,15 +1,20 @@
 /**
- * Where a sign-in lands (owner, 2026-11-25, revising 2026-11-20).
+ * Each signed-in person's own home (owner, 2026-11-25).
  *
- * Staff go straight to their own screen: a superadmin to the dashboard, a
- * school admin to their school. Everyone else lands on the home page, which
- * asks a student with an assessment in progress whether to continue
- * or start over -- the reason the home page was made the landing at all, and a
- * question staff never have. `accountType` is the one /api/auth/user answers,
- * which reports a superadmin as "superadmin" whatever the stored column says.
+ * Used for where a sign-in lands AND where the logo goes, so the two cannot
+ * disagree. A superadmin's home is the dashboard, a school admin's is their
+ * school, and a student's is /assessment, which asks whether to continue an
+ * assessment in progress or start over (or says the report for this grade is
+ * ready). Nobody signed in -- or a role this cannot read -- goes to the public
+ * home page. Every account that signs in other than staff is a student's:
+ * there is no parent login.
+ *
+ * `accountType` is the one /api/auth/user answers, which reports a superadmin
+ * as "superadmin" whatever the stored column says.
  */
-export function signInDestination(accountType: string | null | undefined): string {
+export function homePathFor(accountType: string | null | undefined): string {
   if (accountType === "superadmin") return "/superadmin";
   if (accountType === "org_admin") return "/admin/organizations";
+  if (accountType) return "/assessment";
   return "/";
 }

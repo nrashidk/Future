@@ -21,6 +21,7 @@ import { withReturnTo, currentPathWithQuery } from "@/lib/returnTo";
 import type { Assessment as AssessmentRecord } from "@shared/schema";
 import { useAssessmentAvailability } from "@/hooks/useAssessmentAvailability";
 import { PageLayout } from "@/components/layout/PageLayout";
+import { homePathFor } from "@/lib/signInDestination";
 import { deriveFreeResumeStep, finalInputStep, pickDraftToResume, totalStepsForTier } from "@shared/assessmentFlow";
 import { FREE_ASSESSMENT_CAP } from "@shared/assessmentLimits";
 import { toCanonicalGrade } from "@shared/grade";
@@ -322,6 +323,10 @@ export default function Assessment() {
 
   // Guard 3 — SPA header nav buttons.
   // Intentional setLocation("/results…") calls bypass this by using setLocation directly.
+  // The logo goes to each person's own home (homePathFor): a signed-in
+  // student's is this page, staff go to their dashboard, a guest to "/".
+  const logoHref = isAuthenticated ? homePathFor(user?.accountType) : "/";
+
   const guardedNavigate = useCallback((path: string) => {
     if (!isInProgress || window.confirm(t("leaveConfirm"))) {
       setLocation(path);
@@ -1460,11 +1465,14 @@ export default function Assessment() {
               "open in new tab" to guard against a loss that cannot happen. The
               plain click is the only one that leaves. */}
           <a
-            href="/"
+            href={logoHref}
             onClick={(e) => {
               if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
               e.preventDefault();
-              guardedNavigate("/");
+              // A student's home IS this page (owner, 2026-11-25), so the
+              // logo stays here and asks nothing; it only scrolls to the top.
+              if (logoHref === "/assessment") { window.scrollTo({ top: 0, behavior: "smooth" }); return; }
+              guardedNavigate(logoHref);
             }}
             className="flex items-center gap-3 hover-elevate rounded-lg px-3 py-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
             data-testid="link-home"
